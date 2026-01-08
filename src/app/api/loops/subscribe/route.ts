@@ -40,4 +40,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Error updating contact' }, { status: 500 });
   }
-} 
+}

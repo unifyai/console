@@ -1,4 +1,4 @@
-import { ResponseProps } from "../common";
+import { ResponseProps } from '../common';
 
 export interface Secret {
   logId: number;
@@ -8,9 +8,9 @@ export interface Secret {
 }
 
 export interface SecretPayload {
-    name: string;
-    value: string;
-    description?: string;
+  name: string;
+  value: string;
+  description?: string;
 }
 
 export interface SecretActions {

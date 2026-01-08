@@ -13,5 +13,5 @@ export type UnifyErrorData = z.infer<typeof unifyErrorDataSchema>;
 
 export const unifyFailedResponseHandler = createJsonErrorResponseHandler({
   errorSchema: unifyErrorDataSchema,
-  errorToMessage: data => data.message,
+  errorToMessage: (data) => data.message,
 });

@@ -1,30 +1,21 @@
-"use client";
+'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useId } from "react";
+import React, { useState, useMemo, useEffect, useRef, useId } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription
-} from "@/components/UI/dialog";
-import {
-  BarChart,
-  Bar,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  LabelList,
-  Tooltip,
-  Cell
-} from "recharts";
-import { GanttChart, ZoomIn, ZoomOut, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
-import { unifyTracesForChart, colorPalette } from "./unify";
-import { Span } from "@/types/interfaces/traces";
+  DialogDescription,
+} from '@/components/UI/dialog';
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList, Tooltip, Cell } from 'recharts';
+import { GanttChart, ZoomIn, ZoomOut, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { unifyTracesForChart, colorPalette } from './unify';
+import { Span } from '@/types/interfaces/traces';
 
 /**
  * TimelineViewButton now supports up to two subtree traces.
- * 
+ *
  * - If both baseTrace and targetTrace are provided, it displays them together.
  * - If only one is provided, it displays the single timeline.
  */
@@ -45,34 +36,36 @@ export default function TimelineViewButton({
   const [chartWidth, setChartWidth] = useState(1000);
   const [chartHeight, setChartHeight] = useState(600);
   const [zoomFactor, setZoomFactor] = useState(1); // Default zoom factor
-  const [customZoomInput, setCustomZoomInput] = useState("100"); // New state for custom zoom input
+  const [customZoomInput, setCustomZoomInput] = useState('100'); // New state for custom zoom input
   const [domainMin, setDomainMin] = useState(0); // Minimum value of the domain
-  const [domainMax, setDomainMax] = useState<number | string>("dataMax+0.2");
+  const [domainMax, setDomainMax] = useState<number | string>('dataMax+0.2');
   const [tick, setTick] = useState(0);
   const gidBase = useId(); // unique prefix for gradient ids
   const containerRef = React.useRef<HTMLDivElement>(null);
-  
+
   // Resolve the freshest Span objects when IDs + finder are provided.
   const liveBaseSpan = baseSpanId && findSpanById ? findSpanById(baseSpanId) : undefined;
   const liveTargetSpan = targetSpanId && findSpanById ? findSpanById(targetSpanId) : undefined;
 
   // Memoize to keep array reference stable between renders unless content truly changes
-  const baseTrace = React.useMemo(() => (
-    liveBaseSpan ? [liveBaseSpan] : initialBaseTrace
-  ), [liveBaseSpan, initialBaseTrace]);
+  const baseTrace = React.useMemo(
+    () => (liveBaseSpan ? [liveBaseSpan] : initialBaseTrace),
+    [liveBaseSpan, initialBaseTrace]
+  );
 
-  const targetTrace = React.useMemo(() => (
-    liveTargetSpan ? [liveTargetSpan] : initialTargetTrace
-  ), [liveTargetSpan, initialTargetTrace]);
+  const targetTrace = React.useMemo(
+    () => (liveTargetSpan ? [liveTargetSpan] : initialTargetTrace),
+    [liveTargetSpan, initialTargetTrace]
+  );
 
   // Store trace names for better identification in tooltips
   const traceNames = useMemo(() => {
     const names: string[] = [];
     if (baseTrace?.length) {
-      names[0] = "Base Trace";
+      names[0] = 'Base Trace';
     }
     if (targetTrace?.length) {
-      names[names.length] = "Target Trace";
+      names[names.length] = 'Target Trace';
     }
     return names;
   }, [baseTrace, targetTrace]);
@@ -85,9 +78,9 @@ export default function TimelineViewButton({
         setChartWidth(baseWidth);
         setChartHeight(Math.min(800, window.innerHeight * 0.7));
       };
-      
+
       updateDimensions();
-      
+
       // Add resize listener in case user resizes window with dialog open
       window.addEventListener('resize', updateDimensions);
       return () => window.removeEventListener('resize', updateDimensions);
@@ -129,7 +122,7 @@ export default function TimelineViewButton({
     // Extract earliest absolute timestamp if available
     const absTimes = flatRoots
       .map((s) => (s.timestamp ? Date.parse(s.timestamp) / 1000 : undefined))
-      .filter((n): n is number => typeof n === "number" && !isNaN(n));
+      .filter((n): n is number => typeof n === 'number' && !isNaN(n));
 
     if (absTimes.length) {
       // Use the LATEST trace start as the zero-point; this keeps durations
@@ -156,7 +149,10 @@ export default function TimelineViewButton({
     chartData.forEach((raw) => {
       const itemAny = raw as any;
       Object.keys(itemAny).forEach((key) => {
-        if ((key.startsWith('start-') || key.startsWith('length-')) && typeof itemAny[key] === 'number') {
+        if (
+          (key.startsWith('start-') || key.startsWith('length-')) &&
+          typeof itemAny[key] === 'number'
+        ) {
           if (key.startsWith('start-')) {
             const lengthKey = key.replace('start-', 'length-');
             const total = itemAny[key] + (itemAny[lengthKey] || 0);
@@ -172,13 +168,12 @@ export default function TimelineViewButton({
   useEffect(() => {
     // More pronounced padding to make domain changes more visible
     const basePadding = isSingleTrace ? 0.6 : 0.2;
-    
+
     // Fixed domain regardless of zoom, as we're scaling the chart size instead
     setDomainMin(0);
     setDomainMax(maxValue + basePadding);
-    
   }, [maxValue, isSingleTrace]);
-  
+
   // Reset zoom when chart data changes or dialog reopens
   useEffect(() => {
     if (!open) return; // run only when dialog opens
@@ -190,7 +185,7 @@ export default function TimelineViewButton({
   const processedChartData = useMemo(() => {
     return chartData;
   }, [chartData]);
-  
+
   // Calculate earliest start time to trim leading empty space (used for shifting data)
   const minStart = useMemo(() => {
     let min = Number.MAX_VALUE;
@@ -203,7 +198,7 @@ export default function TimelineViewButton({
     });
     return min === Number.MAX_VALUE ? 0 : min;
   }, [chartData]);
-  
+
   // Center the view on initial load and after zoom changes
   useEffect(() => {
     if (!open) return;
@@ -249,46 +244,44 @@ export default function TimelineViewButton({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      
+
       // Get valid traces (ones with actual data)
       const validTraces = Object.keys(data)
-        .filter((key) => key.startsWith("length-"))
+        .filter((key) => key.startsWith('length-'))
         .map((key) => {
-          const idx = key.replace("length-", "");
+          const idx = key.replace('length-', '');
           const traceIndex = Number(idx);
           const startKey = `start-${idx}`;
           const st = data[startKey] ?? 0;
           const ln = data[key] ?? 0;
           return { traceIndex, start: st, length: ln, end: st + ln };
         })
-        .filter(t => t.length > 0);
-      
+        .filter((t) => t.length > 0);
+
       // If no valid traces, don't show tooltip
       if (validTraces.length === 0) return null;
-      
+
       return (
-        <div className="bg-background border border-border p-2 rounded-md shadow-md max-w-xs">
+        <div className="max-w-xs rounded-md border border-border bg-background p-2 shadow-md">
           {/* Operation name - from the bar label */}
-          <p className="text-title border-b border-border pb-1 mb-2">{label}</p>
-          
+          <p className="text-title mb-2 border-b border-border pb-1">{label}</p>
+
           {/* Trace details */}
           {validTraces.map(({ traceIndex, start, length, end }) => (
             <div key={traceIndex} className="mb-2 border-b border-muted pb-1 last:border-0">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div 
-                  className="w-3 h-3 rounded-full" 
+              <div className="mb-1 flex items-center gap-1.5">
+                <div
+                  className="h-3 w-3 rounded-full"
                   style={{ backgroundColor: colorPalette[traceIndex % colorPalette.length] }}
                 />
                 <p className="text-body text-strong">
                   {traceNames[traceIndex] || `Trace ${traceIndex + 1}`}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-x-2 text-caption">
+              <div className="text-caption grid grid-cols-2 gap-x-2">
                 <p>Start: {start.toFixed(3)}s</p>
                 <p>End: {end.toFixed(3)}s</p>
-                <p className="col-span-2 font-medium">
-                  Duration: {length.toFixed(3)}s
-                </p>
+                <p className="col-span-2 font-medium">Duration: {length.toFixed(3)}s</p>
               </div>
             </div>
           ))}
@@ -304,12 +297,12 @@ export default function TimelineViewButton({
     const value = e.target.value.replace(/[^0-9]/g, '');
     setCustomZoomInput(value);
   };
-  
+
   // Apply custom zoom when user presses Enter or input loses focus
   const applyCustomZoom = () => {
     // Parse the input value as a number
     const zoomValue = parseInt(customZoomInput, 10);
-    
+
     // Validate the zoom value (100% to 1000%)
     if (!isNaN(zoomValue) && zoomValue >= 100 && zoomValue <= 1000) {
       // Convert percentage to factor (e.g., 200% -> 2)
@@ -320,7 +313,7 @@ export default function TimelineViewButton({
       setCustomZoomInput(Math.round(zoomFactor * 100).toString());
     }
   };
-  
+
   // Update the custom zoom input when zoom factor changes
   useEffect(() => {
     setCustomZoomInput(Math.round(zoomFactor * 100).toString());
@@ -328,7 +321,7 @@ export default function TimelineViewButton({
 
   // Handle zoom in
   const handleZoomIn = () => {
-    setZoomFactor(prev => {
+    setZoomFactor((prev) => {
       const newZoom = prev * 1.25; // More fine-grained zoom steps (changed from 1.5)
       // Cap zoom to prevent over-zooming - increased from 5 to 10
       return Math.min(newZoom, 10);
@@ -337,7 +330,7 @@ export default function TimelineViewButton({
 
   // Handle zoom out
   const handleZoomOut = () => {
-    setZoomFactor(prev => {
+    setZoomFactor((prev) => {
       const newZoom = prev / 1.25; // More fine-grained zoom steps (changed from 1.5)
       // Limit minimum zoom
       return Math.max(newZoom, 1);
@@ -360,7 +353,7 @@ export default function TimelineViewButton({
       containerRef.current.scrollLeft -= panAmount;
     }
   };
-  
+
   // Pan right
   const handlePanRight = () => {
     if (containerRef.current) {
@@ -377,7 +370,7 @@ export default function TimelineViewButton({
   const dynamicTicks = useMemo(() => {
     // Base number of intervals (4 intervals = 5 ticks at 100% zoom)
     const baseIntervals = 4;
-    
+
     // Calculate intervals based on zoom factor with diminishing returns
     // More intervals at higher zoom levels, but not too many to avoid overcrowding
     let intervals = baseIntervals;
@@ -388,17 +381,17 @@ export default function TimelineViewButton({
         Math.floor(baseIntervals + Math.log2(zoomFactor) * 10)
       );
     }
-    
+
     // Generate evenly spaced tick values
     const ticks = [];
     const step = maxValue / intervals;
-    
+
     // Create ticks with slight adjustments to ensure important values are included
     for (let i = 0; i <= intervals; i++) {
       const tickValue = step * i;
       ticks.push(tickValue);
     }
-    
+
     return ticks;
   }, [maxValue, zoomFactor]);
 
@@ -408,19 +401,23 @@ export default function TimelineViewButton({
     const availableWidth = scaledChartWidth - 200; // Account for margins
     const tickCount = dynamicTicks.length;
     const pixelsPerTick = availableWidth / tickCount;
-    
+
     // If ticks are too close together, reduce them
-    if (pixelsPerTick < 50) { // Minimum 50px between ticks
+    if (pixelsPerTick < 50) {
+      // Minimum 50px between ticks
       // Skip some ticks to maintain readability
       const skipFactor = Math.ceil(50 / pixelsPerTick);
       return dynamicTicks.filter((_, index) => index % skipFactor === 0);
     }
-    
+
     return dynamicTicks;
   }, [dynamicTicks, scaledChartWidth]);
 
   // Live ticker to refresh the chart while there are running spans
-  const traces = useMemo(() => [ ...(baseTrace ?? []), ...(targetTrace ?? []) ], [baseTrace, targetTrace]);
+  const traces = useMemo(
+    () => [...(baseTrace ?? []), ...(targetTrace ?? [])],
+    [baseTrace, targetTrace]
+  );
 
   useEffect(() => {
     function spanIsRunning(span: Span): boolean {
@@ -442,24 +439,22 @@ export default function TimelineViewButton({
       <button
         onClick={() => setOpen(true)}
         title="Show Timeline View"
-        className="p-1 hover:bg-muted rounded"
+        className="rounded p-1 hover:bg-muted"
       >
         <GanttChart className="h-4 w-4" />
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] w-fit h-fit p-4 overflow-hidden">
+        <DialogContent className="h-fit max-h-[90vh] w-fit max-w-[90vw] overflow-hidden p-4">
           <DialogHeader>
             <DialogTitle>Timeline View</DialogTitle>
-            <DialogDescription>
-              Timeline showing execution duration.
-            </DialogDescription>
+            <DialogDescription>Timeline showing execution duration.</DialogDescription>
           </DialogHeader>
-          
+
           {/* Enhanced Zoom Controls - Fixed position */}
-          <div className="mt-2 px-2 pb-3 border-b border-border">
-            <div className="flex space-x-2 items-center px-3 py-1.5 bg-background border border-border rounded-md shadow-sm w-fit">
-              <span className="text-caption text-muted-foreground mr-1">Zoom:</span>
+          <div className="mt-2 border-b border-border px-2 pb-3">
+            <div className="flex w-fit items-center space-x-2 rounded-md border border-border bg-background px-3 py-1.5 shadow-sm">
+              <span className="text-caption mr-1 text-muted-foreground">Zoom:</span>
               <div className="flex items-center">
                 <input
                   type="text"
@@ -467,47 +462,47 @@ export default function TimelineViewButton({
                   onChange={handleCustomZoomChange}
                   onBlur={applyCustomZoom}
                   onKeyDown={(e) => e.key === 'Enter' && applyCustomZoom()}
-                  className="w-12 h-6 text-caption px-1 border border-input rounded-sm mr-1 text-center"
+                  className="text-caption mr-1 h-6 w-12 rounded-sm border border-input px-1 text-center"
                   aria-label="Zoom percentage"
                 />
                 <span className="text-caption text-muted-foreground">%</span>
               </div>
-              <button 
-                onClick={handleZoomIn} 
-                className="p-1 rounded-md hover:bg-muted transition"
+              <button
+                onClick={handleZoomIn}
+                className="rounded-md p-1 transition hover:bg-muted"
                 title="Zoom In"
               >
                 <ZoomIn className="h-4 w-4" />
               </button>
-              <button 
-                onClick={handleZoomOut} 
-                className="p-1 rounded-md hover:bg-muted transition"
+              <button
+                onClick={handleZoomOut}
+                className="rounded-md p-1 transition hover:bg-muted"
                 title="Zoom Out"
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
-              <button 
-                onClick={handleResetZoom} 
-                className="p-1 rounded-md hover:bg-muted transition"
+              <button
+                onClick={handleResetZoom}
+                className="rounded-md p-1 transition hover:bg-muted"
                 title="Reset Zoom"
               >
                 <RotateCcw className="h-4 w-4" />
               </button>
-              
+
               {/* Pan controls - only show when zoomed in */}
               {zoomFactor > 1 && (
                 <>
                   <div className="mx-1 h-4 w-px bg-border" />
-                  <button 
-                    onClick={handlePanLeft} 
-                    className="p-1 rounded-md hover:bg-muted transition"
+                  <button
+                    onClick={handlePanLeft}
+                    className="rounded-md p-1 transition hover:bg-muted"
                     title="Pan Left"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <button 
-                    onClick={handlePanRight} 
-                    className="p-1 rounded-md hover:bg-muted transition"
+                  <button
+                    onClick={handlePanRight}
+                    className="rounded-md p-1 transition hover:bg-muted"
                     title="Pan Right"
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -516,17 +511,17 @@ export default function TimelineViewButton({
               )}
             </div>
           </div>
-          
+
           {/* Chart Container */}
           <div className="mt-4 h-full overflow-hidden">
             {processedChartData.length > 0 ? (
-              <div 
-                ref={containerRef} 
+              <div
+                ref={containerRef}
                 className="overflow-auto"
-                style={{ 
+                style={{
                   maxWidth: chartWidth,
                   height: containerHeight,
-                  overflowY: "auto",
+                  overflowY: 'auto',
                   // Only show horizontal scrollbar when zoomed in
                   //overflowX: zoomFactor > 1 ? "auto" : "hidden"
                 }}
@@ -544,11 +539,30 @@ export default function TimelineViewButton({
                 >
                   {/* Gradient definitions for running spans */}
                   <defs>
-                    {[0,1].map((idx) => (
-                      <linearGradient id={`${gidBase}-running-${idx}`} key={idx} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={1} />
-                        <stop offset="70%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={1} />
-                        <stop offset="100%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={0} />
+                    {[0, 1].map((idx) => (
+                      <linearGradient
+                        id={`${gidBase}-running-${idx}`}
+                        key={idx}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={colorPalette[idx % colorPalette.length]}
+                          stopOpacity={1}
+                        />
+                        <stop
+                          offset="70%"
+                          stopColor={colorPalette[idx % colorPalette.length]}
+                          stopOpacity={1}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={colorPalette[idx % colorPalette.length]}
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     ))}
                   </defs>
@@ -556,7 +570,7 @@ export default function TimelineViewButton({
                     stroke="#E5E7EB"
                     strokeDasharray="3 3"
                     horizontal={false}
-                    verticalPoints={adjustedTickCount.map(tick => tick)}
+                    verticalPoints={adjustedTickCount.map((tick) => tick)}
                   />
                   <YAxis
                     dataKey="label"
@@ -583,20 +597,20 @@ export default function TimelineViewButton({
                     ticks={adjustedTickCount}
                   />
                   <Tooltip content={<CustomTooltip />} />
-                  
+
                   {/* Render different bar configurations based on single vs dual traces */}
                   {isSingleTrace ? (
                     // Single trace mode - render just one centered bar
                     <>
                       <Bar
                         isAnimationActive={false}
-                        dataKey={baseTrace ? "start-0" : "start-1"}
+                        dataKey={baseTrace ? 'start-0' : 'start-1'}
                         stackId="singleRange"
                         fill="transparent"
                       />
                       <Bar
                         isAnimationActive={false}
-                        dataKey={baseTrace ? "length-0" : "length-1"}
+                        dataKey={baseTrace ? 'length-0' : 'length-1'}
                         stackId="singleRange"
                         fill={colorPalette[baseTrace ? 0 : 1]}
                         radius={[4, 4, 4, 4]}
@@ -605,15 +619,17 @@ export default function TimelineViewButton({
                           const traceIdx = baseTrace ? 0 : 1;
                           const runningKey = `running-${traceIdx}` as keyof typeof entry;
                           const isRunning = Boolean(entry[runningKey]);
-                          const fill = isRunning ? `url(#${gidBase}-running-${traceIdx})` : colorPalette[traceIdx];
+                          const fill = isRunning
+                            ? `url(#${gidBase}-running-${traceIdx})`
+                            : colorPalette[traceIdx];
                           return <Cell key={`cell-${idx}`} fill={fill} />;
                         })}
                         <LabelList
-                          dataKey={baseTrace ? "length-0" : "length-1"}
+                          dataKey={baseTrace ? 'length-0' : 'length-1'}
                           position="right"
                           formatter={(value: number) => `${value.toFixed(3)}s`}
                           fill="#4B5563"
-                          style={{ fontSize: "0.75rem" }}
+                          style={{ fontSize: '0.75rem' }}
                         />
                       </Bar>
                     </>
@@ -634,7 +650,9 @@ export default function TimelineViewButton({
                         radius={[4, 4, 4, 4]}
                       >
                         {processedChartData.map((entry, idx) => {
-                          const fill = entry["running-0"] ? `url(#${gidBase}-running-0)` : colorPalette[0];
+                          const fill = entry['running-0']
+                            ? `url(#${gidBase}-running-0)`
+                            : colorPalette[0];
                           return <Cell key={`r0-${idx}`} fill={fill} />;
                         })}
                         <LabelList
@@ -642,7 +660,7 @@ export default function TimelineViewButton({
                           position="right"
                           formatter={(value: number) => `${value.toFixed(3)}s`}
                           fill="#4B5563"
-                          style={{ fontSize: "0.75rem" }}
+                          style={{ fontSize: '0.75rem' }}
                         />
                       </Bar>
                       <Bar
@@ -659,7 +677,9 @@ export default function TimelineViewButton({
                         radius={[4, 4, 4, 4]}
                       >
                         {processedChartData.map((entry, idx) => {
-                          const fill = entry["running-1"] ? `url(#${gidBase}-running-1)` : colorPalette[1];
+                          const fill = entry['running-1']
+                            ? `url(#${gidBase}-running-1)`
+                            : colorPalette[1];
                           return <Cell key={`r1-${idx}`} fill={fill} />;
                         })}
                         <LabelList
@@ -667,7 +687,7 @@ export default function TimelineViewButton({
                           position="right"
                           formatter={(value: number) => `${value.toFixed(3)}s`}
                           fill="#4B5563"
-                          style={{ fontSize: "0.75rem" }}
+                          style={{ fontSize: '0.75rem' }}
                         />
                       </Bar>
                     </>
@@ -675,9 +695,7 @@ export default function TimelineViewButton({
                 </BarChart>
               </div>
             ) : (
-              <div className="text-center text-muted-foreground">
-                No timeline data available
-              </div>
+              <div className="text-center text-muted-foreground">No timeline data available</div>
             )}
           </div>
         </DialogContent>

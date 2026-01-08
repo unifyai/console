@@ -15,17 +15,17 @@ Components/
 
 ### Folder Descriptions
 
-* **UI/**
+- **UI/**
   Contains low-level, reusable UI primitives such as buttons, inputs, and other styled components. These are stateless, style-driven elements used across the application.
 
-* **Common/**
+- **Common/**
   Houses mid-level components composed of UI primitives. These serve as foundational blocks (e.g., headers, footers, form layouts) and are often reused throughout the app.
 
-* **Shared/**
+- **Shared/**
   Includes specialized components that are reused across different pages but are more domain-specific than Common components.
 
-* **Layout/**
+- **Layout/**
   Components related to the overall layout of the app.
 
-* **Pages/**
+- **Pages/**
   Contains components that are specific to individual pages or views. These are not meant to be reused elsewhere in the app.

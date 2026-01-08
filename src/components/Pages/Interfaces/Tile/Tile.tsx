@@ -1,24 +1,33 @@
-"use client";
+'use client';
 
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
-import { useEffect, Suspense, lazy } from "react";
-import { Loader2 } from "lucide-react";
+import {
+  LogsActions,
+  FieldsActions,
+  DerivedEntryActions,
+  ContextActions,
+  CodeActions,
+  GranularTileActions,
+  ProjectsActions,
+  FileActions,
+} from '@/types/interfaces/grid';
+import { useEffect, Suspense, lazy } from 'react';
+import { Loader2 } from 'lucide-react';
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
 import { useTabUI } from '@/contexts/hooks/tab';
 // Removed unused tab UI import – tile component no longer needs to know tab colour directly
 // (it inherits via CSS variables from the Tab wrapper).
-import { ExpandProvider } from "@/contexts/ExpandContext";
+import { ExpandProvider } from '@/contexts/ExpandContext';
 import { getTileHeaderRef, getTileCardRef } from '@/utils/interfaces/refRegistry';
 // import removed: resolveColorHierarchy now unused after colour hierarchy refactor
 
 // Dynamically import components
-const LogsTable = lazy(() => import("@/components/Pages/Interfaces/Blocks/Table/Table"));
-const LogsPlot = lazy(() => import("@/components/Pages/Interfaces/Blocks/Plot/Plot"));
-const Selection = lazy(() => import("@/components/Pages/Interfaces/Blocks/Selection/Selection"));
-const Editor = lazy(() => import("@/components/Pages/Interfaces/Blocks/Editor/Editor"));
-const Terminal = lazy(() => import("@/components/Pages/Interfaces/Blocks/Terminal/Terminal"));
+const LogsTable = lazy(() => import('@/components/Pages/Interfaces/Blocks/Table/Table'));
+const LogsPlot = lazy(() => import('@/components/Pages/Interfaces/Blocks/Plot/Plot'));
+const Selection = lazy(() => import('@/components/Pages/Interfaces/Blocks/Selection/Selection'));
+const Editor = lazy(() => import('@/components/Pages/Interfaces/Blocks/Editor/Editor'));
+const Terminal = lazy(() => import('@/components/Pages/Interfaces/Blocks/Terminal/Terminal'));
 
 // Define main Tile component props
 interface TileProps {
@@ -63,7 +72,7 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
 
   // Extract required data
   const { type: tileType } = tileMetaState || {};
-    
+
   // Interface primary computation removed – hierarchy resolution is handled by pickers when needed.
 
   // Only apply an override when the tile itself has an explicit colour. If the tile has
@@ -71,76 +80,86 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   const tileColor = tileUIState?.color ?? null;
 
   // Update tile primary and secondary colors
-  // Node: Need to update buttons and tile content separately 
+  // Node: Need to update buttons and tile content separately
   // instead of the common parent div because ResponsiveReactGridLayout
   // interferes with ref manipulation
   useEffect(() => {
-      if (tileHeaderRef && tileHeaderRef.current) {
-          if (tileColor) {
-              tileHeaderRef.current.style.setProperty("--primary", tileColor);
-              tileHeaderRef.current.style.setProperty("--accent", tileColor);
-          } else {
-              tileHeaderRef.current.style.removeProperty("--primary");
-              tileHeaderRef.current.style.removeProperty("--accent");
-          }
+    if (tileHeaderRef && tileHeaderRef.current) {
+      if (tileColor) {
+        tileHeaderRef.current.style.setProperty('--primary', tileColor);
+        tileHeaderRef.current.style.setProperty('--accent', tileColor);
+      } else {
+        tileHeaderRef.current.style.removeProperty('--primary');
+        tileHeaderRef.current.style.removeProperty('--accent');
       }
-      if (tileCardRef && tileCardRef.current) {
-          if (tileColor) {
-              tileCardRef.current.style.setProperty("--primary", tileColor);
-              tileCardRef.current.style.setProperty("--accent", tileColor);
-          } else {
-              tileCardRef.current.style.removeProperty("--primary");
-              tileCardRef.current.style.removeProperty("--accent");
-          }
+    }
+    if (tileCardRef && tileCardRef.current) {
+      if (tileColor) {
+        tileCardRef.current.style.setProperty('--primary', tileColor);
+        tileCardRef.current.style.setProperty('--accent', tileColor);
+      } else {
+        tileCardRef.current.style.removeProperty('--primary');
+        tileCardRef.current.style.removeProperty('--accent');
       }
+    }
   }, [tileColor, tileHeaderRef, tileCardRef]);
 
   switch (tileType) {
-    case "Table":
-      return <TableTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "Plot":
-      return <PlotTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "View":
-      return <ViewTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "Editor":
-      return <EditorTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "Terminal":
-      return <TerminalTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
+    case 'Table':
+      return (
+        <TableTile
+          tileId={tileId}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          actions={actions}
+        />
+      );
+
+    case 'Plot':
+      return (
+        <PlotTile
+          tileId={tileId}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          actions={actions}
+        />
+      );
+
+    case 'View':
+      return (
+        <ViewTile
+          tileId={tileId}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          actions={actions}
+        />
+      );
+
+    case 'Editor':
+      return (
+        <EditorTile
+          tileId={tileId}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          actions={actions}
+        />
+      );
+
+    case 'Terminal':
+      return (
+        <TerminalTile
+          tileId={tileId}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          actions={actions}
+        />
+      );
+
     default:
       return null;
   }
@@ -149,27 +168,35 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
 /**
  * Table tile renderer with data ensuring
  */
-const TableTile: React.FC<TableTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
+const TableTile: React.FC<TableTileProps> = ({
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+  actions,
+}) => {
   // Data ensuring is now handled at TileRenderer level
-  
+
   return (
-    <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-    }>
-        <LogsTable
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            tileActions={actions.tileActions}
-            logsActions={actions.logsActions}
-            fieldsActions={actions.fieldsActions}
-            derivedEntryActions={actions.derivedEntryActions}
-            contextActions={actions.contextActions}
-            projectsActions={actions.projectsActions}
-        />
+      }
+    >
+      <LogsTable
+        tileId={tileId}
+        tabId={tabId}
+        interfaceId={interfaceId}
+        projectId={projectId}
+        tileActions={actions.tileActions}
+        logsActions={actions.logsActions}
+        fieldsActions={actions.fieldsActions}
+        derivedEntryActions={actions.derivedEntryActions}
+        contextActions={actions.contextActions}
+        projectsActions={actions.projectsActions}
+      />
     </Suspense>
   );
 };
@@ -179,24 +206,26 @@ const TableTile: React.FC<TableTileProps> = ({ tileId, tabId, interfaceId, proje
  */
 const PlotTile: React.FC<PlotTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
   // Data ensuring is now handled at TileRenderer level
-  
+
   return (
-    <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-    }>
-        <LogsPlot
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            tileActions={actions.tileActions}
-            logsActions={actions.logsActions}
-            fieldsActions={actions.fieldsActions}
-            projectsActions={actions.projectsActions}
-            contextActions={actions.contextActions}
-        />
+      }
+    >
+      <LogsPlot
+        tileId={tileId}
+        tabId={tabId}
+        interfaceId={interfaceId}
+        projectId={projectId}
+        tileActions={actions.tileActions}
+        logsActions={actions.logsActions}
+        fieldsActions={actions.fieldsActions}
+        projectsActions={actions.projectsActions}
+        contextActions={actions.contextActions}
+      />
     </Suspense>
   );
 };
@@ -211,17 +240,19 @@ const ViewTile: React.FC<ViewTileProps> = ({ tileId, tabId, interfaceId, project
   return (
     <div className="w-full overflow-auto">
       <ExpandProvider>
-        <Suspense fallback={
-            <div className="w-full h-full flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Suspense
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-        }>
-            <Selection
-                projectId={projectId}
-                logsActions={actions.logsActions}
-                tileId={tileId}
-                tabId={tabId}
-            />
+          }
+        >
+          <Selection
+            projectId={projectId}
+            logsActions={actions.logsActions}
+            tileId={tileId}
+            tabId={tabId}
+          />
         </Suspense>
       </ExpandProvider>
     </div>
@@ -231,9 +262,15 @@ const ViewTile: React.FC<ViewTileProps> = ({ tileId, tabId, interfaceId, project
 /**
  * Editor tile renderer (independent)
  */
-const EditorTile: React.FC<EditorTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
+const EditorTile: React.FC<EditorTileProps> = ({
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+  actions,
+}) => {
   return (
-    <div className="w-full h-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto">
       <Editor
         tileId={tileId}
         tabId={tabId}
@@ -254,9 +291,15 @@ const EditorTile: React.FC<EditorTileProps> = ({ tileId, tabId, interfaceId, pro
 /**
  * Terminal tile renderer (independent)
  */
-const TerminalTile: React.FC<TerminalTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
+const TerminalTile: React.FC<TerminalTileProps> = ({
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+  actions,
+}) => {
   return (
-    <div className="w-full h-full overflow-y-auto">
+    <div className="h-full w-full overflow-y-auto">
       <Terminal
         tileId={tileId}
         tabId={tabId}

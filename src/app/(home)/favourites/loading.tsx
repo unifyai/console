@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
 
 export default function FavouritesLoading() {
   return (
@@ -7,4 +7,4 @@ export default function FavouritesLoading() {
       <span className="ml-3 text-sm text-muted-foreground">Loading favourites…</span>
     </div>
   );
-} 
+}

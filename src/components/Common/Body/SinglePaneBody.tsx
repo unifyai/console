@@ -1,17 +1,16 @@
-"use client";
+'use client';
 
-import { ReactNode } from "react";
-import SkeletonLoader from "../Loaders/SkeletonLoader";
+import { ReactNode } from 'react';
+import SkeletonLoader from '../Loaders/SkeletonLoader';
 
-const SinglePaneBody = ({isPending, body}: {isPending: boolean, body: ReactNode}) => {
-
-    return (
-        <div className="bg-background rounded-md h-full overflow-y-scroll p-3">
-            <div className="flex flex-col gap-3 h-full w-full">
-                {isPending ? <SkeletonLoader /> : body}
-            </div>
-        </div>
-    );
-}
+const SinglePaneBody = ({ isPending, body }: { isPending: boolean; body: ReactNode }) => {
+  return (
+    <div className="h-full overflow-y-scroll rounded-md bg-background p-3">
+      <div className="flex h-full w-full flex-col gap-3">
+        {isPending ? <SkeletonLoader /> : body}
+      </div>
+    </div>
+  );
+};
 
 export default SinglePaneBody;

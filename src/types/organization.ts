@@ -1,4 +1,4 @@
-import { ResponseProps } from "./common";
+import { ResponseProps } from './common';
 
 export interface Organization {
   id: number;
@@ -28,7 +28,7 @@ export interface OrganizationPermission {
   id: number;
   name: string;
   resourceType: string; // e.g., 'org'
-  action: string;        // e.g., 'read', 'write', 'delete'
+  action: string; // e.g., 'read', 'write', 'delete'
 }
 
 export interface OrganizationRole {

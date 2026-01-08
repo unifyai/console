@@ -68,34 +68,27 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
       await safeDelete(() => deleteFn(id), `interface: ${id}`);
     }
     // Cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProjectName),
-      `project: ${testProjectName}`
-    );
+    await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
   }, 30000);
 
-  it(
-    '@real creates interface checkpoint and retrieves it',
-    realTestOptionsExtended,
-    async () => {
-      // Create an interface
-      const createFn = await createNewInterface(TEST_API_KEY);
-      const interfaceName = uniqueName('test-checkpoint');
-      const created = await createFn(testProjectName, interfaceName);
-      createdInterfaceIds.push(created.id);
+  it('@real creates interface checkpoint and retrieves it', realTestOptionsExtended, async () => {
+    // Create an interface
+    const createFn = await createNewInterface(TEST_API_KEY);
+    const interfaceName = uniqueName('test-checkpoint');
+    const created = await createFn(testProjectName, interfaceName);
+    createdInterfaceIds.push(created.id);
 
-      // Create a checkpoint
-      const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-      const checkpointResult = await checkpointFn(
-        testProjectName,
-        interfaceName,
-        'Test checkpoint description'
-      );
+    // Create a checkpoint
+    const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
+    const checkpointResult = await checkpointFn(
+      testProjectName,
+      interfaceName,
+      'Test checkpoint description'
+    );
 
-      expect(checkpointResult).toBeDefined();
-      expect(checkpointResult.error).toBeUndefined();
-    }
-  );
+    expect(checkpointResult).toBeDefined();
+    expect(checkpointResult.error).toBeUndefined();
+  });
 
   it(
     '@real useGetInterfaceUnifiedQuery supports checkpoint flag',
@@ -187,35 +180,30 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
     }
   );
 
-  it(
-    '@real checkpoint and active versions are independent',
-    realTestOptionsExtended,
-    async () => {
-      // Create an interface with initial color
-      const createFn = await createNewInterface(TEST_API_KEY);
-      const interfaceName = uniqueName('test-independent-checkpoint');
-      const created = await createFn(testProjectName, interfaceName, '#initial');
-      createdInterfaceIds.push(created.id);
+  it('@real checkpoint and active versions are independent', realTestOptionsExtended, async () => {
+    // Create an interface with initial color
+    const createFn = await createNewInterface(TEST_API_KEY);
+    const interfaceName = uniqueName('test-independent-checkpoint');
+    const created = await createFn(testProjectName, interfaceName, '#initial');
+    createdInterfaceIds.push(created.id);
 
-      // Create a checkpoint (saves current state)
-      const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-      await checkpointFn(testProjectName, interfaceName, 'Checkpoint before update');
+    // Create a checkpoint (saves current state)
+    const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
+    await checkpointFn(testProjectName, interfaceName, 'Checkpoint before update');
 
-      // Update the active version
-      const updateByNameFn = await updateInterfaceByName(TEST_API_KEY);
-      await updateByNameFn(testProjectName, interfaceName, { color: '#updated' }, false);
+    // Update the active version
+    const updateByNameFn = await updateInterfaceByName(TEST_API_KEY);
+    await updateByNameFn(testProjectName, interfaceName, { color: '#updated' }, false);
 
-      // Get both versions
-      const getByNameFn = await getInterfaceByName(TEST_API_KEY);
+    // Get both versions
+    const getByNameFn = await getInterfaceByName(TEST_API_KEY);
 
-      const activeVersion = await getByNameFn(testProjectName, interfaceName, false);
-      const checkpointVersion = await getByNameFn(testProjectName, interfaceName, true);
+    const activeVersion = await getByNameFn(testProjectName, interfaceName, false);
+    const checkpointVersion = await getByNameFn(testProjectName, interfaceName, true);
 
-      // Active should have the new color
-      expect(activeVersion.color).toBe('#updated');
-      // Checkpoint should still have the original color
-      expect(checkpointVersion.color).toBe('#initial');
-    }
-  );
+    // Active should have the new color
+    expect(activeVersion.color).toBe('#updated');
+    // Checkpoint should still have the original color
+    expect(checkpointVersion.color).toBe('#initial');
+  });
 });
-

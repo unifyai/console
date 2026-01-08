@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Command,
@@ -7,13 +7,9 @@ import {
   CommandList,
   CommandGroup,
   CommandItem,
-} from "@/components/UI/command";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/UI/popover";
-import { Button } from "@/components/UI/button";
+} from '@/components/UI/command';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
+import { Button } from '@/components/UI/button';
 
 interface ProviderSelectorProps {
   providers: string[];
@@ -29,7 +25,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
   className,
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [inputValue, setInputValue] = React.useState("");
+  const [inputValue, setInputValue] = React.useState('');
 
   // Filter providers based on the input value
   const filteredProviders = React.useMemo(() => {
@@ -71,15 +67,12 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
           <CommandList>
             <CommandGroup>
               {filteredProviders.map((provider) => (
-                <CommandItem
-                  key={provider}
-                  onSelect={() => handleProviderToggle(provider)}
-                >
+                <CommandItem key={provider} onSelect={() => handleProviderToggle(provider)}>
                   <div className="flex items-center">
                     {selectedProviders.includes(provider) ? (
                       <Check className="mr-2 h-4 w-4" />
                     ) : (
-                      <div className="mr-2 h-4 w-4 border border-gray-400 rounded" />
+                      <div className="mr-2 h-4 w-4 rounded border border-gray-400" />
                     )}
                     <span>{provider}</span>
                   </div>

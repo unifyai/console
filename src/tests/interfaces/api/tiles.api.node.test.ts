@@ -56,10 +56,7 @@ describe('@real Tiles API', () => {
       () => interfacesApi.deleteById(testInterfaceId),
       `interface: ${testInterfaceId}`
     );
-    await safeDelete(
-      () => projectsApi.delete(testProject),
-      `project: ${testProject}`
-    );
+    await safeDelete(() => projectsApi.delete(testProject), `project: ${testProject}`);
   });
 
   it('@real lists tiles in tab', realTestOptions, async () => {
@@ -283,12 +280,9 @@ describe('@real Tiles API', () => {
   it('@real imports tile template', realTestOptionsExtended, async () => {
     // Create a tile and export it first
     const originalName = uniqueName('test-tile-original');
-    const created = await tilesApi.create(
-      testTabId,
-      originalName,
-      defaultPosition,
-      { type: 'Table' }
-    );
+    const created = await tilesApi.create(testTabId, originalName, defaultPosition, {
+      type: 'Table',
+    });
     createdTileIds.push(created.id);
 
     const exported = await tilesApi.exportTemplate(created.id);

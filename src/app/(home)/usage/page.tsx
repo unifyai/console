@@ -8,7 +8,7 @@ import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
-  title: "Usage",
+  title: 'Usage',
 };
 
 const UsagePage = async () => {
@@ -16,21 +16,15 @@ const UsagePage = async () => {
   const user = await getCurrentUser();
 
   if (!user) {
-    console.error("User not found");
+    console.error('User not found');
     signOut();
     redirect('/login');
   }
 
   return (
-    <div className="w-full h-full p-1 overflow-auto">
+    <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
-        <div className="bg-background px-5 pb-12">
-          {onPrem ? (
-            <OnPrem />
-          ) : (
-            <Usage />
-          )}
-        </div>
+        <div className="bg-background px-5 pb-12">{onPrem ? <OnPrem /> : <Usage />}</div>
       </Suspense>
     </div>
   );

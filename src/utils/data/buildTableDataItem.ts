@@ -1,11 +1,18 @@
-import { TableDataItem, TileData } from "@/types/interfaces/grid";
-import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/interfaces/logs";
-import { buildFilterExpression } from "@/utils/interfaces/table/filters";
-import { extractLogsData } from "@/utils/interfaces/common";
-import { LogsActions } from "@/types/interfaces/grid";
-import { processContext, sanitizeId } from "@/utils/interfaces/table/columnOperations";
-import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
-import { QueryClient } from "@tanstack/react-query";
+import { TableDataItem, TileData } from '@/types/interfaces/grid';
+import {
+  GroupedLogProps,
+  LogFieldsResponseProps,
+  LogItemProps,
+  LogProps,
+  LogsResponseProps,
+  GroupedLogPropsRaw,
+} from '@/types/interfaces/logs';
+import { buildFilterExpression } from '@/utils/interfaces/table/filters';
+import { extractLogsData } from '@/utils/interfaces/common';
+import { LogsActions } from '@/types/interfaces/grid';
+import { processContext, sanitizeId } from '@/utils/interfaces/table/columnOperations';
+import { isGroupedLogs, maybeFlattenGroupedLogs } from '../interfaces/table/grouping';
+import { QueryClient } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 import { perfStart, perfEnd } from '@/lib/perf';
 
@@ -16,7 +23,7 @@ const logsQueue: Array<() => void> = [];
 
 async function withLogsSemaphore<T>(fn: () => Promise<T>): Promise<T> {
   if (currentLogsConcurrency >= MAX_LOGS_CONCURRENCY) {
-    await new Promise<void>(resolve => logsQueue.push(resolve));
+    await new Promise<void>((resolve) => logsQueue.push(resolve));
   }
   currentLogsConcurrency++;
   try {
@@ -54,11 +61,10 @@ export function getTotalCountFromLogsResponse(logsData: LogsResponseProps): numb
     if (typeof logsData.logs === 'object' && !Array.isArray(logsData.logs)) {
       const groupedLogs = logsData.logs as GroupedLogPropsRaw;
       // Find the first group key and get its groupCount
-      const firstGroupKey = Object.keys(groupedLogs).find(key => 
-        key !== 'groupCount' && key !== 'count' && 
-        typeof groupedLogs[key] === 'object'
+      const firstGroupKey = Object.keys(groupedLogs).find(
+        (key) => key !== 'groupCount' && key !== 'count' && typeof groupedLogs[key] === 'object'
       );
-      
+
       if (firstGroupKey && typeof groupedLogs[firstGroupKey] === 'object') {
         const groupData = groupedLogs[firstGroupKey] as any;
         return groupData.groupCount || 0;
@@ -83,24 +89,30 @@ async function buildTableDataItem(
   logsData: LogsResponseProps,
   previousLogs?: LogProps[] | GroupedLogProps[]
 ): Promise<TableDataItem> {
-
   // Check if fields indicates context not found (from buildServerData.ts)
-  const fieldsContextNotFound = '__contextNotFound' in fields && (fields as any).__contextNotFound === true;
-  
+  const fieldsContextNotFound =
+    '__contextNotFound' in fields && (fields as any).__contextNotFound === true;
+
   // Process column contexts
-  const prefixes = Object.keys(fields).filter(k => k !== '__contextNotFound').map(
-    key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
-  ).filter(key => key != null);
+  const prefixes = Object.keys(fields)
+    .filter((k) => k !== '__contextNotFound')
+    .map((key) => (key.includes('/') ? key.split('/').slice(0, -1).join('/') : null))
+    .filter((key) => key != null);
 
   const columnContexts = Array.from(
-    new Set(prefixes.map(prefix => {
-      const parts = prefix!.split("/");
-      let context = "";
-      return parts.map(part => {
-        context += part + "/";
-        return context;
-      });    
-    }).flat().sort())
+    new Set(
+      prefixes
+        .map((prefix) => {
+          const parts = prefix!.split('/');
+          let context = '';
+          return parts.map((part) => {
+            context += part + '/';
+            return context;
+          });
+        })
+        .flat()
+        .sort()
+    )
   );
 
   // Get logs details WITHOUT metrics and boundaries for faster loading
@@ -122,9 +134,10 @@ async function buildTableDataItem(
 
   // Extract total count using utility function
   const totalCount = getTotalCountFromLogsResponse(logsData);
-  const error = "detail" in logsData ? logsData["detail"] : undefined;
+  const error = 'detail' in logsData ? logsData['detail'] : undefined;
   // Context not found if either fields or logs returned 404
-  const logsContextNotFound = "contextNotFound" in logsData ? logsData["contextNotFound"] as boolean : false;
+  const logsContextNotFound =
+    'contextNotFound' in logsData ? (logsData['contextNotFound'] as boolean) : false;
   const contextNotFound = fieldsContextNotFound || logsContextNotFound || undefined;
 
   // Construct table data item (without metrics and boundaries for now)
@@ -166,13 +179,13 @@ export async function fetchAndBuildTableDataItem(
 
   // If the tableDataItem for this tile is already in the cache, first mark it as loading
   if (queryClient && tile.id) {
-    // Check if the tableDataItem for this tile is already in the cache meaning this isn't the 
+    // Check if the tableDataItem for this tile is already in the cache meaning this isn't the
     // initial render. If it is, mark it as loading.
-    const existingTableDataItem = queryClient.getQueryData(["tableDataItem", tile.id]);
+    const existingTableDataItem = queryClient.getQueryData(['tableDataItem', tile.id]);
     if (existingTableDataItem) {
-      queryClient.setQueryData(["tableDataItem", tile.id], {
+      queryClient.setQueryData(['tableDataItem', tile.id], {
         ...existingTableDataItem,
-        isLoading: true
+        isLoading: true,
       });
     }
   }
@@ -187,15 +200,15 @@ export async function fetchAndBuildTableDataItem(
   );
 
   // Handle sorting
-  const sortingObject = tile.tableTile?.sorting ? getSortingObject(tile) : "";
+  const sortingObject = tile.tableTile?.sorting ? getSortingObject(tile) : '';
   const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
 
   // Handle grouping
   const groupingExpression = tile.grouping || null;
 
   // Handle group sorting
-  const groupSortingObject = tile.tableTile?.groupSorting && tile.grouping ? 
-    getGroupSortingObject(tile) : "";
+  const groupSortingObject =
+    tile.tableTile?.groupSorting && tile.grouping ? getGroupSortingObject(tile) : '';
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Fetch logs data
@@ -206,7 +219,7 @@ export async function fetchAndBuildTableDataItem(
 
   // Determine if we should use group pagination or regular pagination
   const useGroupPagination = !!groupingExpression;
-  
+
   const tGetLogs = performance.now();
   let logsData: LogsResponseProps;
   try {
@@ -219,68 +232,78 @@ export async function fetchAndBuildTableDataItem(
     if (filterExpression) params.set('filterExpr', filterExpression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
-    
+
     // Narrow payload: request only currently visible leaf columns when we can derive them.
     // Fallback to full payload if we cannot reliably compute a subset.
     try {
       // Build candidate IDs from column order or fields; remove hidden columns, parents, and util headers
       const orderIds = tile.tableTile?.columnOrder
-        ? tile.tableTile?.columnOrder.split(",").filter(Boolean)
-        : Object.keys(fields).map((k) => processContext("split", tile.columnContext || null, k)).filter(Boolean);
+        ? tile.tableTile?.columnOrder.split(',').filter(Boolean)
+        : Object.keys(fields)
+            .map((k) => processContext('split', tile.columnContext || null, k))
+            .filter(Boolean);
       const hiddenSet = new Set(
-        (tile.tableTile?.hiddenColumns ? tile.tableTile?.hiddenColumns.split(",").filter(Boolean) : []).map(sanitizeId)
+        (tile.tableTile?.hiddenColumns
+          ? tile.tableTile?.hiddenColumns.split(',').filter(Boolean)
+          : []
+        ).map(sanitizeId)
       );
       // Remove util headers and parents (keep only leaves)
       const idsSanitized = orderIds
         .map((id) => sanitizeId(id))
-        .filter((id) => id && id !== "RowNumbering" && id !== "Parameters" && id !== "Entries");
-      const leafIds = idsSanitized.filter((id) => !idsSanitized.some((other) => other !== id && other.startsWith(id + "/")));
+        .filter((id) => id && id !== 'RowNumbering' && id !== 'Parameters' && id !== 'Entries');
+      const leafIds = idsSanitized.filter(
+        (id) => !idsSanitized.some((other) => other !== id && other.startsWith(id + '/'))
+      );
       const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
       // Limit the subset to a reasonable number to keep payload small
       const MAX_SUBSET = 60;
       let subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
-      
+
       // Always include assistant_id fields for Contacts tables (needed for contact sync)
-      if (projectId === "Assistants" && tile.context?.endsWith("/Contacts")) {
-        const syncRequiredFields = ["_assistant_id", "assistant_id"];
+      if (projectId === 'Assistants' && tile.context?.endsWith('/Contacts')) {
+        const syncRequiredFields = ['_assistant_id', 'assistant_id'];
         for (const field of syncRequiredFields) {
           if (!subsetIds.includes(field)) {
             subsetIds = [...subsetIds, field];
           }
         }
       }
-      
+
       if (subsetIds.length > 0) {
         // Merge back columnContext for the API
         const subset = subsetIds
-          .map((id) => processContext("merge", tile.columnContext || null, id))
-          .join("&");
+          .map((id) => processContext('merge', tile.columnContext || null, id))
+          .join('&');
         if (subset) {
-          params.set("fromFields", subset);
+          params.set('fromFields', subset);
         }
       }
     } catch {}
-    
+
     // Handle grouping (can be multiple values)
     if (groupingExpression) {
-      groupingExpression.split(",").forEach(expr => {
+      groupingExpression.split(',').forEach((expr) => {
         params.append('groupBy', expr.trim());
       });
     }
-    
+
     // Pagination params
     if (!useGroupPagination && limit !== null) params.set('limit', limit.toString());
     if (!useGroupPagination && offset !== null) params.set('offset', offset.toString());
     if (useGroupPagination && groupLimit !== null) params.set('groupLimit', groupLimit.toString());
-    if (useGroupPagination && groupOffset !== null) params.set('groupOffset', groupOffset.toString());
+    if (useGroupPagination && groupOffset !== null)
+      params.set('groupOffset', groupOffset.toString());
     if (useGroupPagination) params.set('groupDepth', '0');
 
     const pFetch = perfStart(`logs-fetch:${tile.name}:${projectId}`);
-    const res = await withLogsSemaphore(() => fetch(`/api/logs?${params.toString()}`, {
-      method: 'GET',
-      signal: signal as AbortSignal,
-      cache: 'no-store',
-    }));
+    const res = await withLogsSemaphore(() =>
+      fetch(`/api/logs?${params.toString()}`, {
+        method: 'GET',
+        signal: signal as AbortSignal,
+        cache: 'no-store',
+      })
+    );
     perfEnd(pFetch, { status: res.status });
 
     // Handle 404 (context not found) specially - don't throw, return contextNotFound flag
@@ -297,11 +320,11 @@ export async function fetchAndBuildTableDataItem(
         params: {} as any,
         isLoading: false,
         error: errorData.detail || `Context '${tile.context}' not found`,
-        contextNotFound: true,  // Key flag for overlay
+        contextNotFound: true, // Key flag for overlay
         newCells: [],
       } as TableDataItem;
     }
-    
+
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ detail: `Logs ${res.status}` }));
       throw new Error(errorData.detail || `Failed to fetch logs: ${res.status}`);
@@ -313,7 +336,7 @@ export async function fetchAndBuildTableDataItem(
     // Check if error message indicates context not found (from our 404 handler or API)
     const isContextNotFound = errorMsg.toLowerCase().includes('not found');
     console.error('[buildTableDataItem] Logs fetch failed for tile:', tile.name, errorMsg);
-    
+
     // Gracefully surface a minimal item so the tile can display Retry or Context Not Found
     return {
       columnContexts: [],
@@ -337,7 +360,9 @@ export async function fetchAndBuildTableDataItem(
   const pBuild = perfStart(`table-build:${tile.name}:${projectId}`);
   const tableDataItem = await buildTableDataItem(tile, fields, logsData, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
-  perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
+  perfLog(
+    `[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`
+  );
   perfEnd(pBuild, { rows: Array.isArray(tableDataItem.logs) ? tableDataItem.logs.length : 0 });
 
   return tableDataItem;
@@ -347,16 +372,21 @@ export async function fetchAndBuildTableDataItem(
  * Remove all of the infinite logs queries for the current table. This is called
  * from `fetchAndBuildTableDataItem` to ensure that the infinite logs queries
  * are removed before the new logs data is fetched.
- * 
+ *
  * This is necessary because the infinite logs queries are not invalidated
  * when the logs data is fetched. This is a bug in the infinite logs queries
  * and will be fixed in the future.
  */
-export function removeInfiniteLogsQueries(tileId: string, tabId: string, queryClient: QueryClient, queryKeys?: string[]) {
+export function removeInfiniteLogsQueries(
+  tileId: string,
+  tabId: string,
+  queryClient: QueryClient,
+  queryKeys?: string[]
+) {
   // Remove all infinite logs queries for the current table
   if (queryKeys && queryKeys.length > 0) {
     // Remove specific tracked query keys
-    queryKeys.forEach(queryKey => {
+    queryKeys.forEach((queryKey) => {
       try {
         const parsedKey = JSON.parse(queryKey);
         queryClient.removeQueries({ queryKey: parsedKey });
@@ -366,20 +396,20 @@ export function removeInfiniteLogsQueries(tileId: string, tabId: string, queryCl
     });
     return;
   }
-  
+
   // Also remove queries by pattern as a fallback to match buildLogQueryKey structure
-  queryClient.removeQueries({ 
+  queryClient.removeQueries({
     predicate: (query) => {
       const queryKey = query.queryKey;
       return (
         Array.isArray(queryKey) &&
         queryKey.length >= 4 &&
-        queryKey[0] === 'logs' &&  // First element is always 'logs'
-        (queryKey[1] === 'infinite' || queryKey[1] === 'group-specific') &&  // Second element is type
-        queryKey[2] === tileId &&  // Third element is tileId
-        queryKey[3] === tabId      // Fourth element is tabId
+        queryKey[0] === 'logs' && // First element is always 'logs'
+        (queryKey[1] === 'infinite' || queryKey[1] === 'group-specific') && // Second element is type
+        queryKey[2] === tileId && // Third element is tileId
+        queryKey[3] === tabId // Fourth element is tabId
       );
-    }
+    },
   });
 }
 
@@ -387,18 +417,21 @@ export function removeInfiniteLogsQueries(tileId: string, tabId: string, queryCl
  * Helper function to get sorting object from tile
  */
 export function getSortingObject(tile: TileData) {
-  if (!tile.tableTile?.sorting) return "";
-  
+  if (!tile.tableTile?.sorting) return '';
+
   const { columnContext, tableTile } = tile;
-  const sorting = tableTile?.sorting || "";
-  
+  const sorting = tableTile?.sorting || '';
+
   return Object.fromEntries(
-    sorting.split(",").map(value => {
-      const fieldName = value.split("@")[0];
+    sorting.split(',').map((value) => {
+      const fieldName = value.split('@')[0];
       const processedField = columnContext
-        ? processContext("merge", columnContext, fieldName) 
+        ? processContext('merge', columnContext, fieldName)
         : fieldName;
-      const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending");
+      const direction = value
+        .split('@')[1]
+        .replace('true', 'descending')
+        .replace('false', 'ascending');
       return [processedField, direction];
     })
   );
@@ -408,26 +441,31 @@ export function getSortingObject(tile: TileData) {
  * Helper function to get group sorting object from tile
  */
 export function getGroupSortingObject(tile: TileData) {
-  if (!tile.tableTile?.groupSorting || !tile.grouping) return "";
-  
+  if (!tile.tableTile?.groupSorting || !tile.grouping) return '';
+
   const { columnContext, tableTile, grouping, metric } = tile;
-  const groupSorting = tableTile?.groupSorting || "";
-  
+  const groupSorting = tableTile?.groupSorting || '';
+
   return Object.fromEntries(
-    groupSorting.split(",").map(value => {
-      const group = columnContext && grouping
-        ? processContext("merge", columnContext, grouping.split(",")[0]) 
-        : grouping!.split(",")[0];
-      
-      const field = columnContext && value.split("@")[0]
-        ? processContext("merge", columnContext, value.split("@")[0]) 
-        : value.split("@")[0];
-      
-      const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending");
-      return [group, {field, direction, metric: metric ?? "mean"}];
+    groupSorting.split(',').map((value) => {
+      const group =
+        columnContext && grouping
+          ? processContext('merge', columnContext, grouping.split(',')[0])
+          : grouping!.split(',')[0];
+
+      const field =
+        columnContext && value.split('@')[0]
+          ? processContext('merge', columnContext, value.split('@')[0])
+          : value.split('@')[0];
+
+      const direction = value
+        .split('@')[1]
+        .replace('true', 'descending')
+        .replace('false', 'ascending');
+      return [group, { field, direction, metric: metric ?? 'mean' }];
     })
   );
-} 
+}
 
 /**
  * Helper function to identify new or updated cells in the table.
@@ -436,10 +474,9 @@ export function getGroupSortingObject(tile: TileData) {
  * 2. Cells in existing rows where the value has changed.
  */
 export function getNewCells(
-  previousLogs: LogProps[] | GroupedLogProps[], 
+  previousLogs: LogProps[] | GroupedLogProps[],
   logs: LogProps[] | GroupedLogProps[]
 ): string[] {
-
   const newOrUpdatedCellIds: string[] = [];
 
   const flattenedCurrentLogs = maybeFlattenGroupedLogs(logs);
@@ -449,30 +486,32 @@ export function getNewCells(
     return [];
   }
 
-  const previousLogsMap = new Map(
-    flattenedPreviousLogs.map(log => [log.id, log])
-  );
+  const previousLogsMap = new Map(flattenedPreviousLogs.map((log) => [log.id, log]));
 
   for (const currentLog of flattenedCurrentLogs) {
     const previousLog = previousLogsMap.get(currentLog.id);
 
     if (!previousLog) {
-      const entryCells = Object.keys(currentLog.entries || {}).map(key => `${currentLog.id}_${key}`);
-      const paramCells = Object.keys(currentLog.params || {}).map(key => `${currentLog.id}_${key}`);
+      const entryCells = Object.keys(currentLog.entries || {}).map(
+        (key) => `${currentLog.id}_${key}`
+      );
+      const paramCells = Object.keys(currentLog.params || {}).map(
+        (key) => `${currentLog.id}_${key}`
+      );
       newOrUpdatedCellIds.push(...entryCells, ...paramCells);
       continue;
     }
 
     const checkAndUpdate = (
-      currentData: LogItemProps, 
-      previousData: LogItemProps, 
+      currentData: LogItemProps,
+      previousData: LogItemProps,
       logId: string
     ) => {
       for (const key in currentData) {
         const currentValue = currentData[key];
         const previousValue = previousData[key];
         const cellId = `${logId}_${key}`;
-        
+
         const valuesAreEqual = isEqual(currentValue, previousValue);
 
         if (!Object.prototype.hasOwnProperty.call(previousData, key)) {
@@ -492,7 +531,7 @@ export function getNewCells(
 /**
  * Filters out logs that already exist in the existing logs based on unique ID comparison.
  * Works for both LogProps[] and GroupedLogProps[] arrays.
- * 
+ *
  * @param existingLogs - The current logs in the table
  * @param newLogs - The newly fetched logs that might contain duplicates
  * @returns Array of logs from newLogs that don't exist in existingLogs
@@ -505,23 +544,23 @@ export function filterNewLogsById<T extends LogProps | GroupedLogProps>(
     // No existing logs, all new logs are actually new
     return newLogs;
   }
-  
+
   if (!newLogs.length) {
     // No new logs to filter
     return [];
   }
-  
+
   // Create a Set of existing log IDs for fast lookup
-  const existingIds = new Set(existingLogs.map(log => log.id));
-  
+  const existingIds = new Set(existingLogs.map((log) => log.id));
+
   // Filter new logs to only include those not already present
-  return newLogs.filter(log => !existingIds.has(log.id));
+  return newLogs.filter((log) => !existingIds.has(log.id));
 }
 
 /**
  * Filters out logs that already exist in nested subRows based on unique ID comparison.
  * This is specifically for grouped logs where we need to check subRows within a specific group.
- * 
+ *
  * @param existingSubRows - The current subRows in a specific group
  * @param newSubRows - The newly fetched subRows that might contain duplicates
  * @returns Array of subRows from newSubRows that don't exist in existingSubRows

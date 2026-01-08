@@ -18,5 +18,3 @@ export const mockProject: Project = {
   interfaceIds: ['interface-1'],
   activeInterfaceId: 'interface-1',
 };
-
-

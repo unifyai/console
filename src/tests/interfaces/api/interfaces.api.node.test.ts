@@ -31,16 +31,10 @@ describe('@real Interfaces API', () => {
   afterAll(async () => {
     // Cleanup interfaces first
     for (const id of createdInterfaceIds) {
-      await safeDelete(
-        () => interfacesApi.deleteById(id),
-        `interface: ${id}`
-      );
+      await safeDelete(() => interfacesApi.deleteById(id), `interface: ${id}`);
     }
     // Then cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProject),
-      `project: ${testProject}`
-    );
+    await safeDelete(() => projectsApi.delete(testProject), `project: ${testProject}`);
   });
 
   it('@real lists interfaces in project', realTestOptions, async () => {
@@ -117,11 +111,9 @@ describe('@real Interfaces API', () => {
 
     // Update by name with a color
     const newColor = '#FF0000';
-    const result = await interfacesApi.updateByName(
-      testProject,
-      interfaceName,
-      { color: newColor }
-    );
+    const result = await interfacesApi.updateByName(testProject, interfaceName, {
+      color: newColor,
+    });
 
     expect(result).toBeDefined();
     // Verify the color was updated
@@ -217,11 +209,7 @@ describe('@real Interfaces API', () => {
 
     // Import as new interface
     const newName = uniqueName('test-interface-imported');
-    const result = await interfacesApi.importTemplate(
-      testProject,
-      exported.template,
-      newName
-    );
+    const result = await interfacesApi.importTemplate(testProject, exported.template, newName);
 
     expect(result).toBeDefined();
 
@@ -235,20 +223,16 @@ describe('@real Interfaces API', () => {
     }
   });
 
-  it(
-    '@real returns error for non-existent interface',
-    realTestOptions,
-    async () => {
-      const fakeId = 'non-existent-interface-id-12345';
+  it('@real returns error for non-existent interface', realTestOptions, async () => {
+    const fakeId = 'non-existent-interface-id-12345';
 
-      try {
-        await interfacesApi.getById(fakeId);
-        expect.fail('Expected ApiError to be thrown for non-existent interface');
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        const apiError = e as ApiError;
-        expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
-      }
+    try {
+      await interfacesApi.getById(fakeId);
+      expect.fail('Expected ApiError to be thrown for non-existent interface');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      const apiError = e as ApiError;
+      expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
     }
-  );
+  });
 });

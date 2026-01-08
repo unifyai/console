@@ -1,15 +1,15 @@
-import { Suspense } from "react";
-import Tile from "../../Tile/Tile";
+import { Suspense } from 'react';
+import Tile from '../../Tile/Tile';
 import getQueryClient from '@/app/getQueryClient';
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 
 // Import specialized server components for each tile type
-import TableWrapper from "./TableWrapper.server";
-import PlotWrapper from "./PlotWrapper.server";
-import SelectionWrapper from "./SelectionWrapper.server";
-import EditorWrapper from "./EditorWrapper.server";
-import TerminalWrapper from "./TerminalWrapper.server";
+import TableWrapper from './TableWrapper.server';
+import PlotWrapper from './PlotWrapper.server';
+import SelectionWrapper from './SelectionWrapper.server';
+import EditorWrapper from './EditorWrapper.server';
+import TerminalWrapper from './TerminalWrapper.server';
 
 import type {
   LogsActions,
@@ -20,8 +20,8 @@ import type {
   TileData,
   GranularTileActions,
   ProjectsActions,
-  FileActions
-} from "@/types/interfaces/grid";
+  FileActions,
+} from '@/types/interfaces/grid';
 
 type TileWrapperActions = {
   tileActions: GranularTileActions;
@@ -39,7 +39,7 @@ export default async function TileWrapper({
   tabId,
   interfaceId,
   projectId,
-  actions
+  actions,
 }: {
   tile: TileData;
   tabId: string;
@@ -47,13 +47,13 @@ export default async function TileWrapper({
   projectId: string;
   actions: TileWrapperActions;
 }) {
-  console.log("[TileWrapper] Rendering...");
+  console.log('[TileWrapper] Rendering...');
   const qc = getQueryClient();
 
   // Render the appropriate server component based on tile type
   const renderTileContent = () => {
     switch (tile.type) {
-      case "Table":
+      case 'Table':
         return (
           <TableWrapper
             tile={tile}
@@ -66,11 +66,11 @@ export default async function TileWrapper({
               fieldsActions: actions.fieldsActions,
               derivedEntryActions: actions.derivedEntryActions,
               contextActions: actions.contextActions,
-              projectsActions: actions.projectsActions
+              projectsActions: actions.projectsActions,
             }}
           />
         );
-      case "Plot":
+      case 'Plot':
         return (
           <PlotWrapper
             tile={tile}
@@ -82,22 +82,22 @@ export default async function TileWrapper({
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions,
               projectsActions: actions.projectsActions,
-              contextActions: actions.contextActions
+              contextActions: actions.contextActions,
             }}
           />
         );
-      case "View":
+      case 'View':
         return (
           <SelectionWrapper
             tile={tile}
             tabId={tabId}
             projectId={projectId}
             actions={{
-              logsActions: actions.logsActions
+              logsActions: actions.logsActions,
             }}
           />
         );
-      case "Editor":
+      case 'Editor':
         return (
           <EditorWrapper
             tile={tile}
@@ -111,11 +111,11 @@ export default async function TileWrapper({
               projectsActions: actions.projectsActions,
               contextActions: actions.contextActions,
               logsActions: actions.logsActions,
-              fieldsActions: actions.fieldsActions
+              fieldsActions: actions.fieldsActions,
             }}
           />
         );
-      case "Terminal":
+      case 'Terminal':
         return (
           <TerminalWrapper
             tile={tile}
@@ -129,7 +129,7 @@ export default async function TileWrapper({
               contextActions: actions.contextActions,
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions,
-              fileActions: actions.fileActions
+              fileActions: actions.fileActions,
             }}
           />
         );
@@ -140,13 +140,15 @@ export default async function TileWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center">
+      <Suspense
+        fallback={
+          <div className="flex h-full w-full items-center justify-center">
             <SkeletonLoader />
-        </div>
-      }>
+          </div>
+        }
+      >
         <Tile
-          tileId={tile.id || ""}
+          tileId={tile.id || ''}
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
@@ -155,4 +157,4 @@ export default async function TileWrapper({
       </Suspense>
     </HydrationBoundary>
   );
-} 
+}

@@ -76,72 +76,58 @@ describe('@real Interface Query Hooks (Real API)', () => {
       await safeDelete(() => deleteFn(testInterfaceId), `interface: ${testInterfaceId}`);
     }
     // Cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProjectName),
-      `project: ${testProjectName}`
-    );
+    await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
   }, 30000);
 
-  it(
-    '@real useListInterfacesQuery fetches real interfaces',
-    realTestOptionsExtended,
-    async () => {
-      const listFn = await listInterfaces(TEST_API_KEY);
-      const actions = {
-        list: listFn,
-      } as unknown as GranularInterfaceActions;
+  it('@real useListInterfacesQuery fetches real interfaces', realTestOptionsExtended, async () => {
+    const listFn = await listInterfaces(TEST_API_KEY);
+    const actions = {
+      list: listFn,
+    } as unknown as GranularInterfaceActions;
 
-      const wrapper = createWrapper();
-      const { result } = renderHook(
-        () => useListInterfacesQuery(testProjectName, actions),
-        { wrapper }
-      );
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useListInterfacesQuery(testProjectName, actions), {
+      wrapper,
+    });
 
-      await waitFor(
-        () => {
-          expect(result.current.isSuccess).toBe(true);
-        },
-        { timeout: 10000 }
-      );
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true);
+      },
+      { timeout: 10000 }
+    );
 
-      expect(result.current.data).toBeDefined();
-      expect(Array.isArray(result.current.data)).toBe(true);
+    expect(result.current.data).toBeDefined();
+    expect(Array.isArray(result.current.data)).toBe(true);
 
-      // Should include our test interface
-      const found = result.current.data?.find(
-        (i: InterfaceData) => i.name === testInterfaceName
-      );
-      expect(found).toBeDefined();
-    }
-  );
+    // Should include our test interface
+    const found = result.current.data?.find((i: InterfaceData) => i.name === testInterfaceName);
+    expect(found).toBeDefined();
+  });
 
-  it(
-    '@real useGetInterfaceQuery fetches interface by name',
-    realTestOptionsExtended,
-    async () => {
-      const getByNameFn = await getInterfaceByName(TEST_API_KEY);
-      const actions = {
-        getByName: getByNameFn,
-      } as unknown as GranularInterfaceActions;
+  it('@real useGetInterfaceQuery fetches interface by name', realTestOptionsExtended, async () => {
+    const getByNameFn = await getInterfaceByName(TEST_API_KEY);
+    const actions = {
+      getByName: getByNameFn,
+    } as unknown as GranularInterfaceActions;
 
-      const wrapper = createWrapper();
-      const { result } = renderHook(
-        () => useGetInterfaceQuery(testProjectName, testInterfaceName, actions),
-        { wrapper }
-      );
+    const wrapper = createWrapper();
+    const { result } = renderHook(
+      () => useGetInterfaceQuery(testProjectName, testInterfaceName, actions),
+      { wrapper }
+    );
 
-      await waitFor(
-        () => {
-          expect(result.current.isSuccess).toBe(true);
-        },
-        { timeout: 10000 }
-      );
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true);
+      },
+      { timeout: 10000 }
+    );
 
-      expect(result.current.data).toBeDefined();
-      expect(result.current.data?.name).toBe(testInterfaceName);
-      expect(result.current.data?.id).toBe(testInterfaceId);
-    }
-  );
+    expect(result.current.data).toBeDefined();
+    expect(result.current.data?.name).toBe(testInterfaceName);
+    expect(result.current.data?.id).toBe(testInterfaceId);
+  });
 
   it(
     '@real useGetInterfaceByIdQuery fetches interface by ID',
@@ -153,10 +139,9 @@ describe('@real Interface Query Hooks (Real API)', () => {
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();
-      const { result } = renderHook(
-        () => useGetInterfaceByIdQuery(testInterfaceId, actions),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useGetInterfaceByIdQuery(testInterfaceId, actions), {
+        wrapper,
+      });
 
       await waitFor(
         () => {
@@ -244,10 +229,7 @@ describe('@real Interface Query Hooks (Real API)', () => {
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();
-      const { result } = renderHook(
-        () => useListInterfacesQuery(null, actions),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useListInterfacesQuery(null, actions), { wrapper });
 
       // Query should not run when projectId is null
       await waitFor(() => {
@@ -257,4 +239,3 @@ describe('@real Interface Query Hooks (Real API)', () => {
     }
   );
 });
-

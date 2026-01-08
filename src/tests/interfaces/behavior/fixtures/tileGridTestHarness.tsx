@@ -1,21 +1,28 @@
 /**
  * Tile Grid Test Harness
- * 
+ *
  * A reusable wrapper that provides all the mocking and state management
  * needed to test tile layout behaviors in isolation.
- * 
+ *
  * Uses REAL components:
  * - Zustand store for all tile/tab state management
  * - useTilesFromTab hook to get tiles from store
  * - useGlobalUIMode hook for edit mode state
  * - initTile/initTab selectors for state initialization
  * - Store actions for tile CRUD operations
- * 
+ *
  * Mock view layer (DnD) is used to avoid react-grid-layout complexity in tests.
  */
 import React, { useState, useCallback, useRef } from 'react';
 import { render, RenderResult } from '@testing-library/react';
-import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, MouseSensor } from '@dnd-kit/core';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  useSensor,
+  useSensors,
+  MouseSensor,
+} from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import { Plus, Trash2, Copy, EyeOff, Eye, Palette, Move } from 'lucide-react';
 
@@ -23,7 +30,11 @@ import { Plus, Trash2, Copy, EyeOff, Eye, Palette, Move } from 'lucide-react';
 import { useStateContainer } from '../utils';
 
 // Real Store Imports
-import { StoreProvider, useStoreApiContext, useStoreContext } from '../../../../contexts/providers/StoreProvider';
+import {
+  StoreProvider,
+  useStoreApiContext,
+  useStoreContext,
+} from '../../../../contexts/providers/StoreProvider';
 import { IStoreState } from '../../../../contexts/store';
 import { useTilesFromTab } from '../../../../contexts/hooks/useStore';
 import { initTile, Tile, TileType, TilePosition } from '../../../../contexts/slices/selectors/tile';
@@ -42,7 +53,7 @@ const TAB_ID = 'test-tab';
 
 // Use the real Tile type where possible, or map to it
 export type { TileType, TilePosition };
-export type MockTile = Tile; 
+export type MockTile = Tile;
 
 export interface TileGridCallbacks {
   onAddTile?: (type: TileType) => void;
@@ -96,7 +107,7 @@ export interface TileGridTestResult extends RenderResult {
  */
 export function createMockTiles(count: number = 4): Partial<Tile>[] {
   const types: TileType[] = ['Table', 'Plot', 'Editor', 'Terminal'];
-  
+
   return Array.from({ length: count }, (_, i) => ({
     id: `tile-${i + 1}`,
     name: `${types[i % types.length]} ${i + 1}`,
@@ -185,9 +196,7 @@ function DraggableTile({
     top: `${tile.position.y * rowHeight}px`,
     width: `${tile.position.width * cellWidth}%`,
     height: `${tile.position.height * rowHeight}px`,
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1000 : 1,
     transition: isDragging ? 'none' : 'all 0.2s ease',
@@ -197,7 +206,7 @@ function DraggableTile({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white border rounded-lg shadow-sm overflow-hidden ${
+      className={`overflow-hidden rounded-lg border bg-white shadow-sm ${
         editMode ? 'ring-2 ring-blue-300' : ''
       }`}
       data-testid={`tile-${tile.id}`}
@@ -205,7 +214,7 @@ function DraggableTile({
     >
       {/* Tile Header */}
       <div
-        className="flex items-center justify-between px-3 py-2 border-b bg-gray-50"
+        className="flex items-center justify-between border-b bg-gray-50 px-3 py-2"
         style={{ backgroundColor: tile.color }}
       >
         <div className="flex items-center gap-2">
@@ -213,15 +222,15 @@ function DraggableTile({
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab p-1 hover:bg-gray-200 rounded"
+              className="cursor-grab rounded p-1 hover:bg-gray-200"
               aria-label={`Drag ${tile.name}`}
               data-testid={`drag-handle-${tile.id}`}
             >
               <Move className="h-4 w-4 text-gray-500" />
             </button>
           )}
-          <span className="font-medium text-sm truncate">{tile.name}</span>
-          <span className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+          <span className="truncate text-sm font-medium">{tile.name}</span>
+          <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500">
             {tile.type}
           </span>
         </div>
@@ -231,7 +240,7 @@ function DraggableTile({
             <>
               <button
                 onClick={() => onChangeColor(tile.id)}
-                className="p-1 hover:bg-gray-200 rounded"
+                className="rounded p-1 hover:bg-gray-200"
                 aria-label={`Change color of ${tile.name}`}
                 data-testid={`color-button-${tile.id}`}
               >
@@ -239,7 +248,7 @@ function DraggableTile({
               </button>
               <button
                 onClick={() => onClone(tile.id)}
-                className="p-1 hover:bg-gray-200 rounded"
+                className="rounded p-1 hover:bg-gray-200"
                 aria-label={`Clone ${tile.name}`}
                 data-testid={`clone-button-${tile.id}`}
               >
@@ -247,7 +256,7 @@ function DraggableTile({
               </button>
               <button
                 onClick={() => onHide(tile.id)}
-                className="p-1 hover:bg-gray-200 rounded"
+                className="rounded p-1 hover:bg-gray-200"
                 aria-label={`Hide ${tile.name}`}
                 data-testid={`hide-button-${tile.id}`}
               >
@@ -255,7 +264,7 @@ function DraggableTile({
               </button>
               <button
                 onClick={() => onDelete(tile.id)}
-                className="p-1 hover:bg-red-100 rounded text-red-600"
+                className="rounded p-1 text-red-600 hover:bg-red-100"
                 aria-label={`Delete ${tile.name}`}
                 data-testid={`delete-button-${tile.id}`}
               >
@@ -267,16 +276,14 @@ function DraggableTile({
       </div>
 
       {/* Tile Content */}
-      <div className="p-3 h-full" data-testid={`tile-content-${tile.id}`}>
-        <div className="text-gray-400 text-sm">
-          {tile.type} content placeholder
-        </div>
+      <div className="h-full p-3" data-testid={`tile-content-${tile.id}`}>
+        <div className="text-sm text-gray-400">{tile.type} content placeholder</div>
       </div>
 
       {/* Resize Handle (only in edit mode) */}
       {editMode && (
         <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-blue-500 rounded-tl"
+          className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize rounded-tl bg-blue-500"
           aria-label={`Resize ${tile.name}`}
           data-testid={`resize-handle-${tile.id}`}
         />
@@ -299,10 +306,10 @@ function HiddenTilesPanel({ tiles, onShow }: HiddenTilesPanelProps) {
 
   return (
     <div
-      className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-lg p-3"
+      className="fixed bottom-4 right-4 rounded-lg border bg-white p-3 shadow-lg"
       data-testid="hidden-tiles-panel"
     >
-      <h4 className="text-sm font-medium mb-2">Hidden Tiles ({tiles.length})</h4>
+      <h4 className="mb-2 text-sm font-medium">Hidden Tiles ({tiles.length})</h4>
       <div className="space-y-1">
         {tiles.map((tile) => (
           <div
@@ -313,7 +320,7 @@ function HiddenTilesPanel({ tiles, onShow }: HiddenTilesPanelProps) {
             <span>{tile.name}</span>
             <button
               onClick={() => onShow(tile.id)}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="rounded p-1 hover:bg-gray-100"
               aria-label={`Show ${tile.name}`}
               data-testid={`show-button-${tile.id}`}
             >
@@ -340,21 +347,18 @@ function AddTileOverlay({ onSelect, onClose }: AddTileOverlayProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       data-testid="add-tile-overlay"
       onClick={onClose}
     >
-      <div
-        className="bg-white rounded-lg p-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold mb-4">Select Tile Type</h3>
+      <div className="rounded-lg bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-4 text-lg font-semibold">Select Tile Type</h3>
         <div className="grid grid-cols-2 gap-3">
           {tileTypes.map((type) => (
             <button
               key={type}
               onClick={() => onSelect(type)}
-              className="p-4 border rounded-lg hover:bg-gray-50 text-center"
+              className="rounded-lg border p-4 text-center hover:bg-gray-50"
               data-testid={`select-tile-type-${type.toLowerCase()}`}
             >
               {type}
@@ -382,101 +386,120 @@ function TileGridInner({
   stateContainerRef,
 }: TileGridInnerProps) {
   const storeApi = useStoreApiContext();
-  
+
   // Use REAL hook for Edit Mode (from Zustand store)
   const { isEditMode, toggleEditMode, setEditMode } = useGlobalUIMode();
   const editMode = isEditMode;
-  
+
   const [showAddOverlay, setShowAddOverlay] = useState(false);
-  
+
   // Access data using REAL hooks
   const tiles = useTilesFromTab(TAB_ID);
-  
+
   // DnD sensors
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 8 } }));
 
   // ==========================================================================
   // Handlers (Now using Store Actions)
   // ==========================================================================
 
-  const handleAddTile = useCallback((type: TileType) => {
-    const id = `tile-${Date.now()}`;
-    const newTile: Partial<Tile> = {
-      id,
-      name: `New ${type}`,
-      type,
-      position: { x: 0, y: 0, width: 6, height: 4 },
-      visible: true,
-    };
-    
-    storeApi.getState().initTile(TAB_ID, id, newTile);
-    setShowAddOverlay(false);
-    callbacks.onAddTile?.(type);
-  }, [callbacks, storeApi]);
-
-  const handleDeleteTile = useCallback((tileId: string) => {
-    storeApi.getState().removeTile(TAB_ID, tileId);
-    callbacks.onDeleteTile?.(tileId);
-  }, [callbacks, storeApi]);
-
-  const handleHideTile = useCallback((tileId: string) => {
-    storeApi.getState().updateTile(tileId, { visible: false });
-    callbacks.onHideTile?.(tileId);
-  }, [callbacks, storeApi]);
-
-  const handleShowTile = useCallback((tileId: string) => {
-    storeApi.getState().updateTile(tileId, { visible: true });
-    callbacks.onShowTile?.(tileId);
-  }, [callbacks, storeApi]);
-
-  const handleCloneTile = useCallback((tileId: string) => {
-    const original = tiles.find((t) => t.id === tileId);
-    if (original) {
-      const newId = `tile-${Date.now()}`;
-      const clone: Partial<Tile> = {
-        ...original,
-        id: newId,
-        name: `${original.name}_copy`,
-        position: {
-          ...original.position,
-          x: original.position.x + 1,
-          y: original.position.y + 1,
-        },
+  const handleAddTile = useCallback(
+    (type: TileType) => {
+      const id = `tile-${Date.now()}`;
+      const newTile: Partial<Tile> = {
+        id,
+        name: `New ${type}`,
+        type,
+        position: { x: 0, y: 0, width: 6, height: 4 },
+        visible: true,
       };
-      storeApi.getState().initTile(TAB_ID, newId, clone);
-      callbacks.onCloneTile?.(tileId);
-    }
-  }, [tiles, callbacks, storeApi]);
 
-  const handleChangeColor = useCallback((tileId: string) => {
-    const colors = ['#ffebee', '#e3f2fd', '#e8f5e9', '#fff3e0', undefined];
-    const tile = tiles.find(t => t.id === tileId);
-    if (tile) {
-      const currentIndex = colors.indexOf(tile.color);
-      const nextColor = colors[(currentIndex + 1) % colors.length];
-      storeApi.getState().updateTile(tileId, { color: nextColor });
-      callbacks.onChangeTileColor?.(tileId, nextColor || '');
-    }
-  }, [tiles, callbacks, storeApi]);
+      storeApi.getState().initTile(TAB_ID, id, newTile);
+      setShowAddOverlay(false);
+      callbacks.onAddTile?.(type);
+    },
+    [callbacks, storeApi]
+  );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, delta } = event;
-    if (delta.x === 0 && delta.y === 0) return;
+  const handleDeleteTile = useCallback(
+    (tileId: string) => {
+      storeApi.getState().removeTile(TAB_ID, tileId);
+      callbacks.onDeleteTile?.(tileId);
+    },
+    [callbacks, storeApi]
+  );
 
-    const tile = tiles.find(t => t.id === active.id);
-    if (tile) {
-      const newPosition = {
-        ...tile.position,
-        x: Math.max(0, Math.round(tile.position.x + delta.x / (100 / columns))),
-        y: Math.max(0, Math.round(tile.position.y + delta.y / rowHeight)),
-      };
-      
-      storeApi.getState().updateTile(tile.id, { position: newPosition });
-      callbacks.onMoveTile?.(tile.id, newPosition);
-    }
-  }, [columns, rowHeight, callbacks, tiles, storeApi]);
+  const handleHideTile = useCallback(
+    (tileId: string) => {
+      storeApi.getState().updateTile(tileId, { visible: false });
+      callbacks.onHideTile?.(tileId);
+    },
+    [callbacks, storeApi]
+  );
+
+  const handleShowTile = useCallback(
+    (tileId: string) => {
+      storeApi.getState().updateTile(tileId, { visible: true });
+      callbacks.onShowTile?.(tileId);
+    },
+    [callbacks, storeApi]
+  );
+
+  const handleCloneTile = useCallback(
+    (tileId: string) => {
+      const original = tiles.find((t) => t.id === tileId);
+      if (original) {
+        const newId = `tile-${Date.now()}`;
+        const clone: Partial<Tile> = {
+          ...original,
+          id: newId,
+          name: `${original.name}_copy`,
+          position: {
+            ...original.position,
+            x: original.position.x + 1,
+            y: original.position.y + 1,
+          },
+        };
+        storeApi.getState().initTile(TAB_ID, newId, clone);
+        callbacks.onCloneTile?.(tileId);
+      }
+    },
+    [tiles, callbacks, storeApi]
+  );
+
+  const handleChangeColor = useCallback(
+    (tileId: string) => {
+      const colors = ['#ffebee', '#e3f2fd', '#e8f5e9', '#fff3e0', undefined];
+      const tile = tiles.find((t) => t.id === tileId);
+      if (tile) {
+        const currentIndex = colors.indexOf(tile.color);
+        const nextColor = colors[(currentIndex + 1) % colors.length];
+        storeApi.getState().updateTile(tileId, { color: nextColor });
+        callbacks.onChangeTileColor?.(tileId, nextColor || '');
+      }
+    },
+    [tiles, callbacks, storeApi]
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, delta } = event;
+      if (delta.x === 0 && delta.y === 0) return;
+
+      const tile = tiles.find((t) => t.id === active.id);
+      if (tile) {
+        const newPosition = {
+          ...tile.position,
+          x: Math.max(0, Math.round(tile.position.x + delta.x / (100 / columns))),
+          y: Math.max(0, Math.round(tile.position.y + delta.y / rowHeight)),
+        };
+
+        storeApi.getState().updateTile(tile.id, { position: newPosition });
+        callbacks.onMoveTile?.(tile.id, newPosition);
+      }
+    },
+    [columns, rowHeight, callbacks, tiles, storeApi]
+  );
 
   // Derived state
   const visibleTiles = tiles.filter((t) => t.visible !== false);
@@ -486,29 +509,33 @@ function TileGridInner({
   // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  useStateContainer(stateContainerRef, () => ({
-    getTiles: () => tiles,
-    getVisibleTiles: () => visibleTiles,
-    getHiddenTiles: () => hiddenTiles,
-    getTile: (id: string) => tiles.find((t) => t.id === id),
-    isEditMode: () => editMode,
-    toggleEditMode: () => toggleEditMode(),
-    addTile: (tile: Partial<Tile>) => storeApi.getState().initTile(TAB_ID, tile.id!, tile),
-    removeTile: (tileId: string) => storeApi.getState().removeTile(TAB_ID, tileId),
-  }), [tiles, visibleTiles, hiddenTiles, editMode, toggleEditMode, storeApi]);
+  useStateContainer(
+    stateContainerRef,
+    () => ({
+      getTiles: () => tiles,
+      getVisibleTiles: () => visibleTiles,
+      getHiddenTiles: () => hiddenTiles,
+      getTile: (id: string) => tiles.find((t) => t.id === id),
+      isEditMode: () => editMode,
+      toggleEditMode: () => toggleEditMode(),
+      addTile: (tile: Partial<Tile>) => storeApi.getState().initTile(TAB_ID, tile.id!, tile),
+      removeTile: (tileId: string) => storeApi.getState().removeTile(TAB_ID, tileId),
+    }),
+    [tiles, visibleTiles, hiddenTiles, editMode, toggleEditMode, storeApi]
+  );
 
   // ==========================================================================
   // Render
   // ==========================================================================
 
   return (
-    <div data-testid="tile-grid-container" className="relative w-full min-h-[600px]">
+    <div data-testid="tile-grid-container" className="relative min-h-[600px] w-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between p-2 border-b bg-gray-50">
+      <div className="flex items-center justify-between border-b bg-gray-50 p-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => toggleEditMode()} // Use REAL toggle from useGlobalUIMode
-            className={`px-3 py-1.5 rounded text-sm ${
+            className={`rounded px-3 py-1.5 text-sm ${
               editMode ? 'bg-blue-500 text-white' : 'bg-gray-200'
             }`}
             data-testid="edit-mode-toggle"
@@ -518,7 +545,7 @@ function TileGridInner({
           {editMode && (
             <button
               onClick={() => setShowAddOverlay(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded text-sm"
+              className="flex items-center gap-1 rounded bg-green-500 px-3 py-1.5 text-sm text-white"
               data-testid="add-tile-button"
             >
               <Plus className="h-4 w-4" />
@@ -533,16 +560,8 @@ function TileGridInner({
       </div>
 
       {/* Grid */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div
-          className="relative w-full"
-          style={{ minHeight: '500px' }}
-          data-testid="tile-grid"
-        >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="relative w-full" style={{ minHeight: '500px' }} data-testid="tile-grid">
           {visibleTiles.map((tile) => (
             <DraggableTile
               key={tile.id}
@@ -564,10 +583,7 @@ function TileGridInner({
 
       {/* Add Tile Overlay */}
       {showAddOverlay && (
-        <AddTileOverlay
-          onSelect={handleAddTile}
-          onClose={() => setShowAddOverlay(false)}
-        />
+        <AddTileOverlay onSelect={handleAddTile} onClose={() => setShowAddOverlay(false)} />
       )}
     </div>
   );
@@ -585,15 +601,15 @@ function createInitialStoreState(
   initialEditMode: boolean
 ): Partial<IStoreState> {
   const tab = initTab(TAB_ID, { name: 'Test Tab' });
-  
+
   const tilesById: Record<string, Tile> = {};
   const tileIds: string[] = [];
 
-  initialTiles.forEach(t => {
+  initialTiles.forEach((t) => {
     if (t.id) {
-      const tile = initTile(t.id, { 
+      const tile = initTile(t.id, {
         ...t,
-        visible: t.visible !== false // ensure visibility
+        visible: t.visible !== false, // ensure visibility
       });
       tilesById[t.id] = tile;
       tileIds.push(t.id);
@@ -605,7 +621,7 @@ function createInitialStoreState(
   return {
     activeTabId: TAB_ID,
     tabsById: {
-      [TAB_ID]: tab
+      [TAB_ID]: tab,
     },
     tilesById,
     // Initialize REAL global edit mode state
@@ -615,10 +631,10 @@ function createInitialStoreState(
 
 export function renderTileGrid(options: TileGridTestOptions = {}): TileGridTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
-  const { 
-    initialTiles = createMockTiles(4), 
+  const {
+    initialTiles = createMockTiles(4),
     editMode: initialEditMode = false,
-    ...innerOptions 
+    ...innerOptions
   } = options;
 
   // Pre-calculate initial state (includes REAL global edit mode)
@@ -627,7 +643,11 @@ export function renderTileGrid(options: TileGridTestOptions = {}): TileGridTestR
   // Wrap with StoreProvider
   const renderResult = render(
     <StoreProvider initialState={initialState}>
-      <TileGridInner {...innerOptions} editMode={initialEditMode} stateContainerRef={stateContainerRef} />
+      <TileGridInner
+        {...innerOptions}
+        editMode={initialEditMode}
+        stateContainerRef={stateContainerRef}
+      />
     </StoreProvider>
   );
 

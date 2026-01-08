@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import React from "react";
-import { LogComparisonProps } from "./types";
-import RowBadge from "./RowBadge";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
-import { useEditablePrimitive } from "@/hooks/Interfaces/useEditablePrimitive";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
-import Tooltip from "@/components/Common/Misc/Tooltip";
+import React from 'react';
+import { LogComparisonProps } from './types';
+import RowBadge from './RowBadge';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
+import { useEditablePrimitive } from '@/hooks/Interfaces/useEditablePrimitive';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -23,7 +23,7 @@ function parseTimestamp(ts: string): Date | null {
  */
 function formatHumanReadable(ts: string): string {
   const parsed = parseTimestamp(ts);
-  if (!parsed) return "(invalid date)";
+  if (!parsed) return '(invalid date)';
   return parsed.toUTCString(); // e.g. "Fri, 22 Sep 2023 16:34:22 GMT"
 }
 
@@ -34,10 +34,10 @@ function formatHumanReadable(ts: string): string {
 function buildTimedeltaString(baseStr: string, compStr: string): string {
   const baseDate = parseTimestamp(baseStr);
   const compDate = parseTimestamp(compStr);
-  if (!baseDate || !compDate) return "(invalid difference)";
+  if (!baseDate || !compDate) return '(invalid difference)';
 
   let deltaMs = compDate.getTime() - baseDate.getTime();
-  const signChar = deltaMs >= 0 ? "+" : "-";
+  const signChar = deltaMs >= 0 ? '+' : '-';
   let absMs = Math.abs(deltaMs);
 
   const days = Math.floor(absMs / 86400000);
@@ -62,9 +62,9 @@ function buildTimedeltaString(baseStr: string, compStr: string): string {
   if (ms > 0) parts.push(`${ms} ms`);
 
   if (parts.length === 0) {
-    return signChar + " 0 ms";
+    return signChar + ' 0 ms';
   }
-  return signChar + " " + parts.join(", ");
+  return signChar + ' ' + parts.join(', ');
 }
 
 // Grouping helper for no-diff and edit mode
@@ -74,7 +74,7 @@ function groupAllTimestampsByValue(
   baseRow: number,
   compRows: number[]
 ) {
-  const allTimestamps = [baseVal, ...(comparables ?? [])].map(ts => String(ts ?? ""));
+  const allTimestamps = [baseVal, ...(comparables ?? [])].map((ts) => String(ts ?? ''));
   const allRows = [baseRow, ...compRows];
 
   const map = new Map<string, number[]>();
@@ -101,10 +101,7 @@ function groupVersionsForRows(
 ) {
   const map = new Map<string, number[]>();
   rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    const verStr = r === baseLogIndex ? baseVer : (compVers[compLogIndexes.indexOf(r)] ?? '');
     if (!map.has(verStr)) {
       map.set(verStr, []);
     }
@@ -122,7 +119,7 @@ const EditableTimestampField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
-  isImmutable
+  isImmutable,
 }: {
   initialValue: string;
   logIndices: number[]; // Indices sharing this value
@@ -138,109 +135,118 @@ const EditableTimestampField = ({
       if (parsedDate) {
         onGroupSave({ logIndices, path, newValue: newValue }); // Save the valid string
       } else {
-                    showErrorToast("Invalid timestamp format. Changes not saved.");
+        showErrorToast('Invalid timestamp format. Changes not saved.');
       }
     },
-    (val) => parseTimestamp(val) ? true : "Invalid timestamp format" // Validation function
+    (val) => (parseTimestamp(val) ? true : 'Invalid timestamp format') // Validation function
   );
 
-  return (isImmutable
-  ? <Tooltip content="Immutable fields cannot be edited">
+  return isImmutable ? (
+    <Tooltip content="Immutable fields cannot be edited">
       <input
         type="text"
         placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
-        className="w-full border rounded p-1 text-body font-mono"
+        className="text-body w-full rounded border p-1 font-mono"
         {...inputProps}
         value={draft}
         disabled
       />
     </Tooltip>
-  : <input
+  ) : (
+    <input
       type="text"
       placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
-      className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
+      className="text-body w-full rounded border bg-input p-1 font-mono text-foreground"
       {...inputProps}
       value={draft}
     />
   );
 };
 
-
 export default function TimestampView({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView, // Not used, just for compatibility
-  version = "",
+  version = '',
   comparableVersions = [],
-  displayMode = "markdown",
+  displayMode = 'markdown',
   cellEditMode = false,
   onSaveEdit,
-  onGroupSaveEdit, 
+  onGroupSaveEdit,
   path = [],
   nested = false,
-  isImmutable
-}: LogComparisonProps & { nested?: boolean, isImmutable?: boolean }) {
-
+  isImmutable,
+}: LogComparisonProps & { nested?: boolean; isImmutable?: boolean }) {
   // If editable, group and render editable fields
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
     const timestampGroups = groupAllTimestampsByValue(
-        value,
-        comparables,
-        baseLogIndex,
-        comparisonLogsIndex
+      value,
+      comparables,
+      baseLogIndex,
+      comparisonLogsIndex
     );
 
     // Filter out groups with empty or clearly invalid initial values before rendering inputs
     // We still allow editing potentially invalid formats entered by the user.
-    const validGroups = timestampGroups.filter(group => group.tsVal.trim() !== "");
+    const validGroups = timestampGroups.filter((group) => group.tsVal.trim() !== '');
 
     // Define the handler that will be called by EditableTimestampField's onSave
-    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+    const handleGroupSave = ({
+      logIndices,
+      path,
+      newValue,
+    }: {
+      logIndices: number[];
+      path: (string | number)[];
+      newValue: any;
+    }) => {
       if (onGroupSaveEdit) {
         // Call the group save handler directly with all indices
         onGroupSaveEdit({ logIndices, path, newValue });
       } else if (onSaveEdit && logIndices.length > 0) {
         // Fallback: Call single save for the first index if group save handler is not provided
-        console.warn("Using single onSaveEdit for grouped timestamp field. Consider implementing onGroupSaveEdit.");
+        console.warn(
+          'Using single onSaveEdit for grouped timestamp field. Consider implementing onGroupSaveEdit.'
+        );
         onSaveEdit({ logIndex: logIndices[0], path, newValue });
       }
     };
 
     return (
-        <div className="space-y-3">
-            {validGroups.map((group, index) => (
-                <div key={index}>
-                    {/* Display RowBadges for the logs sharing this value */}
-                    {!nested &&
-                    <div className="flex items-center gap-1 mb-1">
-                        <RowBadge rowNumbers={group.rows} mode="none" />
-                        <span className="text-caption text-muted-foreground">
-                            {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
-                        </span>
-                    </div>}
-                    {/* Render a single editable field for this group */}
-                    <EditableTimestampField
-                        initialValue={group.tsVal} // Pass the timestamp string
-                        logIndices={group.rows} // Pass the indices associated with this group
-                        path={path}
-                        onGroupSave={handleGroupSave} // Pass the group save handler
-                        isImmutable={isImmutable}
-                    />
-                </div>
-            ))}
-        </div>
+      <div className="space-y-3">
+        {validGroups.map((group, index) => (
+          <div key={index}>
+            {/* Display RowBadges for the logs sharing this value */}
+            {!nested && (
+              <div className="mb-1 flex items-center gap-1">
+                <RowBadge rowNumbers={group.rows} mode="none" />
+                <span className="text-caption text-muted-foreground">
+                  {group.rows.length > 1 ? `(${group.rows.length} logs)` : ''}
+                </span>
+              </div>
+            )}
+            {/* Render a single editable field for this group */}
+            <EditableTimestampField
+              initialValue={group.tsVal} // Pass the timestamp string
+              logIndices={group.rows} // Pass the indices associated with this group
+              path={path}
+              onGroupSave={handleGroupSave} // Pass the group save handler
+              isImmutable={isImmutable}
+            />
+          </div>
+        ))}
+      </div>
     );
   }
 
-
   // --- Read-only rendering logic ---
   const singleMode = !comparables || comparables.length === 0;
-  const baseStr = typeof value === "string" ? value : String(value || "");
+  const baseStr = typeof value === 'string' ? value : String(value || '');
 
-  const baseVer = version || "";
+  const baseVer = version || '';
   const compVers = comparableVersions;
   const versionEmpty = !baseVer && compVers.every((s) => !s);
 
@@ -254,39 +260,39 @@ export default function TimestampView({
           <div className="space-y-2">
             <p className="text-title">Version</p>
             {baseVer ? (
-              <div className="flex relative p-2 border rounded group">
+              <div className="group relative flex rounded border p-2">
                 <div>
-                  {displayMode === "markdown" ? (
+                  {displayMode === 'markdown' ? (
                     <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                   ) : (
                     baseVer
                   )}
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         <div className="space-y-2">
           {!versionEmpty && <p className="text-title">Value</p>}
-          <div className="flex border rounded p-2 relative group">
+          <div className="group relative flex rounded border p-2">
             <div>
-              {displayMode === "markdown" ? (
+              {displayMode === 'markdown' ? (
                 <MarkdownRenderer>{formatHumanReadable(baseStr)}</MarkdownRenderer>
               ) : (
                 <p className="text-body whitespace-pre-wrap">{formatHumanReadable(baseStr)}</p>
               )}
             </div>
             <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               content={baseStr}
               copyMessage="Copied timestamp!"
               tooltipContent="Copy timestamp"
@@ -301,12 +307,17 @@ export default function TimestampView({
   // MULTI MODE
   // If diffMode === "none," group them (like StringView "none" mode)
   //----------------------------------------
-  if (diffMode === "none") {
-    const groupArr = groupAllTimestampsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
+  if (diffMode === 'none') {
+    const groupArr = groupAllTimestampsByValue(
+      value,
+      comparables,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
 
     // Filter out groups with empty or invalid timestamps
-    const filteredGroups = groupArr.filter(group => {
-      if (!group.tsVal || group.tsVal.trim() === "") return false;
+    const filteredGroups = groupArr.filter((group) => {
+      if (!group.tsVal || group.tsVal.trim() === '') return false;
       const parsedTimestamp = parseTimestamp(group.tsVal);
       return parsedTimestamp !== null;
     });
@@ -316,29 +327,33 @@ export default function TimestampView({
         {filteredGroups.map((group, idx) => {
           const tsVal = group.tsVal;
           const rowNumbers = group.rows;
-          const verGroups = groupVersionsForRows(rowNumbers, baseLogIndex, baseVer, comparisonLogsIndex, compVers);
+          const verGroups = groupVersionsForRows(
+            rowNumbers,
+            baseLogIndex,
+            baseVer,
+            comparisonLogsIndex,
+            compVers
+          );
 
           return (
-            <div key={idx} className="p-3 space-y-4">
+            <div key={idx} className="space-y-4 p-3">
               {!versionEmpty && (
                 <div>
                   <p className="text-title mb-4">Version</p>
                   <div className="space-y-2">
                     {verGroups.map((vg, j) => (
-                      <div key={j} className="border rounded p-2 relative group">
+                      <div key={j} className="group relative rounded border p-2">
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         {vg.text ? (
                           <div className="pt-2">
-                            {displayMode === "markdown" ? (
+                            {displayMode === 'markdown' ? (
                               <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                             ) : (
                               vg.text
                             )}
                           </div>
                         ) : (
-                          <p className="italic text-body text-muted-foreground pt-2">
-                            No version
-                          </p>
+                          <p className="text-body pt-2 italic text-muted-foreground">No version</p>
                         )}
                       </div>
                     ))}
@@ -346,17 +361,15 @@ export default function TimestampView({
                 </div>
               )}
 
-              {!versionEmpty && (
-                <p className="text-title">Value</p>
-              )}
-              <div className="relative border rounded p-2 group">
+              {!versionEmpty && <p className="text-title">Value</p>}
+              <div className="group relative rounded border p-2">
                 <RowBadge rowNumbers={rowNumbers} mode="none" />
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={tsVal}
                   copyMessage="Copied timestamp!"
                 />
-                <p className="text-body mt-1 mb-1">{formatHumanReadable(tsVal)}</p>
+                <p className="text-body mb-1 mt-1">{formatHumanReadable(tsVal)}</p>
               </div>
             </div>
           );
@@ -371,7 +384,7 @@ export default function TimestampView({
   allComps.forEach((ts, i) => {
     const row = comparisonLogsIndex[i];
     // Skip adding empty or invalid timestamps to the map
-    if (!ts || ts.trim() === "") return;
+    if (!ts || ts.trim() === '') return;
     const parsedTimestamp = parseTimestamp(ts);
     if (parsedTimestamp === null) return;
 
@@ -391,74 +404,76 @@ export default function TimestampView({
 
         const joinedRows = [baseLogIndex, ...rowNumbers];
         const diff = buildTimedeltaString(baseStr, compStr);
-        const verGroups = groupVersionsForRows(joinedRows, baseLogIndex, baseVer, comparisonLogsIndex, compVers);
+        const verGroups = groupVersionsForRows(
+          joinedRows,
+          baseLogIndex,
+          baseVer,
+          comparisonLogsIndex,
+          compVers
+        );
 
         return (
-          <div key={idx} className="p-3 space-y-4">
+          <div key={idx} className="space-y-4 p-3">
             {/* Param versions if not empty */}
             {!versionEmpty && (
               <div className="space-y-2">
                 <p className="text-title">Version</p>
                 {verGroups.map((vg, j) => (
-                    <div key={j} className="border rounded p-2 relative group">
-                      <RowBadge rowNumbers={vg.rows} mode="none" />
-                      {vg.text ? (
-                        <div className="pt-2">
-                          {displayMode === "markdown" ? (
-                            <MarkdownRenderer>{vg.text}</MarkdownRenderer>
-                          ) : (
-                            vg.text
-                          )}
-                        </div>
-                      ) : (
-                        <p className="italic text-body text-muted-foreground pt-2">
-                          No version
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  <div key={j} className="group relative rounded border p-2">
+                    <RowBadge rowNumbers={vg.rows} mode="none" />
+                    {vg.text ? (
+                      <div className="pt-2">
+                        {displayMode === 'markdown' ? (
+                          <MarkdownRenderer>{vg.text}</MarkdownRenderer>
+                        ) : (
+                          vg.text
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-body pt-2 italic text-muted-foreground">No version</p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
             <div className="flex flex-col gap-2">
-              {!versionEmpty && (
-                <p className="text-title">Value</p>
-              )}
+              {!versionEmpty && <p className="text-title">Value</p>}
               <div className="flex items-center gap-2">
                 {/* Base block */}
-                <div className="relative border p-2 rounded group">
+                <div className="group relative rounded border p-2">
                   <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                  <p className="mt-4 text-body">{formatHumanReadable(baseStr)}</p>
+                  <p className="text-body mt-4">{formatHumanReadable(baseStr)}</p>
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={baseStr}
                     copyMessage="Copied timestamp!"
                   />
                 </div>
 
                 {/* → Arrow */}
-                <div className="font-bold text-xl mx-2">→</div>
+                <div className="mx-2 text-xl font-bold">→</div>
 
                 {/* Comparable block */}
-                <div className="relative border p-2 rounded group">
+                <div className="group relative rounded border p-2">
                   <RowBadge rowNumbers={rowNumbers} mode="none" />
-                  <p className="mt-4 text-body">{formatHumanReadable(compStr)}</p>
+                  <p className="text-body mt-4">{formatHumanReadable(compStr)}</p>
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={compStr}
                     copyMessage="Copied timestamp!"
                   />
                 </div>
 
                 {/* = difference */}
-                <div className="font-bold text-xl mx-2">=</div>
+                <div className="mx-2 text-xl font-bold">=</div>
 
                 {/* Difference block */}
-                <div className="relative border p-2 rounded min-w-24 group">
+                <div className="group relative min-w-24 rounded border p-2">
                   <p className="text-title">Diff</p>
-                  <p className="mt-4 text-body">{diff}</p>
+                  <p className="text-body mt-4">{diff}</p>
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={diff}
                     copyMessage="Copied diff!"
                   />

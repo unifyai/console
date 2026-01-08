@@ -1,4 +1,4 @@
-import { ThroughputDataProps } from "@/types/usage";
+import { ThroughputDataProps } from '@/types/usage';
 import {
   LineChart,
   Line,
@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-} from "recharts";
+} from 'recharts';
 
 function convertDataToNumericTimestamps(data: ThroughputDataProps[]) {
   return data.map((d) => ({
@@ -27,13 +27,13 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
       return null;
     }
     return (
-      <div className="bg-background px-2 py-2 rounded-md border shadow-sm text-medium">
+      <div className="text-medium rounded-md border bg-background px-2 py-2 shadow-sm">
         <p className="text-xs text-muted-foreground">{formatTooltipLabel(label)}</p>
         <ul className="list">
           {payload.map((entry: any, index: any) => {
-            let quantile = "";
-            if (entry.dataKey === "tokensPerSecP50") quantile = "50th";
-            else if (entry.dataKey === "tokensPerSecP95") quantile = "95th";
+            let quantile = '';
+            if (entry.dataKey === 'tokensPerSecP50') quantile = '50th';
+            else if (entry.dataKey === 'tokensPerSecP95') quantile = '95th';
             return (
               <li key={`item-${index}`} style={{ color: entry.color }}>
                 {`${quantile} percentile: ${Math.round(entry.value)} tokens/sec`}
@@ -47,24 +47,24 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
 
   const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
     });
   };
 
   const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
       hour12: false,
     });
   };
@@ -77,15 +77,15 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
           dataKey="ts"
           type="number"
           scale="time"
-          domain={["auto", "auto"]}
+          domain={['auto', 'auto']}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}
-          tick={{ fontSize: "10px" }}
+          tick={{ fontSize: '10px' }}
           tickMargin={10}
           height={70}
         />
-        <YAxis unit="tokens/sec" orientation="right" tick={{ fontSize: "10px" }} />
+        <YAxis unit="tokens/sec" orientation="right" tick={{ fontSize: '10px' }} />
         <Tooltip content={renderTooltipContent} />
         <Legend verticalAlign="top" height={36} />
         <Line

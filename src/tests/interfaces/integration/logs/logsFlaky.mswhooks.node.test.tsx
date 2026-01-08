@@ -87,7 +87,3 @@ describe('useInfiniteLogsQuery (flaky backend scenarios via fetchLogsCore)', () 
     fetchSpy.mockRestore();
   });
 });
-
-
-
-

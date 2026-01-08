@@ -1,9 +1,9 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/UI/button"
+import * as React from 'react';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/UI/button';
 import {
   Command,
   CommandEmpty,
@@ -11,20 +11,20 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/UI/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
+} from '@/components/UI/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 
 export interface ComboboxItem {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 export interface ComboboxProps {
-  items: ComboboxItem[]              // The list of selectable { value, label } pairs
-  value: string                      // Currently selected value
-  onValueChange: (newValue: string) => void
-  placeholder?: string
-  className?: string
+  items: ComboboxItem[]; // The list of selectable { value, label } pairs
+  value: string; // Currently selected value
+  onValueChange: (newValue: string) => void;
+  placeholder?: string;
+  className?: string;
 }
 
 /**
@@ -40,12 +40,12 @@ export function Combobox({
   items,
   value,
   onValueChange,
-  placeholder = "Select an item…",
-  className = "",
+  placeholder = 'Select an item…',
+  className = '',
 }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
-  const currentItem = items.find((item) => item.value === value)
+  const currentItem = items.find((item) => item.value === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,7 +54,7 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("justify-between px-2 py-1", className)}
+          className={cn('justify-between px-2 py-1', className)}
         >
           {currentItem ? currentItem.label : placeholder}
           <ChevronsUpDown className="ml-1 h-4 w-4 opacity-50" />
@@ -65,8 +65,8 @@ export function Combobox({
           <CommandInput
             placeholder="Search…"
             onKeyDown={(e) => {
-              e.stopPropagation()
-              e.nativeEvent.stopImmediatePropagation()
+              e.stopPropagation();
+              e.nativeEvent.stopImmediatePropagation();
             }}
           />
           <CommandList>
@@ -77,15 +77,15 @@ export function Combobox({
                   key={item.value}
                   value={item.value}
                   onSelect={(selectedValue) => {
-                    onValueChange(selectedValue === value ? "" : selectedValue)
-                    setOpen(false)
+                    onValueChange(selectedValue === value ? '' : selectedValue);
+                    setOpen(false);
                   }}
                 >
                   {item.label}
                   <Check
                     className={cn(
-                      "ml-auto h-4 w-4",
-                      value === item.value ? "opacity-100" : "opacity-0"
+                      'ml-auto h-4 w-4',
+                      value === item.value ? 'opacity-100' : 'opacity-0'
                     )}
                   />
                 </CommandItem>
@@ -95,5 +95,5 @@ export function Combobox({
         </Command>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

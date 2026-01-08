@@ -2,4 +2,4 @@ import OnboardingWorkflow from '@/components/Pages/TaxClassification/OnboardingW
 
 export default function OnboardingPage() {
   return <OnboardingWorkflow />;
-} 
+}

@@ -34,111 +34,104 @@ export interface TabUIActions {
  * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab UI state and actions
  */
-export function useTabUI(
-  tabIdOrName: string | null, 
-  interfaceIdOrName?: string | null
-) {
-
+export function useTabUI(tabIdOrName: string | null, interfaceIdOrName?: string | null) {
   // Use the meta hook to get common tab info
-  const { 
-    tabId, 
-    tabExists 
-  } = useTabMeta(tabIdOrName, interfaceIdOrName);
+  const { tabId, tabExists } = useTabMeta(tabIdOrName, interfaceIdOrName);
 
   // Get tileIds from the store
   const tileIds = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tabExists || !tabId) return [];
       return state.tabsById[tabId].tileIds;
     })
   );
 
   // Granular subscriptions to UI properties
-  const interfaceIdFromState = useStoreContext(state => {
+  const interfaceIdFromState = useStoreContext((state) => {
     if (!tabExists || !tabId) return null;
     return state.tabsById[tabId].interfaceId;
   });
-  
+
   const focusedTileNames = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tabExists || !tabId) return EMPTY_FOCUSED_TILE_NAMES;
       return state.tabsById[tabId].focusedTileNames;
     })
   );
-  
-  const saveSuccess = useStoreContext(state => {
+
+  const saveSuccess = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].saveSuccess;
   });
-  
-  const resetting = useStoreContext(state => {
+
+  const resetting = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].resetting;
   });
-  
-  const edit = useStoreContext(state => {
+
+  const edit = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].edit;
   });
-  
-  const interactive = useStoreContext(state => {
+
+  const interactive = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].interactive;
   });
-  
-  const help = useStoreContext(state => {
+
+  const help = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].help;
   });
-  
-  const copied = useStoreContext(state => {
+
+  const copied = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].copied;
   });
-  
-  const deleting = useStoreContext(state => {
+
+  const deleting = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].deleting;
   });
-  
-  const refreshing = useStoreContext(state => {
+
+  const refreshing = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].refreshing;
   });
 
-  const color = useStoreContext(state => {
+  const color = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].color;
   });
 
-  const hoveredLog = useStoreContext(state => {
+  const hoveredLog = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].hoveredLog;
-  })
+  });
 
-  const editTile = useStoreContext(state => { 
+  const editTile = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].editTile;
   });
 
-  const dataPending = useStoreContext(state => {
+  const dataPending = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].dataPending;
   });
 
-  const pending = useStoreContext(state => {  
+  const pending = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].pending;
   });
 
   // Get store actions needed for UI
-  const storeUpdateTab = useStoreContext(state => state.updateTab);
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  
+  const storeUpdateTab = useStoreContext((state) => state.updateTab);
+  const storeUpdateTile = useStoreContext((state) => state.updateTile);
+
   // Memoize the UI state object
   const ui = useMemo<Partial<TabUI> | null>(() => {
     if (!tabExists) return null;
-    
+
     return {
       interfaceId: interfaceIdFromState,
       focusedTileNames: focusedTileNames,
@@ -176,108 +169,106 @@ export function useTabUI(
   ]);
 
   // Memoize the UI actions
-  const uiActions = useMemo<TabUIActions>(() => ({
-    setFocusedTileNames: (focusedTileNames) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { focusedTileNames: focusedTileNames });
-      }
-    },
-    
-    setSaveSuccess: (saveSuccess) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { saveSuccess });
-      }
-    },
-    
-    setResetting: (resetting) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { resetting });
-      }
-    },
-    
-    setEdit: (edit) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { edit });
-      }
-    },
-    
-    setInteractive: (interactive) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { interactive });
-      }
-    },
-    
-    setHelp: (help) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { help });
-      }
-    },
-    
-    setCopied: (copied) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { copied });
-      }
-    },
-    
-    setDeleting: (deleting) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { deleting });
-      }
-    },
-    
-    setRefreshing: (refreshing) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { refreshing });
-      }
-    },
-    
-    setTilesPending: (pending) => {
-      if (tabId && tileIds.length) {
-        // Update all tiles in the tab
-        tileIds.forEach(tileId => {
-          storeUpdateTile(tileId, { pending });
-        });
-      }
-    },
+  const uiActions = useMemo<TabUIActions>(
+    () => ({
+      setFocusedTileNames: (focusedTileNames) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { focusedTileNames: focusedTileNames });
+        }
+      },
 
-    setColor: (color) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { color });
-      }
-    },
+      setSaveSuccess: (saveSuccess) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { saveSuccess });
+        }
+      },
 
-    setHoveredLog: (hoveredLog) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { hoveredLog })
-      }
-    },
+      setResetting: (resetting) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { resetting });
+        }
+      },
 
-    setEditTile: (editTile) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { editTile });
-      }
-    },
+      setEdit: (edit) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { edit });
+        }
+      },
 
-    setDataPending: (dataPending) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { dataPending });
-      }
-    },
+      setInteractive: (interactive) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { interactive });
+        }
+      },
 
-    setPending: (pending) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { pending });
-      }
-    },
-  }), [
-    tabId,
-    tileIds,
-    storeUpdateTab,
-    storeUpdateTile,
-  ]);
+      setHelp: (help) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { help });
+        }
+      },
+
+      setCopied: (copied) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { copied });
+        }
+      },
+
+      setDeleting: (deleting) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { deleting });
+        }
+      },
+
+      setRefreshing: (refreshing) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { refreshing });
+        }
+      },
+
+      setTilesPending: (pending) => {
+        if (tabId && tileIds.length) {
+          // Update all tiles in the tab
+          tileIds.forEach((tileId) => {
+            storeUpdateTile(tileId, { pending });
+          });
+        }
+      },
+
+      setColor: (color) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { color });
+        }
+      },
+
+      setHoveredLog: (hoveredLog) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { hoveredLog });
+        }
+      },
+
+      setEditTile: (editTile) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { editTile });
+        }
+      },
+
+      setDataPending: (dataPending) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { dataPending });
+        }
+      },
+
+      setPending: (pending) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { pending });
+        }
+      },
+    }),
+    [tabId, tileIds, storeUpdateTab, storeUpdateTile]
+  );
 
   return {
     ui,
     uiActions,
   };
-} 
+}

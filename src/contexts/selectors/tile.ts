@@ -41,20 +41,20 @@ export const selectTileByTabIdAndName = (state: IStoreState, tabId: string, name
  */
 export const selectTilesForTab = (state: IStoreState, tabId: string) => {
   const ids = selectTileIdsForTab(state, tabId);
-  const tiles = ids.map(id => state.tilesById?.[id]);
+  const tiles = ids.map((id) => state.tilesById?.[id]);
   const filtered = tiles.filter(Boolean);
-  
+
   // Debug: log when tiles are missing from tilesById
   if (tiles.length !== filtered.length) {
-    const missingIds = ids.filter(id => !state.tilesById?.[id]);
+    const missingIds = ids.filter((id) => !state.tilesById?.[id]);
     console.warn('[selectTilesForTab] Missing tiles in tilesById:', {
       tabId,
       tileIds: ids,
       missingIds,
-      tilesById: Object.keys(state.tilesById || {})
+      tilesById: Object.keys(state.tilesById || {}),
     });
   }
-  
+
   return filtered;
 };
 
@@ -64,9 +64,7 @@ export const selectTilesForTab = (state: IStoreState, tabId: string) => {
 export const selectTilesForTabByType = (state: IStoreState, tabId: string, tileType: string) => {
   if (!tabId || !tileType) return [];
   const ids = selectTileIdsForTab(state, tabId);
-  return ids
-    .map(id => state.tilesById?.[id])
-    .filter(tile => tile && tile.type === tileType);
+  return ids.map((id) => state.tilesById?.[id]).filter((tile) => tile && tile.type === tileType);
 };
 
 /**
@@ -74,9 +72,7 @@ export const selectTilesForTabByType = (state: IStoreState, tabId: string, tileT
  */
 export const selectVisibleTilesForTab = (state: IStoreState, tabId: string) => {
   const ids = selectTileIdsForTab(state, tabId);
-  return ids
-    .map(id => state.tilesById?.[id])
-    .filter(tile => tile && tile.visible !== false);
+  return ids.map((id) => state.tilesById?.[id]).filter((tile) => tile && tile.visible !== false);
 };
 
 /**
@@ -84,9 +80,7 @@ export const selectVisibleTilesForTab = (state: IStoreState, tabId: string) => {
  */
 export const selectHiddenTilesForTab = (state: IStoreState, tabId: string) => {
   const ids = selectTileIdsForTab(state, tabId);
-  return ids
-    .map(id => state.tilesById?.[id])
-    .filter(tile => tile && tile.visible === false);
+  return ids.map((id) => state.tilesById?.[id]).filter((tile) => tile && tile.visible === false);
 };
 
 /**
@@ -109,7 +103,7 @@ export const selectPlotTilesForTab = (state: IStoreState, tabId: string) => {
 export const selectUniqueContextsForTab = (state: IStoreState, tabId: string) => {
   const ids = selectTileIdsForTab(state, tabId);
   const contexts = new Set<string>();
-  ids.forEach(id => {
+  ids.forEach((id) => {
     const tile = state.tilesById?.[id];
     if (tile?.context) contexts.add(tile.context);
   });
@@ -121,7 +115,7 @@ export const selectUniqueContextsForTab = (state: IStoreState, tabId: string) =>
  */
 export const selectTableNamesForTab = (state: IStoreState, tabId: string) => {
   return selectTableTilesForTab(state, tabId)
-    .map(tile => tile?.name)
+    .map((tile) => tile?.name)
     .filter(Boolean) as string[];
 };
 
@@ -130,21 +124,21 @@ export const selectTableNamesForTab = (state: IStoreState, tabId: string) => {
  */
 export const selectPlotTilesUsingTable = (state: IStoreState, tabId: string, tableName: string) => {
   if (!tabId || !tableName) return [];
-  
+
   // Get all plot tiles in the tab
   const plotTiles = selectPlotTilesForTab(state, tabId);
-  
+
   // Filter to only those that use the specified table
-  return plotTiles.filter(tile => {
+  return plotTiles.filter((tile) => {
     // Check if the plot uses this table
     if (typeof tile.table === 'string' && tile.table === tableName) {
       return true;
     }
-    
+
     // For more complex plots that might use multiple tables
     // In a real implementation, you'd need to check other properties
     // that indicate table dependencies
-    
+
     return false;
   });
 };

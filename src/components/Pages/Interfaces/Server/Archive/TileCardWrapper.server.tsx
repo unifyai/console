@@ -1,9 +1,9 @@
-import { Suspense } from "react";
-import TileCard from "../../Tile/TileCard";
-import TileWrapper from "./TileWrapper.server";
+import { Suspense } from 'react';
+import TileCard from '../../Tile/TileCard';
+import TileWrapper from './TileWrapper.server';
 import getQueryClient from '@/app/getQueryClient';
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 
 import type {
   LogsActions,
@@ -15,8 +15,8 @@ import type {
   GranularTileActions,
   TileData,
   ProjectsActions,
-  GranularTabActions
-} from "@/types/interfaces/grid";
+  GranularTabActions,
+} from '@/types/interfaces/grid';
 
 type TileCardWrapperActions = {
   logsActions: LogsActions;
@@ -43,19 +43,21 @@ export default async function TileCardWrapper({
   projectId: string;
   actions: TileCardWrapperActions;
 }) {
-  console.log("[TileCardWrapper] Rendering...");
+  console.log('[TileCardWrapper] Rendering...');
   const qc = getQueryClient();
-  
+
   return (
     <>
       <HydrationBoundary state={dehydrate(qc)}>
-        <Suspense fallback={
-          <div className="w-full h-full flex items-center justify-center">
+        <Suspense
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
               <SkeletonLoader />
-          </div>
-        }>
+            </div>
+          }
+        >
           <TileCard
-            tileId={tile.id || ""}
+            tileId={tile.id || ''}
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
@@ -83,4 +85,4 @@ export default async function TileCardWrapper({
       </HydrationBoundary>
     </>
   );
-} 
+}

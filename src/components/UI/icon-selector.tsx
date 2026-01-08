@@ -1,13 +1,13 @@
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Input } from "@/components/UI/input";
-import { Button } from "@/components/UI/button";
-import { Skeleton } from "@/components/UI/skeleton";
-import { cn } from "@/utils/misc/cn";
-import Fuse from "fuse.js";
-import { Icon, IconName } from "@/components/UI/icon-picker";
-import { iconsData } from "@/components/UI/icons-data";
-import { useDebounceValue } from "usehooks-ts";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Input } from '@/components/UI/input';
+import { Button } from '@/components/UI/button';
+import { Skeleton } from '@/components/UI/skeleton';
+import { cn } from '@/utils/misc/cn';
+import Fuse from 'fuse.js';
+import { Icon, IconName } from '@/components/UI/icon-picker';
+import { iconsData } from '@/components/UI/icons-data';
+import { useDebounceValue } from 'usehooks-ts';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface IconSelectorProps {
   value?: IconName;
@@ -16,7 +16,7 @@ interface IconSelectorProps {
 }
 
 const IconsSkeleton = () => (
-  <div className="grid grid-cols-6 gap-2 w-full">
+  <div className="grid w-full grid-cols-6 gap-2">
     {Array.from({ length: 48 }).map((_, i) => (
       <Skeleton key={i} className="h-10 w-10 rounded-md" />
     ))}
@@ -28,7 +28,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   onValueChange,
   searchable = true,
 }) => {
-  const [rawSearch, setRawSearch] = useState("");
+  const [rawSearch, setRawSearch] = useState('');
   const [search] = useDebounceValue(rawSearch, 150);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,7 +37,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
 
   const fuseInstance = useMemo(() => {
     return new Fuse(iconsToUse, {
-      keys: ["name", "tags", "categories"],
+      keys: ['name', 'tags', 'categories'],
       threshold: 0.3,
       ignoreLocation: true,
       includeScore: true,
@@ -45,7 +45,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   }, [iconsToUse]);
 
   const filteredIcons = useMemo(() => {
-    if (search.trim() === "") return iconsToUse;
+    if (search.trim() === '') return iconsToUse;
     return fuseInstance.search(search.trim().toLowerCase()).map((r) => r.item);
   }, [search, fuseInstance, iconsToUse]);
 
@@ -85,8 +85,8 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
       <button
         key={iconName}
         className={cn(
-          "h-10 w-10 p-2 rounded-md border flex items-center justify-center transition cursor-pointer",
-          value === iconName ? "bg-accent border-primary" : "hover:bg-foreground/10"
+          'flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border p-2 transition',
+          value === iconName ? 'border-primary bg-accent' : 'hover:bg-foreground/10'
         )}
         data-icon={iconName}
         title={iconName}
@@ -113,7 +113,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
     const idx = filteredIcons.findIndex((i) => i.name === value);
     if (idx >= 0) {
       const row = Math.floor(idx / cols);
-      rowVirtualizer.scrollToIndex(row, { align: "center" });
+      rowVirtualizer.scrollToIndex(row, { align: 'center' });
     }
   }, [value, isLoading, filteredIcons, cols, rowVirtualizer]);
 
@@ -126,16 +126,13 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
           onChange={(e) => setRawSearch(e.target.value)}
         />
       )}
-      <div ref={parentRef} className="max-h-60 overflow-auto command-scrollbar pr-1">
+      <div ref={parentRef} className="command-scrollbar max-h-60 overflow-auto pr-1">
         {isLoading ? (
           <IconsSkeleton />
         ) : filteredIcons.length === 0 ? (
-          <div className="text-caption text-muted-foreground py-6 text-center">No icons found</div>
+          <div className="text-caption py-6 text-center text-muted-foreground">No icons found</div>
         ) : (
-          <div
-            className="relative w-full"
-            style={{ height: rowVirtualizer.getTotalSize() }}
-          >
+          <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map((vi) => {
               const startIndex = vi.index * cols;
               const endIndex = Math.min(startIndex + cols, filteredIcons.length);
@@ -149,9 +146,9 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                   }}
                 >
-                  {filteredIcons.slice(startIndex, endIndex).map((ic) =>
-                    renderIconButton(ic.name as IconName)
-                  )}
+                  {filteredIcons
+                    .slice(startIndex, endIndex)
+                    .map((ic) => renderIconButton(ic.name as IconName))}
                 </div>
               );
             })}
@@ -160,4 +157,4 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
       </div>
     </div>
   );
-}; 
+};

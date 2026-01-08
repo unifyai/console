@@ -1,22 +1,22 @@
-import { Row, Cell, ColumnMeta, RowData } from "@tanstack/react-table";
+import { Row, Cell, ColumnMeta, RowData } from '@tanstack/react-table';
 
 export interface ArtifactsProps {
-    [key: string]: any
-} 
+  [key: string]: any;
+}
 
 export interface LogItemProps {
-    [key: string]: any | any[] | LogItemProps | LogItemProps[] | null | undefined;
+  [key: string]: any | any[] | LogItemProps | LogItemProps[] | null | undefined;
 }
 
 export interface LogProps {
-    [key: string]: string | LogItemProps
-    type: string,  // "ungrouped" or "grouped"
-    id: string,
-    ts: string,
-    params: LogItemProps,
-    entries: LogItemProps,
-    derivedEntries: LogItemProps,
-    clippedFields: LogItemProps,
+  [key: string]: string | LogItemProps;
+  type: string; // "ungrouped" or "grouped"
+  id: string;
+  ts: string;
+  params: LogItemProps;
+  entries: LogItemProps;
+  derivedEntries: LogItemProps;
+  clippedFields: LogItemProps;
 }
 
 /*
@@ -26,11 +26,14 @@ export interface LogProps {
   - Metadata like "groupCount", "count" which are numbers
 */
 export interface GroupedLogPropsRaw {
-    [key: string]: {
-        group: {key: string, value: number}[]  // Count for each group value
-        groupCount: number,  // Total number of unique groups
-        count: number  // Total number of logs in all groups
-    } | number | undefined;  // For metadata fields
+  [key: string]:
+    | {
+        group: { key: string; value: number }[]; // Count for each group value
+        groupCount: number; // Total number of unique groups
+        count: number; // Total number of logs in all groups
+      }
+    | number
+    | undefined; // For metadata fields
 }
 
 /*
@@ -43,104 +46,104 @@ export interface GroupedLogPropsRaw {
   - `subRows` are either further GroupedLogProps or final LogProps.
 */
 export interface GroupedLogProps {
-    type: string,  // "ungrouped" or "grouped"
-    id: string,
-    groupingColumnId: string,
-    groupingIndex?: number,  // Index for entries/params groups, ascending within each nesting level
-    [groupingValue: string]: unknown,  // Dynamic key for groupingValue
-    subRows: GroupedLogProps[] | LogProps[],
-    isPopulated: boolean,  // Whether subRows have been populated
-    groupCount: number,  // Number of unique groups under this group
-    totalChildren?: number,  // Total number of subRows under this group
+  type: string; // "ungrouped" or "grouped"
+  id: string;
+  groupingColumnId: string;
+  groupingIndex?: number; // Index for entries/params groups, ascending within each nesting level
+  [groupingValue: string]: unknown; // Dynamic key for groupingValue
+  subRows: GroupedLogProps[] | LogProps[];
+  isPopulated: boolean; // Whether subRows have been populated
+  groupCount: number; // Number of unique groups under this group
+  totalChildren?: number; // Total number of subRows under this group
 }
 
 export interface LogGroupsProps {
-    version: string,
-    value: string
+  version: string;
+  value: string;
 }
 
 export interface LogsResponseProps {
-    params: LogItemProps,
-    logs: LogProps[] | GroupedLogPropsRaw,
-    count: number,
-    groups: LogItemProps,
-    detail?: string    // Potential error message or notification from the endpoint
+  params: LogItemProps;
+  logs: LogProps[] | GroupedLogPropsRaw;
+  count: number;
+  groups: LogItemProps;
+  detail?: string; // Potential error message or notification from the endpoint
 }
 
-export type LogFieldsProps = [number, string][]
+export type LogFieldsProps = [number, string][];
 
 export interface LogFieldsResponseProps {
-    [name: string]: {
-      dataType: string,
-      fieldType: "entry" | "param" | "derived_entry",
-      artifacts: string,
-      mutable: "true" | "false",
-      createdAt: string,
-      description?: string
-    }
+  [name: string]: {
+    dataType: string;
+    fieldType: 'entry' | 'param' | 'derived_entry';
+    artifacts: string;
+    mutable: 'true' | 'false';
+    createdAt: string;
+    description?: string;
+  };
 }
 
 export interface GroupedMetricNode {
-    [groupValue: string]: GroupedMetricNode | GroupedMetricLeaf;
-};
+  [groupValue: string]: GroupedMetricNode | GroupedMetricLeaf;
+}
 
 export interface GroupedMetricLeaf {
-    [metricName: string]: number | null;
-    sharedValue: any | null;
-};
+  [metricName: string]: number | null;
+  sharedValue: any | null;
+}
 
 export interface GroupedMetrics {
-    [columnName: string]: GroupedMetricNode;
-};
+  [columnName: string]: GroupedMetricNode;
+}
 
 export interface HeaderNode {
-    name: string;
-    path: string;
-    nodes?: HeaderNode[]; // Will be assigned after building child nodes
-    childMap?: { [key: string]: HeaderNode }; // Used internally during tree construction
-    isLeaf?: boolean; // Indicates if the node corresponds to a path in the input array
-  }
+  name: string;
+  path: string;
+  nodes?: HeaderNode[]; // Will be assigned after building child nodes
+  childMap?: { [key: string]: HeaderNode }; // Used internally during tree construction
+  isLeaf?: boolean; // Indicates if the node corresponds to a path in the input array
+}
 
 export interface GetLogsParameters {
-    [parameter: string]: string
+  [parameter: string]: string;
 }
 
 export interface TableArguments {
-    [tableName: string]: {
-        getLogsParameters: GetLogsParameters,
-        availableFields?: LogFieldsResponseProps 
-    }
+  [tableName: string]: {
+    getLogsParameters: GetLogsParameters;
+    availableFields?: LogFieldsResponseProps;
+  };
 }
 
 export interface PlotArguments {
-    [tableName: string]: GetLogsParameters
+  [tableName: string]: GetLogsParameters;
 }
 
-declare module "@tanstack/react-table" {
-    interface ColumnMeta<TData extends RowData, TValue> {
-      dataType?: string | null,
-      fieldType?: string | null,
-      columnType: string,
-      enableRowSpan?: boolean,
-      isParent: boolean,
-      renderedDepth: number,
-      description?: string
-    }
-    interface Cell<TData extends RowData, TValue> {
-        rowSpan: number,
-        isRowSpanned: boolean
-    }
-    interface Row<TData extends RowData> {
-        groupingIndex: number,
-        groupingColumnId: string,
-        groupingValue: any
-        effectiveIndex?: number,
-    }
-    interface TableMeta<TData extends RowData> {
-        createColumn?: () => void,
-        offsetInfo?: {
-            globalOffset: number;
-            groupOffsets: Map<string, number>;
-      };
-    }
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    dataType?: string | null;
+    fieldType?: string | null;
+    columnType: string;
+    enableRowSpan?: boolean;
+    isParent: boolean;
+    renderedDepth: number;
+    description?: string;
+  }
+  interface Cell<TData extends RowData, TValue> {
+    rowSpan: number;
+    isRowSpanned: boolean;
+  }
+  interface Row<TData extends RowData> {
+    groupingIndex: number;
+    groupingColumnId: string;
+    groupingValue: any;
+    effectiveIndex?: number;
+  }
+  interface TableMeta<TData extends RowData> {
+    createColumn?: () => void;
+    offsetInfo?: {
+      globalOffset: number;
+      groupOffsets: Map<string, number>;
+    };
+  }
 }

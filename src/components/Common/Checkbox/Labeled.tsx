@@ -1,15 +1,22 @@
-"use client"
+'use client';
 
-import { Checkbox } from "@/components/UI/checkbox"
-import { CheckedState } from "@radix-ui/react-checkbox"
+import { Checkbox } from '@/components/UI/checkbox';
+import { CheckedState } from '@radix-ui/react-checkbox';
 
-export function LabeledCheckbox ({label, description, id, checked, onCheckedChange, descriptionOnHover}: {
-  id?: string,
-  label: string,
-  description?: string,
-  checked: CheckedState,
-  onCheckedChange: (checked: CheckedState) => void,
-  descriptionOnHover?: boolean,
+export function LabeledCheckbox({
+  label,
+  description,
+  id,
+  checked,
+  onCheckedChange,
+  descriptionOnHover,
+}: {
+  id?: string;
+  label: string;
+  description?: string;
+  checked: CheckedState;
+  onCheckedChange: (checked: CheckedState) => void;
+  descriptionOnHover?: boolean;
 }) {
   return (
     <div className="items-top flex space-x-2">
@@ -22,10 +29,10 @@ export function LabeledCheckbox ({label, description, id, checked, onCheckedChan
           {label}
         </label>
         {description && (
-          <div className={`overflow-hidden transition-all duration-300 ${descriptionOnHover ? 'max-h-0 peer-hover:max-h-[100px]' : 'max-h-[100px]'}`}>
-            <p className="text-caption text-muted-foreground pt-1">
-              {description}
-            </p>
+          <div
+            className={`overflow-hidden transition-all duration-300 ${descriptionOnHover ? 'max-h-0 peer-hover:max-h-[100px]' : 'max-h-[100px]'}`}
+          >
+            <p className="text-caption pt-1 text-muted-foreground">{description}</p>
           </div>
         )}
       </div>

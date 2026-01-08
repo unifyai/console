@@ -1,12 +1,12 @@
 /**
  * DataTable Test Harness
- * 
+ *
  * A reusable wrapper that provides all the mocking and state management
  * needed to test the real DataTable component in isolation.
- * 
+ *
  * Usage:
  *   import { renderDataTable, createTestData } from '../fixtures/dataTableTestHarness';
- *   
+ *
  *   it('renders table', async () => {
  *     const { getByRole } = renderDataTable();
  *     expect(getByRole('table')).toBeInTheDocument();
@@ -164,12 +164,14 @@ export interface DataTableTestResult extends RenderResult {
 /**
  * Creates test log data with configurable options.
  */
-export function createTestData(options: {
-  count?: number;
-  offset?: number;
-  totalCount?: number;
-  includeAllColumns?: boolean;
-} = {}): LogProps[] {
+export function createTestData(
+  options: {
+    count?: number;
+    offset?: number;
+    totalCount?: number;
+    includeAllColumns?: boolean;
+  } = {}
+): LogProps[] {
   const { count = 20, offset = 0, totalCount = MOCK_LOGS_TOTAL_COUNT } = options;
   const response = createMockLogs(count, { offset, totalCount });
   return response.logs as LogProps[];
@@ -180,10 +182,10 @@ export function createTestData(options: {
  */
 export function createColumnsFromData(data: LogProps[]): ColumnDef<LogProps, unknown>[] {
   if (data.length === 0) return [];
-  
+
   const firstLog = data[0];
   const entryKeys = Object.keys(firstLog.entries || {});
-  
+
   return entryKeys.map((key) => ({
     id: `entries/${key}`,
     accessorFn: (row: LogProps) => row.entries?.[key],
@@ -283,16 +285,18 @@ function DataTableWrapper({
   // ==========================================================================
   // State Management
   // ==========================================================================
-  
+
   const [sorting, setSortingInternal] = useState<SortingState>(initialSorting);
-  const [columnFilters, setColumnFiltersInternal] = useState<ColumnFiltersState>(initialColumnFilters);
-  const [columnVisibility, setColumnVisibilityInternal] = useState<Record<string, boolean>>(initialColumnVisibility);
+  const [columnFilters, setColumnFiltersInternal] =
+    useState<ColumnFiltersState>(initialColumnFilters);
+  const [columnVisibility, setColumnVisibilityInternal] =
+    useState<Record<string, boolean>>(initialColumnVisibility);
   const [columnOrder, setColumnOrderInternal] = useState<string[]>(defaultColumnOrder);
   const [columnPinning, setColumnPinningInternal] = useState<ColumnPinningState>({});
   const [columnSizing, setColumnSizingInternal] = useState<ColumnSizingState>({});
   const [grouping, setGroupingInternal] = useState<GroupingState>(initialGrouping);
   const [selectedCells, setSelectedCellsInternal] = useState<string[]>(initialSelectedCells);
-  
+
   // New state for extended features
   const [searchTerm, setSearchTermInternal] = useState<string>(initialSearchTerm);
   const [showMetrics, setShowMetricsInternal] = useState<boolean>(initialShowMetrics);
@@ -300,7 +304,7 @@ function DataTableWrapper({
   const [expandedGroups, setExpandedGroupsInternal] = useState<string[]>(initialExpandedGroups);
   const [isFrozen, setIsFrozenInternal] = useState<boolean>(initialFrozen);
   const [editingCell, setEditingCellInternal] = useState<string | null>(initialEditingCell);
-  
+
   // DnD state (required by DataTable internals)
   const [draggingColumns, setDraggingColumns] = useState<DraggingColumnsState>({
     active: { ids: [], transform: null },
@@ -316,47 +320,71 @@ function DataTableWrapper({
   // ==========================================================================
   // Wrapped Setters (call callbacks)
   // ==========================================================================
-  
-  const setSorting = useCallback((newSorting: SortingState) => {
-    setSortingInternal(newSorting);
-    callbacks.onSort?.(newSorting);
-  }, [callbacks]);
 
-  const setColumnFilters = useCallback((newFilters: ColumnFiltersState | ((prev: ColumnFiltersState) => ColumnFiltersState)) => {
-    const resolved = typeof newFilters === 'function' ? newFilters(columnFilters) : newFilters;
-    setColumnFiltersInternal(resolved);
-    callbacks.onFilter?.(resolved);
-  }, [callbacks, columnFilters]);
+  const setSorting = useCallback(
+    (newSorting: SortingState) => {
+      setSortingInternal(newSorting);
+      callbacks.onSort?.(newSorting);
+    },
+    [callbacks]
+  );
 
-  const setColumnVisibility = useCallback((newVisibility: Record<string, boolean>) => {
-    setColumnVisibilityInternal(newVisibility);
-    callbacks.onColumnVisibilityChange?.(newVisibility);
-  }, [callbacks]);
+  const setColumnFilters = useCallback(
+    (newFilters: ColumnFiltersState | ((prev: ColumnFiltersState) => ColumnFiltersState)) => {
+      const resolved = typeof newFilters === 'function' ? newFilters(columnFilters) : newFilters;
+      setColumnFiltersInternal(resolved);
+      callbacks.onFilter?.(resolved);
+    },
+    [callbacks, columnFilters]
+  );
 
-  const setColumnOrder = useCallback((newOrder: string[]) => {
-    setColumnOrderInternal(newOrder);
-    callbacks.onColumnOrderChange?.(newOrder);
-  }, [callbacks]);
+  const setColumnVisibility = useCallback(
+    (newVisibility: Record<string, boolean>) => {
+      setColumnVisibilityInternal(newVisibility);
+      callbacks.onColumnVisibilityChange?.(newVisibility);
+    },
+    [callbacks]
+  );
 
-  const setColumnPinning = useCallback((newPinning: ColumnPinningState) => {
-    setColumnPinningInternal(newPinning);
-    callbacks.onColumnPinningChange?.(newPinning);
-  }, [callbacks]);
+  const setColumnOrder = useCallback(
+    (newOrder: string[]) => {
+      setColumnOrderInternal(newOrder);
+      callbacks.onColumnOrderChange?.(newOrder);
+    },
+    [callbacks]
+  );
 
-  const setGrouping = useCallback((newGrouping: GroupingState) => {
-    setGroupingInternal(newGrouping);
-    callbacks.onGroupingChange?.(newGrouping);
-  }, [callbacks]);
+  const setColumnPinning = useCallback(
+    (newPinning: ColumnPinningState) => {
+      setColumnPinningInternal(newPinning);
+      callbacks.onColumnPinningChange?.(newPinning);
+    },
+    [callbacks]
+  );
 
-  const setSelectedCells = useCallback((newCells: string[]) => {
-    setSelectedCellsInternal(newCells);
-    callbacks.onCellSelect?.(newCells);
-  }, [callbacks]);
+  const setGrouping = useCallback(
+    (newGrouping: GroupingState) => {
+      setGroupingInternal(newGrouping);
+      callbacks.onGroupingChange?.(newGrouping);
+    },
+    [callbacks]
+  );
 
-  const setSearchTerm = useCallback((term: string) => {
-    setSearchTermInternal(term);
-    callbacks.onSearch?.(term);
-  }, [callbacks]);
+  const setSelectedCells = useCallback(
+    (newCells: string[]) => {
+      setSelectedCellsInternal(newCells);
+      callbacks.onCellSelect?.(newCells);
+    },
+    [callbacks]
+  );
+
+  const setSearchTerm = useCallback(
+    (term: string) => {
+      setSearchTermInternal(term);
+      callbacks.onSearch?.(term);
+    },
+    [callbacks]
+  );
 
   const toggleMetrics = useCallback(() => {
     setShowMetricsInternal((prev) => {
@@ -366,21 +394,25 @@ function DataTableWrapper({
     });
   }, [callbacks]);
 
-  const setMetricsType = useCallback((type: MetricsType) => {
-    setMetricsTypeInternal(type);
-    callbacks.onMetricsTypeChange?.(type);
-  }, [callbacks]);
+  const setMetricsType = useCallback(
+    (type: MetricsType) => {
+      setMetricsTypeInternal(type);
+      callbacks.onMetricsTypeChange?.(type);
+    },
+    [callbacks]
+  );
 
-  const toggleGroup = useCallback((groupId: string) => {
-    setExpandedGroupsInternal((prev) => {
-      const isExpanded = prev.includes(groupId);
-      const newGroups = isExpanded
-        ? prev.filter((g) => g !== groupId)
-        : [...prev, groupId];
-      callbacks.onToggleGroup?.(groupId, !isExpanded);
-      return newGroups;
-    });
-  }, [callbacks]);
+  const toggleGroup = useCallback(
+    (groupId: string) => {
+      setExpandedGroupsInternal((prev) => {
+        const isExpanded = prev.includes(groupId);
+        const newGroups = isExpanded ? prev.filter((g) => g !== groupId) : [...prev, groupId];
+        callbacks.onToggleGroup?.(groupId, !isExpanded);
+        return newGroups;
+      });
+    },
+    [callbacks]
+  );
 
   const toggleFrozen = useCallback(() => {
     setIsFrozenInternal((prev) => {
@@ -398,58 +430,87 @@ function DataTableWrapper({
     callbacks.onRefresh?.();
   }, [callbacks]);
 
-  const deleteCells = useCallback((cellIds: string[]) => {
-    callbacks.onCellDelete?.(cellIds);
-  }, [callbacks]);
+  const deleteCells = useCallback(
+    (cellIds: string[]) => {
+      callbacks.onCellDelete?.(cellIds);
+    },
+    [callbacks]
+  );
 
-  const copyCells = useCallback((cellIds: string[]) => {
-    callbacks.onCellCopy?.(cellIds);
-  }, [callbacks]);
+  const copyCells = useCallback(
+    (cellIds: string[]) => {
+      callbacks.onCellCopy?.(cellIds);
+    },
+    [callbacks]
+  );
 
   // ==========================================================================
   // Expose state to test via ref (using getters for fresh values)
   // ==========================================================================
-  
+
   // Build state container with all getters and setters
-  const buildStateContainer = useCallback((): StateContainer => ({
-    getSorting: () => sorting,
-    getFilters: () => columnFilters,
-    getColumnVisibility: () => columnVisibility,
-    getSelectedCells: () => selectedCells,
-    getColumnOrder: () => columnOrder,
-    getSearchTerm: () => searchTerm,
-    isMetricsVisible: () => showMetrics,
-    getMetricsType: () => metricsType,
-    getExpandedGroups: () => expandedGroups,
-    isFrozen: () => isFrozen,
-    getEditingCell: () => editingCell,
-    setSorting,
-    setFilters: setColumnFilters,
-    setColumnVisibility,
-    setSelectedCells,
-    setColumnOrder,
-    setSearchTerm,
-    toggleMetrics,
-    setMetricsType,
-    toggleGroup,
-    toggleFrozen,
-    setEditingCell,
-    refresh,
-    deleteCells,
-    copyCells,
-  }), [
-    sorting, columnFilters, columnVisibility, selectedCells, columnOrder,
-    searchTerm, showMetrics, metricsType, expandedGroups, isFrozen, editingCell,
-    setSorting, setColumnFilters, setColumnVisibility, setSelectedCells, setColumnOrder,
-    setSearchTerm, toggleMetrics, setMetricsType, toggleGroup, toggleFrozen,
-    setEditingCell, refresh, deleteCells, copyCells,
-  ]);
+  const buildStateContainer = useCallback(
+    (): StateContainer => ({
+      getSorting: () => sorting,
+      getFilters: () => columnFilters,
+      getColumnVisibility: () => columnVisibility,
+      getSelectedCells: () => selectedCells,
+      getColumnOrder: () => columnOrder,
+      getSearchTerm: () => searchTerm,
+      isMetricsVisible: () => showMetrics,
+      getMetricsType: () => metricsType,
+      getExpandedGroups: () => expandedGroups,
+      isFrozen: () => isFrozen,
+      getEditingCell: () => editingCell,
+      setSorting,
+      setFilters: setColumnFilters,
+      setColumnVisibility,
+      setSelectedCells,
+      setColumnOrder,
+      setSearchTerm,
+      toggleMetrics,
+      setMetricsType,
+      toggleGroup,
+      toggleFrozen,
+      setEditingCell,
+      refresh,
+      deleteCells,
+      copyCells,
+    }),
+    [
+      sorting,
+      columnFilters,
+      columnVisibility,
+      selectedCells,
+      columnOrder,
+      searchTerm,
+      showMetrics,
+      metricsType,
+      expandedGroups,
+      isFrozen,
+      editingCell,
+      setSorting,
+      setColumnFilters,
+      setColumnVisibility,
+      setSelectedCells,
+      setColumnOrder,
+      setSearchTerm,
+      toggleMetrics,
+      setMetricsType,
+      toggleGroup,
+      toggleFrozen,
+      setEditingCell,
+      refresh,
+      deleteCells,
+      copyCells,
+    ]
+  );
 
   // Update ref on every render to capture latest state
   React.useEffect(() => {
     stateContainerRef.current = buildStateContainer();
   });
-  
+
   // Also set immediately for first render
   if (!stateContainerRef.current) {
     stateContainerRef.current = buildStateContainer();
@@ -458,7 +519,7 @@ function DataTableWrapper({
   // ==========================================================================
   // Build state/setState objects
   // ==========================================================================
-  
+
   const state: StateProps = {
     sorting,
     columnFilters,
@@ -488,7 +549,7 @@ function DataTableWrapper({
   // ==========================================================================
   // Render
   // ==========================================================================
-  
+
   return (
     <div
       ref={scrollContainerRef}
@@ -518,23 +579,23 @@ function DataTableWrapper({
 
 /**
  * Renders the real DataTable component with all required mocking and state.
- * 
+ *
  * @example
  * ```tsx
  * const { getByRole, getSorting, setSorting } = renderDataTable({
  *   callbacks: { onSort: vi.fn() }
  * });
- * 
+ *
  * // Interact with the table
  * await userEvent.click(getByRole('columnheader', { name: /Message/i }));
- * 
+ *
  * // Check state
  * expect(getSorting()).toHaveLength(1);
  * ```
  */
 export function renderDataTable(options: DataTableTestOptions = {}): DataTableTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
-  
+
   const renderResult = render(
     <DataTableWrapper {...options} stateContainerRef={stateContainerRef} />
   );
@@ -632,4 +693,3 @@ export function renderDataTable(options: DataTableTestOptions = {}): DataTableTe
 // =============================================================================
 
 export { createMockLogs, MOCK_LOGS_TOTAL_COUNT } from '../../mocks/fixtures/logs';
-

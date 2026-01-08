@@ -1,4 +1,3 @@
-
 import { beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, passthrough } from 'msw';
@@ -9,22 +8,22 @@ const server = setupServer(...handlers);
 
 // === Test Callbacks ===
 beforeAll(() => {
-    vi.clearAllMocks();
-    server.listen({ onUnhandledRequest: 'bypass' });
+  vi.clearAllMocks();
+  server.listen({ onUnhandledRequest: 'bypass' });
 
-    // Provide a basic matchMedia polyfill for libraries like next-themes
-    if (typeof window !== 'undefined' && !window.matchMedia) {
-      window.matchMedia = (query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(), // deprecated
-        removeListener: vi.fn(), // deprecated
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      });
-    }
+  // Provide a basic matchMedia polyfill for libraries like next-themes
+  if (typeof window !== 'undefined' && !window.matchMedia) {
+    window.matchMedia = (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // deprecated
+      removeListener: vi.fn(), // deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    });
+  }
 });
 
 beforeEach(async (context) => {
@@ -39,9 +38,9 @@ beforeEach(async (context) => {
 });
 
 afterEach(() => {
-    server.resetHandlers();
+  server.resetHandlers();
 });
 
 afterAll(() => {
-    server.close();
+  server.close();
 });

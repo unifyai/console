@@ -60,7 +60,11 @@
       }
     },
     {
-      "files": ["src/lib/user/billing/stripe/*.ts", "src/app/api/user/account-type/route.ts", "src/app/api/user/business-info/route.ts"],
+      "files": [
+        "src/lib/user/billing/stripe/*.ts",
+        "src/app/api/user/account-type/route.ts",
+        "src/app/api/user/business-info/route.ts"
+      ],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
       }
@@ -74,6 +78,12 @@
         "src/utils/stripe/**/*.ts",
         "src/utils/interfaces/common.ts"
       ],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
+      "files": ["vite-env.d.ts", "tailwind.config.ts"],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
       }

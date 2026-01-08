@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/UI/dialog";
-import { Input } from "@/components/UI/input";
-import PrimaryButton from "@/components/Common/Buttons/Primary";
-import SecondaryButton from "@/components/Common/Buttons/Secondary";
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent } from '@/components/UI/dialog';
+import { Input } from '@/components/UI/input';
+import PrimaryButton from '@/components/Common/Buttons/Primary';
+import SecondaryButton from '@/components/Common/Buttons/Secondary';
 
 interface UpdateTeamDialogProps {
   open: boolean;
@@ -14,14 +14,20 @@ interface UpdateTeamDialogProps {
   onUpdate: (name: string, description: string) => void;
 }
 
-const UpdateTeamDialog = ({ open, setOpen, initialName, initialDescription, onUpdate }: UpdateTeamDialogProps) => {
+const UpdateTeamDialog = ({
+  open,
+  setOpen,
+  initialName,
+  initialDescription,
+  onUpdate,
+}: UpdateTeamDialogProps) => {
   const [name, setName] = useState(initialName);
   const [desc, setDesc] = useState(initialDescription);
 
   useEffect(() => {
     if (open) {
       setName(initialName);
-      setDesc(initialDescription || "");
+      setDesc(initialDescription || '');
     }
   }, [open, initialName, initialDescription]);
 
@@ -49,7 +55,7 @@ const UpdateTeamDialog = ({ open, setOpen, initialName, initialDescription, onUp
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
           />
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="mt-4 flex justify-end gap-2">
             <SecondaryButton label="Cancel" onClick={() => setOpen(false)} />
             <PrimaryButton label="Update" type="submit" disabled={!name.trim()} />
           </div>

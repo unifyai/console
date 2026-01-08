@@ -10,11 +10,11 @@ interface InfiniteScrollControllerProps {
   totalCount?: number;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
-  
+
   // Actions
   onLoadMore: () => void;
   onRefresh?: () => void;
-  
+
   // Optional props
   interactive?: boolean;
   itemName?: string; // e.g., "logs", "groups", "entries"
@@ -31,9 +31,9 @@ const InfiniteScrollController: React.FC<InfiniteScrollControllerProps> = ({
   onLoadMore,
   onRefresh,
   interactive = true,
-  itemName = "entries",
-  className = "",
-  showRefresh = false
+  itemName = 'entries',
+  className = '',
+  showRefresh = false,
 }) => {
   // Format count display
   const formatCount = (count: number) => {
@@ -74,13 +74,11 @@ const InfiniteScrollController: React.FC<InfiniteScrollControllerProps> = ({
     <div className={`flex items-center justify-between gap-3 ${className}`}>
       {/* Count and Progress Indicator */}
       <div className="flex flex-1 items-center gap-2">
-        <div className="text-body-sm flex-shrink-0">
-          {getCountText()}
-        </div>
-        
+        <div className="text-body-sm flex-shrink-0">{getCountText()}</div>
+
         {progressPercentage !== undefined && (
-          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-            <div 
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
               className="h-full bg-primary transition-all duration-300 ease-out"
               style={{ width: `${progressPercentage}%` }}
             />

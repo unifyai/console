@@ -1,13 +1,19 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
-import { useEditorTile, EditorActions } from "../useEditorTile";
-import { useTileUI } from "../useTileUI";
-import { useTileMeta } from "../useTileMeta";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
+import { useMemo } from 'react';
+import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
+import {
+  ContextActions,
+  FieldsActions,
+  LogsActions,
+  ProjectsActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { useEditorTile, EditorActions } from '../useEditorTile';
+import { useTileUI } from '../useTileUI';
+import { useTileMeta } from '../useTileMeta';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { usePatchSpecializedTileQueryOptimistic } from '@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic';
 
 /**
  * Debug flag for state syncing logging
@@ -86,9 +92,9 @@ export function useEditorTileSync(
   const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const fileTypeMutation = usePatchSpecializedTileQuery<"Editor">();
-  const contentMutation = usePatchSpecializedTileQuery<"Editor">();
-  const fileNameMutation = usePatchSpecializedTileQuery<"Editor">();
+  const fileTypeMutation = usePatchSpecializedTileQuery<'Editor'>();
+  const contentMutation = usePatchSpecializedTileQuery<'Editor'>();
+  const fileNameMutation = usePatchSpecializedTileQuery<'Editor'>();
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
@@ -105,33 +111,35 @@ export function useEditorTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     editorTileActions.setFileType(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update
-    await fileTypeMutation.mutateAsync({
-      tabId: tabId,
-      name: tileName,
-      tileType: "Editor",
-      updateData: { fileType: value ?? null },
-      actions: granularTileActions
-    }).then(() => {
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapFileType] onSettled:", value);
-      uiActions?.setLoading(false);
-    });
+    await fileTypeMutation
+      .mutateAsync({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Editor',
+        updateData: { fileType: value ?? null },
+        actions: granularTileActions,
+      })
+      .then(() => {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapFileType] onSettled:', value);
+        uiActions?.setLoading(false);
+      });
   };
 
   const wrapContent = (value: string) => {
     if (!editorTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately
     editorTileActions.setContent(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -139,18 +147,18 @@ export function useEditorTileSync(
     contentMutation.mutate({
       tabId: tabId,
       name: tileName,
-      tileType: "Editor",
+      tileType: 'Editor',
       updateData: { content: value ?? null },
-      actions: granularTileActions
+      actions: granularTileActions,
     });
   };
 
   const wrapFileName = (value: string | undefined) => {
     if (!editorTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately
     editorTileActions.setFileName(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -158,9 +166,9 @@ export function useEditorTileSync(
     fileNameMutation.mutate({
       tabId: tabId,
       name: tileName,
-      tileType: "Editor",
+      tileType: 'Editor',
       updateData: { fileName: value ?? null },
-      actions: granularTileActions
+      actions: granularTileActions,
     });
   };
 
@@ -175,12 +183,7 @@ export function useEditorTileSync(
       setContent: wrapContent,
       setFileName: wrapFileName,
     } as EditorActions;
-  }, [
-    editorTileActions,
-    tabId,
-    tileName,
-    granularTileActions,
-  ]);
+  }, [editorTileActions, tabId, tileName, granularTileActions]);
 
   if (!editorTileActions || !granularTileActions) {
     return {
@@ -190,15 +193,15 @@ export function useEditorTileSync(
         fileType: false,
         content: false,
         fileName: false,
-        any: false
+        any: false,
       },
       error: {
         fileType: null,
         content: null,
         fileName: null,
-        any: false
+        any: false,
       },
-      exists: false
+      exists: false,
     };
   }
 
@@ -207,28 +210,28 @@ export function useEditorTileSync(
     fileType: mutations.fileType.isPending,
     content: mutations.content.isPending,
     fileName: mutations.fileName.isPending,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property is loading
-  loading.any = Object.values(mutations).some(m => m.isPending);
+  loading.any = Object.values(mutations).some((m) => m.isPending);
 
   // Prepare error states
   const error: EditorErrorStates = {
     fileType: mutations.fileType.error,
     content: mutations.content.error,
     fileName: mutations.fileName.error,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property has error
-  error.any = Object.values(mutations).some(m => !!m.error);
+  error.any = Object.values(mutations).some((m) => !!m.error);
 
   return {
     editorTile,
     editorTileActions: syncedActions,
     loading,
     error,
-    exists
+    exists,
   };
-} 
+}

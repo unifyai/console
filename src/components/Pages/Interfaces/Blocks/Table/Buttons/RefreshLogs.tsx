@@ -1,16 +1,26 @@
-"use client";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { RefreshCw, Timer, Check } from "lucide-react";
-import { useEffect, useState, useRef, useCallback } from "react";
-import { LogsActions, FieldsActions, ProjectsActions, ContextActions, GranularTileActions } from "@/types/interfaces/grid";
-import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
-import { useTileData } from "@/contexts/hooks/tile/useTileData";
-import { useTileSync } from "@/contexts/hooks/tile/sync";
-import { showErrorToast, showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+'use client';
+import ActionButton from '@/components/Common/Buttons/Action';
+import { RefreshCw, Timer, Check } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  LogsActions,
+  FieldsActions,
+  ProjectsActions,
+  ContextActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { useTableAutoUpdateQuery } from '@/hooks/Interfaces/Query/useTableAutoUpdateQuery';
+import { useTileData } from '@/contexts/hooks/tile/useTileData';
+import { useTileSync } from '@/contexts/hooks/tile/sync';
+import {
+  showErrorToast,
+  showSuccessToast,
+  withLoadingToastFn,
+} from '@/components/Common/Toasts/notifications';
 
-const RefreshLogs = ({ 
-  tileId, 
-  tabId, 
+const RefreshLogs = ({
+  tileId,
+  tabId,
   projectId,
   pending,
   filterExpression,
@@ -18,27 +28,27 @@ const RefreshLogs = ({
   groupingExpression,
   groupSortingExpression,
   tileActions,
-  logsActions, 
+  logsActions,
   projectsActions,
   contextActions,
   fieldsActions,
   onRefresh,
 }: {
-  tileId: string,
-  tabId: string,
-  projectId: string,
-  pending: boolean,
-  filterExpression: string | null,
-  sortingExpression: string | null,
-  groupingExpression: string | null,
-  groupSortingExpression: string | null,
-  tileActions: GranularTileActions,
-  logsActions: LogsActions,
-  projectsActions: ProjectsActions,
-  contextActions: ContextActions,
-  fieldsActions: FieldsActions,
+  tileId: string;
+  tabId: string;
+  projectId: string;
+  pending: boolean;
+  filterExpression: string | null;
+  sortingExpression: string | null;
+  groupingExpression: string | null;
+  groupSortingExpression: string | null;
+  tileActions: GranularTileActions;
+  logsActions: LogsActions;
+  projectsActions: ProjectsActions;
+  contextActions: ContextActions;
+  fieldsActions: FieldsActions;
   /** Callback to trigger data refetch - used when autoUpdate is OFF */
-  onRefresh?: () => Promise<unknown>,
+  onRefresh?: () => Promise<unknown>;
 }) => {
   const { data: tileDataState } = useTileData(tileId, tabId);
   const { actions: syncedTileActions } = useTileSync(
@@ -54,9 +64,11 @@ const RefreshLogs = ({
 
   const pendingRef = useRef(pending);
 
-  // Sync pending ref 
-  useEffect(() => { pendingRef.current = pending }, [pending]);
-  
+  // Sync pending ref
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
   // Use the new auto-update hook
   const { isFetching, manualRefresh, stop, isManualRefresh } = useTableAutoUpdateQuery(
     tileId,
@@ -66,12 +78,12 @@ const RefreshLogs = ({
     logsActions,
     projectsActions,
     contextActions,
-    fieldsActions,
+    fieldsActions
   );
 
   // Manual refresh UI states (keep the checkmark feedback)
   const [loaded, setLoaded] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [lastUpdated, setLastUpdated] = useState<string>('');
   const [isManualFetching, setIsManualFetching] = useState(false);
   const isMounted = useRef(false);
 
@@ -96,7 +108,7 @@ const RefreshLogs = ({
 
   // Helper: fetch latest timestamp via client API route (avoids server-action POST /interfaces)
   const fetchLatestTimestamp = useCallback(async (): Promise<string> => {
-    if (!tileDataState) return "";
+    if (!tileDataState) return '';
     const params = new URLSearchParams();
     params.set('projectName', projectId);
     if (tileDataState.context) params.set('context', tileDataState.context);
@@ -104,23 +116,33 @@ const RefreshLogs = ({
     if (filterExpression) params.set('filterExpr', filterExpression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupingExpression) {
-      groupingExpression.split(',').forEach(expr => params.append('groupBy', expr.trim()));
+      groupingExpression.split(',').forEach((expr) => params.append('groupBy', expr.trim()));
     }
     if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
 
-    const res = await fetch(`/api/logs/latest_timestamp?${params.toString()}`, { method: 'GET', cache: 'no-store' });
+    const res = await fetch(`/api/logs/latest_timestamp?${params.toString()}`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
     if (!res.ok) {
       const data = await res.json().catch(() => ({ detail: `Latest timestamp ${res.status}` }));
       throw new Error(data.detail || `Failed to get latest timestamp: ${res.status}`);
     }
     return res.text();
-  }, [projectId, tileDataState, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
+  }, [
+    projectId,
+    tileDataState,
+    filterExpression,
+    sortingExpression,
+    groupingExpression,
+    groupSortingExpression,
+  ]);
 
   // Fetch initial timestamp on mount ONLY when auto-update is enabled
   const didInitLatestRef = useRef(false);
   useEffect(() => {
     if (!tileDataState) return;
-    if (tileDataState.autoUpdate !== "true") return; // gate behind live mode
+    if (tileDataState.autoUpdate !== 'true') return; // gate behind live mode
     if (didInitLatestRef.current) return; // avoid Strict Mode double-run
     didInitLatestRef.current = true;
     fetchLatestTimestamp()
@@ -129,23 +151,23 @@ const RefreshLogs = ({
           setLastUpdated(latest);
         }
       })
-      .catch(err => {
+      .catch((err) => {
         if ((err as any)?.name !== 'AbortError') {
-          showErrorToast(err, "Failed to get initial latest timestamp.");
+          showErrorToast(err, 'Failed to get initial latest timestamp.');
         }
       });
   }, [fetchLatestTimestamp, tileDataState]);
 
   // Auto-update toggle
   const onAutoClick = () => {
-    const nextValue = tileDataState?.autoUpdate === "true" ? "false" : "true";
-    if (nextValue === "false") {
-        stop();
+    const nextValue = tileDataState?.autoUpdate === 'true' ? 'false' : 'true';
+    if (nextValue === 'false') {
+      stop();
     }
     syncedTileDataActions?.setAutoUpdate(nextValue);
     showSuccessToast(
-      "Auto-Refresh",
-      `Table will ${nextValue === "true" ? "now" : "no longer"} auto-refresh.`
+      'Auto-Refresh',
+      `Table will ${nextValue === 'true' ? 'now' : 'no longer'} auto-refresh.`
     );
   };
 
@@ -153,12 +175,12 @@ const RefreshLogs = ({
   const onManualClick = async () => {
     // If already fetching, show message
     if (isFetching || isManualFetching) {
-      showSuccessToast("Already Refreshing", "A refresh is already in progress.");
+      showSuccessToast('Already Refreshing', 'A refresh is already in progress.');
       return;
     }
 
     setIsManualFetching(true);
-    
+
     try {
       await withLoadingToastFn(
         async () => {
@@ -167,10 +189,13 @@ const RefreshLogs = ({
           try {
             latest = await fetchLatestTimestamp();
           } catch (err: any) {
-            const message = (err && typeof err === 'object' && 'message' in err) ? (err as Error).message : String(err);
+            const message =
+              err && typeof err === 'object' && 'message' in err
+                ? (err as Error).message
+                : String(err);
             if (/Context '.*' not found/i.test(message) || /context .* not found/i.test(message)) {
               if (syncedTileDataActions) {
-                showSuccessToast("Context not found", "Opening table without context.");
+                showSuccessToast('Context not found', 'Opening table without context.');
                 await syncedTileDataActions.setContext(undefined);
               }
               return;
@@ -185,18 +210,18 @@ const RefreshLogs = ({
             // Do the actual refresh
             // Use onRefresh callback when provided (for when autoUpdate is OFF)
             // Fall back to manualRefresh (for when autoUpdate is ON)
-            const isAutoUpdating = tileDataState?.autoUpdate === "true";
-            const result = isAutoUpdating 
+            const isAutoUpdating = tileDataState?.autoUpdate === 'true';
+            const result = isAutoUpdating
               ? await manualRefresh()
-              : onRefresh 
+              : onRefresh
                 ? await onRefresh()
                 : await manualRefresh(); // Fallback if onRefresh not provided
-            
+
             if (isMounted.current) {
               setLastUpdated(latest);
               displayLoadCheck();
             }
-            
+
             return result;
           } else {
             // Data is already up to date
@@ -204,14 +229,14 @@ const RefreshLogs = ({
           }
         },
         {
-          loadingMessage: "Refreshing logs...",
-          successMessage: "Logs refreshed successfully!",
-          errorMessage: "Failed to refresh logs."
+          loadingMessage: 'Refreshing logs...',
+          successMessage: 'Logs refreshed successfully!',
+          errorMessage: 'Failed to refresh logs.',
         }
       );
     } catch (error: any) {
       if (error.name !== 'AbortError') {
-        console.error("Manual refresh error:", error);
+        console.error('Manual refresh error:', error);
       }
     } finally {
       if (isMounted.current) {
@@ -220,42 +245,48 @@ const RefreshLogs = ({
     }
   };
 
-  const isAutoUpdating = tileDataState?.autoUpdate === "true";
+  const isAutoUpdating = tileDataState?.autoUpdate === 'true';
   const isManualSpinning = isFetching || isManualFetching;
 
   const getIcon = () => {
     if (isAutoUpdating) {
-      return <RefreshCw className="animate-spin text-green" />;
+      return <RefreshCw className="text-green animate-spin" />;
     }
     if (isManualSpinning) {
-      return <RefreshCw className="animate-spin text-green" />;
+      return <RefreshCw className="text-green animate-spin" />;
     }
     if (loaded) {
       return <Check className="text-green" />;
     }
     return <RefreshCw />;
   };
-  
+
   const icon = getIcon();
 
   const manualRefreshButton = (
-    <ActionButton 
+    <ActionButton
       variant="outline"
-      className="rounded-lg h-8"
+      className="h-8 rounded-lg"
       icon={icon}
-      tooltip={isAutoUpdating ? "Auto-refreshing..." : isManualSpinning ? "Refreshing logs..." : "Refresh logs"}
+      tooltip={
+        isAutoUpdating
+          ? 'Auto-refreshing...'
+          : isManualSpinning
+            ? 'Refreshing logs...'
+            : 'Refresh logs'
+      }
       onClick={onManualClick}
       disabled={isAutoUpdating}
     />
   );
 
   const autoRefresh = (
-    <ActionButton 
-      variant={isAutoUpdating ? "primary" : "outline"} 
-      className="rounded-lg" 
-      icon={<Timer />} 
-      tooltip={"Auto refresh every 5s"} 
-      onClick={onAutoClick} 
+    <ActionButton
+      variant={isAutoUpdating ? 'primary' : 'outline'}
+      className="rounded-lg"
+      icon={<Timer />}
+      tooltip={'Auto refresh every 5s'}
+      onClick={onAutoClick}
     />
   );
 

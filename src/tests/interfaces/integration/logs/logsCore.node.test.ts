@@ -23,23 +23,26 @@ describe('logsCore + getLogs (MSW integration)', () => {
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
     fetchCallUrls = [];
-    
+
     // Create mock data
-    allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
-    
+    allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, {
+      offset: 0,
+      totalCount: MOCK_LOGS_TOTAL_COUNT,
+    });
+
     // Setup fetch mock to return logs
     mockFetch.mockImplementation(async (url: string) => {
       fetchCallUrls.push(url);
-      
+
       if (url.includes('/api/logs')) {
         // Parse limit and offset from URL
         const urlObj = new URL(url, 'http://localhost');
         const limit = parseInt(urlObj.searchParams.get('limit') || '20');
         const offset = parseInt(urlObj.searchParams.get('offset') || '0');
-        
+
         // Return paginated logs
         const paginatedLogs = (allLogs.logs as LogProps[]).slice(offset, offset + limit);
-        
+
         return createMockResponse({
           params: allLogs.params,
           logs: paginatedLogs,
@@ -47,7 +50,7 @@ describe('logsCore + getLogs (MSW integration)', () => {
           groups: allLogs.groups || [],
         });
       }
-      
+
       return createMockResponse({}, 404);
     });
   });
@@ -87,7 +90,7 @@ describe('logsCore + getLogs (MSW integration)', () => {
 
     // Verify fetch was called
     expect(mockFetch).toHaveBeenCalled();
-    expect(fetchCallUrls.some(url => url.includes('/api/logs'))).toBe(true);
+    expect(fetchCallUrls.some((url) => url.includes('/api/logs'))).toBe(true);
 
     // response.count is the TOTAL count (100), not the page size
     expect(result.response.count).toBe(MOCK_LOGS_TOTAL_COUNT);
@@ -137,7 +140,7 @@ describe('logsCore + getLogs (MSW integration)', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const ungroupedUrl = fetchCallUrls[0];
     const ungroupedUrlObj = new URL(ungroupedUrl, 'http://localhost');
-    
+
     // limit/offset should be used for ungrouped
     expect(ungroupedUrlObj.searchParams.get('limit')).toBe('20');
     expect(ungroupedUrlObj.searchParams.get('offset')).toBe('40');
@@ -181,7 +184,7 @@ describe('logsCore + getLogs (MSW integration)', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const groupedUrl = fetchCallUrls[0];
     const groupedUrlObj = new URL(groupedUrl, 'http://localhost');
-    
+
     // group_* should be used for grouped
     expect(groupedUrlObj.searchParams.get('groupLimit')).toBe('50');
     expect(groupedUrlObj.searchParams.get('groupOffset')).toBe('10');

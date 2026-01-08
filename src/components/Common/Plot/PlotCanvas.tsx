@@ -17,14 +17,14 @@
  * - Actions (callbacks for state changes)
  */
 
-"use client";
+'use client';
 
-import { useEffect, useRef, useId, useState, useMemo, useCallback } from "react";
-import * as d3 from "d3";
-import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { drawPlot } from "@/utils/interfaces/plots/main";
-import { clearFixedTooltip } from "@/utils/interfaces/plots/tooltip";
-import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
+import { useEffect, useRef, useId, useState, useMemo, useCallback } from 'react';
+import * as d3 from 'd3';
+import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { drawPlot } from '@/utils/interfaces/plots/main';
+import { clearFixedTooltip } from '@/utils/interfaces/plots/tooltip';
+import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 /**
  * Props for the PlotCanvas component
@@ -132,12 +132,12 @@ export function PlotCanvas({
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const internalSvgRef = useRef<SVGSVGElement>(null);
   const internalSettingsRef = useRef<HTMLDivElement>(null);
-  
+
   // Use external refs if provided, otherwise use internal refs
   const containerRef = externalContainerRef ?? internalContainerRef;
   const svgRef = externalSvgRef ?? internalSvgRef;
   const settingsRef = externalSettingsRef ?? internalSettingsRef;
-  
+
   const zoomRef = useRef(d3.zoomIdentity);
   const clipId = useId();
 
@@ -208,7 +208,7 @@ export function PlotCanvas({
     // Bar charts can render with pre-aggregated data OR raw logs
     const hasPreAggregatedData = preAggregatedBarData && preAggregatedBarData.length > 0;
     const hasRawLogsData = logs && logs.length > 0;
-    
+
     if (!svgRef.current || !containerRef.current || (!hasRawLogsData && !hasPreAggregatedData)) {
       return;
     }
@@ -216,7 +216,7 @@ export function PlotCanvas({
     const svg = d3.select(svgRef.current);
     const container = d3.select(containerRef.current);
     const settings = d3.select(settingsRef.current);
-    const placeholder = svg.select(".placeholderText") as d3.Selection<
+    const placeholder = svg.select('.placeholderText') as d3.Selection<
       SVGTextElement,
       unknown,
       null,
@@ -260,7 +260,7 @@ export function PlotCanvas({
         preAggregatedBarData
       );
     } catch (err) {
-      console.error("[PlotCanvas] drawPlot error:", err);
+      console.error('[PlotCanvas] drawPlot error:', err);
     }
   }, [
     logs,
@@ -290,12 +290,9 @@ export function PlotCanvas({
   ]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full relative overflow-hidden bg-background"
-    >
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-background">
       {/* SVG Plot Container */}
-      <svg ref={svgRef} className="w-full h-full absolute top-0 left-0 z-0">
+      <svg ref={svgRef} className="absolute left-0 top-0 z-0 h-full w-full">
         <defs>
           <clipPath id={clipId}>
             <rect id="clip-rect" />
@@ -311,18 +308,10 @@ export function PlotCanvas({
           className="placeholderText"
           stroke="var(--foreground)"
           strokeWidth="0.1"
-          style={{ fill: "var(--foreground)" }}
+          style={{ fill: 'var(--foreground)' }}
         />
-        <line
-          className="bottomLine"
-          stroke="var(--foreground)"
-          strokeWidth="0.5"
-        />
-        <line
-          className="leftLine"
-          stroke="var(--foreground)"
-          strokeWidth="0.5"
-        />
+        <line className="bottomLine" stroke="var(--foreground)" strokeWidth="0.5" />
+        <line className="leftLine" stroke="var(--foreground)" strokeWidth="0.5" />
         <line
           className="x-zero"
           stroke="var(--foreground)"
@@ -337,10 +326,7 @@ export function PlotCanvas({
           strokeDasharray="5,5"
           style={{ opacity: 0 }}
         />
-        <g
-          className="xAxis"
-          transform={`translate(0, ${dimensions.height - margins.bottom})`}
-        />
+        <g className="xAxis" transform={`translate(0, ${dimensions.height - margins.bottom})`} />
         <g className="yAxis" transform={`translate(${margins.left}, 0)`} />
       </svg>
 
@@ -348,17 +334,17 @@ export function PlotCanvas({
       <div
         className="plotTooltip gap-2 overflow-hidden"
         style={{
-          position: "absolute",
-          minWidth: "160px",
-          maxWidth: "300px",
-          pointerEvents: "none",
-          background: "var(--background)",
-          border: "1px solid var(--foreground)",
-          padding: "8px",
-          borderRadius: "4px",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          transition: "opacity 0.2s",
-          fontSize: "14px",
+          position: 'absolute',
+          minWidth: '160px',
+          maxWidth: '300px',
+          pointerEvents: 'none',
+          background: 'var(--background)',
+          border: '1px solid var(--foreground)',
+          padding: '8px',
+          borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          transition: 'opacity 0.2s',
+          fontSize: '14px',
           opacity: 0,
           zIndex: 1000,
         }}
@@ -371,4 +357,3 @@ export function PlotCanvas({
 }
 
 export default PlotCanvas;
-

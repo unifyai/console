@@ -15,37 +15,37 @@ export const DEFAULT_USE_PROJECT_RETURN = {
     description: null,
     activeInterfaceId: null,
     interfaceIds: [],
-    contexts: []
+    contexts: [],
   },
   meta: {
     id: null,
-    name: null
+    name: null,
   },
   data: {
     description: null,
     interfaceIds: [],
-    contexts: []
+    contexts: [],
   },
   ui: {
-    activeInterfaceId: null
+    activeInterfaceId: null,
   },
   operations: {},
   exists: false,
-  projectId: null
+  projectId: null,
 };
 
 /**
  * Interface for all project-related actions
  */
 export interface ProjectActions {
-    // Basic project management
-    initProject: (initialState?: Partial<Project>) => void;
-    updateProject: (updates: Partial<Project>) => void;
-    removeProject: () => void;
+  // Basic project management
+  initProject: (initialState?: Partial<Project>) => void;
+  updateProject: (updates: Partial<Project>) => void;
+  removeProject: () => void;
 
-    // Helper methods
-    getInterfaceIds: () => string[];
-  }
+  // Helper methods
+  getInterfaceIds: () => string[];
+}
 
 /**
  * Custom hook to access and manage project state
@@ -54,35 +54,22 @@ export interface ProjectActions {
  */
 export function useProject(projectIdOrName: string | null) {
   // Use specialized hooks
-  const {
-    meta,
-    metaActions,
-    projectId,
-    projectExists
-  } = useProjectMeta(projectIdOrName);
-  
-  const {
-    data,
-    dataActions,
-    interfaceIds,
-  } = useProjectData(projectIdOrName);
-  
-  const {
-    ui,
-    uiActions,
-    activeInterfaceId
-  } = useProjectUI(projectIdOrName);
-  
+  const { meta, metaActions, projectId, projectExists } = useProjectMeta(projectIdOrName);
+
+  const { data, dataActions, interfaceIds } = useProjectData(projectIdOrName);
+
+  const { ui, uiActions, activeInterfaceId } = useProjectUI(projectIdOrName);
+
   // const {
   //   operations,
   //   operationsActions
   // } = useProjectOperations(projectName);
 
   // Get store actions
-  const storeInitProject = useStoreContext(state => state.initProject);
-  const storeUpdateProject = useStoreContext(state => state.updateProject);
-  const storeRemoveProject = useStoreContext(state => state.removeProject);
-  
+  const storeInitProject = useStoreContext((state) => state.initProject);
+  const storeUpdateProject = useStoreContext((state) => state.updateProject);
+  const storeRemoveProject = useStoreContext((state) => state.removeProject);
+
   // Memoize all actions to prevent unnecessary re-renders
   const actions = useMemo<ProjectActions>(() => {
     return {
@@ -92,28 +79,28 @@ export function useProject(projectIdOrName: string | null) {
           storeInitProject(projectId, initialState);
         }
       },
-      
+
       updateProject: (updates) => {
         if (projectId) {
           storeUpdateProject(projectId, updates);
         }
       },
-      
+
       removeProject: () => {
         if (projectId) {
           storeRemoveProject(projectId);
         }
       },
-      
+
       // Categorized actions
       meta: metaActions,
       data: dataActions,
       ui: uiActions,
-      
+
       // Helper methods
       getInterfaceIds: () => {
         return interfaceIds;
-      }
+      },
     };
   }, [
     projectId,
@@ -123,17 +110,17 @@ export function useProject(projectIdOrName: string | null) {
     storeRemoveProject,
     metaActions,
     dataActions,
-    uiActions
+    uiActions,
   ]);
-  
+
   // Build a final 'project' object from the separate meta, data, and UI objects
   const projectObj = useMemo<Partial<Project> | null>(() => {
     if (!meta || !data || !ui) return null;
-    
+
     return {
       ...meta,
       ...data,
-      ...ui
+      ...ui,
     };
   }, [meta, data, ui]);
 
@@ -153,6 +140,6 @@ export function useProject(projectIdOrName: string | null) {
     actions,
     // operationsActions,
     exists: projectExists,
-    projectId
+    projectId,
   };
-} 
+}

@@ -1,15 +1,10 @@
-"use client"
+'use client';
 
-import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
-import { getSession, signOut } from "next-auth/react"
-import { Button } from "@/components/UI/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/UI/tooltip"
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
+import { getSession, signOut } from 'next-auth/react';
+import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,27 +15,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/UI/alert-dialog"
+} from '@/components/UI/alert-dialog';
 
 const SignOutButton = () => {
-
   const router = useRouter();
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
-    router.push("/login");
-  }
-  
+    router.push('/login');
+  };
+
   return (
     <AlertDialog>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <AlertDialogTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
-                className="hover:bg-destructive hover:text-destructive-foreground transition-colors w-8 h-8"
+                className="h-8 w-8 transition-colors hover:bg-destructive hover:text-destructive-foreground"
               >
                 <LogOut className="h-[1.2rem] w-[1.2rem]" />
                 <span className="sr-only">Sign out</span>
@@ -65,7 +59,7 @@ const SignOutButton = () => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
-}
+  );
+};
 
-export default SignOutButton
+export default SignOutButton;

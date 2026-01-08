@@ -1,4 +1,4 @@
-import { PlotDataItem } from "@/types/interfaces/grid";
+import { PlotDataItem } from '@/types/interfaces/grid';
 
 // ( IMPORTANT )
 // NOTE: When adding new fields here,
@@ -6,23 +6,22 @@ import { PlotDataItem } from "@/types/interfaces/grid";
 // Look at the tableTile and viewTile files for examples.
 
 // Plot tile meta - metadata information
-export interface PlotTileMeta {
-}
+export interface PlotTileMeta {}
 
-// Plot tile data - business data 
+// Plot tile data - business data
 export interface PlotTileData {
   // Core plot data properties
-  
+
   // Plot-specific fields from TileProps
-  plotType?: string | null;          // Used in addition to plotType for compatibility
-  plotScaleX?: string | null;       // X-axis scale type (linear, log, etc.)
-  plotScaleY?: string | null;       // Y-axis scale type
-  plotAggregate?: string | null;     // Table grouped by property used to plot metrics for
-  xAxis?: string | null;             // Used in addition to xAxis for compatibility
-  yAxis?: string | null;             // Used in addition to yAxis for compatibility
-  plotGroupBy?: string | null;      // Used in addition to groupBy for compatibility
-  binCount?: string | null;          // Number of bins for histograms
-  regressionLine?: string | null;    // Whether to show regression line
+  plotType?: string | null; // Used in addition to plotType for compatibility
+  plotScaleX?: string | null; // X-axis scale type (linear, log, etc.)
+  plotScaleY?: string | null; // Y-axis scale type
+  plotAggregate?: string | null; // Table grouped by property used to plot metrics for
+  xAxis?: string | null; // Used in addition to xAxis for compatibility
+  yAxis?: string | null; // Used in addition to yAxis for compatibility
+  plotGroupBy?: string | null; // Used in addition to groupBy for compatibility
+  binCount?: string | null; // Number of bins for histograms
+  regressionLine?: string | null; // Whether to show regression line
 }
 
 // Plot tile UI - UI-related state
@@ -36,14 +35,20 @@ export type PlotTile = PlotTileMeta & PlotTileData & PlotTileUI;
 // plotKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
 // a PlotTile into a TileProps
 export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  "plotType", "plotScaleX", "plotScaleY", "plotAggregate",
-  "xAxis", "yAxis", "plotGroupBy", "plotGroupByColors", "binCount", "regressionLine"
+  'plotType',
+  'plotScaleX',
+  'plotScaleY',
+  'plotAggregate',
+  'xAxis',
+  'yAxis',
+  'plotGroupBy',
+  'plotGroupByColors',
+  'binCount',
+  'regressionLine',
 ];
 
 // plotTileKeys: all fields for PlotTile
-export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS
-];
+export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS];
 
 /**
  * Initialize a new plot tile
@@ -58,7 +63,8 @@ export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
     xAxis: initialState.xAxis !== undefined ? initialState.xAxis : null,
     yAxis: initialState.yAxis !== undefined ? initialState.yAxis : null,
     plotGroupBy: initialState.plotGroupBy !== undefined ? initialState.plotGroupBy : null,
-    plotGroupByColors: initialState.plotGroupByColors !== undefined ? initialState.plotGroupByColors : null,
+    plotGroupByColors:
+      initialState.plotGroupByColors !== undefined ? initialState.plotGroupByColors : null,
     binCount: initialState.binCount !== undefined ? initialState.binCount : null,
     regressionLine: initialState.regressionLine !== undefined ? initialState.regressionLine : null,
 

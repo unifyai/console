@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,20 +39,20 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'profile',
     title: 'Profile Setup',
     description: 'Tell us about yourself',
-    required: true
+    required: true,
   },
   {
     id: 'tax',
     title: 'Tax Classification',
     description: 'Set up your tax compliance',
-    required: true
+    required: true,
   },
   {
     id: 'newsletters',
     title: 'Stay Updated',
     description: 'Choose your newsletter preferences',
-    required: false
-  }
+    required: false,
+  },
 ];
 
 export default function OnboardingWorkflow() {
@@ -63,7 +63,7 @@ export default function OnboardingWorkflow() {
     lastName: '',
     jobTitle: '',
     bio: '',
-    timezone: ''
+    timezone: '',
   });
   const [taxData, setTaxData] = useState<TaxClassificationFormData | null>(null);
   const [newsletterData, setNewsletterData] = useState<string[]>([]);
@@ -71,7 +71,8 @@ export default function OnboardingWorkflow() {
   const [error, setError] = useState<string | null>(null);
   const [isLoadingExistingData, setIsLoadingExistingData] = useState(true);
   const [existingUser, setExistingUser] = useState<any>(null);
-  const [existingBusinessStatus, setExistingBusinessStatus] = useState<UserBusinessStatusResponse | null>(null);
+  const [existingBusinessStatus, setExistingBusinessStatus] =
+    useState<UserBusinessStatusResponse | null>(null);
 
   // Form validation states
   const [isProfileValid, setIsProfileValid] = useState(false);
@@ -115,7 +116,10 @@ export default function OnboardingWorkflow() {
           setExistingBusinessStatus(businessData);
           console.log('✅ Successfully fetched business status data');
         } else {
-          console.warn('⚠️ Business status endpoint returned non-OK status:', businessResponse.status);
+          console.warn(
+            '⚠️ Business status endpoint returned non-OK status:',
+            businessResponse.status
+          );
         }
       } catch (error) {
         console.warn('⚠️ Failed to fetch business status data:', error);
@@ -129,14 +133,17 @@ export default function OnboardingWorkflow() {
           const subs = await subsResponse.json();
           if (subs.length === 0) {
             // Default to all selected if no existing subscriptions
-            const allNewsletterIds = ["cmbyni4qq1tio0ivlfdfo3qj2", "cmbyno89p018e0jxsd5698x12"];
+            const allNewsletterIds = ['cmbyni4qq1tio0ivlfdfo3qj2', 'cmbyno89p018e0jxsd5698x12'];
             setNewsletterData(allNewsletterIds);
           } else {
             setNewsletterData(subs);
           }
           console.log('✅ Successfully fetched newsletter subscriptions');
         } else {
-          console.warn('⚠️ Newsletter subscriptions endpoint returned non-OK status:', subsResponse.status);
+          console.warn(
+            '⚠️ Newsletter subscriptions endpoint returned non-OK status:',
+            subsResponse.status
+          );
         }
       } catch (error) {
         console.warn('⚠️ Failed to fetch newsletter subscriptions:', error);
@@ -149,7 +156,7 @@ export default function OnboardingWorkflow() {
           lastName: userData.lastName || '',
           jobTitle: userData.jobTitle || '',
           bio: userData.bio || '',
-          timezone: userData.timezone || ''
+          timezone: userData.timezone || '',
         });
         setIsProfileValid(userData.name && userData.lastName);
         console.log('✅ Pre-populated profile data');
@@ -168,10 +175,10 @@ export default function OnboardingWorkflow() {
             city: '',
             state: '',
             country: '',
-            postalCode: ''
+            postalCode: '',
           },
           taxExempt: businessData.taxExempt || false,
-          taxCountry: businessData.taxJurisdiction || ''
+          taxCountry: businessData.taxJurisdiction || '',
         });
         setIsTaxValid(true);
         console.log('✅ Pre-populated tax classification data');
@@ -208,8 +215,8 @@ export default function OnboardingWorkflow() {
           lastName: data.lastName,
           jobTitle: data.jobTitle,
           bio: data.bio,
-          timezone: data.timezone
-        })
+          timezone: data.timezone,
+        }),
       });
 
       if (!response.ok) {
@@ -241,7 +248,7 @@ export default function OnboardingWorkflow() {
         const res = await fetch('/api/user/account-type', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountType: 'individual' })
+          body: JSON.stringify({ accountType: 'individual' }),
         });
 
         if (!res.ok) {
@@ -260,13 +267,15 @@ export default function OnboardingWorkflow() {
             taxId: data.taxId,
             taxCountry: data.taxCountry,
             businessAddress: data.businessAddress,
-            taxExempt: data.taxExempt
-          })
+            taxExempt: data.taxExempt,
+          }),
         });
 
         if (!businessResponse.ok) {
           const errorData = await businessResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || `Business info update failed with status ${businessResponse.status}`);
+          throw new Error(
+            errorData.error || `Business info update failed with status ${businessResponse.status}`
+          );
         }
 
         console.log('✅ Business information saved successfully');
@@ -299,12 +308,12 @@ export default function OnboardingWorkflow() {
     // Save newsletter preferences if any selected (non-blocking)
     if (subscriptions.length > 0) {
       try {
-        const response = await fetch("/api/loops/subscribe", {
-          method: "POST",
+        const response = await fetch('/api/loops/subscribe', {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ mailingLists: subscriptions })
+          body: JSON.stringify({ mailingLists: subscriptions }),
         });
 
         if (response.ok) {
@@ -322,12 +331,14 @@ export default function OnboardingWorkflow() {
       const response = await fetch('/api/user/onboarding-status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ onboarded: true })
+        body: JSON.stringify({ onboarded: true }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to update onboarding status with status ${response.status}`);
+        throw new Error(
+          errorData.error || `Failed to update onboarding status with status ${response.status}`
+        );
       }
 
       console.log('✅ User marked as onboarded');
@@ -383,7 +394,7 @@ export default function OnboardingWorkflow() {
     switch (currentStepData.id) {
       case 'profile':
         return (
-          <ProfileSetupForm 
+          <ProfileSetupForm
             ref={profileFormRef}
             onSubmit={handleProfileSubmit}
             onValidationChange={setIsProfileValid}
@@ -394,7 +405,7 @@ export default function OnboardingWorkflow() {
         );
       case 'tax':
         return (
-          <TaxClassificationForm 
+          <TaxClassificationForm
             ref={taxFormRef}
             onSubmit={handleTaxSubmit}
             onValidationChange={setIsTaxValid}
@@ -405,7 +416,7 @@ export default function OnboardingWorkflow() {
         );
       case 'newsletters':
         return (
-          <NewsletterPreferencesForm 
+          <NewsletterPreferencesForm
             onSubmit={handleNewsletterSubmit}
             onSkip={handleSkipNewsletters}
             onValidationChange={setIsNewsletterValid}
@@ -425,11 +436,11 @@ export default function OnboardingWorkflow() {
   }
 
   return (
-    <div className="h-full bg-background flex flex-col min-w-0">
+    <div className="flex h-full min-w-0 flex-col bg-background">
       {/* Header */}
-      <div className="bg-card border-b flex-shrink-0">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-6">
+      <div className="flex-shrink-0 border-b bg-card">
+        <div className="mx-auto max-w-4xl px-6 py-6">
+          <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-h2">Welcome to Unify</h1>
               <p className="text-subtitle mt-2">Let&apos;s get your account set up</p>
@@ -442,17 +453,29 @@ export default function OnboardingWorkflow() {
           {/* Progress Bar */}
           <div className="w-full">
             <Progress value={progress} className="h-2" />
-            <div className="flex justify-between mt-4">
+            <div className="mt-4 flex justify-between">
               {ONBOARDING_STEPS.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    index < currentStep || (index === 0 && existingUser) || (index === 1 && existingBusinessStatus) ? 'bg-green-500 text-white' :
-                    index === currentStep ? 'bg-primary text-primary-foreground' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
-                    {(index < currentStep || (index === 0 && existingUser) || (index === 1 && existingBusinessStatus)) ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                      index < currentStep ||
+                      (index === 0 && existingUser) ||
+                      (index === 1 && existingBusinessStatus)
+                        ? 'bg-green-500 text-white'
+                        : index === currentStep
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {index < currentStep ||
+                    (index === 0 && existingUser) ||
+                    (index === 1 && existingBusinessStatus) ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      index + 1
+                    )}
                   </div>
-                  <div className="text-xs text-center mt-2">
+                  <div className="mt-2 text-center text-xs">
                     <div className="text-label">{step.title}</div>
                     <div className="text-muted">{step.description}</div>
                   </div>
@@ -464,13 +487,15 @@ export default function OnboardingWorkflow() {
       </div>
 
       {/* Content */}
-      <main className="flex-grow min-h-0 overflow-hidden">
-        <div className="max-w-4xl w-full mx-auto px-6 py-6 h-full flex flex-col min-h-0">
+      <main className="min-h-0 flex-grow overflow-hidden">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col px-6 py-6">
           <ScrollArea className="flex-1">
             <Card className="w-full">
               <CardHeader className="pb-6">
                 <CardTitle className="text-h3">{currentStepData.title}</CardTitle>
-                <CardDescription className="text-body">{currentStepData.description}</CardDescription>
+                <CardDescription className="text-body">
+                  {currentStepData.description}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {/* Global Error */}
@@ -485,7 +510,8 @@ export default function OnboardingWorkflow() {
                   <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
                     <CheckCircle className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-body">
-                      We&apos;ve pre-populated this form with your existing information. Please review and update as needed.
+                      We&apos;ve pre-populated this form with your existing information. Please
+                      review and update as needed.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -499,23 +525,23 @@ export default function OnboardingWorkflow() {
       </main>
 
       {/* Navigation */}
-      <div className="flex-shrink-0 bg-card border-t">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Button 
-              variant="outline" 
+      <div className="flex-shrink-0 border-t bg-card">
+        <div className="mx-auto max-w-4xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
               onClick={goBack}
               disabled={currentStep === 0 || isSubmitting}
               className="h-12 px-8 text-base"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
 
             <div className="flex items-center space-x-4">
               {currentStep === 2 && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleSkipNewsletters}
                   disabled={isSubmitting}
                   className="h-12 px-8 text-base"
@@ -524,23 +550,39 @@ export default function OnboardingWorkflow() {
                 </Button>
               )}
 
-              <Button 
+              <Button
                 onClick={goNext}
                 disabled={!getCurrentStepValid() || isSubmitting}
-                className="h-12 px-8 text-base min-w-[140px]"
+                className="h-12 min-w-[140px] px-8 text-base"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="-ml-1 mr-2 h-4 w-4 animate-spin"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     {currentStep === 2 ? 'Completing...' : 'Saving...'}
                   </>
                 ) : (
                   <>
                     {currentStep === 2 ? 'Complete Setup' : 'Continue'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
               </Button>

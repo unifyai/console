@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
-import React from "react"
-import Tooltip from "@/components/Common/Misc/Tooltip"
-import { useTheme } from "next-themes";
+import React from 'react';
+import Tooltip from '@/components/Common/Misc/Tooltip';
+import { useTheme } from 'next-themes';
 
 /**
  * Compresses row indices like [0,1,2,4,5,7] to a string "1-3,5-6,8".
- * 
+ *
  * IMPORTANT: This function ALWAYS assumes the input indices are 0-based
  * (internal representation) and ALWAYS adds 1 to convert to 1-based (UI display).
- * 
+ *
  * @param rows Array of 0-based row indices
  * @returns Formatted string of 1-based row numbers for display
  */
 function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
+  if (!rows.length) return '';
 
-  if (!rows.length) return "";
-  
+  if (!rows.length) return '';
+
   // ALWAYS convert from 0-based to 1-based for display
-  const sorted = [...rows].map(r => r + 1).sort((a, b) => a - b);
+  const sorted = [...rows].map((r) => r + 1).sort((a, b) => a - b);
 
   const ranges: string[] = [];
   let start = sorted[0];
@@ -45,7 +45,7 @@ function compressRowNumbers(rows: number[]): string {
     ranges.push(`${start}-${end}`);
   }
 
-  return ranges.join(", ");
+  return ranges.join(', ');
 }
 
 export interface RowBadgeProps {
@@ -67,7 +67,7 @@ export interface RowBadgeProps {
    * The "mode" for this badge: "insert" | "delete" | "base" | "none"
    * Used to show different color classes and a specific hover tooltip.
    */
-  mode?: "insert" | "delete" | "base" | "none";
+  mode?: 'insert' | 'delete' | 'base' | 'none';
 }
 
 /**
@@ -79,8 +79,8 @@ export interface RowBadgeProps {
 export default function RowBadge({
   rowNumbers,
   isBase = false,
-  customClass,  
-  mode = "none",
+  customClass,
+  mode = 'none',
 }: RowBadgeProps) {
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = theme === 'dark' || resolvedTheme === 'dark';
@@ -91,48 +91,48 @@ export default function RowBadge({
 
   const label = compressRowNumbers(rowNumbers);
   const count = rowNumbers.length;
-  const rowOrRows = count === 1 ? "row" : "rows";
+  const rowOrRows = count === 1 ? 'row' : 'rows';
 
   // Decide color classes
-  let colorClasses = customClass || "";
+  let colorClasses = customClass || '';
   if (!customClass) {
     switch (mode) {
-      case "insert":
-        colorClasses = isDarkMode 
-          ? "insert bg-green-800 text-foreground border border-muted" 
-          : "insert bg-green-200 text-foreground border border-muted";
+      case 'insert':
+        colorClasses = isDarkMode
+          ? 'insert bg-green-800 text-foreground border border-muted'
+          : 'insert bg-green-200 text-foreground border border-muted';
         break;
-      case "delete":
-        colorClasses = isDarkMode 
-          ? "delete bg-red-800 text-foreground border border-muted" 
-          : "delete bg-red-200 text-foreground border border-muted";
+      case 'delete':
+        colorClasses = isDarkMode
+          ? 'delete bg-red-800 text-foreground border border-muted'
+          : 'delete bg-red-200 text-foreground border border-muted';
         break;
-      case "base":
-        colorClasses = isDarkMode 
-          ? "base bg-red-800 text-foreground border border-muted" 
-          : "base bg-red-200 text-foreground border border-muted";
+      case 'base':
+        colorClasses = isDarkMode
+          ? 'base bg-red-800 text-foreground border border-muted'
+          : 'base bg-red-200 text-foreground border border-muted';
         break;
       default:
         // mode="none"
-        colorClasses = isDarkMode 
-          ? "none bg-background text-foreground border border-muted" 
-          : "none bg-background text-foreground border border-muted";
+        colorClasses = isDarkMode
+          ? 'none bg-background text-foreground border border-muted'
+          : 'none bg-background text-foreground border border-muted';
         break;
     }
   }
 
   // Build tooltip text
-  let hoverText = "";
+  let hoverText = '';
   switch (mode) {
-    case "delete":
+    case 'delete':
       // "Not in row 3" or "Not in rows 3,5-7"
       hoverText = `Not in ${rowOrRows} ${label}`;
       break;
-    case "insert":
+    case 'insert':
       // "Only in row 3" or "Only in rows 3,5-7"
       hoverText = `Only in ${rowOrRows} ${label}`;
       break;
-    case "base":
+    case 'base':
       // "Base row 3" or "Base rows 3,5-7"
       if (count === 1) {
         hoverText = `Base row ${label}`;
@@ -152,7 +152,7 @@ export default function RowBadge({
 
   return (
     <Tooltip content={hoverText}>
-      <span className={`row-badge rounded text-caption px-1 py-0.5 text-strong ${colorClasses}`}>
+      <span className={`row-badge text-caption text-strong rounded px-1 py-0.5 ${colorClasses}`}>
         [{label}]
       </span>
     </Tooltip>

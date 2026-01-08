@@ -1,11 +1,11 @@
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
-import { 
-  UpdateAccountTypeRequest, 
-  UpdateBusinessInfoRequest, 
-  UserBusinessStatusResponse, 
+import {
+  UpdateAccountTypeRequest,
+  UpdateBusinessInfoRequest,
+  UserBusinessStatusResponse,
   UpdateOnboardingStatusRequest,
   OnboardingStatusResponse,
-  UpdateOnboardingStatusResponse
+  UpdateOnboardingStatusResponse,
 } from '@/types/user';
 
 export async function updateUserAccountType(apiKey: string, data: UpdateAccountTypeRequest) {
@@ -20,7 +20,10 @@ export async function updateBusinessInfo(apiKey: string, data: UpdateBusinessInf
   return response.data;
 }
 
-export async function updateOnboardingStatus(apiKey: string, data: UpdateOnboardingStatusRequest): Promise<UpdateOnboardingStatusResponse> {
+export async function updateOnboardingStatus(
+  apiKey: string,
+  data: UpdateOnboardingStatusRequest
+): Promise<UpdateOnboardingStatusResponse> {
   const orchestraClient = await getOrchestraUserClient(apiKey);
   const response = await orchestraClient.put('/user/onboarding-status', data);
   return response.data;
@@ -36,4 +39,4 @@ export async function getOnboardingStatus(apiKey: string): Promise<OnboardingSta
   const orchestraClient = await getOrchestraUserClient(apiKey);
   const response = await orchestraClient.get('/user/onboarding-status');
   return response.data;
-} 
+}

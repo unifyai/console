@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ProjectsActions } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * Hook to fetch all projects
@@ -41,15 +41,9 @@ export function useGetProjectByIdQuery(projectId: string | null, actions: Projec
  */
 export function useCreateOnlyProjectQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      name, 
-      actions 
-    }: { 
-      name: string; 
-      actions: ProjectsActions;
-    }) => {
+    mutationFn: async ({ name, actions }: { name: string; actions: ProjectsActions }) => {
       return actions.create(name);
     },
     onSuccess: () => {
@@ -64,13 +58,13 @@ export function useCreateOnlyProjectQuery() {
  */
 export function useUpdateProjectQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       oldName,
       newName,
-      actions 
-    }: { 
+      actions,
+    }: {
       oldName: string;
       newName: string;
       actions: ProjectsActions;
@@ -89,15 +83,9 @@ export function useUpdateProjectQuery() {
  */
 export function useDeleteProjectQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      name, 
-      actions 
-    }: { 
-      name: string; 
-      actions: ProjectsActions;
-    }) => {
+    mutationFn: async ({ name, actions }: { name: string; actions: ProjectsActions }) => {
       return actions.delete(name);
     },
     onSuccess: () => {

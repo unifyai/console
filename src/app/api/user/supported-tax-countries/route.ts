@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user || !user.apiKey) {
-    return NextResponse.json({ error: "User not found or missing API key" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found or missing API key' }, { status: 404 });
   }
 
   try {
@@ -16,4 +16,4 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching supported tax countries:', error);
     return NextResponse.json({ error: 'Error fetching supported tax countries' }, { status: 500 });
   }
-} 
+}

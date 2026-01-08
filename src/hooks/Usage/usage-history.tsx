@@ -51,20 +51,17 @@ export function useUsageHistoryQuery({
         pageNumber: pageParam.toString(),
       });
 
-      const validEndpointsArray: string[] = await fetch('/api/endpoints/list')
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.json();
-        });
-
-      const validEndpoints: Endpoint[] = validEndpointsArray.map(
-        (endpointStr: string) => {
-          const [model, provider] = endpointStr.split('@');
-          return { model, provider };
+      const validEndpointsArray: string[] = await fetch('/api/endpoints/list').then((response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
-      );
+        return response.json();
+      });
+
+      const validEndpoints: Endpoint[] = validEndpointsArray.map((endpointStr: string) => {
+        const [model, provider] = endpointStr.split('@');
+        return { model, provider };
+      });
 
       if ((models && models.length > 0) || (providers && providers.length > 0)) {
         let validCombinations = validEndpoints;
@@ -107,7 +104,7 @@ export function useUsageHistoryQuery({
 
       const data = await response.json();
 
-      return{
+      return {
         queries: data.queries,
         totalPages: data.totalPages,
         pages: [data],
@@ -120,7 +117,7 @@ export function useUsageHistoryQuery({
       if (lastPage.queries.length === 0) {
         return undefined;
       }
-      
+
       const nextPage = pages.length + 1;
 
       return nextPage <= lastPage.totalPages ? nextPage : undefined;

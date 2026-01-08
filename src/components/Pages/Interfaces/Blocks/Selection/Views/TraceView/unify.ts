@@ -1,13 +1,13 @@
-import { Span } from "@/types/interfaces/traces";
+import { Span } from '@/types/interfaces/traces';
 
-export const colorPalette = ["#9333ea", "#3b82f6", "#22c55e", "#f43f5e", "#eab308"];
+export const colorPalette = ['#9333ea', '#3b82f6', '#22c55e', '#f43f5e', '#eab308'];
 
-/** 
+/**
  * unifyByName => merges multiple arrays by "spanName", for multi-diff.
  * Produces an array of MergedSpan objects (spanName, baseSpan, comparableSpans, children).
  */
 export function unifyByName(traces: Span[][]): any[] {
-  // Each "trace array" => mapNameToSpan[] 
+  // Each "trace array" => mapNameToSpan[]
   const mapList = traces.map((arr) => {
     const m = new Map<string, Span[]>();
     arr.forEach((s) => {
@@ -53,7 +53,7 @@ export interface ChartRow {
   [key: `running-${number}`]: boolean;
 }
 
-/** 
+/**
  * unifyTracesForChart => merges multiple traces for Gantt (BarChart).
  */
 export function unifyTracesForChart(allTraces: Span[][], nowSecs: number = 0): ChartRow[] {

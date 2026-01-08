@@ -16,19 +16,19 @@ export interface ProjectMetaActions {
  */
 export function useProjectMeta(projectIdOrName: string | null) {
   // First, try to directly find the project by ID
-  const projectInStoreById = useStoreContext(state => {
+  const projectInStoreById = useStoreContext((state) => {
     if (!projectIdOrName) return null;
     return state.projectsById[projectIdOrName] || null;
   });
 
   // If not found by ID, try to find it by name
-  const projectInStoreByName = useStoreContext(state => {
+  const projectInStoreByName = useStoreContext((state) => {
     if (!projectIdOrName || projectInStoreById) return null;
-    
+
     // Find project by name - this is a more expensive operation
-    return Object.values(state.projectsById).find(
-      project => project.name === projectIdOrName
-    ) || null;
+    return (
+      Object.values(state.projectsById).find((project) => project.name === projectIdOrName) || null
+    );
   });
 
   // Determine the project ID based on the lookup results
@@ -42,23 +42,23 @@ export function useProjectMeta(projectIdOrName: string | null) {
   const projectExists = !!projectId && !!(projectInStoreById || projectInStoreByName);
 
   // Granular subscriptions to Meta properties
-  const id = useStoreContext(state => {
+  const id = useStoreContext((state) => {
     if (!projectExists || !projectId) return null;
     return state.projectsById[projectId].id;
   });
-  
-  const name = useStoreContext(state => {
+
+  const name = useStoreContext((state) => {
     if (!projectExists || !projectId) return null;
     return state.projectsById[projectId].name;
   });
 
   // Get store actions for meta updates
-  const storeUpdateProject = useStoreContext(state => state.updateProject);
+  const storeUpdateProject = useStoreContext((state) => state.updateProject);
 
   // Memoize the metadata object to prevent unnecessary rerenders
   const meta = useMemo<Partial<ProjectMeta> | null>(() => {
     if (!projectExists) return null;
-    
+
     return {
       id,
       name,
@@ -66,18 +66,21 @@ export function useProjectMeta(projectIdOrName: string | null) {
   }, [projectExists, id, name]);
 
   // Memoize the meta actions to prevent unnecessary re-renders
-  const metaActions = useMemo<ProjectMetaActions>(() => ({
-    setName: (name) => {
-      if (projectId) {
-        storeUpdateProject(projectId, { name });
-      }
-    }
-  }), [projectId, storeUpdateProject]);
+  const metaActions = useMemo<ProjectMetaActions>(
+    () => ({
+      setName: (name) => {
+        if (projectId) {
+          storeUpdateProject(projectId, { name });
+        }
+      },
+    }),
+    [projectId, storeUpdateProject]
+  );
 
   return {
     meta,
     metaActions,
     projectId,
-    projectExists
+    projectExists,
   };
-} 
+}

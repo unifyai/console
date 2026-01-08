@@ -6,7 +6,6 @@ import { UserEvent } from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import '@/styles/globals.css';
 
-
 export const worker = setupWorker(...handlers);
 
 // === Event-based screenshot logic ===
@@ -23,13 +22,14 @@ const slugify = (text: string): string => {
 const takeActionScreenshot = async (stepName = 'action') => {
   if (process.env.VITE_TAKE_SCREENSHOTS !== 'true' || !page) return;
   actionCounter++;
-  const step = stepName === 'action' ? `action-${String(actionCounter).padStart(2, '0')}` : stepName;
+  const step =
+    stepName === 'action' ? `action-${String(actionCounter).padStart(2, '0')}` : stepName;
   const fileName = `${currentTestName}-${step}.png`;
   await page.screenshot({ fullPage: true, path: `./screenshots/${fileName}` });
 };
 
 beforeEach(async (context) => {
-  actionCounter = 0; 
+  actionCounter = 0;
   const customAlias = context.task.meta?.alias;
   if (customAlias) {
     currentTestName = slugify(customAlias);
@@ -45,47 +45,47 @@ beforeEach(async (context) => {
 });
 
 vi.mock('@testing-library/react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@testing-library/react')>();
-    return {
-        ...actual,
-        render: (...args: Parameters<typeof actual.render>) => {
-            const result = actual.render(...args);
-            Promise.resolve().then(() => takeActionScreenshot('initial-render'));
-            return result;
-        },
-    };
+  const actual = await importOriginal<typeof import('@testing-library/react')>();
+  return {
+    ...actual,
+    render: (...args: Parameters<typeof actual.render>) => {
+      const result = actual.render(...args);
+      Promise.resolve().then(() => takeActionScreenshot('initial-render'));
+      return result;
+    },
+  };
 });
 
 vi.mock('@testing-library/user-event', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@testing-library/user-event')>();
-    const createWrappedUserEvent = (userEventInstance: UserEvent): UserEvent => {
-        const wrapped = {} as UserEvent;
-        for (const key of Object.keys(userEventInstance) as (keyof UserEvent)[]) {
-            const originalMethod = userEventInstance[key];
-            if (typeof originalMethod === 'function') {
-                // @ts-expect-error
-                wrapped[key] = async (...args: any[]) => {
-                    const result = await originalMethod(...args);
-                    await takeActionScreenshot('action');
-                    return result;
-                };
-            } else {
-                // @ts-expect-error
-                wrapped[key] = originalMethod;
-            }
-        }
-        return wrapped;
-    };
-    return {
-        ...actual,
-        default: {
-            ...actual.default,
-            setup: (...args: any[]) => {
-                const userEventInstance = actual.default.setup(...args);
-                return createWrappedUserEvent(userEventInstance);
-            },
-        },
-    };
+  const actual = await importOriginal<typeof import('@testing-library/user-event')>();
+  const createWrappedUserEvent = (userEventInstance: UserEvent): UserEvent => {
+    const wrapped = {} as UserEvent;
+    for (const key of Object.keys(userEventInstance) as (keyof UserEvent)[]) {
+      const originalMethod = userEventInstance[key];
+      if (typeof originalMethod === 'function') {
+        // @ts-expect-error
+        wrapped[key] = async (...args: any[]) => {
+          const result = await originalMethod(...args);
+          await takeActionScreenshot('action');
+          return result;
+        };
+      } else {
+        // @ts-expect-error
+        wrapped[key] = originalMethod;
+      }
+    }
+    return wrapped;
+  };
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      setup: (...args: any[]) => {
+        const userEventInstance = actual.default.setup(...args);
+        return createWrappedUserEvent(userEventInstance);
+      },
+    },
+  };
 });
 
 // === Test Callbacks ===

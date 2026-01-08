@@ -10,11 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/UI/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/UI/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 
 interface TagSelectorProps {
   tags: string[];
@@ -42,9 +38,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
   // Filter tags based on input value
   const filteredTags = React.useMemo(() => {
-    return tags.filter((tag) =>
-      tag.toLowerCase().includes(inputValue.toLowerCase())
-    );
+    return tags.filter((tag) => tag.toLowerCase().includes(inputValue.toLowerCase()));
   }, [tags, inputValue]);
 
   return (
@@ -58,10 +52,8 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
         >
           {selectedTags.length === 0
             ? 'Select tags...'
-            : `${selectedTags.length} tag${
-                selectedTags.length > 1 ? 's' : ''
-              } selected`}
-          <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+            : `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''} selected`}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
@@ -75,16 +67,12 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             <CommandEmpty>No tags found.</CommandEmpty>
             <CommandGroup>
               {filteredTags.map((tag) => (
-                <CommandItem
-                  key={tag}
-                  value={tag}
-                  onSelect={() => handleTagToggle(tag)}
-                >
+                <CommandItem key={tag} value={tag} onSelect={() => handleTagToggle(tag)}>
                   <div className="flex items-center">
                     {selectedTags.includes(tag) ? (
                       <Check className="mr-2 h-4 w-4" />
                     ) : (
-                      <div className="mr-2 h-4 w-4 border border-gray-400 rounded" />
+                      <div className="mr-2 h-4 w-4 rounded border border-gray-400" />
                     )}
                     <span>{tag}</span>
                   </div>

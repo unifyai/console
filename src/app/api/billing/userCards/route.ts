@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
 import { getUserCards, storeUserCard } from '@/lib/user/billing/billing';
 
-
 /**
  * Returns the list of cards associated with the user as an array of their
  * fingerprint IDs.
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -57,4 +56,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error storing user cards' }, { status: 500 });
   }
 }
-

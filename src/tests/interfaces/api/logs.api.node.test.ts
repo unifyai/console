@@ -27,10 +27,7 @@ describe('@real Logs API', () => {
 
   afterAll(async () => {
     // Cleanup project (logs are deleted with it)
-    await safeDelete(
-      () => projectsApi.delete(testProject),
-      `project: ${testProject}`
-    );
+    await safeDelete(() => projectsApi.delete(testProject), `project: ${testProject}`);
   });
 
   it('@real gets logs with filters', realTestOptions, async () => {

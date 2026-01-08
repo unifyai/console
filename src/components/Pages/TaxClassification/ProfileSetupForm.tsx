@@ -1,10 +1,16 @@
-"use client";
+'use client';
 
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import { User } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/UI/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 interface ProfileData {
@@ -35,7 +41,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
       jobTitle: '',
       bio: '',
       timezone: '',
-      ...initialData
+      ...initialData,
     });
 
     const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
@@ -45,127 +51,136 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
         if (isFormValid()) {
           onSubmit(formData);
         }
-      }
+      },
     }));
 
-  const handleInputChange = (field: keyof ProfileData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const isFormValid = useCallback(() => {
-    return formData.name.trim() !== '' && formData.lastName.trim() !== '';
-  }, [formData]);
-
-  // Effect to update form data when initialData changes and auto-detect timezone if missing
-  useEffect(() => {
-    if (initialData) {
-      // If initialData has a timezone, use it.
-      // If not, fall back to current formData timezone (which might be user edited or empty).
-      // If both are empty, try to detect from browser.
-      let newTimezone = initialData.timezone || formData.timezone;
-      if (!newTimezone) {
-        newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-      }
-
-      setFormData(prev => ({
-        ...prev, 
-        ...initialData,
-        timezone: newTimezone
+    const handleInputChange = (field: keyof ProfileData, value: string) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
       }));
-    }
-  }, [initialData]);
+    };
 
-  // Effect to update validation state
-  useEffect(() => {
-    const valid = isFormValid();
-    onValidationChange(valid);
-  }, [formData, onValidationChange, isFormValid]);
+    const isFormValid = useCallback(() => {
+      return formData.name.trim() !== '' && formData.lastName.trim() !== '';
+    }, [formData]);
 
-  return (
+    // Effect to update form data when initialData changes and auto-detect timezone if missing
+    useEffect(() => {
+      if (initialData) {
+        // If initialData has a timezone, use it.
+        // If not, fall back to current formData timezone (which might be user edited or empty).
+        // If both are empty, try to detect from browser.
+        let newTimezone = initialData.timezone || formData.timezone;
+        if (!newTimezone) {
+          newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+          ...initialData,
+          timezone: newTimezone,
+        }));
+      }
+    }, [initialData]);
+
+    // Effect to update validation state
+    useEffect(() => {
+      const valid = isFormValid();
+      onValidationChange(valid);
+    }, [formData, onValidationChange, isFormValid]);
+
+    return (
       <div className="w-full space-y-8">
-        <div className="flex items-center space-x-3 mb-6">
-        <User className="h-6 w-6 text-primary" />
-        <p className="text-base text-muted-foreground">
-          {(initialData?.name || initialData?.lastName || initialData?.jobTitle || initialData?.bio) 
-            ? "Please review and update your profile information as needed."
-            : "Let's start by getting to know you."
-          }
-        </p>
-      </div>
+        <div className="mb-6 flex items-center space-x-3">
+          <User className="h-6 w-6 text-primary" />
+          <p className="text-base text-muted-foreground">
+            {initialData?.name || initialData?.lastName || initialData?.jobTitle || initialData?.bio
+              ? 'Please review and update your profile information as needed.'
+              : "Let's start by getting to know you."}
+          </p>
+        </div>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="space-y-3">
+              <Label htmlFor="name" className="text-base font-medium">
+                First Name *
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="Enter your first name"
+                required
+                className="h-12 text-base"
+              />
+            </div>
+            <div className="space-y-3">
+              <Label htmlFor="lastName" className="text-base font-medium">
+                Last Name *
+              </Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter your last name"
+                required
+                className="h-12 text-base"
+              />
+            </div>
+          </div>
+
           <div className="space-y-3">
-            <Label htmlFor="name" className="text-base font-medium">First Name *</Label>
+            <Label htmlFor="jobTitle" className="text-base font-medium">
+              Job Title (Optional)
+            </Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter your first name"
-              required
+              id="jobTitle"
+              value={formData.jobTitle}
+              onChange={(e) => handleInputChange('jobTitle', e.target.value)}
+              placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
               className="h-12 text-base"
             />
           </div>
+
           <div className="space-y-3">
-            <Label htmlFor="lastName" className="text-base font-medium">Last Name *</Label>
+            <Label htmlFor="bio" className="text-base font-medium">
+              About (Optional)
+            </Label>
             <Input
-              id="lastName"
-              value={formData.lastName}
-              onChange={(e) => handleInputChange('lastName', e.target.value)}
-              placeholder="Enter your last name"
-              required
+              id="bio"
+              value={formData.bio}
+              onChange={(e) => handleInputChange('bio', e.target.value)}
+              placeholder="e.g., Data Scientist passionate with AI and analytics"
               className="h-12 text-base"
             />
           </div>
-        </div>
 
-        <div className="space-y-3">
-          <Label htmlFor="jobTitle" className="text-base font-medium">Job Title (Optional)</Label>
-          <Input
-            id="jobTitle"
-            value={formData.jobTitle}
-            onChange={(e) => handleInputChange('jobTitle', e.target.value)}
-            placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
-            className="h-12 text-base"
-          />
-        </div>
-
-        <div className="space-y-3">
-          <Label htmlFor="bio" className="text-base font-medium">About (Optional)</Label>
-          <Input
-            id="bio"
-            value={formData.bio}
-            onChange={(e) => handleInputChange('bio', e.target.value)}
-            placeholder="e.g., Data Scientist passionate with AI and analytics"
-            className="h-12 text-base"
-          />
-        </div>
-
-        <div className="space-y-3">
-          <Label htmlFor="timezone" className="text-base font-medium">Timezone</Label>
-          <Select 
-            value={formData.timezone} 
-            onValueChange={(val) => handleInputChange('timezone', val)}
-          >
-            <SelectTrigger id="timezone" className="h-12 text-base">
-              <SelectValue placeholder="Select a timezone..." />
-            </SelectTrigger>
-            <SelectContent>
-              {timezoneOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-3">
+            <Label htmlFor="timezone" className="text-base font-medium">
+              Timezone
+            </Label>
+            <Select
+              value={formData.timezone}
+              onValueChange={(val) => handleInputChange('timezone', val)}
+            >
+              <SelectTrigger id="timezone" className="h-12 text-base">
+                <SelectValue placeholder="Select a timezone..." />
+              </SelectTrigger>
+              <SelectContent>
+                {timezoneOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
-    </div>
-  );
-} 
+    );
+  }
 );
 
 ProfileSetupForm.displayName = 'ProfileSetupForm';

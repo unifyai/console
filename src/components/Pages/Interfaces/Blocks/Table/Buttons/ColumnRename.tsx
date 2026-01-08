@@ -1,27 +1,27 @@
-import { useState, Dispatch, SetStateAction } from "react";
-import { Column } from "@tanstack/react-table";
-import BaseDialog from "@/components/Common/Dialogs/Base";
-import { Input } from "@/components/UI/input";
-import SubmitButton from "@/components/Common/Buttons/Submit";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { Pencil } from "lucide-react";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
+import { useState, Dispatch, SetStateAction } from 'react';
+import { Column } from '@tanstack/react-table';
+import BaseDialog from '@/components/Common/Dialogs/Base';
+import { Input } from '@/components/UI/input';
+import SubmitButton from '@/components/Common/Buttons/Submit';
+import ActionButton from '@/components/Common/Buttons/Action';
+import { Pencil } from 'lucide-react';
+import { DropdownMenuItem } from '@radix-ui/react-dropdown-menu';
+import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
 
 export default function ColumnRename({
   column,
-  renderMode = "button",
+  renderMode = 'button',
   onRename,
   open,
   setOpen,
 }: {
   column: Column<any>;
   onRename: (oldName: string, newName: string) => void;
-  renderMode: "button" | "menuItem";
+  renderMode: 'button' | 'menuItem';
   open?: boolean;
   setOpen?: Dispatch<SetStateAction<boolean>>;
 }) {
-  const rawId = column.id.split("/").pop() || column.id;
+  const rawId = column.id.split('/').pop() || column.id;
   const oldName = sanitizeId(rawId);
   const [value, setValue] = useState(oldName);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,26 +35,24 @@ export default function ColumnRename({
     setOpen?.(false);
   };
 
-  const trigger = renderMode === "menuItem" ? (
-    <DropdownMenuItem
-      className="flex items-center gap-2 cursor-pointer text-body-sm"
-      onSelect={(e) => e.preventDefault()}
-    >
-      <div
-        onClick={() => setDialogOpen(true)}
-        className="flex flex-row gap-2 items-center"
+  const trigger =
+    renderMode === 'menuItem' ? (
+      <DropdownMenuItem
+        className="text-body-sm flex cursor-pointer items-center gap-2"
+        onSelect={(e) => e.preventDefault()}
       >
-        <Pencil className="h-4 w-4" />
-        <span>Rename column</span>
-      </div>
-    </DropdownMenuItem>
-  ) : (
-    <ActionButton
-      tooltip="Rename column"
-      icon={<Pencil className="h-4 w-4" />}
-      onClick={() => setDialogOpen(true)}
-    />
-  );
+        <div onClick={() => setDialogOpen(true)} className="flex flex-row items-center gap-2">
+          <Pencil className="h-4 w-4" />
+          <span>Rename column</span>
+        </div>
+      </DropdownMenuItem>
+    ) : (
+      <ActionButton
+        tooltip="Rename column"
+        icon={<Pencil className="h-4 w-4" />}
+        onClick={() => setDialogOpen(true)}
+      />
+    );
 
   return (
     <BaseDialog
@@ -69,7 +67,7 @@ export default function ColumnRename({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") doRename();
+            if (e.key === 'Enter') doRename();
           }}
           className="text-body-sm"
         />
@@ -81,4 +79,4 @@ export default function ColumnRename({
       }
     />
   );
-} 
+}

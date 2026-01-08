@@ -52,9 +52,7 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('shows interface picker trigger button', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Test Interface', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Test Interface', projectId: 'test-project' }],
       });
 
       expect(screen.getByTestId('interface-picker-trigger')).toBeInTheDocument();
@@ -82,9 +80,7 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('shows selected interface name in trigger', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Active Interface', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Active Interface', projectId: 'test-project' }],
         activeInterfaceId: 'i1',
       });
 
@@ -94,9 +90,7 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('shows "Select interface" when none selected', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Available', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Available', projectId: 'test-project' }],
         activeInterfaceId: null,
       });
 
@@ -130,9 +124,7 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('closes picker after selection', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Test', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Test', projectId: 'test-project' }],
       });
 
       await result.clickInterface('Test');
@@ -162,9 +154,7 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('updates trigger to show selected interface', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Selected Interface', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Selected Interface', projectId: 'test-project' }],
       });
 
       await result.clickInterface('Selected Interface');
@@ -177,24 +167,22 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
     it('updates active display after selection', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Selected Interface', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Selected Interface', projectId: 'test-project' }],
       });
 
       await result.clickInterface('Selected Interface');
 
       await waitFor(() => {
         expect(screen.getByTestId('active-interface-display')).toBeInTheDocument();
-        expect(screen.getByTestId('active-interface-display').textContent).toContain('Selected Interface');
+        expect(screen.getByTestId('active-interface-display').textContent).toContain(
+          'Selected Interface'
+        );
       });
     });
 
     it('programmatic selection works', async () => {
       result = renderInterfaceSelection({
-        initialInterfaces: [
-          { id: 'i1', name: 'Programmatic', projectId: 'test-project' },
-        ],
+        initialInterfaces: [{ id: 'i1', name: 'Programmatic', projectId: 'test-project' }],
       });
 
       await result.selectInterface('i1');
@@ -325,7 +313,9 @@ describe('P4-M: Interface Selection (Real InterfacePicker)', () => {
 
       await result.clickDeleteButton('Important Interface');
 
-      expect(screen.getByTestId('delete-interface-dialog').textContent).toContain('Important Interface');
+      expect(screen.getByTestId('delete-interface-dialog').textContent).toContain(
+        'Important Interface'
+      );
     });
 
     it('can confirm deletion', async () => {

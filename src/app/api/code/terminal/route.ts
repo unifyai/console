@@ -1,7 +1,11 @@
-import { NextRequest } from "next/server";
-import { CodeSandbox } from "@codesandbox/sdk";
-import { randomUUID } from "crypto";
-import { buildGDriveMountCommand, buildGDriveCleanupCommand, buildGDriveMountSyncCommand } from "./gdrive_utils";
+import { NextRequest } from 'next/server';
+import { CodeSandbox } from '@codesandbox/sdk';
+import { randomUUID } from 'crypto';
+import {
+  buildGDriveMountCommand,
+  buildGDriveCleanupCommand,
+  buildGDriveMountSyncCommand,
+} from './gdrive_utils';
 
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
@@ -39,7 +43,11 @@ async function ensureSandbox(userId: string) {
   const list = await sdk.sandbox.list();
   let sandboxId = list.sandboxes.find((s: any) => s.title === userId)?.id;
   if (!sandboxId) {
-    const sandbox = await sdk.sandbox.create({ title: userId, template: templateId, hibernationTimeoutSeconds: 300 });
+    const sandbox = await sdk.sandbox.create({
+      title: userId,
+      template: templateId,
+      hibernationTimeoutSeconds: 300,
+    });
     sandboxId = sandbox.id;
   }
   return sandboxId;
@@ -47,8 +55,8 @@ async function ensureSandbox(userId: string) {
 
 async function createTerminal(
   userId: string,
-  shell: string = "bash",
-  cwd: string = "/project/sandbox"
+  shell: string = 'bash',
+  cwd: string = '/project/sandbox'
 ) {
   const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
   const sandboxId = await ensureSandbox(userId);
@@ -56,33 +64,36 @@ async function createTerminal(
   const sandbox = await sdk.sandbox.open(sandboxId);
   const terminal = await sandbox.shells.create();
 
-  if (shell === "zsh") {
-    terminal.write("zsh\n");
+  if (shell === 'zsh') {
+    terminal.write('zsh\n');
   }
 
-  if (cwd !== "/project/sandbox") {
+  if (cwd !== '/project/sandbox') {
     terminal.write(`mkdir -p "${cwd}"\n`);
     terminal.write(`cd "${cwd}"\n`);
   }
 
-  terminal.write("clear\n");
+  terminal.write('clear\n');
 
   const sessionId = randomUUID();
-  terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: "" });
+  terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: '' });
 
   terminal.onOutput((output) => {
     const entry = terminalStore.get(sessionId);
-    if (!entry) throw new Error("Invalid sessionId");
+    if (!entry) throw new Error('Invalid sessionId');
     entry.outputBuffer += output;
   });
 
   return { sessionId };
 }
 
-
-async function setupGDriveMount(sessionId: string, assistantEmails: string[], mountBases: string[]) {
+async function setupGDriveMount(
+  sessionId: string,
+  assistantEmails: string[],
+  mountBases: string[]
+) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid sessionId");
+  if (!entry) throw new Error('Invalid sessionId');
 
   const command = buildGDriveMountCommand(assistantEmails, mountBases);
   await runCommand(sessionId, command);
@@ -100,7 +111,7 @@ async function setupGDriveMount(sessionId: string, assistantEmails: string[], mo
 async function cleanupMounts(sessionId: string) {
   const entry = terminalStore.get(sessionId);
   if (!entry) return;
-  const mountBases = entry.mountBases || ["google_drives"];
+  const mountBases = entry.mountBases || ['google_drives'];
   const command = buildGDriveCleanupCommand(mountBases);
   try {
     await runCommand(sessionId, command);
@@ -113,7 +124,7 @@ async function cleanupMounts(sessionId: string) {
 
 async function runCommand(sessionId: string, command: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid sessionId");
+  if (!entry) throw new Error('Invalid sessionId');
 
   // Run the command and wait until it exits or times out (5 min cap)
   const { terminal } = entry;
@@ -121,7 +132,7 @@ async function runCommand(sessionId: string, command: string) {
 
   let timeoutId: NodeJS.Timeout | undefined;
   const timeout = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("Execution timed out")), 300_000); // 5 min
+    timeoutId = setTimeout(() => reject(new Error('Execution timed out')), 300_000); // 5 min
   });
 
   try {
@@ -136,16 +147,16 @@ async function runCommand(sessionId: string, command: string) {
 
 async function getOutput(sessionId: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid sessionId");
+  if (!entry) throw new Error('Invalid sessionId');
   const { terminal } = entry;
   const outputReturn = entry.outputBuffer;
-  entry.outputBuffer = "";
+  entry.outputBuffer = '';
   return outputReturn;
 }
 
 async function killSession(sessionId: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid sessionId");
+  if (!entry) throw new Error('Invalid sessionId');
   await entry.terminal.kill();
   terminalStore.delete(sessionId);
 }
@@ -155,20 +166,17 @@ async function killSession(sessionId: string) {
 // ---------------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
-  const sessionId = new URL(req.url).searchParams.get("sessionId");
+  const sessionId = new URL(req.url).searchParams.get('sessionId');
   if (!sessionId) {
-    return Response.json({ detail: "Missing sessionId" }, { status: 400 });
+    return Response.json({ detail: 'Missing sessionId' }, { status: 400 });
   }
 
   try {
-    const output = await getOutput(sessionId);    // existing helper
+    const output = await getOutput(sessionId); // existing helper
     return Response.json({ output });
   } catch (err: any) {
-    console.error("[terminal] GET error", err);
-    return Response.json(
-      { detail: err.message ?? "Failed to get output" },
-      { status: 500 }
-    );
+    console.error('[terminal] GET error', err);
+    return Response.json({ detail: err.message ?? 'Failed to get output' }, { status: 500 });
   }
 }
 
@@ -176,11 +184,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const userId = body.userId as string | undefined;
-    const shell = (body.shell as string | undefined) ?? "bash";
-    const cwd  = (body.cwd  as string | undefined) ?? "/project/sandbox";
-    const mountGdrive = (body.mountGdrive as boolean | undefined) ?? cwd.includes("Assistants");
+    const shell = (body.shell as string | undefined) ?? 'bash';
+    const cwd = (body.cwd as string | undefined) ?? '/project/sandbox';
+    const mountGdrive = (body.mountGdrive as boolean | undefined) ?? cwd.includes('Assistants');
 
-    if (!userId) return Response.json({ detail: "Missing userId" }, { status: 400 });
+    if (!userId) return Response.json({ detail: 'Missing userId' }, { status: 400 });
 
     try {
       const { sessionId } = await createTerminal(userId, shell, cwd);
@@ -189,9 +197,9 @@ export async function POST(req: NextRequest) {
         let assistantEmails: string[] = [];
         try {
           const emailsRes = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/emails`, {
-            method: "GET",
+            method: 'GET',
             headers: {
-              apiKey: req.headers.get("apiKey") || "",
+              apiKey: req.headers.get('apiKey') || '',
             },
             cache: 'no-store',
           });
@@ -201,19 +209,19 @@ export async function POST(req: NextRequest) {
             assistantEmails = emails;
           }
         } catch (e) {
-          console.error("[terminal] failed to fetch assistant emails", e);
+          console.error('[terminal] failed to fetch assistant emails', e);
         }
 
         if (assistantEmails.length > 0) {
           const mountBases = assistantEmails.map((email: string) => {
-            const localPart = email.split("@")[0] || "user";
-            const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, "_");
+            const localPart = email.split('@')[0] || 'user';
+            const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, '_');
             return `google_drives/${safeLocal}`;
           });
           try {
             await setupGDriveMount(sessionId, assistantEmails, mountBases);
           } catch (e) {
-            console.error("[terminal] gdrive mount setup error", e);
+            console.error('[terminal] gdrive mount setup error', e);
           }
           return Response.json({ sessionId: sessionId, shell, cwd, mountBases: mountBases });
         }
@@ -221,12 +229,12 @@ export async function POST(req: NextRequest) {
 
       return Response.json({ sessionId: sessionId, shell, cwd });
     } catch (err: any) {
-      console.error("[terminal] create error", err);
-      return Response.json({ detail: "Failed to create terminal" }, { status: 500 });
+      console.error('[terminal] create error', err);
+      return Response.json({ detail: 'Failed to create terminal' }, { status: 500 });
     }
   } catch (err: any) {
-    console.error("[terminal] POST error", err);
-    return Response.json({ detail: "Failed to create terminal" }, { status: 500 });
+    console.error('[terminal] POST error', err);
+    return Response.json({ detail: 'Failed to create terminal' }, { status: 500 });
   }
 }
 
@@ -235,16 +243,16 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { sessionId: sessionId, command } = body as { sessionId?: string; command?: string };
 
-    if (!sessionId || typeof command !== "string")
-      return Response.json({ detail: "Missing sessionId or command" }, { status: 400 });
+    if (!sessionId || typeof command !== 'string')
+      return Response.json({ detail: 'Missing sessionId or command' }, { status: 400 });
 
     const outputBefore = await getOutput(sessionId);
     const res = await runCommand(sessionId, command);
     return Response.json({ res });
   } catch (err: any) {
-    console.error("[terminal] PUT error", err);
-    const status = err?.message === "Execution timed out" ? 408 : 500;
-    return Response.json({ detail: err.message ?? "Failed to run command" }, { status });
+    console.error('[terminal] PUT error', err);
+    const status = err?.message === 'Execution timed out' ? 408 : 500;
+    return Response.json({ detail: err.message ?? 'Failed to run command' }, { status });
   }
 }
 
@@ -252,17 +260,17 @@ export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
     const sessionId = body.sessionId as string | undefined;
-    if (!sessionId) return Response.json({ detail: "Missing sessionId" }, { status: 400 });
+    if (!sessionId) return Response.json({ detail: 'Missing sessionId' }, { status: 400 });
 
     try {
       await cleanupMounts(sessionId);
     } catch (e) {
-      console.error("[terminal] cleanup error", e);
+      console.error('[terminal] cleanup error', e);
     }
     await killSession(sessionId);
-    return Response.json({ detail: "Session terminated" });
+    return Response.json({ detail: 'Session terminated' });
   } catch (err: any) {
-    console.error("[terminal] DELETE error", err);
-    return Response.json({ detail: "Failed to terminate session" }, { status: 500 });
+    console.error('[terminal] DELETE error', err);
+    return Response.json({ detail: 'Failed to terminate session' }, { status: 500 });
   }
 }

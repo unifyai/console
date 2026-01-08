@@ -58,5 +58,3 @@ export const mockTile: Tile = {
   editorTile: null,
   terminalTile: null,
 };
-
-

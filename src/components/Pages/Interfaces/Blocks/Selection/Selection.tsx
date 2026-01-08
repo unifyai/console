@@ -1,26 +1,20 @@
-"use client";
+'use client';
 
-import React, {
-  useMemo,
-  useState,
-  useCallback,
-  useEffect,
-  useRef
-} from "react";
-import SelectionHints from "./Hints";
-import { TileProps, LogsActions  } from "@/types/interfaces/grid";
-import { getDeep, setDeep } from "@/utils/objectPath";
-import { LogItemProps } from "@/types/interfaces/logs";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import SelectionHints from './Hints';
+import { TileProps, LogsActions } from '@/types/interfaces/grid';
+import { getDeep, setDeep } from '@/utils/objectPath';
+import { LogItemProps } from '@/types/interfaces/logs';
 
 import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
   PythonType,
-  castToPythonType
-} from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
+  castToPythonType,
+} from '@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils';
 
 interface PanelState {
-  displayMode: "markdown" | "text" | "raw";
+  displayMode: 'markdown' | 'text' | 'raw';
   diffModeIdx: number;
   splitView: boolean;
   editMode: boolean;
@@ -32,13 +26,13 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-  viewTracesAsDict: false,
-  cellEditMode: false,
+  viewTracesAsDict: false;
+  cellEditMode: false;
 }
 
 // Default values for a new panel
 const defaultPanelState: PanelState = {
-  displayMode: "text",
+  displayMode: 'text',
   diffModeIdx: 0,
   splitView: false,
   editMode: false,
@@ -54,19 +48,19 @@ const defaultPanelState: PanelState = {
   cellEditMode: false,
 };
 
-import SelectionPanel from "@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
+import SelectionPanel from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
 
-import { useTile, useTileItem } from "@/contexts/hooks/tile";
-import { useTab } from "@/contexts/hooks/tab";
-import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { maybeFlattenGroupedLogs } from "@/utils/interfaces/table/grouping";
-import { useTableDataQueryWithTracking } from "@/hooks/Interfaces/Query/useTableDataQuery";
+import { useTile, useTileItem } from '@/contexts/hooks/tile';
+import { useTab } from '@/contexts/hooks/tab';
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { maybeFlattenGroupedLogs } from '@/utils/interfaces/table/grouping';
+import { useTableDataQueryWithTracking } from '@/hooks/Interfaces/Query/useTableDataQuery';
 
 // Focus pane and tab UI hooks (must be before any early returns)
 const useFocusHelpers = (tabId: string) => {
   const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
-  const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+  const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
   return { tabUIState, tabUIActions, setFocusPaneOpen };
 };
 
@@ -94,75 +88,94 @@ export default function Selection({
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
-    item?.table || "", 
-    tabId,
-  );
-  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId);
+  const {
+    meta: tileMetaStateWithTable,
+    tableTile: tableTileStateWithTable,
+    actions: tileActionsWithTable,
+  } = useTile(item?.table || '', tabId);
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || '', tabId);
 
   // Use React Query to access tableDataItem
-  const { 
+  const {
     tableData: tableDataItem,
     isLoading: isTableDataLoading,
     isError: isTableDataError,
     error: tableDataError,
     mergeUpdatesIntoTableDataItem,
-    updateLogsByRowIds
+    updateLogsByRowIds,
   } = useTableDataQueryWithTracking(item?.table || null, tabId || null);
 
   // Get table fields
   const fields = useMemo(() => tableDataItem?.fields || [], [tableDataItem]);
 
   // Create equivalent references to match the old pattern
-  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
-    { name: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
-  const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
+  const tableItem = useMemo(
+    () =>
+      tileItemActionsWithTable?.asTileItem() ||
+      ({ name: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps),
+    [tileItemActionsWithTable, item?.table]
+  );
+  const relevantItem = useMemo(
+    () => tileItemActionsWithTable?.asTileItem() || undefined,
+    [tileItemActionsWithTable]
+  );
 
   // Get table context
   const context = useMemo(() => tableItem.context ?? null, [tableItem.context]);
 
   // Create a generic updateItem function that checks property existence
-  const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
-    if (tileActionsWithId && item.name == tileMetaStateWithId?.name) {
-      tileActionsWithId.updateTile({ [propName]: value });
-    }
-    else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
-      tileActionsWithTable.updateTile({ [propName]: value });
-    }
-  }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]);
+  const updateItem = useCallback(
+    (item: TileProps, propName: string) => (value: any) => {
+      if (tileActionsWithId && item.name == tileMetaStateWithId?.name) {
+        tileActionsWithId.updateTile({ [propName]: value });
+      } else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
+        tileActionsWithTable.updateTile({ [propName]: value });
+      }
+    },
+    [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]
+  );
 
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem]);
-  const selectionValue = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
-  const columnOrderingValue = useMemo(() => relevantItem?.columnOrder || undefined, [relevantItem?.columnOrder]);
-  const baseIndexValue = useMemo(() => relevantItem?.baseIndex || undefined, [relevantItem?.baseIndex]);
+  const selectionValue = useMemo(
+    () => relevantItem?.selected || undefined,
+    [relevantItem?.selected]
+  );
+  const columnOrderingValue = useMemo(
+    () => relevantItem?.columnOrder || undefined,
+    [relevantItem?.columnOrder]
+  );
+  const baseIndexValue = useMemo(
+    () => relevantItem?.baseIndex || undefined,
+    [relevantItem?.baseIndex]
+  );
 
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
   const { tabUIState, tabUIActions, setFocusPaneOpen } = useFocusHelpers(tabId);
 
   const selectedCells = useMemo(() => {
-    const arr = selectionValue ? selectionValue.split(",") : [];
-    return arr.map(token => {
+    const arr = selectionValue ? selectionValue.split(',') : [];
+    return arr.map((token) => {
       // token might look like "277932_Entries/trace" or "277932_Entries/context1/fieldA"
       // so let's rewrite the part after "_" with prefixes removed but internal slashes preserved.
-      const underscorePos = token.indexOf("_");
+      const underscorePos = token.indexOf('_');
       if (underscorePos < 1) return token;
       const rowPart = token.slice(0, underscorePos); // e.g. "277932"
-      let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace" or "Entries/context1/fieldA"
-      
+      let colPart = token.slice(underscorePos + 1); // e.g. "Entries/trace" or "Entries/context1/fieldA"
+
       // Remove only the "Entries/" or "Parameters/" prefix if present, but preserve internal slashes
       let sanitizedCol = colPart;
-      if (colPart.startsWith("Entries/")) {
-        sanitizedCol = colPart.substring("Entries/".length);
-      } else if (colPart.startsWith("Parameters/")) {
-        sanitizedCol = colPart.substring("Parameters/".length);
+      if (colPart.startsWith('Entries/')) {
+        sanitizedCol = colPart.substring('Entries/'.length);
+      } else if (colPart.startsWith('Parameters/')) {
+        sanitizedCol = colPart.substring('Parameters/'.length);
       }
-      
-      return rowPart + "_" + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
+
+      return rowPart + '_' + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
     });
   }, [selectionValue]);
-  
+
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
     return map;
@@ -173,7 +186,7 @@ export default function Selection({
   }, [selectedCells, sortedLogs]);
 
   const columnOrdering = useMemo(() => {
-    return columnOrderingValue ? columnOrderingValue.split(",") : [];
+    return columnOrderingValue ? columnOrderingValue.split(',') : [];
   }, [columnOrderingValue]);
 
   // Get all possible column names from all logs
@@ -182,45 +195,44 @@ export default function Selection({
     if (columnOrderingValue && columnOrderingValue.length > 0) {
       const entryColumns = new Set<string>();
       const paramColumns = new Set<string>();
-      
-      columnOrderingValue.split(',').forEach(col => {
+
+      columnOrderingValue.split(',').forEach((col) => {
         // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
         if (col.startsWith('Parameters/')) {
           // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
           const paramName = col.substring('Parameters/'.length);
           paramColumns.add(paramName);
-        } 
-        else if (col.startsWith('Entries/')) {
+        } else if (col.startsWith('Entries/')) {
           // Extract the entry name without the "Entries/" prefix but preserve internal slashes
           const entryName = col.substring('Entries/'.length);
           entryColumns.add(entryName);
         }
         // Skip other entries like "Parameters" or "Entries" or "RowNumbering" which are categories
       });
-      
+
       return {
         entries: Array.from(entryColumns),
-        params: Array.from(paramColumns)
+        params: Array.from(paramColumns),
       };
     }
-    
+
     // Fallback: if no columnOrderingValue, gather from logs (less reliable)
     // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
     const paramColumns = new Set<string>();
-    
-    logs.forEach(log => {
+
+    logs.forEach((log) => {
       if (log.entries) {
-        Object.keys(log.entries).forEach(key => entryColumns.add(key));
+        Object.keys(log.entries).forEach((key) => entryColumns.add(key));
       }
       if (log.params) {
-        Object.keys(log.params).forEach(key => paramColumns.add(key));
+        Object.keys(log.params).forEach((key) => paramColumns.add(key));
       }
     });
-    
+
     return {
       entries: Array.from(entryColumns),
-      params: Array.from(paramColumns)
+      params: Array.from(paramColumns),
     };
   }, [logs, columnOrderingValue]);
 
@@ -233,11 +245,14 @@ export default function Selection({
   const bulkPatchAbortRef = useRef<AbortController | null>(null);
 
   // Helper to rollback optimistic change when network fails
-  const rollbackLogs = useCallback((prevLogs: any[] | undefined) => {
-    if (!prevLogs) return;
-    mergeUpdatesIntoTableDataItem({ logs: prevLogs });
-  }, [mergeUpdatesIntoTableDataItem]);
-  
+  const rollbackLogs = useCallback(
+    (prevLogs: any[] | undefined) => {
+      if (!prevLogs) return;
+      mergeUpdatesIntoTableDataItem({ logs: prevLogs });
+    },
+    [mergeUpdatesIntoTableDataItem]
+  );
+
   /*******************************************************************************
    * Panel States - Keep track of each panel's state
    ******************************************************************************/
@@ -247,23 +262,23 @@ export default function Selection({
 
   // Function to update a specific panel's state
   const updatePanelState = useCallback((panelId: number, updates: Partial<PanelState>) => {
-    setPanelStates(prev => ({
+    setPanelStates((prev) => ({
       ...prev,
       [panelId]: {
         ...(prev[panelId] ?? { ...defaultPanelState }), // Use default if panel doesn't exist yet
-        ...updates
-      }
+        ...updates,
+      },
     }));
   }, []);
-  
+
   // Keep panelStates in sync with panelCount
   useEffect(() => {
-    setPanelStates(prev => {
-      const newStates = {...prev};
+    setPanelStates((prev) => {
+      const newStates = { ...prev };
       // Add any missing panel states
       for (let i = 0; i < panelCount; i++) {
         if (!newStates[i]) {
-          newStates[i] = {...defaultPanelState};
+          newStates[i] = { ...defaultPanelState };
         }
       }
       return newStates;
@@ -276,11 +291,10 @@ export default function Selection({
   const handleSaveMany = useCallback(
     async (
       rowIds: string[],
-      desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+      desc: { source: 'entries' | 'params'; path: (string | number)[]; newValue: any }
     ) => {
-
       if (!tableDataItem) {
-        console.warn("[DEBUG] handleSaveMany] Missing tableDataItem – optimistic update skipped");
+        console.warn('[DEBUG] handleSaveMany] Missing tableDataItem – optimistic update skipped');
         return;
       }
       if (!rowIds.length) return;
@@ -289,15 +303,19 @@ export default function Selection({
       const prevLogs = tableDataItem?.logs;
 
       // --- Casting logic for null/undefined original values ---
-      const prevLogForOriginalValue = prevLogs?.find(log => String(log.id) === rowIds[0]); // Use first rowId for type checking if multiple are updated
+      const prevLogForOriginalValue = prevLogs?.find((log) => String(log.id) === rowIds[0]); // Use first rowId for type checking if multiple are updated
       if (prevLogForOriginalValue) {
         const originalValueAtPath = getDeep(prevLogForOriginalValue[desc.source] ?? {}, desc.path);
         // Check if original was null/undefined and the new value is a string
-        if ((originalValueAtPath === null || originalValueAtPath === undefined) && typeof desc.newValue === 'string') {
-          if (desc.path.length > 0) { // Ensure path is not empty
+        if (
+          (originalValueAtPath === null || originalValueAtPath === undefined) &&
+          typeof desc.newValue === 'string'
+        ) {
+          if (desc.path.length > 0) {
+            // Ensure path is not empty
             const topLevelFieldName = String(desc.path[0]);
             // Use the corresponding field to get the type
-            const fieldInfo = fields[topLevelFieldName]; 
+            const fieldInfo = fields[topLevelFieldName];
             if (fieldInfo && fieldInfo.dataType) {
               const pyType = fieldInfo.dataType as PythonType; // e.g., "int", "str", "list"
               const castedResult = castToPythonType(desc.newValue, pyType);
@@ -309,7 +327,9 @@ export default function Selection({
                 desc.newValue = castedResult;
               }
             } else {
-              console.warn(`Field info or dataType for '${topLevelFieldName}' not found. Saving as string.`);
+              console.warn(
+                `Field info or dataType for '${topLevelFieldName}' not found. Saving as string.`
+              );
             }
           }
         }
@@ -317,12 +337,12 @@ export default function Selection({
 
       // Manually construct the *full* updated field for the backend
       // Find the relevant log in the *previous* state (before optimistic update) to correctly build the patch
-      const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]); 
+      const prevLogForUpdate = prevLogs?.find((log) => String(log.id) === rowIds[0]);
 
       if (!prevLogForUpdate) {
-        console.error("Could not find the log in the previous state to construct update payload.");
+        console.error('Could not find the log in the previous state to construct update payload.');
         if (tableDataItem) rollbackLogs(prevLogs);
-                    showErrorToast("Failed to update log: Inconsistent log data.");
+        showErrorToast('Failed to update log: Inconsistent log data.');
         return;
       }
 
@@ -333,13 +353,20 @@ export default function Selection({
         if (desc.path.length > 0) {
           const topLevelKey = desc.path[0] as string;
           const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
-          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          const updatedValueContainer = setDeep(
+            originalTopLevelValue,
+            desc.path.slice(1),
+            desc.newValue
+          );
           entriesUpdate = { [topLevelKey as string]: updatedValueContainer };
         } else {
           // This case (empty path) should ideally not happen for field updates.
-          console.warn("Attempting to update 'entries' with an empty path. New value:", desc.newValue);
+          console.warn(
+            "Attempting to update 'entries' with an empty path. New value:",
+            desc.newValue
+          );
           if (typeof desc.newValue === 'object' && desc.newValue !== null) {
-             entriesUpdate = desc.newValue as LogItemProps;
+            entriesUpdate = desc.newValue as LogItemProps;
           } else {
             return;
           }
@@ -348,10 +375,17 @@ export default function Selection({
         if (desc.path.length > 0) {
           const topLevelKey = desc.path[0] as string;
           const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
-          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          const updatedValueContainer = setDeep(
+            originalTopLevelValue,
+            desc.path.slice(1),
+            desc.newValue
+          );
           paramsUpdate = { [topLevelKey as string]: updatedValueContainer };
         } else {
-          console.warn("Attempting to update 'params' with an empty path. New value:", desc.newValue);
+          console.warn(
+            "Attempting to update 'params' with an empty path. New value:",
+            desc.newValue
+          );
           if (typeof desc.newValue === 'object' && desc.newValue !== null) {
             paramsUpdate = desc.newValue as LogItemProps;
           } else {
@@ -363,12 +397,12 @@ export default function Selection({
       try {
         const entriesKeys = Object.keys(entriesUpdate || {});
         const paramsKeys = Object.keys(paramsUpdate || {});
-        if ((!entriesKeys.length) && (!paramsKeys.length)) return;
+        if (!entriesKeys.length && !paramsKeys.length) return;
       } catch (_) {}
 
       // Build affected logs for contact sync
       const affectedLogs = rowIds
-        .map(id => {
+        .map((id) => {
           const log = prevLogs?.find((l: any) => String(l.id) === String(id));
           if (!log) return null;
           return { id: Number(log.id), entries: (log.entries || {}) as Record<string, any> };
@@ -379,19 +413,19 @@ export default function Selection({
         const response = await logsActions.update(
           projectId,
           context,
-          rowIds.map(id => parseInt(id, 10)),
+          rowIds.map((id) => parseInt(id, 10)),
           entriesUpdate,
           paramsUpdate,
           true,
           affectedLogs
         );
         if (response.detail) {
-          console.error("[DEBUG] handleSaveMany – error", response.detail);
+          console.error('[DEBUG] handleSaveMany – error', response.detail);
           showErrorToast(`Failed to update log entry`);
           return;
         }
       } catch (err: any) {
-        console.error("[DEBUG] handleSaveMany – backend error", err);
+        console.error('[DEBUG] handleSaveMany – backend error', err);
         showErrorToast(`Failed to update log entry`);
         return;
       }
@@ -400,7 +434,6 @@ export default function Selection({
       if (updateLogsByRowIds) {
         updateLogsByRowIds(rowIds, desc);
       }
-
     },
     [projectId, context, updateLogsByRowIds, rollbackLogs, logsActions, fields, tableDataItem]
   );
@@ -410,7 +443,7 @@ export default function Selection({
    ******************************************************************************/
   if (!selectedRowIndices.length) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-background rounded-md">
+      <div className="flex h-full w-full items-center justify-center rounded-md bg-background">
         <SelectionHints />
       </div>
     );
@@ -421,14 +454,14 @@ export default function Selection({
    ******************************************************************************/
   // hooks already retrieved above
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-md bg-background">
       {/* Main content: multiple panels */}
-      <div className="flex-1 flex flex-row overflow-hidden">
+      <div className="flex flex-1 flex-row overflow-hidden">
         {Array.from({ length: panelCount }).map((_, idx) => {
           // Get the panel state or use default if not found
           // Use nullish coalescing instead of || to only use default when truly missing
           const panelState = panelStates[idx] ?? { ...defaultPanelState };
-          
+
           // Ensure all properties that should be objects are initialized
           if (!panelState.localOpenKeys) panelState.localOpenKeys = new Set<string>();
           if (!panelState.savedOpenKeys) panelState.savedOpenKeys = new Set<string>();
@@ -440,10 +473,10 @@ export default function Selection({
           if (!panelState.paramOrder) panelState.paramOrder = [];
           if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
           if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
-          
+
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
-              {idx > 0 && <div className="w-px bg-border self-stretch mx-1" />}
+              {idx > 0 && <div className="mx-1 w-px self-stretch bg-border" />}
               <SelectionPanel
                 key={`panel-${idx}`}
                 panelId={idx}

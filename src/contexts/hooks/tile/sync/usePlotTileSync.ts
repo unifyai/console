@@ -1,14 +1,20 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
-import { usePlotTile, PlotActions } from "../usePlotTile";
-import { useTileUI } from "../useTileUI";
-import { useTileMeta } from "../useTileMeta";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { showErrorToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+import { useMemo } from 'react';
+import {
+  ContextActions,
+  FieldsActions,
+  LogsActions,
+  ProjectsActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { usePlotTile, PlotActions } from '../usePlotTile';
+import { useTileUI } from '../useTileUI';
+import { useTileMeta } from '../useTileMeta';
+import { usePatchSpecializedTileQueryOptimistic } from '@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
+import { showErrorToast, withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for state syncing logging
@@ -28,7 +34,17 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the PlotTile that will be synced with the server
  */
-export type SyncedPlotProperties = 'plotType' | 'plotScaleX' | 'plotScaleY' | 'xAxis' | 'yAxis' | 'plotGroupBy' | 'plotGroupByColors' | 'plotAggregate' | 'binCount' | 'regressionLine';
+export type SyncedPlotProperties =
+  | 'plotType'
+  | 'plotScaleX'
+  | 'plotScaleY'
+  | 'xAxis'
+  | 'yAxis'
+  | 'plotGroupBy'
+  | 'plotGroupByColors'
+  | 'plotAggregate'
+  | 'binCount'
+  | 'regressionLine';
 
 /**
  * Loading states for each property
@@ -87,16 +103,16 @@ export function usePlotTileSync(
   const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const plotScaleXMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotScaleYMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotTypeMutation = usePatchSpecializedTileQuery<"Plot">();
-  const xAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
-  const yAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
-  const plotGroupByMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
-  const plotGroupByColorsMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotAggregateMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
-  const binCountMutation = usePatchSpecializedTileQuery<"Plot">();
-  const regressionLineMutation = usePatchSpecializedTileQuery<"Plot">();
+  const plotScaleXMutation = usePatchSpecializedTileQuery<'Plot'>();
+  const plotScaleYMutation = usePatchSpecializedTileQuery<'Plot'>();
+  const plotTypeMutation = usePatchSpecializedTileQuery<'Plot'>();
+  const xAxisMutation = usePatchSpecializedTileQueryOptimistic<'Plot'>();
+  const yAxisMutation = usePatchSpecializedTileQueryOptimistic<'Plot'>();
+  const plotGroupByMutation = usePatchSpecializedTileQueryOptimistic<'Plot'>();
+  const plotGroupByColorsMutation = usePatchSpecializedTileQuery<'Plot'>();
+  const plotAggregateMutation = usePatchSpecializedTileQueryOptimistic<'Plot'>();
+  const binCountMutation = usePatchSpecializedTileQuery<'Plot'>();
+  const regressionLineMutation = usePatchSpecializedTileQuery<'Plot'>();
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
@@ -120,26 +136,27 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setPlotType(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update - plotTypeMutation uses simple interface
     try {
       await withLoadingToastFn(
-        () => plotTypeMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          tileType: "Plot",
-          updateData: { plotType: value ?? null },
-          actions: granularTileActions,
-        }),
+        () =>
+          plotTypeMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            tileType: 'Plot',
+            updateData: { plotType: value ?? null },
+            actions: granularTileActions,
+          }),
         {
-          loadingMessage: "Updating plot type...",
-          successMessage: "Plot type updated!",
+          loadingMessage: 'Updating plot type...',
+          successMessage: 'Plot type updated!',
           errorMessage: `Failed to set plot type for ${tileName}`,
         }
       );
@@ -148,7 +165,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapPlotType] onSettled:", value);
+      debugLog('[wrapPlotType] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -163,16 +180,18 @@ export function usePlotTileSync(
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update
-    await plotScaleXMutation.mutateAsync({
-      tabId: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { plotScaleX: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapPlotScaleX] onSettled:", value);
-    });
+    await plotScaleXMutation
+      .mutateAsync({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Plot',
+        updateData: { plotScaleX: value ?? null },
+        actions: granularTileActions as GranularTileActions,
+      })
+      .then(() => {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapPlotScaleX] onSettled:', value);
+      });
   };
 
   const wrapPlotScaleY = async (value: string | undefined) => {
@@ -184,16 +203,18 @@ export function usePlotTileSync(
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update
-    await plotScaleYMutation.mutateAsync({
-      tabId: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { plotScaleY: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapPlotScaleY] onSettled:", value);
-    });
+    await plotScaleYMutation
+      .mutateAsync({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Plot',
+        updateData: { plotScaleY: value ?? null },
+        actions: granularTileActions as GranularTileActions,
+      })
+      .then(() => {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapPlotScaleY] onSettled:', value);
+      });
   };
 
   const wrapXAxis = async (value: string | undefined) => {
@@ -203,10 +224,10 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setXAxis(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -216,26 +237,27 @@ export function usePlotTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => xAxisMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Plot",
-          updateData: { xAxis: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: false,
-          rebuildPlotData: true,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          xAxisMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Plot',
+            updateData: { xAxis: value ?? null },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: false,
+            rebuildPlotData: true,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Updating X-axis...",
-          successMessage: "X-axis updated!",
+          loadingMessage: 'Updating X-axis...',
+          successMessage: 'X-axis updated!',
           errorMessage: `Failed to set X-axis for ${tileName}`,
         }
       );
@@ -244,7 +266,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapXAxis] onSettled:", value);
+      debugLog('[wrapXAxis] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -256,10 +278,10 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setYAxis(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -269,26 +291,27 @@ export function usePlotTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => yAxisMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Plot",
-          updateData: { yAxis: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: false,
-          rebuildPlotData: true,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          yAxisMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Plot',
+            updateData: { yAxis: value ?? null },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: false,
+            rebuildPlotData: true,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Updating Y-axis...",
-          successMessage: "Y-axis updated!",
+          loadingMessage: 'Updating Y-axis...',
+          successMessage: 'Y-axis updated!',
           errorMessage: `Failed to set Y-axis for ${tileName}`,
         }
       );
@@ -297,7 +320,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapYAxis] onSettled:", value);
+      debugLog('[wrapYAxis] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -309,10 +332,10 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setPlotGroupBy(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -322,26 +345,27 @@ export function usePlotTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => plotGroupByMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Plot",
-          updateData: { plotGroupBy: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: false,
-          rebuildPlotData: true,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          plotGroupByMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Plot',
+            updateData: { plotGroupBy: value ?? null },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: false,
+            rebuildPlotData: true,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Updating group by...",
-          successMessage: "Group by updated!",
+          loadingMessage: 'Updating group by...',
+          successMessage: 'Group by updated!',
           errorMessage: `Failed to set group-by for ${tileName}`,
         }
       );
@@ -350,7 +374,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapPlotGroupBy] onSettled:", value);
+      debugLog('[wrapPlotGroupBy] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -362,26 +386,27 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setPlotGroupByColors(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update - plotGroupByColorsMutation uses simple interface
     try {
       await withLoadingToastFn(
-        () => plotGroupByColorsMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          tileType: "Plot",
-          updateData: { plotGroupByColors: value ?? null },
-          actions: granularTileActions,
-        }),
+        () =>
+          plotGroupByColorsMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            tileType: 'Plot',
+            updateData: { plotGroupByColors: value ?? null },
+            actions: granularTileActions,
+          }),
         {
-          loadingMessage: "Updating colors...",
-          successMessage: "Colors updated!",
+          loadingMessage: 'Updating colors...',
+          successMessage: 'Colors updated!',
           errorMessage: `Failed to set group-by colors for ${tileName}`,
         }
       );
@@ -390,7 +415,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapPlotGroupByColors] onSettled:", value);
+      debugLog('[wrapPlotGroupByColors] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -402,10 +427,10 @@ export function usePlotTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     plotTileActions.setAggregateProperty(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -415,26 +440,27 @@ export function usePlotTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => plotAggregateMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Plot",
-          updateData: { plotAggregate: value ?? "" },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: false,
-          rebuildPlotData: true,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          plotAggregateMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Plot',
+            updateData: { plotAggregate: value ?? '' },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: false,
+            rebuildPlotData: true,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Updating aggregate...",
-          successMessage: "Aggregate updated!",
+          loadingMessage: 'Updating aggregate...',
+          successMessage: 'Aggregate updated!',
           errorMessage: `Failed to set aggregate property for ${tileName}`,
         }
       );
@@ -443,7 +469,7 @@ export function usePlotTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapAggregateProperty] onSettled:", value);
+      debugLog('[wrapAggregateProperty] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -457,16 +483,18 @@ export function usePlotTileSync(
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update
-    await binCountMutation.mutateAsync({
-      tabId: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { binCount: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapBinCount] onSettled:", value);
-    });
+    await binCountMutation
+      .mutateAsync({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Plot',
+        updateData: { binCount: value ?? null },
+        actions: granularTileActions as GranularTileActions,
+      })
+      .then(() => {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapBinCount] onSettled:', value);
+      });
   };
 
   const wrapRegressionLine = async (value: string | undefined) => {
@@ -478,16 +506,18 @@ export function usePlotTileSync(
     if (!tileName || !tabId) return;
 
     // 2) Optimistic server update
-    await regressionLineMutation.mutateAsync({
-      tabId: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { regressionLine: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapRegressionLine] onSettled:", value);
-    });
+    await regressionLineMutation
+      .mutateAsync({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Plot',
+        updateData: { regressionLine: value ?? null },
+        actions: granularTileActions as GranularTileActions,
+      })
+      .then(() => {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapRegressionLine] onSettled:', value);
+      });
   };
 
   // Create the enhanced actions object
@@ -508,12 +538,7 @@ export function usePlotTileSync(
       setBinCount: wrapBinCount,
       setRegressionLine: wrapRegressionLine,
     } as PlotActions;
-  }, [
-    plotTileActions,
-    tabId,
-    tileName,
-    granularTileActions,
-  ]);
+  }, [plotTileActions, tabId, tileName, granularTileActions]);
 
   if (!plotTileActions || !granularTileActions) {
     return {
@@ -530,7 +555,7 @@ export function usePlotTileSync(
         plotAggregate: false,
         binCount: false,
         regressionLine: false,
-        any: false
+        any: false,
       },
       error: {
         plotType: null,
@@ -543,9 +568,9 @@ export function usePlotTileSync(
         plotAggregate: null,
         binCount: null,
         regressionLine: null,
-        any: false
+        any: false,
       },
-      exists: false
+      exists: false,
     };
   }
 
@@ -561,11 +586,11 @@ export function usePlotTileSync(
     plotAggregate: mutations.plotAggregate.isPending,
     binCount: mutations.binCount.isPending,
     regressionLine: mutations.regressionLine.isPending,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property is loading
-  loading.any = Object.values(mutations).some(m => m.isPending);
+  loading.any = Object.values(mutations).some((m) => m.isPending);
 
   // Prepare error states
   const error: PlotErrorStates = {
@@ -579,17 +604,17 @@ export function usePlotTileSync(
     plotAggregate: mutations.plotAggregate.error,
     binCount: mutations.binCount.error,
     regressionLine: mutations.regressionLine.error,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property has error
-  error.any = Object.values(mutations).some(m => !!m.error);
+  error.any = Object.values(mutations).some((m) => !!m.error);
 
   return {
     plotTile,
     plotTileActions: syncedActions,
     loading,
     error,
-    exists
+    exists,
   };
-} 
+}

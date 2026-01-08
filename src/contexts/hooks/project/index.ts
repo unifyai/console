@@ -5,4 +5,4 @@
 export * from './useProjectMeta';
 export * from './useProjectData';
 export * from './useProjectUI';
-export * from './useProject'; 
+export * from './useProject';

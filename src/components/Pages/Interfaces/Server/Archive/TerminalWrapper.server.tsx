@@ -1,8 +1,8 @@
-import { Suspense } from "react";
+import { Suspense } from 'react';
 import getQueryClient from '@/app/getQueryClient';
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import Terminal from "../../Blocks/Terminal/Terminal";
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import Terminal from '../../Blocks/Terminal/Terminal';
 
 import type {
   TileData,
@@ -12,8 +12,8 @@ import type {
   FieldsActions,
   GranularTileActions,
   CodeActions,
-  FileActions
-} from "@/types/interfaces/grid";
+  FileActions,
+} from '@/types/interfaces/grid';
 
 interface TerminalWrapperProps {
   tile: TileData;
@@ -36,22 +36,22 @@ export default async function TerminalWrapper({
   tabId,
   interfaceId,
   projectId,
-  actions
+  actions,
 }: TerminalWrapperProps) {
-  console.log("[TerminalWrapper] Rendering...");
+  console.log('[TerminalWrapper] Rendering...');
   const qc = getQueryClient();
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
       <Suspense
         fallback={
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center">
             <SkeletonLoader />
           </div>
         }
       >
         <Terminal
-          tileId={tile.id || ""}
+          tileId={tile.id || ''}
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
@@ -66,4 +66,4 @@ export default async function TerminalWrapper({
       </Suspense>
     </HydrationBoundary>
   );
-} 
+}

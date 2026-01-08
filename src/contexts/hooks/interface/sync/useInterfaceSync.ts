@@ -1,19 +1,24 @@
-"use client";
+'use client';
 
-import { useMemo, useRef } from "react";
-import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/interfaces/grid";
-import { useCreateTabQuery, useUpdateTabQuery, useUpdateTabByIdQuery, useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
-import { useInterface } from "../useInterface";
-import { InterfaceDataActions } from "../useInterfaceData";
-import { InterfaceUIActions } from "../useInterfaceUI";
+import { useMemo, useRef } from 'react';
+import { GranularInterfaceActions, GranularTabActions, TabData } from '@/types/interfaces/grid';
+import {
+  useCreateTabQuery,
+  useUpdateTabQuery,
+  useUpdateTabByIdQuery,
+  useDeleteTabQuery,
+} from '@/hooks/Interfaces/Query/useTabsQuery';
+import { useInterface } from '../useInterface';
+import { InterfaceDataActions } from '../useInterfaceData';
+import { InterfaceUIActions } from '../useInterfaceUI';
 import { v4 as uuidv4 } from 'uuid';
-import { Tab } from "@/contexts/slices/selectors/tab";
-import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
-import { getTabId } from "@/contexts/selectors/tab";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { selectTabsForInterface } from "@/contexts/selectors/tab";
-import { useQueryClient } from "@tanstack/react-query";
-import { CompleteTabData } from "@/hooks/Interfaces/Query/useTabDataOptimistic";
+import { Tab } from '@/contexts/slices/selectors/tab';
+import { useUpdateInterfaceUnifiedQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery';
+import { getTabId } from '@/contexts/selectors/tab';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { selectTabsForInterface } from '@/contexts/selectors/tab';
+import { useQueryClient } from '@tanstack/react-query';
+import { CompleteTabData } from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 
 /**
  * Debug flag for state syncing logging
@@ -66,18 +71,21 @@ export function useInterfaceSync(
   interfaceId: string | null,
   projectId: string | null,
   interfaceActions: GranularInterfaceActions | undefined,
-  tabActions?: GranularTabActions | undefined,
+  tabActions?: GranularTabActions | undefined
 ): { actions: SyncedInterfaceActions | null } {
   // Get interface UI actions for router refresh coordination
-  const {actions: interfaceOriginalActions } = useInterface(interfaceId, projectId);
-  const { data: interfaceDataActions, ui: interfaceUIActions } = interfaceOriginalActions ?? { data: null, ui: null };
-  
+  const { actions: interfaceOriginalActions } = useInterface(interfaceId, projectId);
+  const { data: interfaceDataActions, ui: interfaceUIActions } = interfaceOriginalActions ?? {
+    data: null,
+    ui: null,
+  };
+
   // Get store API for state access
   const storeApi = useStoreApiContext();
-  
+
   // Get query client for cache updates
   const queryClient = useQueryClient();
-  
+
   // Mutation hooks for server state updates
   const updateInterfaceMutation = useUpdateInterfaceUnifiedQuery();
   const createTabMutation = useCreateTabQuery();
@@ -100,20 +108,20 @@ export function useInterfaceSync(
       if (Array.isArray(tabs)) {
         for (const tab of tabs) {
           // If tab has no context, set it
-          if (!tab.context || tab.context === "") {
+          if (!tab.context || tab.context === '') {
             await updateTabByIdMutation.mutateAsync({
               id: tab.id as string,
               data: { context },
-              actions: tabActions
+              actions: tabActions,
             });
           }
         }
       }
     } catch (e) {
-      console.warn("Failed to propagate interface context:", e);
+      console.warn('Failed to propagate interface context:', e);
     }
   };
-  
+
   /**
    * Add a new tab to an interface with a generated UUID
    */
@@ -128,22 +136,22 @@ export function useInterfaceSync(
       interfaceDataActions.addTab(newTabName, {
         ...initialState,
         id: tabId,
-        name: newTabName
+        name: newTabName,
       } as Tab);
 
       // Pass active to be true in the initial state
       initialState = {
         ...initialState,
         visible: true,
-        active: true
+        active: true,
       };
 
-      debugLog("Creating tab:", {
+      debugLog('Creating tab:', {
         interfaceId: interfaceId,
         name: newTabName,
         data: initialState,
         tabId: tabId,
-        actions: tabActions
+        actions: tabActions,
       });
 
       // Create the tab on the server with the generated UUID
@@ -152,7 +160,7 @@ export function useInterfaceSync(
         name: newTabName,
         data: initialState,
         tabId: tabId,
-        actions: tabActions
+        actions: tabActions,
       });
 
       debugLog(`Tab ${newTabName} created with ID ${tabId}`);
@@ -161,25 +169,24 @@ export function useInterfaceSync(
       const result2 = await updateInterfaceMutation.mutateAsync({
         interfaceId: interfaceId,
         data: {
-          activeTabId: tabId
+          activeTabId: tabId,
         },
-        actions: interfaceActions as GranularInterfaceActions
+        actions: interfaceActions as GranularInterfaceActions,
       });
 
-      debugLog("Interface update result:", result2);
+      debugLog('Interface update result:', result2);
       return result;
-      
     } catch (error) {
       console.error(`Failed to create tab ${newTabName}:`, error);
-      
+
       // Rollback local state if server creation failed
       interfaceDataActions.removeTab(newTabName);
-      
+
       // Inform the user of the error
       if (interfaceUIActions) {
         console.error(`Failed to create tab ${newTabName}: ${error}`);
       }
-      
+
       return null;
     }
   };
@@ -198,9 +205,9 @@ export function useInterfaceSync(
       interfaceId: interfaceId as string,
       name: tabName,
       data: {
-        name: newTabName
+        name: newTabName,
       },
-      actions: tabActions
+      actions: tabActions,
     });
   };
 
@@ -217,7 +224,7 @@ export function useInterfaceSync(
     deleteTabMutation.mutate({
       name: tabName,
       interfaceId: interfaceId as string,
-      actions: tabActions
+      actions: tabActions,
     });
   };
 
@@ -230,7 +237,7 @@ export function useInterfaceSync(
 
     try {
       let tabId: string | null = null;
-      
+
       if (tabIdOrName) {
         // Use the store API to get current state and convert tabIdOrName to tabId
         const currentState = storeApi.getState();
@@ -249,10 +256,10 @@ export function useInterfaceSync(
       // If nothing to persist or same as last persisted/scheduled, skip
       if (!tabId) return;
       if (lastPersistedRef.current === tabId) {
-        debugLog("Active tab already persisted; skipping", tabId);
+        debugLog('Active tab already persisted; skipping', tabId);
         // proceed to cache sync below
       } else if (lastScheduledRef.current === tabId) {
-        debugLog("Active tab persist already scheduled; skipping re-schedule", tabId);
+        debugLog('Active tab persist already scheduled; skipping re-schedule', tabId);
       } else {
         lastScheduledRef.current = tabId;
         if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
@@ -261,7 +268,7 @@ export function useInterfaceSync(
             await updateInterfaceMutation.mutateAsync({
               interfaceId: interfaceId,
               data: { activeTabId: tabId },
-              actions: interfaceActions as GranularInterfaceActions
+              actions: interfaceActions as GranularInterfaceActions,
             });
             lastPersistedRef.current = tabId;
           } catch (e) {
@@ -275,35 +282,37 @@ export function useInterfaceSync(
 
       // 3) Update React Query cache to sync tab active states
       const currentState = storeApi.getState();
-      
+
       if (queryClient) {
         // Update the tabs list cache to mark correct tab as active
-        const tabsQueryKey = ["tabs", interfaceId];
+        const tabsQueryKey = ['tabs', interfaceId];
         const cachedTabs = queryClient.getQueryData(tabsQueryKey) as TabData[];
-        
+
         if (cachedTabs) {
-          const updatedTabs = cachedTabs.map(tab => ({
+          const updatedTabs = cachedTabs.map((tab) => ({
             ...tab,
-            active: tab.id === tabId
+            active: tab.id === tabId,
           }));
           queryClient.setQueryData(tabsQueryKey, updatedTabs);
         }
 
         // Update individual tab complete data caches
         const allTabsInInterface = selectTabsForInterface(currentState, interfaceId);
-        
+
         for (const tab of allTabsInInterface) {
           if (tab.name) {
-            const tabCompleteDataKey = ["tabCompleteData", interfaceId, tab.name, projectId];
-            const cachedCompleteData = queryClient.getQueryData(tabCompleteDataKey) as CompleteTabData;
-            
+            const tabCompleteDataKey = ['tabCompleteData', interfaceId, tab.name, projectId];
+            const cachedCompleteData = queryClient.getQueryData(
+              tabCompleteDataKey
+            ) as CompleteTabData;
+
             if (cachedCompleteData && cachedCompleteData.tabData) {
               const updatedCompleteData = {
                 ...cachedCompleteData,
                 tabData: {
                   ...cachedCompleteData.tabData,
-                  active: tab.id === tabId
-                }
+                  active: tab.id === tabId,
+                },
               };
               queryClient.setQueryData(tabCompleteDataKey, updatedCompleteData);
             }
@@ -312,10 +321,9 @@ export function useInterfaceSync(
       }
 
       debugLog(`Active tab set to: ${tabIdOrName} (ID: ${tabId})`);
-      
     } catch (error) {
       console.error(`Failed to set active tab to ${tabIdOrName}:`, error);
-      
+
       // On error, we could rollback the optimistic update
       // but since we're using React Query, it should handle this automatically
     }
@@ -330,14 +338,9 @@ export function useInterfaceSync(
       // Use the specialized wrapper functions for each property
       addTab: wrapAddTab,
       renameTab: wrapRenameTab,
-      removeTab: wrapRemoveTab
+      removeTab: wrapRemoveTab,
     } as SyncedInterfaceDataActions;
-  }, [
-    interfaceDataActions,
-    interfaceId,
-    interfaceActions,
-    tabActions
-  ]);
+  }, [interfaceDataActions, interfaceId, interfaceActions, tabActions]);
 
   // Create the enhanced actions object with the wrapped setters
   const syncedUIActions = useMemo<SyncedInterfaceUIActions | null>(() => {
@@ -346,14 +349,9 @@ export function useInterfaceSync(
     return {
       ...interfaceUIActions,
       // Override setActiveTab with synced version
-      setActiveTab: wrapSetActiveTab
+      setActiveTab: wrapSetActiveTab,
     } as SyncedInterfaceUIActions;
-  }, [
-    interfaceUIActions,
-    interfaceId,
-    interfaceActions,
-    wrapSetActiveTab
-  ]);
+  }, [interfaceUIActions, interfaceId, interfaceActions, wrapSetActiveTab]);
 
   // Create the full actions object that incorporates the synced data actions
   const syncedActions = useMemo<SyncedInterfaceActions | null>(() => {
@@ -362,7 +360,7 @@ export function useInterfaceSync(
     return {
       ...interfaceOriginalActions,
       data: syncedDataActions,
-      ui: syncedUIActions
+      ui: syncedUIActions,
     } as SyncedInterfaceActions;
   }, [interfaceOriginalActions, syncedDataActions, syncedUIActions]);
 
@@ -370,4 +368,4 @@ export function useInterfaceSync(
   return {
     actions: syncedActions,
   };
-} 
+}

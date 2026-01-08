@@ -1,8 +1,9 @@
 export default {
-    gif: "table_grouping_dark",
-    link: "interfaces/tables#grouping",
-    description: "Grouping makes it very easy to quickly probe the data across all of your experiments, enabling you to easily transcending the boundaries of rigid “experiments” flexibly.",
-    code: `import unify
+  gif: 'table_grouping_dark',
+  link: 'interfaces/tables#grouping',
+  description:
+    'Grouping makes it very easy to quickly probe the data across all of your experiments, enabling you to easily transcending the boundaries of rigid “experiments” flexibly.',
+  code: `import unify
 import random
 
 unify.activate("grouping-demo", overwrite=True)
@@ -32,47 +33,47 @@ for with_tool in [True, False]:
                     score=i*0.25 +random.random()/2
                 )
 `,
-    // Granular interface structure
-    interface: {
-        projectId: "grouping-demo",
-        name: "interface1",
+  // Granular interface structure
+  interface: {
+    projectId: 'grouping-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 7.0,
+        height: 8.0,
+      },
+      grouping: 'Parameters/experiment',
+      tableTile: {
+        tableType: 'Data Table',
+        sorting: 'score@true',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'View',
+      type: 'View',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 5.0,
+        height: 8.0,
+      },
+      table: 'Table',
+      viewTile: {},
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 7.0,
-                height: 8.0
-            },
-            grouping: "Parameters/experiment",
-            tableTile: {
-                tableType: "Data Table",
-                sorting: "score@true"
-            }
-        },
-        {
-            name: "View",
-            type: "View",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 5.0,
-                height: 8.0
-            },
-            table: "Table",
-            viewTile: {},
-        }
-    ],
-    newCounter: 2
-}
+  ],
+  newCounter: 2,
+};

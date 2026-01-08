@@ -1,10 +1,9 @@
-"use client";
+'use client';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTileActions, TileData, TilePosition } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 import { TileType } from '@/contexts/slices/selectors/tile';
-
 
 /**
  * Hook to fetch all tiles for a tab
@@ -50,10 +49,7 @@ export function useGetTileQuery(
 /**
  * Hook to fetch a specific tile by ID
  */
-export function useGetTileByIdQuery(
-  id: string | null,
-  actions: GranularTileActions
-) {
+export function useGetTileByIdQuery(id: string | null, actions: GranularTileActions) {
   return useQuery({
     queryKey: ['tile-by-id', id],
     queryFn: async () => {
@@ -79,20 +75,14 @@ export function useGetTileUnifiedQuery(
   const { id, tabId, name, checkpoint } = params;
   const usingId = !!id;
   const usingPath = !!tabId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['tile-by-id', id, checkpoint] 
-      : ['tile', tabId, name, checkpoint],
+    queryKey: usingId ? ['tile-by-id', id, checkpoint] : ['tile', tabId, name, checkpoint],
     queryFn: async () => {
       if (usingId) {
         return actions.getById(id as string, checkpoint);
       } else if (usingPath) {
-        return actions.getByName(
-          tabId as string, 
-          name as string, 
-          checkpoint
-        );
+        return actions.getByName(tabId as string, name as string, checkpoint);
       }
       return null;
     },
@@ -105,23 +95,26 @@ export function useGetTileUnifiedQuery(
  */
 export function useCreateTileQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
-    mutationFn: async ({ 
-      tabId, 
+    mutationFn: async ({
+      tabId,
       name,
       position,
-      data, 
+      data,
       type,
       tileId,
-      actions 
-    }: { 
-      tabId: string; 
+      actions,
+    }: {
+      tabId: string;
       name: string;
       position: TilePosition;
-      data: Omit<Partial<TileData>, 'id' | 'tabId' | 'name' | 'type' | 'position' | 'createdAt' | 'updatedAt'>; 
+      data: Omit<
+        Partial<TileData>,
+        'id' | 'tabId' | 'name' | 'type' | 'position' | 'createdAt' | 'updatedAt'
+      >;
       tileId?: string;
       type?: string;
       actions: GranularTileActions;
@@ -131,12 +124,12 @@ export function useCreateTileQuery() {
     onSuccess: (result, variables) => {
       // Invalidate tiles for this tab
       if (result && 'tabId' in result) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tiles', result.tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tiles', result.tabId],
         });
         // Also invalidate tab with tiles
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', result.tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', result.tabId],
         });
       }
     },
@@ -148,21 +141,21 @@ export function useCreateTileQuery() {
  */
 export function useUpdateTileQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
-    mutationFn: async ({ 
+    mutationFn: async ({
       id,
-      tabId, 
-      name, 
-      data, 
-      actions 
-    }: { 
+      tabId,
+      name,
+      data,
+      actions,
+    }: {
       id?: string;
-      tabId?: string; 
+      tabId?: string;
       name?: string;
-      data: Omit<Partial<TileData>, 'id' | 'tabId' | 'createdAt' | 'updatedAt'>; 
+      data: Omit<Partial<TileData>, 'id' | 'tabId' | 'createdAt' | 'updatedAt'>;
       actions: GranularTileActions;
     }) => {
       if (id) {
@@ -170,31 +163,31 @@ export function useUpdateTileQuery() {
       } else if (tabId && name) {
         return actions.updateByName(tabId, name, data);
       } else {
-        throw new Error("Invalid arguments");
+        throw new Error('Invalid arguments');
       }
     },
     onSuccess: (result, variables) => {
       // Invalidate specific tile and tiles list
       const { id, tabId, name } = variables;
       if (id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tile-by-id', id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tile-by-id', id],
         });
       } else if (tabId && name) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tile', tabId, name] 
+        queryClient.invalidateQueries({
+          queryKey: ['tile', tabId, name],
         });
       }
       // Invalidate tiles list
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tiles', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tiles', tabId],
         });
       }
       // Also invalidate tab with tiles
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', tabId],
         });
       }
     },
@@ -207,15 +200,15 @@ export function useUpdateTileQuery() {
  */
 export function useUpdateTilesPositionsQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
-    mutationFn: async ({ 
-      tabId, 
-      tiles, 
-      actions 
-    }: { 
+    mutationFn: async ({
+      tabId,
+      tiles,
+      actions,
+    }: {
       tabId: string;
       tiles: Array<{
         id: string;
@@ -223,31 +216,34 @@ export function useUpdateTilesPositionsQuery() {
       }>;
       actions: GranularTileActions & {
         // This method needs to be added to the GranularTileActions interface
-        updateTilesPositions?: (tabId: string, tiles: Array<{
-          id: string;
-          position: TilePosition;
-        }>) => Promise<TileData[]>;
+        updateTilesPositions?: (
+          tabId: string,
+          tiles: Array<{
+            id: string;
+            position: TilePosition;
+          }>
+        ) => Promise<TileData[]>;
       };
     }) => {
       if (!actions.updateTilesPositions) {
-        throw new Error("updateTilesPositions method is not implemented");
+        throw new Error('updateTilesPositions method is not implemented');
       }
       return actions.updateTilesPositions(tabId, tiles);
     },
     onSuccess: (_, variables) => {
       // Invalidate tiles list
-      queryClient.invalidateQueries({ 
-        queryKey: ['tiles', variables.tabId] 
+      queryClient.invalidateQueries({
+        queryKey: ['tiles', variables.tabId],
       });
       // Invalidate each updated tile
-      variables.tiles.forEach(tile => {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tile-by-id', tile.id] 
+      variables.tiles.forEach((tile) => {
+        queryClient.invalidateQueries({
+          queryKey: ['tile-by-id', tile.id],
         });
       });
       // Also invalidate tab with tiles
-      queryClient.invalidateQueries({ 
-        queryKey: ['tab-with-tiles-by-id', variables.tabId] 
+      queryClient.invalidateQueries({
+        queryKey: ['tab-with-tiles-by-id', variables.tabId],
       });
     },
   });
@@ -258,18 +254,18 @@ export function useUpdateTilesPositionsQuery() {
  */
 export function useDeleteTileQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
-    mutationFn: async ({ 
+    mutationFn: async ({
       id,
-      tabId, 
-      name, 
-      actions 
-    }: { 
+      tabId,
+      name,
+      actions,
+    }: {
       id?: string;
-      tabId?: string; 
+      tabId?: string;
       name?: string;
       actions: GranularTileActions;
     }) => {
@@ -278,31 +274,31 @@ export function useDeleteTileQuery() {
       } else if (tabId && name) {
         return actions.deleteByName(tabId, name);
       } else {
-        throw new Error("Invalid arguments");
+        throw new Error('Invalid arguments');
       }
     },
     onSuccess: (_, variables) => {
       const { id, tabId, name } = variables;
       // Invalidate tiles list
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tiles', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tiles', tabId],
         });
       }
       // Remove deleted tile from cache
       if (id) {
-        queryClient.removeQueries({ 
-          queryKey: ['tile-by-id', id] 
+        queryClient.removeQueries({
+          queryKey: ['tile-by-id', id],
         });
       } else if (tabId && name) {
-        queryClient.removeQueries({ 
-          queryKey: ['tile', tabId, name] 
+        queryClient.removeQueries({
+          queryKey: ['tile', tabId, name],
         });
       }
       // Also invalidate tab with tiles
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', tabId],
         });
       }
     },
@@ -316,13 +312,13 @@ export function useCreateTileCheckpointQuery() {
   return useMutation({
     retry: 3,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 15000),
-    mutationFn: async ({ 
+    mutationFn: async ({
       tabId,
       name,
       description,
-      actions 
-    }: { 
-      tabId: string; 
+      actions,
+    }: {
+      tabId: string;
       name: string;
       description: string;
       actions: GranularTileActions;
@@ -337,7 +333,7 @@ export function useCreateTileCheckpointQuery() {
 
 /**
  * Hook to get tile data based on type
- * Note: The specialized data methods (getTableData, getPlotData, etc.) 
+ * Note: The specialized data methods (getTableData, getPlotData, etc.)
  * need to be added to the GranularTileActions interface
  */
 export function useTileDataQuery(
@@ -357,7 +353,7 @@ export function useTileDataQuery(
     queryKey: [`${tileType?.toLowerCase()}-data`, tabId, name],
     queryFn: async () => {
       if (!tabId || !name || !tileType) return null;
-      
+
       switch (tileType.toLowerCase()) {
         case 'table':
           return actions.getTableData?.(tabId, name);
@@ -382,19 +378,19 @@ export function useTileDataQuery(
  */
 export function usePatchTileQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({
       id,
-      tabId, 
-      name, 
-      updateData, 
-      actions 
-    }: { 
+      tabId,
+      name,
+      updateData,
+      actions,
+    }: {
       id?: string;
-      tabId?: string; 
+      tabId?: string;
       name?: string;
       updateData: Record<string, any>;
       actions: GranularTileActions;
@@ -404,34 +400,34 @@ export function usePatchTileQuery() {
       } else if (tabId && name) {
         return actions.patchByName(tabId, name, updateData);
       } else {
-        throw new Error("Invalid arguments");
+        throw new Error('Invalid arguments');
       }
     },
     onSuccess: (result, variables) => {
       const { id, tabId, name } = variables;
-      
+
       // Invalidate tile
       if (id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tile-by-id', id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tile-by-id', id],
         });
       } else {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tile', tabId, name] 
+        queryClient.invalidateQueries({
+          queryKey: ['tile', tabId, name],
         });
       }
-      
+
       // Invalidate tiles list
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tiles', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tiles', tabId],
         });
       }
-      
+
       // Invalidate tab with tiles if we know the tab
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', tabId],
         });
       }
     },
@@ -441,51 +437,49 @@ export function usePatchTileQuery() {
 /**
  * Hook to patch a specialized tile by name
  */
-export function usePatchSpecializedTileQuery<
-  T extends TileType
->() {
+export function usePatchSpecializedTileQuery<T extends TileType>() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     retry: 5,
     retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
-    mutationFn: async ({ 
-      tabId, 
-      name, 
+    mutationFn: async ({
+      tabId,
+      name,
       tileType,
-      updateData, 
-      actions 
-    }: { 
-      tabId: string; 
+      updateData,
+      actions,
+    }: {
+      tabId: string;
       name: string;
       tileType: T;
-      updateData: Record<string, any>; 
+      updateData: Record<string, any>;
       actions: GranularTileActions;
     }) => {
       return actions.patchSpecializedByName(tabId, name, tileType, updateData);
     },
     onSuccess: (result, variables) => {
       const { tabId, name, tileType } = variables;
-      
+
       // Invalidate tile
-      queryClient.invalidateQueries({ 
-        queryKey: ['tile', tabId, name] 
+      queryClient.invalidateQueries({
+        queryKey: ['tile', tabId, name],
       });
-      
+
       // Invalidate specialized data if we're using it
-      queryClient.invalidateQueries({ 
-        queryKey: ['specialized-tile-data', tabId, name, tileType] 
+      queryClient.invalidateQueries({
+        queryKey: ['specialized-tile-data', tabId, name, tileType],
       });
-      
+
       // Invalidate tiles list
-      queryClient.invalidateQueries({ 
-        queryKey: ['tiles', tabId] 
+      queryClient.invalidateQueries({
+        queryKey: ['tiles', tabId],
       });
-      
+
       // Invalidate tab with tiles if we know the tab
       if (tabId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tabId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', tabId],
         });
       }
     },
@@ -513,10 +507,7 @@ export function useGetTileCheckpointByNameQuery(
 /**
  * Hook to get a checkpoint for a tile by ID
  */
-export function useGetTileCheckpointByIdQuery(
-  id: string | null,
-  actions: GranularTileActions
-) {
+export function useGetTileCheckpointByIdQuery(id: string | null, actions: GranularTileActions) {
   return useQuery({
     queryKey: ['tile-checkpoint-by-id', id],
     queryFn: async () => {
@@ -541,18 +532,16 @@ export function useGetTileCheckpointUnifiedQuery(
   const { id, tabId, name } = params;
   const usingId = !!id;
   const usingPath = !!tabId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['tile-checkpoint-by-id', id] 
-      : ['tile-checkpoint-by-name', tabId, name],
+    queryKey: usingId ? ['tile-checkpoint-by-id', id] : ['tile-checkpoint-by-name', tabId, name],
     queryFn: async () => {
       return actions.getCheckpoint({
         id: id as string,
         tabId: tabId as string,
-        name: name as string
+        name: name as string,
       });
     },
     enabled: usingId || usingPath,
   });
-} 
+}

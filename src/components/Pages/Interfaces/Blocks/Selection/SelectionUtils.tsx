@@ -1,5 +1,5 @@
-import { LogProps } from "@/types/interfaces/logs";
-import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
+import { LogProps } from '@/types/interfaces/logs';
+import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
 
 /*******************************************************************************
  * Helper & Utility Functions
@@ -7,24 +7,24 @@ import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 
 /** Data shape checks from both old & new code. */
 export function isDict(val: any): boolean {
-    return val && typeof val === "object" && !Array.isArray(val);
-  }
+  return val && typeof val === 'object' && !Array.isArray(val);
+}
 export function isList(val: any): boolean {
-    return Array.isArray(val);
-  }
+  return Array.isArray(val);
+}
 export function isMatrix(val: any): boolean {
-    return isList(val) && val.length > 0 && Array.isArray(val[0]);
-  }
+  return isList(val) && val.length > 0 && Array.isArray(val[0]);
+}
 export function isImage(val: any): boolean {
-    return typeof val === "string" && val.startsWith("data:image/");
-  }
+  return typeof val === 'string' && val.startsWith('data:image/');
+}
 /**
  * Check if a value is a PDF link/path.
  * Detects strings ending with .pdf, with optional query parameters
  */
 export function isPdf(val: any): boolean {
   if (typeof val !== 'string') return false;
-  const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
+  const pdfRegex = /\.pdf(\?.*)?$/i; // matches "myfile.pdf?version=123" and .PDF
   return pdfRegex.test(val.trim());
 }
 export function isTrace(val: any): boolean {
@@ -32,13 +32,13 @@ export function isTrace(val: any): boolean {
   // 1) Handle the common case where a *single* trace object is provided.
   // ------------------------------------------------------------------
   function isTraceObject(obj: any): boolean {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
 
-    const hasTraceId = Boolean(obj.id && typeof obj.id === "string");
-    const hasType = Boolean(obj.type && typeof obj.type === "string");
-    const hasSpanName = Boolean(obj.spanName && typeof obj.spanName === "string");
+    const hasTraceId = Boolean(obj.id && typeof obj.id === 'string');
+    const hasType = Boolean(obj.type && typeof obj.type === 'string');
+    const hasSpanName = Boolean(obj.spanName && typeof obj.spanName === 'string');
     const hasExecTime = Boolean(obj.execTime !== undefined);
-    const hasTimestamp = Boolean(obj.timestamp && typeof obj.timestamp === "string");
+    const hasTimestamp = Boolean(obj.timestamp && typeof obj.timestamp === 'string');
     const hasChildSpans = Boolean(obj.childSpans && Array.isArray(obj.childSpans));
 
     const isMainTrace = hasTraceId && hasType && hasSpanName && hasTimestamp;
@@ -62,18 +62,18 @@ export function isTrace(val: any): boolean {
   return isTraceObject(val);
 }
 export function isNumber(val: any): boolean {
-  return typeof val === "number" || val instanceof Number;
+  return typeof val === 'number' || val instanceof Number;
 }
 
 /** Possibly used for param expansions from the old code. */
 export function unwrapSingleKeyObject(val: unknown) {
-  if (val && typeof val === "object" && !Array.isArray(val)) {
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
     const keys = Object.keys(val);
-    if (keys.length === 1 && keys[0] === "0") {
-    return (val as Record<string, unknown>)["0"];
+    if (keys.length === 1 && keys[0] === '0') {
+      return (val as Record<string, unknown>)['0'];
     }
-}
-return val;
+  }
+  return val;
 }
 
 /** For row labeling in combobox, etc. */
@@ -86,26 +86,26 @@ export function shallowArrayEquals(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) {
-    return false;
+      return false;
     }
-}
-return true;
+  }
+  return true;
 }
 
 /** Shallow compare for boolean record objects. */
 export function shallowEqualBooleanRecords(
-a: Record<string, boolean>,
-b: Record<string, boolean>
+  a: Record<string, boolean>,
+  b: Record<string, boolean>
 ): boolean {
-const aKeys = Object.keys(a);
-const bKeys = Object.keys(b);
-if (aKeys.length !== bKeys.length) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
     return false;
-}
-for (const key of aKeys) {
+  }
+  for (const key of aKeys) {
     if (a[key] !== b[key]) return false;
-}
-return true;
+  }
+  return true;
 }
 
 /**
@@ -113,21 +113,21 @@ return true;
  *   rowIndex => Set of column names selected
  */
 export function buildIndexToColumnsMapFromId(
-selectedCells: string[],
-sortedLogs: LogProps[]
+  selectedCells: string[],
+  sortedLogs: LogProps[]
 ): Record<number, Set<string>> {
   const map: Record<number, Set<string>> = {};
-  for (const token of selectedCells) {    
-    const underscorePos = token.indexOf("_");
+  for (const token of selectedCells) {
+    const underscorePos = token.indexOf('_');
     if (underscorePos < 1) {
       continue;
     }
-    
+
     const logIdStr = token.slice(0, underscorePos);
     let columnName = token.slice(underscorePos + 1);
-    
+
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
-    
+
     if (rowIndex < 0) {
       continue;
     }
@@ -135,7 +135,7 @@ sortedLogs: LogProps[]
     if (!map[rowIndex]) {
       map[rowIndex] = new Set<string>();
     }
-    
+
     map[rowIndex].add(columnName);
   }
   return map;
@@ -143,23 +143,23 @@ sortedLogs: LogProps[]
 
 /** Build row selection order from the selected cells. */
 export function buildRowIndicesInSelectionOrder(
-selectedCells: string[],
-sortedLogs: LogProps[]
+  selectedCells: string[],
+  sortedLogs: LogProps[]
 ): number[] {
-const seen = new Set<number>();
-const rowIndices: number[] = [];
-for (const token of selectedCells) {
-    const underscorePos = token.indexOf("_");
+  const seen = new Set<number>();
+  const rowIndices: number[] = [];
+  for (const token of selectedCells) {
+    const underscorePos = token.indexOf('_');
     if (underscorePos < 1) continue;
     const logIdStr = token.slice(0, underscorePos);
     const rowIndex = sortedLogs.findIndex((log) => String(log.id) === logIdStr);
     if (rowIndex < 0) continue;
     if (!seen.has(rowIndex)) {
-    seen.add(rowIndex);
-    rowIndices.push(rowIndex);
+      seen.add(rowIndex);
+      rowIndices.push(rowIndex);
     }
-}
-return rowIndices;
+  }
+  return rowIndices;
 }
 
 /*******************************************************************************
@@ -167,82 +167,82 @@ return rowIndices;
  *   From original code, merges param expansions and hidden/ordered columns.
  ******************************************************************************/
 export function buildLogWithChosenColumns(
-originalLog: LogProps,
-rowIndex: number,
-globalParams: Record<string, unknown>,
-indexToColumns: Record<number, Set<string>>,
-columnOrdering: string[],
+  originalLog: LogProps,
+  rowIndex: number,
+  globalParams: Record<string, unknown>,
+  indexToColumns: Record<number, Set<string>>,
+  columnOrdering: string[]
 ): LogProps {
-const chosen = indexToColumns[rowIndex] ?? new Set<string>();
+  const chosen = indexToColumns[rowIndex] ?? new Set<string>();
 
-const safeEntries = originalLog.entries ?? {};
+  const safeEntries = originalLog.entries ?? {};
 
-// The key fix: If none of the columnOrdering items match the chosen columns,
-// fall back to using all chosen columns directly (even if columnOrdering.length > 0)
-let finalColsEntries: string[];
-if (columnOrdering.length > 0) {
-    const filtered = columnOrdering.filter(c => chosen.has(c)).map(sanitizeId);
+  // The key fix: If none of the columnOrdering items match the chosen columns,
+  // fall back to using all chosen columns directly (even if columnOrdering.length > 0)
+  let finalColsEntries: string[];
+  if (columnOrdering.length > 0) {
+    const filtered = columnOrdering.filter((c) => chosen.has(c)).map(sanitizeId);
     if (filtered.length > 0) {
-        finalColsEntries = filtered;
+      finalColsEntries = filtered;
     } else {
-        // If nothing matched, use the chosen columns directly
-        finalColsEntries = Array.from(chosen).map(sanitizeId);
+      // If nothing matched, use the chosen columns directly
+      finalColsEntries = Array.from(chosen).map(sanitizeId);
     }
-} else {
+  } else {
     finalColsEntries = Array.from(chosen).map(sanitizeId);
-}
+  }
 
-const newEntries: Record<string, unknown> = {};
-for (const c of finalColsEntries) {
+  const newEntries: Record<string, unknown> = {};
+  for (const c of finalColsEntries) {
     if (Object.prototype.hasOwnProperty.call(safeEntries, c)) {
-    newEntries[c] = safeEntries[c];
+      newEntries[c] = safeEntries[c];
     } else {
     }
-}
+  }
 
-const safeParams = originalLog.params ?? {};  
+  const safeParams = originalLog.params ?? {};
 
-// Apply the same fix for params
-let finalColsParams: string[];
-if (columnOrdering.length > 0) {
-    const filtered = columnOrdering.filter(c => chosen.has(c)).map(sanitizeId);
+  // Apply the same fix for params
+  let finalColsParams: string[];
+  if (columnOrdering.length > 0) {
+    const filtered = columnOrdering.filter((c) => chosen.has(c)).map(sanitizeId);
     if (filtered.length > 0) {
-        finalColsParams = filtered;
+      finalColsParams = filtered;
     } else {
-        // If nothing matched, use the chosen columns directly
-        finalColsParams = Array.from(chosen).map(sanitizeId);
+      // If nothing matched, use the chosen columns directly
+      finalColsParams = Array.from(chosen).map(sanitizeId);
     }
-} else {
+  } else {
     finalColsParams = Array.from(chosen).map(sanitizeId);
-}
+  }
 
-const newParams: Record<string, unknown> = {};
-for (const c of finalColsParams) {
+  const newParams: Record<string, unknown> = {};
+  for (const c of finalColsParams) {
     if (!Object.prototype.hasOwnProperty.call(safeParams, c)) {
-    continue;
+      continue;
     }
     const storedVal = safeParams[c];
-    
-    if (typeof storedVal === "string" && globalParams.hasOwnProperty(c)) {
-    const candidateObj = globalParams[c];
-    if (candidateObj && typeof candidateObj === "object") {
+
+    if (typeof storedVal === 'string' && globalParams.hasOwnProperty(c)) {
+      const candidateObj = globalParams[c];
+      if (candidateObj && typeof candidateObj === 'object') {
         if ((candidateObj as Record<string, unknown>).hasOwnProperty(storedVal)) {
-        newParams[c] = {
+          newParams[c] = {
             paramValue: (candidateObj as Record<string, unknown>)[storedVal],
             paramVersion: unwrapSingleKeyObject(storedVal),
-        };
-        continue;
+          };
+          continue;
         }
-    }
+      }
     }
     newParams[c] = unwrapSingleKeyObject(storedVal);
-}
+  }
 
-return {
+  return {
     ...originalLog,
     entries: newEntries,
     params: newParams,
-};
+  };
 }
 
 /*******************************************************************************
@@ -258,7 +258,7 @@ export type PythonType =
   | 'tuple'
   | 'dict'
   | 'timestamp' // typically a number (seconds or ms since epoch) or ISO string
-  | 'datetime'  // typically an ISO string
+  | 'datetime' // typically an ISO string
   | 'timedelta'; // typically a number (seconds or ms) or "D days, HH:MM:SS" string
 
 export function castToPythonType(value: string, pyType: PythonType): any {
@@ -269,14 +269,15 @@ export function castToPythonType(value: string, pyType: PythonType): any {
 
       case 'int': {
         // Allow empty string to become null or handle as error if strict
-        if (value.trim() === "") return { error: `Invalid int: empty string` }; 
+        if (value.trim() === '') return { error: `Invalid int: empty string` };
         const intVal = parseInt(value, 10);
-        if (isNaN(intVal) || String(intVal) !== value.trim()) throw new Error(`Invalid int: ${value}`); // Stricter check
+        if (isNaN(intVal) || String(intVal) !== value.trim())
+          throw new Error(`Invalid int: ${value}`); // Stricter check
         return intVal;
       }
 
       case 'float': {
-        if (value.trim() === "") return { error: `Invalid float: empty string` };
+        if (value.trim() === '') return { error: `Invalid float: empty string` };
         const floatVal = parseFloat(value);
         if (isNaN(floatVal)) throw new Error(`Invalid float: ${value}`);
         return floatVal;
@@ -292,9 +293,10 @@ export function castToPythonType(value: string, pyType: PythonType): any {
       case 'list':
       case 'tuple': // Tuples are often represented as lists in JS/JSON
       case 'dict': {
-        if (value.trim() === "") { // Allow empty string for empty structures if desired, or error
-            if (pyType === 'list' || pyType === 'tuple') return [];
-            if (pyType === 'dict') return {};
+        if (value.trim() === '') {
+          // Allow empty string for empty structures if desired, or error
+          if (pyType === 'list' || pyType === 'tuple') return [];
+          if (pyType === 'dict') return {};
         }
         const parsed = JSON.parse(value);
         if (pyType === 'list' || pyType === 'tuple') {
@@ -310,14 +312,15 @@ export function castToPythonType(value: string, pyType: PythonType): any {
         break; // Should not be reached due to above checks
       }
 
-      case 'timestamp': { // Assuming timestamp is expected as ISO string or unix epoch number
-        if (value.trim() === "") return { error: `Invalid timestamp: empty string` };
+      case 'timestamp': {
+        // Assuming timestamp is expected as ISO string or unix epoch number
+        if (value.trim() === '') return { error: `Invalid timestamp: empty string` };
         // Try parsing as number first (unix epoch in s or ms)
         const numVal = Number(value);
         if (!isNaN(numVal)) {
-            // Could be seconds or milliseconds. Assume seconds if it's not obviously ms.
-            // This is a heuristic. Backend might need to clarify expected format.
-            return numVal; // Or new Date(numVal * (numVal < 1e12 ? 1000 : 1)) if Date object is needed
+          // Could be seconds or milliseconds. Assume seconds if it's not obviously ms.
+          // This is a heuristic. Backend might need to clarify expected format.
+          return numVal; // Or new Date(numVal * (numVal < 1e12 ? 1000 : 1)) if Date object is needed
         }
         // Try parsing as date string
         const date = new Date(value);
@@ -325,15 +328,17 @@ export function castToPythonType(value: string, pyType: PythonType): any {
         return date.toISOString(); // Standard format
       }
 
-      case 'datetime': { // Expects an ISO string
-        if (value.trim() === "") return { error: `Invalid datetime: empty string` };
+      case 'datetime': {
+        // Expects an ISO string
+        if (value.trim() === '') return { error: `Invalid datetime: empty string` };
         const date = new Date(value);
         if (isNaN(date.getTime())) throw new Error(`Invalid datetime string: ${value}`);
         return date.toISOString();
       }
 
-      case 'timedelta': { // Expects a number (seconds) or specific string format
-        if (value.trim() === "") return { error: `Invalid timedelta: empty string` };
+      case 'timedelta': {
+        // Expects a number (seconds) or specific string format
+        if (value.trim() === '') return { error: `Invalid timedelta: empty string` };
         const seconds = Number(value);
         if (!isNaN(seconds)) {
           return seconds; // Assume seconds if it's a plain number
@@ -343,16 +348,18 @@ export function castToPythonType(value: string, pyType: PythonType): any {
         // const regex = /(?:(\d+)\s*day[s]?,\s*)?(\d{1,2}):(\d{2}):(\d{2})/;
         // const match = value.match(regex);
         // if (match) { ... }
-        throw new Error(`Invalid or unsupported timedelta format: ${value}. Expected number (seconds).`);
+        throw new Error(
+          `Invalid or unsupported timedelta format: ${value}. Expected number (seconds).`
+        );
       }
 
       default:
         // For unknown pyTypes, or if dataType is more complex like 'list<str>',
         // we might just return the string or try a JSON.parse as a general fallback.
         try {
-            return JSON.parse(value);
+          return JSON.parse(value);
         } catch (e) {
-            return value; // Fallback to raw string if not JSON and not a known type
+          return value; // Fallback to raw string if not JSON and not a known type
         }
     }
   } catch (err) {

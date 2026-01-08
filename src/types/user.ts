@@ -1,37 +1,37 @@
-import { ResponseProps } from "./common";
+import { ResponseProps } from './common';
 
 export interface Session {
-	user: {
-		id: string;
-		name: string;
-		email: string;
-		image: string;
-		createdAt: string;
-		apiKey: string;
-	};
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image: string;
+    createdAt: string;
+    apiKey: string;
+  };
 }
 
 export interface User {
-	id: string;
-	name: string;
-	lastName: string;
-	jobTitle: string;
-	bio: string;
-	image: string;
-	timezone: string | null;
-	email: string;
-	phoneNumber: string | null;
-	createdAt: string;
-	apiKey: string;
-	stripeCustomerId: string,
-	organization: {
-		name: string;
-		roleId: number;
-		roleName: string;
-	},
-	organizations: UserOrganization[],
-	assistantHiringApproval: ApprovalStatus,
-	hasClaimedApprovalLink: string
+  id: string;
+  name: string;
+  lastName: string;
+  jobTitle: string;
+  bio: string;
+  image: string;
+  timezone: string | null;
+  email: string;
+  phoneNumber: string | null;
+  createdAt: string;
+  apiKey: string;
+  stripeCustomerId: string;
+  organization: {
+    name: string;
+    roleId: number;
+    roleName: string;
+  };
+  organizations: UserOrganization[];
+  assistantHiringApproval: ApprovalStatus;
+  hasClaimedApprovalLink: string;
 }
 
 export interface UserOrganization {
@@ -49,65 +49,65 @@ export interface UserWorkspace {
 }
 
 export interface UserUpdateRequest {
-	email: string;
-	userId: string;
-	image: string | null;
-	name: string;
-	lastName: string;
-	jobTitle: string;
-	bio: string;
-	timezone?: string | null;
-	phoneNumber?: string | null;
+  email: string;
+  userId: string;
+  image: string | null;
+  name: string;
+  lastName: string;
+  jobTitle: string;
+  bio: string;
+  timezone?: string | null;
+  phoneNumber?: string | null;
 }
 
 export type BalanceDetails = {
-	balance: number | null;
-	nextPayment: number | null;
-	minCutoff: number | null;
+  balance: number | null;
+  nextPayment: number | null;
+  minCutoff: number | null;
 };
 
 // Assistant hiring approval interfaces
-export type ApprovalStatus = "approved" | "pending" | "rejected" | "revoked" | null;
+export type ApprovalStatus = 'approved' | 'pending' | 'rejected' | 'revoked' | null;
 
 export interface HiringProfileData {
-    assistantHiringApproval: string | null;
-    hasClaimedApprovalLink: boolean;
+  assistantHiringApproval: string | null;
+  hasClaimedApprovalLink: boolean;
 }
 
 export interface AssistantHiringApprovalResponse extends ResponseProps {
-	message: string;
-	assistantHiringApproval?: string | null;
+  message: string;
+  assistantHiringApproval?: string | null;
 }
 
 // Business classification types
-export type AccountType = "individual" | "business";
+export type AccountType = 'individual' | 'business';
 
 export interface BusinessAddress {
-	addressLine1: string;
-	addressLine2?: string;
-	city: string;
-	state?: string;
-	country: string;
-	postalCode?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state?: string;
+  country: string;
+  postalCode?: string;
 }
 
 export interface BusinessInfo {
-	businessName: string;
-	taxId: string;
-	businessType: string;
-	businessAddress: BusinessAddress;
-	taxExempt: boolean;
+  businessName: string;
+  taxId: string;
+  businessType: string;
+  businessAddress: BusinessAddress;
+  taxExempt: boolean;
 }
 
 export interface UserBusinessStatusResponse {
-	accountType: AccountType;
-	businessName?: string;
-	taxId?: string;
-	businessType?: string;
-	businessVerified: boolean;
-	taxExempt: boolean;
-	taxJurisdiction?: string;
-	businessAddress?: BusinessAddress;
+  accountType: AccountType;
+  businessName?: string;
+  taxId?: string;
+  businessType?: string;
+  businessVerified: boolean;
+  taxExempt: boolean;
+  taxJurisdiction?: string;
+  businessAddress?: BusinessAddress;
 }
 
 export interface OnboardingStatusResponse {
@@ -115,14 +115,14 @@ export interface OnboardingStatusResponse {
 }
 
 export interface TaxIdValidationRequest {
-	taxId: string;
-	country: string;
+  taxId: string;
+  country: string;
 }
 
 export interface TaxIdValidationResponse {
-	valid: boolean;
-	formattedTaxId?: string;
-	errorMessage?: string;
+  valid: boolean;
+  formattedTaxId?: string;
+  errorMessage?: string;
 }
 
 export interface SupportedTaxCountriesResponse {
@@ -143,26 +143,26 @@ export interface TaxCountry {
 }
 
 export interface CreateUserWithBusinessInfoRequest {
-	email: string;
-	name: string;
-	lastName: string;
-	jobTitle?: string;
-	bio?: string;
-	accountType: AccountType;
-	businessInfo?: BusinessInfo;
+  email: string;
+  name: string;
+  lastName: string;
+  jobTitle?: string;
+  bio?: string;
+  accountType: AccountType;
+  businessInfo?: BusinessInfo;
 }
 
 export interface UpdateAccountTypeRequest {
-	accountType: AccountType;
-	businessInfo?: BusinessInfo;
+  accountType: AccountType;
+  businessInfo?: BusinessInfo;
 }
 
 export interface UpdateBusinessInfoRequest {
-	businessName?: string;
-	taxId?: string;
-	businessType?: string;
-	businessAddress?: BusinessAddress;
-	taxExempt?: boolean;
+  businessName?: string;
+  taxId?: string;
+  businessType?: string;
+  businessAddress?: BusinessAddress;
+  taxExempt?: boolean;
 }
 
 export interface UpdateOnboardingStatusRequest {
@@ -174,11 +174,11 @@ export interface UpdateOnboardingStatusResponse {
 }
 
 export interface TaxClassificationFormData {
-	accountType: AccountType;
-	businessName: string;
-	taxId: string;
-	businessType: string;
-	businessAddress: BusinessAddress;
-	taxExempt: boolean;
-	taxCountry: string;
+  accountType: AccountType;
+  businessName: string;
+  taxId: string;
+  businessType: string;
+  businessAddress: BusinessAddress;
+  taxExempt: boolean;
+  taxCountry: string;
 }

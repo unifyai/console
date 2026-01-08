@@ -1,14 +1,14 @@
-import { StateCreator } from "zustand";
-import { StoreSlice } from "./slice";
-import * as tileLogic from "./selectors/tile";
-import * as tabLogic from "./selectors/tab";
-import * as tableTileLogic from "./selectors/tableTile";
-import * as plotTileLogic from "./selectors/plotTile";
-import * as viewTileLogic from "./selectors/viewTile";
-import * as editorTileLogic from "./selectors/editorTile";
-import * as terminalTileLogic from "./selectors/terminalTile";
-import * as sliceUtils from "../utils/sliceUtils";
-import { Tile } from "./selectors/tile";
+import { StateCreator } from 'zustand';
+import { StoreSlice } from './slice';
+import * as tileLogic from './selectors/tile';
+import * as tabLogic from './selectors/tab';
+import * as tableTileLogic from './selectors/tableTile';
+import * as plotTileLogic from './selectors/plotTile';
+import * as viewTileLogic from './selectors/viewTile';
+import * as editorTileLogic from './selectors/editorTile';
+import * as terminalTileLogic from './selectors/terminalTile';
+import * as sliceUtils from '../utils/sliceUtils';
+import { Tile } from './selectors/tile';
 
 export interface TileState {
   // State
@@ -20,7 +20,12 @@ export interface TileState {
 export interface TileActions {
   // Actions
   initTile: (tabId: string, tileId: string, initialState?: Partial<tileLogic.Tile>) => void;
-  pasteCopiedTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  pasteCopiedTile: (
+    tabId: string,
+    sourceTileId: string,
+    newTileId: string,
+    initialState?: Partial<tileLogic.Tile>
+  ) => void;
   removeTile: (tabId: string, tileId: string) => void;
   renameTile: (tabId: string, sourceTileId: string, newTileName: string) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
@@ -35,272 +40,331 @@ export type TileSlice = TileState & TileActions;
 
 export const createTileSlice: StateCreator<
   StoreSlice,
-  [["zustand/immer", never]],
+  [['zustand/immer', never]],
   [],
   TileSlice
 > = (set, get) => ({
   // State
   tilesById: {},
   tileHasRegisteredRefs: {},
-  
+
   // Ref registration methods
-  registerTileRefs: (tileId) => set(state => {
-    state.tileHasRegisteredRefs[tileId] = true;
-  }),
-  
-  unregisterTileRefs: (tileId) => set(state => {
-    state.tileHasRegisteredRefs[tileId] = false;
-  }),
-  
+  registerTileRefs: (tileId) =>
+    set((state) => {
+      state.tileHasRegisteredRefs[tileId] = true;
+    }),
+
+  unregisterTileRefs: (tileId) =>
+    set((state) => {
+      state.tileHasRegisteredRefs[tileId] = false;
+    }),
+
   hasTileRegisteredRefs: (tileId) => {
     return !!get().tileHasRegisteredRefs[tileId];
   },
 
-  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
-  }),
+  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) =>
+    set((state) => {
+      sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
+    }),
 
   // Actions
-  initTile: (tabId, tileId, initialState) => set(state => {
-    const tab = state.tabsById[tabId];
-    if (!tab) {
-      return;
-    }
-    
-    const existingTile = state.tilesById[tileId];
-    
-    // If tile doesn't exist, create it
-    if (!existingTile) {
-      const newTile = tileLogic.initTile(tileId, initialState);
-      state.tilesById[tileId] = newTile;
-      
-      // Initialize ref registration
-      state.tileHasRegisteredRefs[tileId] = false;
-      
-      // Initialize type-specific data if needed
-      if (newTile.type === 'Table') {
-        state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
-      } else if (newTile.type === 'Plot') {
-        state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
-      } else if (newTile.type === 'View') {
-        state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-      } else if (newTile.type === 'Editor') {
-        state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-      } else if (newTile.type === 'Terminal') {
-        state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
+  initTile: (tabId, tileId, initialState) =>
+    set((state) => {
+      const tab = state.tabsById[tabId];
+      if (!tab) {
+        return;
       }
-      
-      // Add the tile to the tab
-      state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
-    } else {
-      // Tile exists - but UPDATE the type if it's missing and we have one
-      if (!existingTile.type && initialState?.type) {
-        state.tilesById[tileId].type = initialState.type;
-        
-        // Initialize type-specific data for the newly set type
-        if (initialState.type === 'Table' && !state.tilesById[tileId].tableTile) {
+
+      const existingTile = state.tilesById[tileId];
+
+      // If tile doesn't exist, create it
+      if (!existingTile) {
+        const newTile = tileLogic.initTile(tileId, initialState);
+        state.tilesById[tileId] = newTile;
+
+        // Initialize ref registration
+        state.tileHasRegisteredRefs[tileId] = false;
+
+        // Initialize type-specific data if needed
+        if (newTile.type === 'Table') {
           state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
-        } else if (initialState.type === 'Plot' && !state.tilesById[tileId].plotTile) {
+        } else if (newTile.type === 'Plot') {
           state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
-        } else if (initialState.type === 'View' && !state.tilesById[tileId].viewTile) {
+        } else if (newTile.type === 'View') {
           state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-        } else if (initialState.type === 'Editor' && !state.tilesById[tileId].editorTile) {
+        } else if (newTile.type === 'Editor') {
           state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-        } else if (initialState.type === 'Terminal' && !state.tilesById[tileId].terminalTile) {
+        } else if (newTile.type === 'Terminal') {
           state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
         }
+
+        // Add the tile to the tab
+        state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
+      } else {
+        // Tile exists - but UPDATE the type if it's missing and we have one
+        if (!existingTile.type && initialState?.type) {
+          state.tilesById[tileId].type = initialState.type;
+
+          // Initialize type-specific data for the newly set type
+          if (initialState.type === 'Table' && !state.tilesById[tileId].tableTile) {
+            state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
+          } else if (initialState.type === 'Plot' && !state.tilesById[tileId].plotTile) {
+            state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
+          } else if (initialState.type === 'View' && !state.tilesById[tileId].viewTile) {
+            state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+          } else if (initialState.type === 'Editor' && !state.tilesById[tileId].editorTile) {
+            state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
+          } else if (initialState.type === 'Terminal' && !state.tilesById[tileId].terminalTile) {
+            state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
+          }
+        }
+
+        // Also update name if missing
+        if (!existingTile.name && initialState?.name) {
+          state.tilesById[tileId].name = initialState.name;
+        }
+
+        // Ensure tile is in the tab's tileIds
+        if (!tab.tileIds.includes(tileId)) {
+          state.tabsById[tabId] = tabLogic.addTile(tab, tileId, state.tilesById[tileId].name);
+        }
       }
-      
-      // Also update name if missing
-      if (!existingTile.name && initialState?.name) {
-        state.tilesById[tileId].name = initialState.name;
-      }
-      
-      // Ensure tile is in the tab's tileIds
-      if (!tab.tileIds.includes(tileId)) {
-        state.tabsById[tabId] = tabLogic.addTile(tab, tileId, state.tilesById[tileId].name);
-      }
-    }
-  }),
-  
-  removeTile: (tabId, tileId) => set(state => {
-    sliceUtils.removeTile(state, tabId, tileId);
-  }),
+    }),
 
-  renameTile: (tabId, sourceTileId, newTileName) => set(state => {
-    sliceUtils.renameTile(state, tabId, sourceTileId, newTileName);
-  }),
-  
-  updateTile: (tileId, updates) => set(state => {
-    const tile = state.tilesById[tileId];
+  removeTile: (tabId, tileId) =>
+    set((state) => {
+      sliceUtils.removeTile(state, tabId, tileId);
+    }),
 
-    if (tile) {
-      const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates, terminalTileUpdates } = sliceUtils.splitTileUpdates(updates);
+  renameTile: (tabId, sourceTileId, newTileName) =>
+    set((state) => {
+      sliceUtils.renameTile(state, tabId, sourceTileId, newTileName);
+    }),
 
-      let updatedTile = tile;
-      let tileUpdated = false;
-      let itemsNeedRecompute = false;
-      
-      // Update core tile properties
-      if (Object.keys(tileUpdates).length > 0) {
-        const filteredTileUpdates = sliceUtils.filterUnchangedUpdates(tile, tileUpdates);
-        if (Object.keys(filteredTileUpdates).length > 0) {
-          updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
-          tileUpdated = true;
+  updateTile: (tileId, updates) =>
+    set((state) => {
+      const tile = state.tilesById[tileId];
 
-          // Check if core tile updates need to recompute items
-          itemsNeedRecompute = Object.keys(tileUpdates).some(
-            key => tileLogic.TILE_PROPS_KEYS_AS_TILE_KEYS.includes(key as keyof Tile)
+      if (tile) {
+        const {
+          tileUpdates,
+          tableTileUpdates,
+          plotTileUpdates,
+          viewTileUpdates,
+          editorTileUpdates,
+          terminalTileUpdates,
+        } = sliceUtils.splitTileUpdates(updates);
+
+        let updatedTile = tile;
+        let tileUpdated = false;
+        let itemsNeedRecompute = false;
+
+        // Update core tile properties
+        if (Object.keys(tileUpdates).length > 0) {
+          const filteredTileUpdates = sliceUtils.filterUnchangedUpdates(tile, tileUpdates);
+          if (Object.keys(filteredTileUpdates).length > 0) {
+            updatedTile = tileLogic.updateTile(tile, filteredTileUpdates);
+            tileUpdated = true;
+
+            // Check if core tile updates need to recompute items
+            itemsNeedRecompute = Object.keys(tileUpdates).some((key) =>
+              tileLogic.TILE_PROPS_KEYS_AS_TILE_KEYS.includes(key as keyof Tile)
+            );
+          }
+        }
+
+        // Update table-specific data if needed
+        if (Object.keys(tableTileUpdates).length > 0) {
+          if (!updatedTile.tableTile) {
+            updatedTile.tableTile = tableTileLogic.initTableTile();
+            tileUpdated = true;
+          }
+
+          const filteredTableTileUpdates = sliceUtils.filterUnchangedUpdates(
+            updatedTile.tableTile,
+            tableTileUpdates
           );
-        }
-      }
-      
-      // Update table-specific data if needed
-      if (Object.keys(tableTileUpdates).length > 0) {
-        if (!updatedTile.tableTile) {
-          updatedTile.tableTile = tableTileLogic.initTableTile();
-          tileUpdated = true;
-        }
-        
-        const filteredTableTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.tableTile, tableTileUpdates);
-        if (Object.keys(filteredTableTileUpdates).length > 0) {
-          updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredTableTileUpdates);
-          tileUpdated = true;
+          if (Object.keys(filteredTableTileUpdates).length > 0) {
+            updatedTile.tableTile = tableTileLogic.updateTableTile(
+              updatedTile.tableTile,
+              filteredTableTileUpdates
+            );
+            tileUpdated = true;
 
-          // Check if table tile updates need recompute
-          itemsNeedRecompute = Object.keys(filteredTableTileUpdates).some(
-            key => tableTileLogic.TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS.includes(key as keyof typeof tile.tableTile)
+            // Check if table tile updates need recompute
+            itemsNeedRecompute = Object.keys(filteredTableTileUpdates).some((key) =>
+              tableTileLogic.TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS.includes(
+                key as keyof typeof tile.tableTile
+              )
+            );
+          }
+        }
+
+        // Update plot-specific data if needed
+        if (Object.keys(plotTileUpdates).length > 0) {
+          if (!updatedTile.plotTile) {
+            updatedTile.plotTile = plotTileLogic.initPlotTile();
+            tileUpdated = true;
+          }
+
+          const filteredPlotTileUpdates = sliceUtils.filterUnchangedUpdates(
+            updatedTile.plotTile,
+            plotTileUpdates
           );
-        }
-      }
-      
-      // Update plot-specific data if needed
-      if (Object.keys(plotTileUpdates).length > 0) {
-        if (!updatedTile.plotTile) {
-          updatedTile.plotTile = plotTileLogic.initPlotTile();
-          tileUpdated = true;
-        }
-        
-        const filteredPlotTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.plotTile, plotTileUpdates);
-        if (Object.keys(filteredPlotTileUpdates).length > 0) {
-          updatedTile.plotTile = plotTileLogic.updatePlotTile(updatedTile.plotTile, filteredPlotTileUpdates);
-          tileUpdated = true;
+          if (Object.keys(filteredPlotTileUpdates).length > 0) {
+            updatedTile.plotTile = plotTileLogic.updatePlotTile(
+              updatedTile.plotTile,
+              filteredPlotTileUpdates
+            );
+            tileUpdated = true;
 
-          // Check if plot tile updates need recompute
-          itemsNeedRecompute = Object.keys(filteredPlotTileUpdates).some(
-            key => plotTileLogic.PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS.includes(key as keyof typeof tile.plotTile)
+            // Check if plot tile updates need recompute
+            itemsNeedRecompute = Object.keys(filteredPlotTileUpdates).some((key) =>
+              plotTileLogic.PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS.includes(
+                key as keyof typeof tile.plotTile
+              )
+            );
+          }
+        }
+
+        // Update view-specific data if needed
+        if (Object.keys(viewTileUpdates).length > 0) {
+          if (!updatedTile.viewTile) {
+            updatedTile.viewTile = viewTileLogic.initViewTile();
+            tileUpdated = true;
+          }
+
+          const filteredViewTileUpdates = sliceUtils.filterUnchangedUpdates(
+            updatedTile.viewTile,
+            viewTileUpdates
           );
+          if (Object.keys(filteredViewTileUpdates).length > 0) {
+            updatedTile.viewTile = viewTileLogic.updateViewTile(
+              updatedTile.viewTile,
+              filteredViewTileUpdates
+            );
+            tileUpdated = true;
+
+            // Check if view tile updates need recompute
+            itemsNeedRecompute = Object.keys(filteredViewTileUpdates).some((key) =>
+              viewTileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(
+                key as keyof typeof tile.viewTile
+              )
+            );
+          }
         }
-      }
 
-      // Update view-specific data if needed
-      if (Object.keys(viewTileUpdates).length > 0) {
-        if (!updatedTile.viewTile) {
-          updatedTile.viewTile = viewTileLogic.initViewTile();
-          tileUpdated = true;
-        }
+        // Update editor-specific data if needed
+        if (Object.keys(editorTileUpdates).length > 0) {
+          if (!updatedTile.editorTile) {
+            updatedTile.editorTile = editorTileLogic.initEditorTile();
+            tileUpdated = true;
+          }
 
-        const filteredViewTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.viewTile, viewTileUpdates);
-        if (Object.keys(filteredViewTileUpdates).length > 0) {
-          updatedTile.viewTile = viewTileLogic.updateViewTile(updatedTile.viewTile, filteredViewTileUpdates);
-          tileUpdated = true;
-
-          // Check if view tile updates need recompute
-          itemsNeedRecompute = Object.keys(filteredViewTileUpdates).some(
-            key => viewTileLogic.VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS.includes(key as keyof typeof tile.viewTile)
+          const filteredEditorTileUpdates = sliceUtils.filterUnchangedUpdates(
+            updatedTile.editorTile,
+            editorTileUpdates
           );
+          if (Object.keys(filteredEditorTileUpdates).length > 0) {
+            updatedTile.editorTile = editorTileLogic.updateEditorTile(
+              updatedTile.editorTile,
+              filteredEditorTileUpdates
+            );
+            tileUpdated = true;
+
+            // Check if editor tile updates need recompute
+            itemsNeedRecompute = Object.keys(filteredEditorTileUpdates).some((key) =>
+              editorTileLogic.EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS.includes(
+                key as keyof typeof tile.editorTile
+              )
+            );
+          }
         }
-      }
 
-      // Update editor-specific data if needed
-      if (Object.keys(editorTileUpdates).length > 0) {
-        if (!updatedTile.editorTile) {
-          updatedTile.editorTile = editorTileLogic.initEditorTile();
-          tileUpdated = true;
-        }
+        // Update terminal-specific data if needed
+        if (Object.keys(terminalTileUpdates).length > 0) {
+          if (!updatedTile.terminalTile) {
+            updatedTile.terminalTile = terminalTileLogic.initTerminalTile();
+            tileUpdated = true;
+          }
 
-        const filteredEditorTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.editorTile, editorTileUpdates);
-        if (Object.keys(filteredEditorTileUpdates).length > 0) {
-          updatedTile.editorTile = editorTileLogic.updateEditorTile(updatedTile.editorTile, filteredEditorTileUpdates);
-          tileUpdated = true;
-
-          // Check if editor tile updates need recompute
-          itemsNeedRecompute = Object.keys(filteredEditorTileUpdates).some(
-            key => editorTileLogic.EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS.includes(key as keyof typeof tile.editorTile)
+          const filteredTerminalTileUpdates = sliceUtils.filterUnchangedUpdates(
+            updatedTile.terminalTile,
+            terminalTileUpdates
           );
+          if (Object.keys(filteredTerminalTileUpdates).length > 0) {
+            updatedTile.terminalTile = terminalTileLogic.updateTerminalTile(
+              updatedTile.terminalTile,
+              filteredTerminalTileUpdates
+            );
+            tileUpdated = true;
+
+            // Check if terminal tile updates need recompute
+            itemsNeedRecompute = Object.keys(filteredTerminalTileUpdates).some((key) =>
+              terminalTileLogic.TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS.includes(
+                key as keyof typeof tile.terminalTile
+              )
+            );
+          }
+        }
+
+        // If we need to recompute, add the flag to the updates
+        if (itemsNeedRecompute) {
+          if (!updatedTile.itemsNeedRecompute) {
+            updatedTile.itemsNeedRecompute = true;
+            tileUpdated = true;
+          }
+
+          // Also set the tab's flag if this tile has a tabId
+          if (
+            updatedTile.tabId &&
+            state.tabsById[updatedTile.tabId] &&
+            !state.tabsById[updatedTile.tabId].itemsNeedRecompute
+          ) {
+            state.tabsById[updatedTile.tabId].itemsNeedRecompute = true;
+          }
+        }
+
+        // Apply the updated tile if needed
+        if (tileUpdated) {
+          state.tilesById[tileId] = updatedTile;
+        }
+      }
+    }),
+
+  setType: (tileId, type) =>
+    set((state) => {
+      // We need to make sure that if the tile already had type specific data,
+      // we remove it
+      if (!type || (type && type !== state.tilesById[tileId].type)) {
+        if (state.tilesById[tileId].type === 'Table') {
+          state.tilesById[tileId].tableTile = null;
+        } else if (state.tilesById[tileId].type === 'Plot') {
+          state.tilesById[tileId].plotTile = null;
+        } else if (state.tilesById[tileId].type === 'View') {
+          state.tilesById[tileId].viewTile = null;
+        } else if (state.tilesById[tileId].type === 'Editor') {
+          state.tilesById[tileId].editorTile = null;
+        } else if (state.tilesById[tileId].type === 'Terminal') {
+          state.tilesById[tileId].terminalTile = null;
         }
       }
 
-      // Update terminal-specific data if needed
-      if (Object.keys(terminalTileUpdates).length > 0) {
-        if (!updatedTile.terminalTile) {
-          updatedTile.terminalTile = terminalTileLogic.initTerminalTile();
-          tileUpdated = true;
-        }
+      // Then change the type in the tile
+      state.tilesById[tileId].type = type;
 
-        const filteredTerminalTileUpdates = sliceUtils.filterUnchangedUpdates(updatedTile.terminalTile, terminalTileUpdates);
-        if (Object.keys(filteredTerminalTileUpdates).length > 0) {
-          updatedTile.terminalTile = terminalTileLogic.updateTerminalTile(updatedTile.terminalTile, filteredTerminalTileUpdates);
-          tileUpdated = true;
-
-          // Check if terminal tile updates need recompute
-          itemsNeedRecompute = Object.keys(filteredTerminalTileUpdates).some(
-            key => terminalTileLogic.TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS.includes(key as keyof typeof tile.terminalTile)
-          );
-        }
+      // Then make sure the new type specific data is initialized if needed
+      if (type === 'Table') {
+        state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
+      } else if (type === 'Plot') {
+        state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
+      } else if (type === 'View') {
+        state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+      } else if (type === 'Editor') {
+        state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
+      } else if (type === 'Terminal') {
+        state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
       }
-
-      // If we need to recompute, add the flag to the updates
-      if (itemsNeedRecompute) {
-        if (!updatedTile.itemsNeedRecompute) {
-          updatedTile.itemsNeedRecompute = true;
-          tileUpdated = true;
-        }
-
-        // Also set the tab's flag if this tile has a tabId
-        if (updatedTile.tabId && state.tabsById[updatedTile.tabId] && !state.tabsById[updatedTile.tabId].itemsNeedRecompute) {
-          state.tabsById[updatedTile.tabId].itemsNeedRecompute = true;
-        }
-      }
-
-      // Apply the updated tile if needed
-      if (tileUpdated) {
-        state.tilesById[tileId] = updatedTile;
-      }
-    }
-  }),
-
-  setType: (tileId, type) => set(state => {
-    // We need to make sure that if the tile already had type specific data,
-    // we remove it
-    if (!type || (type && type !== state.tilesById[tileId].type)) {
-      if (state.tilesById[tileId].type === 'Table') {
-        state.tilesById[tileId].tableTile = null;
-      } else if (state.tilesById[tileId].type === 'Plot') {
-        state.tilesById[tileId].plotTile = null;
-      } else if (state.tilesById[tileId].type === 'View') {
-        state.tilesById[tileId].viewTile = null;
-      } else if (state.tilesById[tileId].type === 'Editor') {
-        state.tilesById[tileId].editorTile = null;
-      } else if (state.tilesById[tileId].type === 'Terminal') {
-        state.tilesById[tileId].terminalTile = null;
-      }
-    }
-
-    // Then change the type in the tile
-    state.tilesById[tileId].type = type;
-
-    // Then make sure the new type specific data is initialized if needed
-    if (type === 'Table') {
-      state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
-    } else if (type === 'Plot') {
-      state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
-    } else if (type === 'View') {
-      state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-    } else if (type === 'Editor') {
-      state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-    } else if (type === 'Terminal') {
-      state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
-    }
-  }),
-}); 
+    }),
+});

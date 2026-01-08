@@ -11,18 +11,18 @@ permissions:
 jobs:
   test-demos:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.client_payload.sha || github.ref }}
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Install dependencies
         run: npm install @codesandbox/sdk
 

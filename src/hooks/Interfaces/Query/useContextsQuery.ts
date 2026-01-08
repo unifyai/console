@@ -1,17 +1,14 @@
-"use client";
+'use client';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ContextActions } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 
 /**
  * Hook to fetch all contexts for a project
  */
-export function useListContextsQuery(
-  projectId: string | null,
-  actions: ContextActions
-) {
+export function useListContextsQuery(projectId: string | null, actions: ContextActions) {
   return useQuery({
     queryKey: ['contexts', projectId],
     queryFn: async () => {
@@ -32,14 +29,14 @@ export function useListContextsQuery(
  */
 export function useCreateContextQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      name, 
-      actions 
-    }: { 
-      projectId: string; 
+    mutationFn: async ({
+      projectId,
+      name,
+      actions,
+    }: {
+      projectId: string;
       name: string;
       actions: ContextActions;
     }) => {
@@ -47,8 +44,8 @@ export function useCreateContextQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate contexts query to refetch the list
-      queryClient.invalidateQueries({ 
-        queryKey: ['contexts', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['contexts', variables.projectId],
       });
     },
   });
@@ -60,15 +57,15 @@ export function useCreateContextQuery() {
 export function useRenameContextQuery() {
   const queryClient = useQueryClient();
   const storeApi = useStoreApiContext();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      currentName, 
-      newName, 
-      actions 
-    }: { 
-      projectId: string; 
+    mutationFn: async ({
+      projectId,
+      currentName,
+      newName,
+      actions,
+    }: {
+      projectId: string;
       currentName: string;
       newName: string;
       actions: ContextActions;
@@ -77,10 +74,13 @@ export function useRenameContextQuery() {
     },
     onSuccess: (data, variables) => {
       // Optimistic local rename for instant UI consistency
-      try { const s = storeApi.getState() as any; s.renameProjectContext?.(variables.projectId, variables.currentName, variables.newName); } catch {}
+      try {
+        const s = storeApi.getState() as any;
+        s.renameProjectContext?.(variables.projectId, variables.currentName, variables.newName);
+      } catch {}
       // Invalidate contexts to reconcile
-      queryClient.invalidateQueries({ 
-        queryKey: ['contexts', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['contexts', variables.projectId],
       });
     },
   });
@@ -92,14 +92,14 @@ export function useRenameContextQuery() {
 export function useDeleteContextQuery() {
   const queryClient = useQueryClient();
   const storeApi = useStoreApiContext();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      contextName, 
-      actions 
-    }: { 
-      projectId: string; 
+    mutationFn: async ({
+      projectId,
+      contextName,
+      actions,
+    }: {
+      projectId: string;
       contextName: string;
       actions: ContextActions;
     }) => {
@@ -107,10 +107,13 @@ export function useDeleteContextQuery() {
     },
     onSuccess: (_, variables) => {
       // Optimistic local delete for immediate UI
-      try { const s = storeApi.getState() as any; s.deleteProjectContext?.(variables.projectId, variables.contextName); } catch {}
+      try {
+        const s = storeApi.getState() as any;
+        s.deleteProjectContext?.(variables.projectId, variables.contextName);
+      } catch {}
       // Invalidate contexts query to refetch the list
-      queryClient.invalidateQueries({ 
-        queryKey: ['contexts', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['contexts', variables.projectId],
       });
     },
   });

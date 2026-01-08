@@ -1,4 +1,4 @@
-import { CallsDataProps } from "@/types/usage";
+import { CallsDataProps } from '@/types/usage';
 import {
   LineChart,
   Line,
@@ -8,9 +8,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-} from "recharts";
+} from 'recharts';
 
-function convertDataToNumericTimestamps(data: CallsDataProps[]): { ts: number; requestCount: number }[] {
+function convertDataToNumericTimestamps(
+  data: CallsDataProps[]
+): { ts: number; requestCount: number }[] {
   return data.map((d) => ({
     ts: new Date(d.ts).getTime(),
     requestCount: d.requestCount,
@@ -27,7 +29,7 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
       return null;
     }
     return (
-      <div className="bg-background px-2 py-2 rounded-md border shadow-sm text-medium">
+      <div className="text-medium rounded-md border bg-background px-2 py-2 shadow-sm">
         <p className="text-xs text-muted-foreground">{formatTooltipLabel(label)}</p>
         <ul className="list">
           {payload.map((entry: any, index: any) => (
@@ -43,24 +45,24 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
   // Now that ts is numeric, tickItem is a millisecond timestamp
   const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
     });
   };
 
   const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
       hour12: false,
     });
   };
@@ -73,15 +75,15 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
           dataKey="ts"
           type="number"
           scale="time"
-          domain={["auto", "auto"]}
+          domain={['auto', 'auto']}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}
-          tick={{ fontSize: "10px" }}
+          tick={{ fontSize: '10px' }}
           tickMargin={10}
           height={70}
         />
-        <YAxis orientation="right" tick={{ fontSize: "10px" }} />
+        <YAxis orientation="right" tick={{ fontSize: '10px' }} />
         <Tooltip content={renderTooltipContent} />
         <Legend verticalAlign="top" height={36} />
         <Line

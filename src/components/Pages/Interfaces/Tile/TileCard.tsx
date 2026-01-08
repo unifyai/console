@@ -1,19 +1,28 @@
-"use client";
+'use client';
 
-import React, { ReactNode, Suspense, lazy, useEffect } from "react";
-import { cn } from "@/utils/misc/cn";
-import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
-import { LogsActions } from "@/types/interfaces/grid";
-import { Loader2 } from "lucide-react";
-import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
+import React, { ReactNode, Suspense, lazy, useEffect } from 'react';
+import { cn } from '@/utils/misc/cn';
+import {
+  DerivedEntryActions,
+  FieldsActions,
+  ContextActions,
+  CodeActions,
+  GranularTileActions,
+  ProjectsActions,
+  FileActions,
+  GranularTabActions,
+} from '@/types/interfaces/grid';
+import { LogsActions } from '@/types/interfaces/grid';
+import { Loader2 } from 'lucide-react';
+import UnlinkedTileOverlay from './UnlinkedTileOverlay';
 import NewTileOverlay from './NewTileOverlay';
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useTile, useTileUI } from '@/contexts/hooks/tile';
-import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
+import { resolveColorHierarchy } from '@/utils/interfaces/plots/common';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/interfaces/refRegistry';
-import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useTileSync } from '@/contexts/hooks/tile/sync/useTileSync';
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 const TileHeader = lazy(() => import('./TileHeader'));
@@ -53,12 +62,11 @@ const TileCard = ({
   fileActions,
   children,
 }: TileCardProps) => {
-
   // Get refs from the registry instead of creating or receiving them via props
   const tileCardRef = getTileCardRef(tileId);
 
   // Register that this tile has initialized its refs via Zustand
-  const registerTileRefs = useStoreContext(state => state.registerTileRefs);
+  const registerTileRefs = useStoreContext((state) => state.registerTileRefs);
 
   // Register refs on mount
   useEffect(() => {
@@ -72,7 +80,7 @@ const TileCard = ({
 
   // Use granular tile hooks for tile-specific state
   const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
-  
+
   // Use global UI mode settings
   const { isEditMode } = useGlobalUIMode();
 
@@ -90,7 +98,8 @@ const TileCard = ({
   const syncedTileMetaActions = syncedTileActions?.meta ?? null;
   const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
 
-  const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[] || [];
+  const tableNames =
+    (tabDataActions?.getTileNamesByType('Table').filter(Boolean) as string[]) || [];
 
   const tileType = tileMetaState?.type ?? undefined;
   const tileName = tileMetaState?.name;
@@ -107,13 +116,13 @@ const TileCard = ({
     syncedTileMetaActions.setType(finalType);
 
     // Perform cleanup: if we are moving away from a 'View' type, clear its linked table.
-    if (oldType === "View" && finalType !== "View" && tableName && syncedTileDataActions) {
-        syncedTileDataActions.setTable(undefined);
+    if (oldType === 'View' && finalType !== 'View' && tableName && syncedTileDataActions) {
+      syncedTileDataActions.setTable(undefined);
     }
 
     // Perform setup: if creating a 'Table' from a typeless tile, set a default.
-    if (!oldType && finalType === "Table" && syncedTableTileActions) {
-        syncedTableTileActions.setTableType("Data Table");
+    if (!oldType && finalType === 'Table' && syncedTableTileActions) {
+      syncedTableTileActions.setTableType('Data Table');
     }
   };
 
@@ -122,16 +131,14 @@ const TileCard = ({
 
   return (
     <TileColorContext.Provider value={resolvedColor}>
-      <div ref={tileCardRef} className="relative flex w-full h-full border overflow-hidden">
-
+      <div ref={tileCardRef} className="relative flex h-full w-full overflow-hidden border">
         {/* Focus button moved inside tile content (handled in Tile component) */}
-        <div className={"w-full flex-1 flex flex-col items-center"}>
-          
+        <div className={'flex w-full flex-1 flex-col items-center'}>
           {/* Tile header with smooth show/hide animation */}
           <div
             className={cn(
-              "w-full transition-all duration-300 ease-in-out",
-              isEditMode ? "max-h-12 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+              'w-full transition-all duration-300 ease-in-out',
+              isEditMode ? 'max-h-12 opacity-100' : 'pointer-events-none max-h-0 opacity-0'
             )}
           >
             <TileHeader
@@ -148,17 +155,14 @@ const TileCard = ({
               fieldsActions={fieldsActions}
             />
           </div>
-          
+
           {/* Tile overlays and content */}
 
           {!tileType && isEditMode && (
-            <NewTileOverlay
-              tileName={tileName}
-              onSelectType={handleSelectType}
-            />
+            <NewTileOverlay tileName={tileName} onSelectType={handleSelectType} />
           )}
 
-          {tileType === "View" && !tableName && isEditMode && (
+          {tileType === 'View' && !tableName && isEditMode && (
             <UnlinkedTileOverlay
               tileType={tileType}
               tileName={tileName}
@@ -168,10 +172,11 @@ const TileCard = ({
             />
           )}
 
-          {!!tileType && <Suspense
+          {!!tileType && (
+            <Suspense
               key={tileId}
               fallback={
-                <div className="w-full h-full flex-1 flex items-center justify-center">
+                <div className="flex h-full w-full flex-1 items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               }
@@ -193,10 +198,9 @@ const TileCard = ({
                 }}
               />
             </Suspense>
-          }
+          )}
         </div>
       </div>
-
     </TileColorContext.Provider>
   );
 };

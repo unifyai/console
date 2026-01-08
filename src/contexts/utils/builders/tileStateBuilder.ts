@@ -1,17 +1,43 @@
-import { Tile, TileMeta, TileData as TileSliceData, TileUI } from '@/contexts/slices/selectors/tile';
-import { TableTile, TableTileData as TableTileSliceData } from '@/contexts/slices/selectors/tableTile';
+import {
+  Tile,
+  TileMeta,
+  TileData as TileSliceData,
+  TileUI,
+} from '@/contexts/slices/selectors/tile';
+import {
+  TableTile,
+  TableTileData as TableTileSliceData,
+} from '@/contexts/slices/selectors/tableTile';
 import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/selectors/plotTile';
-import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
-import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
-import { TerminalTile, TerminalTileData as TerminalTileSliceData } from '@/contexts/slices/selectors/terminalTile';
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from '@/types/interfaces/grid';
+import {
+  ViewTile,
+  ViewTileMeta,
+  ViewTileData as ViewTileSliceData,
+  ViewTileUI,
+} from '@/contexts/slices/selectors/viewTile';
+import {
+  EditorTile,
+  EditorTileData as EditorTileSliceData,
+} from '@/contexts/slices/selectors/editorTile';
+import {
+  TerminalTile,
+  TerminalTileData as TerminalTileSliceData,
+} from '@/contexts/slices/selectors/terminalTile';
+import {
+  TileData,
+  TableTileData,
+  PlotTileData,
+  ViewTileData,
+  EditorTileData,
+  TerminalTileData,
+} from '@/types/interfaces/grid';
 
 /**
  * Build tile state from API-returned tile data
  */
 export function buildTileState(tileData: TileData): Tile {
   if (!tileData || !tileData.id) {
-    throw new Error("Invalid tile data provided");
+    throw new Error('Invalid tile data provided');
   }
 
   // Build tile meta
@@ -70,11 +96,8 @@ export function buildTileState(tileData: TileData): Tile {
 /**
  * Add specialized tile data based on tile type
  */
-function addSpecializedTileData(
-  tile: Tile, 
-  tileData: TileData,
-): Tile {
-  switch(tileData.type) {
+function addSpecializedTileData(tile: Tile, tileData: TileData): Tile {
+  switch (tileData.type) {
     case 'Table':
       if (tileData.tableTile) {
         const tableTileData = buildTableTileData(tileData.tableTile);
@@ -103,7 +126,7 @@ function addSpecializedTileData(
       }
       break;
   }
-  
+
   return tile;
 }
 
@@ -115,7 +138,7 @@ function buildTableTileData(tableTileData: TableTileData): TableTile {
     tableType: tableTileData.tableType,
     pageNumber: tableTileData.pageNumber,
     limit: 20, // Hardcoded for now
-    offset: tableTileData.pageNumber ? parseInt(tableTileData.pageNumber) * 20 : 0,  // Hardcoded for now
+    offset: tableTileData.pageNumber ? parseInt(tableTileData.pageNumber) * 20 : 0, // Hardcoded for now
     groupLimit: tableTileData.groupLimit ?? 20,
     groupOffset: tableTileData.groupOffset ?? 0,
     columnOrder: tableTileData.columnOrder,
@@ -179,10 +202,7 @@ function buildTerminalTileData(terminalTileData: TerminalTileData): TerminalTile
 /**
  * Update a tile with parent references
  */
-export function updateTileParentReferences(
-  tileState: Tile,
-  tabId: string | null
-): Tile {
+export function updateTileParentReferences(tileState: Tile, tabId: string | null): Tile {
   return {
     ...tileState,
     tabId,

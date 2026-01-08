@@ -106,9 +106,7 @@ function getEnvVar(name: string): string | undefined {
  * When MATRIX_TEST_SPLIT=true: skips execution (generated files handle it).
  * When MATRIX_TEST_CHUNK=N: runs only chunk N of the matrix.
  */
-export function defineMatrixTests<T>(
-  config: MatrixTestConfig<T>
-): MatrixTestResult<T> {
+export function defineMatrixTests<T>(config: MatrixTestConfig<T>): MatrixTestResult<T> {
   const {
     name,
     getMatrix,
@@ -198,10 +196,7 @@ export function defineMatrixTests<T>(
  * Run a specific chunk of a matrix test.
  * Used by generated chunk files.
  */
-export function runMatrixChunk<T>(
-  matrixConfig: MatrixTestResult<T>,
-  chunkIndex: number
-): void {
+export function runMatrixChunk<T>(matrixConfig: MatrixTestResult<T>, chunkIndex: number): void {
   const { name, getMatrix, defineTests, chunkSize, getConfigAlias } = matrixConfig;
 
   const matrix = getMatrix();
@@ -220,9 +215,7 @@ export function runMatrixChunk<T>(
 
     chunk.forEach((config, index) => {
       const actualIndex = startIndex + index;
-      const alias = getConfigAlias
-        ? getConfigAlias(config, actualIndex)
-        : `Config ${actualIndex}`;
+      const alias = getConfigAlias ? getConfigAlias(config, actualIndex) : `Config ${actualIndex}`;
 
       describe(alias, () => {
         defineTests(config, { describe, it, expect });
@@ -251,4 +244,3 @@ export function getMatrixMetadata<T>(matrixConfig: MatrixTestResult<T>): {
     numChunks,
   };
 }
-

@@ -16,9 +16,7 @@ export interface UnifyUserMessage {
   content: Array<UnifyUserMessageContent>;
 }
 
-export type UnifyUserMessageContent =
-  | UnifyUserMessageTextContent
-  | UnifyUserMessageImageContent;
+export type UnifyUserMessageContent = UnifyUserMessageTextContent | UnifyUserMessageImageContent;
 
 export interface UnifyUserMessageImageContent {
   type: 'imageUrl';

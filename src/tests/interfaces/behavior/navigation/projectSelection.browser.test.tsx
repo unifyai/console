@@ -54,9 +54,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('shows project picker trigger button', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Test Project' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Test Project' }],
       });
 
       expect(screen.getByTestId('project-picker-trigger')).toBeInTheDocument();
@@ -76,9 +74,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('shows selected project name in trigger', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Selected Project' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Selected Project' }],
         activeProjectId: 'Selected Project',
       });
 
@@ -88,9 +84,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('shows "Select project" when none selected', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Available' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Available' }],
         activeProjectId: null,
       });
 
@@ -125,9 +119,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('closes picker after selection', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Test Project' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Test Project' }],
       });
 
       await result.clickProject('Test Project');
@@ -139,9 +131,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('updates trigger to show selected project', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Selected Project' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Selected Project' }],
       });
 
       await result.clickProject('Selected Project');
@@ -174,9 +164,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('programmatic selection works', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Programmatic' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Programmatic' }],
       });
 
       await result.selectProject('Programmatic');
@@ -186,16 +174,16 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
     it('updates active project display after selection', async () => {
       result = renderProjectSelection({
-        initialProjects: [
-          { id: 'p1', name: 'Selected Project' },
-        ],
+        initialProjects: [{ id: 'p1', name: 'Selected Project' }],
       });
 
       await result.clickProject('Selected Project');
 
       await waitFor(() => {
         expect(screen.getByTestId('active-project-display')).toBeInTheDocument();
-        expect(screen.getByTestId('active-project-display').textContent).toContain('Selected Project');
+        expect(screen.getByTestId('active-project-display').textContent).toContain(
+          'Selected Project'
+        );
       });
     });
   });
@@ -350,7 +338,7 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
       // Search to filter
       await result.searchProjects('Alpha');
-      
+
       await waitFor(() => {
         expect(result.getVisibleProjects()).toHaveLength(1);
       });
@@ -405,7 +393,9 @@ describe('P4-L: Project Selection (Real ProjectPicker)', () => {
 
       await result.clickDeleteButton('Important Project');
 
-      expect(screen.getByTestId('delete-project-dialog').textContent).toContain('Important Project');
+      expect(screen.getByTestId('delete-project-dialog').textContent).toContain(
+        'Important Project'
+      );
     });
 
     it('can confirm deletion', async () => {

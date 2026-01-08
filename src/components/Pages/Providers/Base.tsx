@@ -1,27 +1,24 @@
-import React from "react";
-import Script from "next/script";
-import { SessionProvider } from "./SessionProvider"; 
-import QueryProvider from "./QueryProvider";
-import { NextUIProvider } from "@nextui-org/react";
-import { SidebarProvider } from "@/components/UI/sidebar"
-import { WorkspaceProvider } from "./WorkspaceProvider"; 
-import { AuthErrorBoundary } from "@/components/Common/Auth/AuthErrorBoundary";
-import { getCurrentUser } from "@/lib/user/user";
+import React from 'react';
+import Script from 'next/script';
+import { SessionProvider } from './SessionProvider';
+import QueryProvider from './QueryProvider';
+import { NextUIProvider } from '@nextui-org/react';
+import { SidebarProvider } from '@/components/UI/sidebar';
+import { WorkspaceProvider } from './WorkspaceProvider';
+import { AuthErrorBoundary } from '@/components/Common/Auth/AuthErrorBoundary';
+import { getCurrentUser } from '@/lib/user/user';
 
 export default async function Providers({ children }: { children: React.ReactNode }) {
-
   const user = await getCurrentUser();
 
   return (
     <>
-      <NextUIProvider className="flex flex-col h-full flex-1">
+      <NextUIProvider className="flex h-full flex-1 flex-col">
         <SidebarProvider>
           <SessionProvider>
-            <WorkspaceProvider user={user}> 
+            <WorkspaceProvider user={user}>
               <QueryProvider>
-                <AuthErrorBoundary>
-                  {children}
-                </AuthErrorBoundary>
+                <AuthErrorBoundary>{children}</AuthErrorBoundary>
               </QueryProvider>
             </WorkspaceProvider>
           </SessionProvider>

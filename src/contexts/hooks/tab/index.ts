@@ -5,4 +5,4 @@
 export * from './useTabMeta';
 export * from './useTabData';
 export * from './useTabUI';
-export * from './useTab'; 
+export * from './useTab';

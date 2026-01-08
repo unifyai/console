@@ -1,50 +1,78 @@
-"use client";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { RefreshCw, Timer, Check } from "lucide-react";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { LogsActions, FieldsActions, PlotDataItem, ProjectsActions, ContextActions, GranularTileActions } from "@/types/interfaces/grid";
-import { PlotArguments } from "@/types/interfaces/logs";
-import { useTab } from "@/contexts/hooks/tab/useTab";
-import { useTiles } from "@/contexts/hooks/useStore";
-import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpdateQuery";
-import { useTileSync } from "@/contexts/hooks/tile/sync";
-import { useQueryClient } from "@tanstack/react-query";
-import { useTileData } from "@/contexts/hooks/tile/useTileData";
-import { showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+'use client';
+import ActionButton from '@/components/Common/Buttons/Action';
+import { RefreshCw, Timer, Check } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import {
+  LogsActions,
+  FieldsActions,
+  PlotDataItem,
+  ProjectsActions,
+  ContextActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { PlotArguments } from '@/types/interfaces/logs';
+import { useTab } from '@/contexts/hooks/tab/useTab';
+import { useTiles } from '@/contexts/hooks/useStore';
+import { usePlotAutoUpdateQuery } from '@/hooks/Interfaces/Query/usePlotAutoUpdateQuery';
+import { useTileSync } from '@/contexts/hooks/tile/sync';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTileData } from '@/contexts/hooks/tile/useTileData';
+import { showSuccessToast, withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 
 // Helper function to fetch latest timestamps for plot tables
 function fetchLatestTimestamps(
-  tables: string[], 
-  args: PlotArguments, 
-  project: string, 
-  logsActions: LogsActions, 
+  tables: string[],
+  args: PlotArguments,
+  project: string,
+  logsActions: LogsActions,
   signal?: AbortSignal
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
-    const promises = tables.map(table => {
+    const promises = tables.map((table) => {
       const tableArgs = args[table];
-      const tableContext = tableArgs?.["context"] ?? null;
-      const tableColumnContext = tableArgs?.["columnContext"] ?? null;
-      const tableFilters = tableArgs?.["filters"] ?? null;
-      const tableSubset = tableArgs?.["subset"] ?? null;
-      return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null, null, null, signal);
+      const tableContext = tableArgs?.['context'] ?? null;
+      const tableColumnContext = tableArgs?.['columnContext'] ?? null;
+      const tableFilters = tableArgs?.['filters'] ?? null;
+      const tableSubset = tableArgs?.['subset'] ?? null;
+      return logsActions.getLatest(
+        project,
+        tableContext,
+        tableColumnContext,
+        tableFilters,
+        null,
+        null,
+        null,
+        null,
+        tableSubset,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        signal
+      );
     });
     Promise.all(promises)
-      .then(latestDates => {
+      .then((latestDates) => {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const validTimestamps = latestDates.map(t => new Date(t).getTime()).filter(t => !isNaN(t));
+        const validTimestamps = latestDates
+          .map((t) => new Date(t).getTime())
+          .filter((t) => !isNaN(t));
         if (validTimestamps.length === 0) {
-          resolve(""); // Resolve with empty if no valid dates
+          resolve(''); // Resolve with empty if no valid dates
           return;
         }
         const latestTimestamp = new Date(Math.max(...validTimestamps));
-        const latest = latestTimestamp.toString() === "Invalid Date" ? "" : latestTimestamp.toISOString();
+        const latest =
+          latestTimestamp.toString() === 'Invalid Date' ? '' : latestTimestamp.toISOString();
         resolve(latest);
       })
-      .catch(error => {
+      .catch((error) => {
         if (error.name !== 'AbortError') {
-          console.error("Error fetching latest timestamps:", error);
+          console.error('Error fetching latest timestamps:', error);
         }
         reject(error); // Propagate the error
       });
@@ -52,51 +80,53 @@ function fetchLatestTimestamps(
 }
 
 const PlotRefresh = ({
-  tileId, 
-  tabId, 
-  interfaceId, 
-  projectId, 
-  pending, 
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+  pending,
   tileActions,
-  logsActions, 
+  logsActions,
   projectsActions,
   contextActions,
-  fieldsActions
+  fieldsActions,
 }: {
-  tileId: string,
-  tabId: string,
-  interfaceId: string,
-  projectId: string,
-  pending: boolean,
-  tileActions: GranularTileActions,
-  logsActions: LogsActions,
-  projectsActions: ProjectsActions,
-  contextActions: ContextActions,
-  fieldsActions: FieldsActions
+  tileId: string;
+  tabId: string;
+  interfaceId: string;
+  projectId: string;
+  pending: boolean;
+  tileActions: GranularTileActions;
+  logsActions: LogsActions;
+  projectsActions: ProjectsActions;
+  contextActions: ContextActions;
+  fieldsActions: FieldsActions;
 }) => {
   // Get access to the tab context and actions with granular access
   const { data: tabDataState } = useTab(tabId, interfaceId);
 
   const pendingRef = useRef(pending);
 
-  // Sync pending ref 
-  useEffect(() => { pendingRef.current = pending }, [pending]);
-  
+  // Sync pending ref
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
   // Get tileIds from tab data properly
   const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
   // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-  const tiles = useTiles(tileIds, ["name", "type"]);
+  const tiles = useTiles(tileIds, ['name', 'type']);
   const tables = useMemo(() => {
     // Only return table names for table tiles
     // Return should be an array of strings only
     return tiles
-      .filter(tile => tile.type === "Table")
-      .map(tile => tile.name)
+      .filter((tile) => tile.type === 'Table')
+      .map((tile) => tile.name)
       .filter(Boolean) as string[];
   }, [tiles]);
 
   const { data: tileDataState } = useTileData(tileId, tabId);
-  
+
   const { actions: syncedTileActions } = useTileSync(
     tileId,
     tabId,
@@ -116,7 +146,7 @@ const PlotRefresh = ({
     isFetching,
     manualRefresh,
     stop,
-    isManualRefresh
+    isManualRefresh,
   } = usePlotAutoUpdateQuery(
     tileId,
     tabId,
@@ -125,12 +155,12 @@ const PlotRefresh = ({
     logsActions,
     projectsActions,
     contextActions,
-    fieldsActions,
+    fieldsActions
   );
 
   // Manual refresh UI states (keep the checkmark feedback)
   const [loaded, setLoaded] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [lastUpdated, setLastUpdated] = useState<string>('');
   const [isManualFetching, setIsManualFetching] = useState(false);
   const isMounted = useRef(false);
 
@@ -157,26 +187,27 @@ const PlotRefresh = ({
   useEffect(() => {
     if (tables.length > 0) {
       // Get plot arguments from cache
-      const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
-      
+      const plotArguments =
+        queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) || ({} as PlotArguments);
+
       fetchLatestTimestamps(tables, plotArguments, projectId, logsActions)
-        .then(latestTimestamp => {
+        .then((latestTimestamp) => {
           if (isMounted.current) setLastUpdated(latestTimestamp);
         })
-        .catch(err => console.error("Failed to get initial latest plot timestamp:", err));
+        .catch((err) => console.error('Failed to get initial latest plot timestamp:', err));
     }
   }, [tables, tabId, projectId, logsActions, queryClient]);
 
   // Auto-update toggle
   const onAutoClick = () => {
-    const nextValue = tileDataState?.autoUpdate === "true" ? "false" : "true";
-    if (nextValue === "false") {
-        stop();
+    const nextValue = tileDataState?.autoUpdate === 'true' ? 'false' : 'true';
+    if (nextValue === 'false') {
+      stop();
     }
     syncedTileDataActions?.setAutoUpdate(nextValue);
     showSuccessToast(
-      "Auto-Refresh",
-      `Auto-refresh has been ${nextValue === "true" ? "enabled" : "disabled"}.`
+      'Auto-Refresh',
+      `Auto-refresh has been ${nextValue === 'true' ? 'enabled' : 'disabled'}.`
     );
   };
 
@@ -184,10 +215,10 @@ const PlotRefresh = ({
   const onManualClick = async () => {
     // If already fetching, show message
     if (isFetching || isManualFetching) {
-      showSuccessToast("Already Refreshing", "A refresh is already in progress.");
+      showSuccessToast('Already Refreshing', 'A refresh is already in progress.');
       return;
     }
-    if (tileDataState?.autoUpdate === "true" || tables.length === 0) return;
+    if (tileDataState?.autoUpdate === 'true' || tables.length === 0) return;
 
     setIsManualFetching(true);
 
@@ -195,12 +226,19 @@ const PlotRefresh = ({
       await withLoadingToastFn(
         async () => {
           // Get current plot arguments from cache
-          const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
+          const plotArguments =
+            queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) ||
+            ({} as PlotArguments);
 
-          const latestTimestamp = await fetchLatestTimestamps(tables, plotArguments, projectId, logsActions);
+          const latestTimestamp = await fetchLatestTimestamps(
+            tables,
+            plotArguments,
+            projectId,
+            logsActions
+          );
           const latestTs = latestTimestamp ? new Date(latestTimestamp).getTime() : 0;
           const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
-          
+
           if (latestTs > lastCheckTs) {
             // Data has changed, perform the actual refresh
             const result = await manualRefresh();
@@ -215,14 +253,14 @@ const PlotRefresh = ({
           }
         },
         {
-          loadingMessage: "Refreshing plot data...",
-          successMessage: "Plot data refreshed successfully!",
-          errorMessage: "Failed to refresh plot data."
+          loadingMessage: 'Refreshing plot data...',
+          successMessage: 'Plot data refreshed successfully!',
+          errorMessage: 'Failed to refresh plot data.',
         }
       );
     } catch (error: any) {
       if (error.name !== 'AbortError') {
-        console.error("Manual refresh error:", error);
+        console.error('Manual refresh error:', error);
       }
     } finally {
       if (isMounted.current) {
@@ -231,15 +269,15 @@ const PlotRefresh = ({
     }
   };
 
-  const isAutoUpdating = tileDataState?.autoUpdate === "true";
+  const isAutoUpdating = tileDataState?.autoUpdate === 'true';
   const isManualSpinning = isFetching || isManualFetching;
 
   const getIcon = () => {
     if (isAutoUpdating) {
-      return <RefreshCw className="animate-spin text-green" />;
+      return <RefreshCw className="text-green animate-spin" />;
     }
     if (isManualSpinning) {
-      return <RefreshCw className="animate-spin text-green" />;
+      return <RefreshCw className="text-green animate-spin" />;
     }
     if (loaded) {
       return <Check className="text-green" />;
@@ -248,14 +286,14 @@ const PlotRefresh = ({
   };
 
   const getTooltip = () => {
-    if (isAutoUpdating) return "Auto-refreshing plot logs...";
-    if (isManualSpinning) return "Refreshing plot logs...";
-    return "Refresh plot logs";
+    if (isAutoUpdating) return 'Auto-refreshing plot logs...';
+    if (isManualSpinning) return 'Refreshing plot logs...';
+    return 'Refresh plot logs';
   };
 
   const manualRefreshButton = (
-    <ActionButton 
-      className="rounded-sm h-8"
+    <ActionButton
+      className="h-8 rounded-sm"
       icon={getIcon()}
       tooltip={getTooltip()}
       onClick={onManualClick}
@@ -264,11 +302,11 @@ const PlotRefresh = ({
   );
 
   const autoRefresh = (
-    <ActionButton 
-      variant={isAutoUpdating ? "primary" : "ghost"}
+    <ActionButton
+      variant={isAutoUpdating ? 'primary' : 'ghost'}
       className="rounded-sm"
       icon={<Timer />}
-      tooltip={"Auto refresh every 5s"}
+      tooltip={'Auto refresh every 5s'}
       onClick={onAutoClick}
     />
   );

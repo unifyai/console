@@ -1,17 +1,29 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect } from 'react';
 import { perfStart, perfEnd } from '@/lib/perf';
-import { useTabRouterRefresh } from "./useTabRouterRefresh";
-import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/interfaces/grid";
-import { useUpdateTabUnifiedQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
-import { usePatchTileQuery, useDeleteTileQuery, useUpdateTileQuery, useCreateTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { useTab } from "../useTab";
-import { TabDataActions } from "../useTabData";
-import { TabUIActions } from "../useTabUI";
+import { useTabRouterRefresh } from './useTabRouterRefresh';
+import {
+  GranularTabActions,
+  GranularTileActions,
+  TableTileData,
+  TileData,
+  TilePosition,
+  TileLayout,
+} from '@/types/interfaces/grid';
+import { useUpdateTabUnifiedQuery } from '@/hooks/Interfaces/Query/useTabsQuery';
+import {
+  usePatchTileQuery,
+  useDeleteTileQuery,
+  useUpdateTileQuery,
+  useCreateTileQuery,
+} from '@/hooks/Interfaces/Query/useTilesQuery';
+import { useTab } from '../useTab';
+import { TabDataActions } from '../useTabData';
+import { TabUIActions } from '../useTabUI';
 import { v4 as uuidv4 } from 'uuid';
-import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
-import { Tile } from "@/contexts/slices/selectors/tile";
-import { useQueryClient } from "@tanstack/react-query";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
+import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
+import { Tile } from '@/contexts/slices/selectors/tile';
+import { useQueryClient } from '@tanstack/react-query';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for state syncing logging
@@ -61,19 +73,19 @@ export function useTabSync(
   tabId: string | null,
   interfaceId: string | null,
   tabActions: GranularTabActions | undefined,
-  tileActions?: GranularTileActions | undefined,
+  tileActions?: GranularTileActions | undefined
 ): { actions: SyncedTabActions | null } {
   // Get tab UI actions for router refresh coordination
   const { data: tabData, actions: tabOriginalActions } = useTab(tabId, interfaceId);
   const { data: tabDataActions, ui: tabUIActions } = tabOriginalActions ?? { data: null, ui: null };
-  
+
   // Mutation hooks for server state updates
   const updateTabMutation = useUpdateTabUnifiedQuery();
   const createTileMutation = useCreateTileQuery();
   const updateTileMutation = useUpdateTileQuery();
   const patchTileMutation = usePatchTileQuery();
   const deleteTileMutation = useDeleteTileQuery();
-  
+
   // Get router refresh function with pending state handling
   const refreshRouter = useTabRouterRefresh(tabUIActions ?? null);
 
@@ -95,7 +107,10 @@ export function useTabSync(
   // Helper to perform bulk tile patches with graceful fallback
   const bulkPatchTiles = async (
     updates: Array<{ id?: string; tabId?: string; name?: string; updateData: Record<string, any> }>
-  ): Promise<{ results: any[]; errors: Array<{ id?: string; tabId?: string; name?: string; error: string }> }> => {
+  ): Promise<{
+    results: any[];
+    errors: Array<{ id?: string; tabId?: string; name?: string; error: string }>;
+  }> => {
     if (!updates.length) return { results: [], errors: [] };
 
     // Fallback to per-item path if bulk disabled or tileActions missing
@@ -103,9 +118,18 @@ export function useTabSync(
       for (const u of updates) {
         try {
           if (u.id) {
-            await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
+            await patchTileMutation.mutateAsync({
+              id: u.id,
+              updateData: u.updateData,
+              actions: tileActions!,
+            });
           } else if (u.tabId && u.name) {
-            await patchTileMutation.mutateAsync({ tabId: u.tabId, name: u.name, updateData: u.updateData, actions: tileActions! });
+            await patchTileMutation.mutateAsync({
+              tabId: u.tabId,
+              name: u.name,
+              updateData: u.updateData,
+              actions: tileActions!,
+            });
           }
         } catch {}
       }
@@ -117,21 +141,35 @@ export function useTabSync(
       const res = await fetch('/api/tile/bulk/patch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
+        body: JSON.stringify({ updates }),
       });
-      const data = await res.json().catch(() => ({ results: [], errors: [{ error: 'Invalid response' }] }));
+      const data = await res
+        .json()
+        .catch(() => ({ results: [], errors: [{ error: 'Invalid response' }] }));
       if (!res.ok) throw new Error(data?.detail || `Bulk ${res.status}`);
       perfEnd(p, { results: data?.results?.length ?? 0, errors: data?.errors?.length ?? 0 });
-      return data as { results: any[]; errors: Array<{ id?: string; tabId?: string; name?: string; error: string }> };
+      return data as {
+        results: any[];
+        errors: Array<{ id?: string; tabId?: string; name?: string; error: string }>;
+      };
     } catch (e: any) {
       perfEnd(perfStart('bulkPatchTiles:error'), { error: true });
       // On bulk failure, fallback per-item
       for (const u of updates) {
         try {
           if (u.id) {
-            await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
+            await patchTileMutation.mutateAsync({
+              id: u.id,
+              updateData: u.updateData,
+              actions: tileActions!,
+            });
           } else if (u.tabId && u.name) {
-            await patchTileMutation.mutateAsync({ tabId: u.tabId, name: u.name, updateData: u.updateData, actions: tileActions! });
+            await patchTileMutation.mutateAsync({
+              tabId: u.tabId,
+              name: u.name,
+              updateData: u.updateData,
+              actions: tileActions!,
+            });
           }
         } catch {}
       }
@@ -152,46 +190,55 @@ export function useTabSync(
     updateData: Partial<TileData>;
   }) => {
     if (!id) return;
-    try { queryClient.invalidateQueries({ queryKey: ['tile-by-id', id] }); } catch {}
+    try {
+      queryClient.invalidateQueries({ queryKey: ['tile-by-id', id] });
+    } catch {}
     if (tabId) {
-      try { queryClient.invalidateQueries({ queryKey: ['tiles', tabId] }); } catch {}
-      try { queryClient.invalidateQueries({ queryKey: ['tab-with-tiles-by-id', tabId] }); } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['tiles', tabId] });
+      } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['tab-with-tiles-by-id', tabId] });
+      } catch {}
     }
 
     const touchesTableData =
-      ('context' in updateData) ||
-      ('columnContext' in updateData) ||
-      ('filters' in updateData) ||
-      ('commonFilter' in updateData) ||
-      ('grouping' in updateData) ||
-      ('metric' in updateData) ||
-      ('tableTile' in updateData) ||
-      ('autoUpdate' in updateData);
+      'context' in updateData ||
+      'columnContext' in updateData ||
+      'filters' in updateData ||
+      'commonFilter' in updateData ||
+      'grouping' in updateData ||
+      'metric' in updateData ||
+      'tableTile' in updateData ||
+      'autoUpdate' in updateData;
 
     const touchesPlotData =
-      ('context' in updateData) ||
-      ('columnContext' in updateData) ||
-      ('metric' in updateData) ||
-      ('grouping' in updateData) ||
-      ('plotTile' in updateData);
+      'context' in updateData ||
+      'columnContext' in updateData ||
+      'metric' in updateData ||
+      'grouping' in updateData ||
+      'plotTile' in updateData;
 
     const nextType = (updateData as any)?.type as string | undefined;
     const effectiveType = nextType || priorType || undefined;
 
     if (touchesTableData && effectiveType === 'Table') {
-      try { queryClient.invalidateQueries({ queryKey: ['tableDataItem', id] }); } catch {}
-      try { queryClient.invalidateQueries({ queryKey: ['tableDataItem', 'autoUpdate', id] }); } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['tableDataItem', id] });
+      } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['tableDataItem', 'autoUpdate', id] });
+      } catch {}
     }
     if (touchesPlotData && effectiveType === 'Plot') {
-      try { queryClient.invalidateQueries({ queryKey: ['plotDataItem', id] }); } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['plotDataItem', id] });
+      } catch {}
     }
   };
 
   // Decide if a structural refresh is warranted (rare)
-  const needsStructuralRefresh = (
-    priorType?: string | null,
-    nextData?: Partial<TileData>
-  ) => {
+  const needsStructuralRefresh = (priorType?: string | null, nextData?: Partial<TileData>) => {
     const nextType = nextData?.type as string | undefined;
     if (nextType && priorType && nextType !== priorType) {
       return true;
@@ -248,47 +295,59 @@ export function useTabSync(
         const delay = Math.min(2000 * Math.pow(2, attempts), 30000);
         createRetryAttemptsRef.current[tileId] = attempts + 1;
         createRetryTimersRef.current[tileId] = setTimeout(() => {
-          createTileMutation.mutate({
-            tabId: tabId,
-            name: tileName,
-            position: position || { x: 0, y: 0, width: 4, height: 4 },
-            data: safeInitialState,
-            tileId: tileId,
-            actions: tileActions
-          }, {
-            onSuccess: () => {
-              clearTimeout(createRetryTimersRef.current[tileId]);
-              delete createRetryTimersRef.current[tileId];
-              delete createRetryAttemptsRef.current[tileId];
-              tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
-              debugLog(`Tile ${tileName} created with ID ${tileId}`);
+          createTileMutation.mutate(
+            {
+              tabId: tabId,
+              name: tileName,
+              position: position || { x: 0, y: 0, width: 4, height: 4 },
+              data: safeInitialState,
+              tileId: tileId,
+              actions: tileActions,
             },
-            onError: () => {
-              tabDataActions.updateTile(tileId, { pending: true, error: 'Save failed. Retrying…' } as any);
-              scheduleCreateRetry();
+            {
+              onSuccess: () => {
+                clearTimeout(createRetryTimersRef.current[tileId]);
+                delete createRetryTimersRef.current[tileId];
+                delete createRetryAttemptsRef.current[tileId];
+                tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+                debugLog(`Tile ${tileName} created with ID ${tileId}`);
+              },
+              onError: () => {
+                tabDataActions.updateTile(tileId, {
+                  pending: true,
+                  error: 'Save failed. Retrying…',
+                } as any);
+                scheduleCreateRetry();
+              },
             }
-          });
+          );
         }, delay);
       };
 
       // Kick off create with retry handlers
-      createTileMutation.mutate({
-        tabId: tabId,
-        name: tileName,
-        position: position || { x: 0, y: 0, width: 4, height: 4 },
-        data: safeInitialState,
-        tileId: tileId,
-        actions: tileActions
-      }, {
-        onSuccess: () => {
-          tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
-          debugLog(`Tile ${tileName} created with ID ${tileId}`);
+      createTileMutation.mutate(
+        {
+          tabId: tabId,
+          name: tileName,
+          position: position || { x: 0, y: 0, width: 4, height: 4 },
+          data: safeInitialState,
+          tileId: tileId,
+          actions: tileActions,
         },
-        onError: () => {
-          tabDataActions.updateTile(tileId, { pending: true, error: 'Save failed. Retrying…' } as any);
-          scheduleCreateRetry();
+        {
+          onSuccess: () => {
+            tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+            debugLog(`Tile ${tileName} created with ID ${tileId}`);
+          },
+          onError: () => {
+            tabDataActions.updateTile(tileId, {
+              pending: true,
+              error: 'Save failed. Retrying…',
+            } as any);
+            scheduleCreateRetry();
+          },
         }
-      });
+      );
       return null;
     } catch (error) {
       console.error(`Failed to create tile ${tileName}:`, error);
@@ -310,7 +369,7 @@ export function useTabSync(
 
     const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
     const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
-    
+
     // 1) Update local state immediately
     tabDataActions.renameTile(tileId, newTileName);
 
@@ -318,9 +377,9 @@ export function useTabSync(
     patchTileMutation.mutate({
       id: tileId,
       updateData: {
-        name: newTileName
+        name: newTileName,
       },
-      actions: tileActions
+      actions: tileActions,
     });
 
     // 3) Batch references updates into a single bulk payload
@@ -338,13 +397,19 @@ export function useTabSync(
       if (!tile?.plotTile) return;
       const prev = updatesMap.get(id) || {};
       const prevPlot = (prev as any).plotTile || {};
-      updatesMap.set(id, { ...prev, plotTile: { ...prevPlot, [key]: (tile.plotTile as any)[key] } });
+      updatesMap.set(id, {
+        ...prev,
+        plotTile: { ...prevPlot, [key]: (tile.plotTile as any)[key] },
+      });
     };
     referencedPlotTileIds.xAxis.forEach((id) => mergePlotUpdate(id, 'xAxis'));
     referencedPlotTileIds.yAxis.forEach((id) => mergePlotUpdate(id, 'yAxis'));
     referencedPlotTileIds.plotGroupBy.forEach((id) => mergePlotUpdate(id, 'plotGroupBy'));
 
-    const updates = Array.from(updatesMap.entries()).map(([id, updateData]) => ({ id, updateData }));
+    const updates = Array.from(updatesMap.entries()).map(([id, updateData]) => ({
+      id,
+      updateData,
+    }));
 
     bulkPatchTiles(updates).then(({ errors }) => {
       if (errors?.length) {
@@ -377,7 +442,7 @@ export function useTabSync(
     try {
       await deleteTileMutation.mutateAsync({
         id: tileId,
-        actions: tileActions
+        actions: tileActions,
       });
     } catch (e) {
       showErrorToast(e, `Failed to delete tile ${oldTileName}`);
@@ -390,64 +455,64 @@ export function useTabSync(
     // 3) Then update any references to this tile in other tiles
     // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
     // Update the referenced tiles on the server
-    referencedTileIds.forEach(id => {
+    referencedTileIds.forEach((id) => {
       patchTileMutation.mutate({
         id: id,
         updateData: {
-          table: null
+          table: null,
         },
-        actions: tileActions
+        actions: tileActions,
       });
     });
 
     // 4) Update xAxis, yAxis, and plotGroupBy references for Plot tiles
     // Update xAxis references
-    referencedPlotTileIds.xAxis.forEach(id => {
+    referencedPlotTileIds.xAxis.forEach((id) => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
       if (tile?.plotTile) {
         patchTileMutation.mutate({
           id: id,
-        updateData: {
-          plotTile: {
-            xAxis: null
-          }
-        },
-          actions: tileActions
+          updateData: {
+            plotTile: {
+              xAxis: null,
+            },
+          },
+          actions: tileActions,
         });
       }
     });
 
     // Update yAxis references
-    referencedPlotTileIds.yAxis.forEach(id => {
+    referencedPlotTileIds.yAxis.forEach((id) => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
       if (tile?.plotTile) {
         patchTileMutation.mutate({
           id: id,
-        updateData: {
-          plotTile: {
-            yAxis: null
-          }
-        },
-          actions: tileActions
+          updateData: {
+            plotTile: {
+              yAxis: null,
+            },
+          },
+          actions: tileActions,
         });
       }
     });
 
     // Update plotGroupBy references
-    referencedPlotTileIds.plotGroupBy.forEach(id => {
+    referencedPlotTileIds.plotGroupBy.forEach((id) => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
       if (tile?.plotTile) {
         patchTileMutation.mutate({
           id: id,
-        updateData: {
-          plotTile: {
-            plotGroupBy: null
-          }
+          updateData: {
+            plotTile: {
+              plotGroupBy: null,
+            },
           },
-          actions: tileActions
+          actions: tileActions,
         });
       }
     });
@@ -479,36 +544,36 @@ export function useTabSync(
    */
   const wrapPasteCopiedTile = async (newTileName: string, sourceTileName: string) => {
     if (!tabId || !tabDataActions || !tileActions) return;
-    
+
     try {
       // Get the ID of the source tile
       const sourceTileId = tabDataActions.getTileId(sourceTileName);
       if (!sourceTileId) {
         throw new Error(`Source tile ${sourceTileName} not found`);
       }
-      
+
       // Get the source tile data
       const sourceTile = tabDataActions.getPartialTile(sourceTileId);
       if (!sourceTile) {
         throw new Error(`Source tile data for ${sourceTileName} not found`);
       }
-      
+
       // Generate a UUID for the new tile
       const newTileId = uuidv4();
-      
+
       // Convert source tile to TileData format
       const sourceTileData = convertTileToTileData(sourceTile as Tile);
-      
+
       // Update the local state first
       tabDataActions.pasteCopiedTile(newTileName, sourceTileName, {
         ...sourceTile,
         id: newTileId,
-        name: newTileName
+        name: newTileName,
       });
-      
+
       // Convert source tile data to a clean object without excluded properties
       const { id, tabId: _sourceTabId, name, position, type, ...cleanSourceData } = sourceTileData;
-      
+
       // Create the tile on the server with the generated UUID (use outer tabId which is guaranteed non-null)
       const result = await createTileMutation.mutateAsync({
         tabId: tabId!,
@@ -517,52 +582,52 @@ export function useTabSync(
           x: 0,
           y: 0,
           width: 4,
-          height: 4
+          height: 4,
         },
         data: cleanSourceData,
         tileId: newTileId,
         type: type,
-        actions: tileActions
+        actions: tileActions,
       });
-      
+
       // Copy associated data from React Query cache
-      
+
       // Copy tableDataItem if this is a table type
       if (type === 'Table' || sourceTile.tableTile) {
         // Get the source tile's tableDataItem from the cache
-        const sourceTableDataItem = queryClient.getQueryData(["tableDataItem", sourceTileId]);
+        const sourceTableDataItem = queryClient.getQueryData(['tableDataItem', sourceTileId]);
         if (sourceTableDataItem) {
           // Set the new tile's tableDataItem in the cache
-          queryClient.setQueryData(["tableDataItem", newTileId], sourceTableDataItem);
+          queryClient.setQueryData(['tableDataItem', newTileId], sourceTableDataItem);
           debugLog(`Copied tableDataItem from ${sourceTileId} to ${newTileId}`);
         }
       }
-      
+
       // Copy plotDataItem if this is a plot type
       if (type === 'Plot' || sourceTile.plotTile) {
         // Get the source tile's plotDataItem from the cache
-        const sourcePlotDataItem = queryClient.getQueryData(["plotDataItem", sourceTileId]);
+        const sourcePlotDataItem = queryClient.getQueryData(['plotDataItem', sourceTileId]);
         if (sourcePlotDataItem) {
           // Set the new tile's plotDataItem in the cache
-          queryClient.setQueryData(["plotDataItem", newTileId], sourcePlotDataItem);
+          queryClient.setQueryData(['plotDataItem', newTileId], sourcePlotDataItem);
           debugLog(`Copied plotDataItem from ${sourceTileId} to ${newTileId}`);
         }
       }
-      
+
       debugLog(`Tile ${sourceTileName} copied to ${newTileName} with ID ${newTileId}`);
-      
+
       return result;
     } catch (error) {
       console.error(`Failed to paste tile ${sourceTileName} to ${newTileName}:`, error);
-      
+
       // Rollback local state if server creation failed
       tabDataActions.removeTile(newTileName);
-      
+
       // Inform the user of the error
       if (tabUIActions) {
         console.error(`Failed to paste tile: ${error}`);
       }
-      
+
       return null;
     }
   };
@@ -570,7 +635,10 @@ export function useTabSync(
   /**
    * Remove a context from a tab and all its tiles that use this context
    */
-  const wrapRemoveContextFromTab = async (context: string, setPending?: (pending: boolean) => void) => {
+  const wrapRemoveContextFromTab = async (
+    context: string,
+    setPending?: (pending: boolean) => void
+  ) => {
     if (!tabId || !tabActions || !tileActions) return;
 
     // Check if we have access to the tab data
@@ -594,17 +662,17 @@ export function useTabSync(
         params: {
           id: tabId,
           data: {
-            context: ""
-          }
+            context: '',
+          },
         },
-        actions: tabActions
+        actions: tabActions,
       });
     }
 
     // Create a mapping of tileIds to tileNames before the operation
     const tileIds = tabDataActions.getTileIds();
     const tileNames = tabDataActions.getTileNames();
-    
+
     // Create a tile id to name mapping using the corresponding arrays
     const tileIdToNameMap = new Map<string, string>();
     tileIds.forEach((tileId, index) => {
@@ -614,7 +682,12 @@ export function useTabSync(
     });
 
     // Build bulk updates for tiles that use this context
-    const updates: Array<{ id?: string; tabId?: string; name?: string; updateData: Record<string, any> }> = [];
+    const updates: Array<{
+      id?: string;
+      tabId?: string;
+      name?: string;
+      updateData: Record<string, any>;
+    }> = [];
     tileIds.forEach((id: string, idx: number) => {
       const name = tileNames[idx];
       if (!name) return;
@@ -623,8 +696,14 @@ export function useTabSync(
 
       const updateData: { context?: string; columnContext?: string } = {};
       let needsUpdate = false;
-      if (tile.context === context) { updateData.context = ""; needsUpdate = true; }
-      if (tile.columnContext === context) { updateData.columnContext = ""; needsUpdate = true; }
+      if (tile.context === context) {
+        updateData.context = '';
+        needsUpdate = true;
+      }
+      if (tile.columnContext === context) {
+        updateData.columnContext = '';
+        needsUpdate = true;
+      }
       if (needsUpdate) {
         updates.push({ id, updateData });
       }
@@ -636,18 +715,21 @@ export function useTabSync(
         console.warn('[bulkRemoveContext] Partial failures:', errors.length);
       }
     }
-      
+
     // Refresh the router to update UI with new data
-    debugLog("[wrapRemoveContextFromTab] onSettled:", context);
+    debugLog('[wrapRemoveContextFromTab] onSettled:', context);
     refreshRouter({
-      externalPendingSetters: setPending ? [setPending] : []
+      externalPendingSetters: setPending ? [setPending] : [],
     });
   };
 
   /**
    * Set global context for a tab
    */
-  const wrapGlobalContext = async (context: string | undefined, setPending?: (pending: boolean) => void) => {
+  const wrapGlobalContext = async (
+    context: string | undefined,
+    setPending?: (pending: boolean) => void
+  ) => {
     if (!tabId || !tabActions || !tabDataActions) return;
 
     // Check if we have access to the tab data
@@ -666,51 +748,56 @@ export function useTabSync(
     tabDataActions.setGlobalContext(context);
 
     // 2) Optimistic server update
-    await updateTabMutation.mutateAsync({
-      params: {
-        id: tabId,
-        data: {
-          context: context || ""
-        }
+    await updateTabMutation.mutateAsync(
+      {
+        params: {
+          id: tabId,
+          data: {
+            context: context || '',
+          },
+        },
+        actions: tabActions,
       },
-      actions: tabActions
-    }, {
-      onSettled: async () => {
-        // After updating the tab, propagate context to tiles without explicit context
-        try {
-          const tileIds = tabDataActions.getTileIds();
-          const tileNames = tabDataActions.getTileNames();
-          const idToName = new Map<string, string>();
-          tileIds.forEach((id, idx) => { if (tileNames[idx]) idToName.set(id, tileNames[idx]); });
-
-          const patchPromises: Promise<any>[] = [];
-          if (tileActions) {
-            // Use patch so we don't override other fields
-            Array.from(idToName.entries()).forEach(([id, name]) => {
-              const tile = tabDataActions.getPartialTile(name);
-              if (tile && (!tile.context || tile.context === "")) {
-                patchPromises.push(
-                  patchTileMutation.mutateAsync({
-                    id,
-                    updateData: { context: context || "" },
-                    actions: tileActions
-                  })
-                );
-              }
+      {
+        onSettled: async () => {
+          // After updating the tab, propagate context to tiles without explicit context
+          try {
+            const tileIds = tabDataActions.getTileIds();
+            const tileNames = tabDataActions.getTileNames();
+            const idToName = new Map<string, string>();
+            tileIds.forEach((id, idx) => {
+              if (tileNames[idx]) idToName.set(id, tileNames[idx]);
             });
-          }
-          await Promise.all(patchPromises);
-        } catch (e) {
-          console.warn("Failed to propagate tab context to tiles:", e);
-        }
 
-        // Refresh the router to update UI with new data
-        debugLog("[wrapGlobalContext] onSettled:", context);
-        refreshRouter({
-          externalPendingSetters: setPending ? [setPending] : []
-        });
+            const patchPromises: Promise<any>[] = [];
+            if (tileActions) {
+              // Use patch so we don't override other fields
+              Array.from(idToName.entries()).forEach(([id, name]) => {
+                const tile = tabDataActions.getPartialTile(name);
+                if (tile && (!tile.context || tile.context === '')) {
+                  patchPromises.push(
+                    patchTileMutation.mutateAsync({
+                      id,
+                      updateData: { context: context || '' },
+                      actions: tileActions,
+                    })
+                  );
+                }
+              });
+            }
+            await Promise.all(patchPromises);
+          } catch (e) {
+            console.warn('Failed to propagate tab context to tiles:', e);
+          }
+
+          // Refresh the router to update UI with new data
+          debugLog('[wrapGlobalContext] onSettled:', context);
+          refreshRouter({
+            externalPendingSetters: setPending ? [setPending] : [],
+          });
+        },
       }
-    });
+    );
   };
 
   /**
@@ -727,22 +814,24 @@ export function useTabSync(
     const tile = tabDataActions.getPartialTile(tileId);
     const priorType = tile?.type || null;
 
-    if ("type" in updateData && (updateData.type === "Table" || updateData.type === "Plot")) {
+    if ('type' in updateData && (updateData.type === 'Table' || updateData.type === 'Plot')) {
       reload = true;
       setPending = true;
       setLoading = true;
-    }
-    else if (("tableType" in updateData) || ("context" in updateData) || ("columnContext" in updateData)) {
+    } else if (
+      'tableType' in updateData ||
+      'context' in updateData ||
+      'columnContext' in updateData
+    ) {
       // Check if the tile is a table tile or a plot tile
-      if (tile?.type === "Table" || tile?.type === "Plot") {
+      if (tile?.type === 'Table' || tile?.type === 'Plot') {
         reload = true;
         setLoading = true;
       }
-    }
-    else if ("autoUpdate" in updateData) {
+    } else if ('autoUpdate' in updateData) {
       // Check if the tile is a table tile or a plot tile
       const tile = tabDataActions.getPartialTile(tileId);
-      if (tile?.type === "Table" || tile?.type === "Plot") {
+      if (tile?.type === 'Table' || tile?.type === 'Plot') {
         reload = true;
       }
     }
@@ -754,14 +843,14 @@ export function useTabSync(
       zustandUpdateData = {
         ...zustandUpdateData,
         pending: true,
-      }
+      };
     }
 
     if (setLoading) {
       zustandUpdateData = {
         ...zustandUpdateData,
         loading: true,
-      }
+      };
     }
     // 1) Update local state immediately
     tabDataActions.updateTile(tileId, zustandUpdateData);
@@ -773,42 +862,48 @@ export function useTabSync(
       const delay = Math.min(2000 * Math.pow(2, attempts), 30000);
       updateRetryAttemptsRef.current[tileId] = attempts + 1;
       updateRetryTimersRef.current[tileId] = setTimeout(() => {
-        updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
-          onSuccess: async () => {
-            delete updateRetryAttemptsRef.current[tileId];
-            clearTimeout(updateRetryTimersRef.current[tileId]);
-            delete updateRetryTimersRef.current[tileId];
-            tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
-            await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
-          },
-          onError: () => {
-            tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
-            scheduleUpdateRetry();
-          },
-          onSettled: async () => {
-            if (needsStructuralRefresh(priorType, updateData)) {
-              refreshRouter();
-            }
+        updateTileMutation.mutate(
+          { id: tileId, data: updateData, actions: tileActions },
+          {
+            onSuccess: async () => {
+              delete updateRetryAttemptsRef.current[tileId];
+              clearTimeout(updateRetryTimersRef.current[tileId]);
+              delete updateRetryTimersRef.current[tileId];
+              tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+              await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
+            },
+            onError: () => {
+              tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
+              scheduleUpdateRetry();
+            },
+            onSettled: async () => {
+              if (needsStructuralRefresh(priorType, updateData)) {
+                refreshRouter();
+              }
+            },
           }
-        });
+        );
       }, delay);
     };
 
-    updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
-      onSuccess: async () => {
-        tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
-        await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
-      },
-      onError: () => {
-        tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
-        scheduleUpdateRetry();
-      },
-      onSettled: async () => {
-        if (needsStructuralRefresh(priorType, updateData)) {
-          refreshRouter();
-        }
+    updateTileMutation.mutate(
+      { id: tileId, data: updateData, actions: tileActions },
+      {
+        onSuccess: async () => {
+          tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+          await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
+        },
+        onError: () => {
+          tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
+          scheduleUpdateRetry();
+        },
+        onSettled: async () => {
+          if (needsStructuralRefresh(priorType, updateData)) {
+            refreshRouter();
+          }
+        },
       }
-    });
+    );
   };
 
   /**
@@ -846,15 +941,19 @@ export function useTabSync(
     layoutDebounceTimersRef.current[tileId] = setTimeout(() => {
       const payload = pendingLayoutUpdateRef.current[tileId];
       if (!payload) return;
-      lastSentLayoutHashRef.current[tileId] = JSON.stringify(payload.position) + `|${payload.minW}|${payload.minH}`;
-      updateTileMutation.mutate({ id: tileId, data: payload, actions: tileActions }, {
-        onError: () => {
-          // schedule one retry for layout update; subsequent layout changes will supersede
-          setTimeout(() => {
-            updateTileMutation.mutate({ id: tileId, data: payload, actions: tileActions });
-          }, 1500);
+      lastSentLayoutHashRef.current[tileId] =
+        JSON.stringify(payload.position) + `|${payload.minW}|${payload.minH}`;
+      updateTileMutation.mutate(
+        { id: tileId, data: payload, actions: tileActions },
+        {
+          onError: () => {
+            // schedule one retry for layout update; subsequent layout changes will supersede
+            setTimeout(() => {
+              updateTileMutation.mutate({ id: tileId, data: payload, actions: tileActions });
+            }, 1500);
+          },
         }
-      });
+      );
       delete pendingLayoutUpdateRef.current[tileId];
       delete layoutDebounceTimersRef.current[tileId];
     }, 400);
@@ -865,7 +964,7 @@ export function useTabSync(
    */
   const wrapUpdateTableTile = (tileId: string, updateData: Partial<TableTileData>) => {
     if (!tileId || !tabDataActions || !tileActions) return;
-    
+
     // 1) Update local state immediately
     tabDataActions.updateTableTile(tileId, updateData);
 
@@ -876,9 +975,9 @@ export function useTabSync(
     updateTileMutation.mutate({
       id: tileId,
       data: {
-        tableTile: updateData
+        tableTile: updateData,
       },
-      actions: tileActions
+      actions: tileActions,
     });
   };
 
@@ -897,14 +996,9 @@ export function useTabSync(
       updateTile: wrapUpdateTile,
       updateTileLayout: wrapUpdateTileLayout,
       updateTableTile: wrapUpdateTableTile,
-      setGlobalContext: wrapGlobalContext
+      setGlobalContext: wrapGlobalContext,
     } as SyncedTabDataActions;
-  }, [
-    tabDataActions,
-    tabId,
-    tabActions,
-    tileActions
-  ]);
+  }, [tabDataActions, tabId, tabActions, tileActions]);
 
   // Create the enhanced actions object with the wrapped setters
   const syncedUIActions = useMemo<TabUIActions | null>(() => {
@@ -914,12 +1008,7 @@ export function useTabSync(
       ...tabUIActions,
       // Use the specialized wrapper functions for each property
     } as TabUIActions;
-  }, [
-    tabUIActions,
-    tabId,
-    tabActions,
-    tileActions
-  ]);
+  }, [tabUIActions, tabId, tabActions, tileActions]);
 
   // Create the full actions object that incorporates the synced data actions
   const syncedActions = useMemo<SyncedTabActions | null>(() => {
@@ -928,7 +1017,7 @@ export function useTabSync(
     return {
       ...tabOriginalActions,
       data: syncedDataActions,
-      ui: syncedUIActions
+      ui: syncedUIActions,
     } as SyncedTabActions;
   }, [tabOriginalActions, syncedDataActions, syncedUIActions]);
 

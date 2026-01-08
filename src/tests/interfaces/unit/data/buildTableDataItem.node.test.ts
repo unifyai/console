@@ -10,12 +10,7 @@ import {
   getSortingObject,
   getGroupSortingObject,
 } from '@/utils/data/buildTableDataItem';
-import {
-  TileData,
-  TilePosition,
-  TableTileData,
-  LogsActions,
-} from '@/types/interfaces/grid';
+import { TileData, TilePosition, TableTileData, LogsActions } from '@/types/interfaces/grid';
 import {
   LogsResponseProps,
   LogProps,
@@ -107,7 +102,7 @@ describe('buildTableDataItem helpers', () => {
       tile,
       baseFields,
       'project-1',
-      dummyLogsActions,
+      dummyLogsActions
     );
 
     // Total count should come from the response
@@ -212,7 +207,7 @@ describe('buildTableDataItem helpers', () => {
       tile,
       baseFields,
       'project-1',
-      dummyLogsActions,
+      dummyLogsActions
     );
 
     // Total count should come from groupCount via getTotalCountFromLogsResponse
@@ -224,9 +219,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('getNewCells returns cells for new rows and changed values', () => {
-    const previousLogs: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const previousLogs: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
 
     const newLogs: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-updated'),
@@ -243,9 +236,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('filterNewLogsById returns only logs whose ids are not yet present', () => {
-    const existing: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const existing: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
     const incoming: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-duplicate'),
       makeUngroupedLog('log-2', 'error', 'Second'),
@@ -257,9 +248,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('filterNewSubRowsById delegates to filterNewLogsById', () => {
-    const existing: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const existing: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
     const incoming: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-duplicate'),
       makeUngroupedLog('log-2', 'error', 'Second'),

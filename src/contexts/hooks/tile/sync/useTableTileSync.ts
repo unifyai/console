@@ -1,14 +1,20 @@
-"use client";
+'use client';
 
-import { useMemo, useRef, useEffect } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
-import { useTableTile, TableActions } from "../useTableTile";
-import { useTileUI } from "../useTileUI";
-import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { showErrorToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+import { useMemo, useRef, useEffect } from 'react';
+import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
+import {
+  ContextActions,
+  FieldsActions,
+  LogsActions,
+  ProjectsActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { useTableTile, TableActions } from '../useTableTile';
+import { useTileUI } from '../useTileUI';
+import { useTileMeta } from '@/contexts/hooks/tile/useTileMeta';
+import { usePatchSpecializedTileQueryOptimistic } from '@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { showErrorToast, withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for state syncing logging
@@ -28,16 +34,17 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the TableTile that will be synced with the server
  */
-export type SyncedTableProperties = 'tableType' | 
-'pageNumber' | 
-'columnOrder' |
-'hiddenColumns' |
-'defaultHiddenColumns' |
-'sorting' | 
-'groupSorting' | 
-'columnsPinLeft' | 
-'columnsPinRight' | 
-'selected';
+export type SyncedTableProperties =
+  | 'tableType'
+  | 'pageNumber'
+  | 'columnOrder'
+  | 'hiddenColumns'
+  | 'defaultHiddenColumns'
+  | 'sorting'
+  | 'groupSorting'
+  | 'columnsPinLeft'
+  | 'columnsPinRight'
+  | 'selected';
 
 /**
  * Loading states for each property
@@ -127,16 +134,16 @@ export function useTableTileSync(
   }, []);
 
   // Create individual mutation hooks for each property
-  const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const sortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const groupSortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const columnOrderMutation = usePatchSpecializedTileQuery<"Table">();
-  const hiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
-  const columnsPinLeftMutation = usePatchSpecializedTileQuery<"Table">();
-  const columnsPinRightMutation = usePatchSpecializedTileQuery<"Table">();
-  const selectedMutation = usePatchSpecializedTileQuery<"Table">();
-  const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
+  const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const sortingMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const groupSortingMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const columnOrderMutation = usePatchSpecializedTileQuery<'Table'>();
+  const hiddenColumnsMutation = usePatchSpecializedTileQuery<'Table'>();
+  const columnsPinLeftMutation = usePatchSpecializedTileQuery<'Table'>();
+  const columnsPinRightMutation = usePatchSpecializedTileQuery<'Table'>();
+  const selectedMutation = usePatchSpecializedTileQuery<'Table'>();
+  const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<'Table'>();
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
     tableType: tableTypeMutation,
@@ -160,10 +167,10 @@ export function useTableTileSync(
       uiActions.setLoading(true);
       uiActions.setPending(true);
     }
-    
+
     // 1) Update local state immediately
     tableTileActions.setTableType(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -173,26 +180,27 @@ export function useTableTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => tableTypeMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { tableType: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: true,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          tableTypeMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Table',
+            updateData: { tableType: value ?? null },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: true,
+            rebuildPlotData: true,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Updating table type...",
-          successMessage: "Table type updated!",
+          loadingMessage: 'Updating table type...',
+          successMessage: 'Table type updated!',
           errorMessage: `Failed to set table type for ${tileName}`,
         }
       );
@@ -201,7 +209,7 @@ export function useTableTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapTableType] onSettled:", value);
+      debugLog('[wrapTableType] onSettled:', value);
       uiActions?.setLoading(false);
       uiActions?.setPending(false);
     }
@@ -214,10 +222,10 @@ export function useTableTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     tableTileActions.setSorting(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -227,26 +235,27 @@ export function useTableTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => sortingMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { sorting: value ?? null },
-          refetchProjects: false,
-          refetchContexts: false,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          sortingMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Table',
+            updateData: { sorting: value ?? null },
+            refetchProjects: false,
+            refetchContexts: false,
+            refetchFields: true,
+            rebuildTableData: true,
+            rebuildPlotData: false,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Applying sorting...",
-          successMessage: "Sorting applied!",
+          loadingMessage: 'Applying sorting...',
+          successMessage: 'Sorting applied!',
           errorMessage: `Failed to set sorting for ${tileName}`,
         }
       );
@@ -255,7 +264,7 @@ export function useTableTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapSorting] onSettled:", value);
+      debugLog('[wrapSorting] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -267,10 +276,10 @@ export function useTableTileSync(
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     tableTileActions.setGroupSorting(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -280,26 +289,27 @@ export function useTableTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => groupSortingMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { groupSorting: value ?? null },
-          refetchProjects: false,
-          refetchContexts: false,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          groupSortingMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Table',
+            updateData: { groupSorting: value ?? null },
+            refetchProjects: false,
+            refetchContexts: false,
+            refetchFields: true,
+            rebuildTableData: true,
+            rebuildPlotData: false,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Applying grouping...",
-          successMessage: "Grouping applied successfully!",
+          loadingMessage: 'Applying grouping...',
+          successMessage: 'Grouping applied successfully!',
           errorMessage: `Failed to apply grouping for ${tileName}.`,
         }
       );
@@ -308,17 +318,17 @@ export function useTableTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapGroupSorting] onSettled:", value);
+      debugLog('[wrapGroupSorting] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
 
   const wrapColumnOrder = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnOrder(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -327,25 +337,25 @@ export function useTableTileSync(
     if (columnOrderTimeoutRef.current) {
       clearTimeout(columnOrderTimeoutRef.current);
     }
-    
+
     // Set a new timeout for the server mutation
     columnOrderTimeoutRef.current = setTimeout(() => {
       columnOrderMutation.mutate({
         tabId: tabId,
         name: tileName,
-        tileType: "Table",
+        tileType: 'Table',
         updateData: { columnOrder: value ?? null },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
   };
 
   const wrapHiddenColumns = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setHiddenColumns(value);   
-    
+    tableTileActions.setHiddenColumns(value);
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -354,22 +364,22 @@ export function useTableTileSync(
     if (hiddenColumnsTimeoutRef.current) {
       clearTimeout(hiddenColumnsTimeoutRef.current);
     }
-    
+
     // Set a new timeout for the server mutation
     hiddenColumnsTimeoutRef.current = setTimeout(() => {
       hiddenColumnsMutation.mutate({
-        tabId: tabId,    
+        tabId: tabId,
         name: tileName,
-        tileType: "Table",
+        tileType: 'Table',
         updateData: { hiddenColumns: value ?? null },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
-  };    
+  };
 
   const wrapDefaultHiddenColumns = (value: boolean | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setDefaultHiddenColumns(value);
 
@@ -386,19 +396,19 @@ export function useTableTileSync(
       defaultHiddenColumnsMutation.mutate({
         tabId: tabId,
         name: tileName,
-        tileType: "Table",
+        tileType: 'Table',
         updateData: { defaultHiddenColumns: value ?? true },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
   };
 
   const wrapColumnsPinLeft = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnsPinLeft(value);
-    
+
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
@@ -407,26 +417,26 @@ export function useTableTileSync(
     if (columnsPinLeftTimeoutRef.current) {
       clearTimeout(columnsPinLeftTimeoutRef.current);
     }
-    
+
     // Set a new timeout for the server mutation
     columnsPinLeftTimeoutRef.current = setTimeout(() => {
       columnsPinLeftMutation.mutate({
         tabId: tabId,
-        name: tileName,   
-        tileType: "Table",
+        name: tileName,
+        tileType: 'Table',
         updateData: { columnsPinLeft: value ?? null },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
   };
 
-  const wrapColumnsPinRight = (value: string | undefined) => {  
+  const wrapColumnsPinRight = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnsPinRight(value);
-    
-    // Don't attempt server update if we don't have required info   
+
+    // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // 2) Debounce the server mutation
@@ -434,26 +444,26 @@ export function useTableTileSync(
     if (columnsPinRightTimeoutRef.current) {
       clearTimeout(columnsPinRightTimeoutRef.current);
     }
-    
+
     // Set a new timeout for the server mutation
     columnsPinRightTimeoutRef.current = setTimeout(() => {
       columnsPinRightMutation.mutate({
         tabId: tabId,
-        name: tileName,   
-        tileType: "Table",
+        name: tileName,
+        tileType: 'Table',
         updateData: { columnsPinRight: value ?? null },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
   };
 
-  const wrapSelected = (value: string | undefined) => { 
+  const wrapSelected = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
-    
+
     // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setSelected(value);
-    
-    // Don't attempt server update if we don't have required info   
+
+    // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // 2) Debounce the server mutation
@@ -461,31 +471,31 @@ export function useTableTileSync(
     if (selectedTimeoutRef.current) {
       clearTimeout(selectedTimeoutRef.current);
     }
-    
+
     // Set a new timeout for the server mutation
     selectedTimeoutRef.current = setTimeout(() => {
       selectedMutation.mutate({
         tabId: tabId,
-        name: tileName,   
-        tileType: "Table",
+        name: tileName,
+        tileType: 'Table',
         updateData: { selected: value ?? null },
-        actions: granularTileActions
+        actions: granularTileActions,
       });
     }, 500); // 500ms debounce delay
   };
 
-  const wrapPageNumber = async (value: string | undefined) => {   
+  const wrapPageNumber = async (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
     if (uiActions) {
       uiActions.setLoading(true);
     }
-    
+
     // 1) Update local state immediately
     tableTileActions.setPageNumber(value);
-    
-    // Don't attempt server update if we don't have required info   
+
+    // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
     // Get fresh data from Zustand using the pure selectors
@@ -494,26 +504,27 @@ export function useTableTileSync(
     // 2) Optimistic server update
     try {
       await withLoadingToastFn(
-        () => pageNumberMutation.mutateAsync({
-          tabId: tabId,
-          name: tileName,   
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { pageNumber: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
-          actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
+        () =>
+          pageNumberMutation.mutateAsync({
+            tabId: tabId,
+            name: tileName,
+            projectId: state.activeProjectId || '',
+            tileType: 'Table',
+            updateData: { pageNumber: value ?? null },
+            refetchProjects: true,
+            refetchContexts: true,
+            refetchFields: true,
+            rebuildTableData: true,
+            rebuildPlotData: false,
+            actions: granularTileActions,
+            projectsActions: projectsActions as ProjectsActions,
+            contextActions: contextActions as ContextActions,
+            logsActions: logsActions as LogsActions,
+            fieldsActions: fieldsActions as FieldsActions,
+          }),
         {
-          loadingMessage: "Changing page...",
-          successMessage: "Page changed!",
+          loadingMessage: 'Changing page...',
+          successMessage: 'Page changed!',
           errorMessage: `Failed to set page number for ${tileName}`,
         }
       );
@@ -522,7 +533,7 @@ export function useTableTileSync(
       throw error;
     } finally {
       // 3. Refresh the router and set the loading state
-      debugLog("[wrapPageNumber] onSettled:", value);
+      debugLog('[wrapPageNumber] onSettled:', value);
       uiActions?.setLoading(false);
     }
   };
@@ -545,13 +556,7 @@ export function useTableTileSync(
       setSelected: wrapSelected,
       setPageNumber: wrapPageNumber,
     } as TableActions;
-  }, [
-    tableTileActions,
-    tabId,
-    tileId,
-    granularTileActions,
-    uiActions
-  ]);
+  }, [tableTileActions, tabId, tileId, granularTileActions, uiActions]);
 
   if (!tableTileActions || !granularTileActions) {
     return {
@@ -568,7 +573,7 @@ export function useTableTileSync(
         columnsPinRight: false,
         selected: false,
         pageNumber: false,
-        any: false
+        any: false,
       },
       error: {
         tableType: null,
@@ -581,9 +586,9 @@ export function useTableTileSync(
         columnsPinRight: null,
         selected: null,
         pageNumber: null,
-        any: false
+        any: false,
       },
-      exists: false
+      exists: false,
     };
   }
 
@@ -599,11 +604,11 @@ export function useTableTileSync(
     columnsPinRight: mutations.columnsPinRight.isPending,
     selected: mutations.selected.isPending,
     pageNumber: mutations.pageNumber.isPending,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property is loading
-  loading.any = Object.values(mutations).some(m => m.isPending);
+  loading.any = Object.values(mutations).some((m) => m.isPending);
 
   // Prepare error states
   const error: TableErrorStates = {
@@ -617,17 +622,17 @@ export function useTableTileSync(
     columnsPinRight: mutations.columnsPinRight.error,
     selected: mutations.selected.error,
     pageNumber: mutations.pageNumber.error,
-    any: false
+    any: false,
   };
-  
+
   // Check if any property has error
-  error.any = Object.values(mutations).some(m => !!m.error);
+  error.any = Object.values(mutations).some((m) => !!m.error);
 
   return {
     tableTile,
     tableTileActions: syncedActions,
     loading,
     error,
-    exists
+    exists,
   };
-} 
+}

@@ -1,9 +1,15 @@
 import getQueryClient from '@/app/getQueryClient';
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import Interface from "../Interface/Interface";
-import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
-import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore, buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
-import { IStoreState } from "@/contexts/store";
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import Interface from '../Interface/Interface';
+import { StoreInitializer } from '@/contexts/providers/StoreInitializer';
+import {
+  buildInterfaceStateForStore,
+  buildProjectStateForStore,
+  buildGlobalStateForStore,
+  buildTabStateForStore,
+  buildTileStateForStore,
+} from '@/contexts/utils/stateBuilderUtils';
+import { IStoreState } from '@/contexts/store';
 
 import type {
   ProjectsActions,
@@ -22,11 +28,11 @@ import type {
   TabData,
   TileData,
   FavouritesActions,
-  Favourite
-} from "@/types/interfaces/grid";
-import { ResourcesActions } from "@/types/resource";
-import { User } from "@/types/user";
-import { redirect } from "next/navigation";
+  Favourite,
+} from '@/types/interfaces/grid';
+import { ResourcesActions } from '@/types/resource';
+import { User } from '@/types/user';
+import { redirect } from 'next/navigation';
 
 /**
  * Debug flag for UI initial state logging
@@ -68,44 +74,43 @@ export default async function Main({
   userMeta,
 }: {
   project: string | null;
-  interfaceName: string | null;  // This is the interface name from query param
+  interfaceName: string | null; // This is the interface name from query param
   actions: InterfaceWrapperActions;
   initialFavourites: Favourite[];
-  userMeta: Pick<User, "organizations" | "id">;
+  userMeta: Pick<User, 'organizations' | 'id'>;
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  debugLog('[Main.server] === PARAMETER DEBUG ===');
+  debugLog('[Main.server] Received project:', project, typeof project);
+  debugLog('[Main.server] Received interfaceName:', interfaceName, typeof interfaceName);
+  debugLog('[Main.server] === END PARAMETER DEBUG ===');
 
-  debugLog("[Main.server] === PARAMETER DEBUG ===");
-  debugLog("[Main.server] Received project:", project, typeof project);
-  debugLog("[Main.server] Received interfaceName:", interfaceName, typeof interfaceName);
-  debugLog("[Main.server] === END PARAMETER DEBUG ===");
-
-  debugLog("[Main.server] Starting render with:", { project, interfaceName });
+  debugLog('[Main.server] Starting render with:', { project, interfaceName });
   const qc = getQueryClient();
 
   /* Enhanced prefetch for projects and contexts */
   let projects: string[] = [];
-  await qc.prefetchQuery({ 
-    queryKey: ["projects"], 
-    queryFn: actions.projectsActions.get 
+  await qc.prefetchQuery({
+    queryKey: ['projects'],
+    queryFn: actions.projectsActions.get,
   });
-  const maybeProjects = qc.getQueryData(["projects"]);
+  const maybeProjects = qc.getQueryData(['projects']);
   projects = Array.isArray(maybeProjects) ? (maybeProjects as string[]) : [];
-  debugLog("[Main.server] Loaded projects:", projects);
+  debugLog('[Main.server] Loaded projects:', projects);
 
   // Get the current project if it was provided in the URL
   // If no project is specified, default to "Assistants" project if it exists (unless user deliberately deselected)
-  let currentProject = projects.find(proj => proj == project) || null;
-  
+  let currentProject = projects.find((proj) => proj == project) || null;
+
   const userRequestedProjectSelection = searchParams?.selectProject === 'true';
   const userRequestedInterfaceSelection = searchParams?.selectInterface === 'true';
   const selectingInterface = !interfaceName || userRequestedInterfaceSelection;
-  
+
   if (!currentProject && !project && !userRequestedProjectSelection) {
     // Check if "Assistants" project exists and use it as default (fresh session)
-    const assistantsProject = projects.find(proj => proj === "Assistants");
+    const assistantsProject = projects.find((proj) => proj === 'Assistants');
     if (assistantsProject) {
-      debugLog("[Main.server] No project specified, redirecting to Assistants project");
+      debugLog('[Main.server] No project specified, redirecting to Assistants project');
       // Redirect to Assistants project
       const { redirect } = await import('next/navigation');
       redirect('/interfaces?project=Assistants');
@@ -114,26 +119,31 @@ export default async function Main({
       // We'll handle this case in the client component
     }
   }
-  
+
   // If a project was specified in the URL but the user doesn't have access to it,
   // redirect to the project selection screen to avoid an endless loading state.
   if (project && !currentProject) {
-    debugLog("[Main.server] Project specified in URL is not accessible. Redirecting to project selection.", { project });
-    redirect(`/interfaces?selectProject=true&notice=projectNotFound&missing=${encodeURIComponent(String(project))}`);
+    debugLog(
+      '[Main.server] Project specified in URL is not accessible. Redirecting to project selection.',
+      { project }
+    );
+    redirect(
+      `/interfaces?selectProject=true&notice=projectNotFound&missing=${encodeURIComponent(String(project))}`
+    );
   }
-  
-  debugLog("[Main.server] Current project:", currentProject);
+
+  debugLog('[Main.server] Current project:', currentProject);
 
   // **ALWAYS INITIALIZE WITH MINIMAL GLOBAL STATE**
-  debugLog("[Main.server] Building minimal global state for initialization");
+  debugLog('[Main.server] Building minimal global state for initialization');
   const minimalGlobalState = buildGlobalStateForStore(
     projects,
     null, // Always start with no project selected - will be updated via slice
     null, // Always start with no interface selected - will be updated via slice
-    null  // Always start with no tab selected - will be updated via slice
+    null // Always start with no tab selected - will be updated via slice
   );
-  debugLog("[Main.server] Minimal global state built:", { 
-    projectCount: minimalGlobalState.projects?.length 
+  debugLog('[Main.server] Minimal global state built:', {
+    projectCount: minimalGlobalState.projects?.length,
   });
 
   // Project contexts (deferred to client bootstrap)
@@ -147,16 +157,21 @@ export default async function Main({
   // This avoids blocking SSR on slow /interfaces/list and makes deselection snappy.
   if (currentProject && !selectingInterface) {
     await qc.prefetchQuery({
-      queryKey: ["interfaces", currentProject],
+      queryKey: ['interfaces', currentProject],
       queryFn: () => actions.interfaceActions.list(currentProject, false),
     });
 
     // Get interfaces from cache
-    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject]);
+    const maybeInterfaces = qc.getQueryData(['interfaces', currentProject]);
     interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
-    debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
+    debugLog(
+      '[Main.server] Loaded interfaces for project:',
+      currentProject,
+      'interfaces:',
+      interfaces.map((i) => i.name)
+    );
   } else if (currentProject && selectingInterface) {
-    debugLog("[Main.server] Skipping interface prefetch (selecting interface UI).");
+    debugLog('[Main.server] Skipping interface prefetch (selecting interface UI).');
   }
 
   // **BUILD ALL STATE SLICES THAT WE NEED**
@@ -164,119 +179,132 @@ export default async function Main({
 
   // Global state slice (activeProjectId, activeInterfaceId, activeTabId)
   let globalStateSlice: Partial<IStoreState> = {};
-  
+
   // Project state slice
   let projectStateSlice: Partial<IStoreState> = {};
-  
-  // Interface state slice  
+
+  // Interface state slice
   let interfaceStateSlice: Partial<IStoreState> = {};
-  
+
   // Tab state slice
   let tabStateSlice: Partial<IStoreState> = {};
-  
+
   // Tile state slice
   let tileStateSlice: Partial<IStoreState> = {};
 
   // Case 1: No project selected
   if (!currentProject) {
-    debugLog("[Main.server] No project selected, no additional slices needed");
+    debugLog('[Main.server] No project selected, no additional slices needed');
     // No additional slices needed
   }
   // Case 2: Project selected but no interface
   else if (currentProject && !interfaceName) {
-    debugLog("[Main.server] Project selected but no interface");
-    
+    debugLog('[Main.server] Project selected but no interface');
+
     // Update global state to set active project
     globalStateSlice = { activeProjectId: currentProject };
     stateSlices.push(globalStateSlice);
-    
+
     // Build project state slice
-    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
-    debugLog("[Main.server] Building project state slice, interfaceIds:", interfaceIds);
+    const interfaceIds = interfaces.map((iface) => iface.id).filter(Boolean) as string[];
+    debugLog('[Main.server] Building project state slice, interfaceIds:', interfaceIds);
     projectStateSlice = buildProjectStateForStore(
-      currentProject, 
+      currentProject,
       currentProject,
       contexts,
       interfaceIds,
       undefined
     );
     stateSlices.push(projectStateSlice);
-    debugLog("[Main.server] Project state slice built");
+    debugLog('[Main.server] Project state slice built');
   }
   // Case 3: Both project and interface selected
   else if (currentProject && interfaceName) {
-    const currentInterface = interfaces.find(i => i.name === interfaceName) || null;
-    debugLog("[Main.server] Validating interface:", interfaceName, "found:", !!currentInterface);
-    
+    const currentInterface = interfaces.find((i) => i.name === interfaceName) || null;
+    debugLog('[Main.server] Validating interface:', interfaceName, 'found:', !!currentInterface);
+
     if (!currentInterface) {
-      debugLog("[Main.server] Interface not found or inaccessible, redirecting to interface selection for project");
-      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interfaceName))}`);
+      debugLog(
+        '[Main.server] Interface not found or inaccessible, redirecting to interface selection for project'
+      );
+      redirect(
+        `/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interfaceName))}`
+      );
     }
-    
-    debugLog("[Main.server] Valid interface found, building all state slices");
-    
+
+    debugLog('[Main.server] Valid interface found, building all state slices');
+
     // Build all state slices for full interface rendering
-    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
+    const interfaceIds = interfaces.map((iface) => iface.id).filter(Boolean) as string[];
     const activeInterfaceId = currentInterface.id;
-    
+
     // Build project state slice
-    debugLog("[Main.server] Building project state slice");
+    debugLog('[Main.server] Building project state slice');
     projectStateSlice = buildProjectStateForStore(
-      currentProject, 
+      currentProject,
       currentProject,
       contexts,
       interfaceIds,
       activeInterfaceId
     );
     stateSlices.push(projectStateSlice);
-    debugLog("[Main.server] Project state slice built");
+    debugLog('[Main.server] Project state slice built');
 
     // Get tabs for the interface
     let tabs: TabData[] = [];
-    const interfaceId = currentInterface.id || "";
-    
+    const interfaceId = currentInterface.id || '';
+
     if (interfaceId) {
       await qc.prefetchQuery({
-        queryKey: ["tabs", interfaceId],
-        queryFn: () => actions.tabActions.list(interfaceId, false)
+        queryKey: ['tabs', interfaceId],
+        queryFn: () => actions.tabActions.list(interfaceId, false),
       });
-      
-      tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
+
+      tabs = qc.getQueryData<TabData[]>(['tabs', interfaceId]) || [];
       // Ensure tabs is actually an array before trying to map
       if (!Array.isArray(tabs)) {
-        console.warn("[Main.server] Tabs data is not an array, got:", typeof tabs, tabs);
+        console.warn('[Main.server] Tabs data is not an array, got:', typeof tabs, tabs);
         tabs = [];
       }
-      debugLog("[Main.server] Loaded tabs for interface:", interfaceId, "tabs:", tabs.map(t => t.name));
+      debugLog(
+        '[Main.server] Loaded tabs for interface:',
+        interfaceId,
+        'tabs:',
+        tabs.map((t) => t.name)
+      );
     }
 
     // Build interface state slice
     const activeTabId = currentInterface.activeTabId || undefined;
     // Prefer the URL tab if present (for SSR); otherwise use server's activeTabId
     let forcedActiveTabId: string | undefined = undefined;
-    const spTab = (typeof searchParams?.tab === 'string') ? (searchParams!.tab as string) : undefined;
+    const spTab = typeof searchParams?.tab === 'string' ? (searchParams!.tab as string) : undefined;
     if (spTab && Array.isArray(tabs)) {
-      const match = tabs.find(t => t.name === spTab);
+      const match = tabs.find((t) => t.name === spTab);
       if (match?.id) {
         forcedActiveTabId = match.id;
-        debugLog("[Main.server] Using tab from URL for SSR:", spTab, "ID:", forcedActiveTabId);
+        debugLog('[Main.server] Using tab from URL for SSR:', spTab, 'ID:', forcedActiveTabId);
       }
     }
     const finalActiveTabId = forcedActiveTabId ?? activeTabId;
 
-    debugLog("[Main.server] Building interface state slice");
+    debugLog('[Main.server] Building interface state slice');
     interfaceStateSlice = buildInterfaceStateForStore(
-      currentInterface, 
+      currentInterface,
       finalActiveTabId,
-      tabs.map(tab => tab.id || '') || [],
-      tabs.map(tab => tab.name || '') || []
+      tabs.map((tab) => tab.id || '') || [],
+      tabs.map((tab) => tab.name || '') || []
     );
     stateSlices.push(interfaceStateSlice);
-    debugLog("[Main.server] Interface state slice built");
+    debugLog('[Main.server] Interface state slice built');
 
     // Build tab and tile state slices (prefetch tiles only for active tab)
     if (tabs.length > 0) {
-      debugLog("[Main.server] Building tab and tile state slices (active tab tiles only) for", tabs.length, "tabs");
+      debugLog(
+        '[Main.server] Building tab and tile state slices (active tab tiles only) for',
+        tabs.length,
+        'tabs'
+      );
       const allTabData: TabData[] = [];
       const allTileData: TileData[] = [];
       const isActiveFlags: boolean[] = [];
@@ -285,7 +313,7 @@ export default async function Main({
       const tabIdsForTiles: string[] = [];
 
       for (const tab of tabs) {
-        const tabId = tab.id || "";
+        const tabId = tab.id || '';
         if (!tabId) continue;
 
         try {
@@ -295,20 +323,27 @@ export default async function Main({
 
           if (isActive) {
             await qc.prefetchQuery({
-              queryKey: ["tiles", tabId],
-              queryFn: () => actions.tileActions.list(tabId, undefined, false)
+              queryKey: ['tiles', tabId],
+              queryFn: () => actions.tileActions.list(tabId, undefined, false),
             });
-            const rawTiles = qc.getQueryData(["tiles", tabId]);
+            const rawTiles = qc.getQueryData(['tiles', tabId]);
             const tabTiles: TileData[] = Array.isArray(rawTiles) ? (rawTiles as TileData[]) : [];
             if (!Array.isArray(rawTiles)) {
-              console.warn(`[Main.server] Tiles cache for tab ${tab.name} is not an array; skipping tiles for this tab.`);
+              console.warn(
+                `[Main.server] Tiles cache for tab ${tab.name} is not an array; skipping tiles for this tab.`
+              );
             } else {
-              debugLog("[Main.server] Loaded tiles for ACTIVE tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
+              debugLog(
+                '[Main.server] Loaded tiles for ACTIVE tab:',
+                tab.name,
+                'tiles:',
+                tabTiles.map((t) => `${t.name}(${t.type})`)
+              );
             }
 
-            tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
-            tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
-            tabTiles.forEach(tile => {
+            tileIdsPerTab.push(tabTiles.map((tile) => tile.id || ''));
+            tileNamesPerTab.push(tabTiles.map((tile) => tile.name || ''));
+            tabTiles.forEach((tile) => {
               allTileData.push(tile);
               tabIdsForTiles.push(tabId);
             });
@@ -323,7 +358,7 @@ export default async function Main({
       }
 
       if (allTabData.length > 0) {
-        debugLog("[Main.server] Building tab state slice for", allTabData.length, "tabs");
+        debugLog('[Main.server] Building tab state slice for', allTabData.length, 'tabs');
         tabStateSlice = buildTabStateForStore(
           allTabData,
           isActiveFlags,
@@ -332,39 +367,36 @@ export default async function Main({
           tileNamesPerTab
         );
         stateSlices.push(tabStateSlice);
-        debugLog("[Main.server] Tab state slice built");
+        debugLog('[Main.server] Tab state slice built');
       }
 
       if (allTileData.length > 0) {
-        debugLog("[Main.server] Building tile state slice for", allTileData.length, "tiles");
-        tileStateSlice = buildTileStateForStore(
-          allTileData,
-          tabIdsForTiles
-        );
+        debugLog('[Main.server] Building tile state slice for', allTileData.length, 'tiles');
+        tileStateSlice = buildTileStateForStore(allTileData, tabIdsForTiles);
         stateSlices.push(tileStateSlice);
-        debugLog("[Main.server] Tile state slice built");
+        debugLog('[Main.server] Tile state slice built');
       }
     }
 
     // Update global state to set active project, interface, and tab
-    globalStateSlice = { 
+    globalStateSlice = {
       activeProjectId: currentProject,
       activeInterfaceId: activeInterfaceId,
-      activeTabId: (tabStateSlice as Partial<IStoreState>).activeTabId || null
+      activeTabId: (tabStateSlice as Partial<IStoreState>).activeTabId || null,
     };
     stateSlices.unshift(globalStateSlice); // Add at beginning so it's applied first
-    debugLog("[Main.server] Global state slice built:", globalStateSlice);
+    debugLog('[Main.server] Global state slice built:', globalStateSlice);
   }
 
   // **RENDER WITH CONSISTENT PATTERN**
-  debugLog("[Main.server] Rendering with", stateSlices.length, "state slices");
+  debugLog('[Main.server] Rendering with', stateSlices.length, 'state slices');
 
   // Merge all state slices into the minimal global state for synchronous initialization
   const completeInitialState: Partial<IStoreState> = stateSlices.reduce(
-    (acc, slice) => ({ ...acc, ...slice }), 
+    (acc, slice) => ({ ...acc, ...slice }),
     minimalGlobalState
   );
-  debugLog("[Main.server] Complete initial state built:", {
+  debugLog('[Main.server] Complete initial state built:', {
     activeProjectId: completeInitialState.activeProjectId,
     activeInterfaceId: completeInitialState.activeInterfaceId,
     activeTabId: completeInitialState.activeTabId,
@@ -372,12 +404,14 @@ export default async function Main({
     projectsById: Object.keys(completeInitialState.projectsById || {}),
     interfacesById: Object.keys(completeInitialState.interfacesById || {}),
     tabsById: Object.keys(completeInitialState.tabsById || {}),
-    tilesById: Object.keys(completeInitialState.tilesById || {})
+    tilesById: Object.keys(completeInitialState.tilesById || {}),
   });
-  
+
   // Always render the Interface component - it will handle missing interface logic internally
-  const interfaceId = (currentProject && interfaceName) ? 
-    (interfaces.find(i => i.name === interfaceName)?.id || "") : "";
+  const interfaceId =
+    currentProject && interfaceName
+      ? interfaces.find((i) => i.name === interfaceName)?.id || ''
+      : '';
 
   return (
     <StoreInitializer initialState={completeInitialState}>

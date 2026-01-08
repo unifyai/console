@@ -36,11 +36,14 @@ describe('Interfaces mutation hooks (integration-style)', () => {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
 
-    const create = vi.fn(async (projectId: string, name: string) => ({
-      id: 'interface-1',
-      name,
-      projectId: projectId,
-    } as InterfaceData));
+    const create = vi.fn(
+      async (projectId: string, name: string) =>
+        ({
+          id: 'interface-1',
+          name,
+          projectId: projectId,
+        }) as InterfaceData
+    );
 
     const actions = { create } as unknown as GranularInterfaceActions;
 
@@ -67,11 +70,14 @@ describe('Interfaces mutation hooks (integration-style)', () => {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
 
-    const updateByName = vi.fn(async () => ({
-      id: 'interface-1',
-      name: 'Main Interface',
-      projectId: 'project-1',
-    } as InterfaceData));
+    const updateByName = vi.fn(
+      async () =>
+        ({
+          id: 'interface-1',
+          name: 'Main Interface',
+          projectId: 'project-1',
+        }) as InterfaceData
+    );
 
     const actions = { updateByName } as unknown as GranularInterfaceActions;
 
@@ -108,12 +114,15 @@ describe('Interfaces mutation hooks (integration-style)', () => {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
 
-    const updateById = vi.fn(async (id: string, data: Partial<InterfaceData>) => ({
-      id,
-      projectId: 'project-1',
-      name: 'Main Interface',
-      ...data,
-    } as InterfaceData));
+    const updateById = vi.fn(
+      async (id: string, data: Partial<InterfaceData>) =>
+        ({
+          id,
+          projectId: 'project-1',
+          name: 'Main Interface',
+          ...data,
+        }) as InterfaceData
+    );
 
     const actions = { updateById } as unknown as GranularInterfaceActions;
 
@@ -144,20 +153,24 @@ describe('Interfaces mutation hooks (integration-style)', () => {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
 
-    const updateById = vi.fn(async (id: string, data: Partial<InterfaceData>) => ({
-      id,
-      projectId: 'project-1',
-      name: 'Main Interface',
-      ...data,
-    } as InterfaceData));
+    const updateById = vi.fn(
+      async (id: string, data: Partial<InterfaceData>) =>
+        ({
+          id,
+          projectId: 'project-1',
+          name: 'Main Interface',
+          ...data,
+        }) as InterfaceData
+    );
 
     const updateByName = vi.fn(
-      async (projectId: string, name: string, data: Partial<InterfaceData>) => ({
-        id: 'interface-1',
-        projectId: projectId,
-        name,
-        ...data,
-      } as InterfaceData),
+      async (projectId: string, name: string, data: Partial<InterfaceData>) =>
+        ({
+          id: 'interface-1',
+          projectId: projectId,
+          name,
+          ...data,
+        }) as InterfaceData
     );
 
     const actions = { updateById, updateByName } as unknown as GranularInterfaceActions;
@@ -188,9 +201,14 @@ describe('Interfaces mutation hooks (integration-style)', () => {
       actions,
     });
 
-    expect(updateByName).toHaveBeenCalledWith('project-1', 'Main Interface', {
-      color: '#abcdef',
-    }, undefined);
+    expect(updateByName).toHaveBeenCalledWith(
+      'project-1',
+      'Main Interface',
+      {
+        color: '#abcdef',
+      },
+      undefined
+    );
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ['interfaces', 'project-1'],
@@ -203,7 +221,3 @@ describe('Interfaces mutation hooks (integration-style)', () => {
     });
   });
 });
-
-
-
-

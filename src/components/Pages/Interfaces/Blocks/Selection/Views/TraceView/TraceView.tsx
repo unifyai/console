@@ -1,49 +1,70 @@
-"use client";
+'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/UI/accordion";
-import { Combobox } from "@/components/UI/Combobox";
-import { ChevronDown, ChevronRight, Clock, Code, DollarSign, AlertTriangle, FileInput, FileOutput, IdCard, FoldVertical, UnfoldVertical, Copy, Loader2, CheckCircle } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
-
-import { Span } from "@/types/interfaces/traces";
+} from '@/components/UI/accordion';
+import { Combobox } from '@/components/UI/Combobox';
 import {
-  computeSpanDiffByName,
-  wrapAsRootSpan,
-  PatchDiffNode,
-} from "./computeDiff";
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Code,
+  DollarSign,
+  AlertTriangle,
+  FileInput,
+  FileOutput,
+  IdCard,
+  FoldVertical,
+  UnfoldVertical,
+  Copy,
+  Loader2,
+  CheckCircle,
+} from 'lucide-react';
+import ActionButton from '@/components/Common/Buttons/Action';
 
-import getIconForSpanType from "./IconSelection";
+import { Span } from '@/types/interfaces/traces';
+import { computeSpanDiffByName, wrapAsRootSpan, PatchDiffNode } from './computeDiff';
 
-import DictionaryView from "../DictionaryView";
-import ListView from "../ListView";
-import ImageView from "../ImageView";
-import MatrixView from "../MatrixView";
-import StringView from "../StringView";
-import NumberView from "../NumberView";
-import TimestampView from "../TimestampView";
-import ExecutionTimeView from "../ExecutionTimeView";
+import getIconForSpanType from './IconSelection';
 
-import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat, AudioPlayer, isAudio } from "@/utils/interfaces/selection/selection";
-import { gatherAllSubPaths } from "@/utils/interfaces/selection/pathUtils";
+import DictionaryView from '../DictionaryView';
+import ListView from '../ListView';
+import ImageView from '../ImageView';
+import MatrixView from '../MatrixView';
+import StringView from '../StringView';
+import NumberView from '../NumberView';
+import TimestampView from '../TimestampView';
+import ExecutionTimeView from '../ExecutionTimeView';
 
-import { LogComparisonProps } from "../types";
-import Tooltip from "@/components/Common/Misc/Tooltip";
-import ChatView from "../ChatView";
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/UI/hover-card";
-import TimelineViewButton from "./TimelineView";
-import { formatTime } from "@/utils/interfaces/format";
-import { DoublePanels } from "@/components/Common/Body/DoublePanels";
-import { TraceExpandProvider } from "./TraceExpandContext";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import { useTracePolling } from "@/hooks/Interfaces/useTracePolling";
-import { LogsActions } from "@/types/interfaces/grid";
-import { LogProps } from "@/types/interfaces/logs";
+import {
+  isDict,
+  isList,
+  isMatrix,
+  isImage,
+  isNumber,
+  isTimestamp,
+  isChat,
+  AudioPlayer,
+  isAudio,
+} from '@/utils/interfaces/selection/selection';
+import { gatherAllSubPaths } from '@/utils/interfaces/selection/pathUtils';
+
+import { LogComparisonProps } from '../types';
+import Tooltip from '@/components/Common/Misc/Tooltip';
+import ChatView from '../ChatView';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/UI/hover-card';
+import TimelineViewButton from './TimelineView';
+import { formatTime } from '@/utils/interfaces/format';
+import { DoublePanels } from '@/components/Common/Body/DoublePanels';
+import { TraceExpandProvider } from './TraceExpandContext';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import { useTracePolling } from '@/hooks/Interfaces/useTracePolling';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogProps } from '@/types/interfaces/logs';
 
 // --- Added types for lifted state ---
 export interface PersistedTraceViewState {
@@ -67,11 +88,9 @@ export interface PersistedTraceViewState {
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
 ------------------------------------------------------------------------*/
 function compressRowNumbers(rows: number[]): string {
-  if (!rows.length) return "";
+  if (!rows.length) return '';
   // Convert 0-based indices to 1-based for UI display
-  const sorted = [...rows]
-    .sort((a, b) => a - b)
-    .map(row => row + 1); // Add 1 to make it 1-based
+  const sorted = [...rows].sort((a, b) => a - b).map((row) => row + 1); // Add 1 to make it 1-based
 
   const ranges: string[] = [];
   let start = sorted[0];
@@ -97,18 +116,18 @@ function compressRowNumbers(rows: number[]): string {
     ranges.push(`${start}-${end}`);
   }
 
-  return ranges.join(", ");
+  return ranges.join(', ');
 }
 
 function labelForRows(rows: number[]): string {
-  if (!rows.length) return "--";
+  if (!rows.length) return '--';
   const compressed = compressRowNumbers(rows);
   return rows.length === 1 ? `Row ${compressed}` : `Rows ${compressed}`;
 }
 
 function isEmptyValue(val: any): boolean {
   if (val === null || val === undefined) return true;
-  if (typeof val === "string" && val.trim() === "") return true;
+  if (typeof val === 'string' && val.trim() === '') return true;
   if (Array.isArray(val) && val.length === 0) return true;
   if (isDict(val) && Object.keys(val).length === 0) return true;
   return false;
@@ -129,7 +148,7 @@ function formatCost(value: any): string {
   // Convert the input value to a number
   const num = Number(value);
   if (isNaN(num)) return String(value);
-  if (num === 0) return "0"; // if value is exactly zero, just return "0"
+  if (num === 0) return '0'; // if value is exactly zero, just return "0"
   // Use threshold 0.01 (as used in NumberView) to switch to exponential notation
   if (Math.abs(num) < 0.01) {
     return num.toExponential(2);
@@ -140,7 +159,7 @@ function formatCost(value: any): string {
 
 // Helper to safely apply toFixed on potentially non-number inputs
 function safeToFixed(val: any, digits: number = 2) {
-  const num = typeof val === "number" ? val : Number(val);
+  const num = typeof val === 'number' ? val : Number(val);
   if (Number.isFinite(num)) {
     return num.toFixed(digits);
   }
@@ -153,9 +172,9 @@ function pickView(
   comps: any[],
   baseLogIndex: number,
   comparisonLogsIndex: number[],
-  diffMode: LogComparisonProps["diffMode"],
-  splitView: LogComparisonProps["splitView"],
-  displayMode: LogComparisonProps["displayMode"],
+  diffMode: LogComparisonProps['diffMode'],
+  splitView: LogComparisonProps['splitView'],
+  displayMode: LogComparisonProps['displayMode'],
   fieldName: string,
   context: string | null,
   baseLog: LogProps | undefined,
@@ -165,31 +184,60 @@ function pickView(
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps['onSaveEdit'],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-  path: (string | number)[] = [],
+  path: (string | number)[] = []
 ): JSX.Element {
-
   const commonProps = {
-      value: baseVal,
-      comparables: comps,
-      baseLogIndex: baseLogIndex,
-      comparisonLogsIndex: comparisonLogsIndex,
-      diffMode: cellEditMode ? "none" : diffMode,
-      splitView: splitView ?? false,
-      displayMode: displayMode,
-      cellEditMode: cellEditMode,
-      onSaveEdit: onSaveEdit,
-      onGroupSaveEdit: onGroupSaveEdit,
-      path: path,
+    value: baseVal,
+    comparables: comps,
+    baseLogIndex: baseLogIndex,
+    comparisonLogsIndex: comparisonLogsIndex,
+    diffMode: cellEditMode ? 'none' : diffMode,
+    splitView: splitView ?? false,
+    displayMode: displayMode,
+    cellEditMode: cellEditMode,
+    onSaveEdit: onSaveEdit,
+    onGroupSaveEdit: onGroupSaveEdit,
+    path: path,
   };
 
   if (isChat(baseVal)) {
-    return <ChatView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <ChatView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isDict(baseVal)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <DictionaryView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isList(baseVal)) {
-    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <ListView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isImage(baseVal)) {
     return <ImageView {...commonProps} />;
@@ -201,13 +249,13 @@ function pickView(
     return <MatrixView {...commonProps} />;
   }
   if (isNumber(baseVal)) {
-    return <NumberView {...commonProps} nested={true} isImmutable={isImmutable}/>;
+    return <NumberView {...commonProps} nested={true} isImmutable={isImmutable} />;
   }
   if (isTimestamp(baseVal)) {
-    return <TimestampView {...commonProps} nested={true} isImmutable={isImmutable}/>;
+    return <TimestampView {...commonProps} nested={true} isImmutable={isImmutable} />;
   }
   // Fallback => string
-  return <StringView {...commonProps} nested={true} isImmutable={isImmutable}/>;
+  return <StringView {...commonProps} nested={true} isImmutable={isImmutable} />;
 }
 
 // Define DictionarySectionItem component to handle dictionary-type sections
@@ -234,25 +282,25 @@ function DictionarySectionItem({
   onSaveEdit,
   onGroupSaveEdit,
   parentPath,
-  nested
+  nested,
 }: {
   title: string;
   baseVal: any;
   comps: any[];
   baseLogIndex: number;
   comparisonLogsIndex: number[];
-  diffMode?: LogComparisonProps["diffMode"];
-  splitView?: LogComparisonProps["splitView"];
-  displayMode?: LogComparisonProps["displayMode"];
+  diffMode?: LogComparisonProps['diffMode'];
+  splitView?: LogComparisonProps['splitView'];
+  displayMode?: LogComparisonProps['displayMode'];
   persistedState?: PersistedTraceViewState;
   openSections: string[];
   setOpenSections: React.Dispatch<React.SetStateAction<string[]>>;
   sectionIcons: Record<string, JSX.Element>;
-  fieldName: string,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,
+  fieldName: string;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  logsActions?: LogsActions;
   isImmutable?: boolean;
   cellEditMode?: boolean;
   onSaveEdit?: LogComparisonProps['onSaveEdit'];
@@ -290,8 +338,8 @@ function DictionarySectionItem({
     }
 
     // Check if all paths are expanded
-    const allPathsExpanded = allPaths.length > 0 &&
-      allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
+    const allPathsExpanded =
+      allPaths.length > 0 && allPaths.every((path) => persistedState.traceExpandOpenKeys.has(path));
 
     setAllExpanded(allPathsExpanded);
   }, [persistedState, persistedState?.traceExpandOpenKeys, title, baseVal]);
@@ -306,7 +354,7 @@ function DictionarySectionItem({
 
     // Ensure the parent accordion item is open
     if (!openSections.includes(title)) {
-      setOpenSections(prev => [...prev, title]);
+      setOpenSections((prev) => [...prev, title]);
     }
 
     // Get all subpaths and expand them
@@ -335,9 +383,9 @@ function DictionarySectionItem({
     }
 
     // Expand all paths
-    persistedState.setTraceExpandOpenKeys(prev => {
+    persistedState.setTraceExpandOpenKeys((prev) => {
       const newSet = new Set(prev);
-      subPaths.forEach(path => newSet.add(path));
+      subPaths.forEach((path) => newSet.add(path));
       return newSet;
     });
   };
@@ -372,28 +420,29 @@ function DictionarySectionItem({
     }
 
     // Get only child paths (keep the parent path open)
-    const childPaths = subPaths.filter(path => path !== parentPath);
+    const childPaths = subPaths.filter((path) => path !== parentPath);
 
     // Collapse all paths
-    persistedState.setTraceExpandOpenKeys(prev => {
+    persistedState.setTraceExpandOpenKeys((prev) => {
       const newSet = new Set(prev);
-      childPaths.forEach(path => newSet.delete(path));
+      childPaths.forEach((path) => newSet.delete(path));
       return newSet;
     });
   };
 
   return (
     <AccordionItem key={title} value={title}>
-      <AccordionTrigger className="relative group flex items-center justify-between">
+      <AccordionTrigger className="group relative flex items-center justify-between">
         <span className="inline-flex items-center gap-2">
-          {sectionIcons[title] || null}<span>{title}</span>
+          {sectionIcons[title] || null}
+          <span>{title}</span>
         </span>
         {persistedState && (
-          <div className="absolute right-5 flex gap-1 items-center">
+          <div className="absolute right-5 flex items-center gap-1">
             <ActionButton
               variant="ghost"
               size="sm"
-              tooltip={allExpanded ? "Collapse all" : "Expand all"}
+              tooltip={allExpanded ? 'Collapse all' : 'Expand all'}
               onClick={allExpanded ? handleCollapseAll : handleExpandAll}
               icon={
                 allExpanded ? (
@@ -407,15 +456,15 @@ function DictionarySectionItem({
         )}
       </AccordionTrigger>
       <AccordionContent>
-        <div className="border-l ml-4 pl-1" ref={dictionaryRef}>
+        <div className="ml-4 border-l pl-1" ref={dictionaryRef}>
           <DictionaryView
             value={baseVal}
             comparables={comps}
             baseLogIndex={baseLogIndex}
             comparisonLogsIndex={comparisonLogsIndex}
-            diffMode={cellEditMode ? "none" : diffMode}
+            diffMode={cellEditMode ? 'none' : diffMode}
             splitView={splitView ?? false}
-            displayMode={displayMode ?? "markdown"}
+            displayMode={displayMode ?? 'markdown'}
             nestingLevel={1}
             prefix={title.toLowerCase()}
             parentPath={title.toLowerCase()}
@@ -452,7 +501,8 @@ function PatchDetailPanel({
   splitView,
   displayMode,
   persistedState,
-  isImmutable, cellEditMode,
+  isImmutable,
+  cellEditMode,
   onSaveEdit,
   onGroupSaveEdit,
   path,
@@ -462,14 +512,14 @@ function PatchDetailPanel({
   comparisonLogsIndex: number[];
   allTraces: Span[][];
   allRowIndexes: number[];
-  fieldName: string,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,
-  diffMode?: LogComparisonProps["diffMode"];
-  splitView?: LogComparisonProps["splitView"];
-  displayMode?: LogComparisonProps["displayMode"];
+  fieldName: string;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  logsActions?: LogsActions;
+  diffMode?: LogComparisonProps['diffMode'];
+  splitView?: LogComparisonProps['splitView'];
+  displayMode?: LogComparisonProps['displayMode'];
   persistedState?: PersistedTraceViewState;
   isImmutable?: boolean;
   cellEditMode?: boolean;
@@ -480,7 +530,7 @@ function PatchDetailPanel({
   // IMPORTANT: Declare ALL hooks at the top level before any conditional logic
 
   // Track which accordion items are open
-  const [openSections, setOpenSections] = useState<string[]>(["Inputs", "Outputs"]);
+  const [openSections, setOpenSections] = useState<string[]>(['Inputs', 'Outputs']);
   // Store stable references to props to avoid unnecessary re-renders
   const propsRef = React.useRef({
     node,
@@ -488,19 +538,21 @@ function PatchDetailPanel({
     comparisonLogsIndex,
     diffMode,
     splitView,
-    displayMode
+    displayMode,
   });
 
   // Only update the reference if important props change
   React.useEffect(() => {
     const currentProps = propsRef.current;
-    const nodeChanged = currentProps.node !== node &&
-                       (currentProps.node?.name !== node.name ||
-                        currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
+    const nodeChanged =
+      currentProps.node !== node &&
+      (currentProps.node?.name !== node.name ||
+        currentProps.node?.baseSpanRef?.id !== node.baseSpanRef?.id);
 
-    const configChanged = currentProps.diffMode !== diffMode ||
-                         currentProps.splitView !== splitView ||
-                         currentProps.displayMode !== displayMode;
+    const configChanged =
+      currentProps.diffMode !== diffMode ||
+      currentProps.splitView !== splitView ||
+      currentProps.displayMode !== displayMode;
 
     if (nodeChanged || configChanged) {
       propsRef.current = {
@@ -509,11 +561,10 @@ function PatchDetailPanel({
         comparisonLogsIndex,
         diffMode,
         splitView,
-        displayMode
+        displayMode,
       };
     }
   }, [node, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode]);
-
 
   // ------------------------------------------------------------------
   // Determine the *full* path (indices + "child_spans" segments) from the
@@ -532,7 +583,7 @@ function PatchDetailPanel({
           return [...acc, i];
         }
         if (s.childSpans && s.childSpans.length) {
-          const found = recurse(s.childSpans, [...acc, i, "child_spans"]);
+          const found = recurse(s.childSpans, [...acc, i, 'child_spans']);
           if (found) return found;
         }
       }
@@ -558,11 +609,11 @@ function PatchDetailPanel({
 
   // Early return AFTER all hooks are declared (including findSpanById)
   if (!node.baseSpanRef && !node.targetSpanRef) {
-    return <p className="italic text-body">No base or target data</p>;
+    return <p className="text-body italic">No base or target data</p>;
   }
 
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
-  const spanId = mainSpan?.id ?? "(no id)";
+  const spanId = mainSpan?.id ?? '(no id)';
 
   function gatherField(field: string) {
     const bSpan = node.baseSpanRef;
@@ -573,12 +624,12 @@ function PatchDetailPanel({
     }
 
     switch (node.marker) {
-      case "+":
+      case '+':
         return { baseVal: tSpan?.[field], comps: [] };
-      case "-":
+      case '-':
         return { baseVal: bSpan?.[field], comps: [] };
-      case "r":
-      case " ":
+      case 'r':
+      case ' ':
         if (comparisonLogsIndex.length <= 1) {
           const b = bSpan?.[field];
           const t = tSpan ? tSpan[field] : undefined;
@@ -596,7 +647,7 @@ function PatchDetailPanel({
     }
   }
 
-function findSpanByNameInRow(
+  function findSpanByNameInRow(
     traces: Span[][],
     rowIndexes: number[],
     rowIndex: number,
@@ -621,14 +672,14 @@ function findSpanByNameInRow(
 
   // Define section icons mapping
   const sectionIcons: Record<string, JSX.Element> = {
-    "Inputs": <FileInput className="h-4 w-4 text-primary" />,
-    "Outputs": <FileOutput className="h-4 w-4 text-primary" />,
-    "Execution Time": <Clock className="h-4 w-4 text-primary" />,
-    "Code": <Code className="h-4 w-4 text-primary" />,
-    "Errors": <AlertTriangle className="h-4 w-4 text-primary" />,
-    "Cost": <DollarSign className="h-4 w-4 text-primary" />,
-    "ID": <IdCard className="h-4 w-4 text-primary" />,
-    "IDs": <IdCard className="h-4 w-4 text-primary" />,
+    Inputs: <FileInput className="h-4 w-4 text-primary" />,
+    Outputs: <FileOutput className="h-4 w-4 text-primary" />,
+    'Execution Time': <Clock className="h-4 w-4 text-primary" />,
+    Code: <Code className="h-4 w-4 text-primary" />,
+    Errors: <AlertTriangle className="h-4 w-4 text-primary" />,
+    Cost: <DollarSign className="h-4 w-4 text-primary" />,
+    ID: <IdCard className="h-4 w-4 text-primary" />,
+    IDs: <IdCard className="h-4 w-4 text-primary" />,
   };
 
   // --------------------------------------------------------------
@@ -651,18 +702,48 @@ function findSpanByNameInRow(
   };
 
   // Helper to render a standard accordion item (updated to pass onGroupSaveEdit)
-  function maybeRenderBlock(title: string, baseVal: any, comps: any[], fieldKey: string): JSX.Element | null {
+  function maybeRenderBlock(
+    title: string,
+    baseVal: any,
+    comps: any[],
+    fieldKey: string
+  ): JSX.Element | null {
     const isEmpty = allEmpty(baseVal, comps);
     if (isEmpty) return null;
     const fullPath = buildFieldPath(fieldKey);
 
-    if (title === "Inputs" || title === "Outputs") {
+    if (title === 'Inputs' || title === 'Outputs') {
       if (!isDict(baseVal)) {
-         const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", fieldName, context, baseLog, comparisonLogs, logsActions, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+        const view = pickView(
+          baseVal,
+          comps,
+          baseRowIndex,
+          comparisonLogsIndex,
+          diffMode,
+          splitView,
+          displayMode ?? 'markdown',
+          fieldName,
+          context,
+          baseLog,
+          comparisonLogs,
+          logsActions,
+          isImmutable,
+          cellEditMode,
+          onSaveEdit,
+          onGroupSaveEdit,
+          fullPath
+        ); // Pass group save
         return (
           <AccordionItem key={title} value={title}>
-            <AccordionTrigger className="relative group flex items-center justify-between"><span className="inline-flex items-center gap-2">{sectionIcons[title] || null}<span>{title}</span></span></AccordionTrigger>
-            <AccordionContent><div className="border-l ml-4 pl-1">{view}</div></AccordionContent>
+            <AccordionTrigger className="group relative flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                {sectionIcons[title] || null}
+                <span>{title}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="ml-4 border-l pl-1">{view}</div>
+            </AccordionContent>
           </AccordionItem>
         );
       }
@@ -695,15 +776,37 @@ function findSpanByNameInRow(
       );
     }
 
-    const view = pickView(baseVal, comps, baseRowIndex, comparisonLogsIndex, diffMode, splitView, displayMode ?? "markdown", fieldName, context, baseLog, comparisonLogs, logsActions, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, fullPath); // Pass group save
+    const view = pickView(
+      baseVal,
+      comps,
+      baseRowIndex,
+      comparisonLogsIndex,
+      diffMode,
+      splitView,
+      displayMode ?? 'markdown',
+      fieldName,
+      context,
+      baseLog,
+      comparisonLogs,
+      logsActions,
+      isImmutable,
+      cellEditMode,
+      onSaveEdit,
+      onGroupSaveEdit,
+      fullPath
+    ); // Pass group save
 
     return (
       <AccordionItem key={title} value={title}>
-        <AccordionTrigger className="relative group flex items-center justify-between">
+        <AccordionTrigger className="group relative flex items-center justify-between">
           <span className="inline-flex items-center gap-2">
-            {sectionIcons[title] || null}<span>{title}</span>
-          </span></AccordionTrigger>
-        <AccordionContent><div className="border-l ml-4 pl-1">{view}</div></AccordionContent>
+            {sectionIcons[title] || null}
+            <span>{title}</span>
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="ml-4 border-l pl-1">{view}</div>
+        </AccordionContent>
       </AccordionItem>
     );
   }
@@ -715,65 +818,64 @@ function findSpanByNameInRow(
           <p className="text-title">{node.name}</p>
           {node.baseSpanRef?.id && (
             <CopyButton
-              content={node.baseSpanRef?.id ?? ""}
-              copyMessage={
-                node.baseSpanRef?.parentSpanId ? "Copied span ID" : "Copied trace ID"
-              }
-              tooltipContent={
-                node.baseSpanRef?.parentSpanId ?
-                "Copy span ID" :
-                "Copy trace ID"
-              }
+              content={node.baseSpanRef?.id ?? ''}
+              copyMessage={node.baseSpanRef?.parentSpanId ? 'Copied span ID' : 'Copied trace ID'}
+              tooltipContent={node.baseSpanRef?.parentSpanId ? 'Copy span ID' : 'Copy trace ID'}
             />
           )}
         </div>
-        { (node.baseSpanRef || node.targetSpanRef) && (
+        {(node.baseSpanRef || node.targetSpanRef) && (
           <TimelineViewButton
             baseSpanId={node.baseSpanRef?.id}
-            targetSpanId={node.targetSpanRef && node.targetSpanRef !== node.baseSpanRef ? node.targetSpanRef.id : undefined}
+            targetSpanId={
+              node.targetSpanRef && node.targetSpanRef !== node.baseSpanRef
+                ? node.targetSpanRef.id
+                : undefined
+            }
             findSpanById={findSpanById}
           />
         )}
       </div>
       <Accordion
         type="multiple"
-        defaultValue={["Inputs", "Outputs"]}
+        defaultValue={['Inputs', 'Outputs']}
         value={openSections}
         onValueChange={setOpenSections}
         className="mt-3"
       >
         {(() => {
-          const { baseVal: bInputs, comps: cInputs } = gatherField("inputs");
-          const { baseVal: bOutputs, comps: cOutputs } = gatherField("outputs");
-          const { baseVal: bCode, comps: cCode } = gatherField("code");
-          const { baseVal: bExecTime, comps: cExecTime } = gatherField("exec_time");
-          const { baseVal: bErrors, comps: cErrors } = gatherField("errors");
-          const { baseVal: bCost, comps: cCost } = gatherField("cost");
-          const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField("cost_inc_cache");
+          const { baseVal: bInputs, comps: cInputs } = gatherField('inputs');
+          const { baseVal: bOutputs, comps: cOutputs } = gatherField('outputs');
+          const { baseVal: bCode, comps: cCode } = gatherField('code');
+          const { baseVal: bExecTime, comps: cExecTime } = gatherField('exec_time');
+          const { baseVal: bErrors, comps: cErrors } = gatherField('errors');
+          const { baseVal: bCost, comps: cCost } = gatherField('cost');
+          const { baseVal: bCostIncCache, comps: cCostIncCache } = gatherField('cost_inc_cache');
 
           // Gather IDs
           function gatherID() {
             const bSpan = node.baseSpanRef;
             const tSpan = node.targetSpanRef;
             if (bSpan && tSpan && bSpan === tSpan) {
-              return { baseVal: bSpan.id ?? "", comps: [] };
+              return { baseVal: bSpan.id ?? '', comps: [] };
             }
             if (comparisonLogsIndex.length <= 1) {
-              const bId = bSpan?.id ?? "";
-              const tId = tSpan?.id ?? "";
+              const bId = bSpan?.id ?? '';
+              const tId = tSpan?.id ?? '';
               return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
             }
             const realName = bSpan?.spanName || tSpan?.spanName || node.name;
-            const bId = bSpan?.id ?? "";
+            const bId = bSpan?.id ?? '';
             const compsArr = comparisonLogsIndex.map((r) => {
               const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
-              return match?.id ?? "";
+              return match?.id ?? '';
             });
             return { baseVal: bId, comps: compsArr };
           }
           const { baseVal: bId, comps: cId } = gatherID();
           // Determine if we're showing a single ID or multiple IDs
-          const idSectionTitle = comparisonLogsIndex.length > 0 && cId.some(id => id !== "") ? "IDs" : "ID";
+          const idSectionTitle =
+            comparisonLogsIndex.length > 0 && cId.some((id) => id !== '') ? 'IDs' : 'ID';
 
           // Specialized renderer for cost section
           function renderCostBlock(): JSX.Element | null {
@@ -784,7 +886,7 @@ function findSpanByNameInRow(
               <div className="flex flex-col gap-2">
                 <div>
                   <p className="text-title mb-2">Cost ($)</p>
-                  <div className="border border-muted p-2 rounded">
+                  <div className="rounded border border-muted p-2">
                     <NumberView
                       value={bCost}
                       comparables={cCost}
@@ -797,14 +899,14 @@ function findSpanByNameInRow(
                       cellEditMode={cellEditMode}
                       onSaveEdit={onSaveEdit}
                       onGroupSaveEdit={onGroupSaveEdit}
-                      path={buildFieldPath("cost")}
+                      path={buildFieldPath('cost')}
                       isImmutable={isImmutable}
                     />
                   </div>
                 </div>
                 <div>
                   <p className="text-title mb-2">Cost including cache ($)</p>
-                  <div className="border border-muted p-2 rounded">
+                  <div className="rounded border border-muted p-2">
                     <NumberView
                       value={bCostIncCache}
                       comparables={cCostIncCache}
@@ -817,7 +919,7 @@ function findSpanByNameInRow(
                       cellEditMode={cellEditMode}
                       onSaveEdit={onSaveEdit}
                       onGroupSaveEdit={onGroupSaveEdit}
-                      path={buildFieldPath("cost_inc_cache")}
+                      path={buildFieldPath('cost_inc_cache')}
                       isImmutable={isImmutable}
                     />
                   </div>
@@ -827,20 +929,24 @@ function findSpanByNameInRow(
 
             return (
               <AccordionItem key="Cost" value="Cost">
-                <AccordionTrigger className="relative group flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2">{sectionIcons["Cost"]} <span>Cost</span></span>
+                <AccordionTrigger className="group relative flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2">
+                    {sectionIcons['Cost']} <span>Cost</span>
+                  </span>
                 </AccordionTrigger>
-                <AccordionContent><div className="border-l ml-4 pl-1">{content}</div></AccordionContent>
+                <AccordionContent>
+                  <div className="ml-4 border-l pl-1">{content}</div>
+                </AccordionContent>
               </AccordionItem>
             );
           }
           return (
             <>
-              {maybeRenderBlock("Inputs", bInputs, cInputs, "inputs")}
-              {maybeRenderBlock("Outputs", bOutputs, cOutputs, "outputs")}
-              {maybeRenderBlock("Code", bCode, cCode, "code")}
-              {maybeRenderBlock("Execution Time", bExecTime, cExecTime, "exec_time")}
-              {maybeRenderBlock("Errors", bErrors, cErrors, "errors")}
+              {maybeRenderBlock('Inputs', bInputs, cInputs, 'inputs')}
+              {maybeRenderBlock('Outputs', bOutputs, cOutputs, 'outputs')}
+              {maybeRenderBlock('Code', bCode, cCode, 'code')}
+              {maybeRenderBlock('Execution Time', bExecTime, cExecTime, 'exec_time')}
+              {maybeRenderBlock('Errors', bErrors, cErrors, 'errors')}
               {renderCostBlock()}
               {maybeRenderBlock(idSectionTitle, bId, cId, idSectionTitle.toLowerCase())}
             </>
@@ -885,24 +991,24 @@ function CollapsiblePatchLineNode({
   }, [parentCenterY, collapsedNodes]);
 
   const markerColors: Record<string, string> = {
-    "+": "text-green-600",
-    "-": "text-red-600",
-    r: "text-purple-600",
-    " ": "",
+    '+': 'text-green-600',
+    '-': 'text-red-600',
+    r: 'text-purple-600',
+    ' ': '',
   };
 
-  const isSelected = selectedNode ? (
-    node.name === selectedNode.name &&
-    node.baseSpanRef?.id === selectedNode.baseSpanRef?.id &&
-    node.targetSpanRef?.id === selectedNode.targetSpanRef?.id
-  ) : false;
+  const isSelected = selectedNode
+    ? node.name === selectedNode.name &&
+      node.baseSpanRef?.id === selectedNode.baseSpanRef?.id &&
+      node.targetSpanRef?.id === selectedNode.targetSpanRef?.id
+    : false;
 
-  const nodeId = `${node.name}_${node.baseSpanRef?.id ?? ""}_${node.targetSpanRef?.id ?? ""}`;
+  const nodeId = `${node.name}_${node.baseSpanRef?.id ?? ''}_${node.targetSpanRef?.id ?? ''}`;
   const hasChildren = children.length > 0;
   const isCollapsed = collapsedNodes[nodeId] === true;
 
   const colorClass = isSelected
-    ? "bg-primary text-primary-foreground"
+    ? 'bg-primary text-primary-foreground'
     : `hover:bg-muted ${markerColors[node.marker]}`;
 
   function handleToggleCollapse(e: React.MouseEvent) {
@@ -931,39 +1037,41 @@ function CollapsiblePatchLineNode({
   const targetLlmUsageIncCache = node.targetSpanRef?.llm_usage_inc_cache;
 
   // Check if this is a cached call based on type OR cached tokens
-  const isBaseSpanCached = node.baseSpanRef?.type === "llm-cached" ||
-                          (baseLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
-  const isTargetSpanCached = node.targetSpanRef?.type === "llm-cached" ||
-                           (targetLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
+  const isBaseSpanCached =
+    node.baseSpanRef?.type === 'llm-cached' ||
+    (baseLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
+  const isTargetSpanCached =
+    node.targetSpanRef?.type === 'llm-cached' ||
+    (targetLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0) > 0;
 
-  let timeLabel = "";
+  let timeLabel = '';
   let timeData: any = null;
 
   if (!multiMode) {
     if (baseTime) {
       const { value, unit } = formatTime(baseTime);
-      timeLabel = `${safeToFixed(value,2)}${unit}`;
+      timeLabel = `${safeToFixed(value, 2)}${unit}`;
       timeData = {
-        title: "Execution Time",
+        title: 'Execution Time',
         baseTime,
       };
     }
   } else {
-    if (node.marker === "+") {
+    if (node.marker === '+') {
       if (targetTime) {
         const { value, unit } = formatTime(targetTime);
-        timeLabel = `${safeToFixed(value,2)}${unit}`;
+        timeLabel = `${safeToFixed(value, 2)}${unit}`;
         timeData = {
-          title: "Execution Time (Comparison Only)",
+          title: 'Execution Time (Comparison Only)',
           targetTime,
         };
       }
-    } else if (node.marker === "-") {
+    } else if (node.marker === '-') {
       if (baseTime) {
         const { value, unit } = formatTime(baseTime);
-        timeLabel = `${safeToFixed(value,2)}${unit}`;
+        timeLabel = `${safeToFixed(value, 2)}${unit}`;
         timeData = {
-          title: "Execution Time (Base Only)",
+          title: 'Execution Time (Base Only)',
           baseTime,
         };
       }
@@ -971,10 +1079,10 @@ function CollapsiblePatchLineNode({
       const diff = targetTime - baseTime;
       if (baseTime || targetTime) {
         const { value, unit } = formatTime(Math.abs(diff));
-        const sign = diff >= 0 ? "+" : "-";
-        timeLabel = `${sign}${safeToFixed(value,2)}${unit}`;
+        const sign = diff >= 0 ? '+' : '-';
+        timeLabel = `${sign}${safeToFixed(value, 2)}${unit}`;
         timeData = {
-          title: "Execution Times",
+          title: 'Execution Times',
           baseTime,
           targetTime,
           diffSign: sign,
@@ -982,19 +1090,19 @@ function CollapsiblePatchLineNode({
           diffUnit: unit,
         };
         if (!baseTime && !targetTime) {
-          timeLabel = "";
+          timeLabel = '';
           timeData = null;
         }
       }
     }
   }
 
-
   // Get costs from LLM usage if available, otherwise use direct cost properties
   const baseCost = baseLlmUsage?.cost ?? node.baseSpanRef?.cost ?? 0;
   const baseCostIncCache = baseLlmUsageIncCache?.cost ?? node.baseSpanRef?.cost_inc_cache ?? 0;
   const targetCost = targetLlmUsage?.cost ?? node.targetSpanRef?.cost ?? 0;
-  const targetCostIncCache = targetLlmUsageIncCache?.cost ?? node.targetSpanRef?.cost_inc_cache ?? 0;
+  const targetCostIncCache =
+    targetLlmUsageIncCache?.cost ?? node.targetSpanRef?.cost_inc_cache ?? 0;
 
   // Get token details - for cached calls, prefer llm_usage_inc_cache
   const basePromptTokens = isBaseSpanCached
@@ -1038,14 +1146,14 @@ function CollapsiblePatchLineNode({
   const targetEffectiveTokens = targetTotalTokens - targetCachedTokens;
 
   // Prepare token label - show total tokens
-  let tokenLabel = "";
+  let tokenLabel = '';
   let tokenData: any = null;
 
   if (!multiMode) {
     if (baseTotalTokens > 0) {
-      tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ""} tks`;
+      tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ''} tks`;
       tokenData = {
-        title: "Token Usage",
+        title: 'Token Usage',
         basePromptTokens,
         baseReasoningTokens,
         baseCompletionTokens,
@@ -1059,11 +1167,11 @@ function CollapsiblePatchLineNode({
       };
     }
   } else {
-    if (node.marker === "+") {
+    if (node.marker === '+') {
       if (targetTotalTokens > 0) {
-        tokenLabel = `${targetTotalTokens} ${targetCachedTokens > 0 ? `(${targetCachedTokens} cached)` : ""} tks`;
+        tokenLabel = `${targetTotalTokens} ${targetCachedTokens > 0 ? `(${targetCachedTokens} cached)` : ''} tks`;
         tokenData = {
-          title: "Token Usage (Comparison Only)",
+          title: 'Token Usage (Comparison Only)',
           targetPromptTokens,
           targetReasoningTokens,
           targetCompletionTokens,
@@ -1076,11 +1184,11 @@ function CollapsiblePatchLineNode({
           targetCompletionTokensDetails: targetLlmUsage?.completion_tokens_details,
         };
       }
-    } else if (node.marker === "-") {
+    } else if (node.marker === '-') {
       if (baseTotalTokens > 0) {
-        tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ""} tks`;
+        tokenLabel = `${baseTotalTokens} ${baseCachedTokens > 0 ? `(${baseCachedTokens} cached)` : ''} tks`;
         tokenData = {
-          title: "Token Usage (Base Only)",
+          title: 'Token Usage (Base Only)',
           basePromptTokens,
           baseReasoningTokens,
           baseCompletionTokens,
@@ -1097,10 +1205,10 @@ function CollapsiblePatchLineNode({
       if (baseTotalTokens > 0 || targetTotalTokens > 0) {
         const diffTokens = targetTotalTokens - baseTotalTokens;
         const diffEffectiveTokens = targetEffectiveTokens - baseEffectiveTokens;
-        const signTokens = diffTokens >= 0 ? "+" : "-";
+        const signTokens = diffTokens >= 0 ? '+' : '-';
         tokenLabel = `${signTokens}${Math.abs(diffTokens)} tks`;
         tokenData = {
-          title: "Token Usage",
+          title: 'Token Usage',
           basePromptTokens,
           baseReasoningTokens,
           baseCompletionTokens,
@@ -1127,33 +1235,33 @@ function CollapsiblePatchLineNode({
     }
   }
 
-  let costLabel = "";
+  let costLabel = '';
   let costData: any = null;
 
   if (!multiMode) {
     if (baseCost > 0 || baseCostIncCache > 0) {
       costLabel = `$${formatCost(baseCost)}`;
       costData = {
-        title: "LLM Cost Details",
+        title: 'LLM Cost Details',
         baseCost,
         baseCostIncCache,
       };
     }
   } else {
-    if (node.marker === "+") {
+    if (node.marker === '+') {
       if (targetCost > 0 || targetCostIncCache > 0) {
         costLabel = `$${formatCost(targetCost)}`;
         costData = {
-          title: "LLM Cost (Comparison Only)",
+          title: 'LLM Cost (Comparison Only)',
           targetCost,
           targetCostIncCache,
         };
       }
-    } else if (node.marker === "-") {
+    } else if (node.marker === '-') {
       if (baseCost > 0 || baseCostIncCache > 0) {
         costLabel = `$${formatCost(baseCost)}`;
         costData = {
-          title: "LLM Cost (Base Only)",
+          title: 'LLM Cost (Base Only)',
           baseCost,
           baseCostIncCache,
         };
@@ -1161,11 +1269,11 @@ function CollapsiblePatchLineNode({
     } else {
       if (baseCost || targetCost || baseCostIncCache || targetCostIncCache) {
         const diffC = targetCost - baseCost;
-        const signC = diffC >= 0 ? "+" : "-";
+        const signC = diffC >= 0 ? '+' : '-';
         const absDiffC = formatCost(Math.abs(diffC));
         costLabel = `${signC}$${absDiffC}`;
         costData = {
-          title: "LLM Costs",
+          title: 'LLM Costs',
           baseCost,
           baseCostIncCache,
           targetCost,
@@ -1175,15 +1283,8 @@ function CollapsiblePatchLineNode({
           diffSignIncCache: signC,
           diffAbsIncCache: absDiffC,
         };
-        if (
-          !(
-            baseCost ||
-            targetCost ||
-            baseCostIncCache ||
-            targetCostIncCache
-          )
-        ) {
-          costLabel = "";
+        if (!(baseCost || targetCost || baseCostIncCache || targetCostIncCache)) {
+          costLabel = '';
           costData = null;
         }
       }
@@ -1191,27 +1292,28 @@ function CollapsiblePatchLineNode({
   }
 
   // Determine status icon (completed vs running)
-  const spanCompleted = (node.baseSpanRef?.completed ?? node.targetSpanRef?.completed ?? true) === true;
+  const spanCompleted =
+    (node.baseSpanRef?.completed ?? node.targetSpanRef?.completed ?? true) === true;
   const StatusIcon = spanCompleted ? CheckCircle : Loader2;
-  const statusIconClass = spanCompleted ? "text-green-600" : "animate-spin text-muted-foreground";
+  const statusIconClass = spanCompleted ? 'text-green-600' : 'animate-spin text-muted-foreground';
 
   return (
-    <div className="relative" ref={nodeRef} style={{ position: "relative" }}>
+    <div className="relative" ref={nodeRef} style={{ position: 'relative' }}>
       {showLine && (
         <div
-          className="absolute border-l-2 border-b-2 rounded-bl-lg"
+          className="absolute rounded-bl-lg border-b-2 border-l-2"
           style={{
             height: Math.abs(segmentHeight) - ROW_HEIGHT / 2,
             top: -Math.abs(segmentHeight) + ROW_HEIGHT,
             left: -BOX_SIZE + 18,
             width: BOX_SIZE / 4,
-            borderColor: "var(--muted, #888)",
+            borderColor: 'var(--muted, #888)',
           }}
         />
       )}
 
       <div
-        className={`flex items-center gap-2 cursor-pointer rounded ${colorClass}`}
+        className={`flex cursor-pointer items-center gap-2 rounded ${colorClass}`}
         style={{ height: ROW_HEIGHT }}
         onClick={handleClickSpan}
       >
@@ -1220,47 +1322,53 @@ function CollapsiblePatchLineNode({
             style={{ width: BOX_SIZE, height: BOX_SIZE }}
             className="flex items-center justify-center"
           >
-            <Tooltip content={spanType ?? "Span"}>
+            <Tooltip content={spanType ?? 'Span'}>
               <IconComponent className="h-4 w-4" />
             </Tooltip>
           </div>
         )}
 
-        <span className="text-body text-strong w-3">
-          {node.marker === " " ? "" : node.marker}
-        </span>
+        <span className="text-body text-strong w-3">{node.marker === ' ' ? '' : node.marker}</span>
 
         {/* Span name + optional time/cost/token labels */}
-        <div className="truncate flex items-center">
+        <div className="flex items-center truncate">
           {node.name}
-          <StatusIcon className={`h-3 w-3 ml-1 ${statusIconClass}`} />
+          <StatusIcon className={`ml-1 h-3 w-3 ${statusIconClass}`} />
           {timeLabel && timeData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span
+                  className={`text-caption ml-2 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} cursor-pointer underline`}
+                >
                   {timeLabel}
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-caption text-muted-foreground">
+              <HoverCardContent className="w-fit p-2">
+                <div className="text-caption space-y-1 text-muted-foreground">
                   <p className="font-semibold">{timeData.title}</p>
                   {timeData.baseTime !== undefined && (
-                    <p>Base Execution Time: {(() => {
-                      const { value, unit } = formatTime(timeData.baseTime);
-                      return `${safeToFixed(value,2)}${unit}`;
-                    })()}</p>
+                    <p>
+                      Base Execution Time:{' '}
+                      {(() => {
+                        const { value, unit } = formatTime(timeData.baseTime);
+                        return `${safeToFixed(value, 2)}${unit}`;
+                      })()}
+                    </p>
                   )}
                   {timeData.targetTime !== undefined && (
                     <p>
-                      Comparison Execution Time: {(() => {
+                      Comparison Execution Time:{' '}
+                      {(() => {
                         const { value, unit } = formatTime(timeData.targetTime);
-                        return `${safeToFixed(value,2)}${unit}`;
+                        return `${safeToFixed(value, 2)}${unit}`;
                       })()}
                     </p>
                   )}
                   {timeData.diffSign && (
                     <p>
-                      Difference: {timeData.diffSign}{safeToFixed(timeData.diffValue,2)}{timeData.diffUnit}
+                      Difference: {timeData.diffSign}
+                      {safeToFixed(timeData.diffValue, 2)}
+                      {timeData.diffUnit}
                     </p>
                   )}
                 </div>
@@ -1270,17 +1378,19 @@ function CollapsiblePatchLineNode({
           {tokenLabel && tokenData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span
+                  className={`text-caption ml-2 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} cursor-pointer underline`}
+                >
                   {tokenLabel}
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-caption text-muted-foreground">
+              <HoverCardContent className="w-fit p-2">
+                <div className="text-caption space-y-1 text-muted-foreground">
                   <p className="font-semibold">{tokenData.title}</p>
                   {tokenData.baseTotalTokens > 0 && (
                     <div>
-                      <p>Base Token Usage:{tokenData.isBaseCached ? " (From Cache)" : ""}</p>
-                      <ul className="list-disc ml-4">
+                      <p>Base Token Usage:{tokenData.isBaseCached ? ' (From Cache)' : ''}</p>
+                      <ul className="ml-4 list-disc">
                         <li>Prompt: {tokenData.basePromptTokens}</li>
                         {tokenData.baseReasoningTokens > 0 && (
                           <li>Reasoning: {tokenData.baseReasoningTokens}</li>
@@ -1298,8 +1408,10 @@ function CollapsiblePatchLineNode({
                   )}
                   {tokenData.targetTotalTokens > 0 && (
                     <div>
-                      <p>Comparison Token Usage:{tokenData.isTargetCached ? " (From Cache)" : ""}</p>
-                      <ul className="list-disc ml-4">
+                      <p>
+                        Comparison Token Usage:{tokenData.isTargetCached ? ' (From Cache)' : ''}
+                      </p>
+                      <ul className="ml-4 list-disc">
                         <li>Prompt: {tokenData.targetPromptTokens}</li>
                         {tokenData.targetReasoningTokens > 0 && (
                           <li>Reasoning: {tokenData.targetReasoningTokens}</li>
@@ -1317,11 +1429,13 @@ function CollapsiblePatchLineNode({
                   )}
                   {tokenData.diffSignTokens && (
                     <p>
-                      Difference: {tokenData.diffSignTokens}{tokenData.diffAbsTokens} tokens
-                      {(tokenData.baseCachedTokens > 0 || tokenData.targetCachedTokens > 0 ||
-                       tokenData.isBaseCached || tokenData.isTargetCached) &&
-                        ` (Effective: ${tokenData.diffEffectiveTokens >= 0 ? '+' : ''}${tokenData.diffEffectiveTokens})`
-                      }
+                      Difference: {tokenData.diffSignTokens}
+                      {tokenData.diffAbsTokens} tokens
+                      {(tokenData.baseCachedTokens > 0 ||
+                        tokenData.targetCachedTokens > 0 ||
+                        tokenData.isBaseCached ||
+                        tokenData.isTargetCached) &&
+                        ` (Effective: ${tokenData.diffEffectiveTokens >= 0 ? '+' : ''}${tokenData.diffEffectiveTokens})`}
                     </p>
                   )}
                 </div>
@@ -1331,31 +1445,31 @@ function CollapsiblePatchLineNode({
           {costLabel && costData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span
+                  className={`text-caption ml-2 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} cursor-pointer underline`}
+                >
                   {costLabel}
                 </span>
               </HoverCardTrigger>
-              <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-caption text-muted-foreground">
+              <HoverCardContent className="w-fit p-2">
+                <div className="text-caption space-y-1 text-muted-foreground">
                   <p className="font-semibold">{costData.title}</p>
                   {costData.baseCost !== undefined && (
                     <p>
-                      Base Cost: ${formatCost(costData.baseCost)} (Including
-                      cache: ${formatCost(costData.baseCostIncCache)})
+                      Base Cost: ${formatCost(costData.baseCost)} (Including cache: $
+                      {formatCost(costData.baseCostIncCache)})
                     </p>
                   )}
                   {costData.targetCost !== undefined && (
                     <p>
-                      Comparison Cost: ${formatCost(costData.targetCost)}{" "}
-                      (Including cache: ${formatCost(costData.targetCostIncCache)}
-                      )
+                      Comparison Cost: ${formatCost(costData.targetCost)} (Including cache: $
+                      {formatCost(costData.targetCostIncCache)})
                     </p>
                   )}
                   {costData.diffSign && (
                     <p>
-                      Difference: {costData.diffSign}${formatCost(costData.diffAbs)}{" "}
-                      (Including cache: {costData.diffSignIncCache}$
-                      {formatCost(costData.diffAbsIncCache)})
+                      Difference: {costData.diffSign}${formatCost(costData.diffAbs)} (Including
+                      cache: {costData.diffSignIncCache}${formatCost(costData.diffAbsIncCache)})
                     </p>
                   )}
                 </div>
@@ -1366,7 +1480,7 @@ function CollapsiblePatchLineNode({
 
         {hasChildren && (
           <button
-            className="p-1 hover:bg-secondary text-muted-foreground rounded-sm ml-auto mr-1"
+            className="ml-auto mr-1 rounded-sm p-1 text-muted-foreground hover:bg-secondary"
             onClick={handleToggleCollapse}
           >
             {isCollapsed ? (
@@ -1378,7 +1492,7 @@ function CollapsiblePatchLineNode({
         )}
         {isSelected && (
           <div
-            className="absolute left-0 top-0 w-full h-full bg-primary/20"
+            className="bg-primary/20 absolute left-0 top-0 h-full w-full"
             style={{ zIndex: -1 }}
           />
         )}
@@ -1412,9 +1526,9 @@ function CollapsiblePatchLineNode({
 interface UnifiedTraceViewProps {
   allTraces: Span[][];
   rowIndexes: number[];
-  diffMode?: LogComparisonProps["diffMode"];
-  splitView?: LogComparisonProps["splitView"];
-  displayMode?: LogComparisonProps["displayMode"];
+  diffMode?: LogComparisonProps['diffMode'];
+  splitView?: LogComparisonProps['splitView'];
+  displayMode?: LogComparisonProps['displayMode'];
   persistedState?: PersistedTraceViewState;
   isImmutable?: boolean;
   cellEditMode?: boolean;
@@ -1426,12 +1540,12 @@ interface UnifiedTraceViewProps {
   context: string | null;
   baseLog: LogProps | undefined;
   comparisonLogs: LogProps[] | undefined;
-  fieldName: string
+  fieldName: string;
 }
 
 function flattenRootNode(root: PatchDiffNode | null): PatchDiffNode[] {
   if (!root) return [];
-  if (root.name === "ROOT") {
+  if (root.name === 'ROOT') {
     return root.children;
   }
   return [root];
@@ -1452,114 +1566,119 @@ function findNodeInForest(forest: PatchDiffNode[], spanId: string): PatchDiffNod
 }
 
 // Extract the detail panel to a separate component that can be memoized
-const MemoizedDetailPanel = React.memo(function DetailPanel({
-  selectedNode,
-  baseRowIndex,
-  comparisonLogsIndex,
-  allTraces,
-  allRowIndexes,
-  fieldName,
-  context,
-  baseLog,
-  comparisonLogs,
-  logsActions,
-  isImmutable,
-  diffMode,
-  splitView,
-  displayMode,
-  persistedState,
-  cellEditMode,
-  onSaveEdit,
-  onGroupSaveEdit,
-  path,
-}: {
-  selectedNode: PatchDiffNode | null;
-  baseRowIndex: number;
-  comparisonLogsIndex: number[];
-  allTraces: Span[][];
-  allRowIndexes: number[];
-  fieldName: string,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,
-  isImmutable?: boolean;
-  diffMode?: LogComparisonProps["diffMode"];
-  splitView?: LogComparisonProps["splitView"];
-  displayMode?: LogComparisonProps["displayMode"];
-  persistedState?: PersistedTraceViewState;
-  cellEditMode?: boolean;
-  onSaveEdit?: LogComparisonProps['onSaveEdit'];
-  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
-  path?: (string | number)[];
-}) {
-  if (!selectedNode) {
+const MemoizedDetailPanel = React.memo(
+  function DetailPanel({
+    selectedNode,
+    baseRowIndex,
+    comparisonLogsIndex,
+    allTraces,
+    allRowIndexes,
+    fieldName,
+    context,
+    baseLog,
+    comparisonLogs,
+    logsActions,
+    isImmutable,
+    diffMode,
+    splitView,
+    displayMode,
+    persistedState,
+    cellEditMode,
+    onSaveEdit,
+    onGroupSaveEdit,
+    path,
+  }: {
+    selectedNode: PatchDiffNode | null;
+    baseRowIndex: number;
+    comparisonLogsIndex: number[];
+    allTraces: Span[][];
+    allRowIndexes: number[];
+    fieldName: string;
+    context: string | null;
+    baseLog: LogProps | undefined;
+    comparisonLogs: LogProps[] | undefined;
+    logsActions?: LogsActions;
+    isImmutable?: boolean;
+    diffMode?: LogComparisonProps['diffMode'];
+    splitView?: LogComparisonProps['splitView'];
+    displayMode?: LogComparisonProps['displayMode'];
+    persistedState?: PersistedTraceViewState;
+    cellEditMode?: boolean;
+    onSaveEdit?: LogComparisonProps['onSaveEdit'];
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+    path?: (string | number)[];
+  }) {
+    if (!selectedNode) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <p className="text-sm italic text-muted-foreground">
+            Select a trace span to view details
+          </p>
+        </div>
+      );
+    }
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-muted-foreground italic">Select a trace span to view details</p>
-      </div>
+      <PatchDetailPanel
+        node={selectedNode}
+        baseRowIndex={baseRowIndex}
+        comparisonLogsIndex={comparisonLogsIndex}
+        allTraces={allTraces}
+        allRowIndexes={allRowIndexes}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+        diffMode={diffMode}
+        splitView={splitView}
+        displayMode={displayMode}
+        persistedState={persistedState}
+        cellEditMode={cellEditMode}
+        isImmutable={isImmutable}
+        onSaveEdit={onSaveEdit}
+        onGroupSaveEdit={onGroupSaveEdit}
+        path={path}
+      />
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparator: allow re-render when either configuration OR the
+    // *underlying trace data* changes.
+    if (prevProps.allTraces !== nextProps.allTraces) {
+      return false;
+    }
+
+    const configsEqual =
+      prevProps.diffMode === nextProps.diffMode &&
+      prevProps.splitView === nextProps.splitView &&
+      prevProps.displayMode === nextProps.displayMode &&
+      prevProps.cellEditMode === nextProps.cellEditMode;
+
+    if (!configsEqual) return false;
+
+    const prevIndices = JSON.stringify(prevProps.comparisonLogsIndex);
+    const nextIndices = JSON.stringify(nextProps.comparisonLogsIndex);
+    if (prevIndices !== nextIndices) return false;
+
+    if (prevProps.baseRowIndex !== nextProps.baseRowIndex) return false;
+
+    if (!prevProps.selectedNode || !nextProps.selectedNode) {
+      return prevProps.selectedNode === nextProps.selectedNode;
+    }
+
+    const prevNode = prevProps.selectedNode;
+    const nextNode = nextProps.selectedNode;
+
+    return (
+      prevNode.name === nextNode.name &&
+      prevNode.marker === nextNode.marker &&
+      prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
+      prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id &&
+      prevNode.baseSpanRef === nextNode.baseSpanRef &&
+      prevNode.targetSpanRef === nextNode.targetSpanRef
     );
   }
-  return (
-    <PatchDetailPanel
-      node={selectedNode}
-      baseRowIndex={baseRowIndex}
-      comparisonLogsIndex={comparisonLogsIndex}
-      allTraces={allTraces}
-      allRowIndexes={allRowIndexes}
-      logsActions={logsActions}
-      context={context}
-      baseLog={baseLog}
-      comparisonLogs={comparisonLogs}
-      fieldName={fieldName}
-      diffMode={diffMode}
-      splitView={splitView}
-      displayMode={displayMode}
-      persistedState={persistedState}
-      cellEditMode={cellEditMode}
-      isImmutable={isImmutable}
-      onSaveEdit={onSaveEdit}
-      onGroupSaveEdit={onGroupSaveEdit}
-      path={path}
-    />
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparator: allow re-render when either configuration OR the
-  // *underlying trace data* changes.
-  if (prevProps.allTraces !== nextProps.allTraces) {
-    return false;
-  }
-
-  const configsEqual =
-    prevProps.diffMode === nextProps.diffMode &&
-    prevProps.splitView === nextProps.splitView &&
-    prevProps.displayMode === nextProps.displayMode &&
-    prevProps.cellEditMode === nextProps.cellEditMode;
-
-  if (!configsEqual) return false;
-
-  const prevIndices = JSON.stringify(prevProps.comparisonLogsIndex);
-  const nextIndices = JSON.stringify(nextProps.comparisonLogsIndex);
-  if (prevIndices !== nextIndices) return false;
-
-  if (prevProps.baseRowIndex !== nextProps.baseRowIndex) return false;
-
-  if (!prevProps.selectedNode || !nextProps.selectedNode) {
-    return prevProps.selectedNode === nextProps.selectedNode;
-  }
-
-  const prevNode = prevProps.selectedNode;
-  const nextNode = nextProps.selectedNode;
-
-  return (
-    prevNode.name === nextNode.name &&
-    prevNode.marker === nextNode.marker &&
-    prevNode.baseSpanRef?.id === nextNode.baseSpanRef?.id &&
-    prevNode.targetSpanRef?.id === nextNode.targetSpanRef?.id &&
-    prevNode.baseSpanRef === nextNode.baseSpanRef &&
-    prevNode.targetSpanRef === nextNode.targetSpanRef
-  );
-});
+);
 
 // Internal function to check completion recursively
 function isTraceComplete(spans: Span[]): boolean {
@@ -1569,58 +1688,57 @@ function isTraceComplete(spans: Span[]): boolean {
 
 // Helper component to manage polling for a single trace
 const TracePoller = ({
-    log,
-    logIndex,
-    fieldName,
+  log,
+  logIndex,
+  fieldName,
+  logsActions,
+  context,
+  onTraceUpdate,
+  initialTrace, // This will be the live trace from UnifiedTraceView's state
+}: {
+  log: LogProps | undefined;
+  logIndex: number;
+  fieldName: string;
+  logsActions: LogsActions | undefined;
+  context: string | null;
+  onTraceUpdate: ((logIndex: number, fieldName: string, newTrace: Span[]) => void) | undefined;
+  initialTrace: Span[] | undefined;
+}) => {
+  const traceDone = useMemo(() => {
+    if (initialTrace === undefined) return false;
+    return isTraceComplete(initialTrace);
+  }, [initialTrace]);
+
+  const { data: polledTrace } = useTracePolling(
+    !traceDone ? log : undefined,
     logsActions,
     context,
-    onTraceUpdate,
-    initialTrace, // This will be the live trace from UnifiedTraceView's state
-  }: {
-    log: LogProps | undefined;
-    logIndex: number;
-    fieldName: string;
-    logsActions: LogsActions | undefined;
-    context: string | null;
-    onTraceUpdate: ((logIndex: number, fieldName: string, newTrace: Span[]) => void) | undefined;
-    initialTrace: Span[] | undefined;
-  }) => {
-    const traceDone = useMemo(() => {
-      if (initialTrace === undefined) return false;
-      return isTraceComplete(initialTrace);
-    }, [initialTrace]);
+    fieldName,
+    500
+  );
 
-    const { data: polledTrace } = useTracePolling(
-      !traceDone ? log : undefined,
-      logsActions,
-      context,
-      fieldName,
-      500
-    );
-
-    useEffect(() => {
-      if (onTraceUpdate) {
-        if (Array.isArray(polledTrace)) {
-          if (JSON.stringify(initialTrace) !== JSON.stringify(polledTrace)) {
-            // console.debug(`Polled trace update detected for logIndex: ${logIndex}, field: ${fieldName}.`);
-            onTraceUpdate(logIndex, fieldName, polledTrace);
-          }
+  useEffect(() => {
+    if (onTraceUpdate) {
+      if (Array.isArray(polledTrace)) {
+        if (JSON.stringify(initialTrace) !== JSON.stringify(polledTrace)) {
+          // console.debug(`Polled trace update detected for logIndex: ${logIndex}, field: ${fieldName}.`);
+          onTraceUpdate(logIndex, fieldName, polledTrace);
         }
-        // Optional: Handle cases where polledTrace is undefined (e.g., error during fetch)
-        // For now, if polledTrace is undefined, we don't trigger an update.
       }
-    }, [polledTrace, initialTrace, onTraceUpdate, logIndex, fieldName]);
+      // Optional: Handle cases where polledTrace is undefined (e.g., error during fetch)
+      // For now, if polledTrace is undefined, we don't trigger an update.
+    }
+  }, [polledTrace, initialTrace, onTraceUpdate, logIndex, fieldName]);
 
-    return null;
-  };
-
+  return null;
+};
 
 export default function UnifiedTraceView({
   allTraces, // Initial traces from props
   rowIndexes,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  displayMode = "markdown",
+  displayMode = 'markdown',
   persistedState,
   isImmutable,
   cellEditMode,
@@ -1632,7 +1750,7 @@ export default function UnifiedTraceView({
   context,
   baseLog,
   comparisonLogs,
-  fieldName
+  fieldName,
 }: UnifiedTraceViewProps) {
   // State to hold live-updated traces, initialized from props
   const [liveBaseTrace, setLiveBaseTrace] = useState<Span[]>(allTraces[0] ?? []);
@@ -1645,13 +1763,16 @@ export default function UnifiedTraceView({
   }, [allTraces]);
 
   // Combine live traces for diff computation and rendering
-  const liveAllTraces = useMemo(() => [liveBaseTrace, ...liveComparisonTraces], [liveBaseTrace, liveComparisonTraces]);
+  const liveAllTraces = useMemo(
+    () => [liveBaseTrace, ...liveComparisonTraces],
+    [liveBaseTrace, liveComparisonTraces]
+  );
 
   // Local state for UI elements if no persistedState is provided
   const [localCollapsedNodes, setLocalCollapsedNodes] = useState<Record<string, boolean>>({});
   const [localSelectedNode, setLocalSelectedNode] = useState<PatchDiffNode | null>(null);
-  const [localSelectedSpanId, setLocalSelectedSpanId] = useState<string>("");
-  const [localGroupSignature, setLocalGroupSignature] = useState("");
+  const [localSelectedSpanId, setLocalSelectedSpanId] = useState<string>('');
+  const [localGroupSignature, setLocalGroupSignature] = useState('');
   const [localTraceExpandOpenKeys, setLocalTraceExpandOpenKeys] = useState<Set<string>>(new Set());
   const [localLeftScrollPosition, setLocalLeftScrollPosition] = useState<number>(0);
   const [localRightScrollPosition, setLocalRightScrollPosition] = useState<number>(0);
@@ -1659,20 +1780,23 @@ export default function UnifiedTraceView({
   // Determine which state and setters to use (persisted or local)
   const collapsedNodes = persistedState?.collapsedNodes ?? localCollapsedNodes;
   const setCollapsedNodes = persistedState?.setCollapsedNodes ?? setLocalCollapsedNodes;
-  
+
   // Values for dependency array of selection effect
   const currentSelectedNodeValue = persistedState ? persistedState.selectedNode : localSelectedNode;
-  const currentSelectedSpanIdValue = persistedState ? persistedState.selectedSpanId : localSelectedSpanId;
-
+  const currentSelectedSpanIdValue = persistedState
+    ? persistedState.selectedSpanId
+    : localSelectedSpanId;
 
   const groupSignature = persistedState?.groupSignature ?? localGroupSignature;
   const setGroupSignature = persistedState?.setGroupSignature ?? setLocalGroupSignature;
   const traceExpandOpenKeys = persistedState?.traceExpandOpenKeys ?? localTraceExpandOpenKeys;
-  const setTraceExpandOpenKeys = persistedState?.setTraceExpandOpenKeys ?? setLocalTraceExpandOpenKeys;
+  const setTraceExpandOpenKeys =
+    persistedState?.setTraceExpandOpenKeys ?? setLocalTraceExpandOpenKeys;
   const leftScrollPosition = persistedState?.leftScrollPosition ?? localLeftScrollPosition;
   const setLeftScrollPosition = persistedState?.setLeftScrollPosition ?? setLocalLeftScrollPosition;
   const rightScrollPosition = persistedState?.rightScrollPosition ?? localRightScrollPosition;
-  const setRightScrollPosition = persistedState?.setRightScrollPosition ?? setLocalRightScrollPosition;
+  const setRightScrollPosition =
+    persistedState?.setRightScrollPosition ?? setLocalRightScrollPosition;
 
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const rightScrollRef = useRef<HTMLDivElement>(null);
@@ -1724,12 +1848,18 @@ export default function UnifiedTraceView({
   const multiMode = rowIndexes.length > 1;
   const baseRowSpans = useMemo(() => liveBaseTrace, [liveBaseTrace]);
 
-  const minimalSpanHierarchy = React.useCallback((span: Span): any => ({
-    name: span.spanName,
-    children: (span.childSpans ?? []).map(minimalSpanHierarchy),
-  }), []);
+  const minimalSpanHierarchy = React.useCallback(
+    (span: Span): any => ({
+      name: span.spanName,
+      children: (span.childSpans ?? []).map(minimalSpanHierarchy),
+    }),
+    []
+  );
 
-  const minimalSpanTree = React.useCallback((spans: Span[]): any => spans.map(minimalSpanHierarchy), [minimalSpanHierarchy]);
+  const minimalSpanTree = React.useCallback(
+    (spans: Span[]): any => spans.map(minimalSpanHierarchy),
+    [minimalSpanHierarchy]
+  );
 
   const groupedRows = useMemo(() => {
     const result: { signature: string; rowIndices: number[] }[] = [];
@@ -1754,30 +1884,32 @@ export default function UnifiedTraceView({
   }, [liveAllTraces, liveComparisonTraces, rowIndexes, minimalSpanTree]);
 
   function labelForGroupRows(rows: number[]): string {
-    if (!rows.length) return "--";
+    if (!rows.length) return '--';
     const compressed = compressRowNumbers(rows);
     return rows.length === 1 ? `Row ${compressed}` : `Rows ${compressed}`;
   }
 
   const groupOptions = useMemo(() => {
-    const arr = [{ value: "", label: "-- None --" }];
+    const arr = [{ value: '', label: '-- None --' }];
     groupedRows.forEach((g) => {
       arr.push({ value: g.signature, label: labelForGroupRows(g.rowIndices) });
     });
     return arr;
   }, [groupedRows]);
 
-  const unifyGroupIntoOne = React.useCallback((targetRowIndices: number[]): Span[] => {
-    if (!targetRowIndices.length) return [];
-    const firstTargetRow = targetRowIndices[0];
-    const indexInLiveAllTraces = rowIndexes.indexOf(firstTargetRow);
-    return indexInLiveAllTraces !== -1 ? (liveAllTraces[indexInLiveAllTraces] ?? []) : [];
-  }, [rowIndexes, liveAllTraces]);
-
+  const unifyGroupIntoOne = React.useCallback(
+    (targetRowIndices: number[]): Span[] => {
+      if (!targetRowIndices.length) return [];
+      const firstTargetRow = targetRowIndices[0];
+      const indexInLiveAllTraces = rowIndexes.indexOf(firstTargetRow);
+      return indexInLiveAllTraces !== -1 ? (liveAllTraces[indexInLiveAllTraces] ?? []) : [];
+    },
+    [rowIndexes, liveAllTraces]
+  );
 
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!liveAllTraces.length) return null;
-    const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
+    const baseWrapped = wrapAsRootSpan(baseRowSpans, 'baseRow');
     if (!groupSignature) {
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
@@ -1786,10 +1918,9 @@ export default function UnifiedTraceView({
       return computeSpanDiffByName(baseWrapped, baseWrapped);
     }
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
-    const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
+    const groupWrapped = wrapAsRootSpan(groupSpans, 'groupRow');
     return computeSpanDiffByName(baseWrapped, groupWrapped);
   }, [groupSignature, groupedRows, baseRowSpans, liveAllTraces, unifyGroupIntoOne]);
-
 
   const groupCompareRows = useMemo(() => {
     if (!groupSignature) return [];
@@ -1799,90 +1930,121 @@ export default function UnifiedTraceView({
 
   useEffect(() => {
     // Get current setters from closure. These are the latest versions.
-    const currentSetSelectedNode = persistedState ? persistedState.setSelectedNode : setLocalSelectedNode;
-    const currentSetSelectedSpanId = persistedState ? persistedState.setSelectedSpanId : setLocalSelectedSpanId;
-    
+    const currentSetSelectedNode = persistedState
+      ? persistedState.setSelectedNode
+      : setLocalSelectedNode;
+    const currentSetSelectedSpanId = persistedState
+      ? persistedState.setSelectedSpanId
+      : setLocalSelectedSpanId;
+
     if (!finalPatchRoot) {
-        // If no root, clear selection, calling setters only if current state is different
-        if (currentSelectedNodeValue !== null) currentSetSelectedNode(null);
-        if (currentSelectedSpanIdValue !== "") currentSetSelectedSpanId("");
-        return;
+      // If no root, clear selection, calling setters only if current state is different
+      if (currentSelectedNodeValue !== null) currentSetSelectedNode(null);
+      if (currentSelectedSpanIdValue !== '') currentSetSelectedSpanId('');
+      return;
     }
 
     const forest = flattenRootNode(finalPatchRoot);
     let newSelectedNodeCandidate: PatchDiffNode | null = null;
-    let newSelectedSpanIdCandidate: string = "";
+    let newSelectedSpanIdCandidate: string = '';
 
     if (forest.length > 0) {
-        const idToFind = currentSelectedSpanIdValue; // Use current selectedSpanId from state/props
-        if (!idToFind) { // If no span is currently selected by ID, select the first one
-            newSelectedNodeCandidate = forest[0];
-        } else { // A span ID is selected, try to find it
-            newSelectedNodeCandidate = findNodeInForest(forest, idToFind);
-            if (!newSelectedNodeCandidate) { // If previous selection not found, select the first one
-                newSelectedNodeCandidate = forest[0];
-            }
+      const idToFind = currentSelectedSpanIdValue; // Use current selectedSpanId from state/props
+      if (!idToFind) {
+        // If no span is currently selected by ID, select the first one
+        newSelectedNodeCandidate = forest[0];
+      } else {
+        // A span ID is selected, try to find it
+        newSelectedNodeCandidate = findNodeInForest(forest, idToFind);
+        if (!newSelectedNodeCandidate) {
+          // If previous selection not found, select the first one
+          newSelectedNodeCandidate = forest[0];
         }
+      }
     }
 
     if (newSelectedNodeCandidate) {
-        newSelectedSpanIdCandidate = newSelectedNodeCandidate.baseSpanRef?.id || newSelectedNodeCandidate.targetSpanRef?.id || newSelectedNodeCandidate.name;
+      newSelectedSpanIdCandidate =
+        newSelectedNodeCandidate.baseSpanRef?.id ||
+        newSelectedNodeCandidate.targetSpanRef?.id ||
+        newSelectedNodeCandidate.name;
     }
-    
+
     // Explicit check before calling setter for the node to prevent unnecessary calls if the setter itself isn't robust enough.
     // This complements the internal checks of persistedState.setSelectedNode.
     let shouldUpdateNode = false;
     if (currentSelectedNodeValue === null && newSelectedNodeCandidate !== null) {
-        shouldUpdateNode = true;
+      shouldUpdateNode = true;
     } else if (currentSelectedNodeValue !== null && newSelectedNodeCandidate === null) {
-        shouldUpdateNode = true;
+      shouldUpdateNode = true;
     } else if (currentSelectedNodeValue && newSelectedNodeCandidate) {
-        if (currentSelectedNodeValue.name !== newSelectedNodeCandidate.name ||
-            currentSelectedNodeValue.baseSpanRef?.id !== newSelectedNodeCandidate.baseSpanRef?.id ||
-            currentSelectedNodeValue.targetSpanRef?.id !== newSelectedNodeCandidate.targetSpanRef?.id ||
-            // Compare actual span object references if they exist
-            currentSelectedNodeValue.baseSpanRef !== newSelectedNodeCandidate.baseSpanRef ||
-            currentSelectedNodeValue.targetSpanRef !== newSelectedNodeCandidate.targetSpanRef
-           ) {
-            shouldUpdateNode = true;
-        }
+      if (
+        currentSelectedNodeValue.name !== newSelectedNodeCandidate.name ||
+        currentSelectedNodeValue.baseSpanRef?.id !== newSelectedNodeCandidate.baseSpanRef?.id ||
+        currentSelectedNodeValue.targetSpanRef?.id !== newSelectedNodeCandidate.targetSpanRef?.id ||
+        // Compare actual span object references if they exist
+        currentSelectedNodeValue.baseSpanRef !== newSelectedNodeCandidate.baseSpanRef ||
+        currentSelectedNodeValue.targetSpanRef !== newSelectedNodeCandidate.targetSpanRef
+      ) {
+        shouldUpdateNode = true;
+      }
     }
 
     if (shouldUpdateNode) {
-        currentSetSelectedNode(newSelectedNodeCandidate);
+      currentSetSelectedNode(newSelectedNodeCandidate);
     }
 
     if (currentSelectedSpanIdValue !== newSelectedSpanIdCandidate) {
-        currentSetSelectedSpanId(newSelectedSpanIdCandidate);
+      currentSetSelectedSpanId(newSelectedSpanIdCandidate);
     }
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [finalPatchRoot, currentSelectedSpanIdValue, currentSelectedNodeValue, persistedState, localSelectedNode, localSelectedSpanId, setLocalSelectedNode, setLocalSelectedSpanId]);
-// Dependencies:
-// - finalPatchRoot: Tree data changes.
-// - currentSelectedSpanIdValue (value): The ID we're trying to select changes.
-// - currentSelectedNodeValue (value): The actual selected node object changes.
-// - persistedState: if its identity changes, it implies setters might have changed or selection state it holds changed.
-// - local states and setters: to ensure effect re-runs if using local state and it changes.
-// The goal is that this effect only triggers actual state-setting calls if a meaningful change in selection occurs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    finalPatchRoot,
+    currentSelectedSpanIdValue,
+    currentSelectedNodeValue,
+    persistedState,
+    localSelectedNode,
+    localSelectedSpanId,
+    setLocalSelectedNode,
+    setLocalSelectedSpanId,
+  ]);
+  // Dependencies:
+  // - finalPatchRoot: Tree data changes.
+  // - currentSelectedSpanIdValue (value): The ID we're trying to select changes.
+  // - currentSelectedNodeValue (value): The actual selected node object changes.
+  // - persistedState: if its identity changes, it implies setters might have changed or selection state it holds changed.
+  // - local states and setters: to ensure effect re-runs if using local state and it changes.
+  // The goal is that this effect only triggers actual state-setting calls if a meaningful change in selection occurs.
 
+  const onSelectNode = React.useCallback(
+    (n: PatchDiffNode | null) => {
+      const currentSetSelectedNode = persistedState
+        ? persistedState.setSelectedNode
+        : setLocalSelectedNode;
+      const currentSetSelectedSpanId = persistedState
+        ? persistedState.setSelectedSpanId
+        : setLocalSelectedSpanId;
+      currentSetSelectedNode(n);
+      currentSetSelectedSpanId(n ? n.baseSpanRef?.id || n.targetSpanRef?.id || n.name : '');
+    },
+    [persistedState, setLocalSelectedNode, setLocalSelectedSpanId]
+  ); // Add local states to dep array
 
-  const onSelectNode = React.useCallback((n: PatchDiffNode | null) => {
-    const currentSetSelectedNode = persistedState ? persistedState.setSelectedNode : setLocalSelectedNode;
-    const currentSetSelectedSpanId = persistedState ? persistedState.setSelectedSpanId : setLocalSelectedSpanId;
-    currentSetSelectedNode(n);
-    currentSetSelectedSpanId(n ? (n.baseSpanRef?.id || n.targetSpanRef?.id || n.name) : "");
-  }, [persistedState, setLocalSelectedNode, setLocalSelectedSpanId]); // Add local states to dep array
-
-  const handleGroupChange = React.useCallback((val: string) => {
-    setGroupSignature(val);
-    setCollapsedNodes({});
-    // Selection will be re-evaluated by the useEffect hook due to groupSignature change affecting finalPatchRoot
-  }, [setGroupSignature, setCollapsedNodes]);
+  const handleGroupChange = React.useCallback(
+    (val: string) => {
+      setGroupSignature(val);
+      setCollapsedNodes({});
+      // Selection will be re-evaluated by the useEffect hook due to groupSignature change affecting finalPatchRoot
+    },
+    [setGroupSignature, setCollapsedNodes]
+  );
 
   function renderPatchTree() {
-    if (!finalPatchRoot) return <p className="text-sm italic text-muted-foreground mt-2">No trace data</p>;
+    if (!finalPatchRoot)
+      return <p className="mt-2 text-sm italic text-muted-foreground">No trace data</p>;
     const forest = flattenRootNode(finalPatchRoot);
-    if (!forest.length) return <p className="text-sm italic text-muted-foreground mt-2">No top-level spans</p>;
+    if (!forest.length)
+      return <p className="mt-2 text-sm italic text-muted-foreground">No top-level spans</p>;
 
     return (
       <React.Fragment key={`trace-tree-${currentSelectedSpanIdValue}`}>
@@ -1903,29 +2065,51 @@ export default function UnifiedTraceView({
     );
   }
 
-  const renderDetail = React.useCallback(() => (
-    <MemoizedDetailPanel
-      selectedNode={currentSelectedNodeValue}
-      baseRowIndex={rowIndexes[0]}
-      comparisonLogsIndex={groupCompareRows}
-      allTraces={liveAllTraces}
-      allRowIndexes={rowIndexes}
-      logsActions={logsActions}
-      context={context}
-      baseLog={baseLog}
-      comparisonLogs={comparisonLogs}
-      fieldName={fieldName}
-      diffMode={diffMode}
-      splitView={splitView}
-      displayMode={displayMode}
-      persistedState={persistedState}
-      cellEditMode={cellEditMode}
-      isImmutable={isImmutable}
-      onSaveEdit={onSaveEdit}
-      onGroupSaveEdit={onGroupSaveEdit}
-      path={path}
-    />
-  ), [currentSelectedNodeValue, rowIndexes, groupCompareRows, liveAllTraces, diffMode, splitView, displayMode, persistedState, isImmutable, cellEditMode, onSaveEdit, onGroupSaveEdit, path, logsActions, context, baseLog, comparisonLogs, fieldName]);
+  const renderDetail = React.useCallback(
+    () => (
+      <MemoizedDetailPanel
+        selectedNode={currentSelectedNodeValue}
+        baseRowIndex={rowIndexes[0]}
+        comparisonLogsIndex={groupCompareRows}
+        allTraces={liveAllTraces}
+        allRowIndexes={rowIndexes}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+        diffMode={diffMode}
+        splitView={splitView}
+        displayMode={displayMode}
+        persistedState={persistedState}
+        cellEditMode={cellEditMode}
+        isImmutable={isImmutable}
+        onSaveEdit={onSaveEdit}
+        onGroupSaveEdit={onGroupSaveEdit}
+        path={path}
+      />
+    ),
+    [
+      currentSelectedNodeValue,
+      rowIndexes,
+      groupCompareRows,
+      liveAllTraces,
+      diffMode,
+      splitView,
+      displayMode,
+      persistedState,
+      isImmutable,
+      cellEditMode,
+      onSaveEdit,
+      onGroupSaveEdit,
+      path,
+      logsActions,
+      context,
+      baseLog,
+      comparisonLogs,
+      fieldName,
+    ]
+  );
 
   const baseTraceDone = useMemo(() => isTraceComplete(liveBaseTrace), [liveBaseTrace]);
 
@@ -1962,8 +2146,8 @@ export default function UnifiedTraceView({
         );
       })}
 
-      <div className="bg-background rounded-md w-full h-full p-4 flex flex-col gap-4">
-        <div style={{ height: "600px" }}>
+      <div className="flex h-full w-full flex-col gap-4 rounded-md bg-background p-4">
+        <div style={{ height: '600px' }}>
           <DoublePanels
             isLoading={false}
             defaultFirstSize={30}
@@ -1973,14 +2157,14 @@ export default function UnifiedTraceView({
                 ref={leftScrollRef}
                 onScroll={handleLeftScroll}
                 style={{
-                  height: "100%",
-                  border: "1px solid var(--muted)",
-                  borderRadius: "0.25rem",
-                  position: "relative",
-                  overflowY: "auto",
+                  height: '100%',
+                  border: '1px solid var(--muted)',
+                  borderRadius: '0.25rem',
+                  position: 'relative',
+                  overflowY: 'auto',
                 }}
               >
-                <div className="sticky top-0 z-10 bg-background border-b border-muted">
+                <div className="sticky top-0 z-10 border-b border-muted bg-background">
                   {!baseTraceDone && (
                     <div className="flex items-center gap-2 px-2 py-1">
                       <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -1988,8 +2172,8 @@ export default function UnifiedTraceView({
                     </div>
                   )}
                   {rowIndexes.length > 1 && (
-                    <div className="p-2 border-t border-muted flex items-center gap-2">
-                      <span className="text-caption text-muted-foreground text-strong block">
+                    <div className="flex items-center gap-2 border-t border-muted p-2">
+                      <span className="text-caption text-strong block text-muted-foreground">
                         Compare with:
                       </span>
                       <Combobox
@@ -2010,11 +2194,11 @@ export default function UnifiedTraceView({
                 ref={rightScrollRef}
                 onScroll={handleRightScroll}
                 style={{
-                  height: "100%",
-                  border: "1px solid var(--muted)",
-                  borderRadius: "0.25rem",
-                  overflowY: "auto",
-                  padding: "0.5rem",
+                  height: '100%',
+                  border: '1px solid var(--muted)',
+                  borderRadius: '0.25rem',
+                  overflowY: 'auto',
+                  padding: '0.5rem',
                 }}
               >
                 {renderDetail()}

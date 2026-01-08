@@ -7,8 +7,6 @@ This project uses **Vitest** with a **multi-project setup**, allowing tests to r
 
 Vitest automatically chooses which environment to use based on the test file naming convention.
 
-
-
 ## 📁 **Configuration Overview**
 
 - **1. `vitest.config.ts`**: A single unified config that defines configuration settings for both node and browser based projects.
@@ -17,12 +15,11 @@ Vitest automatically chooses which environment to use based on the test file nam
 - **4. `src/tests/handlers.ts`**: Central registry for all MSW request handlers. All handlers across subfolders should be imported here.
 - **5. `src/tests/render.ts`** Replicates app rendering structure. Includes providers and context wrappers, global styling import, and a unified RTL `render()` used by both environments.
 
-
 ## ▶️ **Running Tests**
 
 ### **Node Tests**
 
-For fast-running unit tests and API tests. 
+For fast-running unit tests and API tests.
 
 Before running:
 
@@ -38,7 +35,6 @@ Run **`*.node.test.ts(x)`** files with:
 ```bash
 npm run test:node
 ```
-
 
 ### **Browser Tests**
 
@@ -57,9 +53,9 @@ npm run test:browser:screenshots
 ```
 
 Screenshots appear in the **`./screenshots`** directory. Screenshot filnames are derived from:
-* `meta.alias`, if provided in a test
-* Otherwise the test name + describe block
 
+- `meta.alias`, if provided in a test
+- Otherwise the test name + describe block
 
 ## 🧪 **Writing Tests**
 
@@ -79,28 +75,31 @@ src/tests/assistants/
 
 ### **Naming Convention**
 
-| Purpose              | File Pattern                      | Runs In        |
-| -------------------- | --------------------------------- | -------------- |
-| Node-only tests      | `*.node.test.ts?(x)`              | Node (`jsdom`) |
-| Node matrix tests    | `*.matrix.node.test.ts?(x)`       | Node (`jsdom`) |
-| Browser UI tests     | `*.browser.test.ts?(x)`           | Real browser   |
-| Browser matrix tests | `*.matrix.browser.test.ts?(x)`    | Real browser   |
+| Purpose              | File Pattern                   | Runs In        |
+| -------------------- | ------------------------------ | -------------- |
+| Node-only tests      | `*.node.test.ts?(x)`           | Node (`jsdom`) |
+| Node matrix tests    | `*.matrix.node.test.ts?(x)`    | Node (`jsdom`) |
+| Browser UI tests     | `*.browser.test.ts?(x)`        | Real browser   |
+| Browser matrix tests | `*.matrix.browser.test.ts?(x)` | Real browser   |
 
 **Matrix tests** are test files that iterate over large configuration matrices. They support sharding for parallel CI execution. Use the `.matrix.` suffix to easily identify and target these files.
 
 ### **Test Blocks**
+
 Tests should be wrapped in a block containing:
-* `description`: Explaining the intended behavior that is tested
-* `options`: A dict containing test settings including:
-  * `meta`: A dict with test metadata used to control some testing parameters. 
-      * `alias` defines the name of screenshots in browser tests. 
-      * `mock` determines whether api calls should be mocked or not.
-  * `...`: Other Vitest specific options like `timeout` for e.g.
-* `function`: The test function used to run the test.
+
+- `description`: Explaining the intended behavior that is tested
+- `options`: A dict containing test settings including:
+  - `meta`: A dict with test metadata used to control some testing parameters.
+    - `alias` defines the name of screenshots in browser tests.
+    - `mock` determines whether api calls should be mocked or not.
+  - `...`: Other Vitest specific options like `timeout` for e.g.
+- `function`: The test function used to run the test.
 
 ## 📘 **Test Examples**
 
 ### **Node Test**
+
 ```tsx
 // src/tests/my_tests/Counter.node.test.tsx
 import { render, screen } from '@/tests/render';
@@ -170,7 +169,6 @@ export const handlers = [
 
 `vitest.setup.browser.ts` automatically loads and starts the MSW worker.
 
-
 ## 🔢 **Matrix Testing**
 
 Matrix tests run the same test logic across many configuration combinations (e.g., plot types × data types × scales). Two utilities support this pattern:
@@ -184,20 +182,20 @@ import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
 
 export const matrixTests = defineMatrixTests({
   name: 'Bar Chart - Matrix Tests',
-  
+
   // Function returning all test configurations
   getMatrix: () => generateAllConfigs(),
-  
+
   // Tests to run for each config
   defineTests: (config, { it, expect }) => {
     it('renders correctly', async () => {
       // Test logic using config
     });
   },
-  
+
   // Configs per chunk file (for parallel CI)
   chunkSize: 25,
-  
+
   // Generate readable test names
   getConfigAlias: (config, index) => `${config.type}-${config.scale}`,
 });
@@ -216,6 +214,7 @@ SHARDS=8 npm run test:browser:matrix
 ```
 
 The script automatically:
+
 1. Generates chunk files for parallel execution
 2. Runs tests across multiple shards
 3. Cleans up generated files on success
@@ -229,18 +228,18 @@ import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
 
 defineNodeMatrixTests<MyConfig>({
   name: 'Plot API - Matrix Tests',
-  concurrent: true,  // Use describe.concurrent
-  
+  concurrent: true, // Use describe.concurrent
+
   // Function returning all test configurations (same as browser)
   getMatrix: () => generateAllConfigs(),
-  
+
   // Tests to run for each config
   defineTests: (config, { it, expect }) => {
     it('returns valid response', async () => {
       // Test logic using config
     });
   },
-  
+
   // Generate readable test names
   getConfigAlias: (config) => `${config.type}-${config.scale}`,
 });

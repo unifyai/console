@@ -1,15 +1,15 @@
 /**
  * P2-H: Selection Panel Integration Tests
- * 
+ *
  * These tests render the REAL SelectionPanel component with mocked data,
  * verifying that the actual rendering logic works correctly.
- * 
+ *
  * Unlike the behavior tests (which use a simplified harness), these tests:
  * - Import the real SelectionPanel component
  * - Test real markdown rendering
  * - Test real trace visualization
  * - Verify integration with SelectionEntry and other subcomponents
- * 
+ *
  * Note: The difflib package used by computeDiff.ts has browser compatibility issues
  * (tries to modify read-only function.name property). We mock the computeDiff module
  * for browser tests. The real computeDiff logic is tested separately in Node.js tests.
@@ -22,17 +22,23 @@ import React from 'react';
 // Mock computeDiff due to difflib browser compatibility issues
 // The real computeDiff functions are tested in Node.js tests
 vi.mock('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff', () => ({
-  wrapAsRootSpan: (spans: unknown[], syntheticId: string) => ({ 
-    id: syntheticId, 
+  wrapAsRootSpan: (spans: unknown[], syntheticId: string) => ({
+    id: syntheticId,
     spanName: 'ROOT',
     childSpans: spans || [],
   }),
   computeSpanDiffByName: (baseSpan?: unknown, targetSpan?: unknown) => {
     // Simplified mock that returns realistic diff structure
     if (!baseSpan && !targetSpan) return { name: '', marker: ' ', children: [] };
-    if (baseSpan && !targetSpan) return { name: (baseSpan as {spanName: string}).spanName || '', marker: '-', children: [] };
-    if (!baseSpan && targetSpan) return { name: (targetSpan as {spanName: string}).spanName || '', marker: '+', children: [] };
-    return { name: (baseSpan as {spanName: string}).spanName || '', marker: ' ', children: [] };
+    if (baseSpan && !targetSpan)
+      return { name: (baseSpan as { spanName: string }).spanName || '', marker: '-', children: [] };
+    if (!baseSpan && targetSpan)
+      return {
+        name: (targetSpan as { spanName: string }).spanName || '',
+        marker: '+',
+        children: [],
+      };
+    return { name: (baseSpan as { spanName: string }).spanName || '', marker: ' ', children: [] };
   },
 }));
 
@@ -52,34 +58,55 @@ import { TileProps, LogsActions } from '@/types/interfaces/grid';
 
 function createMockFields(): LogFieldsResponseProps {
   return {
-    'input': { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
-    'output': { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
-    'trace': { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' },
-    'score': { fieldType: 'param', dataType: 'float', mutable: 'false', artifacts: '', createdAt: '' },
-    'model': { fieldType: 'param', dataType: 'str', mutable: 'false', artifacts: '', createdAt: '' },
+    input: { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
+    output: { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
+    trace: { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' },
+    score: {
+      fieldType: 'param',
+      dataType: 'float',
+      mutable: 'false',
+      artifacts: '',
+      createdAt: '',
+    },
+    model: { fieldType: 'param', dataType: 'str', mutable: 'false', artifacts: '', createdAt: '' },
   };
 }
 
 function createMockLogs(count: number = 3): LogProps[] {
-  return Array.from({ length: count }, (_, i) => ({
-    type: 'ungrouped',
-    id: String(i + 1),
-    ts: new Date().toISOString(),
-    entries: {
-      input: `Input text ${i + 1}`,
-      output: `Output text ${i + 1}`,
-      trace: i === 0 ? [
-        { name: 'Request', startTime: '2024-01-01T00:00:00', endTime: '2024-01-01T00:00:01' },
-        { name: 'Processing', startTime: '2024-01-01T00:00:01', endTime: '2024-01-01T00:00:03' },
-      ] : undefined,
-    },
-    params: {
-      score: { paramValue: 0.85 + i * 0.05 },
-      model: { paramValue: 'gpt-4' },
-    },
-    derivedEntries: {},
-    clippedFields: {},
-  } as LogProps));
+  return Array.from(
+    { length: count },
+    (_, i) =>
+      ({
+        type: 'ungrouped',
+        id: String(i + 1),
+        ts: new Date().toISOString(),
+        entries: {
+          input: `Input text ${i + 1}`,
+          output: `Output text ${i + 1}`,
+          trace:
+            i === 0
+              ? [
+                  {
+                    name: 'Request',
+                    startTime: '2024-01-01T00:00:00',
+                    endTime: '2024-01-01T00:00:01',
+                  },
+                  {
+                    name: 'Processing',
+                    startTime: '2024-01-01T00:00:01',
+                    endTime: '2024-01-01T00:00:03',
+                  },
+                ]
+              : undefined,
+        },
+        params: {
+          score: { paramValue: 0.85 + i * 0.05 },
+          model: { paramValue: 'gpt-4' },
+        },
+        derivedEntries: {},
+        clippedFields: {},
+      }) as LogProps
+  );
 }
 
 function createMockPanelState() {
@@ -139,11 +166,7 @@ function TestWrapper({ children, initialStoreState = {} }: TestWrapperProps) {
     ...initialStoreState,
   };
 
-  return (
-    <StoreProvider initialState={defaultState}>
-      {children}
-    </StoreProvider>
-  );
+  return <StoreProvider initialState={defaultState}>{children}</StoreProvider>;
 }
 
 // =============================================================================
@@ -154,7 +177,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
   const mockFields = createMockFields();
   const mockLogs = createMockLogs(3);
   const mockParams = { score: 0.85, model: 'gpt-4' };
-  
+
   const defaultProps = {
     panelId: 0,
     panelState: createMockPanelState(),
@@ -222,12 +245,15 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       // The Entries section should appear after component mounts and processes data
       // Note: The section only appears if there are visible entries in the log
-      await waitFor(() => {
-        // Check for either the Entries header or the row selection text
-        const hasEntries = screen.queryByText('Entries');
-        const hasSelection = screen.queryByText(/Selected 1 row/);
-        expect(hasEntries || hasSelection).toBeTruthy();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          // Check for either the Entries header or the row selection text
+          const hasEntries = screen.queryByText('Entries');
+          const hasSelection = screen.queryByText(/Selected 1 row/);
+          expect(hasEntries || hasSelection).toBeTruthy();
+        },
+        { timeout: 3000 }
+      );
     });
 
     it('renders params section with log data', async () => {
@@ -239,12 +265,15 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       // The Params section should appear after component mounts and processes data
       // Note: The section only appears if there are visible params in the log
-      await waitFor(() => {
-        // Check for either the Params header or the row selection text
-        const hasParams = screen.queryByText('Params');
-        const hasSelection = screen.queryByText(/Selected 1 row/);
-        expect(hasParams || hasSelection).toBeTruthy();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          // Check for either the Params header or the row selection text
+          const hasParams = screen.queryByText('Params');
+          const hasSelection = screen.queryByText(/Selected 1 row/);
+          expect(hasParams || hasSelection).toBeTruthy();
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -295,8 +324,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
+          <SelectionPanel
+            {...defaultProps}
             panelState={panelState}
             selectedRowIndices={[0, 1]}
             selectedRowCount={2}
@@ -331,10 +360,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
-            onPanelStateChange={onPanelStateChange}
-          />
+          <SelectionPanel {...defaultProps} onPanelStateChange={onPanelStateChange} />
         </TestWrapper>
       );
 
@@ -345,14 +371,14 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       // Find and click the edit mode toggle (it's in the header)
       // The button has a tooltip "Switch to Edit Mode"
       const buttons = screen.getAllByRole('button');
-      const editButton = buttons.find(btn => 
-        btn.querySelector('svg.lucide-edit') || 
-        btn.getAttribute('data-testid')?.includes('edit')
+      const editButton = buttons.find(
+        (btn) =>
+          btn.querySelector('svg.lucide-edit') || btn.getAttribute('data-testid')?.includes('edit')
       );
 
       if (editButton) {
         await user.click(editButton);
-        
+
         // Should have called onPanelStateChange with cellEditMode: true
         expect(onPanelStateChange).toHaveBeenCalledWith(
           expect.objectContaining({ cellEditMode: true })
@@ -455,10 +481,10 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       // Verify there are control buttons in the header
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
-      
+
       // The panel count button should exist (look for split icon in any button)
       const allButtons = document.querySelectorAll('button');
-      const hasPanelButton = Array.from(allButtons).some(btn => 
+      const hasPanelButton = Array.from(allButtons).some((btn) =>
         btn.innerHTML.includes('square-split')
       );
       expect(hasPanelButton).toBe(true);
@@ -469,11 +495,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     it('handles missing log data gracefully', async () => {
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
-            logs={[]}
-            sortedLogs={[]}
-          />
+          <SelectionPanel {...defaultProps} logs={[]} sortedLogs={[]} />
         </TestWrapper>
       );
 
@@ -486,8 +508,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     it('handles invalid selectedRowIndices gracefully', async () => {
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
+          <SelectionPanel
+            {...defaultProps}
             selectedRowIndices={[999]} // Invalid index
           />
         </TestWrapper>
@@ -503,10 +525,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     it('handles empty fields gracefully', async () => {
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
-            fields={{}}
-          />
+          <SelectionPanel {...defaultProps} fields={{}} />
         </TestWrapper>
       );
 
@@ -530,10 +549,11 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       // The maximize button should be visible
       const buttons = screen.getAllByRole('button');
-      const maximizeButton = buttons.find(btn => 
-        btn.querySelector('svg.lucide-maximize-2') ||
-        btn.querySelector('.lucide-maximize-2') ||
-        btn.querySelector('[class*="maximize"]')
+      const maximizeButton = buttons.find(
+        (btn) =>
+          btn.querySelector('svg.lucide-maximize-2') ||
+          btn.querySelector('.lucide-maximize-2') ||
+          btn.querySelector('[class*="maximize"]')
       );
       // Button may or may not be visible depending on focusPaneOpen state
       expect(buttons.length).toBeGreaterThan(0);
@@ -545,10 +565,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       render(
         <TestWrapper initialStoreState={{ globalEditMode: false, focusPaneOpen: false }}>
-          <SelectionPanel 
-            {...defaultProps} 
-            setFocusPaneOpen={setFocusPaneOpen}
-          />
+          <SelectionPanel {...defaultProps} setFocusPaneOpen={setFocusPaneOpen} />
         </TestWrapper>
       );
 
@@ -557,9 +574,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       });
 
       const buttons = screen.getAllByRole('button');
-      const maximizeButton = buttons.find(btn => 
-        btn.querySelector('svg.lucide-maximize-2')
-      );
+      const maximizeButton = buttons.find((btn) => btn.querySelector('svg.lucide-maximize-2'));
 
       if (maximizeButton) {
         await user.click(maximizeButton);
@@ -576,8 +591,9 @@ describe('P2-H: Selection Panel Integration Tests', () => {
   // Real diff computation is tested in Node.js tests: computeDiff.node.test.ts
   describe('Diff Computation (Mocked)', () => {
     it('mock computeSpanDiffByName handles identical spans', async () => {
-      const { computeSpanDiffByName } = await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-      
+      const { computeSpanDiffByName } =
+        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
+
       const span = {
         id: 'span-1',
         spanName: 'Request',
@@ -591,8 +607,9 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
 
     it('mock computeSpanDiffByName detects added spans', async () => {
-      const { computeSpanDiffByName } = await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-      
+      const { computeSpanDiffByName } =
+        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
+
       const targetSpan = {
         id: 'span-1',
         spanName: 'NewSpan',
@@ -606,8 +623,9 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
 
     it('mock computeSpanDiffByName detects removed spans', async () => {
-      const { computeSpanDiffByName } = await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-      
+      const { computeSpanDiffByName } =
+        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
+
       const baseSpan = {
         id: 'span-1',
         spanName: 'OldSpan',
@@ -621,8 +639,9 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
 
     it('mock wrapAsRootSpan creates synthetic root', async () => {
-      const { wrapAsRootSpan } = await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-      
+      const { wrapAsRootSpan } =
+        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
+
       const spans = [
         { id: 'span-1', spanName: 'Span1', childSpans: [] },
         { id: 'span-2', spanName: 'Span2', childSpans: [] },
@@ -641,29 +660,37 @@ describe('P2-H: Selection Panel Integration Tests', () => {
   // =========================================================================
   describe('Real Trace Visualization', () => {
     it('renders with trace data in logs', async () => {
-      const logsWithTrace = [{
-        type: 'ungrouped',
-        id: '1',
-        ts: new Date().toISOString(),
-        entries: {
-          input: 'Test input',
-          trace: [
-            { id: 'span-1', spanName: 'Request', startTime: '2024-01-01T00:00:00', endTime: '2024-01-01T00:00:01' },
-            { id: 'span-2', spanName: 'Processing', startTime: '2024-01-01T00:00:01', endTime: '2024-01-01T00:00:02' },
-          ],
+      const logsWithTrace = [
+        {
+          type: 'ungrouped',
+          id: '1',
+          ts: new Date().toISOString(),
+          entries: {
+            input: 'Test input',
+            trace: [
+              {
+                id: 'span-1',
+                spanName: 'Request',
+                startTime: '2024-01-01T00:00:00',
+                endTime: '2024-01-01T00:00:01',
+              },
+              {
+                id: 'span-2',
+                spanName: 'Processing',
+                startTime: '2024-01-01T00:00:01',
+                endTime: '2024-01-01T00:00:02',
+              },
+            ],
+          },
+          params: {},
+          derivedEntries: {},
+          clippedFields: {},
         },
-        params: {},
-        derivedEntries: {},
-        clippedFields: {},
-      }] as LogProps[];
+      ] as LogProps[];
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
-            logs={logsWithTrace}
-            sortedLogs={logsWithTrace}
-          />
+          <SelectionPanel {...defaultProps} logs={logsWithTrace} sortedLogs={logsWithTrace} />
         </TestWrapper>
       );
 
@@ -675,40 +702,50 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
 
     it('handles complex nested trace structures', async () => {
-      const complexTrace = [{
-        type: 'ungrouped',
-        id: '1',
-        ts: new Date().toISOString(),
-        entries: {
-          trace: [
-            {
-              id: 'root',
-              spanName: 'RootSpan',
-              childSpans: [
-                {
-                  id: 'child-1',
-                  spanName: 'ChildSpan1',
-                  childSpans: [
-                    { id: 'grandchild-1', spanName: 'GrandchildSpan', childSpans: [] },
-                  ],
-                },
-                { id: 'child-2', spanName: 'ChildSpan2', childSpans: [] },
-              ],
-            },
-          ],
+      const complexTrace = [
+        {
+          type: 'ungrouped',
+          id: '1',
+          ts: new Date().toISOString(),
+          entries: {
+            trace: [
+              {
+                id: 'root',
+                spanName: 'RootSpan',
+                childSpans: [
+                  {
+                    id: 'child-1',
+                    spanName: 'ChildSpan1',
+                    childSpans: [
+                      { id: 'grandchild-1', spanName: 'GrandchildSpan', childSpans: [] },
+                    ],
+                  },
+                  { id: 'child-2', spanName: 'ChildSpan2', childSpans: [] },
+                ],
+              },
+            ],
+          },
+          params: {},
+          derivedEntries: {},
+          clippedFields: {},
         },
-        params: {},
-        derivedEntries: {},
-        clippedFields: {},
-      }] as LogProps[];
+      ] as LogProps[];
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
+          <SelectionPanel
+            {...defaultProps}
             logs={complexTrace}
             sortedLogs={complexTrace}
-            fields={{ trace: { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' } }}
+            fields={{
+              trace: {
+                fieldType: 'entry',
+                dataType: 'list',
+                mutable: 'false',
+                artifacts: '',
+                createdAt: '',
+              },
+            }}
           />
         </TestWrapper>
       );
@@ -724,18 +761,21 @@ describe('P2-H: Selection Panel Integration Tests', () => {
   // =========================================================================
   describe('Real Markdown Rendering', () => {
     it('renders markdown content without crashing', async () => {
-      const logsWithMarkdown = [{
-        type: 'ungrouped',
-        id: '1',
-        ts: new Date().toISOString(),
-        entries: {
-          input: '# Heading\n\nThis is **bold** and *italic* text.\n\n- List item 1\n- List item 2',
-          output: '```python\nprint("Hello World")\n```',
+      const logsWithMarkdown = [
+        {
+          type: 'ungrouped',
+          id: '1',
+          ts: new Date().toISOString(),
+          entries: {
+            input:
+              '# Heading\n\nThis is **bold** and *italic* text.\n\n- List item 1\n- List item 2',
+            output: '```python\nprint("Hello World")\n```',
+          },
+          params: {},
+          derivedEntries: {},
+          clippedFields: {},
         },
-        params: {},
-        derivedEntries: {},
-        clippedFields: {},
-      }] as LogProps[];
+      ] as LogProps[];
 
       const panelState = {
         ...createMockPanelState(),
@@ -744,8 +784,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
+          <SelectionPanel
+            {...defaultProps}
             logs={logsWithMarkdown}
             sortedLogs={logsWithMarkdown}
             panelState={panelState}
@@ -759,22 +799,24 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
 
     it('handles special characters in markdown', async () => {
-      const logsWithSpecialChars = [{
-        type: 'ungrouped',
-        id: '1',
-        ts: new Date().toISOString(),
-        entries: {
-          input: 'Text with <html> tags and & ampersands and "quotes"',
+      const logsWithSpecialChars = [
+        {
+          type: 'ungrouped',
+          id: '1',
+          ts: new Date().toISOString(),
+          entries: {
+            input: 'Text with <html> tags and & ampersands and "quotes"',
+          },
+          params: {},
+          derivedEntries: {},
+          clippedFields: {},
         },
-        params: {},
-        derivedEntries: {},
-        clippedFields: {},
-      }] as LogProps[];
+      ] as LogProps[];
 
       render(
         <TestWrapper>
-          <SelectionPanel 
-            {...defaultProps} 
+          <SelectionPanel
+            {...defaultProps}
             logs={logsWithSpecialChars}
             sortedLogs={logsWithSpecialChars}
           />
@@ -787,4 +829,3 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     });
   });
 });
-

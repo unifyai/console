@@ -1,7 +1,7 @@
-import { Tile, TileType } from "@/contexts/slices/selectors/tile";
-import { getUsedTableNames } from "@/utils/data/buildPlotDataItem";
-import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
-import { UseQueryResult } from "@tanstack/react-query";
+import { Tile, TileType } from '@/contexts/slices/selectors/tile';
+import { getUsedTableNames } from '@/utils/data/buildPlotDataItem';
+import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
+import { UseQueryResult } from '@tanstack/react-query';
 
 /**
  * Unified configuration interface for each tile type
@@ -11,20 +11,17 @@ export interface TileBuildAndRenderConfig {
   tileType: TileType;
   isIndependent: boolean;
   description: string;
-  
+
   // External dependency resolution
   getExternalDependencies: (tile: Tile) => string[];
-  
+
   // Building prerequisites
   needsTabArguments: boolean;
   needsExternalDependencies: boolean;
-  
+
   // Building readiness logic
-  shouldStartBuilding: (
-    tabArgumentsReady: boolean,
-    externalDependenciesReady: boolean
-  ) => boolean;
-  
+  shouldStartBuilding: (tabArgumentsReady: boolean, externalDependenciesReady: boolean) => boolean;
+
   // Internal data requirements checking
   checkInternalDataReadiness: (
     tileId: string,
@@ -34,7 +31,7 @@ export interface TileBuildAndRenderConfig {
     isReady: boolean;
     missingData: string[];
   };
-  
+
   // Data building hook management
   getDataBuildingHooks: (
     tileId: string,
@@ -55,7 +52,7 @@ export interface TileBuildAndRenderConfig {
  */
 function getPlotDependencies(tile: Tile): string[] {
   if (!tile.plotTile) return [];
-  
+
   const plotTileData = convertTileToTileData(tile as Tile);
   return getUsedTableNames(plotTileData);
 }
@@ -76,24 +73,26 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
     tileType: 'Table',
     isIndependent: true,
     description: 'Independent tile - can render immediately after own data is built',
-    
+
     getExternalDependencies: () => [],
-    
+
     needsTabArguments: true,
     needsExternalDependencies: false,
-    
+
     shouldStartBuilding: (tabArgumentsReady) => tabArgumentsReady,
-    
+
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
-      const tableDataItem = queryClient.getQueryData(['tableDataItem', tileId]) as { 
-        isLoading?: boolean; 
-        logs?: any[]; 
-        fields?: object;
-        contextNotFound?: boolean;  // Set when context returns 404
-        error?: string;
-      } | undefined;
+      const tableDataItem = queryClient.getQueryData(['tableDataItem', tileId]) as
+        | {
+            isLoading?: boolean;
+            logs?: any[];
+            fields?: object;
+            contextNotFound?: boolean; // Set when context returns 404
+            error?: string;
+          }
+        | undefined;
       const tableArguments = queryClient.getQueryData(['tableArguments', tabId]);
-      
+
       const missingData: string[] = [];
       if (!tableDataItem) {
         missingData.push('tableDataItem');
@@ -103,11 +102,15 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
       } else if (tableDataItem.contextNotFound) {
         // Context doesn't exist (404) - this is a valid "ready" state
         // The tile should render with an error/empty message instead of waiting forever
-        console.log(`[checkInternalDataReadiness] contextNotFound=true for tile ${tileId}, marking as READY`);
+        console.log(
+          `[checkInternalDataReadiness] contextNotFound=true for tile ${tileId}, marking as READY`
+        );
         // Don't add to missingData - we're ready to render
       } else if (tableDataItem.error) {
         // Any error state (including context not found from catch block) - ready to show error UI
-        console.log(`[checkInternalDataReadiness] error="${tableDataItem.error}" for tile ${tileId}, marking as READY`);
+        console.log(
+          `[checkInternalDataReadiness] error="${tableDataItem.error}" for tile ${tileId}, marking as READY`
+        );
         // Don't add to missingData - we're ready to render error state
       }
       // Note: Empty tables (no logs, no fields) are VALID - this can happen for:
@@ -117,127 +120,130 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
       // So we don't check for empty logs/fields anymore - if tableDataItem exists
       // and isn't loading/error, it's ready to render (even if empty)
       if (!tableArguments) missingData.push('tableArguments');
-      
-      console.log(`[checkInternalDataReadiness] tile ${tileId}: contextNotFound=${tableDataItem?.contextNotFound}, error=${tableDataItem?.error}, isReady=${missingData.length === 0}, missing=${JSON.stringify(missingData)}`);
-      
+
+      console.log(
+        `[checkInternalDataReadiness] tile ${tileId}: contextNotFound=${tableDataItem?.contextNotFound}, error=${tableDataItem?.error}, isReady=${missingData.length === 0}, missing=${JSON.stringify(missingData)}`
+      );
+
       return {
         isReady: missingData.length === 0,
-        missingData
+        missingData,
       };
     },
-    
+
     getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
       // This will be implemented by the hook that calls this config
       return { queries: [], isBuilding: false };
-    }
+    },
   },
-  
+
   Plot: {
     tileType: 'Plot',
     isIndependent: false,
     description: 'Dependent tile - requires table tiles referenced in xAxis, yAxis, plotGroupBy',
-    
+
     getExternalDependencies: getPlotDependencies,
-    
+
     needsTabArguments: true,
     needsExternalDependencies: true,
-    
-    shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) => 
+
+    shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) =>
       tabArgumentsReady && externalDependenciesReady,
-    
+
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
       const plotDataItem = queryClient.getQueryData(['plotDataItem', tileId]);
       const plotArguments = queryClient.getQueryData(['plotArguments', tabId]);
-      
+
       const missingData: string[] = [];
       if (!plotDataItem) missingData.push('plotDataItem');
       if (!plotArguments) missingData.push('plotArguments');
-      
+
       return {
         isReady: missingData.length === 0,
-        missingData
+        missingData,
       };
     },
-    
+
     getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
       return { queries: [], isBuilding: false };
-    }
+    },
   },
-  
+
   View: {
     tileType: 'View',
     isIndependent: false,
     description: 'Dependent tile - requires the table tile specified in table property',
-    
+
     getExternalDependencies: getViewDependencies,
-    
+
     needsTabArguments: false,
     needsExternalDependencies: true,
-    
-    shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) => externalDependenciesReady,
-    
+
+    shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) =>
+      externalDependenciesReady,
+
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
       // Views typically don't have specific internal data requirements beyond dependencies
       return {
         isReady: true,
-        missingData: []
+        missingData: [],
       };
     },
-    
+
     getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
       return { queries: [], isBuilding: false };
-    }
+    },
   },
-  
+
   Editor: {
     tileType: 'Editor',
     isIndependent: true,
     description: 'Independent tile - can render immediately',
-    
+
     getExternalDependencies: () => [],
-    
+
     needsTabArguments: false,
     needsExternalDependencies: false,
-    
+
     shouldStartBuilding: () => true,
-    
+
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
       // Editors manage their own internal state
       return {
         isReady: true,
-        missingData: []
+        missingData: [],
       };
     },
-    
+
     getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
       return { queries: [], isBuilding: false };
-    }
+    },
   },
-  
+
   Terminal: {
     tileType: 'Terminal',
     isIndependent: true,
     description: 'Independent tile - can render immediately',
-    
+
     getExternalDependencies: () => [],
-    
+
     needsTabArguments: false,
     needsExternalDependencies: false,
-    
+
     shouldStartBuilding: () => true,
-    
+
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
       // Terminals manage their own internal state
       return {
         isReady: true,
-        missingData: []
+        missingData: [],
       };
     },
-    
+
     getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
       return { queries: [], isBuilding: false };
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -258,14 +264,16 @@ export function isIndependentTileType(tileType: TileType): boolean {
  * Get all independent tile types
  */
 export function getIndependentTileTypes(): TileType[] {
-  return Object.keys(TILE_BUILD_AND_RENDER_CONFIGS)
-    .filter(type => TILE_BUILD_AND_RENDER_CONFIGS[type as TileType].isIndependent) as TileType[];
+  return Object.keys(TILE_BUILD_AND_RENDER_CONFIGS).filter(
+    (type) => TILE_BUILD_AND_RENDER_CONFIGS[type as TileType].isIndependent
+  ) as TileType[];
 }
 
 /**
  * Get all dependent tile types
  */
 export function getDependentTileTypes(): TileType[] {
-  return Object.keys(TILE_BUILD_AND_RENDER_CONFIGS)
-    .filter(type => !TILE_BUILD_AND_RENDER_CONFIGS[type as TileType].isIndependent) as TileType[];
+  return Object.keys(TILE_BUILD_AND_RENDER_CONFIGS).filter(
+    (type) => !TILE_BUILD_AND_RENDER_CONFIGS[type as TileType].isIndependent
+  ) as TileType[];
 }

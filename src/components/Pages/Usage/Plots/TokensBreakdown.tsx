@@ -1,4 +1,4 @@
-import { TokensDataProps } from "@/types/usage";
+import { TokensDataProps } from '@/types/usage';
 import {
   BarChart,
   Bar,
@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-} from "recharts";
+} from 'recharts';
 
 function convertDataToNumericTimestamps(data: TokensDataProps[]) {
   return data.map((d) => ({
@@ -27,13 +27,13 @@ export function TokensBreakdownPlot({ data }: { data: TokensDataProps[] }) {
       return null;
     }
     return (
-      <div className="bg-background px-2 py-2 rounded-md border shadow-sm text-medium">
+      <div className="text-medium rounded-md border bg-background px-2 py-2 shadow-sm">
         <p className="text-xs text-muted-foreground">{formatTooltipLabel(label)}</p>
         <ul className="list">
           {payload.map((entry: any, index: any) => (
             <li key={`item-${index}`} style={{ color: entry.color }}>
               {`${entry.value} ${
-                entry.dataKey === "totalCompletionTokens" ? "output tokens" : "input tokens"
+                entry.dataKey === 'totalCompletionTokens' ? 'output tokens' : 'input tokens'
               }`}
             </li>
           ))}
@@ -44,24 +44,24 @@ export function TokensBreakdownPlot({ data }: { data: TokensDataProps[] }) {
 
   const formatXAxis = (tickItem: number) => {
     const date = new Date(tickItem);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
     });
   };
 
   const formatTooltipLabel = (label: number) => {
     const date = new Date(label);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
       hour12: false,
     });
   };
@@ -74,23 +74,18 @@ export function TokensBreakdownPlot({ data }: { data: TokensDataProps[] }) {
           dataKey="ts"
           type="number"
           scale="time"
-          domain={["auto", "auto"]}
+          domain={['auto', 'auto']}
           tickFormatter={formatXAxis}
           textAnchor="end"
           angle={-45}
-          tick={{ fontSize: "10px" }}
+          tick={{ fontSize: '10px' }}
           tickMargin={10}
           height={70}
         />
-        <YAxis orientation="right" tick={{ fontSize: "10px" }} />
+        <YAxis orientation="right" tick={{ fontSize: '10px' }} />
         <Tooltip content={renderTooltipContent} />
         <Legend verticalAlign="top" height={36} />
-        <Bar
-          dataKey="totalPromptTokens"
-          stackId="a"
-          fill="var(--secondary)"
-          name="Input Tokens"
-        />
+        <Bar dataKey="totalPromptTokens" stackId="a" fill="var(--secondary)" name="Input Tokens" />
         <Bar
           dataKey="totalCompletionTokens"
           stackId="a"

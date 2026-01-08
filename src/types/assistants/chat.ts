@@ -1,29 +1,29 @@
 export interface ChatMessage {
-    id: string;
-    role: 'assistant' | 'user';
-    content: string;
-    timestamp: Date;
-    messageId?: number;
-    __ackId?: string;
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+  messageId?: number;
+  __ackId?: string;
 }
 
-export type ChatRole = "user" | "system" | "assistant";
+export type ChatRole = 'user' | 'system' | 'assistant';
 
 export interface ChatCompletionMessage {
-    role: ChatRole;
-    content: string;
+  role: ChatRole;
+  content: string;
 }
 
 export interface OutboundMessagePayload {
-  thread: string,
-  id: string,
-  publishTime: string,
-  event: ChatCompletionMessage
+  thread: string;
+  id: string;
+  publishTime: string;
+  event: ChatCompletionMessage;
 }
 
 export type BroadcastMessagePayload = {
-    type: 'NEW_MESSAGE';
-    message: ChatMessage;
+  type: 'NEW_MESSAGE';
+  message: ChatMessage;
 };
 
 export interface ChatCompletionRequest {
@@ -36,7 +36,7 @@ export interface ChatCompletionRequest {
 }
 
 export interface UnifyMessage {
-    assistantId: number;
-    contactId: number;
-    message: string;
+  assistantId: number;
+  contactId: number;
+  message: string;
 }

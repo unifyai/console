@@ -1,21 +1,18 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
+import { useMemo } from 'react';
+import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
 import {
   ContextActions,
   FieldsActions,
   LogsActions,
   ProjectsActions,
   GranularTileActions,
-} from "@/types/interfaces/grid";
-import {
-  useTerminalTile,
-  TerminalActions,
-} from "../useTerminalTile";
-import { useTileUI } from "../useTileUI";
-import { useTileMeta } from "../useTileMeta";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+} from '@/types/interfaces/grid';
+import { useTerminalTile, TerminalActions } from '../useTerminalTile';
+import { useTileUI } from '../useTileUI';
+import { useTileMeta } from '../useTileMeta';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 
 /**
  * Debug flag for state syncing logging
@@ -35,7 +32,7 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the TerminalTile that will be synced with the server
  */
-export type SyncedTerminalProperties = "shellType";
+export type SyncedTerminalProperties = 'shellType';
 
 export type TerminalLoadingStates = {
   [key in SyncedTerminalProperties]: boolean;
@@ -46,7 +43,7 @@ export type TerminalErrorStates = {
 } & { any: boolean };
 
 export interface TerminalTileSyncResult {
-  terminalTile: ReturnType<typeof useTerminalTile>["terminalTile"];
+  terminalTile: ReturnType<typeof useTerminalTile>['terminalTile'];
   terminalTileActions: TerminalActions | null;
   loading: TerminalLoadingStates;
   error: TerminalErrorStates;
@@ -62,10 +59,7 @@ export function useTerminalTileSync(
   logsActions?: LogsActions,
   fieldsActions?: FieldsActions
 ): TerminalTileSyncResult {
-  const { terminalTile, terminalTileActions, exists } = useTerminalTile(
-    tileId,
-    tabId
-  );
+  const { terminalTile, terminalTileActions, exists } = useTerminalTile(tileId, tabId);
 
   const { meta } = useTileMeta(tileId, tabId);
   const { uiActions } = useTileUI(tileId, tabId);
@@ -74,7 +68,7 @@ export function useTerminalTileSync(
   const storeApi = useStoreApiContext();
 
   // Only one property for terminal
-  const shellTypeMutation = usePatchSpecializedTileQuery<"Terminal">();
+  const shellTypeMutation = usePatchSpecializedTileQuery<'Terminal'>();
 
   const mutations = { shellType: shellTypeMutation };
 
@@ -89,7 +83,7 @@ export function useTerminalTileSync(
     shellTypeMutation.mutate({
       tabId: tabId,
       name: tileName,
-      tileType: "Terminal",
+      tileType: 'Terminal',
       updateData: { shellType: value ?? null },
       actions: granularTileActions,
     });
@@ -111,7 +105,7 @@ export function useTerminalTileSync(
       loading: {
         shellType: false,
         any: false,
-      },    
+      },
       error: {
         shellType: null,
         any: false,
@@ -126,14 +120,14 @@ export function useTerminalTileSync(
     any: false,
   };
 
-  loading.any = Object.values(mutations).some(m => m.isPending);
+  loading.any = Object.values(mutations).some((m) => m.isPending);
 
   const error: TerminalErrorStates = {
     shellType: mutations.shellType.error,
     any: false,
   };
 
-  error.any = Object.values(mutations).some(m => !!m.error);
+  error.any = Object.values(mutations).some((m) => !!m.error);
 
   return {
     terminalTile,
@@ -142,4 +136,4 @@ export function useTerminalTileSync(
     error,
     exists,
   };
-} 
+}

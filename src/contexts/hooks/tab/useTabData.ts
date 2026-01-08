@@ -30,12 +30,16 @@ export interface TabDataActions {
 
   // Tile management
   initTile: (tileName: string, initialState?: Partial<Tile>) => void;
-  pasteCopiedTile: (newTileName: string, sourceTileName: string, initialState?: Partial<Tile>) => void;
+  pasteCopiedTile: (
+    newTileName: string,
+    sourceTileName: string,
+    initialState?: Partial<Tile>
+  ) => void;
   removeTile: (tileId: string) => void;
   updateTile: (tileId: string, updates: Partial<Tile>) => void;
   updateTileLayout: (tileId: string, layout: TileLayout) => void;
   renameTile: (tileId: string, newTileName: string) => void;
-  
+
   // Type-specific tile actions
   initTableTile: (tileId: string, initialState?: Partial<TableTile>) => void;
   updateTableTile: (tileId: string, updates: Partial<TableTile>) => void;
@@ -47,7 +51,7 @@ export interface TabDataActions {
   updateEditorTile: (tileId: string, updates: Partial<EditorTile>) => void;
   initTerminalTile: (tileId: string, initialState?: Partial<TerminalTile>) => void;
   updateTerminalTile: (tileId: string, updates: Partial<TerminalTile>) => void;
-  
+
   // Helper methods for tiles
   getTileId: (tileName: string) => string | null;
   getTileName: (tileId: string) => string | null;
@@ -64,7 +68,7 @@ export interface TabDataActions {
     yAxis: string[];
     plotGroupBy: string[];
   };
-  
+
   // Grid-related actions
   getItems: () => TileProps[];
   setItems: (items: TileProps[]) => void;
@@ -77,10 +81,7 @@ export interface TabDataActions {
  * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab data state and actions
  */
-export function useTabData(
-  tabIdOrName: string | null, 
-  interfaceIdOrName?: string | null
-) {
+export function useTabData(tabIdOrName: string | null, interfaceIdOrName?: string | null) {
   // Use the meta hook to get common tab info
   const { tabId, tabExists } = useTabMeta(tabIdOrName, interfaceIdOrName);
 
@@ -88,43 +89,42 @@ export function useTabData(
   const { getTileItemActions } = useTileItemActions();
 
   // Granular subscriptions to data properties
-  const globalContext = useStoreContext(state => {
+  const globalContext = useStoreContext((state) => {
     if (!tabExists || !tabId) return undefined;
     return state.tabsById[tabId].globalContext;
   });
-  
+
   const tileIds = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tabExists || !tabId) return EMPTY_TILE_IDS;
       return state.tabsById[tabId].tileIds;
     })
   );
 
   const tileNames = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tabExists || !tabId) return EMPTY_TILE_NAMES;
       return state.tabsById[tabId].tileNames;
     })
   );
 
-  const itemsNeedRecompute = useStoreContext(state => {
+  const itemsNeedRecompute = useStoreContext((state) => {
     if (!tabExists || !tabId) return false;
     return state.tabsById[tabId].itemsNeedRecompute;
   });
 
   const tiles = useMemo(() => {
     if (!tabExists || !tabId || !tileIds.length) return EMPTY_TILES;
-    
+
     // We only need the tile IDs and some partial Tile state here
     // The actual tile data will be accessed through the tile-specific hooks
     const tileMap: Record<string, Partial<Tile>> = {};
-    
+
     // Use tileIds and tileNames arrays which should have corresponding indices
     tileIds.forEach((tileId, index) => {
-      
       if (tileId) {
         const itemActions = getTileItemActions(tileId, tabIdOrName);
-        
+
         if (itemActions) {
           const tileItem = itemActions.asTileItem();
           tileMap[tileId] = {
@@ -177,7 +177,7 @@ export function useTabData(
         }
       }
     });
-    
+
     return tileMap;
   }, [tabExists, tabId, tileIds, itemsNeedRecompute, getTileItemActions, tabIdOrName]);
 
@@ -188,346 +188,350 @@ export function useTabData(
     if (!tabExists || !tabId || !Object.keys(tiles).length) return EMPTY_TILE_PROPS;
 
     // Build the array from each tile ID
-    const newItems = Object.values(tiles).map(tile => {
+    const newItems = Object.values(tiles).map((tile) => {
       // Get itemActions for this tile using its name
       const itemActions = getTileItemActions(tile.id || '', tabIdOrName);
-      
+
       // Call `asTileItem()` or use a fallback
-      return itemActions?.asTileItem() || {
-        name: tile.name,
-        x: 0,
-        y: 0,
-        w: 4,
-        h: 4
-      } as TileProps;
+      return (
+        itemActions?.asTileItem() ||
+        ({
+          name: tile.name,
+          x: 0,
+          y: 0,
+          w: 4,
+          h: 4,
+        } as TileProps)
+      );
     });
 
     // If the items are the same, return the old reference to prevent re-renders
     if (isEqual(itemsRef.current, newItems)) {
       return itemsRef.current;
     }
-    
+
     // Update the ref and return the new items
     itemsRef.current = newItems;
     return newItems;
   }, [tabExists, tabId, tiles, getTileItemActions, tabIdOrName, itemsNeedRecompute]);
 
   // Get all the store actions needed for data
-  const storeUpdateTab = useStoreContext(state => state.updateTab);
-  const storeRemoveContextFromTab = useStoreContext(state => state.removeContextFromTab);
-  const storeInitTile = useStoreContext(state => state.initTile);
-  const storePasteCopiedTile = useStoreContext(state => state.pasteCopiedTile);
-  const storeRemoveTile = useStoreContext(state => state.removeTile);
-  const storeRenameTile = useStoreContext(state => state.renameTile);
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  
+  const storeUpdateTab = useStoreContext((state) => state.updateTab);
+  const storeRemoveContextFromTab = useStoreContext((state) => state.removeContextFromTab);
+  const storeInitTile = useStoreContext((state) => state.initTile);
+  const storePasteCopiedTile = useStoreContext((state) => state.pasteCopiedTile);
+  const storeRemoveTile = useStoreContext((state) => state.removeTile);
+  const storeRenameTile = useStoreContext((state) => state.renameTile);
+  const storeUpdateTile = useStoreContext((state) => state.updateTile);
+
   // Type-specific tile actions
-  const storeInitTableTile = useStoreContext(state => state.initTableTile);
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeInitPlotTile = useStoreContext(state => state.initPlotTile);
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
-  const storeInitViewTile = useStoreContext(state => state.initViewTile);
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
-  const storeInitEditorTile = useStoreContext(state => state.initEditorTile);
-  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
-  const storeInitTerminalTile = useStoreContext(state => state.initTerminalTile);
-  const storeUpdateTerminalTile = useStoreContext(state => state.updateTerminalTile);
+  const storeInitTableTile = useStoreContext((state) => state.initTableTile);
+  const storeUpdateTableTile = useStoreContext((state) => state.updateTableTile);
+  const storeInitPlotTile = useStoreContext((state) => state.initPlotTile);
+  const storeUpdatePlotTile = useStoreContext((state) => state.updatePlotTile);
+  const storeInitViewTile = useStoreContext((state) => state.initViewTile);
+  const storeUpdateViewTile = useStoreContext((state) => state.updateViewTile);
+  const storeInitEditorTile = useStoreContext((state) => state.initEditorTile);
+  const storeUpdateEditorTile = useStoreContext((state) => state.updateEditorTile);
+  const storeInitTerminalTile = useStoreContext((state) => state.initTerminalTile);
+  const storeUpdateTerminalTile = useStoreContext((state) => state.updateTerminalTile);
 
   // Memoize the data object
   const data = useMemo<Partial<TabData> | null>(() => {
     if (!tabExists) return null;
-    
+
     return {
       globalContext,
       tileIds,
-      tileNames
+      tileNames,
     };
   }, [tabExists, globalContext, tileIds, tileNames]);
 
   // Define setItems as a callback to avoid dependency cycles
-  const setItems = useCallback((newItems: TileProps[]) => {
-    if (!tabId || !Object.keys(tiles).length) return;
-    
-    newItems.forEach(item => {
-      const tileItemName = item.name;
-      
-      // Get itemActions using our getter
-      const itemActions = getTileItemActions(tileItemName, tabIdOrName);
-      
-      // Update the tile using fromTileItem
-      if (itemActions) {
-        itemActions.fromTileItem(item);
-      }
-    });
-  }, [tabId, tiles, getTileItemActions, tabIdOrName]);
+  const setItems = useCallback(
+    (newItems: TileProps[]) => {
+      if (!tabId || !Object.keys(tiles).length) return;
+
+      newItems.forEach((item) => {
+        const tileItemName = item.name;
+
+        // Get itemActions using our getter
+        const itemActions = getTileItemActions(tileItemName, tabIdOrName);
+
+        // Update the tile using fromTileItem
+        if (itemActions) {
+          itemActions.fromTileItem(item);
+        }
+      });
+    },
+    [tabId, tiles, getTileItemActions, tabIdOrName]
+  );
 
   // Memoize the data actions
-  const dataActions = useMemo<TabDataActions>(() => ({
-    setGlobalContext: (globalContext) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { globalContext });
-      }
-    },
+  const dataActions = useMemo<TabDataActions>(
+    () => ({
+      setGlobalContext: (globalContext) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { globalContext });
+        }
+      },
 
-    removeContextFromTab: (context) => {
-      if (tabId) {
-        storeRemoveContextFromTab(tabId, context);
-      }
-    },
-    
-    // Tile management
-    initTile: (tileName, initialState = {}) => {
-      if (tabId) {
-        // Initialize the tile with proper IDs
-        storeInitTile(
-          tabId,
-          initialState?.id || tileName,
-          {
+      removeContextFromTab: (context) => {
+        if (tabId) {
+          storeRemoveContextFromTab(tabId, context);
+        }
+      },
+
+      // Tile management
+      initTile: (tileName, initialState = {}) => {
+        if (tabId) {
+          // Initialize the tile with proper IDs
+          storeInitTile(tabId, initialState?.id || tileName, {
             ...initialState,
             id: initialState?.id || tileName,
             name: tileName,
             tabId: tabId,
-          }
-        );
-      }
-    },
-
-    pasteCopiedTile: (newTileName, sourceTileName, initialState = {}) => {
-      if (tabId && newTileName && sourceTileName) {
-        // Get the initialState from the fromTileName tile
-        const sourceTileId = dataActions.getTileId(sourceTileName) || '';
-
-        if (!sourceTileId) {
-          console.error(`Source tile ${sourceTileName} not found`);
-          return;
+          });
         }
+      },
 
-        // Add the tile with proper IDs
-        storePasteCopiedTile(
-          tabId, 
-          sourceTileId,
-          initialState?.id || newTileName,
-          {
+      pasteCopiedTile: (newTileName, sourceTileName, initialState = {}) => {
+        if (tabId && newTileName && sourceTileName) {
+          // Get the initialState from the fromTileName tile
+          const sourceTileId = dataActions.getTileId(sourceTileName) || '';
+
+          if (!sourceTileId) {
+            console.error(`Source tile ${sourceTileName} not found`);
+            return;
+          }
+
+          // Add the tile with proper IDs
+          storePasteCopiedTile(tabId, sourceTileId, initialState?.id || newTileName, {
             ...initialState,
             name: newTileName,
             id: initialState?.id || newTileName,
             tabId: tabId,
-          }
-        );
-      }
-    },
-    
-    removeTile: (tileId) => {
-      if (tabId && tileId) {
-        storeRemoveTile(tabId, tileId);
-      }
-    },
-    
-    updateTile: (tileId, updates) => {
-      if (tileId) {
-        storeUpdateTile(tileId, updates);
-      }
-    },
+          });
+        }
+      },
 
-    updateTileLayout: (tileId, layout) => {
-      if (tileId) {
-        // Unpack the layout object into a Partial<Tile> object
-        const updates: Partial<Tile> = {
-          position: {
-            x: layout.x,
-            y: layout.y,
-            width: layout.w,
-            height: layout.h,
-          } as TilePosition,
-          minW: layout.minW,
-          minH: layout.minH,
-          moved: layout.moved,
-          static: layout.static,
+      removeTile: (tileId) => {
+        if (tabId && tileId) {
+          storeRemoveTile(tabId, tileId);
+        }
+      },
+
+      updateTile: (tileId, updates) => {
+        if (tileId) {
+          storeUpdateTile(tileId, updates);
+        }
+      },
+
+      updateTileLayout: (tileId, layout) => {
+        if (tileId) {
+          // Unpack the layout object into a Partial<Tile> object
+          const updates: Partial<Tile> = {
+            position: {
+              x: layout.x,
+              y: layout.y,
+              width: layout.w,
+              height: layout.h,
+            } as TilePosition,
+            minW: layout.minW,
+            minH: layout.minH,
+            moved: layout.moved,
+            static: layout.static,
+          };
+          storeUpdateTile(tileId, updates);
+        }
+      },
+
+      renameTile: (tileId, newTileName) => {
+        if (tabId && tileId) {
+          // Add the tile with proper IDs
+          storeRenameTile(tabId, tileId, newTileName);
+        }
+      },
+
+      // Table tile specific actions
+      initTableTile: (tileId, initialState = {}) => {
+        if (tabId && tileId) {
+          storeInitTableTile(tileId, initialState);
+        }
+      },
+
+      updateTableTile: (tileId, updates) => {
+        if (tabId && tileId) {
+          storeUpdateTableTile(tileId, updates);
+        }
+      },
+
+      // Plot tile specific actions
+      initPlotTile: (tileId, initialState = {}) => {
+        if (tabId && tileId) {
+          storeInitPlotTile(tileId, initialState);
+        }
+      },
+
+      updatePlotTile: (tileId, updates) => {
+        if (tabId && tileId) {
+          storeUpdatePlotTile(tileId, updates);
+        }
+      },
+
+      // View tile specific actions
+      initViewTile: (tileId, initialState = {}) => {
+        if (tabId && tileId) {
+          storeInitViewTile(tileId, initialState);
+        }
+      },
+
+      updateViewTile: (tileId, updates) => {
+        if (tabId && tileId) {
+          storeUpdateViewTile(tileId, updates);
+        }
+      },
+
+      // Editor tile specific actions
+      initEditorTile: (tileId, initialState = {}) => {
+        if (tabId && tileId) {
+          storeInitEditorTile(tileId, initialState);
+        }
+      },
+
+      updateEditorTile: (tileId, updates) => {
+        if (tabId && tileId) {
+          storeUpdateEditorTile(tileId, updates);
+        }
+      },
+
+      // Terminal tile specific actions
+      initTerminalTile: (tileId, initialState = {}) => {
+        if (tabId && tileId) {
+          storeInitTerminalTile(tileId, initialState);
+        }
+      },
+
+      updateTerminalTile: (tileId, updates) => {
+        if (tabId && tileId) {
+          storeUpdateTerminalTile(tileId, updates);
+        }
+      },
+
+      // Helper methods for tiles
+      getTileIds: () => tileIds,
+
+      getTileNames: () => tileNames,
+
+      getTileId: (tileName: string) => {
+        return tileIds.find((id) => tiles[id]?.name === tileName) || null;
+      },
+
+      getTileName: (tileId: string) => {
+        return tileNames.find((name) => tiles[tileId]?.name === name) || null;
+      },
+
+      getPartialTile: (tileIdOrName) => {
+        // First try direct lookup by ID
+        if (tiles[tileIdOrName]) {
+          return tiles[tileIdOrName];
+        }
+
+        // If not found by ID, try looking up by name
+        const tileByName = Object.values(tiles).find((tile) => tile.name === tileIdOrName);
+        return tileByName || null;
+      },
+
+      getTileNamesByType: (tileType: string) => {
+        // Get names for all tiles that have type `tileType`
+        return tileIds
+          .filter((id) => tiles[id]?.type === tileType)
+          .map((id) => tiles[id]?.name || '');
+      },
+
+      getTileIdsByType: (tileType: string) => {
+        // Get IDs for all tiles that have type `tileType`
+        return tileIds.filter((id) => tiles[id]?.type === tileType);
+      },
+
+      getVisibleTiles: () => {
+        // Get all visible tiles
+        return Object.values(tiles).filter((tile) => tile.visible === true);
+      },
+
+      getHiddenTiles: () => {
+        // Get all hidden tiles
+        return Object.values(tiles).filter((tile) => tile.visible === false);
+      },
+
+      getReferencedTileIdsByName: (tileName: string) => {
+        // Retrieve all tile ids for which the `tile.table` property matches the given tile name
+        return tileIds.filter((id) => tiles[id]?.table === tileName);
+      },
+
+      getReferencedPlotTileIdsByName: (tileName: string) => {
+        // Retrieve all tile ids for which the `tile.plotTile.xAxis` property matches the given tile name
+        const referencedByXAxis = tileIds.filter((id) =>
+          tiles[id]?.plotTile?.xAxis?.includes(tileName + '.')
+        );
+        const referencedByYAxis = tileIds.filter((id) =>
+          tiles[id]?.plotTile?.yAxis?.includes(tileName + '.')
+        );
+        const referencedByPlotGroupBy = tileIds.filter((id) =>
+          tiles[id]?.plotTile?.plotGroupBy?.includes(tileName + '.')
+        );
+        return {
+          xAxis: referencedByXAxis,
+          yAxis: referencedByYAxis,
+          plotGroupBy: referencedByPlotGroupBy,
         };
-        storeUpdateTile(tileId, updates);
-      }
-    },
-    
-    renameTile: (tileId, newTileName) => {
-      if (tabId && tileId) {
-        // Add the tile with proper IDs
-        storeRenameTile(
-          tabId, 
-          tileId,
-          newTileName,
-        );
-      }
-    },
+      },
 
-    // Table tile specific actions
-    initTableTile: (tileId, initialState = {}) => {
-      if (tabId && tileId) {
-        storeInitTableTile(tileId, initialState);
-      }
-    },
-    
-    updateTableTile: (tileId, updates) => {
-      if (tabId && tileId) {
-        storeUpdateTableTile(tileId, updates);
-      }
-    },
-    
-    // Plot tile specific actions
-    initPlotTile: (tileId, initialState = {}) => {
-      if (tabId && tileId) {
-        storeInitPlotTile(tileId, initialState);
-      }
-    },
-    
-    updatePlotTile: (tileId, updates) => {
-      if (tabId && tileId) {
-        storeUpdatePlotTile(tileId, updates);
-      }
-    },
-    
-    // View tile specific actions
-    initViewTile: (tileId, initialState = {}) => {
-      if (tabId && tileId) {
-        storeInitViewTile(tileId, initialState);
-      }
-    },
-    
-    updateViewTile: (tileId, updates) => {
-      if (tabId && tileId) {
-        storeUpdateViewTile(tileId, updates);
-      }
-    },
+      getItems: () => items,
 
-    // Editor tile specific actions
-    initEditorTile: (tileId, initialState = {}) => {
-      if (tabId && tileId) {
-        storeInitEditorTile(tileId, initialState);
-      }
-    },
-    
-    updateEditorTile: (tileId, updates) => {
-      if (tabId && tileId) {
-        storeUpdateEditorTile(tileId, updates);
-      }
-    },
+      setItems,
 
-    // Terminal tile specific actions
-    initTerminalTile: (tileId, initialState = {}) => {
-      if (tabId && tileId) {
-        storeInitTerminalTile(tileId, initialState);
-      }
-    },
-    
-    updateTerminalTile: (tileId, updates) => {
-      if (tabId && tileId) {
-        storeUpdateTerminalTile(tileId, updates);
-      }
-    },
-
-    // Helper methods for tiles
-    getTileIds: () => tileIds,
-
-    getTileNames: () => tileNames,
-
-    getTileId: (tileName: string) => {
-      return tileIds.find(id => tiles[id]?.name === tileName) || null;
-    },
-
-    getTileName: (tileId: string) => {
-      return tileNames.find(name => tiles[tileId]?.name === name) || null;
-    },
-    
-    getPartialTile: (tileIdOrName) => {
-      // First try direct lookup by ID
-      if (tiles[tileIdOrName]) {
-        return tiles[tileIdOrName];
-      }
-      
-      // If not found by ID, try looking up by name
-      const tileByName = Object.values(tiles).find(tile => tile.name === tileIdOrName);
-      return tileByName || null;
-    },
-
-    getTileNamesByType: (tileType: string) => {
-      // Get names for all tiles that have type `tileType`
-      return tileIds.filter(id => tiles[id]?.type === tileType).map(id => tiles[id]?.name || '');
-    },
-
-    getTileIdsByType: (tileType: string) => {
-      // Get IDs for all tiles that have type `tileType`
-      return tileIds.filter(id => tiles[id]?.type === tileType);
-    },
-
-    getVisibleTiles: () => {
-      // Get all visible tiles
-      return Object.values(tiles).filter(tile => tile.visible === true);
-    },
-
-    getHiddenTiles: () => {
-      // Get all hidden tiles
-      return Object.values(tiles).filter(tile => tile.visible === false);
-    },
-
-    getReferencedTileIdsByName: (tileName: string) => {
-      // Retrieve all tile ids for which the `tile.table` property matches the given tile name
-      return tileIds.filter(id => tiles[id]?.table === tileName);
-    },
-
-    getReferencedPlotTileIdsByName: (tileName: string) => {
-      // Retrieve all tile ids for which the `tile.plotTile.xAxis` property matches the given tile name
-      const referencedByXAxis = tileIds.filter(id => tiles[id]?.plotTile?.xAxis?.includes(tileName + "."));
-      const referencedByYAxis = tileIds.filter(id => tiles[id]?.plotTile?.yAxis?.includes(tileName + "."));
-      const referencedByPlotGroupBy = tileIds.filter(id => tiles[id]?.plotTile?.plotGroupBy?.includes(tileName + "."));
-      return {
-        xAxis: referencedByXAxis,
-        yAxis: referencedByYAxis,
-        plotGroupBy: referencedByPlotGroupBy
-      };
-    },
-    
-    getItems: () => items,
-
-    setItems,
-
-    setItemsNeedRecompute: (needRecompute: boolean) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { itemsNeedRecompute: needRecompute });
-      }
-    }
-  }), [
-    tabId,
-    tiles,
-    tileIds,
-    tileNames,
-    items,
-    setItems,
-    storeUpdateTab,
-    storeRemoveContextFromTab,
-    storeInitTile,
-    storePasteCopiedTile,
-    storeRemoveTile,
-    storeRenameTile,
-    storeUpdateTile,
-    storeInitTableTile,
-    storeUpdateTableTile,
-    storeInitPlotTile,
-    storeUpdatePlotTile,
-    storeInitViewTile,
-    storeUpdateViewTile,
-    storeInitEditorTile,
-    storeUpdateEditorTile,
-    storeInitTerminalTile,
-    storeUpdateTerminalTile
-  ]);
+      setItemsNeedRecompute: (needRecompute: boolean) => {
+        if (tabId) {
+          storeUpdateTab(tabId, { itemsNeedRecompute: needRecompute });
+        }
+      },
+    }),
+    [
+      tabId,
+      tiles,
+      tileIds,
+      tileNames,
+      items,
+      setItems,
+      storeUpdateTab,
+      storeRemoveContextFromTab,
+      storeInitTile,
+      storePasteCopiedTile,
+      storeRemoveTile,
+      storeRenameTile,
+      storeUpdateTile,
+      storeInitTableTile,
+      storeUpdateTableTile,
+      storeInitPlotTile,
+      storeUpdatePlotTile,
+      storeInitViewTile,
+      storeUpdateViewTile,
+      storeInitEditorTile,
+      storeUpdateEditorTile,
+      storeInitTerminalTile,
+      storeUpdateTerminalTile,
+    ]
+  );
 
   // Reset the itemsNeedRecompute flag after computing items
   useEffect(() => {
     if (tabId && itemsNeedRecompute) {
       // Reset the flag on the tab
       dataActions.setItemsNeedRecompute(false);
-      
+
       // Also reset the flag on all tiles in this tab
-      Object.values(tiles).forEach(tile => {
+      Object.values(tiles).forEach((tile) => {
         if (tile.itemsNeedRecompute) {
           // Get itemActions for this tile using its name directly
           const itemActions = getTileItemActions(tile.name || '', tabIdOrName);
@@ -541,4 +545,4 @@ export function useTabData(
     data,
     dataActions,
   };
-} 
+}

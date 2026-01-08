@@ -24,7 +24,13 @@ type EnsureActions = {
 const tabId = 'tab-1';
 const projectId = 'project-1';
 
-function CachedArgsTest({ actions, onResult }: { actions: EnsureActions; onResult: (data: any) => void }) {
+function CachedArgsTest({
+  actions,
+  onResult,
+}: {
+  actions: EnsureActions;
+  onResult: (data: any) => void;
+}) {
   const queryClient = useQueryClient();
 
   // Seed cached arguments before the query runs
@@ -46,7 +52,13 @@ function CachedArgsTest({ actions, onResult }: { actions: EnsureActions; onResul
   return null;
 }
 
-function BuildArgsTest({ actions, onResult }: { actions: EnsureActions; onResult: (data: any) => void }) {
+function BuildArgsTest({
+  actions,
+  onResult,
+}: {
+  actions: EnsureActions;
+  onResult: (data: any) => void;
+}) {
   const query = useEnsureTabArguments(tabId, projectId, actions);
 
   useEffect(() => {
@@ -58,7 +70,13 @@ function BuildArgsTest({ actions, onResult }: { actions: EnsureActions; onResult
   return null;
 }
 
-function BuildArgsErrorTest({ actions, onError }: { actions: EnsureActions; onError: (err: unknown) => void }) {
+function BuildArgsErrorTest({
+  actions,
+  onError,
+}: {
+  actions: EnsureActions;
+  onError: (err: unknown) => void;
+}) {
   const query = useEnsureTabArguments(tabId, projectId, actions);
 
   useEffect(() => {
@@ -155,7 +173,10 @@ describe('useEnsureTabArguments', () => {
       expect(onResult).toHaveBeenCalledTimes(1);
     });
 
-    const result = onResult.mock.calls[0][0] as { tableArguments: TableArguments; plotArguments: PlotArguments };
+    const result = onResult.mock.calls[0][0] as {
+      tableArguments: TableArguments;
+      plotArguments: PlotArguments;
+    };
 
     // Tiles were fetched and builders were invoked
     expect(tileActions.list).toHaveBeenCalledTimes(1);
@@ -217,5 +238,3 @@ describe('useEnsureTabArguments', () => {
     updateTabArgumentsSpy.mockRestore();
   });
 });
-
-

@@ -3,7 +3,7 @@
  *
  * Tests edit mode interactions including toggle, save, reset,
  * and unsaved changes detection.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - E1: Toggle edit mode
  * - E2: Unsaved changes indicator
@@ -21,7 +21,6 @@ import { renderEditMode } from '../fixtures/editModeTestHarness';
 // =============================================================================
 
 describe('P2-E: Edit Mode', () => {
-  
   // =========================================================================
   // E1: Toggle edit mode
   // =========================================================================
@@ -507,7 +506,7 @@ describe('P2-E: Edit Mode', () => {
     it('shows error message when save fails', async () => {
       const user = userEvent.setup();
       const onSave = vi.fn().mockRejectedValue(new Error('Network error'));
-      
+
       renderEditMode({
         initialEditMode: true,
         initialHasUnsavedChanges: true,
@@ -612,5 +611,3 @@ describe('P2-E: Edit Mode', () => {
     });
   });
 });
-
-

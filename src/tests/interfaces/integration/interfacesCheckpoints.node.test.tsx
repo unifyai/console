@@ -33,7 +33,7 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
           name: 'Main Interface',
           projectId: 'project-1',
           isCheckpoint: !!checkpoint,
-        } as InterfaceData & { isCheckpoint: boolean }),
+        }) as InterfaceData & { isCheckpoint: boolean }
     );
 
     const actions = {
@@ -51,9 +51,9 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
             name: 'Main Interface',
             checkpoint: true,
           },
-          actions,
+          actions
         ),
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
     await waitFor(() => {
@@ -61,11 +61,7 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
       expect(result.current.data?.isCheckpoint).toBe(true);
     });
 
-    expect(getByName).toHaveBeenCalledWith(
-      'project-1',
-      'Main Interface',
-      true,
-    );
+    expect(getByName).toHaveBeenCalledWith('project-1', 'Main Interface', true);
   });
 
   it('useUpdateInterfaceUnifiedQuery forwards checkpoint flag to actions', async () => {
@@ -73,19 +69,14 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
     const invalidateQueries = vi.spyOn(client, 'invalidateQueries');
 
     const updateByName = vi.fn(
-      async (
-        projectId: string,
-        name: string,
-        data: Partial<InterfaceData>,
-        checkpoint?: boolean,
-      ) =>
+      async (projectId: string, name: string, data: Partial<InterfaceData>, checkpoint?: boolean) =>
         ({
           id: 'interface-1',
           name,
           projectId: projectId,
           ...data,
           isCheckpoint: !!checkpoint,
-        } as InterfaceData & { isCheckpoint: boolean }),
+        }) as InterfaceData & { isCheckpoint: boolean }
     );
 
     const actions = {
@@ -108,7 +99,7 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
       'project-1',
       'Main Interface',
       { color: '#ffaa00' },
-      true,
+      true
     );
 
     // Checkpoint updates should still invalidate standard interface keys
@@ -123,4 +114,3 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
     });
   });
 });
-

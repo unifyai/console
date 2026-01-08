@@ -4,7 +4,7 @@
  * Tests tile grid interactions using a representative test harness.
  * The harness exercises the same user interactions as the real tile grid
  * component but in isolation.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - D1: Add tile
  * - D2: Select tile type
@@ -26,7 +26,6 @@ import { renderTileGrid, createMockTiles, createMockTile } from '../fixtures/til
 // =============================================================================
 
 describe('P2-D: Tile Layout', () => {
-  
   // =========================================================================
   // D1: Add tile
   // =========================================================================
@@ -126,7 +125,7 @@ describe('P2-D: Tile Layout', () => {
       renderTileGrid({ editMode: true });
 
       await user.click(screen.getByTestId('add-tile-button'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('add-tile-overlay')).toBeInTheDocument();
       });
@@ -320,7 +319,7 @@ describe('P2-D: Tile Layout', () => {
       });
 
       await user.click(screen.getByTestId('hide-button-tile-1'));
-      
+
       await waitFor(() => {
         expect(screen.queryByTestId('tile-tile-1')).not.toBeInTheDocument();
       });
@@ -340,7 +339,7 @@ describe('P2-D: Tile Layout', () => {
       });
 
       await user.click(screen.getByTestId('hide-button-tile-1'));
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('hidden-tiles-panel')).toBeInTheDocument();
       });
@@ -401,7 +400,7 @@ describe('P2-D: Tile Layout', () => {
       });
 
       const originalTile = getTile('original');
-      
+
       await user.click(screen.getByTestId('clone-button-original'));
 
       await waitFor(() => {
@@ -629,23 +628,16 @@ describe('P2-D: Tile Layout', () => {
 
     it('tiles render with correct type indicator', async () => {
       renderTileGrid({
-        initialTiles: [
-          createMockTile('table-tile', 'Table'),
-          createMockTile('plot-tile', 'Plot'),
-        ],
+        initialTiles: [createMockTile('table-tile', 'Table'), createMockTile('plot-tile', 'Plot')],
       });
 
       await waitFor(() => {
         const tableTile = screen.getByTestId('tile-table-tile');
         const plotTile = screen.getByTestId('tile-plot-tile');
-        
+
         expect(tableTile).toHaveAttribute('data-tile-type', 'Table');
         expect(plotTile).toHaveAttribute('data-tile-type', 'Plot');
       });
     });
   });
 });
-
-
-
-
