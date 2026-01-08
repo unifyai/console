@@ -9,9 +9,7 @@
  */
 
 import { expect } from 'vitest';
-import {
-  setupMatrixTestHandlers,
-} from './handlers';
+import { setupMatrixTestHandlers } from './handlers';
 import {
   generateValidPlotConfigsForType,
   generateDataTypeConfigs,
@@ -30,9 +28,7 @@ import {
   ProjectConfig,
   ScaleOption,
 } from '../fixtures/configs';
-import {
-  createMockLogs,
-} from '../fixtures/mockData';
+import { createMockLogs } from '../fixtures/mockData';
 
 // Re-export config types and values for convenience
 // Re-export types
@@ -92,7 +88,7 @@ export async function createTestProject(): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiKey': VITE_TEST_API_KEY,
+        apiKey: VITE_TEST_API_KEY,
       },
       body: JSON.stringify({ name: projectName }),
     });
@@ -117,12 +113,15 @@ export async function createTestProject(): Promise<void> {
 export async function deleteTestProject(): Promise<void> {
   const projectName = SHARD_TEST_PROJECT;
   try {
-    const response = await fetch(`${VITE_TEST_API_URL}/api/projects/${encodeURIComponent(projectName)}`, {
-      method: 'DELETE',
-      headers: {
-        'apiKey': VITE_TEST_API_KEY,
-      },
-    });
+    const response = await fetch(
+      `${VITE_TEST_API_URL}/api/projects/${encodeURIComponent(projectName)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          apiKey: VITE_TEST_API_KEY,
+        },
+      }
+    );
 
     if (response.ok) {
       console.log(`[Plot API Tests] Deleted test project: ${projectName}`);
@@ -143,42 +142,55 @@ export async function deleteTestProject(): Promise<void> {
  */
 export async function seedTestProjectData(count: number = 100): Promise<void> {
   const projectName = SHARD_TEST_PROJECT;
-  try {
-    const entries = Array.from({ length: count }, (_, i) => ({
-      x_value: (i / Math.max(1, count - 1)) * 100,
-      y_value: Math.sin(i / 10) * 50 + 50,
-      x_value_int: i * 2,
-      x_value_datetime: new Date(Date.now() - i * 86400000).toISOString(),
-      x_value_str: `value_${i}`,
-      y_value_int: Math.floor(Math.sin(i / 10) * 50 + 50),
-      category: `category_${i % 5}`,
-      model: `model_${i % 3}`,
-      bool_category: i % 2 === 0,
-      status: i % 4 === 0 ? 'error' : 'success',
-      value: i * 1.5,
-    }));
+  const BATCH_SIZE = 250;
+  let totalSeeded = 0;
+
+  for (let offset = 0; offset < count; offset += BATCH_SIZE) {
+    const batchCount = Math.min(BATCH_SIZE, count - offset);
+
+    const entries = Array.from({ length: batchCount }, (_, i) => {
+      const idx = offset + i;
+      return {
+        x_value: (idx / Math.max(1, count - 1)) * 100 + 0.001,
+        y_value: Math.sin(idx / 10) * 50 + 50 + 0.001,
+        x_value_int: idx * 2,
+        x_value_datetime: new Date(Date.now() - idx * 86400000).toISOString(),
+        x_value_str: `value_${idx}`,
+        y_value_int: Math.floor(Math.sin(idx / 10) * 50 + 50),
+        category: `category_${idx % 5}`,
+        model: `model_${idx % 3}`,
+        bool_category: idx % 2 === 0,
+        status: idx % 4 === 0 ? 'error' : 'success',
+        value: idx * 1.5,
+      };
+    });
 
     const response = await fetch(`${VITE_TEST_API_URL}/api/logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiKey': VITE_TEST_API_KEY,
+        apiKey: VITE_TEST_API_KEY,
       },
       body: JSON.stringify({
-        project: projectName,
+        project_name: projectName,
         entries,
       }),
     });
 
     if (response.ok) {
-      console.log(`[Plot API Tests] Seeded ${count} logs to project: ${projectName}`);
+      totalSeeded += batchCount;
+      console.log(
+        `[Plot API Tests] Seeded batch ${Math.floor(offset / BATCH_SIZE) + 1}/${Math.ceil(count / BATCH_SIZE)} (${batchCount} logs)`
+      );
     } else {
       const data = await response.json().catch(() => ({}));
-      console.warn(`[Plot API Tests] Failed to seed logs: ${response.status}`, data);
+      throw new Error(
+        `Failed to seed batch at offset ${offset}: ${response.status} - ${JSON.stringify(data)}`
+      );
     }
-  } catch (error) {
-    console.warn(`[Plot API Tests] Error seeding logs:`, error);
   }
+
+  console.log(`[Plot API Tests] Completed seeding ${totalSeeded} logs to project: ${projectName}`);
 }
 
 // =============================================================================
@@ -346,7 +358,7 @@ export function assertDataCorrectness(
     expect(log.ts).toBeDefined();
   }
 
-  const validLogs = data.filter(log => getLogFieldValue(log, 'table1.x_value') !== null);
+  const validLogs = data.filter((log) => getLogFieldValue(log, 'table1.x_value') !== null);
   for (const log of validLogs.slice(0, 20)) {
     const xValue = getLogFieldValue(log, 'table1.x_value');
 
@@ -383,8 +395,8 @@ export function assertDataCorrectness(
   if (expectedConfig.group_by) {
     const categoryField = expectedConfig.group_by;
     const categoryValues = data
-      .map(log => getLogFieldValue(log, categoryField))
-      .filter(v => v !== null && v !== undefined);
+      .map((log) => getLogFieldValue(log, categoryField))
+      .filter((v) => v !== null && v !== undefined);
     const uniqueCategories = Array.from(new Set(categoryValues));
     if (categoryValues.length > 0) {
       expect(uniqueCategories.length).toBeGreaterThan(0);
@@ -393,8 +405,8 @@ export function assertDataCorrectness(
   }
 
   const numericXValues = data
-    .map(log => getLogFieldValue(log, expectedConfig.x_axis))
-    .filter(v => typeof v === 'number' && Number.isFinite(v)) as number[];
+    .map((log) => getLogFieldValue(log, expectedConfig.x_axis))
+    .filter((v) => typeof v === 'number' && Number.isFinite(v)) as number[];
 
   if (numericXValues.length > 0) {
     const minX = Math.min(...numericXValues);
@@ -446,7 +458,7 @@ export function assertDataPreprocessing(
       }
     }
 
-    const nullLog = data.find(l => getLogFieldValue(l, 'table1.x_value') === null);
+    const nullLog = data.find((l) => getLogFieldValue(l, 'table1.x_value') === null);
     if (nullLog) {
       expect(getLogFieldValue(nullLog, 'table1.x_value')).toBeNull();
     }
@@ -457,9 +469,9 @@ export function assertDataPreprocessing(
     expect(typeof log.ts).toBe('string');
   }
 
-  const statusValues = Array.from(new Set(
-    data.map(log => (log.entries as Record<string, unknown>)?.status).filter(Boolean)
-  ));
+  const statusValues = Array.from(
+    new Set(data.map((log) => (log.entries as Record<string, unknown>)?.status).filter(Boolean))
+  );
   for (const status of statusValues) {
     expect(['success', 'error', 'pending', 'running']).toContain(status);
   }
@@ -487,12 +499,15 @@ export function assertDataPreprocessing(
 
     if (projectConfig.sorting) {
       try {
-        const sortConfig = JSON.parse(projectConfig.sorting) as Array<{ field: string; order: 'asc' | 'desc' }>;
+        const sortConfig = JSON.parse(projectConfig.sorting) as Array<{
+          field: string;
+          order: 'asc' | 'desc';
+        }>;
         if (sortConfig.length > 0) {
           const { field, order } = sortConfig[0];
 
           if (field === 'timestamp') {
-            const timestamps = data.map(log => new Date(log.ts as string).getTime());
+            const timestamps = data.map((log) => new Date(log.ts as string).getTime());
             for (let i = 1; i < timestamps.length; i++) {
               if (order === 'desc') {
                 expect(timestamps[i]).toBeLessThanOrEqual(timestamps[i - 1]);
@@ -511,17 +526,19 @@ export function assertDataPreprocessing(
       const groupFields = projectConfig.group_by;
 
       for (const groupField of groupFields) {
-        const hasGroupField = data.some(log => {
-          return log[groupField] !== undefined ||
-                 log[`table1.${groupField}`] !== undefined ||
-                 (log.entries as Record<string, unknown>)?.[groupField] !== undefined;
+        const hasGroupField = data.some((log) => {
+          return (
+            log[groupField] !== undefined ||
+            log[`table1.${groupField}`] !== undefined ||
+            (log.entries as Record<string, unknown>)?.[groupField] !== undefined
+          );
         });
         expect(hasGroupField).toBe(true);
       }
 
       if (groupFields.includes('category')) {
-        const categories = data.map(log =>
-          log['table1.category'] ?? (log.entries as Record<string, unknown>)?.category
+        const categories = data.map(
+          (log) => log['table1.category'] ?? (log.entries as Record<string, unknown>)?.category
         );
         const uniqueCategories = Array.from(new Set(categories));
         expect(uniqueCategories.length).toBeGreaterThan(0);
@@ -547,7 +564,7 @@ export function assertFieldsCorrectness(
   const fieldKeys = Object.keys(fields);
   expect(fieldKeys.length).toBeGreaterThan(0);
 
-  const xFieldKey = fieldKeys.find(k => k.includes('x_value'));
+  const xFieldKey = fieldKeys.find((k) => k.includes('x_value'));
   expect(xFieldKey).toBeDefined();
   if (xFieldKey) {
     const xField = fields[xFieldKey] as Record<string, unknown>;
@@ -555,13 +572,13 @@ export function assertFieldsCorrectness(
     expect(typeof xField).toBe('object');
   }
 
-  const yFieldKey = fieldKeys.find(k => k.includes('y_value'));
+  const yFieldKey = fieldKeys.find((k) => k.includes('y_value'));
   if (yFieldKey) {
     const yField = fields[yFieldKey] as Record<string, unknown>;
     expect(yField).toBeDefined();
   }
 
-  const categoryFieldKey = fieldKeys.find(k => k.includes('category'));
+  const categoryFieldKey = fieldKeys.find((k) => k.includes('category'));
   if (categoryFieldKey) {
     const categoryField = fields[categoryFieldKey] as Record<string, unknown>;
     expect(categoryField).toBeDefined();
@@ -668,4 +685,3 @@ export function getMockResponse(ctx: ApiMatrixTestContext) {
     includeEdgeCases: true,
   });
 }
-
