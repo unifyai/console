@@ -7,13 +7,7 @@ import {
   buildTileStateForStore,
   IServerStateData,
 } from '@/contexts/utils/stateBuilderUtils';
-import {
-  Context,
-  InterfaceData,
-  TabData,
-  TileData,
-  TilePosition,
-} from '@/types/interfaces/grid';
+import { Context, InterfaceData, TabData, TileData, TilePosition } from '@/types/interfaces/grid';
 
 describe('stateBuilderUtils', () => {
   it('buildGlobalStateForStore builds a minimal but coherent global snapshot', () => {
@@ -21,7 +15,7 @@ describe('stateBuilderUtils', () => {
       ['project-1', 'project-2'],
       'project-1',
       'interface-1',
-      'tab-1',
+      'tab-1'
     );
 
     expect(result.projects).toEqual(['project-1', 'project-2']);
@@ -42,7 +36,7 @@ describe('stateBuilderUtils', () => {
       'Project 1',
       contexts,
       interfaceIds,
-      'interface-2',
+      'interface-2'
     ) as IServerStateData;
 
     expect(state.activeProjectId).toBe('project-1');
@@ -70,17 +64,14 @@ describe('stateBuilderUtils', () => {
       [{ name: 'default', description: 'Default' }],
       [{ name: 'logs', description: 'Logs' }],
     ];
-    const interfaceIds: string[][] = [
-      ['interface-1'],
-      ['interface-2'],
-    ];
+    const interfaceIds: string[][] = [['interface-1'], ['interface-2']];
 
     const state = buildProjectStateForStore(
       ['project-1', 'project-2'],
       ['Project 1', 'Project 2'],
       contexts,
       interfaceIds,
-      ['interface-1', 'interface-2'],
+      ['interface-1', 'interface-2']
     ) as IServerStateData;
 
     expect(state.projectsById).toBeDefined();
@@ -98,7 +89,7 @@ describe('stateBuilderUtils', () => {
       null as unknown as string,
       null as unknown as string,
       [] as Context[],
-      [] as string[],
+      [] as string[]
     ) as IServerStateData;
 
     expect(state).toEqual({});
@@ -111,12 +102,7 @@ describe('stateBuilderUtils', () => {
       projectId: 'project-1',
     };
 
-    const state = buildInterfaceStateForStore(
-      iface,
-      'tab-1',
-      ['tab-1'],
-      ['Tab 1'],
-    );
+    const state = buildInterfaceStateForStore(iface, 'tab-1', ['tab-1'], ['Tab 1']);
 
     expect(state.activeInterfaceId).toBe('interface-1');
     expect(state.interfacesById).toBeDefined();
@@ -131,9 +117,10 @@ describe('stateBuilderUtils', () => {
   });
 
   it('buildInterfaceStateForStore returns empty state when interfaceData is missing id', () => {
-    const empty = buildInterfaceStateForStore(
-      { id: undefined, name: 'No Id' } as unknown as InterfaceData,
-    );
+    const empty = buildInterfaceStateForStore({
+      id: undefined,
+      name: 'No Id',
+    } as unknown as InterfaceData);
 
     expect(empty).toEqual({});
   });
@@ -150,13 +137,7 @@ describe('stateBuilderUtils', () => {
       color: '#ffffff',
     };
 
-    const state = buildTabStateForStore(
-      tab,
-      true,
-      'interface-1',
-      ['tile-1'],
-      ['Tile 1'],
-    );
+    const state = buildTabStateForStore(tab, true, 'interface-1', ['tile-1'], ['Tile 1']);
 
     expect(state.tabsById).toBeDefined();
     const stored = state.tabsById!['tab-1'];
@@ -176,7 +157,7 @@ describe('stateBuilderUtils', () => {
   it('buildTabStateForStore returns empty state when tabData has no id', () => {
     const state = buildTabStateForStore(
       { id: undefined, name: 'No Id' } as unknown as TabData,
-      true,
+      true
     );
 
     expect(state).toEqual({});
@@ -218,11 +199,9 @@ describe('stateBuilderUtils', () => {
   it('buildTileStateForStore returns empty state when tileData has no id', () => {
     const state = buildTileStateForStore(
       { id: undefined, name: 'No Id' } as unknown as TileData,
-      'tab-1',
+      'tab-1'
     );
 
     expect(state).toEqual({});
   });
 });
-
-

@@ -1,32 +1,27 @@
-"use client";
+'use client';
 
-import React from "react";
-import Image from "next/image";
-import { LogComparisonProps } from "../types";
+import React from 'react';
+import Image from 'next/image';
+import { LogComparisonProps } from '../types';
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/UI/accordion";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/UI/tabs";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import RowBadge from "../RowBadge";
-import MarkdownRenderer from "../Markdown/MarkdownRenderer";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
+} from '@/components/UI/accordion';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import RowBadge from '../RowBadge';
+import MarkdownRenderer from '../Markdown/MarkdownRenderer';
+import DiffViewer from '@/components/Common/Misc/DiffViewer';
 
-import DictionaryView from "../DictionaryView";
-import ListView from "../ListView";
-import ImageView from "../ImageView";
-import MatrixView from "../MatrixView";
-import StringView from "../StringView";
-import NumberView from "../NumberView";
-import TimestampView from "../TimestampView";
+import DictionaryView from '../DictionaryView';
+import ListView from '../ListView';
+import ImageView from '../ImageView';
+import MatrixView from '../MatrixView';
+import StringView from '../StringView';
+import NumberView from '../NumberView';
+import TimestampView from '../TimestampView';
 
 import {
   isDict,
@@ -37,17 +32,17 @@ import {
   isTimestamp,
   AudioPlayer,
   isAudio,
-} from "@/utils/interfaces/selection/selection";
-import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
-import { LogsActions } from "@/types/interfaces/grid";
-import { LogProps } from "@/types/interfaces/logs";
+} from '@/utils/interfaces/selection/selection';
+import { MessageSquare, BarChart2, FileText, Component } from 'lucide-react';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogProps } from '@/types/interfaces/logs';
 
 /******************************************************************************
  * A tiny helper to capitalize or otherwise format a role for display.
  */
 function formatRole(role: string) {
   if (!role) {
-    return "Assistant";
+    return 'Assistant';
   }
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
@@ -61,16 +56,16 @@ function pickDataView(
   comparables: any[],
   baseLogIndex: number,
   compLogIndexes: number[],
-  diffMode: LogComparisonProps["diffMode"],
+  diffMode: LogComparisonProps['diffMode'],
   splitView: boolean,
-  displayMode: LogComparisonProps["displayMode"],
+  displayMode: LogComparisonProps['displayMode'],
   fieldName: string,
   context: string | null,
   baseLog: LogProps | undefined,
   comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,  
+  logsActions?: LogsActions,
   cellEditMode?: boolean,
-  onSaveEdit?: LogComparisonProps["onSaveEdit"],
+  onSaveEdit?: LogComparisonProps['onSaveEdit'],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
   isImmutable?: boolean
 ) {
@@ -79,25 +74,44 @@ function pickDataView(
     finalValue = comparables.find((c) => c !== undefined);
   }
 
-   const commonProps = {
-      value: baseValue,
-      comparables: comparables,
-      baseLogIndex: baseLogIndex,
-      comparisonLogsIndex: compLogIndexes,
-      diffMode: diffMode,
-      splitView: splitView,
-      displayMode: displayMode,
-      cellEditMode: cellEditMode,
-      onSaveEdit: onSaveEdit,
-      onGroupSaveEdit: onGroupSaveEdit,
-  }
-
+  const commonProps = {
+    value: baseValue,
+    comparables: comparables,
+    baseLogIndex: baseLogIndex,
+    comparisonLogsIndex: compLogIndexes,
+    diffMode: diffMode,
+    splitView: splitView,
+    displayMode: displayMode,
+    cellEditMode: cellEditMode,
+    onSaveEdit: onSaveEdit,
+    onGroupSaveEdit: onGroupSaveEdit,
+  };
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <DictionaryView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <ListView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
@@ -109,54 +123,54 @@ function pickDataView(
     return <MatrixView {...commonProps} />;
   }
   if (isNumber(finalValue)) {
-    return <NumberView {...commonProps} isImmutable={isImmutable}/>;
+    return <NumberView {...commonProps} isImmutable={isImmutable} />;
   }
   if (isTimestamp(finalValue)) {
-    return <TimestampView {...commonProps} isImmutable={isImmutable}/>;
+    return <TimestampView {...commonProps} isImmutable={isImmutable} />;
   }
   // fallback => string
-  return <StringView {...commonProps} isImmutable={isImmutable}/>;
+  return <StringView {...commonProps} isImmutable={isImmutable} />;
 }
 
 /******************************************************************************
  * renderMessageContent => root-level text/images
  ******************************************************************************/
 function renderMessageContent(content: unknown): JSX.Element {
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return <MarkdownRenderer>{content}</MarkdownRenderer>;
   }
   if (Array.isArray(content)) {
     return (
       <>
         {content.map((chunk, i) => {
-          if (typeof chunk === "string") {
+          if (typeof chunk === 'string') {
             return <MarkdownRenderer key={i}>{chunk}</MarkdownRenderer>;
           }
-          if (chunk && typeof chunk === "object") {
-            if (chunk.type === "text" && typeof chunk.text === "string") {
+          if (chunk && typeof chunk === 'object') {
+            if (chunk.type === 'text' && typeof chunk.text === 'string') {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
-            } else if (chunk.type === "imageUrl" && chunk.imageUrl?.url) {
+            } else if (chunk.type === 'imageUrl' && chunk.imageUrl?.url) {
               return (
-                <Image 
-                  key={i} 
-                  src={chunk.imageUrl.url} 
-                  alt={`Image ${i}`} 
-                  width={500} 
-                  height={300} 
-                  className="max-w-full h-auto" 
+                <Image
+                  key={i}
+                  src={chunk.imageUrl.url}
+                  alt={`Image ${i}`}
+                  width={500}
+                  height={300}
+                  className="h-auto max-w-full"
                 />
               );
             }
             // default => show JSON
             return (
-              <pre key={i} className="bg-background p-2 text-caption rounded">
+              <pre key={i} className="text-caption rounded bg-background p-2">
                 {JSON.stringify(chunk, null, 2)}
               </pre>
             );
           }
           // fallback => JSON
           return (
-            <pre key={i} className="bg-background p-2 text-caption rounded">
+            <pre key={i} className="text-caption rounded bg-background p-2">
               {JSON.stringify(chunk, null, 2)}
             </pre>
           );
@@ -166,9 +180,7 @@ function renderMessageContent(content: unknown): JSX.Element {
   }
   // fallback => JSON
   return (
-    <pre className="bg-background p-2 text-caption rounded">
-      {JSON.stringify(content, null, 2)}
-    </pre>
+    <pre className="text-caption rounded bg-background p-2">{JSON.stringify(content, null, 2)}</pre>
   );
 }
 
@@ -197,10 +209,10 @@ export default function ChatOutView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   isImmutable,
   splitView = false,
-  displayMode = "markdown",
+  displayMode = 'markdown',
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
@@ -211,23 +223,23 @@ export default function ChatOutView({
   comparisonLogs,
   logsActions,
 }: LogComparisonProps & {
-  isImmutable?: boolean,
-  fieldName: string,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,  
+  isImmutable?: boolean;
+  fieldName: string;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  logsActions?: LogsActions;
 }) {
   // SINGLE MODE
   const singleMode = !comparables || comparables.length === 0;
   if (singleMode) {
-    const chatObj = (value && typeof value === "object") ? value : {};
+    const chatObj = value && typeof value === 'object' ? value : {};
     const choicesArr = Array.isArray(chatObj.choices) ? chatObj.choices : [];
     const usage = chatObj.usage;
     const leftover: Record<string, any> = { ...chatObj };
     delete leftover.choices;
     delete leftover.usage;
-    const model = leftover.model ?? "";
+    const model = leftover.model ?? '';
     delete leftover.model;
 
     // Build paths for child views
@@ -235,23 +247,23 @@ export default function ChatOutView({
     const metadataPath = [...path]; // Base path for leftovers
 
     return (
-      <div className="space-y-4 w-full">
-        <Accordion type="multiple" defaultValue={["chat"]} className="space-y-2">
+      <div className="w-full space-y-4">
+        <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
           {/* PART 1: conversation from choices */}
           {choicesArr.length > 0 && (
             <AccordionItem value="chat">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   <span>Chat Output</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1 space-y-4">
+                <div className="ml-4 space-y-4 border-l pl-1">
                   {choicesArr.map((choice: any, idx: number) => {
-                    const role = choice.message?.role || "assistant";
+                    const role = choice.message?.role || 'assistant';
                     const label = formatRole(role);
-                    const mainContent = choice.message?.content ?? "";
+                    const mainContent = choice.message?.content ?? '';
                     const toolCalls = choice.message?.toolCalls ?? [];
                     const contentPath = [...path, 'choices', idx, 'message', 'content'];
                     const toolCallsPath = [...path, 'choices', idx, 'message', 'toolCalls'];
@@ -259,18 +271,31 @@ export default function ChatOutView({
                     return (
                       <div
                         key={idx}
-                        className="border border-muted bg-background p-4 rounded shadow-sm w-full"
+                        className="w-full rounded border border-muted bg-background p-4 shadow-sm"
                       >
                         <div className="mb-2 flex items-center justify-between">
                           <p className="text-title">{label}</p>
-                          <CopyButton
-                            content={JSON.stringify(mainContent)}
-                            copyMessage="Copied!"
-                          />
+                          <CopyButton content={JSON.stringify(mainContent)} copyMessage="Copied!" />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
-
+                        {pickDataView(
+                          mainContent,
+                          [],
+                          baseLogIndex,
+                          [],
+                          'none',
+                          false,
+                          displayMode,
+                          fieldName,
+                          context,
+                          baseLog,
+                          comparisonLogs,
+                          logsActions,
+                          cellEditMode,
+                          onSaveEdit,
+                          onGroupSaveEdit,
+                          isImmutable
+                        )}
 
                         {/* Tool calls section */}
                         {toolCalls.length > 0 && (
@@ -282,7 +307,24 @@ export default function ChatOutView({
                               copyMessage="Copied!"
                             />
                             {/* Tool calls are usually complex, less likely to be directly edited, but pass handlers */}
-                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                            {pickDataView(
+                              toolCalls,
+                              [],
+                              baseLogIndex,
+                              [],
+                              'none',
+                              false,
+                              displayMode,
+                              fieldName,
+                              context,
+                              baseLog,
+                              comparisonLogs,
+                              logsActions,
+                              cellEditMode,
+                              onSaveEdit,
+                              onGroupSaveEdit,
+                              isImmutable
+                            )}
                           </div>
                         )}
                       </div>
@@ -296,14 +338,14 @@ export default function ChatOutView({
           {/* PART 2: Model, usage, leftover metadata */}
           {model && (
             <AccordionItem value="model">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <Component className="h-4 w-4 text-primary" />
                   <span>Model</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   <StringView
                     value={model}
                     comparables={[]}
@@ -324,15 +366,32 @@ export default function ChatOutView({
 
           {usage !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-primary" />
                   <span>Usage</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                <div className="ml-4 border-l pl-1">
+                  {pickDataView(
+                    usage,
+                    [],
+                    baseLogIndex,
+                    [],
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -340,15 +399,32 @@ export default function ChatOutView({
 
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
                   <span>Metadata</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                <div className="ml-4 border-l pl-1">
+                  {pickDataView(
+                    leftover,
+                    [],
+                    baseLogIndex,
+                    [],
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -359,16 +435,12 @@ export default function ChatOutView({
   }
 
   // MULTI MODE
-  const baseObj = (value && typeof value === "object") ? value : {};
-  const compObjs = (comparables ?? []).map((co) =>
-    co && typeof co === "object" ? co : {}
-  );
+  const baseObj = value && typeof value === 'object' ? value : {};
+  const compObjs = (comparables ?? []).map((co) => (co && typeof co === 'object' ? co : {}));
 
   // unify "choices"
   const baseChoices = Array.isArray(baseObj.choices) ? baseObj.choices : [];
-  const compChoiceArrays = compObjs.map((o) =>
-    Array.isArray(o.choices) ? o.choices : []
-  );
+  const compChoiceArrays = compObjs.map((o) => (Array.isArray(o.choices) ? o.choices : []));
   const unified = unifyChoices(baseChoices, compChoiceArrays);
 
   // usage leftover
@@ -377,7 +449,7 @@ export default function ChatOutView({
   const leftover: Record<string, any> = { ...baseObj };
   delete leftover.choices;
   delete leftover.usage;
-  const baseModel = leftover.model ?? "";
+  const baseModel = leftover.model ?? '';
   delete leftover.model;
 
   // leftoverComparables => for each compObj
@@ -388,7 +460,7 @@ export default function ChatOutView({
     delete cObj.model;
     return cObj;
   });
-  const compModels = compObjs.map((co) => co.model ?? "");
+  const compModels = compObjs.map((co) => co.model ?? '');
 
   /**
    * gatherAll => returns an array of { isBase, role, rowIndex, content, toolCalls }
@@ -403,8 +475,8 @@ export default function ChatOutView({
     }[] = [];
 
     if (u.baseChoice) {
-      const role = u.baseChoice.message?.role ?? "assistant";
-      const content = u.baseChoice.message?.content ?? "";
+      const role = u.baseChoice.message?.role ?? 'assistant';
+      const content = u.baseChoice.message?.content ?? '';
       const toolCalls = u.baseChoice.message?.toolCalls ?? [];
       out.push({
         isBase: true,
@@ -419,14 +491,14 @@ export default function ChatOutView({
       if (!cc) {
         out.push({
           isBase: false,
-          role: "assistant",
+          role: 'assistant',
           rowIndex: comparisonLogsIndex[i],
-          content: "",
+          content: '',
           toolCalls: [],
         });
       } else {
-        const role = cc.message?.role ?? "assistant";
-        const content = cc.message?.content ?? "";
+        const role = cc.message?.role ?? 'assistant';
+        const content = cc.message?.content ?? '';
         const toolCalls = cc.message?.toolCalls ?? [];
         out.push({
           isBase: false,
@@ -440,51 +512,45 @@ export default function ChatOutView({
     return out;
   }
 
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     return (
-      <div className="space-y-4 w-full">
-        <Accordion
-          type="multiple"
-          defaultValue={["chat"]}
-          className="space-y-2"
-        >
+      <div className="w-full space-y-4">
+        <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
           <AccordionItem value="chat">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-primary" />
                 <span>Chat Output Comparison</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-6 w-full">
+              <div className="w-full space-y-6">
                 {unified.map((block, i) => {
                   const combined = gatherAll(block);
                   if (!combined.length) return null;
 
                   // Filter out blocks where all messages are empty
-                  const allEmpty = combined.every(m =>
-                    (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
-                    (!m.toolCalls || m.toolCalls.length === 0)
+                  const allEmpty = combined.every(
+                    (m) =>
+                      (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
+                      (!m.toolCalls || m.toolCalls.length === 0)
                   );
                   if (allEmpty) return null;
 
                   // same user vs. asst approach as minimal tweak
-                  const userParts = combined.filter((m) => m.role === "user");
-                  const asstParts = combined.filter((m) => m.role !== "user");
+                  const userParts = combined.filter((m) => m.role === 'user');
+                  const asstParts = combined.filter((m) => m.role !== 'user');
 
                   return (
-                    <div key={i} className="flex flex-col gap-6 w-full">
+                    <div key={i} className="flex w-full flex-col gap-6">
                       {/* assistant */}
                       {asstParts.length > 0 && (
-                        <div className="flex flex-col w-full">
+                        <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(asstParts[0].rowIndex)}>
-                            <div className="flex items-center justify-start text-sm mb-2 w-full">
+                            <div className="mb-2 flex w-full items-center justify-start text-sm">
                               <TabsList className="justify-start">
                                 {asstParts.map((m) => (
-                                  <TabsTrigger
-                                    key={m.rowIndex}
-                                    value={String(m.rowIndex)}
-                                  >
+                                  <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
                                     Row {m.rowIndex}
                                   </TabsTrigger>
                                 ))}
@@ -492,15 +558,15 @@ export default function ChatOutView({
                             </div>
                             {asstParts.map((m) => {
                               const label = formatRole(m.role);
-                               const contentPath = [...path, 'choices', i, 'message', 'content']; // Path to content
-                               const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls']; // Path to tool calls
+                              const contentPath = [...path, 'choices', i, 'message', 'content']; // Path to content
+                              const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls']; // Path to tool calls
                               return (
                                 <TabsContent
                                   key={m.rowIndex}
                                   value={String(m.rowIndex)}
                                   className="w-full"
                                 >
-                                  <div className="border bg-background p-4 rounded shadow-sm w-full">
+                                  <div className="w-full rounded border bg-background p-4 shadow-sm">
                                     <div className="mb-2 flex items-center justify-between">
                                       <p className="text-title">{label}</p>
                                       <CopyButton
@@ -509,20 +575,52 @@ export default function ChatOutView({
                                       />
                                     </div>
                                     {/* Pass edit props */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {pickDataView(
+                                      m.content,
+                                      [],
+                                      m.rowIndex,
+                                      [],
+                                      'none',
+                                      false,
+                                      displayMode,
+                                      fieldName,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      logsActions,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
+                                      isImmutable
+                                    )}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
-                                        <p className="text-title mb-1">
-                                          Tool Calls
-                                        </p>
+                                        <p className="text-title mb-1">Tool Calls</p>
                                         <CopyButton
                                           className="mb-1"
                                           content={JSON.stringify(m.toolCalls, null, 2)}
                                           copyMessage="Copied!"
                                         />
                                         {/* Pass edit props */}
-                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                        {pickDataView(
+                                          m.toolCalls,
+                                          [],
+                                          m.rowIndex,
+                                          [],
+                                          'none',
+                                          false,
+                                          displayMode,
+                                          fieldName,
+                                          context,
+                                          baseLog,
+                                          comparisonLogs,
+                                          logsActions,
+                                          cellEditMode,
+                                          onSaveEdit,
+                                          onGroupSaveEdit,
+                                          isImmutable
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -534,15 +632,12 @@ export default function ChatOutView({
                       )}
                       {/* user */}
                       {userParts.length > 0 && (
-                        <div className="flex flex-col w-full">
+                        <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(userParts[0].rowIndex)}>
-                            <div className="flex items-center justify-between text-sm mb-2 w-full">
+                            <div className="mb-2 flex w-full items-center justify-between text-sm">
                               <TabsList className="justify-end">
                                 {userParts.map((m) => (
-                                  <TabsTrigger
-                                    key={m.rowIndex}
-                                    value={String(m.rowIndex)}
-                                  >
+                                  <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
                                     Row {m.rowIndex + 1}
                                   </TabsTrigger>
                                 ))}
@@ -550,37 +645,69 @@ export default function ChatOutView({
                             </div>
                             {userParts.map((m) => {
                               const label = formatRole(m.role);
-                               const contentPath = [...path, 'choices', i, 'message', 'content'];
-                               const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls'];
+                              const contentPath = [...path, 'choices', i, 'message', 'content'];
+                              const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls'];
                               return (
                                 <TabsContent
                                   key={m.rowIndex}
                                   value={String(m.rowIndex)}
                                   className="w-full"
                                 >
-                                  <div className="border bg-background p-4 rounded shadow-sm w-full">
+                                  <div className="w-full rounded border bg-background p-4 shadow-sm">
                                     <div className="mb-2 flex items-center justify-between">
-                                      <p className="font-bold text-sm">{label}</p>
+                                      <p className="text-sm font-bold">{label}</p>
                                       <CopyButton
                                         content={JSON.stringify(m.content)}
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                     {/* Pass edit props */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {/* Pass edit props */}
+                                    {pickDataView(
+                                      m.content,
+                                      [],
+                                      m.rowIndex,
+                                      [],
+                                      'none',
+                                      false,
+                                      displayMode,
+                                      fieldName,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      logsActions,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
+                                      isImmutable
+                                    )}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
-                                        <p className="font-bold text-sm mb-1">
-                                          Tool Calls
-                                        </p>
+                                        <p className="mb-1 text-sm font-bold">Tool Calls</p>
                                         <CopyButton
                                           className="mb-1"
                                           content={JSON.stringify(m.toolCalls, null, 2)}
                                           copyMessage="Copied!"
                                         />
-                                         {/* Pass edit props */}
-                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                        {/* Pass edit props */}
+                                        {pickDataView(
+                                          m.toolCalls,
+                                          [],
+                                          m.rowIndex,
+                                          [],
+                                          'none',
+                                          false,
+                                          displayMode,
+                                          fieldName,
+                                          context,
+                                          baseLog,
+                                          comparisonLogs,
+                                          logsActions,
+                                          cellEditMode,
+                                          onSaveEdit,
+                                          onGroupSaveEdit,
+                                          isImmutable
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -597,14 +724,14 @@ export default function ChatOutView({
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="model">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <Component className="h-4 w-4 text-primary" />
                 <span>Model</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 <StringView
                   value={baseModel}
                   comparables={compModels}
@@ -623,14 +750,14 @@ export default function ChatOutView({
           </AccordionItem>
           {usageBase !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-primary" />
                   <span>Usage</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   {pickDataView(
                     usageBase,
                     usageComps,
@@ -655,14 +782,14 @@ export default function ChatOutView({
           )}
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
                   <span>Metadata</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   {pickDataView(
                     leftover,
                     leftoverComparables,
@@ -693,13 +820,9 @@ export default function ChatOutView({
   // diffMode !== "none" => side-by-side diffs
   return (
     <div className="space-y-4">
-      <Accordion
-        type="multiple"
-        defaultValue={["chat"]}
-        className="space-y-2"
-      >
+      <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
         <AccordionItem value="chat">
-          <AccordionTrigger className="relative group flex items-center justify-between">
+          <AccordionTrigger className="group relative flex items-center justify-between">
             <span className="inline-flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
               <span>Chat Output Comparison</span>
@@ -712,9 +835,10 @@ export default function ChatOutView({
                 if (!combined.length) return null;
 
                 // Filter out blocks where all messages are empty
-                const allEmpty = combined.every(m =>
-                  (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
-                  (!m.toolCalls || m.toolCalls.length === 0)
+                const allEmpty = combined.every(
+                  (m) =>
+                    (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
+                    (!m.toolCalls || m.toolCalls.length === 0)
                 );
                 if (allEmpty) return null;
 
@@ -730,18 +854,16 @@ export default function ChatOutView({
                       const compMsgs = roleMsgs.filter((r) => !r.isBase);
                       if (!baseMsg && compMsgs.length === 0) return null;
 
-                      const baseStr = baseMsg
-                        ? JSON.stringify(baseMsg.content, null, 2)
-                        : "";
+                      const baseStr = baseMsg ? JSON.stringify(baseMsg.content, null, 2) : '';
                       const baseToolJSON = baseMsg
                         ? JSON.stringify(baseMsg.toolCalls, null, 2)
-                        : "";
+                        : '';
                       const label = formatRole(role);
 
                       return (
                         <div
                           key={`${i}-${role}`}
-                          className="bg-background p-4 rounded shadow-sm border border-muted"
+                          className="rounded border border-muted bg-background p-4 shadow-sm"
                         >
                           <div className="mb-2 flex items-center justify-between">
                             <p className="text-title">{label}</p>
@@ -753,43 +875,36 @@ export default function ChatOutView({
                             compMsgs.map((cm, idx2) => {
                               const cStr = JSON.stringify(cm.content, null, 2);
                               const same = cStr === baseStr;
-                              const baseMode = same ? "none" : "delete";
-                              const compMode = same ? "none" : "insert";
+                              const baseMode = same ? 'none' : 'delete';
+                              const compMode = same ? 'none' : 'insert';
                               return (
                                 <div
                                   key={idx2}
-                                  className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted"
+                                  className="text-caption relative mt-4 space-y-2 rounded border border-muted bg-background p-2"
                                 >
-                                  <div className="flex gap-2 text-xxs">
+                                  <div className="text-xxs flex gap-2">
                                     {baseMsg && (
-                                      <RowBadge
-                                        rowNumbers={[baseMsg.rowIndex]}
-                                        mode={baseMode}
-                                      />
+                                      <RowBadge rowNumbers={[baseMsg.rowIndex]} mode={baseMode} />
                                     )}
-                                    <RowBadge
-                                      rowNumbers={[cm.rowIndex]}
-                                      mode={compMode}
-                                    />
+                                    <RowBadge rowNumbers={[cm.rowIndex]} mode={compMode} />
                                   </div>
                                   <DiffViewer
                                     oldValue={baseStr}
                                     newValue={cStr}
                                     splitView={splitView}
-                                    hideLineNumbers={!baseStr.includes('\n') && !cStr.includes('\n')}
+                                    hideLineNumbers={
+                                      !baseStr.includes('\n') && !cStr.includes('\n')
+                                    }
                                     mode={diffMode}
                                   />
                                 </div>
                               );
                             })
                           ) : (
-                            <div className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted">
-                              <div className="flex gap-2 text-xxs">
+                            <div className="text-caption relative mt-4 space-y-2 rounded border border-muted bg-background p-2">
+                              <div className="text-xxs flex gap-2">
                                 {baseMsg && (
-                                  <RowBadge
-                                    rowNumbers={[baseMsg.rowIndex]}
-                                    mode="delete"
-                                  />
+                                  <RowBadge rowNumbers={[baseMsg.rowIndex]} mode="delete" />
                                 )}
                                 <RowBadge rowNumbers={[-1]} mode="insert" />
                               </div>
@@ -812,49 +927,45 @@ export default function ChatOutView({
                             );
                             if (hasBaseTools || anyCompTools) {
                               return (
-                                <div className="mt-6 pt-2 border-t border-muted space-y-2">
+                                <div className="mt-6 space-y-2 border-t border-muted pt-2">
                                   <p className="text-title">Tool Calls Diff</p>
                                   {compMsgs.length > 0 ? (
                                     compMsgs.map((cm, idx3) => {
                                       const cTools = JSON.stringify(cm.toolCalls, null, 2);
                                       const sameTools = cTools === baseToolJSON;
-                                      const baseBadge = sameTools ? "none" : "delete";
-                                      const compBadge = sameTools ? "none" : "insert";
+                                      const baseBadge = sameTools ? 'none' : 'delete';
+                                      const compBadge = sameTools ? 'none' : 'insert';
                                       return (
                                         <div
                                           key={idx3}
-                                          className="bg-background p-2 rounded text-caption space-y-2 relative"
+                                          className="text-caption relative space-y-2 rounded bg-background p-2"
                                         >
-                                          <div className="flex gap-2 text-xxs">
+                                          <div className="text-xxs flex gap-2">
                                             {baseMsg && (
                                               <RowBadge
                                                 rowNumbers={[baseMsg.rowIndex]}
                                                 mode={baseBadge}
                                               />
                                             )}
-                                            <RowBadge
-                                              rowNumbers={[cm.rowIndex]}
-                                              mode={compBadge}
-                                            />
+                                            <RowBadge rowNumbers={[cm.rowIndex]} mode={compBadge} />
                                           </div>
                                           <DiffViewer
                                             oldValue={baseToolJSON}
                                             newValue={cTools}
                                             splitView={splitView}
-                                            hideLineNumbers={!baseToolJSON.includes('\n') && !cTools.includes('\n')}
+                                            hideLineNumbers={
+                                              !baseToolJSON.includes('\n') && !cTools.includes('\n')
+                                            }
                                             mode={diffMode}
                                           />
                                         </div>
                                       );
                                     })
                                   ) : (
-                                    <div className="bg-background p-2 rounded text-caption space-y-2 relative">
-                                      <div className="flex gap-2 text-xxs">
+                                    <div className="text-caption relative space-y-2 rounded bg-background p-2">
+                                      <div className="text-xxs flex gap-2">
                                         {baseMsg && (
-                                          <RowBadge
-                                            rowNumbers={[baseMsg.rowIndex]}
-                                            mode="delete"
-                                          />
+                                          <RowBadge rowNumbers={[baseMsg.rowIndex]} mode="delete" />
                                         )}
                                         <RowBadge rowNumbers={[-1]} mode="insert" />
                                       </div>
@@ -882,14 +993,14 @@ export default function ChatOutView({
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="model">
-          <AccordionTrigger className="relative group flex items-center justify-between">
+          <AccordionTrigger className="group relative flex items-center justify-between">
             <span className="inline-flex items-center gap-2">
               <Component className="h-4 w-4 text-primary" />
               <span>Model</span>
             </span>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="border-l ml-4 pl-1">
+            <div className="ml-4 border-l pl-1">
               <StringView
                 value={baseModel}
                 comparables={compModels}
@@ -907,14 +1018,14 @@ export default function ChatOutView({
         </AccordionItem>
         {usageBase !== undefined && (
           <AccordionItem value="usage">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <BarChart2 className="h-4 w-4 text-primary" />
                 <span>Usage</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 {pickDataView(
                   usageBase,
                   usageComps,
@@ -939,14 +1050,14 @@ export default function ChatOutView({
         )}
         {Object.keys(leftover).length > 0 && (
           <AccordionItem value="metadata">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
                 <span>Metadata</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 {pickDataView(
                   leftover,
                   leftoverComparables,

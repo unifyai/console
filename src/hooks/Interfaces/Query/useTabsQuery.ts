@@ -1,16 +1,13 @@
-"use client";
+'use client';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTabActions, TabData } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * Hook to fetch all tabs for an interface
  */
-export function useListTabsQuery(
-  interfaceId: string | null,
-  actions: GranularTabActions
-) {
+export function useListTabsQuery(interfaceId: string | null, actions: GranularTabActions) {
   return useQuery({
     queryKey: ['tabs', interfaceId],
     queryFn: async () => {
@@ -46,10 +43,7 @@ export function useGetTabQuery(
 /**
  * Hook to fetch a specific tab by ID
  */
-export function useGetTabByIdQuery(
-  id: string | null,
-  actions: GranularTabActions
-) {
+export function useGetTabByIdQuery(id: string | null, actions: GranularTabActions) {
   return useQuery({
     queryKey: ['tab-by-id', id],
     queryFn: async () => {
@@ -75,20 +69,14 @@ export function useGetTabUnifiedQuery(
   const { id, interfaceId, name, checkpoint } = params;
   const usingId = !!id;
   const usingPath = !!interfaceId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['tab-by-id', id, checkpoint] 
-      : ['tab', interfaceId, name, checkpoint],
+    queryKey: usingId ? ['tab-by-id', id, checkpoint] : ['tab', interfaceId, name, checkpoint],
     queryFn: async () => {
       if (usingId) {
         return actions.getById(id as string, checkpoint);
       } else if (usingPath) {
-        return actions.getByName(
-          interfaceId as string, 
-          name as string, 
-          checkpoint
-        );
+        return actions.getByName(interfaceId as string, name as string, checkpoint);
       }
       return null;
     },
@@ -117,10 +105,7 @@ export function useGetTabWithTilesQuery(
 /**
  * Hook to fetch a specific tab with all its tiles by ID
  */
-export function useGetTabWithTilesByIdQuery(
-  id: string | null,
-  actions: GranularTabActions
-) {
+export function useGetTabWithTilesByIdQuery(id: string | null, actions: GranularTabActions) {
   return useQuery({
     queryKey: ['tab-with-tiles-by-id', id],
     queryFn: async () => {
@@ -146,20 +131,16 @@ export function useGetTabWithTilesUnifiedQuery(
   const { id, interfaceId, name, checkpoint } = params;
   const usingId = !!id;
   const usingPath = !!interfaceId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['tab-with-tiles-by-id', id, checkpoint] 
+    queryKey: usingId
+      ? ['tab-with-tiles-by-id', id, checkpoint]
       : ['tab-with-tiles', interfaceId, name, checkpoint],
     queryFn: async () => {
       if (usingId) {
         return actions.getTabWithTilesById(id as string, checkpoint);
       } else if (usingPath) {
-        return actions.getTabWithTilesByName(
-          interfaceId as string, 
-          name as string, 
-          checkpoint
-        );
+        return actions.getTabWithTilesByName(interfaceId as string, name as string, checkpoint);
       }
       return null;
     },
@@ -172,56 +153,56 @@ export function useGetTabWithTilesUnifiedQuery(
  */
 export function useCreateTabQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      interfaceId, 
+    mutationFn: async ({
+      interfaceId,
       name,
-      data, 
+      data,
       tabId,
-      actions 
-    }: { 
-      interfaceId: string; 
+      actions,
+    }: {
+      interfaceId: string;
       name: string;
-      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'name' | 'createdAt' | 'updatedAt'>>; 
+      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'name' | 'createdAt' | 'updatedAt'>>;
       tabId?: string;
       actions: GranularTabActions;
     }) => {
       try {
         if (typeof actions.create !== 'function') {
           // Try to dynamically access the create method to work around potential serialization issues
-          const createMethod = actions["create"];
-          
+          const createMethod = actions['create'];
+
           if (typeof createMethod === 'function') {
             const result = await (createMethod as Function)(interfaceId, name, data, tabId);
             return result;
           }
-          
-          throw new Error("actions.create is not a function");
+
+          throw new Error('actions.create is not a function');
         }
-        
+
         const result = await actions.create(interfaceId, name, data, tabId);
         return result;
       } catch (error) {
-        console.error("[useTabsQuery] Error creating tab:", error);
+        console.error('[useTabsQuery] Error creating tab:', error);
         throw error;
       }
     },
     onSuccess: (result) => {
       // Invalidate tabs query to refetch the list
       if (result && 'interfaceId' in result) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tabs', result.interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tabs', result.interfaceId],
         });
         // Also invalidate interface with tabs
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', result.interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-with-tabs', result.interfaceId],
         });
       }
     },
     onError: (error) => {
-      console.error("[useTabsQuery] Tab creation mutation error:", error);
-    }
+      console.error('[useTabsQuery] Tab creation mutation error:', error);
+    },
   });
 }
 
@@ -230,17 +211,17 @@ export function useCreateTabQuery() {
  */
 export function useUpdateTabQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      interfaceId, 
-      name, 
-      data, 
-      actions 
-    }: { 
-      interfaceId: string; 
+    mutationFn: async ({
+      interfaceId,
+      name,
+      data,
+      actions,
+    }: {
+      interfaceId: string;
       name: string;
-      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>>; 
+      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>>;
       actions: GranularTabActions;
     }) => {
       return actions.updateByName(interfaceId, name, data);
@@ -248,19 +229,19 @@ export function useUpdateTabQuery() {
     onSuccess: (result, variables) => {
       // Invalidate specific tab and tabs list
       const { interfaceId, name } = variables;
-      queryClient.invalidateQueries({ 
-        queryKey: ['tab', interfaceId, name] 
+      queryClient.invalidateQueries({
+        queryKey: ['tab', interfaceId, name],
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ['tabs', interfaceId] 
+      queryClient.invalidateQueries({
+        queryKey: ['tabs', interfaceId],
       });
       // Also invalidate tab with tiles
-      queryClient.invalidateQueries({ 
-        queryKey: ['tab-with-tiles', interfaceId, name] 
+      queryClient.invalidateQueries({
+        queryKey: ['tab-with-tiles', interfaceId, name],
       });
       // Also invalidate interface with tabs
-      queryClient.invalidateQueries({ 
-        queryKey: ['interface-with-tabs', interfaceId] 
+      queryClient.invalidateQueries({
+        queryKey: ['interface-with-tabs', interfaceId],
       });
     },
   });
@@ -271,15 +252,15 @@ export function useUpdateTabQuery() {
  */
 export function useUpdateTabByIdQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      data, 
-      actions 
-    }: { 
+    mutationFn: async ({
+      id,
+      data,
+      actions,
+    }: {
       id: string;
-      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>>; 
+      data: Partial<Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>>;
       actions: GranularTabActions;
     }) => {
       return actions.updateById(id, data);
@@ -287,20 +268,20 @@ export function useUpdateTabByIdQuery() {
     onSuccess: (result) => {
       if (result && 'id' in result) {
         // Invalidate the tab by ID
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-by-id', result.id],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', result.id],
         });
-        
+
         // If we know the interfaceId, we can invalidate related queries
         if ('interfaceId' in result && result.interfaceId) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['tabs', result.interfaceId] 
+          queryClient.invalidateQueries({
+            queryKey: ['tabs', result.interfaceId],
           });
-          queryClient.invalidateQueries({ 
-            queryKey: ['interface-with-tabs', result.interfaceId] 
+          queryClient.invalidateQueries({
+            queryKey: ['interface-with-tabs', result.interfaceId],
           });
         }
       }
@@ -313,12 +294,12 @@ export function useUpdateTabByIdQuery() {
  */
 export function useUpdateTabUnifiedQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       params,
-      actions 
-    }: { 
+      actions,
+    }: {
       params: {
         id?: string;
         interfaceId?: string;
@@ -329,58 +310,58 @@ export function useUpdateTabUnifiedQuery() {
       actions: GranularTabActions;
     }) => {
       const { id, interfaceId, name, data, checkpoint } = params;
-      
+
       if (id) {
         return actions.updateById(id, data, checkpoint);
       } else if (interfaceId && name) {
         return actions.updateByName(interfaceId, name, data, checkpoint);
       }
-      
-      throw new Error("Missing required parameters to identify the tab");
+
+      throw new Error('Missing required parameters to identify the tab');
     },
     onSuccess: (result, variables) => {
       const { id, interfaceId, name } = variables.params;
-      
+
       // Invalidate based on the parameters used
       if (id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-by-id', id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-by-id', id],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', id],
         });
       }
-      
+
       if (interfaceId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tabs', interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tabs', interfaceId],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-with-tabs', interfaceId],
         });
-        
+
         if (name) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['tab', interfaceId, name] 
+          queryClient.invalidateQueries({
+            queryKey: ['tab', interfaceId, name],
           });
-          queryClient.invalidateQueries({ 
-            queryKey: ['tab-with-tiles', interfaceId, name] 
+          queryClient.invalidateQueries({
+            queryKey: ['tab-with-tiles', interfaceId, name],
           });
         }
       }
-      
+
       // Also try to invalidate based on the result data
       if (result && typeof result === 'object' && 'id' in result) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-by-id', result.id],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', result.id],
         });
-        
+
         if ('interfaceId' in result && result.interfaceId) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['tabs', result.interfaceId] 
+          queryClient.invalidateQueries({
+            queryKey: ['tabs', result.interfaceId],
           });
         }
       }
@@ -393,14 +374,14 @@ export function useUpdateTabUnifiedQuery() {
  */
 export function useDeleteTabQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      interfaceId, 
-      name, 
-      actions 
-    }: { 
-      interfaceId: string; 
+    mutationFn: async ({
+      interfaceId,
+      name,
+      actions,
+    }: {
+      interfaceId: string;
       name: string;
       actions: GranularTabActions;
     }) => {
@@ -409,19 +390,19 @@ export function useDeleteTabQuery() {
     onSuccess: (_, variables) => {
       const { interfaceId, name } = variables;
       // Invalidate tabs list
-      queryClient.invalidateQueries({ 
-        queryKey: ['tabs', interfaceId] 
+      queryClient.invalidateQueries({
+        queryKey: ['tabs', interfaceId],
       });
       // Remove deleted tab from cache
-      queryClient.removeQueries({ 
-        queryKey: ['tab', interfaceId, name] 
+      queryClient.removeQueries({
+        queryKey: ['tab', interfaceId, name],
       });
-      queryClient.removeQueries({ 
-        queryKey: ['tab-with-tiles', interfaceId, name] 
+      queryClient.removeQueries({
+        queryKey: ['tab-with-tiles', interfaceId, name],
       });
       // Also invalidate interface with tabs
-      queryClient.invalidateQueries({ 
-        queryKey: ['interface-with-tabs', interfaceId] 
+      queryClient.invalidateQueries({
+        queryKey: ['interface-with-tabs', interfaceId],
       });
     },
   });
@@ -432,14 +413,14 @@ export function useDeleteTabQuery() {
  */
 export function useDeleteTabByIdQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       id,
       interfaceId, // Optional, for cache invalidation
       name, // Optional, for cache invalidation
-      actions 
-    }: { 
+      actions,
+    }: {
       id: string;
       interfaceId?: string;
       name?: string;
@@ -449,28 +430,28 @@ export function useDeleteTabByIdQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate by ID
-      queryClient.removeQueries({ 
-        queryKey: ['tab-by-id', variables.id] 
+      queryClient.removeQueries({
+        queryKey: ['tab-by-id', variables.id],
       });
-      queryClient.removeQueries({ 
-        queryKey: ['tab-with-tiles-by-id', variables.id] 
+      queryClient.removeQueries({
+        queryKey: ['tab-with-tiles-by-id', variables.id],
       });
-      
+
       // If we have parent info, invalidate those queries too
       if (variables.interfaceId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tabs', variables.interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tabs', variables.interfaceId],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', variables.interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-with-tabs', variables.interfaceId],
         });
-        
+
         if (variables.name) {
-          queryClient.removeQueries({ 
-            queryKey: ['tab', variables.interfaceId, variables.name] 
+          queryClient.removeQueries({
+            queryKey: ['tab', variables.interfaceId, variables.name],
           });
-          queryClient.removeQueries({ 
-            queryKey: ['tab-with-tiles', variables.interfaceId, variables.name] 
+          queryClient.removeQueries({
+            queryKey: ['tab-with-tiles', variables.interfaceId, variables.name],
           });
         }
       }
@@ -483,12 +464,12 @@ export function useDeleteTabByIdQuery() {
  */
 export function useDeleteTabUnifiedQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       params,
-      actions 
-    }: { 
+      actions,
+    }: {
       params: {
         id?: string;
         interfaceId?: string;
@@ -497,42 +478,42 @@ export function useDeleteTabUnifiedQuery() {
       actions: GranularTabActions;
     }) => {
       const { id, interfaceId, name } = params;
-      
+
       if (id) {
         return actions.deleteById(id);
       } else if (interfaceId && name) {
         return actions.deleteByName(interfaceId, name);
       }
-      
-      throw new Error("Missing required parameters to identify the tab");
+
+      throw new Error('Missing required parameters to identify the tab');
     },
     onSuccess: (_, variables) => {
       const { id, interfaceId, name } = variables.params;
-      
+
       // Invalidate based on the parameters used
       if (id) {
-        queryClient.removeQueries({ 
-          queryKey: ['tab-by-id', id] 
+        queryClient.removeQueries({
+          queryKey: ['tab-by-id', id],
         });
-        queryClient.removeQueries({ 
-          queryKey: ['tab-with-tiles-by-id', id] 
+        queryClient.removeQueries({
+          queryKey: ['tab-with-tiles-by-id', id],
         });
       }
-      
+
       if (interfaceId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tabs', interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['tabs', interfaceId],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-with-tabs', interfaceId],
         });
-        
+
         if (name) {
-          queryClient.removeQueries({ 
-            queryKey: ['tab', interfaceId, name] 
+          queryClient.removeQueries({
+            queryKey: ['tab', interfaceId, name],
           });
-          queryClient.removeQueries({ 
-            queryKey: ['tab-with-tiles', interfaceId, name] 
+          queryClient.removeQueries({
+            queryKey: ['tab-with-tiles', interfaceId, name],
           });
         }
       }
@@ -545,15 +526,15 @@ export function useDeleteTabUnifiedQuery() {
  */
 export function useCreateTabCheckpointQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      interfaceId, 
+    mutationFn: async ({
+      interfaceId,
       name,
       description,
-      actions 
-    }: { 
-      interfaceId: string; 
+      actions,
+    }: {
+      interfaceId: string;
       name: string;
       description: string;
       actions: GranularTabActions;
@@ -571,13 +552,13 @@ export function useCreateTabCheckpointQuery() {
  */
 export function useCreateTabCheckpointByIdQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       id,
       description,
-      actions 
-    }: { 
+      actions,
+    }: {
       id: string;
       description: string;
       actions: GranularTabActions;
@@ -595,12 +576,12 @@ export function useCreateTabCheckpointByIdQuery() {
  */
 export function useCreateTabCheckpointUnifiedQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       params,
-      actions 
-    }: { 
+      actions,
+    }: {
       params: {
         id?: string;
         interfaceId?: string;
@@ -610,14 +591,14 @@ export function useCreateTabCheckpointUnifiedQuery() {
       actions: GranularTabActions;
     }) => {
       const { id, interfaceId, name, description } = params;
-      
+
       if (id) {
         return actions.checkpointById(id, description);
       } else if (interfaceId && name) {
         return actions.checkpointByName(interfaceId, name, description);
       }
-      
-      throw new Error("Missing required parameters to identify the tab");
+
+      throw new Error('Missing required parameters to identify the tab');
     },
     onSuccess: () => {
       // No need to invalidate queries for checkpoint creation
@@ -646,10 +627,7 @@ export function useGetTabCheckpointByNameQuery(
 /**
  * Hook to get a checkpoint for a tab by ID
  */
-export function useGetTabCheckpointByIdQuery(
-  id: string | null,
-  actions: GranularTabActions
-) {
+export function useGetTabCheckpointByIdQuery(id: string | null, actions: GranularTabActions) {
   return useQuery({
     queryKey: ['tab-checkpoint-by-id', id],
     queryFn: async () => {
@@ -674,18 +652,18 @@ export function useGetTabCheckpointUnifiedQuery(
   const { id, interfaceId, name } = params;
   const usingId = !!id;
   const usingPath = !!interfaceId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['tab-checkpoint-by-id', id] 
+    queryKey: usingId
+      ? ['tab-checkpoint-by-id', id]
       : ['tab-checkpoint-by-name', interfaceId, name],
     queryFn: async () => {
       return actions.getCheckpoint({
         id: id as string,
         interfaceId: interfaceId as string,
-        name: name as string
+        name: name as string,
       });
     },
     enabled: usingId || usingPath,
   });
-} 
+}

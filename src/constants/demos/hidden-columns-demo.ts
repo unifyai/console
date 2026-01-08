@@ -1,8 +1,9 @@
 export default {
-    gif: "view_show_hide_dark",
-    link: "interfaces/views#hidden-columns",
-    description: "Columns can be hidden by directly clicking the (-) icon which appears on hover, and also via the show / hide selector menu at the top. Column hiding in the view pane is totally independent from hidden columns in the table, making it easy to split the data across the two formats.",
-    code: `import unify
+  gif: 'view_show_hide_dark',
+  link: 'interfaces/views#hidden-columns',
+  description:
+    'Columns can be hidden by directly clicking the (-) icon which appears on hover, and also via the show / hide selector menu at the top. Column hiding in the view pane is totally independent from hidden columns in the table, making it easy to split the data across the two formats.',
+  code: `import unify
 import random
 
 unify.activate("hidden-columns-demo", overwrite=True)
@@ -27,48 +28,49 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
         error=error,
     )
 `,
-    // Granular interface structure
-    interface: {
-        projectId: "hidden-columns-demo",
-        name: "interface1"
+  // Granular interface structure
+  interface: {
+    projectId: 'hidden-columns-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 7.0,
+        height: 8.0,
+      },
+      hiddenColumns: 'Entries/question,Entries/student_answer,Entries/rationale',
+      defaultHiddenColumns: true,
+      selected:
+        '320966_Entries/question,320966_Entries/student_answer,320966_Entries/available_marks,320966_Entries/awarded_marks,320966_Entries/rationale,320966_Entries/correct_marks_to_award,320966_Entries/diff,320966_Entries/error',
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'View',
+      type: 'View',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 5.0,
+        height: 8.0,
+      },
+      table: 'Table',
+      viewTile: {},
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 7.0,
-                height: 8.0
-            },
-            hiddenColumns: "Entries/question,Entries/student_answer,Entries/rationale",
-            defaultHiddenColumns: true,
-            selected: "320966_Entries/question,320966_Entries/student_answer,320966_Entries/available_marks,320966_Entries/awarded_marks,320966_Entries/rationale,320966_Entries/correct_marks_to_award,320966_Entries/diff,320966_Entries/error",
-            tableTile: {
-                tableType: "Data Table"
-            }
-        },
-        {
-            name: "View",
-            type: "View",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 5.0,
-                height: 8.0
-            },
-            table: "Table",
-            viewTile: {}
-        }
-    ],
-    newCounter: 2
-}
+  ],
+  newCounter: 2,
+};

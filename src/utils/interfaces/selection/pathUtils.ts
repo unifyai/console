@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 /**
  * Simple checks for dictionary vs. list
  */
 function isDict(val: any): boolean {
-  return val && typeof val === "object" && !Array.isArray(val);
+  return val && typeof val === 'object' && !Array.isArray(val);
 }
 function isList(val: any): boolean {
   return Array.isArray(val);
@@ -16,7 +16,7 @@ function isList(val: any): boolean {
  *  - Adjusted to preserve slashes (/) but replace other special characters with underscores.
  */
 export function sanitizePropertyKey(key: string): string {
-  return key.replace(/[^a-zA-Z0-9_\/]/g, "_");
+  return key.replace(/[^a-zA-Z0-9_\/]/g, '_');
 }
 
 /**
@@ -89,7 +89,7 @@ export function gatherAllSubPaths(
 
       let childPath: string;
       if (basePath) {
-        childPath = basePath + "." + safeK;
+        childPath = basePath + '.' + safeK;
       } else {
         childPath = makePrefixedDictPath(prefix, nestingLevel, k);
       }
@@ -100,11 +100,11 @@ export function gatherAllSubPaths(
     }
   } else if (isList(value)) {
     const arr = value as any[];
-    
+
     for (let i = 0; i < arr.length; i++) {
       let childPath: string;
       if (basePath) {
-        childPath = basePath + "." + i;
+        childPath = basePath + '.' + i;
       } else {
         childPath = makePrefixedListPath(prefix, nestingLevel, i);
       }
@@ -160,7 +160,7 @@ export function gatherAllSubPathsMulti(
       const safeK = sanitizePropertyKey(k);
       let childPath: string;
       if (basePath) {
-        childPath = basePath + "." + safeK;
+        childPath = basePath + '.' + safeK;
       } else {
         childPath = makePrefixedDictPath(prefix, nestingLevel, k);
       }
@@ -188,7 +188,7 @@ export function gatherAllSubPathsMulti(
     for (let i = 0; i < maxLen; i++) {
       let childPath: string;
       if (basePath) {
-        childPath = basePath + "." + i;
+        childPath = basePath + '.' + i;
       } else {
         childPath = makePrefixedListPath(prefix, nestingLevel, i);
       }

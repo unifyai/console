@@ -11,6 +11,7 @@ NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
 ```
 
 This will enable comprehensive logging including:
+
 - Dependency graph building and sorting
 - External dependency checking with emoji indicators (🔍 🚀 ⏳ ✅ ❌)
 - Internal data readiness checking
@@ -19,6 +20,7 @@ This will enable comprehensive logging including:
 - Real-time dependency monitoring with refetch intervals
 
 **Example debug output:**
+
 ```
 🔍 [externalDependenciesQuery] Checking external dependencies for Plot1: [Table1, Table2]
 🔍 [externalDependenciesQuery] Dependency "Table1" (Table) data check: { isReady: true, missingData: [], tileId: "table-123" }
@@ -31,6 +33,7 @@ This will enable comprehensive logging including:
 ## Architecture Overview
 
 The system uses a **unified configuration approach** combined with **reactive query-based dependency monitoring** where each tile type has a single comprehensive configuration that handles:
+
 - External dependency resolution with real-time monitoring
 - Internal data requirements checking with automatic refetching
 - Building prerequisites and readiness logic
@@ -64,6 +67,7 @@ The system uses a **unified configuration approach** combined with **reactive qu
 ### Reactive Monitoring
 
 The system uses **reactive queries** that automatically monitor dependency states:
+
 - `staleTime: 0` - Always check fresh data
 - `refetchInterval: 1000` - Re-check every second to catch dependency changes
 - Automatic re-evaluation when dependencies change
@@ -73,7 +77,10 @@ The system uses **reactive queries** that automatically monitor dependency state
 ### Basic Usage in Components
 
 ```typescript
-import { useDependencyAwareSortedTilesForTab, useEnsureTileDataBeforeRender } from '@/utils/tileDependencies';
+import {
+  useDependencyAwareSortedTilesForTab,
+  useEnsureTileDataBeforeRender,
+} from '@/utils/tileDependencies';
 
 // In Tab component - get dependency-sorted tiles
 const { sortedTiles, dependencyGraph } = useDependencyAwareSortedTilesForTab(tabId);
@@ -85,7 +92,7 @@ const {
   isBuilding,
   shouldStartBuilding,
   internalDataReady,
-  externalDependenciesReady
+  externalDependenciesReady,
 } = useEnsureTileDataBeforeRender(tileId, tabId, interfaceId, projectId, actions);
 ```
 
@@ -98,33 +105,33 @@ Plot: {
   tileType: 'Plot',
   isIndependent: false,
   description: 'Dependent tile - requires table tiles referenced in x_axis, y_axis, plot_group_by',
-  
+
   // External dependency resolution
   getExternalDependencies: getPlotDependencies,
-  
+
   // Building prerequisites
   needsTabArguments: true,
   needsExternalDependencies: true,
-  
+
   // Building readiness logic
-  shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) => 
+  shouldStartBuilding: (tabArgumentsReady, externalDependenciesReady) =>
     tabArgumentsReady && externalDependenciesReady,
-  
+
   // Internal data requirements checking
   checkInternalDataReadiness: (tileId, tabId, queryClient) => {
     const plotDataItem = queryClient.getQueryData(['plotDataItem', tileId]);
     const plotArguments = queryClient.getQueryData(['plotArguments', tabId]);
-    
+
     const missingData: string[] = [];
     if (!plotDataItem) missingData.push('plotDataItem');
     if (!plotArguments) missingData.push('plotArguments');
-    
+
     return {
       isReady: missingData.length === 0,
       missingData
     };
   },
-  
+
   // Data building hook management
   getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
     return { queries: [], isBuilding: false };
@@ -141,6 +148,7 @@ Plot: {
 Returns tiles sorted by dependencies using topological sort with efficient store access.
 
 **Returns:**
+
 ```typescript
 {
   sortedTiles: Tile[];
@@ -153,11 +161,12 @@ Returns tiles sorted by dependencies using topological sort with efficient store
 Ensures tab-level arguments (tableArguments and plotArguments) are built before individual tiles can render.
 
 **Returns:**
+
 ```typescript
-UseQueryResult<{ 
-  tableArguments: TableArguments; 
-  plotArguments: PlotArguments 
-}>
+UseQueryResult<{
+  tableArguments: TableArguments;
+  plotArguments: PlotArguments;
+}>;
 ```
 
 #### `useEnsureTileDataBeforeRender(tileId, tabId, interfaceId, projectId, actions)`
@@ -165,6 +174,7 @@ UseQueryResult<{
 Ensures tile data is built and determines render readiness using reactive monitoring.
 
 **Returns:**
+
 ```typescript
 {
   // Building-related state
@@ -174,7 +184,7 @@ Ensures tile data is built and determines render readiness using reactive monito
   plotDataQuery: UseQueryResult | null;
   shouldStartBuilding: boolean;
   isBuilding: boolean;
-  
+
   // Rendering-related state (unified)
   renderState: TileRenderState;
   canRender: boolean;
@@ -190,6 +200,7 @@ Ensures tile data is built and determines render readiness using reactive monito
 Creates a reactive query that monitors external dependencies with automatic refetching.
 
 **Features:**
+
 - Real-time monitoring with 1-second intervals
 - Emoji-based debug logging
 - Automatic re-evaluation when dependencies change
@@ -199,6 +210,7 @@ Creates a reactive query that monitors external dependencies with automatic refe
 Creates a reactive query that monitors internal data requirements.
 
 **Features:**
+
 - Automatic data freshness checking
 - Real-time monitoring with 1-second intervals
 - Unified data readiness checking across tile types
@@ -233,7 +245,7 @@ Get arrays of independent or dependent tile types.
 Tab Arguments Building
 ├── Reactive monitoring starts for all tiles
 ├── Table1 starts building (independent)
-├── Table2 starts building (independent)  
+├── Table2 starts building (independent)
 ├── Editor starts building (independent)
 └── Plot waits for Table1, Table2 (monitored every 1s)
 
@@ -255,7 +267,7 @@ const externalDependenciesQuery = useQuery({
   queryKey: ['externalDependencies', tile?.id, tabId],
   staleTime: 0, // Always check fresh
   refetchInterval: 1000, // Re-check every second
-  refetchOnWindowFocus: false
+  refetchOnWindowFocus: false,
 });
 
 // Internal data monitored with reactive queries
@@ -263,7 +275,7 @@ const internalDataQuery = useQuery({
   queryKey: ['internalData', tileId, tabId],
   staleTime: 0, // Always check fresh
   refetchInterval: 1000, // Re-check every second
-  refetchOnWindowFocus: false
+  refetchOnWindowFocus: false,
 });
 ```
 
@@ -283,7 +295,7 @@ The system automatically detects and removes circular dependencies using depth-f
 ```typescript
 const dependencyGraph = buildTileDependencyGraph(tiles, {
   enableCircularDependencyDetection: true,
-  maxDependencyDepth: 10
+  maxDependencyDepth: 10,
 });
 ```
 
@@ -384,4 +396,4 @@ To add support for a new tile type:
 - Advanced error recovery strategies
 - Configurable refetch intervals per tile type
 - WebSocket-based real-time updates instead of polling
-- Dependency change notifications and callbacks 
+- Dependency change notifications and callbacks

@@ -17,4 +17,3 @@ export function cursorDebugLog(message: string, data?: unknown): void {
   console.log(`[CURSOR_DEBUG] ${timestamp} | ${message}`, data ?? '');
   console.log(`  └─ ${callerLine}`);
 }
-

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Command,
@@ -7,13 +7,9 @@ import {
   CommandList,
   CommandGroup,
   CommandItem,
-} from "@/components/UI/command";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/UI/popover";
-import { Button } from "@/components/UI/button";
+} from '@/components/UI/command';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
+import { Button } from '@/components/UI/button';
 
 interface ModelSelectorProps {
   models: string[];
@@ -29,13 +25,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   className,
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [inputValue, setInputValue] = React.useState("");
+  const [inputValue, setInputValue] = React.useState('');
 
   // Filter models based on the input value
   const filteredModels = React.useMemo(() => {
-    return models.filter((model) =>
-      model.toLowerCase().includes(inputValue.toLowerCase())
-    );
+    return models.filter((model) => model.toLowerCase().includes(inputValue.toLowerCase()));
   }, [models, inputValue]);
 
   // Toggle model selection
@@ -71,15 +65,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           <CommandList>
             <CommandGroup>
               {filteredModels.map((model) => (
-                <CommandItem
-                  key={model}
-                  onSelect={() => handleModelToggle(model)}
-                >
+                <CommandItem key={model} onSelect={() => handleModelToggle(model)}>
                   <div className="flex items-center">
                     {selectedModels.includes(model) ? (
                       <Check className="mr-2 h-4 w-4" />
                     ) : (
-                      <div className="mr-2 h-4 w-4 border border-gray-400 rounded" />
+                      <div className="mr-2 h-4 w-4 rounded border border-gray-400" />
                     )}
                     <span>{model}</span>
                   </div>

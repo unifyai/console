@@ -9,7 +9,7 @@ export async function PUT(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user || !user.apiKey) {
-    return NextResponse.json({ error: "User not found or missing API key" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found or missing API key' }, { status: 404 });
   }
 
   try {
@@ -22,14 +22,16 @@ export async function PUT(request: NextRequest) {
       ? {
           business_name: bi.businessName,
           tax_id: bi.taxId ?? undefined,
-          business_address: bi.businessAddress ? {
-            address_line1: bi.businessAddress.addressLine1,
-            address_line2: bi.businessAddress.addressLine2 ?? undefined,
-            city: bi.businessAddress.city,
-            state: bi.businessAddress.state ?? undefined,
-            postal_code: bi.businessAddress.postalCode ?? undefined,
-            country: bi.businessAddress.country,
-          } : undefined,
+          business_address: bi.businessAddress
+            ? {
+                address_line1: bi.businessAddress.addressLine1,
+                address_line2: bi.businessAddress.addressLine2 ?? undefined,
+                city: bi.businessAddress.city,
+                state: bi.businessAddress.state ?? undefined,
+                postal_code: bi.businessAddress.postalCode ?? undefined,
+                country: bi.businessAddress.country,
+              }
+            : undefined,
           tax_exempt: bi.taxExempt,
         }
       : null;
@@ -44,4 +46,4 @@ export async function PUT(request: NextRequest) {
     console.error('Error updating account type:', error);
     return NextResponse.json({ error: 'Error updating account type' }, { status: 500 });
   }
-} 
+}

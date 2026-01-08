@@ -52,16 +52,20 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     order: initialState.order !== undefined ? initialState.order : 0,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
-    
+
     // Data
     globalContext: initialState.globalContext,
     tileIds: initialState.tileIds || [],
     tileNames: initialState.tileNames || [],
-    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
-    
+    itemsNeedRecompute:
+      initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
+
     // UI
     interfaceId: initialState.interfaceId || null,
-    focusedTileNames: initialState.focusedTileNames !== undefined ? initialState.focusedTileNames : [undefined, undefined],
+    focusedTileNames:
+      initialState.focusedTileNames !== undefined
+        ? initialState.focusedTileNames
+        : [undefined, undefined],
     saveSuccess: initialState.saveSuccess,
     resetting: initialState.resetting !== undefined ? initialState.resetting : false,
     edit: initialState.edit !== undefined ? initialState.edit : true,
@@ -94,11 +98,7 @@ export function updateTab(tab: Tab, updates: Partial<Tab>): Tab {
 /**
  * Set a specific property of a tab
  */
-export function setTabProperty<K extends keyof Tab>(
-  tab: Tab, 
-  property: K, 
-  value: Tab[K]
-): Tab {
+export function setTabProperty<K extends keyof Tab>(tab: Tab, property: K, value: Tab[K]): Tab {
   return {
     ...tab,
     [property]: value,
@@ -114,7 +114,7 @@ export function addTile(tab: Tab, tileId: string, tileName: string, insertAfter?
   if (tab.tileIds.includes(tileId)) {
     return tab;
   }
-  
+
   // Create a new array with the new tile ID
   const tileIds = [...tab.tileIds];
   const tileNames = [...tab.tileNames];
@@ -124,12 +124,11 @@ export function addTile(tab: Tab, tileId: string, tileName: string, insertAfter?
       tileIds.splice(index + 1, 0, tileId);
       tileNames.splice(index + 1, 0, tileName);
     }
-  }
-  else {
+  } else {
     tileIds.push(tileId);
     tileNames.push(tileName);
   }
-  
+
   // Return the updated tab
   return {
     ...tab,
@@ -144,16 +143,16 @@ export function addTile(tab: Tab, tileId: string, tileName: string, insertAfter?
  */
 export function removeTile(tab: Tab, tileId: string, tileName: string): Tab {
   // Filter out the tile ID to remove
-  const tileIds = tab.tileIds.filter(id => id !== tileId);
+  const tileIds = tab.tileIds.filter((id) => id !== tileId);
 
-  // Filter out the tile names  
-  const tileNames = tab.tileNames.filter(name => name !== tileName);
-  
+  // Filter out the tile names
+  const tileNames = tab.tileNames.filter((name) => name !== tileName);
+
   // Update the focused tiles if needed
   let focusedTileNames = [...tab.focusedTileNames] as [string | undefined, string | undefined];
   if (focusedTileNames[0] === tileName) focusedTileNames[0] = undefined;
   if (focusedTileNames[1] === tileName) focusedTileNames[1] = undefined;
-  
+
   // Return the updated tab
   return {
     ...tab,

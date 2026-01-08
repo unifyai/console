@@ -126,5 +126,3 @@ describe('tabSlice', () => {
     expect(next.interfacesById['interface-1'].tabIds).toEqual(['tab-1']);
   });
 });
-
-

@@ -1,6 +1,6 @@
-import Image from "next/image";
-import { Endpoint } from "@/types/chat/endpoints";
-import { providers } from "@/constants/endpoints";
+import Image from 'next/image';
+import { Endpoint } from '@/types/chat/endpoints';
+import { providers } from '@/constants/endpoints';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -8,9 +8,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "@/components/UI/dropdown-menu";
-import Tooltip from "@/components/Common/Misc/Tooltip";
-import { EyeOff } from "lucide-react";
+} from '@/components/UI/dropdown-menu';
+import Tooltip from '@/components/Common/Misc/Tooltip';
+import { EyeOff } from 'lucide-react';
 
 const ChatPinning = ({
   endpoints,
@@ -31,8 +31,8 @@ const ChatPinning = ({
           <Tooltip content={`${endpoint.code}@${endpoint.provider}`}>
             <DropdownMenuTrigger asChild>
               <div
-                className={`p-1 border rounded-lg bg-muted cursor-pointer relative ${
-                  !isEndpointPinned(endpoint) ? "opacity-30" : ""
+                className={`relative cursor-pointer rounded-lg border bg-muted p-1 ${
+                  !isEndpointPinned(endpoint) ? 'opacity-30' : ''
                 }`}
               >
                 <Image
@@ -44,7 +44,7 @@ const ChatPinning = ({
                 />
                 {/* Overlay an EyeOff icon if unpinned */}
                 {!isEndpointPinned(endpoint) && (
-                  <EyeOff className="absolute top-1 right-1 w-5 h-5 text-muted-foreground" />
+                  <EyeOff className="absolute right-1 top-1 h-5 w-5 text-muted-foreground" />
                 )}
               </div>
             </DropdownMenuTrigger>
@@ -53,7 +53,7 @@ const ChatPinning = ({
             <DropdownMenuLabel>{`${endpoint.code}@${endpoint.provider}`}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => handlePinToggle(endpoint)}>
-              {isEndpointPinned(endpoint) ? "Hide" : "Show"}
+              {isEndpointPinned(endpoint) ? 'Hide' : 'Show'}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleUnselectEndpoint(endpoint)}>
               Deselect

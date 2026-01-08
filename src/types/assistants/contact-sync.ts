@@ -16,7 +16,7 @@ export interface ContactSyncUserPayload {
 /**
  * Payload for syncing assistant profile fields.
  * Used with PATCH /v0/admin/assistant/{assistant_id}
- * 
+ *
  * Note: "bio" in logs maps to "about" in assistant profile.
  */
 export interface ContactSyncAssistantPayload {
@@ -29,15 +29,15 @@ export interface ContactSyncAssistantPayload {
  * Passed to updateLogsWithSync for contact field synchronization.
  */
 export interface SyncableLogEntry {
-  id: number;  // Log row ID (database ID)
+  id: number; // Log row ID (database ID)
   entries: {
-    id?: number;                       // Contact ID: 0 = assistant, non-zero = user
-    contactId?: number;                // Alternative contact ID field name
-    isSystem?: boolean;                // Only sync if true
-    internalAssistantId?: number | string;    // Assistant ID for sync routing
-    assistantId?: number | string;     // Alternative assistant ID field name
-    email?: string;                    // User email (for user sync)
-    emailAddress?: string;             // Alternative email field
-    [key: string]: any;                // Other entry fields
+    id?: number; // Contact ID: 0 = assistant, non-zero = user
+    contactId?: number; // Alternative contact ID field name
+    isSystem?: boolean; // Only sync if true
+    internalAssistantId?: number | string; // Assistant ID for sync routing
+    assistantId?: number | string; // Alternative assistant ID field name
+    email?: string; // User email (for user sync)
+    emailAddress?: string; // Alternative email field
+    [key: string]: any; // Other entry fields
   };
 }

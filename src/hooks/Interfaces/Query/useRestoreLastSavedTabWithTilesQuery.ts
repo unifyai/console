@@ -1,8 +1,15 @@
-"use client";
+'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  GranularInterfaceActions,
+  GranularTabActions,
+  GranularTileActions,
+  InterfaceData,
+  TabData,
+  TileData,
+} from '@/types/interfaces/grid';
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * Hook to restore a complete interface structure (interface, tab, and tiles) from checkpoints
@@ -11,15 +18,15 @@ export function useRestoreLastSavedTabWithTilesQuery() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       interfaceId,
       projectId,
       interfaceName,
       tabName,
       interfaceActions,
       tabActions,
-      tileActions
-    }: { 
+      tileActions,
+    }: {
       interfaceId?: string;
       projectId?: string;
       interfaceName?: string;
@@ -29,7 +36,12 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       tileActions: GranularTileActions;
     }) => {
       // Validate input
-      if ((!interfaceId && (!projectId || !interfaceName)) || !interfaceActions || !tabActions || !tileActions) {
+      if (
+        (!interfaceId && (!projectId || !interfaceName)) ||
+        !interfaceActions ||
+        !tabActions ||
+        !tileActions
+      ) {
         throw new Error('Missing required parameters for restoration');
       }
 
@@ -41,11 +53,10 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         } else if (projectId && interfaceName) {
           currentInterfaceData = await interfaceActions.getByName(projectId, interfaceName);
         }
-        
+
         if (!currentInterfaceData || !currentInterfaceData.id) {
           throw new Error('Could not find the current interface');
         }
-
       } catch (error) {
         console.error('Error retrieving current interface:', error);
         throw new Error('Failed to retrieve current interface');
@@ -57,13 +68,15 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         if (interfaceId) {
           checkpointedInterfaceData = await interfaceActions.getCheckpointById(interfaceId);
         } else if (projectId && interfaceName) {
-          checkpointedInterfaceData = await interfaceActions.getCheckpointByName(projectId, interfaceName);
+          checkpointedInterfaceData = await interfaceActions.getCheckpointByName(
+            projectId,
+            interfaceName
+          );
         }
-        
+
         if (!checkpointedInterfaceData) {
           throw new Error('No checkpoint found for this interface');
         }
-
       } catch (error) {
         console.error('Error retrieving interface checkpoint:', error);
         throw new Error('Failed to retrieve interface checkpoint');
@@ -84,11 +97,10 @@ export function useRestoreLastSavedTabWithTilesQuery() {
             currentTabData = tabs[0];
           }
         }
-        
+
         if (!currentTabData || !currentTabData.id) {
           throw new Error('Could not find current tab');
         }
-
       } catch (error) {
         console.error('Error retrieving current tab:', error);
         throw new Error('Failed to retrieve current tab');
@@ -98,15 +110,17 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       let checkpointedTabData: TabData | null = null;
       try {
         if (currentTabData.name) {
-          checkpointedTabData = await tabActions.getCheckpointByName(currentInterfaceData.id, currentTabData.name);
+          checkpointedTabData = await tabActions.getCheckpointByName(
+            currentInterfaceData.id,
+            currentTabData.name
+          );
         } else if (currentTabData.id) {
           checkpointedTabData = await tabActions.getCheckpointById(currentTabData.id);
         }
-        
+
         if (!checkpointedTabData) {
           throw new Error('No checkpoint found for this tab');
         }
-
       } catch (error) {
         console.error('Error retrieving tab checkpoint:', error);
         throw new Error('Failed to retrieve tab checkpoint');
@@ -128,13 +142,13 @@ export function useRestoreLastSavedTabWithTilesQuery() {
           await interfaceActions.updateById(interfaceId, {
             name: checkpointedInterfaceData.name,
             color: checkpointedInterfaceData.color,
-            activeTabId: currentInterfaceData.activeTabId // Keep the current active tab ID
+            activeTabId: currentInterfaceData.activeTabId, // Keep the current active tab ID
           });
         } else if (projectId && interfaceName) {
           await interfaceActions.updateByName(projectId, interfaceName, {
             name: checkpointedInterfaceData.name,
             color: checkpointedInterfaceData.color,
-            activeTabId: currentInterfaceData.activeTabId // Keep the current active tab ID
+            activeTabId: currentInterfaceData.activeTabId, // Keep the current active tab ID
           });
         }
       } catch (error) {
@@ -147,11 +161,11 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         if (currentTabData.id) {
           await tabActions.updateById(currentTabData.id, {
             name: checkpointedTabData.name,
-            context: checkpointedTabData.context || "",
+            context: checkpointedTabData.context || '',
             color: checkpointedTabData.color,
             active: true,
             visible: checkpointedTabData.visible,
-            order: checkpointedTabData.order
+            order: checkpointedTabData.order,
           });
         }
       } catch (error) {
@@ -176,8 +190,8 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         try {
           if (checkpointedTile.name) {
             // Try to find matching current tile by name
-            const matchingTile = currentTiles.find(t => t.name === checkpointedTile.name);
-            
+            const matchingTile = currentTiles.find((t) => t.name === checkpointedTile.name);
+
             if (matchingTile && matchingTile.id) {
               // Update the existing tile with checkpoint data
               await tileActions.updateById(matchingTile.id, {
@@ -199,39 +213,46 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 plotTile: checkpointedTile.plotTile,
                 viewTile: checkpointedTile.viewTile,
                 editorTile: checkpointedTile.editorTile,
-                terminalTile: checkpointedTile.terminalTile
+                terminalTile: checkpointedTile.terminalTile,
               });
               restoredTiles++;
             } else {
               // Tile doesn't exist in current tab, create it
-              await tileActions.create(currentTabData.id, checkpointedTile.name, checkpointedTile.position, {
-                minW: checkpointedTile.minW,
-                minH: checkpointedTile.minH,
-                visible: checkpointedTile.visible,
-                locked: checkpointedTile.locked,
-                color: checkpointedTile.color,
-                context: checkpointedTile.context,
-                table: checkpointedTile.table,
-                autoUpdate: checkpointedTile.autoUpdate,
-                freeze: checkpointedTile.freeze,
-                filters: checkpointedTile.filters,
-                commonFilter: checkpointedTile.commonFilter,
-                metric: checkpointedTile.metric,
-                columnContext: checkpointedTile.columnContext,
-                grouping: checkpointedTile.grouping,
-                tableTile: checkpointedTile.tableTile,
-                plotTile: checkpointedTile.plotTile,
-                viewTile: checkpointedTile.viewTile,
-                editorTile: checkpointedTile.editorTile,
-                terminalTile: checkpointedTile.terminalTile
-              }, undefined, checkpointedTile.type);
+              await tileActions.create(
+                currentTabData.id,
+                checkpointedTile.name,
+                checkpointedTile.position,
+                {
+                  minW: checkpointedTile.minW,
+                  minH: checkpointedTile.minH,
+                  visible: checkpointedTile.visible,
+                  locked: checkpointedTile.locked,
+                  color: checkpointedTile.color,
+                  context: checkpointedTile.context,
+                  table: checkpointedTile.table,
+                  autoUpdate: checkpointedTile.autoUpdate,
+                  freeze: checkpointedTile.freeze,
+                  filters: checkpointedTile.filters,
+                  commonFilter: checkpointedTile.commonFilter,
+                  metric: checkpointedTile.metric,
+                  columnContext: checkpointedTile.columnContext,
+                  grouping: checkpointedTile.grouping,
+                  tableTile: checkpointedTile.tableTile,
+                  plotTile: checkpointedTile.plotTile,
+                  viewTile: checkpointedTile.viewTile,
+                  editorTile: checkpointedTile.editorTile,
+                  terminalTile: checkpointedTile.terminalTile,
+                },
+                undefined,
+                checkpointedTile.type
+              );
               restoredTiles++;
             }
           }
         } catch (tileError) {
           console.error(`Error restoring tile ${checkpointedTile.name}:`, tileError);
           failedTiles++;
-          tileErrors.push(checkpointedTile.name || "unknown");
+          tileErrors.push(checkpointedTile.name || 'unknown');
         }
       }
 
@@ -242,7 +263,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         tilesRestored: restoredTiles,
         tilesFailed: failedTiles,
         tileErrors: tileErrors,
-        message: `Interface and tab restored with ${restoredTiles} tiles. ${failedTiles > 0 ? `(${failedTiles} tiles failed)` : ''}`
+        message: `Interface and tab restored with ${restoredTiles} tiles. ${failedTiles > 0 ? `(${failedTiles} tiles failed)` : ''}`,
       };
     },
     onSuccess: (data, variables) => {
@@ -250,20 +271,20 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       if (variables.interfaceId) {
         queryClient.invalidateQueries({ queryKey: ['interface-by-id', variables.interfaceId] });
       }
-      
+
       if (variables.projectId && variables.interfaceName) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface', variables.projectId, variables.interfaceName] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface', variables.projectId, variables.interfaceName],
         });
-        queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', variables.projectId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interfaces', variables.projectId],
         });
       }
-      
+
       // Invalidate all tab and tile queries since we've potentially changed everything
       queryClient.invalidateQueries({ queryKey: ['tabs'] });
       queryClient.invalidateQueries({ queryKey: ['tiles'] });
       queryClient.invalidateQueries({ queryKey: ['tab-with-tiles'] });
-    }
+    },
   });
-} 
+}

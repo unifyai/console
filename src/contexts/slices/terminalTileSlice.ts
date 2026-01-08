@@ -1,7 +1,7 @@
-import { StateCreator } from "zustand";
-import { StoreSlice } from "./slice";
-import * as terminalTileLogic from "./selectors/terminalTile";
-import * as sliceUtils from "../utils/sliceUtils";
+import { StateCreator } from 'zustand';
+import { StoreSlice } from './slice';
+import * as terminalTileLogic from './selectors/terminalTile';
+import * as sliceUtils from '../utils/sliceUtils';
 
 export interface TerminalTileState {}
 
@@ -10,17 +10,14 @@ export interface TerminalTileActions {
     tileId: string,
     initialState?: Partial<terminalTileLogic.TerminalTile>
   ) => void;
-  updateTerminalTile: (
-    tileId: string,
-    updates: Partial<terminalTileLogic.TerminalTile>
-  ) => void;
+  updateTerminalTile: (tileId: string, updates: Partial<terminalTileLogic.TerminalTile>) => void;
 }
 
 export type TerminalTileSlice = TerminalTileState & TerminalTileActions;
 
 export const createTerminalTileSlice: StateCreator<
   StoreSlice,
-  [["zustand/immer", never]],
+  [['zustand/immer', never]],
   [],
   TerminalTileSlice
 > = (set) => ({
@@ -32,7 +29,7 @@ export const createTerminalTileSlice: StateCreator<
       state.tilesById[tileId] = {
         ...tile,
         terminalTile: terminalTileLogic.initTerminalTile(initialState),
-        type: "Terminal",
+        type: 'Terminal',
       };
     }),
 
@@ -41,10 +38,7 @@ export const createTerminalTileSlice: StateCreator<
       const tile: any = state.tilesById[tileId];
       if (!tile || !tile.terminalTile) return;
 
-      const filtered = sliceUtils.filterUnchangedUpdates(
-        tile.terminalTile,
-        updates
-      );
+      const filtered = sliceUtils.filterUnchangedUpdates(tile.terminalTile, updates);
       if (Object.keys(filtered).length === 0) return;
 
       let updated: any = tile;
@@ -56,17 +50,13 @@ export const createTerminalTileSlice: StateCreator<
         tileUpdated = true;
       }
 
-      updated.terminalTile = terminalTileLogic.updateTerminalTile(
-        updated.terminalTile,
-        filtered
-      );
+      updated.terminalTile = terminalTileLogic.updateTerminalTile(updated.terminalTile, filtered);
       tileUpdated = true;
 
-      itemsNeedRecompute = Object.keys(filtered).some(
-        (key) =>
-          terminalTileLogic.TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS.includes(
-            key as keyof terminalTileLogic.TerminalTile
-          )
+      itemsNeedRecompute = Object.keys(filtered).some((key) =>
+        terminalTileLogic.TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS.includes(
+          key as keyof terminalTileLogic.TerminalTile
+        )
       );
 
       if (itemsNeedRecompute) {
@@ -88,4 +78,4 @@ export const createTerminalTileSlice: StateCreator<
         state.tilesById[tileId] = updated;
       }
     }),
-}); 
+});

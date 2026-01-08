@@ -1,8 +1,8 @@
-import { useMemo } from "react";
-import { useStoreContext } from "../../providers/StoreProvider";
-import { useTileMeta } from "./useTileMeta";
+import { useMemo } from 'react';
+import { useStoreContext } from '../../providers/StoreProvider';
+import { useTileMeta } from './useTileMeta';
 import { PlotTile, PlotTileMeta, PlotTileData, PlotTileUI } from '../../slices/selectors/plotTile';
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -10,7 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 export const DEFAULT_USE_PLOT_TILE_RETURN = {
   plotTile: null,
   plotTileActions: null,
-  exists: false
+  exists: false,
 };
 
 // Default plot tile meta
@@ -55,10 +55,7 @@ export interface PlotTileUIActions {
 /**
  * Interface for plot-specific actions
  */
-export interface PlotActions extends
-  PlotTileMetaActions,
-  PlotTileDataActions,
-  PlotTileUIActions {}
+export interface PlotActions extends PlotTileMetaActions, PlotTileDataActions, PlotTileUIActions {}
 
 /**
  * Custom hook to access plot-specific tile state and actions
@@ -66,26 +63,23 @@ export interface PlotActions extends
  * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing plot-specific tile state, actions, and existence flag
  */
-export function usePlotTile(
-  tileIdOrName: string | null,
-  tabIdOrName?: string | null
-) {
+export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | null) {
   // Get tile meta information using the useTileMeta hook
   const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
-  
+
   // Get the tile type to check if it's a plot
   const tileType = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tileId) return null;
       return state.tilesById[tileId]?.type;
     })
   );
-  
+
   // Check if the tile exists and is a plot
   const isPlotTile = tileExists && tileType === 'Plot';
 
   const plotTile = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!isPlotTile || !tileId) return null;
       return state.tilesById[tileId]?.plotTile as PlotTile;
     })
@@ -100,7 +94,7 @@ export function usePlotTile(
   // Access store for plot-specific data
   const plotData = useMemo(() => {
     if (!isPlotTile || !tileId || !plotTile) return null;
-    
+
     return {
       plotType: plotTile.plotType,
       plotScaleX: plotTile.plotScaleX,
@@ -133,19 +127,15 @@ export function usePlotTile(
     return {
       plotGroupByColors: plotTile.plotGroupByColors,
     } as PlotTileUI;
-  }, [
-    isPlotTile, 
-    tileId,
-    plotTile?.plotGroupByColors,
-  ]);
+  }, [isPlotTile, tileId, plotTile?.plotGroupByColors]);
 
   // Get store update functions
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
+  const storeUpdatePlotTile = useStoreContext((state) => state.updatePlotTile);
 
   // Create memoized meta actions
   const plotMetaActions = useMemo<PlotTileMetaActions | null>(() => {
     if (!isPlotTile || !tileId) return null;
-    
+
     // Return empty object as per PlotTileMeta interface
     return DEFAULT_PLOT_TILE_META_ACTIONS as PlotTileMetaActions;
   }, [isPlotTile, tileId]);
@@ -153,83 +143,82 @@ export function usePlotTile(
   // Create memoized data actions
   const plotDataActions = useMemo<PlotTileDataActions | null>(() => {
     if (!isPlotTile || !tileId) return null;
-    
+
     return {
       setPlotType: (plotType) => {
-        const update: Partial<PlotTile> = { 
-          plotType: plotType 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setPlotScaleX: (plotScaleX) => {
-        const update: Partial<PlotTile> = { 
-          plotScaleX: plotScaleX 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setPlotScaleY: (plotScaleY) => {
-        const update: Partial<PlotTile> = { 
-          plotScaleY: plotScaleY 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setAggregateProperty: (aggregateProperty) => {
-        const update: Partial<PlotTile> = { 
-          plotAggregate: aggregateProperty 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setXAxis: (xAxis) => {
-        const update: Partial<PlotTile> = { 
-          xAxis: xAxis 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setYAxis: (yAxis) => {
-        const update: Partial<PlotTile> = { 
-          yAxis: yAxis 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setPlotGroupBy: (plotGroupBy) => {
-        const update: Partial<PlotTile> = { 
-          plotGroupBy: plotGroupBy 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setBinCount: (binCount) => {
-        const update: Partial<PlotTile> = { 
-          binCount: binCount 
-        };
-        storeUpdatePlotTile(tileId, update);
-      },
-      
-      setRegressionLine: (regressionLine) => {
-        const update: Partial<PlotTile> = { 
-          regressionLine: regressionLine 
+        const update: Partial<PlotTile> = {
+          plotType: plotType,
         };
         storeUpdatePlotTile(tileId, update);
       },
 
+      setPlotScaleX: (plotScaleX) => {
+        const update: Partial<PlotTile> = {
+          plotScaleX: plotScaleX,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setPlotScaleY: (plotScaleY) => {
+        const update: Partial<PlotTile> = {
+          plotScaleY: plotScaleY,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setAggregateProperty: (aggregateProperty) => {
+        const update: Partial<PlotTile> = {
+          plotAggregate: aggregateProperty,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setXAxis: (xAxis) => {
+        const update: Partial<PlotTile> = {
+          xAxis: xAxis,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setYAxis: (yAxis) => {
+        const update: Partial<PlotTile> = {
+          yAxis: yAxis,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setPlotGroupBy: (plotGroupBy) => {
+        const update: Partial<PlotTile> = {
+          plotGroupBy: plotGroupBy,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setBinCount: (binCount) => {
+        const update: Partial<PlotTile> = {
+          binCount: binCount,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+
+      setRegressionLine: (regressionLine) => {
+        const update: Partial<PlotTile> = {
+          regressionLine: regressionLine,
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
     };
   }, [isPlotTile, tileId, storeUpdatePlotTile]);
 
   // Create memoized UI actions
   const plotUIActions = useMemo<PlotTileUIActions | null>(() => {
     if (!isPlotTile || !tileId) return null;
-    
+
     // Return empty object as per PlotTileUI interface
     return {
       setPlotGroupByColors: (plotGroupByColors) => {
-        const update: Partial<PlotTile> = { 
-          plotGroupByColors: plotGroupByColors
+        const update: Partial<PlotTile> = {
+          plotGroupByColors: plotGroupByColors,
         };
         storeUpdatePlotTile(tileId, update);
       },
@@ -239,22 +228,22 @@ export function usePlotTile(
   // Build a final `plotTile` object from the separate meta, data, and UI objects
   const combinedPlotTile = useMemo(() => {
     if (!plotMeta || !plotData || !plotUI) return null;
-    
+
     return {
       ...plotMeta,
       ...plotData,
-      ...plotUI
+      ...plotUI,
     };
   }, [plotMeta, plotData, plotUI]);
 
   // Build a final `plotTileActions` object from the separate meta, data, and UI actions
   const combinedPlotTileActions = useMemo(() => {
     if (!plotMetaActions || !plotDataActions || !plotUIActions) return null;
-    
+
     return {
       ...plotMetaActions,
       ...plotDataActions,
-      ...plotUIActions
+      ...plotUIActions,
     };
   }, [plotMetaActions, plotDataActions, plotUIActions]);
 
@@ -266,6 +255,6 @@ export function usePlotTile(
   return {
     plotTile: combinedPlotTile as PlotTile,
     plotTileActions: combinedPlotTileActions as PlotActions,
-    exists: isPlotTile
+    exists: isPlotTile,
   };
 }

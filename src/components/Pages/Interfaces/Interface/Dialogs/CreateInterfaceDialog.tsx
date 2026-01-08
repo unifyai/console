@@ -1,68 +1,74 @@
-"use client"
+'use client';
 
-import React from 'react'
-import { Button } from '@/components/UI/button'
-import { Input } from '@/components/UI/input'
-import { Label } from '@/components/UI/label'
-import { IconSelector } from '@/components/UI/icon-selector'
-import BaseDialog from '@/components/Common/Dialogs/Base'
-import SubmitButton from '@/components/Common/Buttons/Submit'
+import React from 'react';
+import { Button } from '@/components/UI/button';
+import { Input } from '@/components/UI/input';
+import { Label } from '@/components/UI/label';
+import { IconSelector } from '@/components/UI/icon-selector';
+import BaseDialog from '@/components/Common/Dialogs/Base';
+import SubmitButton from '@/components/Common/Buttons/Submit';
 
 interface CreateInterfaceDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSubmit: (name: string, icon?: string) => Promise<void>
-  projectName: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (name: string, icon?: string) => Promise<void>;
+  projectName: string;
 }
 
 export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
   open,
   onOpenChange,
   onSubmit,
-  projectName
+  projectName,
 }: CreateInterfaceDialogProps) {
-  const [interfaceName, setInterfaceName] = React.useState('')
-  const [interfaceIcon, setInterfaceIcon] = React.useState<string | undefined>('layout-grid') // Default icon
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [error, setError] = React.useState('')
-  
+  const [interfaceName, setInterfaceName] = React.useState('');
+  const [interfaceIcon, setInterfaceIcon] = React.useState<string | undefined>('layout-grid'); // Default icon
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState('');
+
   const handleSubmit = React.useCallback(async () => {
     if (!interfaceName.trim()) {
-      setError('Interface name is required')
-      return
+      setError('Interface name is required');
+      return;
     }
-    
-    setIsSubmitting(true)
-    setError('')
-    
+
+    setIsSubmitting(true);
+    setError('');
+
     try {
-      await onSubmit(interfaceName.trim(), interfaceIcon)
+      await onSubmit(interfaceName.trim(), interfaceIcon);
       // Reset form on success
-      setInterfaceName('')
-      setInterfaceIcon('layout-grid')
+      setInterfaceName('');
+      setInterfaceIcon('layout-grid');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create interface')
+      setError(err instanceof Error ? err.message : 'Failed to create interface');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }, [interfaceName, interfaceIcon, onSubmit])
-  
-  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isSubmitting) {
-      handleSubmit()
-    }
-  }, [handleSubmit, isSubmitting])
-  
-  const handleOpenChange = React.useCallback((newOpen: boolean) => {
-    if (!newOpen) {
-      // Clear form when closing
-      setInterfaceName('')
-      setInterfaceIcon('layout-grid')
-      setError('')
-    }
-    onOpenChange(newOpen)
-  }, [onOpenChange])
-  
+  }, [interfaceName, interfaceIcon, onSubmit]);
+
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !isSubmitting) {
+        handleSubmit();
+      }
+    },
+    [handleSubmit, isSubmitting]
+  );
+
+  const handleOpenChange = React.useCallback(
+    (newOpen: boolean) => {
+      if (!newOpen) {
+        // Clear form when closing
+        setInterfaceName('');
+        setInterfaceIcon('layout-grid');
+        setError('');
+      }
+      onOpenChange(newOpen);
+    },
+    [onOpenChange]
+  );
+
   return (
     <BaseDialog
       button={<></>}
@@ -72,13 +78,15 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
       body={
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="interface-name" className="text-label">Interface Name</Label>
+            <Label htmlFor="interface-name" className="text-label">
+              Interface Name
+            </Label>
             <Input
               id="interface-name"
               value={interfaceName}
               onChange={(e) => {
-                setInterfaceName(e.target.value)
-                setError('')
+                setInterfaceName(e.target.value);
+                setError('');
               }}
               onKeyDown={handleKeyDown}
               autoFocus
@@ -87,20 +95,15 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
           </div>
           <div className="space-y-2">
             <Label className="text-label">Interface Icon</Label>
-            <IconSelector 
-              value={interfaceIcon as any} 
-              onValueChange={setInterfaceIcon} 
-            />
+            <IconSelector value={interfaceIcon as any} onValueChange={setInterfaceIcon} />
           </div>
-          {error && (
-            <p className="text-caption text-destructive">{error}</p>
-          )}
+          {error && <p className="text-caption text-destructive">{error}</p>}
         </div>
       }
       footer={
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
             className="h-8"
@@ -117,5 +120,5 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
         </div>
       }
     />
-  )
-})
+  );
+});

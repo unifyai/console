@@ -10,13 +10,13 @@ export default defineConfig({
   testMatch: ['**/*.spec.ts', '**/*.e2e.ts'],
   // Ignore Vitest test files
   testIgnore: ['**/*.test.ts', '**/*.test.tsx', '**/*.node.test.ts', '**/*.browser.test.tsx'],
-  
+
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  
+
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -32,4 +32,3 @@ export default defineConfig({
   // Don't fail if no tests found - just report empty
   // This allows the workflow to pass when no E2E tests exist yet
 });
-

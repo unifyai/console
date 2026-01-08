@@ -6,4 +6,4 @@ export * from './useInterface';
 export * from './useInterfaceData';
 export * from './useInterfaceUI';
 export * from './useInterfaceMeta';
-export * from './sync/useInterfaceSync'; 
+export * from './sync/useInterfaceSync';

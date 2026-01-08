@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * APILoader component displays a loading indicator while operations are being processed.

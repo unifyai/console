@@ -10,7 +10,7 @@ steps:
       - Dockerfile
       - .
     id: Build
-  
+
   - name: gcr.io/cloud-builders/docker
     args:
       - push
@@ -36,10 +36,10 @@ steps:
     name: gcr.io/cloud-builders/npm
     entrypoint: sh
     args:
-      - "-c"
-      - "wget https://storage.googleapis.com/cloudsql-proxy/v1.20.2/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy && chmod +x cloud_sql_proxy"
-    waitFor: ["-"]
-  
+      - '-c'
+      - 'wget https://storage.googleapis.com/cloudsql-proxy/v1.20.2/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy && chmod +x cloud_sql_proxy'
+    waitFor: ['-']
+
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     args:
       - run
@@ -60,17 +60,17 @@ steps:
     id: Trigger Tests
     entrypoint: /bin/sh
     args:
-    - -c
-    - |
-      if [ "$_SERVICE_NAME" = "saas-web-app" ]; then
-        curl -X POST \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token $$GITHUB_TOKEN" \
-          https://api.github.com/repos/unifyai/console/dispatches \
-          -d '{"event_type": "cloudbuild-complete", "client_payload": {"sha": "$COMMIT_SHA"}}'
-      else
-        echo "Skipping workflow dispatch for service $_SERVICE_NAME"
-      fi
+      - -c
+      - |
+        if [ "$_SERVICE_NAME" = "saas-web-app" ]; then
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token $$GITHUB_TOKEN" \
+            https://api.github.com/repos/unifyai/console/dispatches \
+            -d '{"event_type": "cloudbuild-complete", "client_payload": {"sha": "$COMMIT_SHA"}}'
+        else
+          echo "Skipping workflow dispatch for service $_SERVICE_NAME"
+        fi
     secretEnv: ['GITHUB_TOKEN']
 
 images:

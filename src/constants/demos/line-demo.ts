@@ -1,8 +1,9 @@
 export default {
-    gif: "line_dark",
-    link: "interfaces/plots#line-graphs",
-    description: "Line graphs are similar to scatter graphs, but a line is drawn between each from left to right. This makes them especially suitable for plotting time-series data.",
-    code: `import unify
+  gif: 'line_dark',
+  link: 'interfaces/plots#line-graphs',
+  description:
+    'Line graphs are similar to scatter graphs, but a line is drawn between each from left to right. This makes them especially suitable for plotting time-series data.',
+  code: `import unify
 import random
 
 unify.activate("line-demo", overwrite=True)
@@ -13,48 +14,48 @@ for i in range(10):
         y=i+random.uniform(-0.25, 0.25)
     )
 `,
-    // Granular interface structure
-    interface: {
-        projectId: "line-demo",
-        name: "interface1"
+  // Granular interface structure
+  interface: {
+    projectId: 'line-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'Plot',
+      type: 'Plot',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      plotTile: {
+        plotType: 'Line Chart',
+        xAxis: 'Table.x',
+        yAxis: 'Table.x',
+      },
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            tableTile: {
-                tableType: "Data Table"
-            }
-        },
-        {
-            name: "Plot",
-            type: "Plot",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            plotTile: {
-                plotType: "Line Chart",
-                xAxis: "Table.x",
-                yAxis: "Table.x"
-            }
-        }
-    ],
-    newCounter: 2
-}
+  ],
+  newCounter: 2,
+};

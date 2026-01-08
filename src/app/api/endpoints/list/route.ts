@@ -1,6 +1,6 @@
-import { listEndpoints } from "@/lib/endpoints/endpoints";
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { listEndpoints } from '@/lib/endpoints/endpoints';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/user/user';
 
 /**
  * Handles GET requests to retrieve a list of endpoint names supported by a specific provider and model.
@@ -12,16 +12,16 @@ import { getCurrentUser } from "@/lib/user/user";
  * @returns A JSON response containing a list of endpoint names.
  */
 export async function GET(request: NextRequest) {
-    const user = await getCurrentUser();
+  const user = await getCurrentUser();
 
-    if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
 
-    const provider = request.nextUrl.searchParams.get("provider") ?? "";
-    const model = request.nextUrl.searchParams.get("model") ?? "";
+  const provider = request.nextUrl.searchParams.get('provider') ?? '';
+  const model = request.nextUrl.searchParams.get('model') ?? '';
 
-    const endpoints = await listEndpoints(user.apiKey, provider, model);
+  const endpoints = await listEndpoints(user.apiKey, provider, model);
 
-    return NextResponse.json(endpoints);
+  return NextResponse.json(endpoints);
 }

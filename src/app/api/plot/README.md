@@ -27,14 +27,14 @@ The Plot API enables:
 
 ### Key Features
 
-| Feature | Description |
-|---------|-------------|
-| Token-based access | 12-character hex tokens (permanent, no expiry) |
-| Backend storage | Plots stored in Orchestra database with project ownership |
-| LLM inference | Natural language → plot configuration via GPT-4o-mini (billed to user) |
-| Validation & fallbacks | Robust validation with intelligent fallbacks for LLM responses |
-| Shared rendering | Single `PlotCanvas` component powers both public viewer and UI tiles |
-| Project lifecycle | Plots auto-deleted when associated project is deleted |
+| Feature                | Description                                                            |
+| ---------------------- | ---------------------------------------------------------------------- |
+| Token-based access     | 12-character hex tokens (permanent, no expiry)                         |
+| Backend storage        | Plots stored in Orchestra database with project ownership              |
+| LLM inference          | Natural language → plot configuration via GPT-4o-mini (billed to user) |
+| Validation & fallbacks | Robust validation with intelligent fallbacks for LLM responses         |
+| Shared rendering       | Single `PlotCanvas` component powers both public viewer and UI tiles   |
+| Project lifecycle      | Plots auto-deleted when associated project is deleted                  |
 
 ---
 
@@ -178,6 +178,7 @@ Proxies requests to Orchestra `POST /v0/logs/plot`. Optional - clients can call 
 Fetches plot data for rendering. No authentication required - token provides access.
 
 **Flow:**
+
 1. Fetch plot config from Orchestra admin endpoint
 2. Extract user_id and organization_id
 3. Fetch user's API key from admin endpoint
@@ -191,6 +192,7 @@ Fetches plot data for rendering. No authentication required - token provides acc
 Creates a new plot. Requires API key authentication.
 
 **Request Body (Direct Config):**
+
 ```json
 {
   "plot_config": {
@@ -221,6 +223,7 @@ Creates a new plot. Requires API key authentication.
 ```
 
 **Request Body (LLM Description):**
+
 ```json
 {
   "description": "Show a scatter plot of latency vs tokens, grouped by model",
@@ -231,6 +234,7 @@ Creates a new plot. Requires API key authentication.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "url": "https://console.unify.ai/plot/view/abc123def456",
@@ -349,17 +353,17 @@ Admin endpoint to retrieve plot including user_metadata. Used by console to fetc
 
 #### Console
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ORCHESTRA_URL` | Yes | Orchestra backend URL |
-| `ORCHESTRA_ADMIN_KEY` | Yes | Admin key for fetching plot configs and user data |
-| `NEXT_PUBLIC_APP_URL` | Yes | Base URL for the console (for plot URLs) |
+| Variable              | Required | Description                                       |
+| --------------------- | -------- | ------------------------------------------------- |
+| `ORCHESTRA_URL`       | Yes      | Orchestra backend URL                             |
+| `ORCHESTRA_ADMIN_KEY` | Yes      | Admin key for fetching plot configs and user data |
+| `NEXT_PUBLIC_APP_URL` | Yes      | Base URL for the console (for plot URLs)          |
 
 #### Orchestra
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ORCHESTRA_CONSOLE_URL` | No | Console URL for plot links (default: `https://console.unify.ai`) |
+| Variable                | Required | Description                                                      |
+| ----------------------- | -------- | ---------------------------------------------------------------- |
+| `ORCHESTRA_CONSOLE_URL` | No       | Console URL for plot links (default: `https://console.unify.ai`) |
 
 ---
 
@@ -367,14 +371,14 @@ Admin endpoint to retrieve plot including user_metadata. Used by console to fetc
 
 ### Access Control
 
-| Action | Authentication | Authorization |
-|--------|----------------|---------------|
-| Create plot | User API key | `project:write` on target project |
-| List plots | User API key | Only shows plots for accessible projects |
-| Get plot | User API key | `project:read` on plot's project |
-| Update plot | User API key | `project:write` on plot's project |
-| Delete plot | User API key | `project:write` on plot's project |
-| View plot (public) | Token in URL | Token provides access |
+| Action             | Authentication | Authorization                            |
+| ------------------ | -------------- | ---------------------------------------- |
+| Create plot        | User API key   | `project:write` on target project        |
+| List plots         | User API key   | Only shows plots for accessible projects |
+| Get plot           | User API key   | `project:read` on plot's project         |
+| Update plot        | User API key   | `project:write` on plot's project        |
+| Delete plot        | User API key   | `project:write` on plot's project        |
+| View plot (public) | Token in URL   | Token provides access                    |
 
 ### Token Security
 
@@ -516,9 +520,9 @@ curl -X POST https://api.unify.ai/v0/logs/plot \
 ### JavaScript: Embed in Web Page
 
 ```html
-<iframe 
+<iframe
   src="https://console.unify.ai/plot/view/abc123def456"
-  width="800" 
+  width="800"
   height="600"
   frameborder="0"
 ></iframe>
@@ -530,15 +534,15 @@ curl -X POST https://api.unify.ai/v0/logs/plot \
 
 ### Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `401 Unauthorized` | Missing or invalid API key | Add `Authorization: Bearer <key>` header |
-| `400 Missing project_config.project_name` | Project name not specified | Add project_name to request |
-| `400 Either plot_config or description is required` | No config provided | Add plot_config or description |
-| `403 Forbidden` | No permission on project | Verify project access permissions |
-| `404 Plot not found` | Token invalid or plot deleted | Create a new plot |
-| `404 Project not found` | Project doesn't exist | Verify project name |
-| `500 LLM inference failed` | Chat completions error | Provide direct plot_config instead |
+| Error                                               | Cause                         | Solution                                 |
+| --------------------------------------------------- | ----------------------------- | ---------------------------------------- |
+| `401 Unauthorized`                                  | Missing or invalid API key    | Add `Authorization: Bearer <key>` header |
+| `400 Missing project_config.project_name`           | Project name not specified    | Add project_name to request              |
+| `400 Either plot_config or description is required` | No config provided            | Add plot_config or description           |
+| `403 Forbidden`                                     | No permission on project      | Verify project access permissions        |
+| `404 Plot not found`                                | Token invalid or plot deleted | Create a new plot                        |
+| `404 Project not found`                             | Project doesn't exist         | Verify project name                      |
+| `500 LLM inference failed`                          | Chat completions error        | Provide direct plot_config instead       |
 
 ### Debug Tips
 
@@ -554,13 +558,13 @@ curl -X POST https://api.unify.ai/v0/logs/plot \
 
 The Plot API has been migrated from a console-based NodeCache storage to Orchestra-based PostgreSQL storage. Key changes:
 
-| Aspect | Legacy (Console) | Current (Orchestra) |
-|--------|------------------|---------------------|
-| Storage | NodeCache (in-memory) | PostgreSQL database |
-| Expiry | 24-hour TTL | No expiry (permanent) |
-| API Key | Encrypted in cache | Fetched via admin endpoint |
-| LLM Inference | Console server | Orchestra backend |
-| Access Control | Token-only | Project-based permissions |
-| Lifecycle | Independent | Tied to project/org lifecycle |
+| Aspect         | Legacy (Console)      | Current (Orchestra)           |
+| -------------- | --------------------- | ----------------------------- |
+| Storage        | NodeCache (in-memory) | PostgreSQL database           |
+| Expiry         | 24-hour TTL           | No expiry (permanent)         |
+| API Key        | Encrypted in cache    | Fetched via admin endpoint    |
+| LLM Inference  | Console server        | Orchestra backend             |
+| Access Control | Token-only            | Project-based permissions     |
+| Lifecycle      | Independent           | Tied to project/org lifecycle |
 
 The console `/api/plot/create` endpoint now acts as a proxy to Orchestra for backward compatibility.

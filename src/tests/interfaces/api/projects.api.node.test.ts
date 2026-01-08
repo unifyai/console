@@ -96,40 +96,32 @@ describe('@real Projects API', () => {
     }
   });
 
-  it(
-    '@real returns error for non-existent project deletion',
-    realTestOptions,
-    async () => {
-      const nonExistentProject = uniqueName('non-existent-project');
+  it('@real returns error for non-existent project deletion', realTestOptions, async () => {
+    const nonExistentProject = uniqueName('non-existent-project');
 
-      // Try to delete a project that doesn't exist
-      try {
-        await projectsApi.delete(nonExistentProject);
-        // Some APIs return success for idempotent deletes - that's okay
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        const apiError = e as ApiError;
-        expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
-      }
+    // Try to delete a project that doesn't exist
+    try {
+      await projectsApi.delete(nonExistentProject);
+      // Some APIs return success for idempotent deletes - that's okay
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      const apiError = e as ApiError;
+      expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
     }
-  );
+  });
 
   // Edge case tests
-  it(
-    '@real handles project name with special characters',
-    realTestOptions,
-    async () => {
-      // Note: API might reject certain characters - test what's supported
-      const projectName = uniqueName('test-project-special-123');
+  it('@real handles project name with special characters', realTestOptions, async () => {
+    // Note: API might reject certain characters - test what's supported
+    const projectName = uniqueName('test-project-special-123');
 
-      const result = await projectsApi.create(projectName);
-      createdProjects.push(projectName);
+    const result = await projectsApi.create(projectName);
+    createdProjects.push(projectName);
 
-      expect(result.info).toBeDefined();
+    expect(result.info).toBeDefined();
 
-      // Verify it's in the list
-      const listResult = await projectsApi.list();
-      expect(listResult).toContain(projectName);
-    }
-  );
+    // Verify it's in the list
+    const listResult = await projectsApi.list();
+    expect(listResult).toContain(projectName);
+  });
 });

@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import React, { useMemo, useEffect, useCallback, useState, useRef } from "react";
+import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/UI/accordion";
-import { FoldVertical, UnfoldVertical } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
+} from '@/components/UI/accordion';
+import { FoldVertical, UnfoldVertical } from 'lucide-react';
+import ActionButton from '@/components/Common/Buttons/Action';
 
 import {
   isDict,
@@ -21,35 +21,35 @@ import {
   isChat,
   isPdf,
   isAudio,
-} from "@/utils/interfaces/selection/selection";
+} from '@/utils/interfaces/selection/selection';
 import {
   gatherAllSubPaths,
   gatherAllSubPathsMulti,
   makePrefixedDictPath,
   sanitizePropertyKey,
-} from "@/utils/interfaces/selection/pathUtils";
-import { usePanelExpandContextSelector } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel";
-import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from "./useIndentation";
-import { useTraceExpandContextSelector } from "./TraceView/TraceExpandContext";
+} from '@/utils/interfaces/selection/pathUtils';
+import { usePanelExpandContextSelector } from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
+import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from './useIndentation';
+import { useTraceExpandContextSelector } from './TraceView/TraceExpandContext';
 
-import { LogComparisonProps } from "./types";
-import { getValueType, getTypeIcon } from "./ViewTypes";
-import RowBadge from "./RowBadge";
+import { LogComparisonProps } from './types';
+import { getValueType, getTypeIcon } from './ViewTypes';
+import RowBadge from './RowBadge';
 
 // Subcomponents
-import TraceView from "./TraceView";
-import ChatView from "./ChatView";
-import ListView from "./ListView";
-import ImageView from "./ImageView";
-import MatrixView from "./MatrixView";
-import StringView from "./StringView";
-import NumberView from "./NumberView";
-import TimestampView from "./TimestampView";
-import PdfView from "./PdfView";
-import { LogProps } from "@/types/interfaces/logs";
-import { LogsActions } from "@/types/interfaces/grid";
-import { Span } from "@/types/interfaces/traces";
-import AudioView from "./AudioView";
+import TraceView from './TraceView';
+import ChatView from './ChatView';
+import ListView from './ListView';
+import ImageView from './ImageView';
+import MatrixView from './MatrixView';
+import StringView from './StringView';
+import NumberView from './NumberView';
+import TimestampView from './TimestampView';
+import PdfView from './PdfView';
+import { LogProps } from '@/types/interfaces/logs';
+import { LogsActions } from '@/types/interfaces/grid';
+import { Span } from '@/types/interfaces/traces';
+import AudioView from './AudioView';
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -57,48 +57,82 @@ import AudioView from "./AudioView";
 function unifyType(baseVal: any, comps: any[]): string {
   const filtered = [baseVal, ...comps].filter((v) => {
     if (v == null) return false;
-    if (typeof v === "string" && v.trim() === "") return false;
+    if (typeof v === 'string' && v.trim() === '') return false;
     return true;
   });
-  if (!filtered.length) return "string";
+  if (!filtered.length) return 'string';
 
   const typeSet = new Set<string>();
   for (const val of filtered) {
     typeSet.add(getValueType(val));
   }
-  return typeSet.size === 1 ? Array.from(typeSet)[0] : "string";
+  return typeSet.size === 1 ? Array.from(typeSet)[0] : 'string';
 }
 
 /*────────────────────────────────────────────────────────────────────────────
   pickView => specialized child rendering
 ────────────────────────────────────────────────────────────────────────────*/
-function pickView(props: LogComparisonProps & { 
-  isImmutable?: boolean; 
-  prefix?: string; 
-  parentPath?: string; 
-  viewTracesAsDict?: boolean;
-  logsActions?: LogsActions;
-  context: string | null;
-  baseLog: LogProps | undefined;
-  comparisonLogs: LogProps[] | undefined;
-  fieldName: string;
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
-}) {
-  const { value, parentPath = "", prefix = "", nestingLevel = 0, viewTracesAsDict, logsActions, context, baseLog, comparisonLogs, fieldName, onTraceUpdate } = props;
+function pickView(
+  props: LogComparisonProps & {
+    isImmutable?: boolean;
+    prefix?: string;
+    parentPath?: string;
+    viewTracesAsDict?: boolean;
+    logsActions?: LogsActions;
+    context: string | null;
+    baseLog: LogProps | undefined;
+    comparisonLogs: LogProps[] | undefined;
+    fieldName: string;
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
+  }
+) {
+  const {
+    value,
+    parentPath = '',
+    prefix = '',
+    nestingLevel = 0,
+    viewTracesAsDict,
+    logsActions,
+    context,
+    baseLog,
+    comparisonLogs,
+    fieldName,
+    onTraceUpdate,
+  } = props;
 
   // Handle trace rendering based on viewTracesAsDict flag
   if (isTrace(value) && !viewTracesAsDict) {
-    return <TraceView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
+    return (
+      <TraceView
+        {...props}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+        onTraceUpdate={onTraceUpdate}
+      />
+    );
   }
   // For non-trace types, continue normal rendering
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
   if (isDict(value)) {
-    return <DictionaryView {...props} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
+    return (
+      <DictionaryView
+        {...props}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+        onTraceUpdate={onTraceUpdate}
+      />
+    );
   }
   if (isList(value)) {
-    return <ListView {...props} onTraceUpdate={onTraceUpdate}/>;
+    return <ListView {...props} onTraceUpdate={onTraceUpdate} />;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -107,10 +141,10 @@ function pickView(props: LogComparisonProps & {
     return <MatrixView {...props} />;
   }
   if (isNumber(value)) {
-    return <NumberView {...props} nested={true}/>;
+    return <NumberView {...props} nested={true} />;
   }
   if (isTimestamp(value)) {
-    return <TimestampView {...props} nested={true}/>;
+    return <TimestampView {...props} nested={true} />;
   }
   if (isPdf(value)) {
     return <PdfView {...props} />;
@@ -118,18 +152,13 @@ function pickView(props: LogComparisonProps & {
   if (isAudio(value)) {
     return <AudioView {...props} />;
   }
-  return <StringView {...props} nested={true}/>;
+  return <StringView {...props} nested={true} />;
 }
 
 /*────────────────────────────────────────────────────────────────────────────
   presenceDiff => highlight inserted/deleted dictionary keys (multi-mode)
 ────────────────────────────────────────────────────────────────────────────*/
-function presenceDiff(
-  baseVal: any,
-  compVals: any[],
-  baseRow: number,
-  compRows: number[]
-) {
+function presenceDiff(baseVal: any, compVals: any[], baseRow: number, compRows: number[]) {
   const baseHas = baseVal !== undefined;
   const redSet = new Set<number>();
   const greenSet = new Set<number>();
@@ -184,7 +213,7 @@ function handleRecursiveToggle(
   if (currentlyAllOpen) {
     // collapse - call collapseRecursively
     // When collapsing, exclude the parent path to keep it open
-    const childPaths = subPaths.filter(subpath => subpath !== path);
+    const childPaths = subPaths.filter((subpath) => subpath !== path);
     collapseRecursively(childPaths);
   } else {
     // expand - call expandRecursively
@@ -203,16 +232,16 @@ function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
     // Handle undefined/null values specially since they stringify differently
     let key;
     if (val === undefined) {
-      key = "::undefined::";
+      key = '::undefined::';
     } else if (val === null) {
-      key = "::null::";
+      key = '::null::';
     } else {
       try {
         key = JSON.stringify(val);
       } catch (e) {
         // If value can't be stringified (e.g., circular reference)
         // use a fallback representation
-        key = `::object::${typeof val}::${Object.keys(val).sort().join(",")}`;
+        key = `::object::${typeof val}::${Object.keys(val).sort().join(',')}`;
       }
     }
 
@@ -237,21 +266,25 @@ function groupRowsByValue(rowValuePairs: { rowIndex: number; val: any }[]) {
 interface DictionaryViewProps extends LogComparisonProps {
   isImmutable?: boolean;
   prefix?: string;
-  parentPath?: string;        // The parent's fully qualified path (e.g. "entries.dict.0.a")
+  parentPath?: string; // The parent's fully qualified path (e.g. "entries.dict.0.a")
   nestingLevel?: number;
   customIconMapping?: Record<string, JSX.Element>; // New prop for custom icons
   viewTracesAsDict?: boolean; // Add prop to pass down the setting
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
-  onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // New prop for group edits
+  onGroupSaveEdit?: (desc: {
+    logIndices: number[];
+    path: (string | number)[];
+    newValue: any;
+  }) => void; // New prop for group edits
   path?: (string | number)[];
   nested?: boolean;
-  logsActions?: LogsActions,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  fieldName: string,
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
+  logsActions?: LogsActions;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  fieldName: string;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -265,25 +298,25 @@ function renderNoDiffMode(
   openKeys: Set<string>,
   setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>,
   options: {
-    baseLogIndex: number,
-    comparisonLogsIndex: number[],
-    version: string,
-    comparableVersions: string[],
-    diffMode: "none" | "lines" | "words" | "characters",
-    splitView: boolean,
-    displayMode: LogComparisonProps["displayMode"],
-    nestingLevel: number,
-    prefix: string,
-    parentPath: string,
-    expandRecursively: (paths: string[]) => void,
-    collapseRecursively: (paths: string[]) => void,
-    isImmutable?: boolean,
-    customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
-    viewTracesAsDict?: boolean, // Receive the trace view setting
-    cellEditMode?: boolean,
-    onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
-    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-    path: (string | number)[], // Pass down the current path
+    baseLogIndex: number;
+    comparisonLogsIndex: number[];
+    version: string;
+    comparableVersions: string[];
+    diffMode: 'none' | 'lines' | 'words' | 'characters';
+    splitView: boolean;
+    displayMode: LogComparisonProps['displayMode'];
+    nestingLevel: number;
+    prefix: string;
+    parentPath: string;
+    expandRecursively: (paths: string[]) => void;
+    collapseRecursively: (paths: string[]) => void;
+    isImmutable?: boolean;
+    customIconMapping?: Record<string, JSX.Element>; // Add custom icon mapping to options
+    viewTracesAsDict?: boolean; // Receive the trace view setting
+    cellEditMode?: boolean;
+    onSaveEdit?: LogComparisonProps['onSaveEdit']; // Keep single save handler
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+    path: (string | number)[]; // Pass down the current path
     logsActions?: LogsActions;
     context: string | null;
     baseLog: LogProps | undefined;
@@ -293,11 +326,31 @@ function renderNoDiffMode(
   }
 ) {
   const {
-    baseLogIndex, comparisonLogsIndex, version, comparableVersions,
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    isImmutable, cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
-    expandRecursively, collapseRecursively, customIconMapping, 
-    logsActions, context, baseLog, comparisonLogs, fieldName
+    baseLogIndex,
+    comparisonLogsIndex,
+    version,
+    comparableVersions,
+    diffMode,
+    splitView,
+    displayMode,
+    nestingLevel,
+    prefix,
+    parentPath,
+    viewTracesAsDict,
+    isImmutable,
+    cellEditMode = false,
+    onSaveEdit,
+    onGroupSaveEdit,
+    path: parentEditPath = [],
+    onTraceUpdate,
+    expandRecursively,
+    collapseRecursively,
+    customIconMapping,
+    logsActions,
+    context,
+    baseLog,
+    comparisonLogs,
+    fieldName,
   } = options;
 
   // Get indentation classes based on nesting level
@@ -309,7 +362,7 @@ function renderNoDiffMode(
   const openValues = allKeys
     .map((k) => {
       const builtPath = parentPath
-        ? parentPath + "." + sanitizePropertyKey(k)
+        ? parentPath + '.' + sanitizePropertyKey(k)
         : makePrefixedDictPath(prefix, nestingLevel, k);
       return openKeys.has(builtPath) ? builtPath : null;
     })
@@ -331,14 +384,10 @@ function renderNoDiffMode(
   }
 
   return (
-    <Accordion
-      type="multiple"
-      value={openValues}
-      onValueChange={handleAccordionValueChange}
-    >
+    <Accordion type="multiple" value={openValues} onValueChange={handleAccordionValueChange}>
       {allKeys.map((k, idx) => {
         // 1. Gather values for this key from all rows
-        const rowValuePairs: { rowIndex: number, val: any }[] = [];
+        const rowValuePairs: { rowIndex: number; val: any }[] = [];
 
         // Add base value if it exists
         if (value && isDict(value) && Object.prototype.hasOwnProperty.call(value, k)) {
@@ -358,18 +407,18 @@ function renderNoDiffMode(
         }
 
         // 2. Determine type based on the values we have
-        const firstVal = rowValuePairs.find(p => p.val !== undefined)?.val;
+        const firstVal = rowValuePairs.find((p) => p.val !== undefined)?.val;
         const keyType = getValueType(firstVal);
         // Use custom icon if available, otherwise use default
         const icon = customIconMapping?.[k] || getTypeIcon(keyType);
 
         // 3. Create the path for this key
         const path = parentPath
-          ? parentPath + "." + sanitizePropertyKey(k)
+          ? parentPath + '.' + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
 
         // Collect all row indices for this key to show in the accordion trigger
-        const allRowsForKey = rowValuePairs.map(pair => pair.rowIndex).sort((a, b) => a - b);
+        const allRowsForKey = rowValuePairs.map((pair) => pair.rowIndex).sort((a, b) => a - b);
 
         // 4. Setup recursive toggle handler
         const currentValue = value?.[k];
@@ -379,13 +428,19 @@ function renderNoDiffMode(
         let keySubPaths: string[] = [];
 
         // Only gather subpaths for dict or list types
-        if (keyType === "dict" || keyType === "list") {
+        if (keyType === 'dict' || keyType === 'list') {
           // Add the path itself
           keySubPaths.push(path);
 
           // Add all nested paths
           if (currentComparables && currentComparables.length > 0) {
-            const nestedPaths = gatherAllSubPathsMulti(currentValue, currentComparables, path, prefix, nestingLevel);
+            const nestedPaths = gatherAllSubPathsMulti(
+              currentValue,
+              currentComparables,
+              path,
+              prefix,
+              nestingLevel
+            );
             keySubPaths.push(...nestedPaths);
           } else {
             const nestedPaths = gatherAllSubPaths(currentValue, path, prefix, nestingLevel);
@@ -394,8 +449,8 @@ function renderNoDiffMode(
         }
 
         // Determine if all subpaths are open (not just the path itself)
-        const isPathOpen = keySubPaths.length > 0 &&
-                          keySubPaths.every(subpath => openKeys.has(subpath));
+        const isPathOpen =
+          keySubPaths.length > 0 && keySubPaths.every((subpath) => openKeys.has(subpath));
 
         // Get separator classes for this item
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
@@ -405,7 +460,7 @@ function renderNoDiffMode(
 
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
                 <div className="ml-2 flex gap-1">
@@ -413,13 +468,27 @@ function renderNoDiffMode(
                 </div>
               </span>
               {/* Show button if dict/list OR if trace rendered as dict */}
-              {(keyType === "dict" || keyType === "list" || (keyType === "trace" && viewTracesAsDict)) && (
-                <div className="absolute right-5 flex gap-1 items-center">
+              {(keyType === 'dict' ||
+                keyType === 'list' ||
+                (keyType === 'trace' && viewTracesAsDict)) && (
+                <div className="absolute right-5 flex items-center gap-1">
                   <ActionButton
                     variant="ghost"
                     size="icon"
-                    tooltip={isPathOpen ? "Collapse all children" : "Expand all children"}
-                    onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
+                    tooltip={isPathOpen ? 'Collapse all children' : 'Expand all children'}
+                    onClick={(e) =>
+                      handleRecursiveToggle(
+                        e,
+                        path,
+                        currentValue,
+                        currentComparables,
+                        prefix,
+                        nestingLevel,
+                        expandRecursively,
+                        collapseRecursively,
+                        openKeys
+                      )
+                    }
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />
                 </div>
@@ -428,7 +497,7 @@ function renderNoDiffMode(
 
             <AccordionContent>
               <div className={contentIndentClass}>
-                 {/* Handle editable vs read-only rendering */}
+                {/* Handle editable vs read-only rendering */}
                 {cellEditMode ? (
                   // Editable mode: Group values and render editable fields
                   <div className="space-y-3">
@@ -436,10 +505,10 @@ function renderNoDiffMode(
                       const groups = groupRowsByValue(rowValuePairs);
                       return groups.map((group, gIdx) => (
                         <div key={gIdx}>
-                          <div className="flex items-center gap-1 mb-1">
+                          <div className="mb-1 flex items-center gap-1">
                             <RowBadge rowNumbers={group.rows} mode="none" />
                             <span className="text-caption text-muted-foreground">
-                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ''}
                             </span>
                           </div>
                           {pickView({
@@ -449,7 +518,7 @@ function renderNoDiffMode(
                             comparisonLogsIndex: group.rows.slice(1), // Pass remaining rows
                             version,
                             comparableVersions,
-                            diffMode: "none", // Force no-diff in edit mode
+                            diffMode: 'none', // Force no-diff in edit mode
                             splitView,
                             displayMode,
                             nestingLevel: nestingLevel + 1,
@@ -460,14 +529,15 @@ function renderNoDiffMode(
                             cellEditMode,
                             onSaveEdit, // Pass single save (might be used by child if group save is missing)
                             // Crucially, pass the group save handler and ALL row indices for this group
-                            onGroupSaveEdit: (desc) => onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
+                            onGroupSaveEdit: (desc) =>
+                              onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
                             path: childEditPath,
                             logsActions,
                             context,
                             baseLog,
                             comparisonLogs,
                             fieldName,
-                            onTraceUpdate
+                            onTraceUpdate,
                           })}
                         </div>
                       ));
@@ -478,9 +548,9 @@ function renderNoDiffMode(
                   (() => {
                     // Use the first value as base, rest as comparables for the unified view
                     const baseVal = rowValuePairs[0]?.val;
-                    const compVals = rowValuePairs.slice(1).map(p => p.val);
+                    const compVals = rowValuePairs.slice(1).map((p) => p.val);
                     const baseIdx = rowValuePairs[0]?.rowIndex ?? baseLogIndex;
-                    const compIdxs = rowValuePairs.slice(1).map(p => p.rowIndex);
+                    const compIdxs = rowValuePairs.slice(1).map((p) => p.rowIndex);
 
                     return pickView({
                       value: baseVal,
@@ -506,7 +576,7 @@ function renderNoDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate
+                      onTraceUpdate,
                     });
                   })()
                 )}
@@ -530,38 +600,57 @@ function renderDiffMode(
   openKeys: Set<string>,
   setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>,
   options: {
-    baseLogIndex: number,
-    comparisonLogsIndex: number[],
-    version: string,
-    comparableVersions: string[],
-    diffMode: "lines" | "words" | "characters",
-    splitView: boolean,
-    displayMode: LogComparisonProps["displayMode"],
-    nestingLevel: number,
-    prefix: string,
-    parentPath: string,
-    expandRecursively: (paths: string[]) => void,
-    collapseRecursively: (paths: string[]) => void,
-    customIconMapping?: Record<string, JSX.Element>, // Add custom icon mapping to options
-    viewTracesAsDict?: boolean, // Receive the trace view setting
-    cellEditMode?: boolean,
-    onSaveEdit?: LogComparisonProps['onSaveEdit'], // Keep single save handler
-    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-    path: (string | number)[], // Pass down the current path
-    logsActions?: LogsActions,
-    context: string | null,
-    baseLog: LogProps | undefined,
-    comparisonLogs: LogProps[] | undefined,
-    fieldName: string,
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void
+    baseLogIndex: number;
+    comparisonLogsIndex: number[];
+    version: string;
+    comparableVersions: string[];
+    diffMode: 'lines' | 'words' | 'characters';
+    splitView: boolean;
+    displayMode: LogComparisonProps['displayMode'];
+    nestingLevel: number;
+    prefix: string;
+    parentPath: string;
+    expandRecursively: (paths: string[]) => void;
+    collapseRecursively: (paths: string[]) => void;
+    customIconMapping?: Record<string, JSX.Element>; // Add custom icon mapping to options
+    viewTracesAsDict?: boolean; // Receive the trace view setting
+    cellEditMode?: boolean;
+    onSaveEdit?: LogComparisonProps['onSaveEdit']; // Keep single save handler
+    onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
+    path: (string | number)[]; // Pass down the current path
+    logsActions?: LogsActions;
+    context: string | null;
+    baseLog: LogProps | undefined;
+    comparisonLogs: LogProps[] | undefined;
+    fieldName: string;
+    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
-    baseLogIndex, comparisonLogsIndex, version, comparableVersions,
-    diffMode, splitView, displayMode, nestingLevel, prefix, parentPath, viewTracesAsDict,
-    cellEditMode = false, onSaveEdit, onGroupSaveEdit, path: parentEditPath = [], onTraceUpdate,
-    expandRecursively, collapseRecursively, customIconMapping,
-    logsActions, context, baseLog, comparisonLogs, fieldName
+    baseLogIndex,
+    comparisonLogsIndex,
+    version,
+    comparableVersions,
+    diffMode,
+    splitView,
+    displayMode,
+    nestingLevel,
+    prefix,
+    parentPath,
+    viewTracesAsDict,
+    cellEditMode = false,
+    onSaveEdit,
+    onGroupSaveEdit,
+    path: parentEditPath = [],
+    onTraceUpdate,
+    expandRecursively,
+    collapseRecursively,
+    customIconMapping,
+    logsActions,
+    context,
+    baseLog,
+    comparisonLogs,
+    fieldName,
   } = options;
 
   // Get indentation classes based on nesting level
@@ -573,7 +662,7 @@ function renderDiffMode(
   const openValues = allKeys
     .map((k) => {
       const builtPath = parentPath
-        ? parentPath + "." + sanitizePropertyKey(k)
+        ? parentPath + '.' + sanitizePropertyKey(k)
         : makePrefixedDictPath(prefix, nestingLevel, k);
       return openKeys.has(builtPath) ? builtPath : null;
     })
@@ -595,16 +684,13 @@ function renderDiffMode(
   }
 
   return (
-    <Accordion
-      type="multiple"
-      value={openValues}
-      onValueChange={handleAccordionValueChange}
-    >
+    <Accordion type="multiple" value={openValues} onValueChange={handleAccordionValueChange}>
       {allKeys.map((k, idx) => {
         // 1. Gather values for this key from all rows
-        const baseVal = value && isDict(value) && Object.prototype.hasOwnProperty.call(value, k)
-          ? value[k]
-          : undefined;
+        const baseVal =
+          value && isDict(value) && Object.prototype.hasOwnProperty.call(value, k)
+            ? value[k]
+            : undefined;
 
         // Create array of comparable values, preserving their row indices
         const compVals: { val: any; rowIndex: number }[] = [];
@@ -630,12 +716,12 @@ function renderDiffMode(
 
         // 4. Create the path for this key
         const path = parentPath
-          ? parentPath + "." + sanitizePropertyKey(k)
+          ? parentPath + '.' + sanitizePropertyKey(k)
           : makePrefixedDictPath(prefix, nestingLevel, k);
 
         // 5. Collect all row indices for this key to show in the accordion trigger
         const baseRows = basePresent ? [baseLogIndex] : [];
-        const compRows = compVals.map(cv => cv.rowIndex);
+        const compRows = compVals.map((cv) => cv.rowIndex);
         const allRowsForKey = [...baseRows, ...compRows].sort((a, b) => a - b);
 
         // 6. Setup recursive toggle handler
@@ -646,13 +732,19 @@ function renderDiffMode(
         let keySubPaths: string[] = [];
 
         // Only gather subpaths for dict or list types
-        if (keyType === "dict" || keyType === "list") {
+        if (keyType === 'dict' || keyType === 'list') {
           // Add the path itself
           keySubPaths.push(path);
 
           // Add all nested paths
           if (currentComparables && currentComparables.length > 0) {
-            const nestedPaths = gatherAllSubPathsMulti(currentValue, currentComparables, path, prefix, nestingLevel);
+            const nestedPaths = gatherAllSubPathsMulti(
+              currentValue,
+              currentComparables,
+              path,
+              prefix,
+              nestingLevel
+            );
             keySubPaths.push(...nestedPaths);
           } else {
             const nestedPaths = gatherAllSubPaths(currentValue, path, prefix, nestingLevel);
@@ -661,8 +753,8 @@ function renderDiffMode(
         }
 
         // Determine if all subpaths are open (not just the path itself)
-        const isPathOpen = keySubPaths.length > 0 &&
-                          keySubPaths.every(subpath => openKeys.has(subpath));
+        const isPathOpen =
+          keySubPaths.length > 0 && keySubPaths.every((subpath) => openKeys.has(subpath));
 
         // Get separator classes for this item
         const separatorClasses = getSeparatorClasses(idx, allKeys.length);
@@ -670,9 +762,9 @@ function renderDiffMode(
         // Presence/absence highlighting
         const presenceInfo = presenceDiff(
           baseVal,
-          compVals.map(cv => cv.val),
+          compVals.map((cv) => cv.val),
           baseLogIndex,
-          compVals.map(cv => cv.rowIndex)
+          compVals.map((cv) => cv.rowIndex)
         );
 
         // Build editing path for this child key
@@ -680,31 +772,52 @@ function renderDiffMode(
 
         return (
           <AccordionItem key={k} value={path} className={separatorClasses}>
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 {icon} {k}
-                  <div className="ml-2 flex gap-1">
+                <div className="ml-2 flex gap-1">
                   {(() => {
                     // Only show neutral badge if it contains rows not covered by red/green badges
-                    const redGreenRows = new Set([...presenceInfo.redRows, ...presenceInfo.greenRows]);
-                    const uniqueNeutralRows = allRowsForKey.filter(row => !redGreenRows.has(row));
+                    const redGreenRows = new Set([
+                      ...presenceInfo.redRows,
+                      ...presenceInfo.greenRows,
+                    ]);
+                    const uniqueNeutralRows = allRowsForKey.filter((row) => !redGreenRows.has(row));
 
-                    return uniqueNeutralRows.length > 0 ?
-                      <RowBadge rowNumbers={uniqueNeutralRows} mode="none" /> :
-                      null;
+                    return uniqueNeutralRows.length > 0 ? (
+                      <RowBadge rowNumbers={uniqueNeutralRows} mode="none" />
+                    ) : null;
                   })()}
-                  {presenceInfo.redRows.length > 0 && <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />}
-                  {presenceInfo.greenRows.length > 0 && <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />}
-                  </div>
+                  {presenceInfo.redRows.length > 0 && (
+                    <RowBadge rowNumbers={presenceInfo.redRows} mode="delete" />
+                  )}
+                  {presenceInfo.greenRows.length > 0 && (
+                    <RowBadge rowNumbers={presenceInfo.greenRows} mode="insert" />
+                  )}
+                </div>
               </span>
               {/* Show button if dict/list OR if trace rendered as dict */}
-              {(keyType === "dict" || keyType === "list" || (keyType === "trace" && viewTracesAsDict)) && (
-                <div className="absolute right-5 flex gap-1 items-center">
+              {(keyType === 'dict' ||
+                keyType === 'list' ||
+                (keyType === 'trace' && viewTracesAsDict)) && (
+                <div className="absolute right-5 flex items-center gap-1">
                   <ActionButton
                     variant="ghost"
                     size="icon"
-                    tooltip={isPathOpen ? "Collapse all children" : "Expand all children"}
-                    onClick={(e) => handleRecursiveToggle(e, path, currentValue, currentComparables, prefix, nestingLevel, expandRecursively, collapseRecursively, openKeys)}
+                    tooltip={isPathOpen ? 'Collapse all children' : 'Expand all children'}
+                    onClick={(e) =>
+                      handleRecursiveToggle(
+                        e,
+                        path,
+                        currentValue,
+                        currentComparables,
+                        prefix,
+                        nestingLevel,
+                        expandRecursively,
+                        collapseRecursively,
+                        openKeys
+                      )
+                    }
                     icon={isPathOpen ? <FoldVertical size={16} /> : <UnfoldVertical size={16} />}
                   />
                 </div>
@@ -715,7 +828,10 @@ function renderDiffMode(
               <div className={contentIndentClass}>
                 {(() => {
                   // Single row case - only one source contains this key
-                  if ((basePresent && compVals.length === 0) || (!basePresent && compVals.length === 1)) {
+                  if (
+                    (basePresent && compVals.length === 0) ||
+                    (!basePresent && compVals.length === 1)
+                  ) {
                     // Get the value and row index from whichever source has it
                     const singleVal = basePresent ? baseVal : compVals[0].val;
                     const singleIdx = basePresent ? baseLogIndex : compVals[0].rowIndex;
@@ -727,7 +843,7 @@ function renderDiffMode(
                       comparisonLogsIndex: [],
                       version,
                       comparableVersions,
-                      diffMode: "none", // Force no-diff mode for single values
+                      diffMode: 'none', // Force no-diff mode for single values
                       splitView,
                       displayMode,
                       nestingLevel: nestingLevel + 1,
@@ -743,50 +859,55 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate
+                      onTraceUpdate,
                     });
                   }
 
                   // For complex types like dict or list, ensure consistent structure before diffing
-                  if (keyType === "dict" || keyType === "list") {
+                  if (keyType === 'dict' || keyType === 'list') {
                     // Check if we have type mismatches among the available values
-                    const allValues = [baseVal, ...compVals.map(cv => cv.val)].filter(v => v !== undefined);
+                    const allValues = [baseVal, ...compVals.map((cv) => cv.val)].filter(
+                      (v) => v !== undefined
+                    );
                     const allTypes = new Set(allValues.map(getValueType));
 
                     // If we have multiple distinct types or mixed with undefined values,
                     // we'll use a similar approach to no-diff mode to show a unified view
-                    if (allTypes.size > 1 ||
-                        (baseVal === undefined && compVals.some(cv => isDict(cv.val) || isList(cv.val))) ||
-                        ((isDict(baseVal) || isList(baseVal)) && compVals.some(cv => cv.val === undefined))) {
-
+                    if (
+                      allTypes.size > 1 ||
+                      (baseVal === undefined &&
+                        compVals.some((cv) => isDict(cv.val) || isList(cv.val))) ||
+                      ((isDict(baseVal) || isList(baseVal)) &&
+                        compVals.some((cv) => cv.val === undefined))
+                    ) {
                       // First, extract values by their primary type
-                      const dictValues: {val: any, rowIndex: number}[] = [];
-                      const listValues: {val: any, rowIndex: number}[] = [];
-                      const otherValues: {val: any, rowIndex: number, type: string}[] = [];
+                      const dictValues: { val: any; rowIndex: number }[] = [];
+                      const listValues: { val: any; rowIndex: number }[] = [];
+                      const otherValues: { val: any; rowIndex: number; type: string }[] = [];
 
                       // Add base value if present
                       if (basePresent) {
                         const valType = getValueType(baseVal);
-                        if (valType === "dict") {
-                          dictValues.push({val: baseVal, rowIndex: baseLogIndex});
-                        } else if (valType === "list") {
-                          listValues.push({val: baseVal, rowIndex: baseLogIndex});
+                        if (valType === 'dict') {
+                          dictValues.push({ val: baseVal, rowIndex: baseLogIndex });
+                        } else if (valType === 'list') {
+                          listValues.push({ val: baseVal, rowIndex: baseLogIndex });
                         } else if (baseVal !== undefined) {
-                          otherValues.push({val: baseVal, rowIndex: baseLogIndex, type: valType});
+                          otherValues.push({ val: baseVal, rowIndex: baseLogIndex, type: valType });
                         }
                       }
 
                       // Add comparable values
-                      compVals.forEach(({val, rowIndex}) => {
+                      compVals.forEach(({ val, rowIndex }) => {
                         if (val === undefined) return;
 
                         const valType = getValueType(val);
-                        if (valType === "dict") {
-                          dictValues.push({val, rowIndex});
-                        } else if (valType === "list") {
-                          listValues.push({val, rowIndex});
+                        if (valType === 'dict') {
+                          dictValues.push({ val, rowIndex });
+                        } else if (valType === 'list') {
+                          listValues.push({ val, rowIndex });
                         } else {
-                          otherValues.push({val, rowIndex, type: valType});
+                          otherValues.push({ val, rowIndex, type: valType });
                         }
                       });
 
@@ -796,15 +917,20 @@ function renderDiffMode(
                           {/* Merge all dicts in a unified view */}
                           {dictValues.length > 0 && (
                             <div>
-                              <div className="flex gap-1 mb-1">
-                                <RowBadge rowNumbers={dictValues.map(d => d.rowIndex).sort((a, b) => a - b)} mode="none" />
+                              <div className="mb-1 flex gap-1">
+                                <RowBadge
+                                  rowNumbers={dictValues
+                                    .map((d) => d.rowIndex)
+                                    .sort((a, b) => a - b)}
+                                  mode="none"
+                                />
                               </div>
                               {/* Use the first dict as the base and others as comparables */}
                               {pickView({
                                 value: dictValues[0].val,
-                                comparables: dictValues.slice(1).map(d => d.val),
+                                comparables: dictValues.slice(1).map((d) => d.val),
                                 baseLogIndex: dictValues[0].rowIndex,
-                                comparisonLogsIndex: dictValues.slice(1).map(d => d.rowIndex),
+                                comparisonLogsIndex: dictValues.slice(1).map((d) => d.rowIndex),
                                 version,
                                 comparableVersions,
                                 diffMode,
@@ -823,23 +949,28 @@ function renderDiffMode(
                                 baseLog,
                                 comparisonLogs,
                                 fieldName,
-                                onTraceUpdate   
+                                onTraceUpdate,
                               })}
                             </div>
                           )}
 
                           {/* Merge all lists in a unified view */}
                           {listValues.length > 0 && (
-                            <div className={dictValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
-                              <div className="flex gap-1 mb-1">
-                                <RowBadge rowNumbers={listValues.map(l => l.rowIndex).sort((a, b) => a - b)} mode="none" />
+                            <div className={dictValues.length > 0 ? 'mt-2 border-t pt-2' : ''}>
+                              <div className="mb-1 flex gap-1">
+                                <RowBadge
+                                  rowNumbers={listValues
+                                    .map((l) => l.rowIndex)
+                                    .sort((a, b) => a - b)}
+                                  mode="none"
+                                />
                               </div>
                               {/* Use the first list as the base and others as comparables */}
                               {pickView({
                                 value: listValues[0].val,
-                                comparables: listValues.slice(1).map(l => l.val),
+                                comparables: listValues.slice(1).map((l) => l.val),
                                 baseLogIndex: listValues[0].rowIndex,
-                                comparisonLogsIndex: listValues.slice(1).map(l => l.rowIndex),
+                                comparisonLogsIndex: listValues.slice(1).map((l) => l.rowIndex),
                                 version,
                                 comparableVersions,
                                 diffMode,
@@ -858,7 +989,7 @@ function renderDiffMode(
                                 baseLog,
                                 comparisonLogs,
                                 fieldName,
-                                onTraceUpdate       
+                                onTraceUpdate,
                               })}
                             </div>
                           )}
@@ -869,24 +1000,41 @@ function renderDiffMode(
                               {/* Group primitives by their type and value */}
                               {(() => {
                                 // Group strings for diffing if possible
-                                const stringValues = otherValues.filter(v => typeof v.val === 'string');
-                                const nonStringValues = otherValues.filter(v => typeof v.val !== 'string');
+                                const stringValues = otherValues.filter(
+                                  (v) => typeof v.val === 'string'
+                                );
+                                const nonStringValues = otherValues.filter(
+                                  (v) => typeof v.val !== 'string'
+                                );
 
                                 // If we only have string values and more than one, diff them
                                 if (stringValues.length > 1 && nonStringValues.length === 0) {
                                   const baseStringVal = stringValues[0].val;
-                                  const compStringVals = stringValues.slice(1).map(v => v.val);
+                                  const compStringVals = stringValues.slice(1).map((v) => v.val);
 
                                   return (
-                                    <div className={dictValues.length > 0 || listValues.length > 0 ? "mt-2 pt-2 border-t" : ""}>
-                                      <div className="flex gap-1 mb-1">
-                                        <RowBadge rowNumbers={stringValues.map(s => s.rowIndex).sort((a, b) => a - b)} mode="none" />
+                                    <div
+                                      className={
+                                        dictValues.length > 0 || listValues.length > 0
+                                          ? 'mt-2 border-t pt-2'
+                                          : ''
+                                      }
+                                    >
+                                      <div className="mb-1 flex gap-1">
+                                        <RowBadge
+                                          rowNumbers={stringValues
+                                            .map((s) => s.rowIndex)
+                                            .sort((a, b) => a - b)}
+                                          mode="none"
+                                        />
                                       </div>
                                       {pickView({
                                         value: baseStringVal,
                                         comparables: compStringVals,
                                         baseLogIndex: stringValues[0].rowIndex,
-                                        comparisonLogsIndex: stringValues.slice(1).map(s => s.rowIndex),
+                                        comparisonLogsIndex: stringValues
+                                          .slice(1)
+                                          .map((s) => s.rowIndex),
                                         version,
                                         comparableVersions,
                                         diffMode, // Use actual diff mode for strings
@@ -905,22 +1053,25 @@ function renderDiffMode(
                                         baseLog,
                                         comparisonLogs,
                                         fieldName,
-                                        onTraceUpdate
+                                        onTraceUpdate,
                                       })}
                                     </div>
                                   );
                                 }
 
                                 // Otherwise, group non-strings by their value
-                                const groups: {val: any, rows: number[]}[] = [];
+                                const groups: { val: any; rows: number[] }[] = [];
 
-                                otherValues.forEach(({val, rowIndex}) => {
+                                otherValues.forEach(({ val, rowIndex }) => {
                                   let found = false;
                                   for (const group of groups) {
                                     // For primitives, we can use direct equality
-                                    if (val === group.val ||
-                                        (typeof val === 'object' && typeof group.val === 'object' &&
-                                         JSON.stringify(val) === JSON.stringify(group.val))) {
+                                    if (
+                                      val === group.val ||
+                                      (typeof val === 'object' &&
+                                        typeof group.val === 'object' &&
+                                        JSON.stringify(val) === JSON.stringify(group.val))
+                                    ) {
                                       group.rows.push(rowIndex);
                                       found = true;
                                       break;
@@ -928,14 +1079,24 @@ function renderDiffMode(
                                   }
 
                                   if (!found) {
-                                    groups.push({val, rows: [rowIndex]});
+                                    groups.push({ val, rows: [rowIndex] });
                                   }
                                 });
 
                                 return groups.map((group, i) => (
-                                  <div key={i} className={(dictValues.length > 0 || listValues.length > 0 || i > 0) ? "mt-2 pt-2 border-t" : ""}>
-                                    <div className="flex gap-1 mb-1">
-                                      <RowBadge rowNumbers={group.rows.sort((a, b) => a - b)} mode="none" />
+                                  <div
+                                    key={i}
+                                    className={
+                                      dictValues.length > 0 || listValues.length > 0 || i > 0
+                                        ? 'mt-2 border-t pt-2'
+                                        : ''
+                                    }
+                                  >
+                                    <div className="mb-1 flex gap-1">
+                                      <RowBadge
+                                        rowNumbers={group.rows.sort((a, b) => a - b)}
+                                        mode="none"
+                                      />
                                     </div>
                                     {pickView({
                                       value: group.val,
@@ -960,7 +1121,7 @@ function renderDiffMode(
                                       baseLog,
                                       comparisonLogs,
                                       fieldName,
-                                      onTraceUpdate
+                                      onTraceUpdate,
                                     })}
                                   </div>
                                 ));
@@ -973,13 +1134,16 @@ function renderDiffMode(
                   }
 
                   // Also check if we have strings that can be diffed together
-                  if (typeof baseVal === 'string' && compVals.every(cv => typeof cv.val === 'string')) {
+                  if (
+                    typeof baseVal === 'string' &&
+                    compVals.every((cv) => typeof cv.val === 'string')
+                  ) {
                     // All strings, use normal diffing
                     return pickView({
                       value: baseVal,
-                      comparables: compVals.map(cv => cv.val),
+                      comparables: compVals.map((cv) => cv.val),
                       baseLogIndex,
-                      comparisonLogsIndex: compVals.map(cv => cv.rowIndex),
+                      comparisonLogsIndex: compVals.map((cv) => cv.rowIndex),
                       version,
                       comparableVersions,
                       diffMode,
@@ -998,16 +1162,16 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate
+                      onTraceUpdate,
                     });
                   }
 
                   // Standard diffing for compatible types
                   return pickView({
                     value: baseVal,
-                    comparables: compVals.map(cv => cv.val),
+                    comparables: compVals.map((cv) => cv.val),
                     baseLogIndex,
-                    comparisonLogsIndex: compVals.map(cv => cv.rowIndex),
+                    comparisonLogsIndex: compVals.map((cv) => cv.rowIndex),
                     version,
                     comparableVersions,
                     diffMode,
@@ -1026,7 +1190,7 @@ function renderDiffMode(
                     baseLog,
                     comparisonLogs,
                     fieldName,
-                    onTraceUpdate
+                    onTraceUpdate,
                   });
                 })()}
               </div>
@@ -1043,14 +1207,14 @@ export default function DictionaryView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  version = "",
+  version = '',
   comparableVersions = [],
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  displayMode = "markdown",
+  displayMode = 'markdown',
   nestingLevel = 0,
-  prefix = "entries",
-  parentPath = "", // new param to track parent's path
+  prefix = 'entries',
+  parentPath = '', // new param to track parent's path
   customIconMapping, // New prop for custom icons
   viewTracesAsDict, // Receive the prop
   cellEditMode = false,
@@ -1063,9 +1227,8 @@ export default function DictionaryView({
   context,
   baseLog,
   comparisonLogs,
-  fieldName
+  fieldName,
 }: DictionaryViewProps) {
-
   // Context detection and state management
   const [inTraceView, setInTraceView] = useState(false);
   const traceOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.openKeys);
@@ -1085,7 +1248,10 @@ export default function DictionaryView({
   const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
 
   useEffect(() => {
-    const isInTraceView = Boolean(traceInstanceId) && typeof traceSetOpenKeys === 'function' && traceSetOpenKeys.toString() !== '()=>{}';
+    const isInTraceView =
+      Boolean(traceInstanceId) &&
+      typeof traceSetOpenKeys === 'function' &&
+      traceSetOpenKeys.toString() !== '()=>{}';
     setInTraceView(isInTraceView);
   }, [traceInstanceId, traceSetOpenKeys]);
 
@@ -1094,26 +1260,31 @@ export default function DictionaryView({
   const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
   const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
   const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
-  const effectiveCollapseRecursively = inTraceView ? traceCollapseRecursively : panelCollapseRecursively;
+  const effectiveCollapseRecursively = inTraceView
+    ? traceCollapseRecursively
+    : panelCollapseRecursively;
   const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
 
   // Key and path calculation
   const allKeys = useMemo(() => {
     const keys = new Set<string>();
-    if (value && typeof value === "object") Object.keys(value).forEach((k) => keys.add(k));
+    if (value && typeof value === 'object') Object.keys(value).forEach((k) => keys.add(k));
     for (const comp of comparables) {
-      if (comp && typeof comp === "object") Object.keys(comp).forEach((k) => keys.add(k));
+      if (comp && typeof comp === 'object') Object.keys(comp).forEach((k) => keys.add(k));
     }
     return Array.from(keys).sort((a, b) => {
-      const aNum = Number(a); const bNum = Number(b);
+      const aNum = Number(a);
+      const bNum = Number(b);
       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
       return a.localeCompare(b);
     });
   }, [value, comparables]);
 
   const keyPaths = useMemo(() => {
-    return allKeys.map(k => {
-      const builtPath = parentPath ? parentPath + "." + sanitizePropertyKey(k) : makePrefixedDictPath(prefix, nestingLevel, k);
+    return allKeys.map((k) => {
+      const builtPath = parentPath
+        ? parentPath + '.' + sanitizePropertyKey(k)
+        : makePrefixedDictPath(prefix, nestingLevel, k);
       return { key: k, path: builtPath };
     });
   }, [allKeys, parentPath, prefix, nestingLevel]);
@@ -1123,7 +1294,7 @@ export default function DictionaryView({
     const subPaths: string[] = [];
     for (const k of allKeys) {
       const builtPath = parentPath
-        ? parentPath + "." + sanitizePropertyKey(k)
+        ? parentPath + '.' + sanitizePropertyKey(k)
         : makePrefixedDictPath(prefix, nestingLevel, k);
       subPaths.push(builtPath);
 
@@ -1133,7 +1304,13 @@ export default function DictionaryView({
 
       if (isDict(baseVal) || isList(baseVal)) {
         if (comps.length > 0) {
-          const nestedPaths = gatherAllSubPathsMulti(baseVal, comps, builtPath, prefix, nestingLevel + 1);
+          const nestedPaths = gatherAllSubPathsMulti(
+            baseVal,
+            comps,
+            builtPath,
+            prefix,
+            nestingLevel + 1
+          );
           subPaths.push(...nestedPaths);
         } else {
           const nestedPaths = gatherAllSubPaths(baseVal, builtPath, prefix, nestingLevel + 1);
@@ -1159,10 +1336,16 @@ export default function DictionaryView({
       const paths = gatherAllPaths();
       effectiveCollapseRecursively(paths);
     }
-  }, [traceForceExpandAll, traceForceCollapseAll, inTraceView, effectiveExpandRecursively, effectiveCollapseRecursively, gatherAllPaths]);
+  }, [
+    traceForceExpandAll,
+    traceForceCollapseAll,
+    inTraceView,
+    effectiveExpandRecursively,
+    effectiveCollapseRecursively,
+    gatherAllPaths,
+  ]);
 
-
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     return renderNoDiffMode(
       allKeys,
       value,
@@ -1212,7 +1395,7 @@ export default function DictionaryView({
       comparisonLogsIndex,
       version,
       comparableVersions,
-      diffMode: diffMode as "lines" | "words" | "characters", // Cast diffMode
+      diffMode: diffMode as 'lines' | 'words' | 'characters', // Cast diffMode
       splitView,
       displayMode,
       nestingLevel,

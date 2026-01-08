@@ -7,7 +7,11 @@ describe('plotTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'plot-1', { name: 'My Plot', type: 'Plot' });
 
@@ -26,7 +30,11 @@ describe('plotTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'plot-1', { name: 'My Plot', type: 'Plot', tabId: 'tab-1' });
     state.initPlotTile('plot-1', { xAxis: 'col1' });
@@ -49,14 +57,18 @@ describe('plotTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'plot-1', { name: 'My Plot', type: 'Plot', tabId: 'tab-1' });
     state.initPlotTile('plot-1', { xAxis: 'col1' });
 
     // Force recompute flag to false manually if it was true (though it starts false)
     // (Not easily accessible via public API, so we rely on checking if it STAYS false)
-    
+
     // Act: update with same value
     state.updatePlotTile('plot-1', { xAxis: 'col1' });
 
@@ -65,4 +77,3 @@ describe('plotTileSlice', () => {
     expect(next.tilesById['plot-1'].itemsNeedRecompute).toBeFalsy();
   });
 });
-

@@ -1,11 +1,5 @@
-import React, {
-  useState,
-  useCallback,
-  ReactNode,
-  useEffect,
-  useMemo
-} from "react";
-import { createContext, useContextSelector } from "use-context-selector";
+import React, { useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
+import { createContext, useContextSelector } from 'use-context-selector';
 
 /**
  * The shape of our TraceExpandContext's value. We store:
@@ -35,7 +29,7 @@ type TraceExpandContextType = {
 /**
  * The actual React Context object, with a placeholder.
  * We'll throw an error if used outside of a provider.
- * 
+ *
  * We're using use-context-selector to optimize re-renders.
  * Components will only re-render when the specific parts of the context they use change.
  */
@@ -49,7 +43,7 @@ const TraceExpandContext = createContext<TraceExpandContextType>({
   collapseAll: () => {},
   expandRecursively: () => {},
   collapseRecursively: () => {},
-  instanceId: ""
+  instanceId: '',
 });
 
 // Export TraceExpandContext to allow direct access when needed
@@ -72,18 +66,18 @@ function generateRandomId() {
  *  - Used specifically within TraceView
  *  - Manages global expand/collapse for DictionaryView, ListView, etc. within traces
  */
-export function TraceExpandProvider({ 
-  children, 
-  externalOpenKeys, 
-  setExternalOpenKeys 
+export function TraceExpandProvider({
+  children,
+  externalOpenKeys,
+  setExternalOpenKeys,
 }: TraceExpandProviderProps) {
   // Create a stable instance ID for this context provider
   const instanceId = useMemo(() => generateRandomId(), []);
-  
+
   // A set of open "paths" representing which nodes are individually expanded.
   // Use external state if provided, otherwise use local state
   const [localOpenKeys, setLocalOpenKeys] = useState<Set<string>>(new Set());
-  
+
   // Determine which state to use - external or local
   const openKeys = externalOpenKeys !== undefined ? externalOpenKeys : localOpenKeys;
   const setOpenKeys = setExternalOpenKeys !== undefined ? setExternalOpenKeys : setLocalOpenKeys;
@@ -102,7 +96,7 @@ export function TraceExpandProvider({
    */
   const toggleKey = useCallback(
     (path: string) => {
-      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling 
+      // If we're in "forceExpandAll" or "forceCollapseAll" mode, skip toggling
       if (forceExpandAll) {
         return;
       }
@@ -126,7 +120,7 @@ export function TraceExpandProvider({
   /**
    * expandAll: sets "forceExpandAll = true" and "forceCollapseAll = false"
    * so that all potential items are open (though for some views,
-   * we may gather all subpaths and store them in openKeys or rely on the 
+   * we may gather all subpaths and store them in openKeys or rely on the
    * dictionary-level logic to do a single pass recursion).
    */
   const expandAll = useCallback(() => {
@@ -137,7 +131,7 @@ export function TraceExpandProvider({
 
   /**
    * collapseAll: sets "forceCollapseAll = true" and "forceExpandAll = false"
-   * so that everything is considered closed. 
+   * so that everything is considered closed.
    * We'll also clear openKeys since forcibly collapsed items won't appear open.
    */
   const collapseAll = useCallback(() => {
@@ -149,28 +143,34 @@ export function TraceExpandProvider({
   /**
    * expandRecursively: adds all paths in the provided array to openKeys.
    */
-  const expandRecursively = useCallback((paths: string[]) => {
-    if (paths.length === 0) return;
-    
-    setOpenKeys((prev) => {
-      const next = new Set(prev);
-      paths.forEach(p => next.add(p));
-      return next;
-    });
-  }, [setOpenKeys]);
+  const expandRecursively = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+
+      setOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach((p) => next.add(p));
+        return next;
+      });
+    },
+    [setOpenKeys]
+  );
 
   /**
    * collapseRecursively: removes all paths in the provided array from openKeys.
    */
-  const collapseRecursively = useCallback((paths: string[]) => {
-    if (paths.length === 0) return;
-    
-    setOpenKeys((prev) => {
-      const next = new Set(prev);
-      paths.forEach(p => next.delete(p));
-      return next;
-    });
-  }, [setOpenKeys]);
+  const collapseRecursively = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+
+      setOpenKeys((prev) => {
+        const next = new Set(prev);
+        paths.forEach((p) => next.delete(p));
+        return next;
+      });
+    },
+    [setOpenKeys]
+  );
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => {
@@ -184,34 +184,30 @@ export function TraceExpandProvider({
       collapseAll,
       expandRecursively,
       collapseRecursively,
-      instanceId
+      instanceId,
     };
   }, [
-    openKeys, 
-    forceExpandAll, 
-    forceCollapseAll, 
-    toggleKey, 
-    expandAll, 
-    collapseAll, 
-    expandRecursively, 
+    openKeys,
+    forceExpandAll,
+    forceCollapseAll,
+    toggleKey,
+    expandAll,
+    collapseAll,
+    expandRecursively,
     collapseRecursively,
     instanceId,
-    setOpenKeys
+    setOpenKeys,
   ]);
 
-  return (
-    <TraceExpandContext.Provider value={value}>
-      {children}
-    </TraceExpandContext.Provider>
-  );
+  return <TraceExpandContext.Provider value={value}>{children}</TraceExpandContext.Provider>;
 }
 
 /**
  * useTraceExpandContextSelector: selective context consumer hook
- * 
+ *
  * This hook lets components subscribe to only the specific parts of the context they need,
  * reducing unnecessary re-renders when other parts of the context change.
- * 
+ *
  * @param selector A function that extracts the needed value from the context
  * @returns The selected value from the context
  */
@@ -221,10 +217,10 @@ export function useTraceExpandContextSelector<T>(selector: (ctx: TraceExpandCont
 
 /**
  * useTraceExpandContext: consumer hook for backward compatibility
- * 
+ *
  * This hook returns the entire context and should be used sparingly.
  * Prefer useTraceExpandContextSelector when possible to minimize re-renders.
  */
 export function useTraceExpandContext() {
-  return useContextSelector(TraceExpandContext, ctx => ctx);
-} 
+  return useContextSelector(TraceExpandContext, (ctx) => ctx);
+}

@@ -1,11 +1,7 @@
-"use client";
+'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  ModelSelector,
-  ProviderSelector,
-  TagSelector,
-} from './Filters';
+import { ModelSelector, ProviderSelector, TagSelector } from './Filters';
 import { DateRangeSelector } from './Filters';
 import QueryHistoryTable from './QueryHistoryTable';
 import { CallsPlot } from './Plots/Calls';
@@ -69,15 +65,19 @@ export default function Usage() {
     return formatDateForPicker(new Date(endDate));
   }, [endDate]);
 
-
-  const { data: queryData, isLoading: isQueryLoading, fetchNextPage, isFetchingNextPage, hasNextPage } = useUsageHistoryQuery({
-    start: formattedStartDate || "",
-    end: formattedEndDate || "",
+  const {
+    data: queryData,
+    isLoading: isQueryLoading,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+  } = useUsageHistoryQuery({
+    start: formattedStartDate || '',
+    end: formattedEndDate || '',
     models: selectedModels || undefined,
     providers: selectedProviders || undefined,
     tags: selectedTags || undefined,
   });
-
 
   const allQueries = useMemo(() => {
     //ts.ignore
@@ -85,7 +85,6 @@ export default function Usage() {
     //ts.ignore
     return queryData?.pages.flatMap((page) => page.queries);
   }, [queryData]);
-
 
   // Extract tags from history data
   const tags = useMemo(() => {
@@ -99,10 +98,10 @@ export default function Usage() {
 
   // Fetch usage metrics
   const { data: metricsData, isLoading: isMetricsLoading } = useUsageMetricsQuery({
-    start: formattedStartDate || "",
-    end: formattedEndDate || "",
+    start: formattedStartDate || '',
+    end: formattedEndDate || '',
     models: selectedModels || undefined,
-    providers: selectedProviders || undefined
+    providers: selectedProviders || undefined,
   });
 
   // Intersection Observer to trigger fetchNextPage
@@ -127,30 +126,30 @@ export default function Usage() {
     <div className="w-full">
       <div className="w-full p-10">
         {/* Header */}
-        <div className="flex flex-col gap-4 mb-10">
+        <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-4xl font-bold">Usage</h1>
           <p className="text-lg">Track your API activity including metrics and prompt history.</p>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-wrap md:flex-nowrap items-start gap-6 mb-10 w-full tutorial-usage-filters">
+        <div className="tutorial-usage-filters mb-10 flex w-full flex-wrap items-start gap-6 md:flex-nowrap">
           <ModelSelector
             models={models}
             selectedModels={selectedModels}
             onModelChange={setSelectedModels}
-            className="flex-1 min-w-[200px]"
+            className="min-w-[200px] flex-1"
           />
           <ProviderSelector
             providers={providers}
             selectedProviders={selectedProviders}
             onProviderChange={setSelectedProviders}
-            className="flex-1 min-w-[200px]"
+            className="min-w-[200px] flex-1"
           />
           <TagSelector
             tags={tags}
             selectedTags={selectedTags}
             onTagChange={setSelectedTags}
-            className="flex-1 min-w-[200px]"
+            className="min-w-[200px] flex-1"
           />
           <DateRangeSelector
             startDate={startDate}
@@ -159,73 +158,73 @@ export default function Usage() {
               setStartDateState(start);
               setEndDateState(end);
             }}
-            className="flex-1 min-w-[200px]"
+            className="min-w-[200px] flex-1"
           />
         </div>
 
         {/* Graphs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full mb-10">
+        <div className="mb-10 grid w-full grid-cols-1 gap-5 md:grid-cols-2">
           {/* Number of calls */}
-          <div className="flex flex-col gap-4 w-full">
-            <p className="font-semibold text-2xl">Number of calls</p>
+          <div className="flex w-full flex-col gap-4">
+            <p className="text-2xl font-semibold">Number of calls</p>
             {isMetricsLoading ? (
-              <Skeleton className="h-[450px] w-full bg-background p-4 shadow-md rounded-md" />
+              <Skeleton className="h-[450px] w-full rounded-md bg-background p-4 shadow-md" />
             ) : (
-              <div className="h-fit w-full bg-background p-4 shadow-md rounded-md tutorial-calls-plot items-center">
-                { metricsData && <CallsPlot data={metricsData.calls} /> }
+              <div className="tutorial-calls-plot h-fit w-full items-center rounded-md bg-background p-4 shadow-md">
+                {metricsData && <CallsPlot data={metricsData.calls} />}
               </div>
             )}
           </div>
           {/* Tokens breakdown */}
-          <div className="flex flex-col gap-4 w-full">
-            <p className="font-semibold text-2xl">Tokens breakdown</p>
+          <div className="flex w-full flex-col gap-4">
+            <p className="text-2xl font-semibold">Tokens breakdown</p>
             {isMetricsLoading ? (
-              <Skeleton className="h-[450px] w-full bg-background p-4 shadow-md rounded-md" />
+              <Skeleton className="h-[450px] w-full rounded-md bg-background p-4 shadow-md" />
             ) : (
-              <div className="h-fit w-full bg-background p-4 shadow-md rounded-md tutorial-tokens-plot">
-                { metricsData && <TokensBreakdownPlot data={metricsData.tokens} /> }
+              <div className="tutorial-tokens-plot h-fit w-full rounded-md bg-background p-4 shadow-md">
+                {metricsData && <TokensBreakdownPlot data={metricsData.tokens} />}
               </div>
             )}
           </div>
           {/* Latency */}
-          <div className="flex flex-col gap-4 w-full">
-            <p className="font-semibold text-2xl">Latency</p>
+          <div className="flex w-full flex-col gap-4">
+            <p className="text-2xl font-semibold">Latency</p>
             {isMetricsLoading ? (
-              <Skeleton className="h-[450px] w-full bg-background p-4 shadow-md rounded-md" />
+              <Skeleton className="h-[450px] w-full rounded-md bg-background p-4 shadow-md" />
             ) : (
-              <div className="h-fit w-full bg-background p-4 shadow-md rounded-md tutorial-latency-plot">
-                { metricsData && <LatencyPlot data={metricsData.latency} /> }
+              <div className="tutorial-latency-plot h-fit w-full rounded-md bg-background p-4 shadow-md">
+                {metricsData && <LatencyPlot data={metricsData.latency} />}
               </div>
             )}
           </div>
           {/* Throughput */}
-          <div className="flex flex-col gap-4 w-full">
-            <p className="font-semibold text-2xl">Throughput</p>
+          <div className="flex w-full flex-col gap-4">
+            <p className="text-2xl font-semibold">Throughput</p>
             {isMetricsLoading ? (
-              <Skeleton className="h-[450px] w-full bg-background p-4 shadow-md rounded-md" />
+              <Skeleton className="h-[450px] w-full rounded-md bg-background p-4 shadow-md" />
             ) : (
-              <div className="h-fit w-full bg-background p-4 shadow-md rounded-md tutorial-throughput-plot">
-                { metricsData && <ThroughputPlot data={metricsData.throughput} /> }
+              <div className="tutorial-throughput-plot h-fit w-full rounded-md bg-background p-4 shadow-md">
+                {metricsData && <ThroughputPlot data={metricsData.throughput} />}
               </div>
             )}
           </div>
         </div>
 
         {/* Query History Table */}
-        <div className="w-full mb-10">
-          <h2 className="text-2xl font-semibold mb-4">Query History</h2>
+        <div className="mb-10 w-full">
+          <h2 className="mb-4 text-2xl font-semibold">Query History</h2>
           {isQueryLoading && !allQueries.length ? (
-            <Skeleton className="w-full h-[600px] bg-background p-4 shadow-md rounded-md" />
+            <Skeleton className="h-[600px] w-full rounded-md bg-background p-4 shadow-md" />
           ) : (
-            <ScrollArea className="w-full h-[600px] bg-background p-4 shadow-md rounded-md overflow-auto">
+            <ScrollArea className="h-[600px] w-full overflow-auto rounded-md bg-background p-4 shadow-md">
               <QueryHistoryTable queries={allQueries} />
               {/* Sentinel element: loads more when visible */}
               {hasNextPage && (
-                <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                <div ref={loadMoreRef} className="flex h-10 items-center justify-center">
                   {isFetchingNextPage ? (
                     <Loader2 className="animate-spin text-primary" />
                   ) : (
-                    "Load more"
+                    'Load more'
                   )}
                 </div>
               )}

@@ -20,7 +20,7 @@ export interface TerminalTileUI {}
 export type TerminalTile = TerminalTileMeta & TerminalTileData & TerminalTileUI;
 
 // Keys that must be copied into the generic TileProps when converting  TerminalTile → TileProps in useTile hook
-export const TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof TerminalTile)[] = ["shellType"];
+export const TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof TerminalTile)[] = ['shellType'];
 
 // All known keys for TerminalTile (union)
 export const TERMINAL_TILE_KEYS: (keyof TerminalTile)[] = [
@@ -40,9 +40,12 @@ export function initTerminalTile(initialState: Partial<TerminalTile> = {}): Term
   } as TerminalTile;
 }
 
-export function updateTerminalTile(terminalTile: TerminalTile, updates: Partial<TerminalTile>): TerminalTile {
+export function updateTerminalTile(
+  terminalTile: TerminalTile,
+  updates: Partial<TerminalTile>
+): TerminalTile {
   return {
     ...terminalTile,
     ...updates,
   };
-} 
+}

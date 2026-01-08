@@ -11,21 +11,20 @@ export interface LoadMoreProps {
   disabled?: boolean;
   interactive?: boolean;
   className?: string;
-  
+
   // Table-specific props for when used in table context
   asTableRow?: boolean;
   colSpan?: number;
   hasNextPage?: boolean;
-  
+
   // CSS class props
-  position?: "sticky" | "relative";
-  
+  position?: 'sticky' | 'relative';
+
   // Button text customization
   buttonText?: string;
   loadingText?: string;
 
   table?: Table<any>;
-
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -33,24 +32,23 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   isLoading = false,
   disabled = false,
   interactive = true,
-  className = "",
+  className = '',
   asTableRow = false,
   colSpan = 1,
   hasNextPage = true,
-  position = "sticky",
-  buttonText = "Load More",
-  loadingText = "Loading...",
+  position = 'sticky',
+  buttonText = 'Load More',
+  loadingText = 'Loading...',
   table,
-
 }) => {
   const isDisabled = !interactive || isLoading || disabled;
-  const disabledTooltip = !interactive 
-    ? "Table is not interactive" 
-    : disabled 
-      ? "Loading is disabled while streaming" 
-      : isLoading 
-        ? "Currently loading..." 
-        : "";
+  const disabledTooltip = !interactive
+    ? 'Table is not interactive'
+    : disabled
+      ? 'Loading is disabled while streaming'
+      : isLoading
+        ? 'Currently loading...'
+        : '';
 
   // If not used as table row, render as regular button
   if (!asTableRow) {
@@ -60,15 +58,15 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         size="sm"
         onClick={onLoadMore}
         disabled={isDisabled}
-        className={`h-6 px-2 text-body-sm backdrop-blur-sm border border-border/50 shadow-md transition-colors ${
-          isDisabled 
-            ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-50' 
+        className={`text-body-sm border-border/50 h-6 border px-2 shadow-md backdrop-blur-sm transition-colors ${
+          isDisabled
+            ? 'bg-muted/50 cursor-not-allowed text-muted-foreground opacity-50'
             : 'bg-background/90 hover:bg-accent hover:text-accent-foreground'
         } ${className}`}
       >
         {isLoading ? (
           <>
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
             {loadingText}
           </>
         ) : (
@@ -78,10 +76,10 @@ const LoadMore: React.FC<LoadMoreProps> = ({
     );
 
     return isDisabled && disabledTooltip ? (
-      <Tooltip content={disabledTooltip}>
-        {button}
-      </Tooltip>
-    ) : button;
+      <Tooltip content={disabledTooltip}>{button}</Tooltip>
+    ) : (
+      button
+    );
   }
 
   // Helper function to render button content
@@ -90,9 +88,9 @@ const LoadMore: React.FC<LoadMoreProps> = ({
       <button
         onClick={onLoadMore}
         disabled={isDisabled}
-        className={`px-6 py-2 backdrop-blur-sm border border-border/50 shadow-md rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+        className={`border-border/50 rounded-md border px-6 py-2 shadow-md backdrop-blur-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
           isDisabled
-            ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-50'
+            ? 'bg-muted/50 cursor-not-allowed text-muted-foreground opacity-50'
             : 'bg-background/90 text-foreground hover:bg-accent hover:text-accent-foreground'
         }`}
       >
@@ -102,15 +100,15 @@ const LoadMore: React.FC<LoadMoreProps> = ({
 
     const content = (
       <div
-        className={`${position} transform -translate-x-1/2 inline-block`}
+        className={`${position} inline-block -translate-x-1/2 transform`}
         style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
       >
         <div className="flex items-center justify-center gap-2">
           {isDisabled && disabledTooltip ? (
-            <Tooltip content={disabledTooltip}>
-              {button}
-            </Tooltip>
-          ) : button}
+            <Tooltip content={disabledTooltip}>{button}</Tooltip>
+          ) : (
+            button
+          )}
         </div>
       </div>
     );
@@ -121,10 +119,10 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   // Helper function to render loading content
   const renderLoadingContent = () => (
     <div
-      className={`${position} transform -translate-x-1/2 inline-block`}
+      className={`${position} inline-block -translate-x-1/2 transform`}
       style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
     >
-      <div className="flex items-center justify-center gap-2 px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md">
+      <div className="bg-background/90 border-border/50 flex items-center justify-center gap-2 rounded-md border px-6 py-2 shadow-md backdrop-blur-sm">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <span className="text-muted-foreground">{loadingText}</span>
       </div>
@@ -137,23 +135,23 @@ const LoadMore: React.FC<LoadMoreProps> = ({
       {/* Load More button row - only show if there are more pages, or if it should be visible but disabled (e.g. during auto-update) */}
       {hasNextPage && !isLoading && (
         <TableRow>
-          <TableCell 
-            colSpan={colSpan} 
-            className="py-4 border-t relative"
-            style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
+          <TableCell
+            colSpan={colSpan}
+            className="relative border-t py-4"
+            style={{ borderRight: '1px solid var(--muted)', borderLeft: '1px solid var(--muted)' }}
           >
             {renderButtonContent()}
           </TableCell>
         </TableRow>
       )}
-      
+
       {/* Loading indicator row - show when fetching next page */}
       {isLoading && (
         <TableRow>
-          <TableCell 
-            colSpan={colSpan} 
-            className="py-4 border-t relative"
-            style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
+          <TableCell
+            colSpan={colSpan}
+            className="relative border-t py-4"
+            style={{ borderRight: '1px solid var(--muted)', borderLeft: '1px solid var(--muted)' }}
           >
             {renderLoadingContent()}
           </TableCell>

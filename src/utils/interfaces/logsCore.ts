@@ -1,7 +1,19 @@
-import { LogProps, GroupedLogProps, LogFieldsResponseProps, LogsResponseProps, LogItemProps } from "@/types/interfaces/logs";
-import { LogsActions } from "@/types/interfaces/grid";
-import { maybeConvertRawToGroupedLogs, getGroupingFilters, getUpdatedGroupingExpression, isGroupedLogs, getTargetGroupFilters } from "./table/grouping";
-import { getTotalCountFromLogsResponse } from "../data/buildTableDataItem";
+import {
+  LogProps,
+  GroupedLogProps,
+  LogFieldsResponseProps,
+  LogsResponseProps,
+  LogItemProps,
+} from '@/types/interfaces/logs';
+import { LogsActions } from '@/types/interfaces/grid';
+import {
+  maybeConvertRawToGroupedLogs,
+  getGroupingFilters,
+  getUpdatedGroupingExpression,
+  isGroupedLogs,
+  getTargetGroupFilters,
+} from './table/grouping';
+import { getTotalCountFromLogsResponse } from '../data/buildTableDataItem';
 
 /**
  * Core parameters for log fetching operations
@@ -37,10 +49,10 @@ export interface CoreLogFetchParams {
 export interface CoreLogFetchResult {
   // Raw API response
   response: LogsResponseProps;
-  
+
   // Processed logs
   convertedLogs: LogProps[] | GroupedLogProps[];
-  
+
   // Pagination metadata
   totalCount: number;
   currentCount: number;
@@ -58,7 +70,7 @@ export interface CoreLogFetchResult {
 /**
  * Consolidated core function that handles all log fetching scenarios:
  * - Initial table data loading
- * - Infinite scroll pagination  
+ * - Infinite scroll pagination
  * - Group expansion
  * - Group-specific infinite scroll
  */
@@ -101,9 +113,12 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
       dataTypes,
       fields
     );
-    
+
     effectiveFilterExpression = groupingFilters.updatedFilterExpression;
-    effectiveGroupingExpression = getUpdatedGroupingExpression(groupingExpression, groupingColumnId);
+    effectiveGroupingExpression = getUpdatedGroupingExpression(
+      groupingExpression,
+      groupingColumnId
+    );
     useGroupPagination = !!effectiveGroupingExpression;
 
     targetGroupFilters = getTargetGroupFilters(groupingFilters.columnFilters);
@@ -117,19 +132,21 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
   if (effectiveFilterExpression) queryParams.set('filterExpr', effectiveFilterExpression);
   if (sortingExpression) queryParams.set('sorting', sortingExpression);
   if (groupSortingExpression) queryParams.set('groupSorting', groupSortingExpression);
-  
+
   // Handle grouping (can be multiple values)
   if (effectiveGroupingExpression) {
-    effectiveGroupingExpression.split(",").forEach(expr => {
+    effectiveGroupingExpression.split(',').forEach((expr) => {
       queryParams.append('groupBy', expr.trim());
     });
   }
-  
+
   // Pagination params
   if (!useGroupPagination && limit !== null) queryParams.set('limit', limit.toString());
   if (!useGroupPagination && offset !== null) queryParams.set('offset', offset.toString());
-  if (useGroupPagination && groupLimit !== null) queryParams.set('groupLimit', groupLimit.toString());
-  if (useGroupPagination && groupOffset !== null) queryParams.set('groupOffset', groupOffset.toString());
+  if (useGroupPagination && groupLimit !== null)
+    queryParams.set('groupLimit', groupLimit.toString());
+  if (useGroupPagination && groupOffset !== null)
+    queryParams.set('groupOffset', groupOffset.toString());
   if (useGroupPagination) queryParams.set('groupDepth', '0');
 
   const logsRes = await fetch(`/api/logs?${queryParams.toString()}`, {
@@ -155,7 +172,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
 
   // Calculate pagination metadata using utility functions
   const totalCount = getTotalCountFromLogsResponse(response);
-  const currentCount = useGroupPagination 
+  const currentCount = useGroupPagination
     ? getCurrentGroupCount(groupOffset, groupLimit, convertedLogs.length)
     : getCurrentCount(offset, limit, convertedLogs.length);
   const hasMore = hasNextPage(currentCount, totalCount);
@@ -171,11 +188,9 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     updatedGroupingExpression: effectiveGroupingExpression,
     targetGroupFilters,
     effectiveLimit: useGroupPagination ? groupLimit : limit,
-    effectiveOffset: useGroupPagination ? groupOffset : offset
+    effectiveOffset: useGroupPagination ? groupOffset : offset,
   };
 }
-
-
 
 /**
  * Helper to build query key for log fetching scenarios
@@ -214,7 +229,7 @@ export function buildLogQueryKey(
     baseParams.groupingExpression,
     baseParams.groupSortingExpression,
     baseParams.limit,
-    baseParams.groupLimit
+    baseParams.groupLimit,
   ];
 
   if (groupParams) {
@@ -224,7 +239,7 @@ export function buildLogQueryKey(
       groupParams.groupId,
       // Add stable keys for dataTypes and fields to avoid dependency issues
       Object.keys(groupParams.dataTypes).sort().join(','),
-      Object.keys(groupParams.fields).sort().join(',')
+      Object.keys(groupParams.fields).sort().join(','),
     ];
   }
 
@@ -234,27 +249,18 @@ export function buildLogQueryKey(
 /**
  * Pagination utilities for checking if there are more pages available
  */
-export function hasNextPage(
-  currentCount: number,
-  totalCount: number
-): boolean {
+export function hasNextPage(currentCount: number, totalCount: number): boolean {
   return currentCount < totalCount;
 }
 
-export function hasPreviousPage(
-  currentOffset: number
-): boolean {
+export function hasPreviousPage(currentOffset: number): boolean {
   return currentOffset > 0;
 }
 
 /**
  * Calculate current count for pagination state
  */
-export function getCurrentCount(
-  offset: number,
-  limit: number,
-  fetchedCount: number
-): number {
+export function getCurrentCount(offset: number, limit: number, fetchedCount: number): number {
   return offset + fetchedCount;
 }
 
@@ -282,9 +288,8 @@ export function checkHasNextPage(params: {
   const isGrouped = isGroupedLogs(currentLogs);
 
   if (!currentLogs.length) return false;
-  
-  if (isGrouped) {
 
+  if (isGrouped) {
     const currentCount = getCurrentGroupCount(effectiveOffset, effectiveLimit, currentLogs.length);
     return hasNextPage(currentCount, totalCount);
   } else {

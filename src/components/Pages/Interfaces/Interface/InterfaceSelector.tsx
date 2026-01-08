@@ -1,14 +1,19 @@
-"use client";
+'use client';
 
 import React, { useEffect } from 'react';
-import { Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData } from "@/types/interfaces/grid";
-import { useQueryClient } from "@tanstack/react-query";
-import { 
+import { Loader2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  GranularInterfaceActions,
+  GranularTabActions,
+  GranularTileActions,
+  InterfaceData,
+} from '@/types/interfaces/grid';
+import { useQueryClient } from '@tanstack/react-query';
+import {
   createInterfaceUrl,
   createCompleteDefaultInterface,
-} from "@/utils/interfaces/interfaceSelector";
+} from '@/utils/interfaces/interfaceSelector';
 import { useListInterfacesQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery';
 
 const EMPTY_INTERFACE_DATA: InterfaceData[] = [];
@@ -38,7 +43,11 @@ export default function InterfaceSelector({
   const queryClient = useQueryClient();
 
   // Fetch the list of interfaces for the current project.
-  const { data: interfaces = EMPTY_INTERFACE_DATA, isLoading, error } = useListInterfacesQuery(projectId, interfaceActions);
+  const {
+    data: interfaces = EMPTY_INTERFACE_DATA,
+    isLoading,
+    error,
+  } = useListInterfacesQuery(projectId, interfaceActions);
 
   useEffect(() => {
     // Wait until the query is complete
@@ -48,7 +57,7 @@ export default function InterfaceSelector({
 
     // Handle potential errors during fetch
     if (error) {
-      console.error("Failed to load interfaces:", error);
+      console.error('Failed to load interfaces:', error);
       // Optional: Redirect to an error page or back to the project selection
       router.push('/interfaces');
       return;
@@ -65,12 +74,12 @@ export default function InterfaceSelector({
             return dateB - dateA; // Sort descending (newest first)
           });
           const latestInterface = sortedInterfaces[0];
-          
+
           if (latestInterface) {
             const newUrl = createInterfaceUrl(searchParams, latestInterface.name);
             router.push(newUrl);
           } else {
-             throw new Error("Could not determine the latest interface.");
+            throw new Error('Could not determine the latest interface.');
           }
         } else if (projectId !== 'Usage') {
           // If no interfaces exist, create a default one and then redirect.
@@ -80,35 +89,45 @@ export default function InterfaceSelector({
             interfaceActions,
             tabActions,
             tileActions,
-            baseName: "Default"
+            baseName: 'Default',
           });
 
           if (newInterface && newInterface.name) {
             const newUrl = createInterfaceUrl(searchParams, newInterface.name);
             router.push(newUrl);
           } else {
-            throw new Error("Failed to create the default interface.");
+            throw new Error('Failed to create the default interface.');
           }
         } else {
           // For the special "Usage" project we simply stay on the project view with no interfaces.
           router.push(`/interfaces?project=${encodeURIComponent(projectId)}`);
         }
       } catch (err) {
-        console.error("Error in interface selection/creation:", err);
+        console.error('Error in interface selection/creation:', err);
         // Fallback: if something goes wrong, redirect to the base interfaces page
         router.push('/interfaces');
       }
     };
 
     selectOrCreateInterface();
-
-  }, [isLoading, interfaces, error, projectId, queryClient, interfaceActions, tabActions, tileActions, searchParams, router]);
+  }, [
+    isLoading,
+    interfaces,
+    error,
+    projectId,
+    queryClient,
+    interfaceActions,
+    tabActions,
+    tileActions,
+    searchParams,
+    router,
+  ]);
 
   // Render a full-page loading indicator while the logic runs.
   return (
-    <div className="w-full h-screen flex flex-col items-center justify-center bg-background">
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="mt-4 text-body text-muted">Setting up your workspace...</p>
+      <p className="text-body mt-4 text-muted">Setting up your workspace...</p>
     </div>
   );
 }

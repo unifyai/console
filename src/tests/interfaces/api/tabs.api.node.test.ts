@@ -45,10 +45,7 @@ describe('@real Tabs API', () => {
       () => interfacesApi.deleteById(testInterfaceId),
       `interface: ${testInterfaceId}`
     );
-    await safeDelete(
-      () => projectsApi.delete(testProject),
-      `project: ${testProject}`
-    );
+    await safeDelete(() => projectsApi.delete(testProject), `project: ${testProject}`);
   });
 
   it('@real lists tabs in interface', realTestOptions, async () => {

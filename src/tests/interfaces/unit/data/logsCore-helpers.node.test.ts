@@ -104,7 +104,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 10,
         effectiveOffset: 0,
         effectiveLimit: 3,
-      }),
+      })
     ).toBe(true);
 
     expect(
@@ -113,7 +113,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 3,
         effectiveOffset: 0,
         effectiveLimit: 3,
-      }),
+      })
     ).toBe(false);
 
     const groupedLogs: GroupedLogProps[] = [
@@ -135,7 +135,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 10,
         effectiveOffset: 0,
         effectiveLimit: 1,
-      }),
+      })
     ).toBe(true);
 
     expect(
@@ -144,9 +144,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 1,
         effectiveOffset: 0,
         effectiveLimit: 1,
-      }),
+      })
     ).toBe(false);
   });
 });
-
-

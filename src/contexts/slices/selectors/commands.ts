@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
 /**
  * Unique identifier for command categories
  */
-export type CommandCategory = "project" | "interface" | "tab" | "tile" | "misc";
+export type CommandCategory = 'project' | 'interface' | 'tab' | 'tile' | 'misc';
 
 /**
  * Lucide icon names
  */
-export type CommandIcon = 
-  | "Folder" 
-  | "Plus" 
-  | "X" 
-  | "Trash" 
-  | "Upload" 
-  | "Focus" 
-  | "FolderTree" 
-  | "Save"
-  | "ListRestart"
-  | "Undo"
-  | "Redo";
+export type CommandIcon =
+  | 'Folder'
+  | 'Plus'
+  | 'X'
+  | 'Trash'
+  | 'Upload'
+  | 'Focus'
+  | 'FolderTree'
+  | 'Save'
+  | 'ListRestart'
+  | 'Undo'
+  | 'Redo';
 
 /**
  * Command metadata structure
@@ -77,21 +77,14 @@ export const updateCommandDisabled = (
   id: string,
   disabled: boolean
 ): Command[] => {
-  return commands.map(cmd => 
-    cmd.id === id 
-      ? { ...cmd, disabled } 
-      : cmd
-  );
+  return commands.map((cmd) => (cmd.id === id ? { ...cmd, disabled } : cmd));
 };
 
 /**
  * Utility function to find command by ID
  */
-export const findCommandById = (
-  commands: Command[],
-  id: string
-): Command | undefined => {
-  return commands.find(cmd => cmd.id === id);
+export const findCommandById = (commands: Command[], id: string): Command | undefined => {
+  return commands.find((cmd) => cmd.id === id);
 };
 
 /**
@@ -110,4 +103,4 @@ export const groupCommandsByCategory = (
     },
     {} as Record<CommandCategory, Command[]>
   );
-}; 
+};

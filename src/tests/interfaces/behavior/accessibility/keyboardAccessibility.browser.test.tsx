@@ -1,8 +1,8 @@
 /**
  * P5-A: Keyboard Accessibility Tests
- * 
+ *
  * Tests for keyboard navigation and accessibility within the Interfaces feature.
- * 
+ *
  * Covers:
  * - Keyboard navigation within tile grid
  * - Focus management during interactions
@@ -37,7 +37,7 @@ describe('P5-A: Keyboard Accessibility', () => {
 
       // Tab through the interface
       await user.tab();
-      
+
       // Should be able to focus on interactive elements
       const focusedElement = document.activeElement;
       expect(focusedElement).not.toBe(document.body);
@@ -64,7 +64,7 @@ describe('P5-A: Keyboard Accessibility', () => {
 
       // Focus the toggle
       screen.getByTestId('edit-mode-toggle').focus();
-      
+
       // Press Enter to toggle
       await user.keyboard('{Enter}');
 
@@ -83,7 +83,7 @@ describe('P5-A: Keyboard Accessibility', () => {
 
       // Focus the toggle
       screen.getByTestId('edit-mode-toggle').focus();
-      
+
       // Press Space to toggle
       await user.keyboard(' ');
 
@@ -186,7 +186,10 @@ describe('P5-A: Keyboard Accessibility', () => {
 
       // File should be selected
       await waitFor(() => {
-        expect(screen.getByTestId(`file-item-${files[0].id}`)).toHaveAttribute('data-active', 'true');
+        expect(screen.getByTestId(`file-item-${files[0].id}`)).toHaveAttribute(
+          'data-active',
+          'true'
+        );
       });
     });
 
@@ -218,9 +221,12 @@ describe('P5-A: Keyboard Accessibility', () => {
       await user.keyboard('{Enter}');
 
       // Wait for execution to complete
-      await waitFor(() => {
-        expect(screen.getByTestId('output-panel')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('output-panel')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('new file input supports Escape to cancel', async () => {
@@ -235,7 +241,7 @@ describe('P5-A: Keyboard Accessibility', () => {
 
       // Open new file form
       await user.click(screen.getByTestId('new-file-button'));
-      
+
       // Type something then press Escape
       await user.type(screen.getByTestId('new-file-input'), 'test.js');
       await user.keyboard('{Escape}');
@@ -401,14 +407,14 @@ describe('P5-A: Keyboard Accessibility', () => {
       // Should move to save button (next interactive element in toolbar)
       const saveButton = screen.getByTestId('save-button');
       const resetButton = screen.getByTestId('reset-button');
-      
+
       // Active element should be one of the toolbar buttons
       const activeElement = document.activeElement;
-      const isToolbarButton = 
-        activeElement === saveButton || 
+      const isToolbarButton =
+        activeElement === saveButton ||
         activeElement === resetButton ||
         activeElement?.closest('[data-testid="edit-toolbar"]');
-      
+
       expect(isToolbarButton).toBeTruthy();
     });
 
@@ -430,4 +436,3 @@ describe('P5-A: Keyboard Accessibility', () => {
     });
   });
 });
-

@@ -1,2 +1,3 @@
-export type RelativeDateString = `${string}Y;${string}M;${string}D;${string}h;${string}m;${string}ms`; 
-export type AbsoluteDateString = `${string}-${string}-${string}T${string}:${string}:${string}Z`; 
+export type RelativeDateString =
+  `${string}Y;${string}M;${string}D;${string}h;${string}m;${string}ms`;
+export type AbsoluteDateString = `${string}-${string}-${string}T${string}:${string}:${string}Z`;

@@ -1,10 +1,16 @@
-import { PlotDataItem, TileData } from "@/types/interfaces/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/interfaces/logs";
-import { LogsActions } from "@/types/interfaces/grid";
-import { processContext } from "@/utils/interfaces/table/columnOperations";
-import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/interfaces/common";
-import { sanitizeKey } from "@/app/(home)/interfaces/utils";
-import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
+import { PlotDataItem, TileData } from '@/types/interfaces/grid';
+import {
+  PlotArguments,
+  LogFieldsResponseProps,
+  LogsResponseProps,
+  LogProps,
+  GroupedMetrics,
+} from '@/types/interfaces/logs';
+import { LogsActions } from '@/types/interfaces/grid';
+import { processContext } from '@/utils/interfaces/table/columnOperations';
+import { convertMetricsToLogs, replaceParamsIndicesWithValues } from '@/utils/interfaces/common';
+import { sanitizeKey } from '@/app/(home)/interfaces/utils';
+import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 /**
  * Debug flag for performance logging
@@ -55,7 +61,7 @@ export function convertMetricsToGroupedDataLabels(
 ): GroupedDataLabel[] {
   const result: GroupedDataLabel[] = [];
   const fieldMetrics = metricsResponse[yAxisField] || {};
-  
+
   for (const [groupKey, categories] of Object.entries(fieldMetrics)) {
     for (const [category, values] of Object.entries(categories as Record<string, MetricsValue>)) {
       const value = values.sharedValue ?? values[metric] ?? 0;
@@ -73,10 +79,10 @@ export async function fetchBarChartAggregatedData(
   projectId: string,
   context: string | null,
   columnContext: string | null,
-  xAxis: string,           // Group-by field (categories for X-axis)
-  yAxis: string,           // Field to aggregate
-  metric: string,          // mean, sum, count, etc.
-  groupBy: string | null,  // Optional secondary grouping (color groups)
+  xAxis: string, // Group-by field (categories for X-axis)
+  yAxis: string, // Field to aggregate
+  metric: string, // mean, sum, count, etc.
+  groupBy: string | null, // Optional secondary grouping (color groups)
   filterExpr: string | null,
   signal?: AbortSignal
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean }> {
@@ -84,12 +90,12 @@ export async function fetchBarChartAggregatedData(
   params.set('projectName', projectId);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify([sanitizeKey(yAxis)]));
-  
+
   // Build groupBy: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
   // Otherwise just [xAxis] for simple category grouping
   const groupByFields = groupBy ? [sanitizeKey(groupBy), sanitizeKey(xAxis)] : [sanitizeKey(xAxis)];
   params.set('groupBy', JSON.stringify(groupByFields));
-  
+
   if (filterExpr) params.set('filterExpr', filterExpr);
 
   const response = await fetch(`/api/logs/${metric}?${params.toString()}`, {
@@ -108,12 +114,12 @@ export async function fetchBarChartAggregatedData(
   if (groupBy) {
     return {
       data: convertMetricsToGroupedDataLabels(metricsData, sanitizeKey(yAxis), metric),
-      isGrouped: true
+      isGrouped: true,
     };
   } else {
     return {
       data: convertMetricsToDataLabels(metricsData, sanitizeKey(yAxis), metric),
-      isGrouped: false
+      isGrouped: false,
     };
   }
 }
@@ -125,7 +131,7 @@ export async function fetchBarChartAggregatedData(
 export async function buildPlotDataItem(
   plotTile: TileData,
   tableTiles: TileData[],
-  plotArguments: PlotArguments, 
+  plotArguments: PlotArguments,
   fields: LogFieldsResponseProps[],
   projectId: string,
   logsActions: LogsActions,
@@ -133,10 +139,10 @@ export async function buildPlotDataItem(
 ): Promise<PlotDataItem> {
   // Identify which tables are used in this plot by name
   const usedTableNames = getUsedTableNames(plotTile);
-  
+
   // Create plotFields object
   const plotFields = createPlotFields(tableTiles, fields);
-  
+
   // Fetch plot data for each table using the already built plotArguments
   const tFetchPlotDataByTable = performance.now();
   const plotDataByTable = await fetchPlotDataByTable(
@@ -151,11 +157,13 @@ export async function buildPlotDataItem(
     signal
   );
   const tFetchPlotDataByTableEnd = performance.now();
-  perfLog(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
+  perfLog(
+    `[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`
+  );
 
   // Process plot data
   let plotDataItem: PlotDataItem;
-  
+
   if (Object.keys(plotDataByTable).length > 0) {
     // Check if we have pre-aggregated bar chart data
     const firstTableData = Object.values(plotDataByTable)[0];
@@ -165,37 +173,45 @@ export async function buildPlotDataItem(
         plotLogs: [],
         plotFields: plotFields,
         preAggregatedBarData: firstTableData.preAggregatedBarData,
-        isGroupedBarChart: firstTableData.isGroupedBarChart
+        isGroupedBarChart: firstTableData.isGroupedBarChart,
       };
     } else {
       // If non-zero tables are used in the plot, merge the plot data
-      const minLogLength = Math.min(...Object.values(plotDataByTable).map(data => data.plotLogs.length));
+      const minLogLength = Math.min(
+        ...Object.values(plotDataByTable).map((data) => data.plotLogs.length)
+      );
       plotDataItem = {
-        plotLogs: minLogLength > 0 ? Object.values(plotDataByTable)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
-          return Object.entries(plotDataByTable).reduce((acc, [tableId, data]) => {
-            const prefixedLog = Object.fromEntries(
-              Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
-                `${tableId}.${key}`,
-                (["params", "entries", "derivedEntries"].includes(key) && value) 
-                  ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
-                  : value
-              ])
-            );
-            return { ...acc, ...prefixedLog };
-          }, {}) as LogProps;
-        }) : [],
-        plotFields: plotFields
+        plotLogs:
+          minLogLength > 0
+            ? Object.values(plotDataByTable)[0]
+                .plotLogs.slice(0, minLogLength)
+                .map((_, i) => {
+                  return Object.entries(plotDataByTable).reduce((acc, [tableId, data]) => {
+                    const prefixedLog = Object.fromEntries(
+                      Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
+                        `${tableId}.${key}`,
+                        ['params', 'entries', 'derivedEntries'].includes(key) && value
+                          ? Object.fromEntries(
+                              Object.entries(value).map(([k, v]) => [`${tableId}.${k}`, v])
+                            )
+                          : value,
+                      ])
+                    );
+                    return { ...acc, ...prefixedLog };
+                  }, {}) as LogProps;
+                })
+            : [],
+        plotFields: plotFields,
       };
     }
-  }
-  else {
+  } else {
     // If no tables are used in the plot, return empty plot data
     plotDataItem = {
       plotLogs: [],
-      plotFields: plotFields
+      plotFields: plotFields,
     };
   }
-  
+
   return plotDataItem;
 }
 
@@ -204,50 +220,59 @@ export async function buildPlotDataItem(
  */
 export function getUsedTableNames(plotTile: TileData): string[] {
   const usedTableNames: string[] = [];
-  
+
   // Check x-axis
-  if (plotTile.plotTile?.xAxis && plotTile.plotTile?.xAxis?.includes(".")) {
-    const tableName = plotTile.plotTile?.xAxis?.split(".")[0];
+  if (plotTile.plotTile?.xAxis && plotTile.plotTile?.xAxis?.includes('.')) {
+    const tableName = plotTile.plotTile?.xAxis?.split('.')[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
-  
+
   // Check y-axis
-  if (plotTile.plotTile?.yAxis && plotTile.plotTile?.yAxis?.includes(".")) {
-    const tableName = plotTile.plotTile?.yAxis?.split(".")[0];
+  if (plotTile.plotTile?.yAxis && plotTile.plotTile?.yAxis?.includes('.')) {
+    const tableName = plotTile.plotTile?.yAxis?.split('.')[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
-  
+
   // Check plot-group-by
-  if (plotTile.plotTile?.plotGroupBy && plotTile.plotTile?.plotGroupBy?.includes(".")) {
-    const tableName = plotTile.plotTile?.plotGroupBy?.split(".")[0];
+  if (plotTile.plotTile?.plotGroupBy && plotTile.plotTile?.plotGroupBy?.includes('.')) {
+    const tableName = plotTile.plotTile?.plotGroupBy?.split('.')[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
-  
+
   return usedTableNames;
 }
 
 /**
  * Creates plotFields by combining fields from all table tiles
  */
-function createPlotFields(tableTiles: TileData[], fields: LogFieldsResponseProps[]): LogFieldsResponseProps {
-  return tableTiles.map((tile, idx) => {
-    const columnContext = tile.columnContext;
-    return Object.fromEntries(
-      Object
-        .entries(fields[idx] || {})
-        .filter(([name, { dataType, fieldType, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
-        .map(([name, { dataType, fieldType, artifacts, mutable, createdAt }]) => {
-          const newName = columnContext ? processContext("split", columnContext, name) : name;
-          return [`${tile.name}.${newName}`, { dataType, fieldType, artifacts, mutable, createdAt }];
-        })
-    );
-  }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+function createPlotFields(
+  tableTiles: TileData[],
+  fields: LogFieldsResponseProps[]
+): LogFieldsResponseProps {
+  return tableTiles
+    .map((tile, idx) => {
+      const columnContext = tile.columnContext;
+      return Object.fromEntries(
+        Object.entries(fields[idx] || {})
+          .filter(([name, { dataType, fieldType, artifacts }]) =>
+            columnContext ? name.startsWith(columnContext) : name
+          )
+          .map(([name, { dataType, fieldType, artifacts, mutable, createdAt }]) => {
+            const newName = columnContext ? processContext('split', columnContext, name) : name;
+            return [
+              `${tile.name}.${newName}`,
+              { dataType, fieldType, artifacts, mutable, createdAt },
+            ];
+          })
+      );
+    })
+    .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 }
 
 /**
@@ -276,16 +301,16 @@ async function fetchPlotDataByTable(
 ): Promise<Record<string, TablePlotData>> {
   const plotDataPromises = usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
-    const tableTile = tableTiles.find(t => t.name === tableName);
+    const tableTile = tableTiles.find((t) => t.name === tableName);
 
     // Also find the index of the table tile
-    const tableTileIndex = tableTiles.findIndex(t => t.name === tableName);
-    
+    const tableTileIndex = tableTiles.findIndex((t) => t.name === tableName);
+
     // Skip if table not found or no plot arguments
     if (!tableTile || !plotArguments[tableName]) {
       return { [tableName]: { plotLogs: [], plotFields: {} } };
     }
-    
+
     // Get params from pre-built plotArguments
     const context = plotArguments[tableName].context;
     const columnContext = plotArguments[tableName].columnContext;
@@ -297,36 +322,40 @@ async function fetchPlotDataByTable(
 
     // Get fields for this table context
     const tableFields = fields[tableTileIndex] || {};
-    
+
     // Get plot data
     let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
 
-    let [xAxis, yAxis, group] = [plotTile.plotTile?.xAxis, plotTile.plotTile?.yAxis, plotTile.plotTile?.plotGroupBy];
+    let [xAxis, yAxis, group] = [
+      plotTile.plotTile?.xAxis,
+      plotTile.plotTile?.yAxis,
+      plotTile.plotTile?.plotGroupBy,
+    ];
     const plotType = plotTile.plotTile?.plotType;
-    
+
     let subset = null;
-    if (xAxis && xAxis.split(".").length > 1) {
+    if (xAxis && xAxis.split('.').length > 1) {
       /* Extract required fields */
-      xAxis = xAxis.split(".")[1];
-      xAxis = columnContext ? processContext("merge", columnContext, xAxis) : xAxis;
+      xAxis = xAxis.split('.')[1];
+      xAxis = columnContext ? processContext('merge', columnContext, xAxis) : xAxis;
       subset = xAxis;
 
-      if (yAxis && yAxis.split(".").length > 1) {
-        yAxis = yAxis.split(".")[1];
-        yAxis = columnContext ? processContext("merge", columnContext, yAxis) : yAxis;
+      if (yAxis && yAxis.split('.').length > 1) {
+        yAxis = yAxis.split('.')[1];
+        yAxis = columnContext ? processContext('merge', columnContext, yAxis) : yAxis;
         subset += `&${yAxis}`;
       }
-      if (group && group.split(".").length > 1) {
-        group = group.split(".")[1];
-        group = columnContext ? processContext("merge", columnContext, group) : group;
+      if (group && group.split('.').length > 1) {
+        group = group.split('.')[1];
+        group = columnContext ? processContext('merge', columnContext, group) : group;
         subset += `&${group}`;
       }
-      if (subset) plotArguments[tableName]["subset"] = subset;
-      
+      if (subset) plotArguments[tableName]['subset'] = subset;
+
       // BAR CHART: Use backend aggregation for better performance
-      if (plotType === "Bar Chart" && xAxis && yAxis) {
+      if (plotType === 'Bar Chart' && xAxis && yAxis) {
         try {
-          const metricName = metric || "mean";
+          const metricName = metric || 'mean';
           const { data: barData, isGrouped } = await fetchBarChartAggregatedData(
             projectId,
             context,
@@ -338,62 +367,68 @@ async function fetchPlotDataByTable(
             filterExpression,
             signal
           );
-          
-          perfLog(`[perf] Bar chart using pre-aggregated data: ${barData.length} bars, grouped: ${isGrouped}`);
-          
+
+          perfLog(
+            `[perf] Bar chart using pre-aggregated data: ${barData.length} bars, grouped: ${isGrouped}`
+          );
+
           return {
             [tableName]: {
-              plotLogs: [],  // Not needed for pre-aggregated bar charts
+              plotLogs: [], // Not needed for pre-aggregated bar charts
               plotFields: plotFields,
               preAggregatedBarData: barData,
-              isGroupedBarChart: isGrouped
-            }
+              isGroupedBarChart: isGrouped,
+            },
           };
         } catch (err) {
           // Fall through to regular fetch on error
           perfLog(`[perf] Bar chart aggregation failed, falling back to raw logs:`, err);
         }
       }
-      
+
       // Get raw logs values or grouped metrics as logs
       if (
-        (plotTile.plotTile?.plotAggregate && plotTile.plotTile?.plotAggregate.split(".").length > 1)
-        && plotTile.plotTile?.plotAggregate.split(".")[0] === tableName
-        && grouping
+        plotTile.plotTile?.plotAggregate &&
+        plotTile.plotTile?.plotAggregate.split('.').length > 1 &&
+        plotTile.plotTile?.plotAggregate.split('.')[0] === tableName &&
+        grouping
       ) {
-        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(plotTile.plotTile?.plotAggregate.split(".")[1]) + 1);
-        
+        const groupFields = grouping
+          .split(',')
+          .slice(
+            0,
+            grouping.split(',').indexOf(plotTile.plotTile?.plotAggregate.split('.')[1]) + 1
+          );
+
         // Call API route directly instead of server action
-        const metricName = metric ? metric : "mean";
-        const keyNames = subset ? subset.split("&").map(sanitizeKey) : [];
+        const metricName = metric ? metric : 'mean';
+        const keyNames = subset ? subset.split('&').map(sanitizeKey) : [];
         const params = new URLSearchParams();
         params.set('projectName', projectId);
         if (context) params.set('context', context);
         params.set('key', JSON.stringify(keyNames));
         if (filterExpression) params.set('filterExpr', filterExpression);
         params.set('groupBy', JSON.stringify(groupFields));
-        
+
         const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
           method: 'GET',
           signal: signal as AbortSignal,
           cache: 'no-store',
         });
-        
+
         if (!metricsRes.ok) {
           throw new Error(`Failed to fetch metrics: ${metricsRes.status}`);
         }
-        
+
         const metrics = await metricsRes.json();
-    
+
         data.logs = convertMetricsToLogs(
-          groupFields, 
-          metricName, 
-          tableFields, 
+          groupFields,
+          metricName,
+          tableFields,
           metrics as GroupedMetrics
         );
-    
-      }
-      else if (subset) {
+      } else if (subset) {
         // Call API route directly instead of server action
         const params = new URLSearchParams();
         params.set('projectName', projectId);
@@ -409,7 +444,7 @@ async function fetchPlotDataByTable(
           signal: signal as AbortSignal,
           cache: 'no-store',
         });
-        
+
         if (!logsRes.ok) {
           throw new Error(`Failed to fetch plot logs: ${logsRes.status}`);
         }
@@ -418,19 +453,19 @@ async function fetchPlotDataByTable(
         data = replaceParamsIndicesWithValues(rawData);
       }
     }
-    
+
     // Return data for this table
-    return { 
+    return {
       [tableName]: {
-        plotLogs: data.logs as LogProps[] || [],
-        plotFields: plotFields
-      }
+        plotLogs: (data.logs as LogProps[]) || [],
+        plotFields: plotFields,
+      },
     };
   });
-  
+
   // Wait for all promises to resolve
   const plotData = await Promise.all(plotDataPromises);
-  
+
   // Reduce to a single object
   return plotData.reduce((acc, curr) => ({ ...acc, ...curr }), {});
-} 
+}

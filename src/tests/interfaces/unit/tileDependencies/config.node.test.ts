@@ -139,9 +139,9 @@ describe('Tile Dependency Config', () => {
           if (key[0] === 'tableDataItem') {
             return {
               isLoading: false,
-              logs: [],         // Empty - context doesn't exist
-              fields: {},       // Empty - context doesn't exist
-              contextNotFound: true,  // This is the key flag!
+              logs: [], // Empty - context doesn't exist
+              fields: {}, // Empty - context doesn't exist
+              contextNotFound: true, // This is the key flag!
             };
           }
           if (key[0] === 'tableArguments') return { someTile: {} };
@@ -157,4 +157,3 @@ describe('Tile Dependency Config', () => {
     });
   });
 });
-

@@ -9,19 +9,19 @@ on:
 jobs:
   run-script:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Install dependencies
         run: npm install @codesandbox/sdk
-        
+
       - name: Update unify in devboxes
         run: node scripts/update_unify_devbox.js
         env:

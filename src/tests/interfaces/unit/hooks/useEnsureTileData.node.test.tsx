@@ -579,11 +579,7 @@ describe('useEnsurePlotTileData', () => {
     });
 
     await waitFor(() => {
-      const state = queryClient.getQueryState([
-        'ensurePlotTileData',
-        plotTileId,
-        projectId,
-      ]);
+      const state = queryClient.getQueryState(['ensurePlotTileData', plotTileId, projectId]);
       expect(state?.status).toBe('error');
       const error = state?.error as Error;
       expect(error).toBeInstanceOf(Error);
@@ -595,4 +591,3 @@ describe('useEnsurePlotTileData', () => {
     buildOptimisticPlotDataItemSpy.mockRestore();
   });
 });
-

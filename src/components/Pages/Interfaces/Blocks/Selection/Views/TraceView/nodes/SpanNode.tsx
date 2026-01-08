@@ -1,8 +1,8 @@
-"use client";
-import React, { memo, useState } from "react";
-import { Handle, Position } from "reactflow";
-import type { LucideIcon } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
+'use client';
+import React, { memo, useState } from 'react';
+import { Handle, Position } from 'reactflow';
+import type { LucideIcon } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
 
 /**
  * SpanNode props:
@@ -16,8 +16,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover
 function SpanNode({ data, isConnectable }: any) {
   const {
     icon: IconComponent,
-    title = "No Title",
-    ID = "No ID",
+    title = 'No Title',
+    ID = 'No ID',
     offset = 0,
     execTime = 0,
     hasError = false,
@@ -26,8 +26,8 @@ function SpanNode({ data, isConnectable }: any) {
   const [open, setOpen] = useState(false);
 
   // Apply a different border color if hasError is true.
-  const borderClass = hasError ? "border-destructive" : "border-primary";
-  const bgClass = "bg-background";
+  const borderClass = hasError ? 'border-destructive' : 'border-primary';
+  const bgClass = 'bg-background';
 
   // Example timing calculations
   const startTime = offset;
@@ -35,17 +35,19 @@ function SpanNode({ data, isConnectable }: any) {
   const duration = endTime - startTime;
 
   return (
-    <div className={`px-4 py-2 rounded-md border-2 shadow-sm flex items-center gap-3 ${borderClass} ${bgClass}`}>
+    <div
+      className={`flex items-center gap-3 rounded-md border-2 px-4 py-2 shadow-sm ${borderClass} ${bgClass}`}
+    >
       {/* Left handle => target for incoming edges */}
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={isConnectable}
-        className="!bg-accent w-2 h-6 rounded-none"
+        className="h-6 w-2 rounded-none !bg-accent"
       />
 
       {/* Icon */}
-      <div className="rounded-full w-8 h-8 flex justify-center items-center bg-muted text-primary">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-primary">
         {IconComponent && <IconComponent className="h-4 w-4" />}
       </div>
 
@@ -53,15 +55,15 @@ function SpanNode({ data, isConnectable }: any) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
-            className="nodrag pointer-events-auto text-body text-strong text-foreground underline-offset-2 hover:underline"
+            className="nodrag text-body text-strong pointer-events-auto text-foreground underline-offset-2 hover:underline"
             onMouseDown={(e) => e.stopPropagation()}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: 'pointer' }}
           >
             {title}
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="nodrag pointer-events-auto w-56 p-2 space-y-1"
+          className="nodrag pointer-events-auto w-56 space-y-1 p-2"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <p className="text-title">Span Info</p>
@@ -70,11 +72,7 @@ function SpanNode({ data, isConnectable }: any) {
             <p>Offset: {offset}</p>
             <p>Exec Time: {execTime}</p>
             <p>Duration: {duration.toFixed(2)} ms</p>
-            {hasError && (
-              <p className="text-destructive font-semibold mt-2">
-                Error encountered
-              </p>
-            )}
+            {hasError && <p className="mt-2 font-semibold text-destructive">Error encountered</p>}
           </div>
         </PopoverContent>
       </Popover>
@@ -84,7 +82,7 @@ function SpanNode({ data, isConnectable }: any) {
         type="source"
         position={Position.Right}
         isConnectable={isConnectable}
-        className="!bg-accent w-2 h-6 rounded-none"
+        className="h-6 w-2 rounded-none !bg-accent"
       />
     </div>
   );

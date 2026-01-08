@@ -1,6 +1,6 @@
 /**
  * Tests for API route caching utilities
- * 
+ *
  * Covers:
  * - Cache-Control header generation
  * - Response wrapping with cache headers
@@ -9,10 +9,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { 
-  CACHE_DURATIONS, 
-  buildCacheControl, 
-  withCacheHeaders 
+import {
+  CACHE_DURATIONS,
+  buildCacheControl,
+  withCacheHeaders,
 } from '@/app/api/_utils/cacheResponse';
 
 describe('cacheResponse utilities', () => {
@@ -168,7 +168,7 @@ describe('cacheResponse utilities', () => {
 
 describe('API Route Caching Integration', () => {
   // These tests verify the expected cache durations for each route type
-  
+
   it('logs should use SHORT cache (30s) - data changes frequently', () => {
     // Logs are dynamic, should have short cache
     expect(CACHE_DURATIONS.SHORT.maxAge).toBe(30);
@@ -189,4 +189,3 @@ describe('API Route Caching Integration', () => {
     expect(CACHE_DURATIONS.LONG.maxAge).toBe(300);
   });
 });
-

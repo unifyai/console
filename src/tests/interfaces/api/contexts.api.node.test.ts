@@ -30,16 +30,10 @@ describe('@real Contexts API', () => {
   afterAll(async () => {
     // Cleanup contexts first
     for (const name of createdContexts) {
-      await safeDelete(
-        () => contextsApi.delete(testProject, name),
-        `context: ${name}`
-      );
+      await safeDelete(() => contextsApi.delete(testProject, name), `context: ${name}`);
     }
     // Then cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProject),
-      `project: ${testProject}`
-    );
+    await safeDelete(() => projectsApi.delete(testProject), `project: ${testProject}`);
   });
 
   it('@real lists contexts in project', realTestOptions, async () => {
@@ -54,11 +48,7 @@ describe('@real Contexts API', () => {
     const description = 'Test context description';
 
     // Create context
-    const result = await contextsApi.create(
-      testProject,
-      contextName,
-      description
-    );
+    const result = await contextsApi.create(testProject, contextName, description);
     createdContexts.push(contextName);
 
     expect(result).toBeDefined();
@@ -104,23 +94,19 @@ describe('@real Contexts API', () => {
     }
   });
 
-  it(
-    '@real returns error for non-existent context deletion',
-    realTestOptions,
-    async () => {
-      const nonExistentContext = uniqueName('non-existent-context');
+  it('@real returns error for non-existent context deletion', realTestOptions, async () => {
+    const nonExistentContext = uniqueName('non-existent-context');
 
-      // Try to delete a context that doesn't exist
-      try {
-        await contextsApi.delete(testProject, nonExistentContext);
-        // Some APIs return success for idempotent deletes - that's okay
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        const apiError = e as ApiError;
-        expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
-      }
+    // Try to delete a context that doesn't exist
+    try {
+      await contextsApi.delete(testProject, nonExistentContext);
+      // Some APIs return success for idempotent deletes - that's okay
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      const apiError = e as ApiError;
+      expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
     }
-  );
+  });
 
   it('@real creates context without description', realTestOptions, async () => {
     const contextName = uniqueName('test-context-nodesc');

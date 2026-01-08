@@ -17,7 +17,7 @@ const DEFAULT_USE_INTERFACE_RETURN = {
   operationsActions: null,
   actions: null,
   exists: false,
-  interfaceId: null
+  interfaceId: null,
 };
 
 /**
@@ -43,36 +43,27 @@ export interface InterfaceActions {
  */
 export function useInterface(interfaceIdOrName: string | null, projectIdOrName?: string | null) {
   // Use specialized hooks
-  const {
-    meta,
-    metaActions,
-    interfaceId,
-    activeProjectId,
-    interfaceExists
-  } = useInterfaceMeta(interfaceIdOrName, projectIdOrName);
-  
-  const {
-    data,
-    dataActions,
-    tabIds,
-    tabNames
-  } = useInterfaceData(interfaceIdOrName, projectIdOrName);
-  
-  const {
-    ui,
-    uiActions,
-    activeTabId
-  } = useInterfaceUI(interfaceIdOrName, projectIdOrName);
-  
+  const { meta, metaActions, interfaceId, activeProjectId, interfaceExists } = useInterfaceMeta(
+    interfaceIdOrName,
+    projectIdOrName
+  );
+
+  const { data, dataActions, tabIds, tabNames } = useInterfaceData(
+    interfaceIdOrName,
+    projectIdOrName
+  );
+
+  const { ui, uiActions, activeTabId } = useInterfaceUI(interfaceIdOrName, projectIdOrName);
+
   // const {
   //   operations,
   //   operationsActions
   // } = useInterfaceOperations(interfaceName, projectName);
 
   // Get store actions for core interface management
-  const storeInitInterface = useStoreContext(state => state.initInterface);
-  const storeUpdateInterface = useStoreContext(state => state.updateInterface);
-  const storeRemoveInterface = useStoreContext(state => state.removeInterface);
+  const storeInitInterface = useStoreContext((state) => state.initInterface);
+  const storeUpdateInterface = useStoreContext((state) => state.updateInterface);
+  const storeRemoveInterface = useStoreContext((state) => state.removeInterface);
 
   // Memoize all actions to prevent unnecessary re-renders
   const actions = useMemo<InterfaceActions>(() => {
@@ -83,13 +74,13 @@ export function useInterface(interfaceIdOrName: string | null, projectIdOrName?:
           storeInitInterface(activeProjectId, interfaceId, initialState);
         }
       },
-      
+
       updateInterface: (updates) => {
         if (activeProjectId && interfaceId) {
           storeUpdateInterface(interfaceId, updates);
         }
       },
-      
+
       removeInterface: () => {
         if (activeProjectId && interfaceId) {
           storeRemoveInterface(activeProjectId, interfaceId);
@@ -109,17 +100,17 @@ export function useInterface(interfaceIdOrName: string | null, projectIdOrName?:
     storeRemoveInterface,
     metaActions,
     dataActions,
-    uiActions
+    uiActions,
   ]);
-  
+
   // Build a final 'interface' object from the separate meta, data, and UI objects
   const interfaceObj = useMemo<Partial<Interface> | null>(() => {
     if (!meta || !data || !ui) return null;
-    
+
     return {
       ...meta,
       ...data,
-      ...ui
+      ...ui,
     };
   }, [meta, data, ui]);
 
@@ -139,6 +130,6 @@ export function useInterface(interfaceIdOrName: string | null, projectIdOrName?:
     // operationsActions,
     actions,
     exists: interfaceExists,
-    interfaceId
+    interfaceId,
   };
-} 
+}

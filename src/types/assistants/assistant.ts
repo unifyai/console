@@ -1,18 +1,18 @@
-import { ResponseProps } from "../common";
-import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
-import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
-import { ChatMessage, UnifyMessage } from "./chat";
-import { SecretActions } from "./secret";
-import { ConnectionDetails } from "./call";
+import { ResponseProps } from '../common';
+import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
+import { AssistantHiringApprovalResponse, HiringProfileData } from '../user';
+import { ChatMessage, UnifyMessage } from './chat';
+import { SecretActions } from './secret';
+import { ConnectionDetails } from './call';
 
-export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
-export type VoiceMode = "sts" | "tts"
-export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
-export type AssistantHiringSufficientFunds = {sufficient: boolean};
+export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
+export type VoiceMode = 'sts' | 'tts';
+export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
+export type AssistantHiringSufficientFunds = { sufficient: boolean };
 
 // Type for the pre_hire_chat payload
 export interface PreHireChatMessage {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   msg: string;
 }
 
@@ -58,27 +58,43 @@ export interface Assistant {
 }
 
 export interface AssistantStatus {
-    running: boolean;
-    uptimeSeconds: number;
-    processId: number | null;
-    assistantId: string;
-    shutdownReason: string | null;
-    inactivityTimeoutMinutes: number;
-    message: string | null;
+  running: boolean;
+  uptimeSeconds: number;
+  processId: number | null;
+  assistantId: string;
+  shutdownReason: string | null;
+  inactivityTimeoutMinutes: number;
+  message: string | null;
 }
 
-export type AssistantPreset =
-  Omit<Assistant, 'agentId' | 'userId' | 'organizationId' | 'createdAt' | 'updatedAt' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'userPhone' | 'userWhatsappNumber' | 'assistantWhatsappNumber' | 'weeklyLimit' | 'maxParallel' | 'voiceId' | 'voiceProvider'>
-  & {
-      gender?: 'male' | 'female';
-      phoneCountry: string;
-      voiceIds: {
-          cartesia?: string | null;
-          elevenlabs?: string | null;
-          openai?: string | null;
-      };
-      language?: string | null;
-    };
+export type AssistantPreset = Omit<
+  Assistant,
+  | 'agentId'
+  | 'userId'
+  | 'organizationId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'signedProfilePhotoUrl'
+  | 'signedProfileVideoUrl'
+  | 'email'
+  | 'phone'
+  | 'userPhone'
+  | 'userWhatsappNumber'
+  | 'assistantWhatsappNumber'
+  | 'weeklyLimit'
+  | 'maxParallel'
+  | 'voiceId'
+  | 'voiceProvider'
+> & {
+  gender?: 'male' | 'female';
+  phoneCountry: string;
+  voiceIds: {
+    cartesia?: string | null;
+    elevenlabs?: string | null;
+    openai?: string | null;
+  };
+  language?: string | null;
+};
 
 export interface SocialAccount {
   platform: string;
@@ -94,109 +110,127 @@ export interface SocialAccount {
   isInitial?: boolean;
 }
 
-export type AssistantFormData =
-  Omit<Assistant, 'agentId' | 'userId' | 'organizationId' | 'createdAt' | 'updatedAt' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profilePhoto' | 'profileVideo' | 'phone' | 'assistantWhatsappNumber' | 'userWhatsappNumber' | 'weeklyLimit' | 'maxParallel' | 'gender' | 'voiceId' | 'voiceProvider' | 'email'>
-  & {
-      email?: string | null;
-      isEmailAdded?: boolean;
-      emailManuallyEdited?: boolean;
-      profilePhotoUrl?: string | null; // GCS URL for photo
-      profileVideoUrl?: string | null; // GCS URL for video
-      photoFile?: File | null;
-      videoFile?: File | null;
-      photoPreviewUrl?: string | null;
-      videoPreviewUrl?: string | null;
-      videoSourceVoiceId?: string | null;
-      userPhone?: string | null;
-      userPhoneIsVerified?: boolean;
-      userPhoneIsVerifying?: boolean;
-      userPhoneVerificationCodeSent?: string | null;
-      userPhoneVerificationSentAt?: Date | null;
-      userPhoneVerificationAttempts?: number;
-      userPhoneVerificationError?: string | null;
-      userWhatsappNumber?: string | null;
-      phoneCountry?: string;
-      timezone?: string | null;
-      voiceId?: string;
-      voiceName?: string;
-      voiceDescription?: string;
-      voiceGender?: CartesiaGender;
-      voiceLanguage?: SupportedLanguage | "multi";
-      voiceExists?: boolean;
-      voiceProvider?: VoiceProvider;
-      isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl' | 'phoneCountry'> | null;
-      currentPreset?: AssistantPreset | null;
-      socialAccounts?: SocialAccount[];
-      setup?: 'remote' | 'local';
-      isPhoneNumberAdded?: boolean;
-      operatingSystem?: 'ubuntu' | 'windows' | 'macos';
-      designIncludeBio?: boolean;
-      fastMode?: boolean;
-    };
+export type AssistantFormData = Omit<
+  Assistant,
+  | 'agentId'
+  | 'userId'
+  | 'organizationId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'signedProfilePhotoUrl'
+  | 'signedProfileVideoUrl'
+  | 'profilePhoto'
+  | 'profileVideo'
+  | 'phone'
+  | 'assistantWhatsappNumber'
+  | 'userWhatsappNumber'
+  | 'weeklyLimit'
+  | 'maxParallel'
+  | 'gender'
+  | 'voiceId'
+  | 'voiceProvider'
+  | 'email'
+> & {
+  email?: string | null;
+  isEmailAdded?: boolean;
+  emailManuallyEdited?: boolean;
+  profilePhotoUrl?: string | null; // GCS URL for photo
+  profileVideoUrl?: string | null; // GCS URL for video
+  photoFile?: File | null;
+  videoFile?: File | null;
+  photoPreviewUrl?: string | null;
+  videoPreviewUrl?: string | null;
+  videoSourceVoiceId?: string | null;
+  userPhone?: string | null;
+  userPhoneIsVerified?: boolean;
+  userPhoneIsVerifying?: boolean;
+  userPhoneVerificationCodeSent?: string | null;
+  userPhoneVerificationSentAt?: Date | null;
+  userPhoneVerificationAttempts?: number;
+  userPhoneVerificationError?: string | null;
+  userWhatsappNumber?: string | null;
+  phoneCountry?: string;
+  timezone?: string | null;
+  voiceId?: string;
+  voiceName?: string;
+  voiceDescription?: string;
+  voiceGender?: CartesiaGender;
+  voiceLanguage?: SupportedLanguage | 'multi';
+  voiceExists?: boolean;
+  voiceProvider?: VoiceProvider;
+  isPresetPristine?: boolean;
+  presetOriginalValues?: Pick<
+    AssistantFormData,
+    'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl' | 'phoneCountry'
+  > | null;
+  currentPreset?: AssistantPreset | null;
+  socialAccounts?: SocialAccount[];
+  setup?: 'remote' | 'local';
+  isPhoneNumberAdded?: boolean;
+  operatingSystem?: 'ubuntu' | 'windows' | 'macos';
+  designIncludeBio?: boolean;
+  fastMode?: boolean;
+};
 
 export interface PhotoUploadResponse {
-    gcsUrl: string;
+  gcsUrl: string;
 }
 
 export interface PhotoGenerateRequest {
-    prompt: string;
-    aspectRatio?: string;
-    outputFormat?: string;
-    outputQuality?: number;
-    safetyTolerance?: number;
-    promptUpsampling?: boolean;
+  prompt: string;
+  aspectRatio?: string;
+  outputFormat?: string;
+  outputQuality?: number;
+  safetyTolerance?: number;
+  promptUpsampling?: boolean;
 }
 
 export interface PhotoEditRequest {
-    prompt: string;
-    inputImage: string;
-    aspectRatio?: string;
-    outputFormat?: string;
-    safetyTolerance?: number;
+  prompt: string;
+  inputImage: string;
+  aspectRatio?: string;
+  outputFormat?: string;
+  safetyTolerance?: number;
 }
 
 export interface PhotoCreationResponse {
-    url: string;
+  url: string;
 }
 
 export interface ReplicatePredictionResponse {
-    id: string;
-    model: string;
-    version: string;
-    input?: Record<string, any>;
-    output?: any; // This will be an array with the video URL on success
-    logs?: string;
-    error?: any;
-    status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
-    createdAt: string;
-    completedAt?: string;
-    urls?: {
-        get?: string;
-        cancel?: string;
-    };
+  id: string;
+  model: string;
+  version: string;
+  input?: Record<string, any>;
+  output?: any; // This will be an array with the video URL on success
+  logs?: string;
+  error?: any;
+  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
+  createdAt: string;
+  completedAt?: string;
+  urls?: {
+    get?: string;
+    cancel?: string;
+  };
 }
-
-
 
 export interface AssistantUpdatePayload {
-    about?: string | null;
-    weeklyLimit?: number | null;
-    maxParallel?: number | null;
-    userPhone?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    userWhatsappNumber?: string | null;
-    voiceId?: string | null;
-    voiceProvider?: VoiceProvider | null;
-    voiceMode?: VoiceMode | null;
-    phoneCountry?: string | null;
-    timezone?: string | null;
-    profilePhoto?: string | null;
-    profileVideo?: string | null;
-    userLocalDesktop?: UserLocalDesktop | null;
+  about?: string | null;
+  weeklyLimit?: number | null;
+  maxParallel?: number | null;
+  userPhone?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  userWhatsappNumber?: string | null;
+  voiceId?: string | null;
+  voiceProvider?: VoiceProvider | null;
+  voiceMode?: VoiceMode | null;
+  phoneCountry?: string | null;
+  timezone?: string | null;
+  profilePhoto?: string | null;
+  profileVideo?: string | null;
+  userLocalDesktop?: UserLocalDesktop | null;
 }
-
 
 // Assistant voice types
 export interface Voice {
@@ -204,132 +238,194 @@ export interface Voice {
   name: string;
   description: string;
   gender: Gender;
-  language: SupportedLanguage | "multi";
-  provider: "cartesia" | "elevenlabs" | "openai";
+  language: SupportedLanguage | 'multi';
+  provider: 'cartesia' | 'elevenlabs' | 'openai';
   isPreset?: boolean;
 }
 
 export type VoiceOption = Voice & {
-    isUserVoiceInOrchestra?: boolean;
+  isUserVoiceInOrchestra?: boolean;
 };
 
 export interface GenerateSpeechPayload {
-    text: string;
-    provider: "cartesia" | "elevenlabs" | "openai";
-    voiceId: string;
-    modelId?: string;
-    outputFormat: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
-    cartesiaLanguage?: SupportedLanguage;
-    cartesiaSampleRate?: number;
-    cartesiaBitRate?: number;
-    elevenlabsOptimizeStreamingLatency?: number;
-    elevenlabsVoiceSettingsSimilarityBoost?: number;
+  text: string;
+  provider: 'cartesia' | 'elevenlabs' | 'openai';
+  voiceId: string;
+  modelId?: string;
+  outputFormat: 'mp3' | 'wav' | 'flac' | 'pcm_s16le' | 'pcm_mulaw';
+  cartesiaLanguage?: SupportedLanguage;
+  cartesiaSampleRate?: number;
+  cartesiaBitRate?: number;
+  elevenlabsOptimizeStreamingLatency?: number;
+  elevenlabsVoiceSettingsSimilarityBoost?: number;
 }
 
 export interface AvailablePhoneCountry {
-    code: string;
-    name: string;
-    flag: string;
+  code: string;
+  name: string;
+  flag: string;
 }
 
 export interface AvailableSocialPlatform {
-    name: string;
-    cost: number;
+  name: string;
+  cost: number;
 }
 
 export interface VoiceDesignGeneratePreviewsRequest {
-    voiceDescription?: string | null;
-    bio?: string | null;
-    text?: string;
-    autoGenerateText?: boolean;
-    modelId?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";
+  voiceDescription?: string | null;
+  bio?: string | null;
+  text?: string;
+  autoGenerateText?: boolean;
+  modelId?: 'eleven_multilingual_ttv_v2' | 'eleven_ttv_v3';
 }
 
 export interface VoiceDesignPreviewItem {
-    audioBase64: string;
-    generatedVoiceId: string;
-    mediaType: string;
-    durationSecs?: number;
+  audioBase64: string;
+  generatedVoiceId: string;
+  mediaType: string;
+  durationSecs?: number;
 }
 
 export interface VoiceDesignGeneratePreviewsAPIResponse {
-    previews: VoiceDesignPreviewItem[];
-    text: string;
+  previews: VoiceDesignPreviewItem[];
+  text: string;
 }
 
 export interface VoiceDesignCreateFromPreviewRequest {
-    generatedVoiceId: string;
-    voiceName: string;
-    voiceDescription: string;
-    labels?: { [key: string]: string };
-    language?: SupportedLanguage;
-    gender?: CartesiaGender | 'other';
-    audioBase64?: string | null;
-    mediaType?: string | null;
+  generatedVoiceId: string;
+  voiceName: string;
+  voiceDescription: string;
+  labels?: { [key: string]: string };
+  language?: SupportedLanguage;
+  gender?: CartesiaGender | 'other';
+  audioBase64?: string | null;
+  mediaType?: string | null;
 }
 
 export interface AssistantActions {
-    "assistant": {
+  assistant: {
     list: () => Promise<Assistant[] | ResponseProps>;
     check: (hiringFee: number) => Promise<AssistantHiringSufficientFunds | ResponseProps>;
     create: (
-        firstName: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
-        profilePhoto: string | null, profileVideo: string | null, about: string | null, 
-        voiceId: string | null, voiceProvider: VoiceProvider | null, voiceMode: VoiceMode | null,
-        email: string | null, userPhone: string | null, phoneCountry: string | null,
-        userWhatsappNumber: string | null, userLocalDesktop: UserLocalDesktop | null,
-        preHireChat?: PreHireChatMessage[]
+      firstName: string,
+      surname: string,
+      age: number | null,
+      nationality: string | null,
+      timezone: string | null,
+      profilePhoto: string | null,
+      profileVideo: string | null,
+      about: string | null,
+      voiceId: string | null,
+      voiceProvider: VoiceProvider | null,
+      voiceMode: VoiceMode | null,
+      email: string | null,
+      userPhone: string | null,
+      phoneCountry: string | null,
+      userWhatsappNumber: string | null,
+      userLocalDesktop: UserLocalDesktop | null,
+      preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
-    update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
+    update: (
+      assistantId: string,
+      payload: Partial<AssistantUpdatePayload>
+    ) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
     status: (assistantId: string) => Promise<AssistantStatus | ResponseProps>;
-    },
-    "photo": {
+  };
+  photo: {
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
     uploadVideo: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
-    download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
-    downloadPresetVideo: (firstName: string, lastName: string, provider: string) => Promise<{signedUrl?: string; detail?: string;}>;
+    download: (filePathOrUrl: string) => Promise<{ signedUrl?: string; detail?: string }>;
+    downloadPresetVideo: (
+      firstName: string,
+      lastName: string,
+      provider: string
+    ) => Promise<{ signedUrl?: string; detail?: string }>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
     animate: (formData: FormData) => Promise<ReplicatePredictionResponse | ResponseProps>;
     getAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
     cancelAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
-    },
-    "voice": {
-    list: () => Promise<(Voice & {isPreset?: boolean})[] | ResponseProps>;
-    register: (voiceId: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", isPreset: boolean) => Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps>;
+  };
+  voice: {
+    list: () => Promise<(Voice & { isPreset?: boolean })[] | ResponseProps>;
+    register: (
+      voiceId: string,
+      provider: string,
+      name: string,
+      description: string,
+      gender: CartesiaGender,
+      language: SupportedLanguage | 'multi',
+      isPreset: boolean
+    ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
     delete: (voiceId: string, voiceProvider: string) => Promise<ResponseProps>;
-    clone: (formData: FormData) => Promise<(Voice & {info?:string; isPreset?: boolean}) | ResponseProps>;
-    generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
-    preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
-    design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps>;
-    },
-    "chat": {
-        getContactId: (ownerContext: string, assistantContext: string, userEmail: string) => Promise<number | null>;
-        getTranscripts: (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
-        message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
-        getAssistantOwnerById: (userId: string) => Promise<{ firstName: string; lastName: string } | null>;
-        triggerContactSync: (assistantId: string) => Promise<ResponseProps>;
-    },
-    "contact": {
-    delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;
+    clone: (
+      formData: FormData
+    ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
+    generate: (
+      payload: GenerateSpeechPayload
+    ) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
+    preview: (
+      payload: VoiceDesignGeneratePreviewsRequest
+    ) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
+    design: (
+      payload: VoiceDesignCreateFromPreviewRequest
+    ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
+  };
+  chat: {
+    getContactId: (
+      ownerContext: string,
+      assistantContext: string,
+      userEmail: string
+    ) => Promise<number | null>;
+    getTranscripts: (
+      ownerContext: string,
+      assistantContext: string,
+      contactId: number,
+      beforeMessageId?: number
+    ) => Promise<ChatMessage[] | ResponseProps>;
+    message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
+    getAssistantOwnerById: (
+      userId: string
+    ) => Promise<{ firstName: string; lastName: string } | null>;
+    triggerContactSync: (assistantId: string) => Promise<ResponseProps>;
+  };
+  contact: {
+    delete: (
+      assistantId: string,
+      contactType: 'phone' | 'email' | 'whatsapp'
+    ) => Promise<ResponseProps & { assistant?: Assistant }>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
-    verifySocialAccount: (platform: string, accountIdentifier: string) => Promise<{ verificationCode: string; sentAt: string; } | ResponseProps>;
-    },
-    "secret": SecretActions;
-    "approval": {
-    getProfile: () => Promise<HiringProfileData | ResponseProps>
+    verifySocialAccount: (
+      platform: string,
+      accountIdentifier: string
+    ) => Promise<{ verificationCode: string; sentAt: string } | ResponseProps>;
+  };
+  secret: SecretActions;
+  approval: {
+    getProfile: () => Promise<HiringProfileData | ResponseProps>;
     requestAccess: () => Promise<AssistantHiringApprovalResponse>;
     claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
-    },
-    "call": {
-      getConnectionDetails: (assistantId: string, assistantName: string) => Promise<ConnectionDetails | ResponseProps>;
-      dispatchToCall: (assistantId: string, assistantName: string, roomName: string) => Promise<ResponseProps>;
-    },
-    "desktop": {
-        getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
-        sendSystemEvent: (assistantId: string, eventType: 'pause_actor' | 'resume_actor', message: string) => Promise<ResponseProps>;
-    }
+  };
+  call: {
+    getConnectionDetails: (
+      assistantId: string,
+      assistantName: string
+    ) => Promise<ConnectionDetails | ResponseProps>;
+    dispatchToCall: (
+      assistantId: string,
+      assistantName: string,
+      roomName: string
+    ) => Promise<ResponseProps>;
+  };
+  desktop: {
+    getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+    sendSystemEvent: (
+      assistantId: string,
+      eventType: 'pause_actor' | 'resume_actor',
+      message: string
+    ) => Promise<ResponseProps>;
+  };
 }

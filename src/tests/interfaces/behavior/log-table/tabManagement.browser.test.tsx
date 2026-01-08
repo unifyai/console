@@ -2,7 +2,7 @@
  * P1-C: Tab Management Behavior Tests
  *
  * Tests tab sidebar interactions using the REAL TabList component.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - C1: Switch tabs
  * - C2: Create tab
@@ -16,7 +16,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderTabSidebar, createMockTabs, MockTab, TabSidebarTestResult } from '../fixtures/tabSidebarTestHarness';
+import {
+  renderTabSidebar,
+  createMockTabs,
+  MockTab,
+  TabSidebarTestResult,
+} from '../fixtures/tabSidebarTestHarness';
 
 // =============================================================================
 // P1-C: Tab Management (Real TabList Component)
@@ -29,7 +34,7 @@ describe('P1-C: Tab Management', () => {
     result?.unmount();
     result = null;
   });
-  
+
   // =========================================================================
   // C1: Switch tabs
   // =========================================================================
@@ -72,7 +77,7 @@ describe('P1-C: Tab Management', () => {
     it('calls onTabClick callback when tab is clicked', async () => {
       const user = userEvent.setup();
       const onTabClick = vi.fn();
-      
+
       result = renderTabSidebar({
         initialTabs: createMockTabs(3),
         callbacks: { onTabClick },
@@ -152,7 +157,7 @@ describe('P1-C: Tab Management', () => {
 
       // Open create dialog
       await user.click(screen.getByTestId('create-tab-button'));
-      
+
       // Type name and submit
       await user.type(screen.getByTestId('new-tab-name-input'), 'New Tab');
       await user.click(screen.getByTestId('create-tab-submit'));
@@ -217,7 +222,7 @@ describe('P1-C: Tab Management', () => {
       await waitFor(() => {
         expect(screen.getByTestId('tab-rename-tab-1')).toBeInTheDocument();
       });
-      
+
       await user.click(screen.getByTestId('tab-rename-tab-1'));
 
       await waitFor(() => {
@@ -245,7 +250,7 @@ describe('P1-C: Tab Management', () => {
       // Programmatically trigger rename through store
       // (The UI flow is complex due to Radix dropdowns; testing store directly is more reliable)
       result.setActiveTab('tab-1');
-      
+
       // The harness exposes store access, so we can verify rename would work
       expect(result.getTabs()).toHaveLength(2);
       expect(result.getTabs()[0].name).toBe('Tab 1');
@@ -265,12 +270,12 @@ describe('P1-C: Tab Management', () => {
         expect(screen.getByTestId('tab-rename-tab-1')).toBeInTheDocument();
       });
       await user.click(screen.getByTestId('tab-rename-tab-1'));
-      
+
       // Wait for dialog
       await waitFor(() => {
         expect(screen.getByTestId('rename-tab-dialog')).toBeInTheDocument();
       });
-      
+
       // Click cancel button
       await user.click(screen.getByTestId('rename-tab-cancel'));
 
@@ -467,9 +472,7 @@ describe('P1-C: Tab Management', () => {
     });
 
     it('displays tab name in button', async () => {
-      const tabsWithIcon: MockTab[] = [
-        { id: 'icon-tab', name: 'Icon Tab', icon: '🎯' },
-      ];
+      const tabsWithIcon: MockTab[] = [{ id: 'icon-tab', name: 'Icon Tab', icon: '🎯' }];
       result = renderTabSidebar({
         initialTabs: tabsWithIcon,
       });
@@ -536,7 +539,7 @@ describe('P1-C: Tab Management', () => {
     });
 
     it('respects showCreateButton=false (no button shown)', async () => {
-      result = renderTabSidebar({ 
+      result = renderTabSidebar({
         initialTabs: createMockTabs(1),
         showCreateButton: false,
       });
@@ -553,7 +556,7 @@ describe('P1-C: Tab Management', () => {
     it('allowDelete and allowReorder are respected by callbacks', async () => {
       const onDeleteTab = vi.fn();
       const onReorderTabs = vi.fn();
-      
+
       result = renderTabSidebar({
         initialTabs: createMockTabs(3),
         allowDelete: false,

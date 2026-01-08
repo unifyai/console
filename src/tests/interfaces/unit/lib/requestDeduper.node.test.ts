@@ -1,6 +1,6 @@
 /**
  * Tests for request deduplication utility (dedupedJson)
- * 
+ *
  * Covers:
  * - Concurrent requests for same URL are coalesced into single fetch
  * - Different URLs are fetched independently
@@ -26,10 +26,10 @@ describe('dedupedJson - request coalescing', () => {
 
   it('coalesces concurrent identical requests into a single fetch', async () => {
     const responseData = { fields: ['field1', 'field2'] };
-    
+
     // Slow response to ensure requests overlap
     mockFetch.mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       return new Response(JSON.stringify(responseData), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -37,7 +37,7 @@ describe('dedupedJson - request coalescing', () => {
     });
 
     const url = '/api/logs/fields?projectName=test&context=ctx';
-    
+
     // Fire 3 concurrent requests for same URL
     const [result1, result2, result3] = await Promise.all([
       dedupedJson(url),
@@ -59,7 +59,7 @@ describe('dedupedJson - request coalescing', () => {
 
   it('does NOT coalesce requests for different URLs', async () => {
     mockFetch.mockImplementation(async (url: string) => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 20));
       const data = url.includes('ctx1') ? { context: 'ctx1' } : { context: 'ctx2' };
       return new Response(JSON.stringify(data), { status: 200 });
     });
@@ -67,10 +67,7 @@ describe('dedupedJson - request coalescing', () => {
     const url1 = '/api/logs/fields?projectName=test&context=ctx1';
     const url2 = '/api/logs/fields?projectName=test&context=ctx2';
 
-    const [result1, result2] = await Promise.all([
-      dedupedJson(url1),
-      dedupedJson(url2),
-    ]);
+    const [result1, result2] = await Promise.all([dedupedJson(url1), dedupedJson(url2)]);
 
     expect(result1.json).toEqual({ context: 'ctx1' });
     expect(result2.json).toEqual({ context: 'ctx2' });
@@ -127,7 +124,7 @@ describe('dedupedJson - request coalescing', () => {
       new Response(JSON.stringify({ data: 'test' }), {
         status: 200,
         headers: {
-          'ETag': '"abc123"',
+          ETag: '"abc123"',
           'Last-Modified': 'Wed, 21 Oct 2024 07:28:00 GMT',
         },
       })
@@ -184,9 +181,7 @@ describe('dedupedJson - request coalescing', () => {
   });
 
   it('handles 304 Not Modified (no body parsing)', async () => {
-    mockFetch.mockResolvedValue(
-      new Response(null, { status: 304 })
-    );
+    mockFetch.mockResolvedValue(new Response(null, { status: 304 }));
 
     const result = await dedupedJson('/api/logs/fields?projectName=test');
 
@@ -195,9 +190,7 @@ describe('dedupedJson - request coalescing', () => {
   });
 
   it('handles malformed JSON gracefully', async () => {
-    mockFetch.mockResolvedValue(
-      new Response('not valid json', { status: 200 })
-    );
+    mockFetch.mockResolvedValue(new Response('not valid json', { status: 200 }));
 
     const result = await dedupedJson('/api/logs/fields?projectName=test');
 
@@ -227,7 +220,7 @@ describe('dedupedJson - real-world scenarios', () => {
     };
 
     mockFetch.mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await new Promise((resolve) => setTimeout(resolve, 30));
       return new Response(JSON.stringify(fieldsResponse), { status: 200 });
     });
 
@@ -254,7 +247,7 @@ describe('dedupedJson - real-world scenarios', () => {
 
   it('simulates multiple tabs with different contexts - no coalescing', async () => {
     mockFetch.mockImplementation(async (url: string) => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 20));
       const context = url.includes('ctx1') ? 'ctx1' : url.includes('ctx2') ? 'ctx2' : 'ctx3';
       return new Response(JSON.stringify({ context }), { status: 200 });
     });
@@ -274,4 +267,3 @@ describe('dedupedJson - real-world scenarios', () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 });
-

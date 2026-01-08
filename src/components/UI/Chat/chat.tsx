@@ -1,45 +1,42 @@
-"use client"
+'use client';
 
-import { forwardRef, useState, type ReactElement } from "react"
-import { ArrowDown, ThumbsDown, ThumbsUp } from "lucide-react"
+import { forwardRef, useState, type ReactElement } from 'react';
+import { ArrowDown, ThumbsDown, ThumbsUp } from 'lucide-react';
 
-import { cn } from "@/lib/utils"
-import { useAutoScroll } from "@/hooks/Chat/use-auto-scroll"
-import { Button } from "@/components/UI/button"
-import { type Message } from "@/components/UI/Chat/chat-message"
-import { CopyButton } from "@/components/Common/Buttons/Copy"
-import { MessageInput } from "@/components/UI/Chat/message-input"
-import { MessageList } from "@/components/UI/Chat/message-list"
-import { PromptSuggestions } from "@/components/UI/Chat/prompt-suggestions"
+import { cn } from '@/lib/utils';
+import { useAutoScroll } from '@/hooks/Chat/use-auto-scroll';
+import { Button } from '@/components/UI/button';
+import { type Message } from '@/components/UI/Chat/chat-message';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import { MessageInput } from '@/components/UI/Chat/message-input';
+import { MessageList } from '@/components/UI/Chat/message-list';
+import { PromptSuggestions } from '@/components/UI/Chat/prompt-suggestions';
 
 interface ChatPropsBase {
   handleSubmit: (
     event?: { preventDefault?: () => void },
     options?: { experimentalAttachments?: FileList }
-  ) => void
-  messages: Array<Message>
-  input: string
-  className?: string
-  handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement>
-  isGenerating: boolean
-  stop?: () => void
-  onRateResponse?: (
-    messageId: string,
-    rating: "thumbs-up" | "thumbs-down"
-  ) => void
+  ) => void;
+  messages: Array<Message>;
+  input: string;
+  className?: string;
+  handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement>;
+  isGenerating: boolean;
+  stop?: () => void;
+  onRateResponse?: (messageId: string, rating: 'thumbs-up' | 'thumbs-down') => void;
 }
 
 interface ChatPropsWithoutSuggestions extends ChatPropsBase {
-  append?: never
-  suggestions?: never
+  append?: never;
+  suggestions?: never;
 }
 
 interface ChatPropsWithSuggestions extends ChatPropsBase {
-  append: (message: { role: "user"; content: string }) => void
-  suggestions: string[]
+  append: (message: { role: 'user'; content: string }) => void;
+  suggestions: string[];
 }
 
-type ChatProps = ChatPropsWithoutSuggestions | ChatPropsWithSuggestions
+type ChatProps = ChatPropsWithoutSuggestions | ChatPropsWithSuggestions;
 
 export function Chat({
   messages,
@@ -53,17 +50,14 @@ export function Chat({
   className,
   onRateResponse,
 }: ChatProps) {
-  const lastMessage = messages.at(-1)
-  const isEmpty = messages.length === 0
-  const isTyping = lastMessage?.role === "user"
+  const lastMessage = messages.at(-1);
+  const isEmpty = messages.length === 0;
+  const isTyping = lastMessage?.role === 'user';
 
   return (
     <ChatContainer className={className}>
       {isEmpty && append && suggestions ? (
-        <PromptSuggestions
-          append={append}
-          suggestions={suggestions}
-        />
+        <PromptSuggestions append={append} suggestions={suggestions} />
       ) : null}
 
       {messages.length > 0 ? (
@@ -84,7 +78,7 @@ export function Chat({
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6"
-                    onClick={() => onRateResponse(message.id, "thumbs-up")}
+                    onClick={() => onRateResponse(message.id, 'thumbs-up')}
                   >
                     <ThumbsUp className="h-4 w-4" />
                   </Button>
@@ -92,16 +86,13 @@ export function Chat({
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6"
-                    onClick={() => onRateResponse(message.id, "thumbs-down")}
+                    onClick={() => onRateResponse(message.id, 'thumbs-down')}
                   >
                     <ThumbsDown className="h-4 w-4" />
                   </Button>
                 </>
               ) : (
-                <CopyButton
-                  content={message.content}
-                  copyMessage="Copied response to clipboard!"
-                />
+                <CopyButton content={message.content} copyMessage="Copied response to clipboard!" />
               ),
             })}
           />
@@ -126,25 +117,22 @@ export function Chat({
         )}
       </ChatForm>
     </ChatContainer>
-  )
+  );
 }
-Chat.displayName = "Chat"
+Chat.displayName = 'Chat';
 
 export function ChatMessages({
   messages,
   children,
 }: React.PropsWithChildren<{
-  messages: Message[]
+  messages: Message[];
 }>) {
-  const { containerRef, scrollToBottom, handleScroll, shouldAutoScroll } =
-    useAutoScroll([messages])
+  const { containerRef, scrollToBottom, handleScroll, shouldAutoScroll } = useAutoScroll([
+    messages,
+  ]);
 
   return (
-    <div
-      className="relative overflow-y-auto pb-4"
-      ref={containerRef}
-      onScroll={handleScroll}
-    >
+    <div className="relative overflow-y-auto pb-4" ref={containerRef} onScroll={handleScroll}>
       {children}
 
       {!shouldAutoScroll && (
@@ -160,69 +148,68 @@ export function ChatMessages({
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export const ChatContainer = forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={cn("grid max-h-full w-full grid-rows-[1fr_auto]", className)}
-      {...props}
-    />
-  )
-})
-ChatContainer.displayName = "ChatContainer"
+export const ChatContainer = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn('grid max-h-full w-full grid-rows-[1fr_auto]', className)}
+        {...props}
+      />
+    );
+  }
+);
+ChatContainer.displayName = 'ChatContainer';
 
 interface ChatFormProps {
-  className?: string
-  isPending: boolean
+  className?: string;
+  isPending: boolean;
   handleSubmit: (
     event?: { preventDefault?: () => void },
     options?: { experimentalAttachments?: FileList }
-  ) => void
+  ) => void;
   children: (props: {
-    files: File[] | null
-    setFiles: React.Dispatch<React.SetStateAction<File[] | null>>
-  }) => ReactElement
+    files: File[] | null;
+    setFiles: React.Dispatch<React.SetStateAction<File[] | null>>;
+  }) => ReactElement;
 }
 
 export const ChatForm = forwardRef<HTMLFormElement, ChatFormProps>(
   ({ children, handleSubmit, isPending, className }, ref) => {
-    const [files, setFiles] = useState<File[] | null>(null)
+    const [files, setFiles] = useState<File[] | null>(null);
 
     const onSubmit = (event: React.FormEvent) => {
       if (isPending) {
-        event.preventDefault()
-        return
+        event.preventDefault();
+        return;
       }
 
       if (!files) {
-        handleSubmit(event)
-        return
+        handleSubmit(event);
+        return;
       }
 
-      const fileList = createFileList(files)
-      handleSubmit(event, { experimentalAttachments: fileList })
-      setFiles(null)
-    }
+      const fileList = createFileList(files);
+      handleSubmit(event, { experimentalAttachments: fileList });
+      setFiles(null);
+    };
 
     return (
       <form ref={ref} onSubmit={onSubmit} className={className}>
         {children({ files, setFiles })}
       </form>
-    )
+    );
   }
-)
-ChatForm.displayName = "ChatForm"
+);
+ChatForm.displayName = 'ChatForm';
 
 function createFileList(files: File[] | FileList): FileList {
-  const dataTransfer = new DataTransfer()
+  const dataTransfer = new DataTransfer();
   for (const file of Array.from(files)) {
-    dataTransfer.items.add(file)
+    dataTransfer.items.add(file);
   }
-  return dataTransfer.files
+  return dataTransfer.files;
 }

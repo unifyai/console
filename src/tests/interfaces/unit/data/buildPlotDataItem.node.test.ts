@@ -1,19 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { 
-  buildPlotDataItem, 
+import {
+  buildPlotDataItem,
   getUsedTableNames,
   convertMetricsToDataLabels,
   convertMetricsToGroupedDataLabels,
 } from '@/utils/data/buildPlotDataItem';
-import {
-  TileData,
-  LogsActions,
-  TilePosition,
-} from '@/types/interfaces/grid';
-import {
-  LogFieldsResponseProps,
-  PlotArguments,
-} from '@/types/interfaces/logs';
+import { TileData, LogsActions, TilePosition } from '@/types/interfaces/grid';
+import { LogFieldsResponseProps, PlotArguments } from '@/types/interfaces/logs';
 
 const makePosition = (): TilePosition => ({ x: 0, y: 0, width: 4, height: 4 });
 
@@ -75,14 +68,7 @@ describe('buildPlotDataItem', () => {
       plotTile: {}, // No axes configured
     };
 
-    const result = await buildPlotDataItem(
-      plotTile,
-      [],
-      {},
-      [],
-      'proj-1',
-      dummyLogsActions
-    );
+    const result = await buildPlotDataItem(plotTile, [], {}, [], 'proj-1', dummyLogsActions);
 
     expect(result.plotLogs).toEqual([]);
     expect(result.plotFields).toEqual({});
@@ -151,7 +137,7 @@ describe('buildPlotDataItem', () => {
     expect(log1['TableA.entries']).toBeDefined();
     expect(log1['TableA.entries']['TableA.x']).toBe(1);
     expect(log1['TableA.entries']['TableA.y']).toBe(10);
-    
+
     expect(result.plotFields).toHaveProperty('TableA.entries/val');
   });
 
@@ -190,14 +176,14 @@ describe('buildPlotDataItem', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        'group1': {
+        group1: {
           mean: 50,
           count: 10,
         },
-        'group2': {
+        group2: {
           mean: 75,
           count: 5,
-        }
+        },
       }),
     });
 
@@ -253,14 +239,16 @@ describe('buildPlotDataItem', () => {
       json: async () => ({ detail: 'API Error' }),
     });
 
-    await expect(buildPlotDataItem(
-      plotTile,
-      tableTiles,
-      plotArguments,
-      [baseFields],
-      'proj-1',
-      dummyLogsActions
-    )).rejects.toThrow('Failed to fetch plot logs: 500');
+    await expect(
+      buildPlotDataItem(
+        plotTile,
+        tableTiles,
+        plotArguments,
+        [baseFields],
+        'proj-1',
+        dummyLogsActions
+      )
+    ).rejects.toThrow('Failed to fetch plot logs: 500');
   });
 
   it('buildPlotDataItem handles network failures', async () => {
@@ -293,24 +281,26 @@ describe('buildPlotDataItem', () => {
     // Mock network error
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-    await expect(buildPlotDataItem(
-      plotTile,
-      tableTiles,
-      plotArguments,
-      [baseFields],
-      'proj-1',
-      dummyLogsActions
-    )).rejects.toThrow('Network error');
+    await expect(
+      buildPlotDataItem(
+        plotTile,
+        tableTiles,
+        plotArguments,
+        [baseFields],
+        'proj-1',
+        dummyLogsActions
+      )
+    ).rejects.toThrow('Network error');
   });
 });
 
 describe('convertMetricsToDataLabels', () => {
   it('converts backend metrics response to DataLabel array', () => {
     const metricsResponse = {
-      'sales': {
-        'CategoryA': { mean: 42.5, count: 10 },
-        'CategoryB': { mean: 31.2, count: 5 },
-        'CategoryC': { mean: 55.8, count: 8 },
+      sales: {
+        CategoryA: { mean: 42.5, count: 10 },
+        CategoryB: { mean: 31.2, count: 5 },
+        CategoryC: { mean: 55.8, count: 8 },
       },
     };
 
@@ -324,9 +314,9 @@ describe('convertMetricsToDataLabels', () => {
 
   it('uses sharedValue when present', () => {
     const metricsResponse = {
-      'sales': {
-        'CategoryA': { mean: 42.5, sharedValue: 100 },
-        'CategoryB': { mean: 31.2, sharedValue: null },
+      sales: {
+        CategoryA: { mean: 42.5, sharedValue: 100 },
+        CategoryB: { mean: 31.2, sharedValue: null },
       },
     };
 
@@ -338,8 +328,8 @@ describe('convertMetricsToDataLabels', () => {
 
   it('returns empty array for missing field', () => {
     const metricsResponse = {
-      'other_field': {
-        'CategoryA': { mean: 42.5 },
+      other_field: {
+        CategoryA: { mean: 42.5 },
       },
     };
 
@@ -350,9 +340,9 @@ describe('convertMetricsToDataLabels', () => {
 
   it('handles zero values correctly', () => {
     const metricsResponse = {
-      'sales': {
-        'CategoryA': { mean: 0 },
-        'CategoryB': { mean: 42.5 },
+      sales: {
+        CategoryA: { mean: 0 },
+        CategoryB: { mean: 42.5 },
       },
     };
 
@@ -366,14 +356,14 @@ describe('convertMetricsToDataLabels', () => {
 describe('convertMetricsToGroupedDataLabels', () => {
   it('converts nested backend metrics to GroupedDataLabel array', () => {
     const metricsResponse = {
-      'sales': {
-        'GroupA': {
-          'Cat1': { mean: 10 },
-          'Cat2': { mean: 20 },
+      sales: {
+        GroupA: {
+          Cat1: { mean: 10 },
+          Cat2: { mean: 20 },
         },
-        'GroupB': {
-          'Cat1': { mean: 15 },
-          'Cat2': { mean: 25 },
+        GroupB: {
+          Cat1: { mean: 15 },
+          Cat2: { mean: 25 },
         },
       },
     };
@@ -389,9 +379,9 @@ describe('convertMetricsToGroupedDataLabels', () => {
 
   it('uses sharedValue when present in nested structure', () => {
     const metricsResponse = {
-      'sales': {
-        'GroupA': {
-          'Cat1': { mean: 10, sharedValue: 100 },
+      sales: {
+        GroupA: {
+          Cat1: { mean: 10, sharedValue: 100 },
         },
       },
     };
@@ -403,9 +393,9 @@ describe('convertMetricsToGroupedDataLabels', () => {
 
   it('returns empty array for missing field', () => {
     const metricsResponse = {
-      'other_field': {
-        'GroupA': {
-          'Cat1': { mean: 10 },
+      other_field: {
+        GroupA: {
+          Cat1: { mean: 10 },
         },
       },
     };
@@ -417,11 +407,11 @@ describe('convertMetricsToGroupedDataLabels', () => {
 
   it('handles single group with multiple categories', () => {
     const metricsResponse = {
-      'sales': {
-        'OnlyGroup': {
-          'A': { sum: 100 },
-          'B': { sum: 200 },
-          'C': { sum: 300 },
+      sales: {
+        OnlyGroup: {
+          A: { sum: 100 },
+          B: { sum: 200 },
+          C: { sum: 300 },
         },
       },
     };
@@ -429,6 +419,6 @@ describe('convertMetricsToGroupedDataLabels', () => {
     const result = convertMetricsToGroupedDataLabels(metricsResponse, 'sales', 'sum');
 
     expect(result).toHaveLength(3);
-    expect(result.every(r => r[0] === 'OnlyGroup')).toBe(true);
+    expect(result.every((r) => r[0] === 'OnlyGroup')).toBe(true);
   });
 });

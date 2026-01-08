@@ -1,6 +1,9 @@
 type DedupKey = string;
 
-const inflight = new Map<DedupKey, Promise<{ status: number; ok: boolean; headers: Record<string, string>; json: any }>>();
+const inflight = new Map<
+  DedupKey,
+  Promise<{ status: number; ok: boolean; headers: Record<string, string>; json: any }>
+>();
 
 function makeKey(url: string, method: string | undefined) {
   return `${(method || 'GET').toUpperCase()}:${url}`;
@@ -26,7 +29,11 @@ export async function dedupedJson(
     } catch {}
     let json: any = null;
     if (res.status !== 304) {
-      try { json = await res.json(); } catch { json = null; }
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
     }
     return { status: res.status, ok: res.ok, headers, json };
   })();
@@ -38,5 +45,3 @@ export async function dedupedJson(
     inflight.delete(key);
   }
 }
-
-

@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-var difflib = require("difflib");
-import { Span } from "@/types/interfaces/traces";
+var difflib = require('difflib');
+import { Span } from '@/types/interfaces/traces';
 
 export interface PatchDiffNode {
   name: string;
-  marker: "+" | "-" | " " | "r"; 
+  marker: '+' | '-' | ' ' | 'r';
   baseSpanRef?: Span;
   targetSpanRef?: Span;
   children: PatchDiffNode[];
@@ -18,7 +18,7 @@ export interface PatchDiffNode {
 export function wrapAsRootSpan(spans: Span[], syntheticId: string): Span {
   return {
     id: syntheticId,
-    spanName: "ROOT",
+    spanName: 'ROOT',
     childSpans: spans,
   };
 }
@@ -27,44 +27,37 @@ export function wrapAsRootSpan(spans: Span[], syntheticId: string): Span {
  * We'll unify children by name only, ignoring ID, so near‐identical traces
  * won't show as entirely replaced if IDs differ.
  */
-function getChildKeyPairsByName(spans: Span[]): {key: string; ref: Span}[] {
+function getChildKeyPairsByName(spans: Span[]): { key: string; ref: Span }[] {
   return (spans ?? []).map((child) => ({
-    key: child?.spanName || "unknown",
+    key: child?.spanName || 'unknown',
     ref: child,
   }));
 }
 
 /**
- * Compare two spans by name. 
+ * Compare two spans by name.
  */
-export function computeSpanDiffByName(
-  baseSpan?: Span,
-  targetSpan?: Span
-): PatchDiffNode {
+export function computeSpanDiffByName(baseSpan?: Span, targetSpan?: Span): PatchDiffNode {
   // If both undefined => trivial
   if (!baseSpan && !targetSpan) {
-    return { name: "", marker: " ", children: [] };
+    return { name: '', marker: ' ', children: [] };
   }
 
   if (baseSpan && !targetSpan) {
     return {
       name: baseSpan.spanName,
-      marker: "-",
+      marker: '-',
       baseSpanRef: baseSpan,
-      children: (baseSpan.childSpans ?? []).map((c) => 
-        computeSpanDiffByName(c, undefined)
-      ),
+      children: (baseSpan.childSpans ?? []).map((c) => computeSpanDiffByName(c, undefined)),
     };
   }
 
   if (!baseSpan && targetSpan) {
     return {
       name: targetSpan.spanName,
-      marker: "+",
+      marker: '+',
       targetSpanRef: targetSpan,
-      children: (targetSpan.childSpans ?? []).map((c) =>
-        computeSpanDiffByName(undefined, c)
-      ),
+      children: (targetSpan.childSpans ?? []).map((c) => computeSpanDiffByName(undefined, c)),
     };
   }
 
@@ -72,25 +65,21 @@ export function computeSpanDiffByName(
   if (baseSpan && targetSpan && baseSpan.spanName !== targetSpan.spanName) {
     return {
       name: baseSpan.spanName,
-      marker: "r",
+      marker: 'r',
       baseSpanRef: baseSpan,
       targetSpanRef: targetSpan,
       children: [
         {
           name: baseSpan.spanName,
-          marker: "-",
+          marker: '-',
           baseSpanRef: baseSpan,
-          children: (baseSpan.childSpans ?? []).map((c) =>
-            computeSpanDiffByName(c, undefined)
-          ),
+          children: (baseSpan.childSpans ?? []).map((c) => computeSpanDiffByName(c, undefined)),
         },
         {
           name: targetSpan.spanName,
-          marker: "+",
+          marker: '+',
           targetSpanRef: targetSpan,
-          children: (targetSpan.childSpans ?? []).map((c) =>
-            computeSpanDiffByName(undefined, c)
-          ),
+          children: (targetSpan.childSpans ?? []).map((c) => computeSpanDiffByName(undefined, c)),
         },
       ],
     };
@@ -110,8 +99,8 @@ export function computeSpanDiffByName(
   const children: PatchDiffNode[] = [];
   for (const [tag, i1, i2, j1, j2] of opcodes) {
     switch (tag) {
-      case "equal": {
-        for (let offset = 0; offset < (i2 - i1); offset++) {
+      case 'equal': {
+        for (let offset = 0; offset < i2 - i1; offset++) {
           const bRef = baseKids[i1 + offset]?.ref;
           const tRef = targetKids[j1 + offset]?.ref;
           if (!bRef || !tRef) continue;
@@ -119,47 +108,41 @@ export function computeSpanDiffByName(
         }
         break;
       }
-      case "delete": {
+      case 'delete': {
         for (let idx = i1; idx < i2; idx++) {
           const bRef = baseKids[idx]?.ref;
           if (!bRef) continue;
           children.push({
             name: bRef.spanName,
-            marker: "-",
+            marker: '-',
             baseSpanRef: bRef,
-            children: (bRef.childSpans ?? []).map((c) =>
-              computeSpanDiffByName(c, undefined)
-            ),
+            children: (bRef.childSpans ?? []).map((c) => computeSpanDiffByName(c, undefined)),
           });
         }
         break;
       }
-      case "insert": {
+      case 'insert': {
         for (let idx = j1; idx < j2; idx++) {
           const tRef = targetKids[idx]?.ref;
           if (!tRef) continue;
           children.push({
             name: tRef.spanName,
-            marker: "+",
+            marker: '+',
             targetSpanRef: tRef,
-            children: (tRef.childSpans ?? []).map((c) =>
-              computeSpanDiffByName(undefined, c)
-            ),
+            children: (tRef.childSpans ?? []).map((c) => computeSpanDiffByName(undefined, c)),
           });
         }
         break;
       }
-      case "replace": {
+      case 'replace': {
         for (let idx = i1; idx < i2; idx++) {
           const bRef = baseKids[idx]?.ref;
           if (!bRef) continue;
           children.push({
             name: bRef.spanName,
-            marker: "-",
+            marker: '-',
             baseSpanRef: bRef,
-            children: (bRef.childSpans ?? []).map((c) =>
-              computeSpanDiffByName(c, undefined)
-            ),
+            children: (bRef.childSpans ?? []).map((c) => computeSpanDiffByName(c, undefined)),
           });
         }
         for (let idx = j1; idx < j2; idx++) {
@@ -167,11 +150,9 @@ export function computeSpanDiffByName(
           if (!tRef) continue;
           children.push({
             name: tRef.spanName,
-            marker: "+",
+            marker: '+',
             targetSpanRef: tRef,
-            children: (tRef.childSpans ?? []).map((c) =>
-              computeSpanDiffByName(undefined, c)
-            ),
+            children: (tRef.childSpans ?? []).map((c) => computeSpanDiffByName(undefined, c)),
           });
         }
         break;
@@ -180,8 +161,8 @@ export function computeSpanDiffByName(
   }
 
   return {
-    name: nodeName ? nodeName : "",
-    marker: " ",
+    name: nodeName ? nodeName : '',
+    marker: ' ',
     baseSpanRef: baseSpan,
     targetSpanRef: targetSpan,
     children,

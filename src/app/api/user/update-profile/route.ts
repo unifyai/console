@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       jobTitle,
       bio: bio,
       timezone: timezone || null,
-      image: null // We don't update image in onboarding
+      image: null, // We don't update image in onboarding
     };
 
     const response = await updateUser(userUpdateRequest);

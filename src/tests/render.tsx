@@ -5,7 +5,7 @@ import { NextUIProvider } from '@nextui-org/react';
 import { SidebarProvider } from '@/components/UI/sidebar';
 import { ThemeProvider } from 'next-themes';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
-import { Toaster } from "sonner";
+import { Toaster } from 'sonner';
 
 // Create a client that doesn't retry on failure for tests
 const testQueryClient = new QueryClient({
@@ -15,7 +15,7 @@ const testQueryClient = new QueryClient({
     },
   },
 });
- 
+
 const TestProviders = ({ children }: { children: React.ReactNode }) => {
   // Mirrors the Providers tree in src/components/Pages/Providers/Base.tsx, excluding the SessionProvider
   return (
@@ -36,10 +36,8 @@ const TestProviders = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const customRender = (
-  ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>,
-) => render(ui, { wrapper: TestProviders, ...options });
+const customRender = (ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) =>
+  render(ui, { wrapper: TestProviders, ...options });
 
 // Re-export everything from testing-library
 export * from '@testing-library/react';

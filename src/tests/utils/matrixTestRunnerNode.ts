@@ -93,7 +93,9 @@ function parseShardSpec(): { shardIndex: number; totalShards: number } | null {
 
   const match = shardSpec.match(/^(\d+)\/(\d+)$/);
   if (!match) {
-    console.warn(`[MatrixTestRunner] Invalid MATRIX_SHARD format: "${shardSpec}". Expected "N/M" (e.g., "1/4").`);
+    console.warn(
+      `[MatrixTestRunner] Invalid MATRIX_SHARD format: "${shardSpec}". Expected "N/M" (e.g., "1/4").`
+    );
     return null;
   }
 
@@ -101,7 +103,9 @@ function parseShardSpec(): { shardIndex: number; totalShards: number } | null {
   const totalShards = parseInt(match[2], 10);
 
   if (shardIndex < 1 || shardIndex > totalShards || totalShards < 1) {
-    console.warn(`[MatrixTestRunner] Invalid MATRIX_SHARD values: index=${shardIndex}, total=${totalShards}`);
+    console.warn(
+      `[MatrixTestRunner] Invalid MATRIX_SHARD values: index=${shardIndex}, total=${totalShards}`
+    );
     return null;
   }
 
@@ -162,7 +166,9 @@ export function defineNodeMatrixTests<T>(config: NodeMatrixTestConfig<T>): void 
 
   // Use concurrent describe if enabled
   const rootDescribe = concurrent ? describe.concurrent : describe;
-  const suiteName = shardSpec ? `${name} (shard ${shardSpec.shardIndex}/${shardSpec.totalShards})` : name;
+  const suiteName = shardSpec
+    ? `${name} (shard ${shardSpec.shardIndex}/${shardSpec.totalShards})`
+    : name;
 
   rootDescribe(suiteName, () => {
     if (setup) {

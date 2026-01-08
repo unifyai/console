@@ -6,21 +6,21 @@ export type GroupedDataPoint = [string, DataPoint[]];
 
 export type GroupedDataLabel = [string, DataLabel];
 
-export type GroupingColors = {key: string, color: string}[];
+export type GroupingColors = { key: string; color: string }[];
 
-export type DataRange = number[]
+export type DataRange = number[];
 
-export type GroupedDataRange = [string, number[]][]
+export type GroupedDataRange = [string, number[]][];
 
 export interface GroupedBin extends d3.Bin<number, number> {
-    group: string;
+  group: string;
 }
 
 export type InfoCardData = {
-    x : {"name": string, "value": string | number},
-    y : {"name": string, "value": number},
-    group? : {"name": string, "value": string | number},
-    aggregate? : {"name": string}
-} 
+  x: { name: string; value: string | number };
+  y: { name: string; value: number };
+  group?: { name: string; value: string | number };
+  aggregate?: { name: string };
+};
 
-export type InfoCardPosition = { x: number, y: number}
+export type InfoCardPosition = { x: number; y: number };

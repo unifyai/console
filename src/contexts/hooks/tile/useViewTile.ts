@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import { ViewTileMeta, ViewTileData, ViewTileUI } from "../../slices/selectors/viewTile";
-import { useStoreContext } from "../../providers/StoreProvider";
-import { useTileMeta } from "./useTileMeta";
+import { useMemo } from 'react';
+import { ViewTileMeta, ViewTileData, ViewTileUI } from '../../slices/selectors/viewTile';
+import { useStoreContext } from '../../providers/StoreProvider';
+import { useTileMeta } from './useTileMeta';
 import { ViewTile } from '../../slices/selectors/viewTile';
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -11,7 +11,7 @@ import { useShallow } from "zustand/react/shallow";
 export const DEFAULT_USE_VIEW_TILE_RETURN = {
   viewTile: null,
   viewTileActions: null,
-  exists: false
+  exists: false,
 };
 
 // Default view tile meta
@@ -50,10 +50,7 @@ export interface ViewTileUIActions {
 /**
  * Interface for view-specific actions
  */
-export interface ViewActions extends
-  ViewTileMetaActions,
-  ViewTileDataActions,
-  ViewTileUIActions {}
+export interface ViewActions extends ViewTileMetaActions, ViewTileDataActions, ViewTileUIActions {}
 
 /**
  * Custom hook to access view-specific tile state and actions
@@ -61,26 +58,23 @@ export interface ViewActions extends
  * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing view-specific tile state, actions, and existence flag
  */
-export function useViewTile(
-  tileIdOrName: string | null,
-  tabIdOrName?: string | null
-) {
+export function useViewTile(tileIdOrName: string | null, tabIdOrName?: string | null) {
   // Get tile meta information using the useTileMeta hook
   const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
-  
+
   // Get the tile type to check if it's a view
   const tileType = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tileId) return null;
       return state.tilesById[tileId]?.type;
     })
   );
-  
+
   // Check if the tile exists and is a view
   const isViewTile = tileExists && tileType === 'View';
 
   const viewTile = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!isViewTile || !tileId) return null;
       return state.tilesById[tileId]?.viewTile as ViewTile;
     })
@@ -95,33 +89,26 @@ export function useViewTile(
   // Access store for view-specific data
   const viewData = useMemo(() => {
     if (!isViewTile || !tileId || !viewTile) return null;
-    
+
     return {
-      baseIndex: viewTile.baseIndex
+      baseIndex: viewTile.baseIndex,
     } as ViewTileData;
-  }, [
-    isViewTile,
-    tileId,
-    viewTile?.baseIndex,
-  ]);
+  }, [isViewTile, tileId, viewTile?.baseIndex]);
 
   // Access store for view-specific UI state
   const viewUI = useMemo(() => {
     if (!isViewTile || !tileId) return null;
     // Return empty object as per ViewTileUI interface
     return DEFAULT_VIEW_TILE_UI as ViewTileUI;
-  }, [
-    isViewTile,
-    tileId,
-  ]);
+  }, [isViewTile, tileId]);
 
   // Get store update functions
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
+  const storeUpdateViewTile = useStoreContext((state) => state.updateViewTile);
 
   // Create memoized meta actions
   const viewMetaActions = useMemo<ViewTileMetaActions | null>(() => {
     if (!isViewTile || !tileId) return null;
-    
+
     // Return empty object as per ViewTileMeta interface
     return DEFAULT_VIEW_TILE_META_ACTIONS as ViewTileMetaActions;
   }, [isViewTile, tileId]);
@@ -129,21 +116,21 @@ export function useViewTile(
   // Create memoized data actions
   const viewDataActions = useMemo<ViewTileDataActions | null>(() => {
     if (!isViewTile || !tileId) return null;
-    
+
     return {
       setBaseIndex: (baseIndex) => {
-        const update: Partial<ViewTile> = { 
-          baseIndex: baseIndex 
+        const update: Partial<ViewTile> = {
+          baseIndex: baseIndex,
         };
         storeUpdateViewTile(tileId, update);
-      }
+      },
     };
   }, [isViewTile, tileId, storeUpdateViewTile]);
 
   // Create memoized UI actions
   const viewUIActions = useMemo<ViewTileUIActions | null>(() => {
     if (!isViewTile || !tileId) return null;
-    
+
     // Return empty object as per ViewTileUI interface
     return DEFAULT_VIEW_TILE_UI_ACTIONS as ViewTileUIActions;
   }, [isViewTile, tileId]);
@@ -151,22 +138,22 @@ export function useViewTile(
   // Build a final `viewTile` object from the separate meta, data, and UI objects
   const combinedViewTile = useMemo(() => {
     if (!viewMeta || !viewData || !viewUI) return null;
-    
+
     return {
       ...viewMeta,
       ...viewData,
-      ...viewUI
+      ...viewUI,
     };
   }, [viewMeta, viewData, viewUI]);
 
   // Build a final `viewTileActions` object from the separate meta, data, and UI actions
   const combinedViewTileActions = useMemo(() => {
     if (!viewMetaActions || !viewDataActions || !viewUIActions) return null;
-    
+
     return {
       ...viewMetaActions,
       ...viewDataActions,
-      ...viewUIActions
+      ...viewUIActions,
     };
   }, [viewMetaActions, viewDataActions, viewUIActions]);
 
@@ -178,6 +165,6 @@ export function useViewTile(
   return {
     viewTile: combinedViewTile as ViewTile,
     viewTileActions: combinedViewTileActions as ViewActions,
-    exists: isViewTile
+    exists: isViewTile,
   };
 }

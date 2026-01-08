@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   GranularTileActions,
   ProjectsActions,
@@ -9,15 +9,15 @@ import {
   LogsActions,
   TileData,
   PlotDataItem,
-} from "@/types/interfaces/grid";
+} from '@/types/interfaces/grid';
 import {
   fetchProjectsContextsFields,
   buildOptimisticPlotDataItem,
   OptimisticUpdateDependencies,
-} from "@/utils/data/buildServerDataOptimistic";
-import { getUsedTableNames } from "@/utils/data/buildPlotDataItem";
-import { PlotArguments } from "@/types/interfaces/logs";
-import { useMemo } from "react";
+} from '@/utils/data/buildServerDataOptimistic';
+import { getUsedTableNames } from '@/utils/data/buildPlotDataItem';
+import { PlotArguments } from '@/types/interfaces/logs';
+import { useMemo } from 'react';
 
 /**
  * Debug flag for tile dependency logging
@@ -71,8 +71,8 @@ export function useEnsurePlotTileData(params: {
     const depsNames = getUsedTableNames(plotTile);
     debugLog(
       `[useEnsurePlotTileData] Checking dependencies for plot ${plotTile.name}: [${depsNames.join(
-        ', ',
-      )}]`,
+        ', '
+      )}]`
     );
 
     // Check if all dependencies have their data cached
@@ -80,7 +80,7 @@ export function useEnsurePlotTileData(params: {
       const depTile = tiles.find((t) => t.name === tableName);
       if (!depTile || !depTile.id) {
         debugLog(
-          `[useEnsurePlotTileData] Dependency table "${tableName}" not found for plot ${plotTile.name}`,
+          `[useEnsurePlotTileData] Dependency table "${tableName}" not found for plot ${plotTile.name}`
         );
         return false;
       }
@@ -88,7 +88,7 @@ export function useEnsurePlotTileData(params: {
       const tableData = queryClient.getQueryData(['tableDataItem', depTile.id]);
       if (!tableData) {
         debugLog(
-          `[useEnsurePlotTileData] Dependency "${tableName}" (${depTile.id}) not ready for plot ${plotTile.name}`,
+          `[useEnsurePlotTileData] Dependency "${tableName}" (${depTile.id}) not ready for plot ${plotTile.name}`
         );
         return false;
       }
@@ -96,25 +96,20 @@ export function useEnsurePlotTileData(params: {
       debugLog(`[useEnsurePlotTileData] Dependency "${tableName}" is ready ✓`);
     }
 
-    debugLog(
-      `[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`,
-    );
+    debugLog(`[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`);
     return true;
   }, [tileId, projectId, tabId, tiles, queryClient]);
 
   return useQuery<PlotDataItem>({
-    queryKey: ["ensurePlotTileData", tileId, projectId],
+    queryKey: ['ensurePlotTileData', tileId, projectId],
     staleTime: Infinity,
     gcTime: Infinity,
     enabled: !!tileId && !!projectId && !!plotArguments && dependenciesReady,
     queryFn: async () => {
       debugLog(`[useEnsurePlotTileData] Building plot data for tile: ${tileId}`);
-      
+
       // Fast-path: already exists
-      const existing = queryClient.getQueryData<PlotDataItem>([
-        "plotDataItem",
-        tileId,
-      ]);
+      const existing = queryClient.getQueryData<PlotDataItem>(['plotDataItem', tileId]);
       if (existing) {
         debugLog(`[useEnsurePlotTileData] Plot data already cached for tile: ${tileId}`);
         return existing;
@@ -123,10 +118,10 @@ export function useEnsurePlotTileData(params: {
       /* --------------------------------------------------
        * Get tile metadata
        * ------------------------------------------------*/
-      let tiles = queryClient.getQueryData<TileData[]>(["tiles", tabId]);
+      let tiles = queryClient.getQueryData<TileData[]>(['tiles', tabId]);
       if (!tiles) {
         tiles = await actions.tileActions.list(tabId, undefined, false);
-        queryClient.setQueryData(["tiles", tabId], tiles);
+        queryClient.setQueryData(['tiles', tabId], tiles);
       }
       const plotTile = tiles?.find((t) => t.id === tileId);
       if (!plotTile) throw new Error(`Plot tile ${tileId} not found in tab ${tabId}`);
@@ -136,20 +131,28 @@ export function useEnsurePlotTileData(params: {
        * (They should have been built by useEnsureTableTileData)
        * ------------------------------------------------*/
       const depsNames = getUsedTableNames(plotTile);
-      debugLog(`[useEnsurePlotTileData] Plot tile ${plotTile.name} depends on tables: [${depsNames.join(', ')}]`);
-      
+      debugLog(
+        `[useEnsurePlotTileData] Plot tile ${plotTile.name} depends on tables: [${depsNames.join(', ')}]`
+      );
+
       for (const tableName of depsNames) {
         const depTile = tiles?.find((t) => t.name === tableName);
         if (!depTile || !depTile.id) {
-          throw new Error(`Dependency table "${tableName}" not found for plot tile ${plotTile.name}`);
+          throw new Error(
+            `Dependency table "${tableName}" not found for plot tile ${plotTile.name}`
+          );
         }
 
-        const tableData = queryClient.getQueryData(["tableDataItem", depTile.id]);
+        const tableData = queryClient.getQueryData(['tableDataItem', depTile.id]);
         if (!tableData) {
-          throw new Error(`Table data for "${tableName}" (${depTile.id}) not ready. This should have been built by useEnsureTableTileData before plot building started.`);
+          throw new Error(
+            `Table data for "${tableName}" (${depTile.id}) not ready. This should have been built by useEnsureTableTileData before plot building started.`
+          );
         }
-        
-        debugLog(`[useEnsurePlotTileData] Dependency "${tableName}" is ready for plot ${plotTile.name}`);
+
+        debugLog(
+          `[useEnsurePlotTileData] Dependency "${tableName}" is ready for plot ${plotTile.name}`
+        );
       }
 
       /* --------------------------------------------------
@@ -163,7 +166,7 @@ export function useEnsurePlotTileData(params: {
 
       const { fieldsArray } = await fetchProjectsContextsFields(
         dependencies,
-        tiles!.filter((t) => t.type === "Table"),
+        tiles!.filter((t) => t.type === 'Table'),
         { refetchFields: true, updateCache: true }
       );
 
@@ -171,7 +174,7 @@ export function useEnsurePlotTileData(params: {
       const plotDataItem = await buildOptimisticPlotDataItem(
         dependencies,
         plotTile,
-        tiles!.filter((t) => t.type === "Table"),
+        tiles!.filter((t) => t.type === 'Table'),
         plotArguments as PlotArguments,
         fieldsArray,
         { updateCache: true }
@@ -181,4 +184,4 @@ export function useEnsurePlotTileData(params: {
       return plotDataItem;
     },
   });
-} 
+}

@@ -1,1 +1,1 @@
-export * from './useCommand'; 
+export * from './useCommand';

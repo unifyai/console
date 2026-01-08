@@ -17,4 +17,4 @@ export async function POST(request: NextRequest) {
     console.error('Error validating tax ID:', error);
     return NextResponse.json({ error: 'Failed to validate tax ID' }, { status: 500 });
   }
-} 
+}

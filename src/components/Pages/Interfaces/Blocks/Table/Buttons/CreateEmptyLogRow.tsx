@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { FilePlus, LoaderCircle } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
-import SubmitButton from "@/components/Common/Buttons/Submit";
-import BaseDialog from "@/components/Common/Dialogs/Base";
-import { Input } from "@/components/UI/input";
-import { LogFieldsResponseProps, LogItemProps } from "@/types/interfaces/logs";
-import { ResponseProps } from "@/types/common";
+import React, { useState } from 'react';
+import { FilePlus, LoaderCircle } from 'lucide-react';
+import ActionButton from '@/components/Common/Buttons/Action';
+import SubmitButton from '@/components/Common/Buttons/Submit';
+import BaseDialog from '@/components/Common/Dialogs/Base';
+import { Input } from '@/components/UI/input';
+import { LogFieldsResponseProps, LogItemProps } from '@/types/interfaces/logs';
+import { ResponseProps } from '@/types/common';
 
 interface CreateEmptyLogRowProps {
   projectId: string;
@@ -37,7 +37,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldName, setNewFieldName] = useState('');
   const hasDefinedFields = Object.keys(fields).length > 0;
 
   const handleCreateEmptyLog = async () => {
@@ -45,7 +45,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
 
     setLoading(true);
 
-    const paramsForAPI:  LogItemProps = {};
+    const paramsForAPI: LogItemProps = {};
     const entriesForAPI: LogItemProps = {};
 
     if (!hasDefinedFields) {
@@ -56,9 +56,9 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
       entriesForAPI[newFieldName.trim()] = null;
     } else {
       Object.entries(fields).forEach(([fieldName, fieldMeta]) => {
-        if (fieldMeta.fieldType === "param") {
+        if (fieldMeta.fieldType === 'param') {
           paramsForAPI[fieldName] = null;
-        } else if (fieldMeta.fieldType === "entry") {
+        } else if (fieldMeta.fieldType === 'entry') {
           entriesForAPI[fieldName] = null;
         }
       });
@@ -72,20 +72,21 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
         [entriesForAPI]
       );
 
-      if (response && "info" in response) {
+      if (response && 'info' in response) {
         onSuccess();
       } else {
-        const errorMessage = (response as ResponseProps)?.detail || "Failed to create log. Please try again.";
+        const errorMessage =
+          (response as ResponseProps)?.detail || 'Failed to create log. Please try again.';
         onError(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
       }
     } catch (error) {
-      console.error("Error creating empty log:", error);
-      onError("An unexpected error occurred while creating the log.");
+      console.error('Error creating empty log:', error);
+      onError('An unexpected error occurred while creating the log.');
     } finally {
       setLoading(false);
       if (!hasDefinedFields) {
         setOpen(false);
-        setNewFieldName("");
+        setNewFieldName('');
       }
     }
   };
@@ -94,7 +95,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
     <ActionButton
       icon={loading ? <LoaderCircle className="animate-spin" /> : <FilePlus />}
       tooltip="Add new empty log"
-      text={withButtonText ? "Create New Log" : undefined}
+      text={withButtonText ? 'Create New Log' : undefined}
       disabled={!interactive || loading || !projectId}
       variant="outline"
     />

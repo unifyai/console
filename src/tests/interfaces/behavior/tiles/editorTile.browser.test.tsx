@@ -3,7 +3,7 @@
  *
  * Tests code editor behaviors including file management,
  * code editing, and execution.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - G1: Create file
  * - G2: Edit code
@@ -24,7 +24,6 @@ import { renderEditorTile, createMockFiles } from '../fixtures/editorTileTestHar
 // =============================================================================
 
 describe('P2-G: Editor Tile', () => {
-  
   // =========================================================================
   // G1: Create file
   // =========================================================================
@@ -117,7 +116,7 @@ describe('P2-G: Editor Tile', () => {
 
       const activeId = getActiveFile()!;
       const editor = screen.getByTestId('code-editor');
-      
+
       await user.clear(editor);
       await user.type(editor, 'const x = 1;');
 
@@ -188,9 +187,12 @@ describe('P2-G: Editor Tile', () => {
       });
 
       // Wait for completion
-      await waitFor(() => {
-        expect(isRunning()).toBe(false);
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(isRunning()).toBe(false);
+        },
+        { timeout: 1000 }
+      );
     });
 
     it('shows output panel after execution', async () => {
@@ -205,10 +207,13 @@ describe('P2-G: Editor Tile', () => {
 
       await user.click(screen.getByTestId('run-button'));
 
-      await waitFor(() => {
-        expect(screen.getByTestId('output-panel')).toBeInTheDocument();
-        expect(getOutput()).toBeTruthy();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('output-panel')).toBeInTheDocument();
+          expect(getOutput()).toBeTruthy();
+        },
+        { timeout: 1000 }
+      );
     });
 
     it('run button is disabled when no file selected', async () => {
@@ -449,8 +454,14 @@ describe('P2-G: Editor Tile', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId(`file-item-${files[1].id}`)).toHaveAttribute('data-active', 'true');
-        expect(screen.getByTestId(`file-item-${files[0].id}`)).toHaveAttribute('data-active', 'false');
+        expect(screen.getByTestId(`file-item-${files[1].id}`)).toHaveAttribute(
+          'data-active',
+          'true'
+        );
+        expect(screen.getByTestId(`file-item-${files[0].id}`)).toHaveAttribute(
+          'data-active',
+          'false'
+        );
       });
     });
 
@@ -611,7 +622,9 @@ describe('P2-G: Editor Tile', () => {
 
     it('handles deletion of last file', async () => {
       const user = userEvent.setup();
-      const singleFile = [{ id: 'only-file', name: 'only.js', content: 'code', type: 'file' as const }];
+      const singleFile = [
+        { id: 'only-file', name: 'only.js', content: 'code', type: 'file' as const },
+      ];
       const { getFiles } = renderEditorTile({
         initialFiles: singleFile,
         initialActiveFile: 'only-file',
@@ -666,9 +679,12 @@ describe('P2-G: Editor Tile', () => {
       await user.click(screen.getByTestId('run-button'));
 
       // Should complete without error, output may be empty or show message
-      await waitFor(() => {
-        expect(screen.getByTestId('output-panel')).toBeInTheDocument();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('output-panel')).toBeInTheDocument();
+        },
+        { timeout: 1000 }
+      );
     });
 
     it('handles special characters in file name', async () => {
@@ -683,10 +699,8 @@ describe('P2-G: Editor Tile', () => {
       await user.type(screen.getByTestId('new-file-input'), 'test-file_v2.spec.ts{Enter}');
 
       await waitFor(() => {
-        expect(getFiles().some(f => f.name === 'test-file_v2.spec.ts')).toBe(true);
+        expect(getFiles().some((f) => f.name === 'test-file_v2.spec.ts')).toBe(true);
       });
     });
   });
 });
-
-

@@ -1,8 +1,13 @@
-import { useMemo } from "react";
-import { useStoreContext } from "../../providers/StoreProvider";
-import { useTileMeta } from "./useTileMeta";
-import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
-import { useShallow } from "zustand/react/shallow";
+import { useMemo } from 'react';
+import { useStoreContext } from '../../providers/StoreProvider';
+import { useTileMeta } from './useTileMeta';
+import {
+  TableTile,
+  TableTileMeta,
+  TableTileData,
+  TableTileUI,
+} from '../../slices/selectors/tableTile';
+import { useShallow } from 'zustand/react/shallow';
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -10,11 +15,11 @@ import { useShallow } from "zustand/react/shallow";
 export const DEFAULT_USE_TABLE_TILE_RETURN = {
   tableTile: null,
   tableTileActions: null,
-  exists: false
+  exists: false,
 };
 
 // Default table tile meta
-export const DEFAULT_TABLE_TILE_META: TableTileMeta = {}; 
+export const DEFAULT_TABLE_TILE_META: TableTileMeta = {};
 
 /**
  * Interface for table tile meta actions
@@ -60,10 +65,8 @@ export interface TableTileUIActions {
 /**
  * Interface for table-specific actions
  */
-export interface TableActions extends 
-  TableTileMetaActions,
-  TableTileDataActions,
-  TableTileUIActions {}
+export interface TableActions
+  extends TableTileMetaActions, TableTileDataActions, TableTileUIActions {}
 
 /**
  * Custom hook to access table-specific tile state and actions
@@ -71,24 +74,21 @@ export interface TableActions extends
  * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing table-specific tile state, actions, and existence flag
  */
-export function useTableTile(
-  tileIdOrName: string | null,
-  tabIdOrName?: string | null
-) {
+export function useTableTile(tileIdOrName: string | null, tabIdOrName?: string | null) {
   // Get tile meta information using the useTileMeta hook
   const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
-  
+
   // Get the tile type to check if it's a table
-  const tileType = useStoreContext(state => {
+  const tileType = useStoreContext((state) => {
     if (!tileId) return null;
     return state.tilesById[tileId]?.type;
   });
-  
+
   // Check if the tile exists and is a table
   const isTableTile = tileExists && tileType === 'Table';
 
   const tableTile = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!isTableTile || !tileId) return null;
       return state.tilesById[tileId]?.tableTile as TableTile;
     })
@@ -99,11 +99,11 @@ export function useTableTile(
     // Return empty object as per TableTileMeta interface
     return DEFAULT_TABLE_TILE_META as TableTileMeta;
   }, []);
-  
+
   // Access store for table-specific data
   const tableData = useMemo(() => {
     if (!isTableTile || !tileId || !tableTile) return null;
-    
+
     return {
       tableType: tableTile.tableType,
       columnOrder: tableTile.columnOrder,
@@ -132,14 +132,14 @@ export function useTableTile(
   // Access store for table-specific UI state
   const tableUI = useMemo(() => {
     if (!isTableTile || !tileId || !tableTile) return null;
-    
+
     return {
       limit: tableTile.limit,
       offset: tableTile.offset,
       groupLimit: tableTile.groupLimit,
       groupOffset: tableTile.groupOffset,
       pageNumber: tableTile.pageNumber,
-      infiniteQueryKeys: tableTile.infiniteQueryKeys
+      infiniteQueryKeys: tableTile.infiniteQueryKeys,
     } as TableTileUI;
   }, [
     isTableTile,
@@ -153,15 +153,17 @@ export function useTableTile(
   ]);
 
   // Get store update functions
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeAddInfiniteQueryKey = useStoreContext(state => state.addInfiniteQueryKey);
-  const storeRemoveInfiniteQueryKey = useStoreContext(state => state.removeInfiniteQueryKey);
-  const storeClearAllInfiniteQueryKeys = useStoreContext(state => state.clearAllInfiniteQueryKeys);
+  const storeUpdateTableTile = useStoreContext((state) => state.updateTableTile);
+  const storeAddInfiniteQueryKey = useStoreContext((state) => state.addInfiniteQueryKey);
+  const storeRemoveInfiniteQueryKey = useStoreContext((state) => state.removeInfiniteQueryKey);
+  const storeClearAllInfiniteQueryKeys = useStoreContext(
+    (state) => state.clearAllInfiniteQueryKeys
+  );
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
     if (!isTableTile || !tileId) return null;
-    
+
     // Return empty object as per TableTileMeta interface
     return DEFAULT_TABLE_TILE_META_ACTIONS as TableTileMetaActions;
   }, [isTableTile, tileId]);
@@ -169,67 +171,67 @@ export function useTableTile(
   // Create memoized data actions
   const tableDataActions = useMemo<TableTileDataActions | null>(() => {
     if (!isTableTile || !tileId) return null;
-    
+
     return {
       setTableType: (tableType) => {
-        const update: Partial<TableTile> = { 
-          tableType: tableType 
+        const update: Partial<TableTile> = {
+          tableType: tableType,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setColumnOrder: (columnOrder) => {
-        const update: Partial<TableTile> = { 
-          columnOrder: columnOrder 
+        const update: Partial<TableTile> = {
+          columnOrder: columnOrder,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setHiddenColumns: (hiddenColumns) => {
-        const update: Partial<TableTile> = { 
-          hiddenColumns: hiddenColumns 
+        const update: Partial<TableTile> = {
+          hiddenColumns: hiddenColumns,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setDefaultHiddenColumns: (defaultHiddenColumns) => {
         const update: Partial<TableTile> = {
-          defaultHiddenColumns: defaultHiddenColumns
+          defaultHiddenColumns: defaultHiddenColumns,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setSorting: (sorting) => {
-        const update: Partial<TableTile> = { 
-          sorting
+        const update: Partial<TableTile> = {
+          sorting,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setGroupSorting: (groupSorting) => {
-        const update: Partial<TableTile> = { 
-          groupSorting: groupSorting
+        const update: Partial<TableTile> = {
+          groupSorting: groupSorting,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setColumnsPinLeft: (columnsPinLeft) => {
-        const update: Partial<TableTile> = { 
-          columnsPinLeft: columnsPinLeft
+        const update: Partial<TableTile> = {
+          columnsPinLeft: columnsPinLeft,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setColumnsPinRight: (columnsPinRight) => {
-        const update: Partial<TableTile> = { 
-          columnsPinRight: columnsPinRight
+        const update: Partial<TableTile> = {
+          columnsPinRight: columnsPinRight,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setSelected: (selected) => {
-        const update: Partial<TableTile> = { 
-          selected
+        const update: Partial<TableTile> = {
+          selected,
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -239,39 +241,39 @@ export function useTableTile(
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {
     if (!isTableTile || !tileId) return null;
-    
+
     return {
       setLimit: (limit) => {
-        const update: Partial<TableTile> = { 
-          limit
+        const update: Partial<TableTile> = {
+          limit,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setOffset: (offset) => {
-        const update: Partial<TableTile> = { 
-          offset
+        const update: Partial<TableTile> = {
+          offset,
         };
         storeUpdateTableTile(tileId, update);
       },
 
       setGroupLimit: (groupLimit) => {
-        const update: Partial<TableTile> = { 
-          groupLimit: groupLimit
+        const update: Partial<TableTile> = {
+          groupLimit: groupLimit,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setGroupOffset: (groupOffset) => {
-        const update: Partial<TableTile> = { 
-          groupOffset: groupOffset
+        const update: Partial<TableTile> = {
+          groupOffset: groupOffset,
         };
         storeUpdateTableTile(tileId, update);
       },
-      
+
       setPageNumber: (pageNumber) => {
-        const update: Partial<TableTile> = { 
-          pageNumber: pageNumber
+        const update: Partial<TableTile> = {
+          pageNumber: pageNumber,
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -286,29 +288,36 @@ export function useTableTile(
 
       clearAllInfiniteQueryKeys: () => {
         storeClearAllInfiniteQueryKeys(tileId);
-      }
+      },
     };
-  }, [isTableTile, tileId, storeUpdateTableTile, storeAddInfiniteQueryKey, storeRemoveInfiniteQueryKey, storeClearAllInfiniteQueryKeys]);
+  }, [
+    isTableTile,
+    tileId,
+    storeUpdateTableTile,
+    storeAddInfiniteQueryKey,
+    storeRemoveInfiniteQueryKey,
+    storeClearAllInfiniteQueryKeys,
+  ]);
 
   // Build a final `tableTile` object from the separate meta, data, and UI objects
   const combinedTableTile = useMemo(() => {
     if (!tableMeta || !tableData || !tableUI) return null;
-    
+
     return {
       ...tableMeta,
       ...tableData,
-      ...tableUI
+      ...tableUI,
     };
   }, [tableMeta, tableData, tableUI]);
 
   // Build a final `tableTileActions` object from the separate meta, data, and UI actions
   const combinedTableTileActions = useMemo(() => {
     if (!tableMetaActions || !tableDataActions || !tableUIActions) return null;
-    
+
     return {
       ...tableMetaActions,
       ...tableDataActions,
-      ...tableUIActions
+      ...tableUIActions,
     };
   }, [tableMetaActions, tableDataActions, tableUIActions]);
 
@@ -320,6 +329,6 @@ export function useTableTile(
   return {
     tableTile: combinedTableTile as TableTile,
     tableTileActions: combinedTableTileActions as TableActions,
-    exists: isTableTile
+    exists: isTableTile,
   };
-} 
+}

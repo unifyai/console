@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { CallsDataProps, TokensDataProps, LatencyDataProps, ThroughputDataProps } from '@/types/usage';
+import {
+  CallsDataProps,
+  TokensDataProps,
+  LatencyDataProps,
+  ThroughputDataProps,
+} from '@/types/usage';
 
 interface UseUsageMetricsQueryParams {
   start: string;
@@ -20,18 +25,17 @@ export const useUsageMetricsQuery = ({
   end,
   models,
   providers,
-
 }: UseUsageMetricsQueryParams) => {
   return useQuery<UsageMetrics>({
     queryKey: ['usageMetrics', { start, end, models, providers }],
     queryFn: async () => {
       const modelsParam = models?.join(',') || '';
       const providersParam = providers?.join(',') || '';
-      
+
       const response = await fetch(
         `/api/logging/getMetrics?startTime=${start}&endTime=${end}&models=${modelsParam}&providers=${providersParam}`
       );
-      
+
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

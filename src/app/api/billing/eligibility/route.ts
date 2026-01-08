@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -16,4 +16,4 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching billing eligibility:', error);
     return NextResponse.json({ error: 'Error fetching billing eligibility' }, { status: 500 });
   }
-} 
+}

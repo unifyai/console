@@ -102,11 +102,13 @@ export function buildGDriveMountScript(params: {
 }) {
   const { assistantEmails, userLocals, mountBases } = params;
 
-  const blocks = assistantEmails.map((email, idx) => {
-    const local = userLocals[idx];
-    const base = mountBases[idx];
-    return buildAssistantMount(email, local, base);
-  }).join("\n");
+  const blocks = assistantEmails
+    .map((email, idx) => {
+      const local = userLocals[idx];
+      const base = mountBases[idx];
+      return buildAssistantMount(email, local, base);
+    })
+    .join('\n');
 
   const script = `
 ${buildScriptHeader()}
@@ -118,7 +120,7 @@ ${blocks}
 }
 
 export function buildAssistantMountSync(mountBase: string) {
-    return `
+  return `
 MOUNT_BASE="${mountBase}"
 
 REMOTE_MAP_FILE="$MOUNT_BASE/.remote_map"
@@ -140,9 +142,11 @@ done < "$REMOTE_MAP_FILE"
 }
 
 export function buildGDriveMountSyncScript(mountBases: string[]) {
-  const blocks = mountBases.map((base) => {
-    return buildAssistantMountSync(base);
-  }).join("\n");
+  const blocks = mountBases
+    .map((base) => {
+      return buildAssistantMountSync(base);
+    })
+    .join('\n');
   return `
 while :; do
 ${blocks}
@@ -175,29 +179,33 @@ rm -rf "$MOUNT_BASE"
 }
 
 export function buildGDriveCleanupScript(mountBases: string[]) {
-    const blocks = mountBases.map((base) => {
+  const blocks = mountBases
+    .map((base) => {
       return buildAssistantMountCleanup(base);
-    }).join("\n");
+    })
+    .join('\n');
   return `
 ${blocks}
 `;
 }
 
 export function buildGDriveMountCommand(assistantEmails: string[], mountBases: string[]) {
-  const userLocals = (assistantEmails.map((email: string) => (email.split("@")[0] || "user").replace(/[^a-zA-Z0-9_-]/g, "_")));
+  const userLocals = assistantEmails.map((email: string) =>
+    (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_-]/g, '_')
+  );
   const script = buildGDriveMountScript({ assistantEmails, userLocals, mountBases });
-  const scriptB64 = Buffer.from(script, "utf-8").toString("base64");
+  const scriptB64 = Buffer.from(script, 'utf-8').toString('base64');
   return `set -e; export RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS='${process.env.RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS}'; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile"; rm -f "$tmpfile"; clear\n`;
 }
 
 export function buildGDriveCleanupCommand(mountBases: string[]) {
   const cleanupScript = buildGDriveCleanupScript(mountBases);
-  const scriptB64 = Buffer.from(cleanupScript, "utf-8").toString("base64");
+  const scriptB64 = Buffer.from(cleanupScript, 'utf-8').toString('base64');
   return `set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile"; rm -f "$tmpfile"\n`;
 }
 
 export function buildGDriveMountSyncCommand(mountBases: string[]) {
   const syncScript = buildGDriveMountSyncScript(mountBases);
-  const scriptB64 = Buffer.from(syncScript, "utf-8").toString("base64");
+  const scriptB64 = Buffer.from(syncScript, 'utf-8').toString('base64');
   return `set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile" & clear\n`;
 }

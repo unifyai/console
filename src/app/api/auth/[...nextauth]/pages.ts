@@ -1,9 +1,9 @@
-import { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from 'next-auth';
 
 export const authOptions: Partial<NextAuthOptions> = {
   pages: {
-    signIn: "/login",
-    error: "/login",
+    signIn: '/login',
+    error: '/login',
   },
 };
 

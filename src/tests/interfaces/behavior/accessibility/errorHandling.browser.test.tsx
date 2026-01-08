@@ -43,9 +43,12 @@ describe('P5-P: Error Handling', () => {
       expect(result.isLoading()).toBe(true);
 
       // Wait for error to appear
-      await waitFor(() => {
-        expect(result.hasError()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.hasError()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       expect(result.getErrorMessage()).toBe('Failed to load logs');
     });
@@ -57,9 +60,12 @@ describe('P5-P: Error Handling', () => {
         errorMessage: 'Server error',
       });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('error-state')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('error-state')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
 
       expect(screen.getByTestId('error-message')).toHaveTextContent('Server error');
     });
@@ -70,9 +76,12 @@ describe('P5-P: Error Handling', () => {
         errorDelay: 50,
       });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('retry-button')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('retry-button')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('retry button attempts to refetch', async () => {
@@ -81,9 +90,12 @@ describe('P5-P: Error Handling', () => {
         errorDelay: 50,
       });
 
-      await waitFor(() => {
-        expect(result.hasError()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.hasError()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Trigger retry
       await result.triggerRetry();
@@ -105,9 +117,12 @@ describe('P5-P: Error Handling', () => {
         initialData: createMockLogEntries(3),
       });
 
-      await waitFor(() => {
-        expect(result.hasError()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.hasError()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Data table should not be visible
       expect(screen.queryByTestId('data-table')).not.toBeInTheDocument();
@@ -171,7 +186,7 @@ describe('P5-P: Error Handling', () => {
       });
 
       const cellId = 'log-1-message';
-      
+
       // Edit a cell
       await result.editCell(cellId, 'New value');
 
@@ -268,9 +283,12 @@ describe('P5-P: Error Handling', () => {
         timeoutThreshold: 100, // Short timeout for testing
       });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('timeout-state')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('timeout-state')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
 
       expect(screen.getByTestId('timeout-message')).toHaveTextContent('Request timed out');
     });
@@ -281,9 +299,12 @@ describe('P5-P: Error Handling', () => {
         timeoutThreshold: 100,
       });
 
-      await waitFor(() => {
-        expect(result.isTimedOut()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isTimedOut()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows retry option after timeout', async () => {
@@ -292,9 +313,12 @@ describe('P5-P: Error Handling', () => {
         timeoutThreshold: 100,
       });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('retry-button')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('retry-button')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('retry clears timeout state', async () => {
@@ -303,9 +327,12 @@ describe('P5-P: Error Handling', () => {
         timeoutThreshold: 100,
       });
 
-      await waitFor(() => {
-        expect(result.isTimedOut()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isTimedOut()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Trigger retry
       await result.triggerRetry();
@@ -334,15 +361,18 @@ describe('P5-P: Error Handling', () => {
 
       const cellId = 'log-1-message';
       const originalValue = result.getCellValue(cellId);
-      
+
       // Start editing (don't await - we want to check intermediate state)
       const editPromise = result.editCell(cellId, 'Optimistic value');
 
       // Should show pending state briefly
-      await waitFor(() => {
-        const cell = result.getCell(cellId);
-        expect(cell?.isPending).toBe(true);
-      }, { timeout: 500 });
+      await waitFor(
+        () => {
+          const cell = result.getCell(cellId);
+          expect(cell?.isPending).toBe(true);
+        },
+        { timeout: 500 }
+      );
 
       await editPromise;
     });
@@ -455,7 +485,7 @@ describe('P5-P: Error Handling', () => {
       await waitFor(() => {
         expect(result.isOffline()).toBe(true);
       });
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('offline-indicator')).toBeInTheDocument();
       });
@@ -472,7 +502,7 @@ describe('P5-P: Error Handling', () => {
 
       // Go offline
       result.simulateNetworkOffline();
-      
+
       await waitFor(() => {
         expect(result.isOffline()).toBe(true);
       });
@@ -498,7 +528,7 @@ describe('P5-P: Error Handling', () => {
 
       // Go offline
       result.simulateNetworkOffline();
-      
+
       await waitFor(() => {
         expect(result.isOffline()).toBe(true);
       });
@@ -522,14 +552,14 @@ describe('P5-P: Error Handling', () => {
 
       // Go offline
       result.simulateNetworkOffline();
-      
+
       await waitFor(() => {
         expect(result.isOffline()).toBe(true);
       });
 
       // Make changes while offline
       await result.editCell('log-1-message', 'Offline change');
-      
+
       await waitFor(() => {
         expect(result.getQueuedChanges()).toHaveLength(1);
       });
@@ -554,13 +584,13 @@ describe('P5-P: Error Handling', () => {
 
       // Go offline and make changes
       result.simulateNetworkOffline();
-      
+
       await waitFor(() => {
         expect(result.isOffline()).toBe(true);
       });
-      
+
       await result.editCell('log-1-message', 'Offline change');
-      
+
       await waitFor(() => {
         expect(result.getQueuedChanges()).toHaveLength(1);
       });
@@ -610,9 +640,12 @@ describe('P5-P: Error Handling', () => {
         errorDelay: 50,
       });
 
-      await waitFor(() => {
-        expect(result.hasError()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.hasError()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Retry multiple times
       await result.triggerRetry();
@@ -660,4 +693,3 @@ describe('P5-P: Error Handling', () => {
     });
   });
 });
-

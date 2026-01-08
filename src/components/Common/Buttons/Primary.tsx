@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import BaseButton from "./Base";
-import { ReactNode } from "react";
+import { motion } from 'framer-motion';
+import BaseButton from './Base';
+import { ReactNode } from 'react';
 
 /**
  * A styled primary button with a loading state and an optional success message.
@@ -19,7 +19,17 @@ import { ReactNode } from "react";
  * @param {string} [className=""] - Additional CSS classes to add to the button.
  * @param {string} [type=""] - Optional button type.
  */
-const PrimaryButton = ({ onClick, label, icon = null, isLoading = false, disabled = false, successMessage, showSuccess = false, className = "", type = "button"}: {
+const PrimaryButton = ({
+  onClick,
+  label,
+  icon = null,
+  isLoading = false,
+  disabled = false,
+  successMessage,
+  showSuccess = false,
+  className = '',
+  type = 'button',
+}: {
   onClick?: () => void;
   label: string;
   icon?: ReactNode;
@@ -28,15 +38,15 @@ const PrimaryButton = ({ onClick, label, icon = null, isLoading = false, disable
   successMessage?: string;
   showSuccess?: boolean;
   className?: string;
-  type?: "button" | "submit" | "reset" | undefined;
+  type?: 'button' | 'submit' | 'reset' | undefined;
 }) => {
   return (
     <>
       <BaseButton
-        className={`px-3 py-1 w-fit ${className}`}
+        className={`w-fit px-3 py-1 ${className}`}
         disabled={disabled || isLoading}
         type={type}
-        text={isLoading ? "Loading..." : label}
+        text={isLoading ? 'Loading...' : label}
         icon={icon}
         onClick={onClick}
       />
@@ -45,7 +55,7 @@ const PrimaryButton = ({ onClick, label, icon = null, isLoading = false, disable
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
-          className="bg-accent fixed bottom-4 left-4 text-foreground p-4 rounded-lg z-50"
+          className="fixed bottom-4 left-4 z-50 rounded-lg bg-accent p-4 text-foreground"
         >
           {successMessage}
         </motion.div>

@@ -31,16 +31,10 @@ describe('@real Custom Endpoints API', () => {
   afterAll(async () => {
     // Cleanup all created endpoints
     for (const name of createdEndpoints) {
-      await safeDelete(
-        () => customEndpointsApi.delete(name),
-        `customEndpoint: ${name}`
-      );
+      await safeDelete(() => customEndpointsApi.delete(name), `customEndpoint: ${name}`);
     }
     // Cleanup the test key
-    await safeDelete(
-      () => customKeysApi.delete(testKeyName),
-      `customKey: ${testKeyName}`
-    );
+    await safeDelete(() => customKeysApi.delete(testKeyName), `customKey: ${testKeyName}`);
   });
 
   it('@real lists custom endpoints', realTestOptions, async () => {
@@ -50,56 +44,39 @@ describe('@real Custom Endpoints API', () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  it(
-    '@real creates a custom endpoint',
-    realTestOptionsExtended,
-    async () => {
-      const endpointName = `${uniqueName('test-model')}@custom`;
-      const url = 'https://api.example.com/v1';
+  it('@real creates a custom endpoint', realTestOptionsExtended, async () => {
+    const endpointName = `${uniqueName('test-model')}@custom`;
+    const url = 'https://api.example.com/v1';
 
-      const result = await customEndpointsApi.create(
-        endpointName,
-        url,
-        testKeyName
-      );
-      createdEndpoints.push(endpointName);
+    const result = await customEndpointsApi.create(endpointName, url, testKeyName);
+    createdEndpoints.push(endpointName);
 
-      expect(result).toBeDefined();
-      expect(result.info).toBeDefined();
+    expect(result).toBeDefined();
+    expect(result.info).toBeDefined();
 
-      // Verify endpoint exists in list
-      const listResult = await customEndpointsApi.list();
-      const found = listResult.find((e) => e.name === endpointName);
-      expect(found).toBeDefined();
-    }
-  );
+    // Verify endpoint exists in list
+    const listResult = await customEndpointsApi.list();
+    const found = listResult.find((e) => e.name === endpointName);
+    expect(found).toBeDefined();
+  });
 
-  it(
-    '@real creates a custom endpoint with modelArg',
-    realTestOptionsExtended,
-    async () => {
-      const endpointName = `${uniqueName('test-model-arg')}@custom`;
-      const url = 'https://api.example.com/v1';
-      const modelArg = 'actual-model-name-v1';
+  it('@real creates a custom endpoint with modelArg', realTestOptionsExtended, async () => {
+    const endpointName = `${uniqueName('test-model-arg')}@custom`;
+    const url = 'https://api.example.com/v1';
+    const modelArg = 'actual-model-name-v1';
 
-      const result = await customEndpointsApi.create(
-        endpointName,
-        url,
-        testKeyName,
-        modelArg
-      );
-      createdEndpoints.push(endpointName);
+    const result = await customEndpointsApi.create(endpointName, url, testKeyName, modelArg);
+    createdEndpoints.push(endpointName);
 
-      expect(result).toBeDefined();
-      expect(result.info).toBeDefined();
+    expect(result).toBeDefined();
+    expect(result.info).toBeDefined();
 
-      // Verify endpoint exists with correct modelArg
-      const listResult = await customEndpointsApi.list();
-      const found = listResult.find((e) => e.name === endpointName);
-      expect(found).toBeDefined();
-      expect(found?.modelArg).toBe(modelArg);
-    }
-  );
+    // Verify endpoint exists with correct modelArg
+    const listResult = await customEndpointsApi.list();
+    const found = listResult.find((e) => e.name === endpointName);
+    expect(found).toBeDefined();
+    expect(found?.modelArg).toBe(modelArg);
+  });
 
   it('@real deletes a custom endpoint', realTestOptions, async () => {
     const endpointName = `${uniqueName('test-model-delete')}@custom`;
@@ -143,57 +120,44 @@ describe('@real Custom Endpoints API', () => {
     expect(newFound).toBeDefined();
   });
 
-  it(
-    '@real rejects endpoint with invalid provider',
-    realTestOptions,
-    async () => {
-      // Provider must be one of: custom, custom-openai, custom-mistral, etc.
-      const invalidEndpointName = `${uniqueName('test-model')}@invalid-provider`;
-      const url = 'https://api.example.com/v1';
+  it('@real rejects endpoint with invalid provider', realTestOptions, async () => {
+    // Provider must be one of: custom, custom-openai, custom-mistral, etc.
+    const invalidEndpointName = `${uniqueName('test-model')}@invalid-provider`;
+    const url = 'https://api.example.com/v1';
 
-      try {
-        await customEndpointsApi.create(invalidEndpointName, url, testKeyName);
-        expect.fail('Expected ApiError for invalid provider');
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect((e as ApiError).status).toBe(400);
-      }
+    try {
+      await customEndpointsApi.create(invalidEndpointName, url, testKeyName);
+      expect.fail('Expected ApiError for invalid provider');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).status).toBe(400);
     }
-  );
+  });
 
-  it(
-    '@real rejects endpoint without @ symbol',
-    realTestOptions,
-    async () => {
-      const invalidEndpointName = uniqueName('test-model-no-at');
-      const url = 'https://api.example.com/v1';
+  it('@real rejects endpoint without @ symbol', realTestOptions, async () => {
+    const invalidEndpointName = uniqueName('test-model-no-at');
+    const url = 'https://api.example.com/v1';
 
-      try {
-        await customEndpointsApi.create(invalidEndpointName, url, testKeyName);
-        expect.fail('Expected ApiError for endpoint without @ symbol');
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect((e as ApiError).status).toBe(400);
-      }
+    try {
+      await customEndpointsApi.create(invalidEndpointName, url, testKeyName);
+      expect.fail('Expected ApiError for endpoint without @ symbol');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).status).toBe(400);
     }
-  );
+  });
 
-  it(
-    '@real rejects endpoint with non-existent key',
-    realTestOptions,
-    async () => {
-      const endpointName = `${uniqueName('test-model')}@custom`;
-      const url = 'https://api.example.com/v1';
-      const nonExistentKey = uniqueName('non-existent-key');
+  it('@real rejects endpoint with non-existent key', realTestOptions, async () => {
+    const endpointName = `${uniqueName('test-model')}@custom`;
+    const url = 'https://api.example.com/v1';
+    const nonExistentKey = uniqueName('non-existent-key');
 
-      try {
-        await customEndpointsApi.create(endpointName, url, nonExistentKey);
-        expect.fail('Expected ApiError for non-existent key');
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect((e as ApiError).isNotFound()).toBe(true);
-      }
+    try {
+      await customEndpointsApi.create(endpointName, url, nonExistentKey);
+      expect.fail('Expected ApiError for non-existent key');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).isNotFound()).toBe(true);
     }
-  );
+  });
 });
-

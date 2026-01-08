@@ -1,23 +1,27 @@
-import React from "react";
-import { Span } from "@/types/interfaces/traces";
-import { LogComparisonProps } from "../types";
-import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
-import { LogsActions } from "@/types/interfaces/grid";
-import { LogProps } from "@/types/interfaces/logs";
+import React from 'react';
+import { Span } from '@/types/interfaces/traces';
+import { LogComparisonProps } from '../types';
+import UnifiedTraceView, { PersistedTraceViewState } from './TraceView';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogProps } from '@/types/interfaces/logs';
 
 interface TraceViewProps extends LogComparisonProps {
   isImmutable?: boolean;
   persistedState?: PersistedTraceViewState;
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
-  onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void;
+  onGroupSaveEdit?: (desc: {
+    logIndices: number[];
+    path: (string | number)[];
+    newValue: any;
+  }) => void;
   onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   path?: (string | number)[];
-  logsActions?: LogsActions,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  fieldName: string
+  logsActions?: LogsActions;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  fieldName: string;
 }
 
 const TraceView: React.FC<TraceViewProps> = ({
@@ -25,9 +29,9 @@ const TraceView: React.FC<TraceViewProps> = ({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  displayMode = "markdown",
+  displayMode = 'markdown',
   persistedState,
   isImmutable,
   cellEditMode,
@@ -39,15 +43,11 @@ const TraceView: React.FC<TraceViewProps> = ({
   context,
   baseLog,
   comparisonLogs,
-  fieldName
+  fieldName,
 }) => {
   // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
-    return (
-      <p className="text-red-500">
-        TraceView: Base value is not an array of spans.
-      </p>
-    );
+    return <p className="text-red-500">TraceView: Base value is not an array of spans.</p>;
   }
 
   // allTraces => one element if no comparables, or multiple if comparables exist

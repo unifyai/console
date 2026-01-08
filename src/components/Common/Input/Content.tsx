@@ -1,29 +1,22 @@
-"use client";
+'use client';
 
-import { ReactNode, InputHTMLAttributes, forwardRef, useRef } from "react";
-import { cn } from "@/lib/utils";
-import { Input as BaseInput } from "@/components/UI/input";
+import { ReactNode, InputHTMLAttributes, forwardRef, useRef } from 'react';
+import { cn } from '@/lib/utils';
+import { Input as BaseInput } from '@/components/UI/input';
 
-export interface InputProps
-  extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   StartContent?: ReactNode;
   EndContent?: ReactNode;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, StartContent, EndContent, ...props }, ref) => {
-
     return (
-      <div className='
-        w-fit flex flex-row gap-2 items-center
-        bg-background rounded-md border border-input
-        bg-background ring-offset-background
-        px-2 py-1
-      '>
+      <div className="flex w-fit flex-row items-center gap-2 rounded-md border border-input bg-background px-2 py-1 ring-offset-background">
         {StartContent}
         <BaseInput
           type={type}
-          className={cn(`flex flex-1 overflow-s-scroll border-0 h-7`, className)}
+          className={cn(`overflow-s-scroll flex h-7 flex-1 border-0`, className)}
           ref={ref}
           {...props}
         />
@@ -32,6 +25,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     );
   }
 );
-Input.displayName = "Input";
+Input.displayName = 'Input';
 
 export { Input };

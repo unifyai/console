@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  endpointsApi,
-  realTestOptions,
-} from './fixtures/api-actions';
+import { endpointsApi, realTestOptions } from './fixtures/api-actions';
 
 describe('@real Endpoints API', () => {
   it('@real lists all providers', realTestOptions, async () => {
@@ -95,4 +92,3 @@ describe('@real Endpoints API', () => {
     expect(allForModel).toBe(true);
   });
 });
-

@@ -1,8 +1,8 @@
-import { Suspense } from "react";
+import { Suspense } from 'react';
 import getQueryClient from '@/app/getQueryClient';
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import Editor from "../../Blocks/Editor/Editor";
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import Editor from '../../Blocks/Editor/Editor';
 
 import type {
   CodeActions,
@@ -12,8 +12,8 @@ import type {
   LogsActions,
   FieldsActions,
   GranularTileActions,
-  FileActions
-} from "@/types/interfaces/grid";
+  FileActions,
+} from '@/types/interfaces/grid';
 
 type EditorWrapperProps = {
   tile: TileData;
@@ -36,21 +36,23 @@ export default async function EditorWrapper({
   tabId,
   interfaceId,
   projectId,
-  actions
+  actions,
 }: EditorWrapperProps) {
-  console.log("[EditorWrapper] Rendering...");
+  console.log('[EditorWrapper] Rendering...');
   const qc = getQueryClient();
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <div className="w-full h-full overflow-y-auto">
-        <Suspense fallback={
-          <div className="w-full h-full flex items-center justify-center">
-            <SkeletonLoader />
-          </div>
-        }>
+      <div className="h-full w-full overflow-y-auto">
+        <Suspense
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <SkeletonLoader />
+            </div>
+          }
+        >
           <Editor
-            tileId={tile.id || ""}
+            tileId={tile.id || ''}
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
@@ -66,4 +68,4 @@ export default async function EditorWrapper({
       </div>
     </HydrationBoundary>
   );
-} 
+}

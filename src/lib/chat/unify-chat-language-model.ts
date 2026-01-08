@@ -1,5 +1,17 @@
-import { LanguageModelV1, LanguageModelV1CallWarning, LanguageModelV1FinishReason, LanguageModelV1StreamPart} from '@ai-sdk/provider';
-import { FetchFunction, ParseResult, combineHeaders, createEventSourceResponseHandler, createJsonResponseHandler, postJsonToApi } from '@ai-sdk/provider-utils';
+import {
+  LanguageModelV1,
+  LanguageModelV1CallWarning,
+  LanguageModelV1FinishReason,
+  LanguageModelV1StreamPart,
+} from '@ai-sdk/provider';
+import {
+  FetchFunction,
+  ParseResult,
+  combineHeaders,
+  createEventSourceResponseHandler,
+  createJsonResponseHandler,
+  postJsonToApi,
+} from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 import { convertToUnifyChatMessages } from './convert-to-unify-chat-messages';
 import { mapUnifyFinishReason } from './map-unify-finish-reason';
@@ -25,11 +37,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
 
   private readonly config: UnifyChatConfig;
 
-  constructor(
-    modelId: UnifyChatModelId,
-    settings: UnifyChatSettings,
-    config: UnifyChatConfig,
-  ) {
+  constructor(modelId: UnifyChatModelId, settings: UnifyChatSettings, config: UnifyChatConfig) {
     this.modelId = modelId;
     this.settings = settings;
     this.config = config;
@@ -84,11 +92,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       });
     }
 
-    if (
-      responseFormat != null &&
-      responseFormat.type === 'json' &&
-      responseFormat.schema != null
-    ) {
+    if (responseFormat != null && responseFormat.type === 'json' && responseFormat.schema != null) {
       warnings.push({
         type: 'unsupported-setting',
         setting: 'responseFormat',
@@ -110,8 +114,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       randomSeed: seed,
 
       // response format:
-      responseFormat:
-        responseFormat?.type === 'json' ? { type: 'json_object' } : undefined,
+      responseFormat: responseFormat?.type === 'json' ? { type: 'json_object' } : undefined,
 
       // messages:
       messages: convertToUnifyChatMessages(prompt),
@@ -156,7 +159,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
   }
 
   async doGenerate(
-    options: Parameters<LanguageModelV1['doGenerate']>[0],
+    options: Parameters<LanguageModelV1['doGenerate']>[0]
   ): Promise<Awaited<ReturnType<LanguageModelV1['doGenerate']>>> {
     const { args, warnings } = this.getArgs(options);
 
@@ -165,9 +168,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       headers: combineHeaders(this.config.headers(), options.headers),
       body: args,
       failedResponseHandler: unifyFailedResponseHandler,
-      successfulResponseHandler: createJsonResponseHandler(
-        unifyChatResponseSchema,
-      ),
+      successfulResponseHandler: createJsonResponseHandler(unifyChatResponseSchema),
       abortSignal: options.abortSignal,
       fetch: this.config.fetch,
     });
@@ -180,16 +181,13 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
     // content of that message again. we skip this repeated content to
     // avoid duplication, e.g. in continuation mode.
     const lastMessage = rawPrompt[rawPrompt.length - 1];
-    if (
-      lastMessage.role === 'assistant' &&
-      text?.startsWith(lastMessage.content)
-    ) {
+    if (lastMessage.role === 'assistant' && text?.startsWith(lastMessage.content)) {
       text = text.slice(lastMessage.content.length);
     }
 
     return {
       text,
-      toolCalls: choice.message.toolCalls?.map(toolCall => ({
+      toolCalls: choice.message.toolCalls?.map((toolCall) => ({
         toolCallType: 'function',
         toolCallId: toolCall.id,
         toolName: toolCall.function.name,
@@ -209,7 +207,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
   }
 
   async doStream(
-    options: Parameters<LanguageModelV1['doStream']>[0],
+    options: Parameters<LanguageModelV1['doStream']>[0]
   ): Promise<Awaited<ReturnType<LanguageModelV1['doStream']>>> {
     const { args, warnings } = this.getArgs(options);
 
@@ -220,9 +218,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       headers: combineHeaders(this.config.headers(), options.headers),
       body,
       failedResponseHandler: unifyFailedResponseHandler,
-      successfulResponseHandler: createEventSourceResponseHandler(
-        unifyChatChunkSchema,
-      ),
+      successfulResponseHandler: createEventSourceResponseHandler(unifyChatChunkSchema),
       abortSignal: options.abortSignal,
       fetch: this.config.fetch,
     });
@@ -303,9 +299,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
             if (delta.content != null) {
               controller.enqueue({
                 type: 'text-delta',
-                textDelta: trimLeadingSpace
-                  ? delta.content.trimStart()
-                  : delta.content,
+                textDelta: trimLeadingSpace ? delta.content.trimStart() : delta.content,
               });
 
               trimLeadingSpace = false;
@@ -335,7 +329,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
           flush(controller) {
             controller.enqueue({ type: 'finish', finishReason, usage });
           },
-        }),
+        })
       ),
       rawCall: { rawPrompt, rawSettings },
       rawResponse: { headers: responseHeaders },
@@ -361,13 +355,13 @@ const unifyChatResponseSchema = z.object({
             z.object({
               id: z.string(),
               function: z.object({ name: z.string(), arguments: z.string() }),
-            }),
+            })
           )
           .nullish(),
       }),
       index: z.number(),
       finishReason: z.string().nullish(),
-    }),
+    })
   ),
   object: z.literal('chat.completion'),
   usage: z.object({
@@ -392,13 +386,13 @@ const unifyChatChunkSchema = z.object({
             z.object({
               id: z.string(),
               function: z.object({ name: z.string(), arguments: z.string() }),
-            }),
+            })
           )
           .nullish(),
       }),
       finishReason: z.string().nullish(),
       index: z.number(),
-    }),
+    })
   ),
   usage: z
     .object({

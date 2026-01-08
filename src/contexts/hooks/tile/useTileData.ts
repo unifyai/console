@@ -23,7 +23,7 @@ export interface TileDataActions {
   // Combined method to update both context and columnContext at once
   setContextAndColumnContext: (context?: string, columnContext?: string) => void;
   setGrouping: (grouping?: string) => void;
-  
+
   // Type-specific updates
   updateTableTile: (updates: Partial<TableTile>) => void;
   updatePlotTile: (updates: Partial<PlotTile>) => void;
@@ -38,71 +38,68 @@ export interface TileDataActions {
  * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing tile data, actions, and related state
  */
-export function useTileData(
-  tileIdOrName: string | null,
-  tabIdOrName: string | null
-) {
+export function useTileData(tileIdOrName: string | null, tabIdOrName: string | null) {
   // Use the tile meta hook to get common tile info
-  const {tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
+  const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
 
   // Subscribe to data properties
-  const context = useStoreContext(state => {
+  const context = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].context;
   });
-  
-  const table = useStoreContext(state => {
+
+  const table = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].table;
   });
-  
-  const autoUpdate = useStoreContext(state => {
+
+  const autoUpdate = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].autoUpdate;
   });
-  
-  const freeze = useStoreContext(state => {
+
+  const freeze = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].freeze;
   });
-  
-  const filters = useStoreContext(state => {
+
+  const filters = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].filters;
   });
-  
-  const commonFilter = useStoreContext(state => {
+
+  const commonFilter = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].commonFilter;
   });
 
-  const metric = useStoreContext(state => {
+  const metric = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].metric;
   });
 
-  const columnContext = useStoreContext(state => {
+  const columnContext = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].columnContext;
   });
 
-  const grouping = useStoreContext(state => {
+  const grouping = useStoreContext((state) => {
     if (!tileExists || !tileId) return null;
     return state.tilesById[tileId].grouping;
   });
 
   // Get store actions for data management
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
-  const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
-  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
-  const storeUpdateTerminalTile = useStoreContext(state => state.updateTerminalTile);
+  const storeUpdateTile = useStoreContext((state) => state.updateTile);
+  const storeUpdateTableTile = useStoreContext((state) => state.updateTableTile);
+  const storeUpdatePlotTile = useStoreContext((state) => state.updatePlotTile);
+  const storeUpdateViewTile = useStoreContext((state) => state.updateViewTile);
+  const storeUpdateEditorTile = useStoreContext((state) => state.updateEditorTile);
+  const storeUpdateTerminalTile = useStoreContext((state) => state.updateTerminalTile);
 
   // Memoize the data object to prevent unnecessary rerenders
   const data = useMemo<Partial<TileData> | null>(() => {
     if (!tileExists) return null;
-    
+
     return {
       context,
       table,
@@ -115,12 +112,12 @@ export function useTileData(
       grouping,
     };
   }, [
-    tileExists, 
-    context, 
-    table, 
-    autoUpdate, 
-    freeze, 
-    filters, 
+    tileExists,
+    context,
+    table,
+    autoUpdate,
+    freeze,
+    filters,
     commonFilter,
     metric,
     columnContext,
@@ -128,109 +125,112 @@ export function useTileData(
   ]);
 
   // Memoize the data actions to prevent unnecessary re-renders
-  const dataActions = useMemo<TileDataActions>(() => ({
-    setContext: (context) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { context });
-      }
-    },
-    
-    setTable: (table) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { table });
-      }
-    },
+  const dataActions = useMemo<TileDataActions>(
+    () => ({
+      setContext: (context) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { context });
+        }
+      },
 
-    setAutoUpdate: (autoUpdate) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { autoUpdate: autoUpdate });
-      }
-    },
-    
-    setFreeze: (freeze) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { freeze });
-      }
-    },
-    
-    setFilters: (filters) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { filters });
-      }
-    },
-    
-    setCommonFilter: (commonFilter) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { commonFilter: commonFilter });
-      }
-    },
+      setTable: (table) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { table });
+        }
+      },
 
-    setMetric: (metric) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { metric });
-      }
-    },
+      setAutoUpdate: (autoUpdate) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { autoUpdate: autoUpdate });
+        }
+      },
 
-    setColumnContext: (columnContext) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { columnContext: columnContext });
-      }
-    },
+      setFreeze: (freeze) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { freeze });
+        }
+      },
 
-    setGrouping: (grouping) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { grouping });
-      }
-    },
-    
-    // Type-specific updates
-    updateTableTile: (updates) => {
-      if (tileId) {
-        storeUpdateTableTile(tileId, updates);
-      }
-    },
-    
-    updatePlotTile: (updates) => {
-      if (tileId) {
-        storeUpdatePlotTile(tileId, updates);
-      }
-    },
-    
-    updateViewTile: (updates) => {
-      if (tileId) {
-        storeUpdateViewTile(tileId, updates);
-      }
-    },
+      setFilters: (filters) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { filters });
+        }
+      },
 
-    updateEditorTile: (updates) => {
-      if (tileId) {
-        storeUpdateEditorTile(tileId, updates);
-      }
-    },
+      setCommonFilter: (commonFilter) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { commonFilter: commonFilter });
+        }
+      },
 
-    updateTerminalTile: (updates) => {
-      if (tileId) {
-        storeUpdateTerminalTile(tileId, updates);
-      }
-    },
+      setMetric: (metric) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { metric });
+        }
+      },
 
-    setContextAndColumnContext: (context, columnContext) => {
-      if (tileId) {
-        storeUpdateTile(tileId, { context, columnContext: columnContext });
-      }
-    },
-  }), [
-    tileId,
-    storeUpdateTile, 
-    storeUpdateTableTile, 
-    storeUpdatePlotTile, 
-    storeUpdateViewTile,
-    storeUpdateEditorTile,
-    storeUpdateTerminalTile
-  ]);
+      setColumnContext: (columnContext) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { columnContext: columnContext });
+        }
+      },
+
+      setGrouping: (grouping) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { grouping });
+        }
+      },
+
+      // Type-specific updates
+      updateTableTile: (updates) => {
+        if (tileId) {
+          storeUpdateTableTile(tileId, updates);
+        }
+      },
+
+      updatePlotTile: (updates) => {
+        if (tileId) {
+          storeUpdatePlotTile(tileId, updates);
+        }
+      },
+
+      updateViewTile: (updates) => {
+        if (tileId) {
+          storeUpdateViewTile(tileId, updates);
+        }
+      },
+
+      updateEditorTile: (updates) => {
+        if (tileId) {
+          storeUpdateEditorTile(tileId, updates);
+        }
+      },
+
+      updateTerminalTile: (updates) => {
+        if (tileId) {
+          storeUpdateTerminalTile(tileId, updates);
+        }
+      },
+
+      setContextAndColumnContext: (context, columnContext) => {
+        if (tileId) {
+          storeUpdateTile(tileId, { context, columnContext: columnContext });
+        }
+      },
+    }),
+    [
+      tileId,
+      storeUpdateTile,
+      storeUpdateTableTile,
+      storeUpdatePlotTile,
+      storeUpdateViewTile,
+      storeUpdateEditorTile,
+      storeUpdateTerminalTile,
+    ]
+  );
 
   return {
     data,
     dataActions,
   };
-} 
+}

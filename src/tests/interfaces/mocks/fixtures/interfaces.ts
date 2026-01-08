@@ -13,5 +13,3 @@ export const mockInterface: Interface & { updatedAt?: string } = {
   pending: false,
   updatedAt: new Date().toISOString(),
 };
-
-

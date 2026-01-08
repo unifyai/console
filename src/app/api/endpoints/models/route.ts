@@ -1,6 +1,6 @@
-import { listModels } from "@/lib/endpoints/endpoints";
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { listModels } from '@/lib/endpoints/endpoints';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/user/user';
 
 /**
  * Handles GET requests to retrieve a list of model names supported by the given provider.
@@ -12,15 +12,15 @@ import { getCurrentUser } from "@/lib/user/user";
  * @returns A JSON response containing a list of model names.
  */
 export async function GET(request: NextRequest) {
-    const user = await getCurrentUser();
+  const user = await getCurrentUser();
 
-    if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
 
-    const url = new URL(request.url);
-    const provider = url.searchParams.get("provider");
-    const models = await listModels(user.apiKey, provider!);
+  const url = new URL(request.url);
+  const provider = url.searchParams.get('provider');
+  const models = await listModels(user.apiKey, provider!);
 
-    return NextResponse.json(models);
+  return NextResponse.json(models);
 }

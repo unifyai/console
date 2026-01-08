@@ -1,25 +1,33 @@
-import { current as immerCurrent, isDraft, WritableDraft } from "immer";
+import { current as immerCurrent, isDraft, WritableDraft } from 'immer';
 import isEqual from 'fast-deep-equal';
-import { Tile, TILE_KEYS } from "../slices/selectors/tile";
-import { PLOT_TILE_KEYS, PlotTile } from "../slices/selectors/plotTile";
-import { VIEW_TILE_KEYS, ViewTile } from "../slices/selectors/viewTile";
-import { TABLE_TILE_KEYS, TableTile } from "../slices/selectors/tableTile";
-import { EDITOR_TILE_KEYS, EditorTile } from "../slices/selectors/editorTile";
-import { TERMINAL_TILE_KEYS, TerminalTile } from "../slices/selectors/terminalTile";
-import { useRef } from "react";
-import { useEffect } from "react";
-import { StoreSlice, Tab } from "../slices/slice";
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData, TabData } from "@/types/interfaces/grid";
+import { Tile, TILE_KEYS } from '../slices/selectors/tile';
+import { PLOT_TILE_KEYS, PlotTile } from '../slices/selectors/plotTile';
+import { VIEW_TILE_KEYS, ViewTile } from '../slices/selectors/viewTile';
+import { TABLE_TILE_KEYS, TableTile } from '../slices/selectors/tableTile';
+import { EDITOR_TILE_KEYS, EditorTile } from '../slices/selectors/editorTile';
+import { TERMINAL_TILE_KEYS, TerminalTile } from '../slices/selectors/terminalTile';
+import { useRef } from 'react';
+import { useEffect } from 'react';
+import { StoreSlice, Tab } from '../slices/slice';
+import {
+  TileData,
+  TableTileData,
+  PlotTileData,
+  ViewTileData,
+  EditorTileData,
+  TerminalTileData,
+  TabData,
+} from '@/types/interfaces/grid';
 
 // Import the domain logic from selector files
-import * as interfaceLogic from "../slices/selectors/interface";
-import * as tabLogic from "../slices/selectors/tab";
-import * as tileLogic from "../slices/selectors/tile";
-import * as tableTileLogic from "../slices/selectors/tableTile";
-import * as plotTileLogic from "../slices/selectors/plotTile";
-import * as viewTileLogic from "../slices/selectors/viewTile";
-import * as editorTileLogic from "../slices/selectors/editorTile";
-import * as terminalTileLogic from "../slices/selectors/terminalTile";
+import * as interfaceLogic from '../slices/selectors/interface';
+import * as tabLogic from '../slices/selectors/tab';
+import * as tileLogic from '../slices/selectors/tile';
+import * as tableTileLogic from '../slices/selectors/tableTile';
+import * as plotTileLogic from '../slices/selectors/plotTile';
+import * as viewTileLogic from '../slices/selectors/viewTile';
+import * as editorTileLogic from '../slices/selectors/editorTile';
+import * as terminalTileLogic from '../slices/selectors/terminalTile';
 
 /**
  * Utility to convert Tile state from zustand to TileData format for API operations
@@ -31,9 +39,9 @@ export function convertTileToTileData(tile: Tile): TileData {
 
   const tileData: TileData = {
     id: tile.id,
-    tabId: tile.tabId || "",
+    tabId: tile.tabId || '',
     name: tile.name,
-    type: tile.type || "Table",
+    type: tile.type || 'Table',
     position: tile.position || { x: 0, y: 0, width: 4, height: 4 },
     visible: tile.visible,
     locked: tile.locked,
@@ -45,103 +53,109 @@ export function convertTileToTileData(tile: Tile): TileData {
   if (tile.minH !== null && tile.minH !== undefined) tileData.minH = tile.minH;
   if (tile.context !== null && tile.context !== undefined) tileData.context = tile.context;
   if (tile.table !== null && tile.table !== undefined) tileData.table = tile.table;
-  if (tile.autoUpdate !== null && tile.autoUpdate !== undefined) tileData.autoUpdate = tile.autoUpdate;
+  if (tile.autoUpdate !== null && tile.autoUpdate !== undefined)
+    tileData.autoUpdate = tile.autoUpdate;
   if (tile.freeze !== null && tile.freeze !== undefined) tileData.freeze = tile.freeze;
   if (tile.filters !== null && tile.filters !== undefined) tileData.filters = tile.filters;
-  if (tile.commonFilter !== null && tile.commonFilter !== undefined) tileData.commonFilter = tile.commonFilter;
+  if (tile.commonFilter !== null && tile.commonFilter !== undefined)
+    tileData.commonFilter = tile.commonFilter;
   if (tile.metric !== null && tile.metric !== undefined) tileData.metric = tile.metric;
-  if (tile.columnContext !== null && tile.columnContext !== undefined) tileData.columnContext = tile.columnContext;
+  if (tile.columnContext !== null && tile.columnContext !== undefined)
+    tileData.columnContext = tile.columnContext;
   if (tile.grouping !== null && tile.grouping !== undefined) tileData.grouping = tile.grouping;
   if (tile.color !== null && tile.color !== undefined) tileData.color = tile.color;
 
   // Add table tile data if present
   if (tile.tableTile) {
     const tableTile: TableTileData = {};
-    
+
     // Only add properties that aren't null
-    if (tile.tableTile.tableType !== null && tile.tableTile.tableType !== undefined) 
+    if (tile.tableTile.tableType !== null && tile.tableTile.tableType !== undefined)
       tableTile.tableType = tile.tableTile.tableType;
-    if (tile.tableTile.pageNumber !== null && tile.tableTile.pageNumber !== undefined) 
+    if (tile.tableTile.pageNumber !== null && tile.tableTile.pageNumber !== undefined)
       tableTile.pageNumber = tile.tableTile.pageNumber;
-    if (tile.tableTile.columnOrder !== null && tile.tableTile.columnOrder !== undefined) 
+    if (tile.tableTile.columnOrder !== null && tile.tableTile.columnOrder !== undefined)
       tableTile.columnOrder = tile.tableTile.columnOrder;
-    if (tile.tableTile.hiddenColumns !== null && tile.tableTile.hiddenColumns !== undefined) 
+    if (tile.tableTile.hiddenColumns !== null && tile.tableTile.hiddenColumns !== undefined)
       tableTile.hiddenColumns = tile.tableTile.hiddenColumns;
-    if (tile.tableTile.defaultHiddenColumns !== null && tile.tableTile.defaultHiddenColumns !== undefined) 
+    if (
+      tile.tableTile.defaultHiddenColumns !== null &&
+      tile.tableTile.defaultHiddenColumns !== undefined
+    )
       tableTile.defaultHiddenColumns = tile.tableTile.defaultHiddenColumns;
-    if (tile.tableTile.sorting !== null && tile.tableTile.sorting !== undefined) 
+    if (tile.tableTile.sorting !== null && tile.tableTile.sorting !== undefined)
       tableTile.sorting = tile.tableTile.sorting;
-    if (tile.tableTile.groupSorting !== null && tile.tableTile.groupSorting !== undefined) 
+    if (tile.tableTile.groupSorting !== null && tile.tableTile.groupSorting !== undefined)
       tableTile.groupSorting = tile.tableTile.groupSorting;
-    if (tile.tableTile.columnsPinLeft !== null && tile.tableTile.columnsPinLeft !== undefined) 
+    if (tile.tableTile.columnsPinLeft !== null && tile.tableTile.columnsPinLeft !== undefined)
       tableTile.columnsPinLeft = tile.tableTile.columnsPinLeft;
-    if (tile.tableTile.columnsPinRight !== null && tile.tableTile.columnsPinRight !== undefined) 
+    if (tile.tableTile.columnsPinRight !== null && tile.tableTile.columnsPinRight !== undefined)
       tableTile.columnsPinRight = tile.tableTile.columnsPinRight;
-    if (tile.tableTile.selected !== null && tile.tableTile.selected !== undefined) 
+    if (tile.tableTile.selected !== null && tile.tableTile.selected !== undefined)
       tableTile.selected = tile.tableTile.selected;
-    
+
     tileData.tableTile = tableTile;
   }
 
   // Add plot tile data if present
   if (tile.plotTile) {
     const plotTile: PlotTileData = {};
-    
+
     // Only add properties that aren't null
-    if (tile.plotTile.plotType !== null && tile.plotTile.plotType !== undefined) 
+    if (tile.plotTile.plotType !== null && tile.plotTile.plotType !== undefined)
       plotTile.plotType = tile.plotTile.plotType;
-    if (tile.plotTile.plotScaleX !== null && tile.plotTile.plotScaleX !== undefined) 
+    if (tile.plotTile.plotScaleX !== null && tile.plotTile.plotScaleX !== undefined)
       plotTile.plotScaleX = tile.plotTile.plotScaleX;
-    if (tile.plotTile.plotScaleY !== null && tile.plotTile.plotScaleY !== undefined) 
+    if (tile.plotTile.plotScaleY !== null && tile.plotTile.plotScaleY !== undefined)
       plotTile.plotScaleY = tile.plotTile.plotScaleY;
-    if (tile.plotTile.plotAggregate !== null && tile.plotTile.plotAggregate !== undefined) 
+    if (tile.plotTile.plotAggregate !== null && tile.plotTile.plotAggregate !== undefined)
       plotTile.plotAggregate = tile.plotTile.plotAggregate;
-    if (tile.plotTile.xAxis !== null && tile.plotTile.xAxis !== undefined) 
+    if (tile.plotTile.xAxis !== null && tile.plotTile.xAxis !== undefined)
       plotTile.xAxis = tile.plotTile.xAxis;
-    if (tile.plotTile.yAxis !== null && tile.plotTile.yAxis !== undefined) 
+    if (tile.plotTile.yAxis !== null && tile.plotTile.yAxis !== undefined)
       plotTile.yAxis = tile.plotTile.yAxis;
-    if (tile.plotTile.plotGroupBy !== null && tile.plotTile.plotGroupBy !== undefined) 
+    if (tile.plotTile.plotGroupBy !== null && tile.plotTile.plotGroupBy !== undefined)
       plotTile.plotGroupBy = tile.plotTile.plotGroupBy;
-    if (tile.plotTile.binCount !== null && tile.plotTile.binCount !== undefined) 
+    if (tile.plotTile.binCount !== null && tile.plotTile.binCount !== undefined)
       plotTile.binCount = tile.plotTile.binCount;
-    if (tile.plotTile.regressionLine !== null && tile.plotTile.regressionLine !== undefined) 
+    if (tile.plotTile.regressionLine !== null && tile.plotTile.regressionLine !== undefined)
       plotTile.regressionLine = tile.plotTile.regressionLine;
-    
+
     tileData.plotTile = plotTile;
   }
 
   // Add view tile data if present
   if (tile.viewTile) {
     const viewTile: ViewTileData = {};
-    
+
     // Only add properties that aren't null
-    if (tile.viewTile.baseIndex !== null && tile.viewTile.baseIndex !== undefined) 
+    if (tile.viewTile.baseIndex !== null && tile.viewTile.baseIndex !== undefined)
       viewTile.baseIndex = tile.viewTile.baseIndex;
-    
+
     tileData.viewTile = viewTile;
   }
 
   // Add editor tile data if present
   if (tile.editorTile) {
     const editorTile: EditorTileData = {};
-    
+
     // Only add properties that aren't null
-    if (tile.editorTile.fileName !== null && tile.editorTile.fileName !== undefined) 
+    if (tile.editorTile.fileName !== null && tile.editorTile.fileName !== undefined)
       editorTile.fileName = tile.editorTile.fileName;
-    if (tile.editorTile.fileType !== null && tile.editorTile.fileType !== undefined) 
+    if (tile.editorTile.fileType !== null && tile.editorTile.fileType !== undefined)
       editorTile.fileType = tile.editorTile.fileType;
-    if (tile.editorTile.content !== null && tile.editorTile.content !== undefined) 
+    if (tile.editorTile.content !== null && tile.editorTile.content !== undefined)
       editorTile.content = tile.editorTile.content;
-    
+
     tileData.editorTile = editorTile;
   }
 
   // Add terminal tile data if present
   if (tile.terminalTile) {
     const terminalTile: TerminalTileData = {};
-    
+
     // Only add properties that aren't null
-    if (tile.terminalTile.shellType !== null && tile.terminalTile.shellType !== undefined) 
+    if (tile.terminalTile.shellType !== null && tile.terminalTile.shellType !== undefined)
       terminalTile.shellType = tile.terminalTile.shellType;
 
     tileData.terminalTile = terminalTile;
@@ -161,24 +175,24 @@ export function convertTabToTabData(tab: Tab | null): TabData | null {
   const tabData: TabData = {
     // Handle id conversion from string | null to string | undefined
     id: tab.id || undefined,
-    
+
     // Handle interfaceId conversion from interfaceId
     interfaceId: tab.interfaceId || undefined,
-    
+
     // Handle name conversion - TabData.name is required string, Tab.name is string | null
-    name: tab.name || "",
-    
+    name: tab.name || '',
+
     // Handle boolean conversions
     visible: tab.visible,
     active: tab.active,
     order: tab.order,
-    
+
     // Handle globalContext -> context conversion
     context: tab.globalContext || undefined,
-    
+
     // Handle color conversion
     color: tab.color || undefined,
-    
+
     // createdAt and updatedAt are not available in Tab interface
     // These would typically be set by the server
     createdAt: undefined,
@@ -195,15 +209,12 @@ export function convertTabToTabData(tab: Tab | null): TabData | null {
  *  - For objects (non-array), compare references only. If you want a shallow compare of object keys,
  *    you'd do something custom here. Note this is a single update version of filterUnchangedProps.
  */
-export function filterUnchangedProp<T>(
-  current: T,
-  update: T
-): boolean {
+export function filterUnchangedProp<T>(current: T, update: T): boolean {
   let changed = false;
 
   current = unwrapIfDraft(current);
   update = unwrapIfDraft(update);
-  
+
   if (!isEqual(current, update)) {
     changed = true;
   }
@@ -229,7 +240,6 @@ export function filterUnchangedProps<T extends object>(
   updates = unwrapIfDraft(updates);
 
   for (const key in updates) {
-
     // Use filterUnchangedProp to check if the property has changed
     const oldVal = current[key];
     const newVal = updates[key];
@@ -254,11 +264,11 @@ function unwrapIfDraft(value: any) {
 /**
  * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, ViewTile, EditorTile, and TerminalTile.
  * Either pass in a single update or a record of updates. Either pass in a tile object and tile updates for comparison
- * or pass in a table tile object and table tile updates for comparison, or a plot tile object and plot tile updates for comparison, 
+ * or pass in a table tile object and table tile updates for comparison, or a plot tile object and plot tile updates for comparison,
  * and so on etc.
  *   - If `updates` has exactly 1 key, we do single-field logic with filterUnchangedProp
  *   - Otherwise, we do the normal filterUnchangedProps.
- * 
+ *
  * Usage example:
  *   const filteredTileUpdates = filterUnchangedUpdate(tile, tileUpdates);
  *   const filteredTableTileUpdates = filterUnchangedUpdate(tableTile, tableTileUpdates);
@@ -268,18 +278,18 @@ export function filterUnchangedUpdates<T extends object>(
   updates: Partial<T>
 ): Partial<T> {
   const keys = Object.keys(updates) as (keyof T)[];
-  
+
   if (keys.length === 0) {
     // No keys => nothing changed
     return {} as Partial<T>;
   }
-  
+
   if (keys.length === 1) {
     // Exactly one field in `updates`
     const [key] = keys;
     const newVal = updates[key];
     const oldVal = source[key];
-    
+
     // If they differ, return an object with that single field updated
     if (filterUnchangedProp(oldVal, newVal)) {
       return { [key]: newVal } as Partial<T>;
@@ -298,9 +308,7 @@ export function filterUnchangedUpdates<T extends object>(
  * @param updates - The updates to split
  * @returns An object containing the updates for each tile type
  */
-export function splitTileUpdates(
-  updates: Record<string, any>
-): {
+export function splitTileUpdates(updates: Record<string, any>): {
   tileUpdates: Partial<Tile>;
   tableTileUpdates: Partial<TableTile>;
   plotTileUpdates: Partial<PlotTile>;
@@ -319,39 +327,41 @@ export function splitTileUpdates(
   // into either tableTileUpdates, plotTileUpdates, or viewTileUpdates so e.g. if the
   // updates object has a "tableTile" key, then we spread the nested updates for tableTile
   // into tableTileUpdates.
-  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile", "editorTile", "terminalTile"].includes(key));
-  nestedKeys.forEach(key => {
-    if (key === "tableTile") {
+  const nestedKeys = Object.keys(updates).filter((key) =>
+    ['tableTile', 'plotTile', 'viewTile', 'editorTile', 'terminalTile'].includes(key)
+  );
+  nestedKeys.forEach((key) => {
+    if (key === 'tableTile') {
       tableTileUpdates = { ...tableTileUpdates, ...updates[key] };
       delete updates[key];
-    } else if (key === "plotTile") {
+    } else if (key === 'plotTile') {
       plotTileUpdates = { ...plotTileUpdates, ...updates[key] };
       delete updates[key];
-    } else if (key === "viewTile") {
+    } else if (key === 'viewTile') {
       viewTileUpdates = { ...viewTileUpdates, ...updates[key] };
       delete updates[key];
-    } else if (key === "editorTile") {
+    } else if (key === 'editorTile') {
       editorTileUpdates = { ...editorTileUpdates, ...updates[key] };
       delete updates[key];
-    } else if (key === "terminalTile") {
+    } else if (key === 'terminalTile') {
       terminalTileUpdates = { ...terminalTileUpdates, ...updates[key] };
       delete updates[key];
     }
   });
-  
+
   for (const key in updates) {
     if (TILE_KEYS.includes(key as keyof Tile)) {
       tileUpdates[key as keyof Tile] = updates[key];
     }
-    
+
     if (TABLE_TILE_KEYS.includes(key as keyof TableTile)) {
       tableTileUpdates[key as keyof TableTile] = updates[key];
     }
-    
+
     if (PLOT_TILE_KEYS.includes(key as keyof PlotTile)) {
       plotTileUpdates[key as keyof PlotTile] = updates[key];
     }
-    
+
     if (VIEW_TILE_KEYS.includes(key as keyof ViewTile)) {
       viewTileUpdates[key as keyof ViewTile] = updates[key] as never;
     }
@@ -363,13 +373,29 @@ export function splitTileUpdates(
     if (TERMINAL_TILE_KEYS.includes(key as keyof TerminalTile)) {
       terminalTileUpdates[key as keyof TerminalTile] = updates[key] as never;
     }
-    
-    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates && !editorTileUpdates && !terminalTileUpdates) {
-      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile or EditorTile or TerminalTile.`);
+
+    if (
+      !tileUpdates &&
+      !tableTileUpdates &&
+      !plotTileUpdates &&
+      !viewTileUpdates &&
+      !editorTileUpdates &&
+      !terminalTileUpdates
+    ) {
+      console.warn(
+        `Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile or EditorTile or TerminalTile.`
+      );
     }
   }
 
-  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates, terminalTileUpdates };
+  return {
+    tileUpdates,
+    tableTileUpdates,
+    plotTileUpdates,
+    viewTileUpdates,
+    editorTileUpdates,
+    terminalTileUpdates,
+  };
 }
 
 /**
@@ -385,7 +411,7 @@ export function useWhyDidYouUpdate(name: string, deps: any[]) {
       if (previousDeps.current[index] !== dep) {
         changedDeps[index] = {
           from: previousDeps.current[index],
-          to: dep
+          to: dep,
         };
       }
     });
@@ -413,7 +439,7 @@ export function constructHierarchicalId(name: string, parentIds: string[]): stri
     return name;
   }
 
-  return parentIds.map(id => constructHierarchicalId(id, [])).join('>') + '>' + name;
+  return parentIds.map((id) => constructHierarchicalId(id, [])).join('>') + '>' + name;
 }
 
 /**
@@ -421,7 +447,10 @@ export function constructHierarchicalId(name: string, parentIds: string[]): stri
  * @param hierarchicalId - The hierarchical id of the slice selector
  * @returns The name and parent ids of the slice selector
  */
-export function deconstructHierarchicalId(hierarchicalId: string): { name: string, parentIds: string[] } {
+export function deconstructHierarchicalId(hierarchicalId: string): {
+  name: string;
+  parentIds: string[];
+} {
   const parts = hierarchicalId.split('>');
   return { name: parts[parts.length - 1], parentIds: parts.slice(0, -1) };
 }
@@ -447,7 +476,7 @@ export function pasteCopiedTile(
 ): void {
   const tab = state.tabsById[tabId];
   const sourceTile = state.tilesById[sourceTileId];
-  
+
   if (!tab || !sourceTile) return;
 
   // Only initialize if it doesn't exist
@@ -474,30 +503,25 @@ export function pasteCopiedTile(
     // Add the tile to the tab
     const newTileName = initialState?.name || newTile.name;
     state.tabsById[tabId] = tabLogic.addTile(tab, newTileId, newTileName, sourceTileId);
-
   }
 }
 
 /**
  * Remove a tile from a tab
  */
-export function removeTile(
-  state: WritableDraft<StoreSlice>,
-  tabId: string,
-  tileId: string
-): void {
+export function removeTile(state: WritableDraft<StoreSlice>, tabId: string, tileId: string): void {
   const tab = state.tabsById[tabId];
   const tile = state.tilesById[tileId];
-  
+
   if (!tab || !tile) return;
-  
+
   // Remove the tile
   const tileName = tile.name;
   delete state.tilesById[tileId];
 
   // Then update any references to this tile in other tiles
   // (This is for tiles that reference other tiles by name)
-  Object.keys(state.tilesById).forEach(id => {
+  Object.keys(state.tilesById).forEach((id) => {
     const tile = state.tilesById[id];
 
     let updateTile = false;
@@ -510,15 +534,15 @@ export function removeTile(
 
     // Update xAxis, yAxis, and plotGroupBy references for Plot tiles
     if (tile.type === 'Plot' && tile.plotTile) {
-      if (tile.plotTile.xAxis?.includes(tileName + ".")) {
+      if (tile.plotTile.xAxis?.includes(tileName + '.')) {
         tile.plotTile.xAxis = null;
         updateTile = true;
       }
-      if (tile.plotTile?.yAxis?.includes(tileName + ".")) {
+      if (tile.plotTile?.yAxis?.includes(tileName + '.')) {
         tile.plotTile.yAxis = null;
         updateTile = true;
       }
-      if (tile.plotTile?.plotGroupBy?.includes(tileName + ".")) {
+      if (tile.plotTile?.plotGroupBy?.includes(tileName + '.')) {
         tile.plotTile.plotGroupBy = null;
         updateTile = true;
       }
@@ -540,7 +564,7 @@ export function renameTile(
   state: WritableDraft<StoreSlice>,
   tabId: string,
   sourceTileId: string,
-  newTileName: string,
+  newTileName: string
 ): void {
   const tab = state.tabsById[tabId];
   if (!tab) return;
@@ -555,7 +579,7 @@ export function renameTile(
 
   // Then update any references to this tile in other tiles
   // (This is for tiles that reference other tiles by name)
-  Object.keys(state.tilesById).forEach(id => {
+  Object.keys(state.tilesById).forEach((id) => {
     const tile = state.tilesById[id];
 
     let updateTile = false;
@@ -568,16 +592,19 @@ export function renameTile(
 
     // Update xAxis, yAxis, and plotGroupBy references for Plot tiles
     if (tile.type === 'Plot' && tile.plotTile) {
-      if (tile.plotTile.xAxis?.includes(sourceTileName + ".")) {
-        tile.plotTile.xAxis = tile.plotTile.xAxis?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile.xAxis?.includes(sourceTileName + '.')) {
+        tile.plotTile.xAxis = tile.plotTile.xAxis?.replace(sourceTileName + '.', newTileName + '.');
         updateTile = true;
       }
-      if (tile.plotTile?.yAxis?.includes(sourceTileName + ".")) {
-        tile.plotTile.yAxis = tile.plotTile.yAxis?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile?.yAxis?.includes(sourceTileName + '.')) {
+        tile.plotTile.yAxis = tile.plotTile.yAxis?.replace(sourceTileName + '.', newTileName + '.');
         updateTile = true;
       }
-      if (tile.plotTile?.plotGroupBy?.includes(sourceTileName + ".")) {
-        tile.plotTile.plotGroupBy = tile.plotTile.plotGroupBy?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile?.plotGroupBy?.includes(sourceTileName + '.')) {
+        tile.plotTile.plotGroupBy = tile.plotTile.plotGroupBy?.replace(
+          sourceTileName + '.',
+          newTileName + '.'
+        );
         updateTile = true;
       }
     }
@@ -589,7 +616,7 @@ export function renameTile(
 
   // Update the tab's tileNames array to replace the sourceTileName with the newTileName
   if (tab.tileNames) {
-    tab.tileNames = tab.tileNames.map(name => name === sourceTileName ? newTileName : name);
+    tab.tileNames = tab.tileNames.map((name) => (name === sourceTileName ? newTileName : name));
   }
 }
 
@@ -600,7 +627,7 @@ export function addTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
   newTabName: string,
-  initialState: Partial<Tab> | undefined,
+  initialState: Partial<Tab> | undefined
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
 
@@ -620,23 +647,23 @@ export function addTab(
     // Create the new tab and mark it as active
     const newTab = tabLogic.initTab(newTabId, {
       ...initialState,
-      active: true
+      active: true,
     });
     state.tabsById[newTabId] = newTab;
 
     // Mark other tabs as inactive
-    Object.keys(state.tabsById).forEach(id => {
+    Object.keys(state.tabsById).forEach((id) => {
       if (id !== newTabId) {
         state.tabsById[id].active = false;
       }
     });
-    
+
     // Update the interface's tabIds and tabNames arrays
     state.interfacesById[interfaceId] = interfaceLogic.addTab(interfaceObj, newTabId, newTabName);
-    
+
     // Set this tab as the active tab in the interface
     state.interfacesById[interfaceId].activeTabId = newTabId;
-    
+
     // Set this tab as the global active tab
     state.activeTabId = newTabId;
   }
@@ -651,35 +678,37 @@ export function removeTab(
   tabName: string
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-  const tabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === tabName);
-  
+  const tabId = Object.keys(state.tabsById).find((id) => state.tabsById[id].name === tabName);
+
   if (!interfaceObj || !tabId) return;
-  
+
   const tab = state.tabsById[tabId];
-  
+
   // Clean up associated tiles
   if (tab.tileIds) {
-    tab.tileIds.forEach(tileId => {
+    tab.tileIds.forEach((tileId) => {
       removeTile(state, tabId, tileId);
     });
   }
-  
+
   // Remove the tab
   delete state.tabsById[tabId];
-  
+
   // Update the interface's tabIds and tabNames arrays
   if (interfaceObj.tabIds) {
-    state.interfacesById[interfaceId].tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
+    state.interfacesById[interfaceId].tabIds = interfaceObj.tabIds.filter((tid) => tid !== tabId);
   }
   if (interfaceObj.tabNames) {
-    state.interfacesById[interfaceId].tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
+    state.interfacesById[interfaceId].tabNames = interfaceObj.tabNames.filter(
+      (name) => name !== tab.name
+    );
   }
-  
+
   // Reset active tab if it matches the removed tab
   if (state.activeTabId === tabId) {
     state.activeTabId = null;
   }
-  
+
   // Reset active tab in the interface if it matches the removed tab
   if (interfaceObj.activeTabId === tabId) {
     state.interfacesById[interfaceId].activeTabId = null;
@@ -693,23 +722,25 @@ export function renameTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
   sourceTabName: string,
-  newTabName: string,
+  newTabName: string
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-  
+
   // Get the source tab
-  const sourceTabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === sourceTabName);
+  const sourceTabId = Object.keys(state.tabsById).find(
+    (id) => state.tabsById[id].name === sourceTabName
+  );
 
   if (!interfaceObj || !sourceTabId) return;
 
   const sourceTab = state.tabsById[sourceTabId];
-  
+
   // Store the old name before changing it
   const oldTabName = sourceTab.name;
-  
+
   // Change the name of the tab
   sourceTab.name = newTabName;
-  
+
   // Update the interface's tabNames array if the old name exists
   if (interfaceObj.tabNames && oldTabName) {
     const nameIndex = interfaceObj.tabNames.indexOf(oldTabName);
@@ -736,7 +767,7 @@ export function removeContextFromTab(
 
   // Also update all the tiles that have the context or column context set as this context
   let itemsNeedRecompute = false;
-  tab.tileIds?.forEach(tileId => {
+  tab.tileIds?.forEach((tileId) => {
     const tile = state.tilesById[tileId];
     if (tile) {
       if (tile.context === context && context !== undefined) {
@@ -766,5 +797,5 @@ export function removeContextFromTab(
 }
 
 export function getAnyTileLoading(state: StoreSlice): boolean {
-  return Object.values(state.tilesById).some(tile => tile.loading);
+  return Object.values(state.tilesById).some((tile) => tile.loading);
 }

@@ -25,7 +25,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     minH: tile.minH || undefined,
     visible: tile.visible !== false,
     tab: tile.type as any,
-    
+
     // Common fields shared across tile types
     moved: tile.moved,
     static: tile.static,
@@ -40,7 +40,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     commonFilter: tile.commonFilter || undefined,
     metric: tile.metric || undefined,
   };
-  
+
   // Add type-specific properties based on the tile type
   if (tile.type === 'Table' && tile.tableTile) {
     // Add table-specific properties
@@ -68,28 +68,28 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
       plotGroupBy: tile.plotTile.plotGroupBy,
       plotGroupByColors: tile.plotTile.plotGroupByColors,
       binCount: tile.plotTile.binCount,
-      regressionLine: tile.plotTile.regressionLine
+      regressionLine: tile.plotTile.regressionLine,
     });
   } else if (tile.type === 'View' && tile.viewTile) {
     // Add view-specific properties
     // (Add view-specific fields here if needed)
     Object.assign(tileProps, {
-      baseIndex: tile.viewTile.baseIndex
+      baseIndex: tile.viewTile.baseIndex,
     });
   } else if (tile.type === 'Editor' && tile.editorTile) {
     // Add editor-specific properties
     Object.assign(tileProps, {
       fileName: tile.editorTile.fileName,
       fileType: tile.editorTile.fileType,
-      content: tile.editorTile.content
+      content: tile.editorTile.content,
     });
   } else if (tile.type === 'Terminal' && tile.terminalTile) {
     // Add terminal-specific properties
     Object.assign(tileProps, {
-      shellType: tile.terminalTile.shellType
+      shellType: tile.terminalTile.shellType,
     });
   }
-  
+
   return tileProps;
 }
 
@@ -101,7 +101,7 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
  */
 export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   // Create core Tile properties from base TileProps
-  const hierarchicalTileId = tileItem.name.includes('>') 
+  const hierarchicalTileId = tileItem.name.includes('>')
     ? tileItem.name
     : constructHierarchicalId(tileItem.name, [getParentId(tileId)]);
 
@@ -113,13 +113,13 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       x: tileItem.x,
       y: tileItem.y,
       width: tileItem.w,
-      height: tileItem.h
+      height: tileItem.h,
     },
     minW: tileItem.minW,
     minH: tileItem.minH,
     visible: tileItem.visible,
-    type: tileItem.tab as any,  // 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal'
-    
+    type: tileItem.tab as any, // 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal'
+
     // Common fields shared across tile types
     moved: tileItem.moved,
     static: tileItem.static,
@@ -134,7 +134,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     commonFilter: tileItem.commonFilter,
     metric: tileItem.metric,
   };
-  
+
   // Handle type-specific properties based on the tile type
   let tableTileUpdates: Partial<TableTile> | null = null;
   let plotTileUpdates: Partial<PlotTile> | null = null;
@@ -167,29 +167,29 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       plotGroupBy: tileItem.plotGroupBy,
       plotGroupByColors: tileItem.plotGroupByColors,
       binCount: tileItem.binCount,
-      regressionLine: tileItem.regressionLine
+      regressionLine: tileItem.regressionLine,
     };
     tileUpdates.plotTile = plotTileUpdates as PlotTile;
   } else if (tileItem.tab === 'View') {
     // Apply view-specific updates
     // (Add view-specific updates here if needed)
     viewTileUpdates = {
-      baseIndex: tileItem.baseIndex
+      baseIndex: tileItem.baseIndex,
     } as Partial<ViewTile>;
     tileUpdates.viewTile = viewTileUpdates as ViewTile;
   } else if (tileItem.tab === 'Editor') {
     editorTileUpdates = {
       fileName: tileItem.fileName,
       fileType: tileItem.fileType,
-      content: tileItem.content
+      content: tileItem.content,
     } as Partial<EditorTile>;
     tileUpdates.editorTile = editorTileUpdates as EditorTile;
   } else if (tileItem.tab === 'Terminal') {
     terminalTileUpdates = {
-      shellType: tileItem.shellType
+      shellType: tileItem.shellType,
     } as Partial<TerminalTile>;
     tileUpdates.terminalTile = terminalTileUpdates as TerminalTile;
   }
-  
+
   return tileUpdates as Tile;
-} 
+}
