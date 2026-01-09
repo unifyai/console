@@ -1,75 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { transformQueryParams } from '../../_utils/casingTransform';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const controller = new AbortController();
-  const ttl = setTimeout(() => controller.abort(), 60000);
-  const startedAt = Date.now();
-  const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+  const client = createOrchestraClient(apiKey);
 
-  // Transform query params from camelCase to snake_case
-  const snakeQuery = transformQueryParams(url);
+  const project = searchParams.get('project');
 
   try {
-    const res = await fetch(`${baseUrl}/logs/latest_timestamp${snakeQuery}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'x-correlation-id': correlationId,
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.GET('/v0/logs/latest_timestamp', {
+      params: {
+        query: {
+          project: project || undefined,
+        },
       },
-      signal: controller.signal,
     });
-    clearTimeout(ttl);
-    if (!res.ok && DEBUG_API) {
+
+    if (DEBUG_API && !response.ok) {
       console.warn(
         JSON.stringify({
           route: '/api/logs/latest_timestamp',
           method: 'GET',
-          upstream: `${baseUrl}/logs/latest_timestamp${snakeQuery}`,
-          status: res.status,
+          endpoint: '/v0/logs/latest_timestamp',
+          status: response.status,
           latencyMs: Date.now() - startedAt,
           correlationId,
         })
       );
     }
 
-    // Parse and transform response from snake_case to camelCase
-    const responseData = await res.json();
-    const camelCaseData = snakeToCamelObject(responseData);
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
 
-    return NextResponse.json(camelCaseData, { status: res.status });
-  } catch (e: any) {
-    clearTimeout(ttl);
-    const msg = e?.message || 'Request failed';
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-    console.error(
-      JSON.stringify({
-        route: '/api/logs/latest_timestamp',
-        method: 'GET',
-        upstream: `${baseUrl}/logs/latest_timestamp${snakeQuery}`,
-        error: msg,
-        latencyMs: Date.now() - startedAt,
-        correlationId,
-      })
-    );
-    return NextResponse.json(
-      { detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` },
-      { status }
-    );
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
   }
 }
