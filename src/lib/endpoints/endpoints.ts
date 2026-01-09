@@ -1,20 +1,27 @@
-import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 /**
  * Returns a list of model names that are supported by the given provider.
  *
  * If no provider is given, returns all model names that are supported by any provider.
+ * @param apiKey The user's API key
  * @param provider The name of the provider.
  * @returns A list of model names.
  */
-export async function listModels(apiKey: string, provider: string): Promise<string[]> {
-  const OrchestraUserClient = await getOrchestraUserClient(apiKey);
-  const params = new URLSearchParams();
-  if (provider) params.append('provider', provider);
-  const response = await OrchestraUserClient.get<string[]>('/models', {
-    params: params,
+export async function listModels(apiKey: string, provider?: string): Promise<string[]> {
+  const client = createOrchestraClient(apiKey);
+  const { data, error } = await client.GET('/v0/models', {
+    params: {
+      query: provider ? { provider } : {},
+    },
   });
-  return response.data;
+
+  if (error) {
+    console.error('Failed to list models:', error);
+    return [];
+  }
+
+  return (data as string[]) || [];
 }
 
 /**
@@ -25,37 +32,53 @@ export async function listModels(apiKey: string, provider: string): Promise<stri
  * The list may be empty if the model is not supported by any provider.
  * If the model is not specified, the list contains all providers.
  *
+ * @param apiKey The user's API key
  * @param model - The model to query providers for.
  * @returns A list of provider names that support the given model.
  */
-export async function listProviders(apiKey: string, model: string): Promise<string[]> {
-  const OrchestraUserClient = await getOrchestraUserClient(apiKey);
-  const params = new URLSearchParams();
-  if (model) params.append('model', model);
-  const response = await OrchestraUserClient.get<string[]>('/providers', {
-    params: params,
+export async function listProviders(apiKey: string, model?: string): Promise<string[]> {
+  const client = createOrchestraClient(apiKey);
+  const { data, error } = await client.GET('/v0/providers', {
+    params: {
+      query: model ? { model } : {},
+    },
   });
-  return response.data;
+
+  if (error) {
+    console.error('Failed to list providers:', error);
+    return [];
+  }
+
+  return (data as string[]) || [];
 }
 
 /**
  * Returns a list of endpoint names that are supported by the given provider and model.
  *
+ * @param apiKey The user's API key
  * @param provider - The name of the provider.
  * @param model - The name of the model.
  * @returns A list of endpoint names.
  */
 export async function listEndpoints(
   apiKey: string,
-  provider: string | undefined,
-  model: string | undefined
+  provider?: string,
+  model?: string
 ): Promise<string[]> {
-  const OrchestraUserClient = await getOrchestraUserClient(apiKey);
-  const params = new URLSearchParams();
-  if (provider) params.append('provider', provider);
-  if (model) params.append('model', model);
-  const response = await OrchestraUserClient.get<string[]>('/endpoints', {
-    params: params,
+  const client = createOrchestraClient(apiKey);
+
+  const query: { provider?: string; model?: string } = {};
+  if (provider) query.provider = provider;
+  if (model) query.model = model;
+
+  const { data, error } = await client.GET('/v0/endpoints', {
+    params: { query },
   });
-  return response.data;
+
+  if (error) {
+    console.error('Failed to list endpoints:', error);
+    return [];
+  }
+
+  return (data as string[]) || [];
 }
