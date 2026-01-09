@@ -8,36 +8,7 @@ import {
   ResourceAccessResponse,
   ResourceAccessListResponse,
 } from '@/types/resource';
-import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
-
-const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
-const safeFetch = async (url: string, options: RequestInit, context: string): Promise<any> => {
-  try {
-    const response = await fetch(url, options);
-    if (response.status === 204) return {};
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || 'Operation failed', status: response.status };
-      }
-      // Transform snake_case response to camelCase
-      return snakeToCamelObject(data);
-    }
-    if (!response.ok) return { detail: response.statusText, status: response.status };
-    return {};
-  } catch (error) {
-    console.error(`[ResourceAccess] ${context} error:`, error);
-    return { detail: 'Network error', status: 500 };
-  }
-};
-
-const getHeaders = (apiKey: string) => ({
-  'Content-Type': 'application/json',
-  accept: 'application/json',
-  Authorization: `Bearer ${apiKey}`,
-});
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 /**
  * Grant access to a resource (project or org).
@@ -51,17 +22,23 @@ export const grantResourceAccessAction =
     grantData: ResourceAccessGrant
   ): Promise<ResourceAccessResponse | ResponseProps> => {
     'use server';
-    // Transform camelCase to snake_case for API
-    const apiPayload = camelToSnakeObject(grantData);
-    return safeFetch(
-      `${backendUrl}/resources/${resourceType}/${resourceId}/access`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.POST(
+      '/v0/resources/{resource_type}/{resource_id}/access',
       {
-        method: 'POST',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify(apiPayload),
-      },
-      'grantResourceAccess'
+        params: { path: { resource_type: resourceType, resource_id: resourceId } },
+        body: grantData as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to grant access',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as ResourceAccessResponse;
   };
 
 /**
@@ -75,17 +52,23 @@ export const revokeResourceAccessAction =
     revokeData: ResourceAccessRevoke
   ): Promise<void | ResponseProps> => {
     'use server';
-    // Transform camelCase to snake_case for API
-    const apiPayload = camelToSnakeObject(revokeData);
-    return safeFetch(
-      `${backendUrl}/resources/${resourceType}/${resourceId}/access`,
+    const client = createOrchestraClient(apiKey);
+    const { error, response } = await client.DELETE(
+      '/v0/resources/{resource_type}/{resource_id}/access',
       {
-        method: 'DELETE',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify(apiPayload),
-      },
-      'revokeResourceAccess'
+        params: { path: { resource_type: resourceType, resource_id: resourceId } },
+        body: revokeData as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to revoke access',
+        status: response?.status || 500,
+      };
+    }
+
+    return;
   };
 
 /**
@@ -100,17 +83,25 @@ export const updateResourceAccessAction =
     updateData: ResourceAccessUpdate
   ): Promise<ResourceAccessResponse | ResponseProps> => {
     'use server';
-    // Transform camelCase to snake_case for API
-    const apiPayload = camelToSnakeObject(updateData);
-    return safeFetch(
-      `${backendUrl}/resources/${resourceType}/${resourceId}/access/${accessId}`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.PATCH(
+      '/v0/resources/{resource_type}/{resource_id}/access/{access_id}',
       {
-        method: 'PATCH',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify(apiPayload),
-      },
-      'updateResourceAccess'
+        params: {
+          path: { resource_type: resourceType, resource_id: resourceId, access_id: accessId },
+        },
+        body: updateData as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update access',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as ResourceAccessResponse;
   };
 
 /**
@@ -123,12 +114,20 @@ export const listResourceAccessAction =
     resourceId: number
   ): Promise<ResourceAccessListResponse | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/resources/${resourceType}/${resourceId}/access`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.GET(
+      '/v0/resources/{resource_type}/{resource_id}/access',
       {
-        method: 'GET',
-        headers: getHeaders(apiKey),
-      },
-      'listResourceAccess'
+        params: { path: { resource_type: resourceType, resource_id: resourceId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to list access',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as ResourceAccessListResponse;
   };
