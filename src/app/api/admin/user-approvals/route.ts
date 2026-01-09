@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     });
 
     const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(snakeToCamelObject(data), { status: response.status });
   } catch (error) {
     console.error('[API Admin User Approvals GET] Error proxying to Orchestra:', error);
     return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });
