@@ -26,8 +26,10 @@ import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 const casingMiddleware: Middleware = {
   async onRequest({ request, options }) {
     // Transform request body from camelCase to snake_case
-    if (options.body && typeof options.body === 'object') {
-      const transformed = camelToSnakeObject(options.body as Record<string, unknown>);
+    // Access body from the options object - the type might vary by openapi-fetch version
+    const bodyValue = (options as Record<string, unknown>).body;
+    if (bodyValue && typeof bodyValue === 'object') {
+      const transformed = camelToSnakeObject(bodyValue as Record<string, unknown>);
       // Create new request with transformed body
       const newRequest = new Request(request.url, {
         method: request.method,

@@ -1,76 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildCacheControl } from '../_utils/cacheResponse';
-import { transformBody } from '../_utils/casingTransform';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const res = await fetch(`${baseUrl}/projects`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  const client = createOrchestraClient(apiKey);
 
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
+  try {
+    const { data, error, response } = await client.GET('/v0/projects');
 
-  if (!res.ok) {
-    return NextResponse.json(camelCaseData, { status: res.status });
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    // Cache projects list for 5 minutes - rarely changes
+    const cacheControl = buildCacheControl('LONG');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+    return NextResponse.json(data, { status: 200, headers });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-
-  // Cache projects list for 5 minutes - rarely changes
-  const cacheControl = buildCacheControl('LONG');
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (cacheControl) {
-    headers['Cache-Control'] = cacheControl;
-  }
-
-  return NextResponse.json(camelCaseData, { status: 200, headers });
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  // Transform body to snake_case for Orchestra
-  const snakeBody = transformBody(body);
+  const client = createOrchestraClient(apiKey);
 
-  const res = await fetch(`${baseUrl}/project`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(snakeBody),
-  });
+  try {
+    const { data, error, response } = await client.POST('/v0/project', {
+      body: body,
+    });
 
-  // Parse and transform response from snake_case to camelCase
-  const text = await res.text();
-  if (!text) {
-    return NextResponse.json({ success: true }, { status: res.status });
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-  const responseData = JSON.parse(text);
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }

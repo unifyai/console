@@ -1,118 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { transformBody } from '../../_utils/casingTransform';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL || 'http://localhost:8000'}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
+
+  const client = createOrchestraClient(apiKey);
 
   // Check if this is a template operation
   const isExportTemplate = searchParams.has('export_template');
   const isImportTemplate = searchParams.has('import_template');
 
-  let endpoint = '/project';
-  let requestBody;
+  try {
+    if (isExportTemplate) {
+      const body = await request.json();
+      const { data, error, response } = await client.POST('/v0/project/export_template', {
+        body: body,
+      });
 
-  if (isExportTemplate) {
-    endpoint = '/project/export_template';
-    const body = await request.json();
-    requestBody = JSON.stringify(transformBody(body));
-  } else if (isImportTemplate) {
-    endpoint = '/project/import_template';
-    const body = await request.json();
-    requestBody = JSON.stringify(transformBody(body));
-  } else {
-    // Regular project creation - preserve original behavior
-    requestBody = JSON.stringify({ name: params.projectName });
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else if (isImportTemplate) {
+      const body = await request.json();
+      const { data, error, response } = await client.POST('/v0/project/import_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular project creation with name from path
+      const { data, error, response } = await client.POST('/v0/project', {
+        body: { name: params.projectName },
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data ?? { success: true }, { status: response.status });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-
-  const res = await fetch(`${baseUrl}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: requestBody,
-  });
-
-  // Parse and transform response from snake_case to camelCase
-  const text = await res.text();
-  if (!text) {
-    return NextResponse.json({ success: true }, { status: res.status });
-  }
-  const responseData = JSON.parse(text);
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { projectName: string } }
 ) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const res = await fetch(`${baseUrl}/project/${params.projectName}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  });
+  const client = createOrchestraClient(apiKey);
 
-  // Parse and transform response from snake_case to camelCase
-  const text = await res.text();
-  if (!text) {
-    return NextResponse.json({ success: true }, { status: res.status });
+  try {
+    const { data, error, response } = await client.DELETE('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-  const responseData = JSON.parse(text);
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { projectName: string } }) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const bodyObj = await request.json();
-  const snakeBody = transformBody(bodyObj);
+  const client = createOrchestraClient(apiKey);
+  const body = await request.json();
 
-  const res = await fetch(`${baseUrl}/project/${params.projectName}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    },
-    body: JSON.stringify(snakeBody),
-  });
+  try {
+    const { data, error, response } = await client.PATCH('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+      body: body,
+    });
 
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
 
-  return NextResponse.json(camelCaseData, { status: res.status });
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }

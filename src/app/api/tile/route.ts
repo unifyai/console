@@ -1,177 +1,199 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildCacheControl } from '../_utils/cacheResponse';
-import { transformQueryParams, transformBody } from '../_utils/casingTransform';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  // Check if we're getting a tile by ID, by parent+name, or listing tiles
-  const hasId = searchParams.has('tileId');
-  const hasTabId = searchParams.has('tabId');
-  const hasName = searchParams.has('name');
+  const client = createOrchestraClient(apiKey);
 
-  // Determine endpoint based on parameters
-  let endpoint = '/tile/';
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
 
-  // If we have a tabId but no id or name, we're listing tiles
-  if (hasTabId && !hasId && !hasName) {
-    endpoint = '/tile/list';
+  try {
+    // Determine which endpoint to call based on parameters
+    if (tabId && !tileId && !name) {
+      // List tiles for a tab
+      const { data, error, response } = await client.GET('/v0/tile/list', {
+        params: {
+          query: { tab_id: tabId },
+        },
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
+    } else {
+      // Get specific tile by ID or by tab + name
+      const { data, error, response } = await client.GET('/v0/tile/', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+          },
+        },
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-
-  // Transform query params to snake_case for Orchestra
-  const snakeQuery = transformQueryParams(url);
-
-  // Let the backend handle the routing based on the query parameters
-  const res = await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
-
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  if (!res.ok) {
-    return NextResponse.json(camelCaseData, { status: res.status });
-  }
-
-  // Cache tile data for 60 seconds
-  const cacheControl = buildCacheControl('MEDIUM');
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (cacheControl) {
-    headers['Cache-Control'] = cacheControl;
-  }
-
-  return NextResponse.json(camelCaseData, { status: 200, headers });
 }
 
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
+  const body = await request.json();
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
+
+  const client = createOrchestraClient(apiKey);
 
   // Check if this is a template operation
   const isExportTemplate = searchParams.has('export_template');
   const isImportTemplate = searchParams.has('import_template');
 
-  let endpoint = '/tile/';
+  try {
+    if (isExportTemplate) {
+      const { data, error, response } = await client.POST('/v0/tile/export_template', {
+        body: body,
+      });
 
-  if (isExportTemplate) {
-    endpoint = '/tile/export_template';
-  } else if (isImportTemplate) {
-    endpoint = '/tile/import_template';
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else if (isImportTemplate) {
+      const { data, error, response } = await client.POST('/v0/tile/import_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular tile creation
+      const { data, error, response } = await client.POST('/v0/tile/', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-
-  const body = await request.json();
-
-  // Transform body to snake_case for Orchestra
-  const snakeBody = transformBody(body);
-
-  // For POST, we always create a new resource, so the endpoint is fixed
-  const res = await fetch(`${baseUrl}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(snakeBody),
-  });
-
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
   const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  // Transform to snake_case for Orchestra
-  const snakeQuery = transformQueryParams(url);
-  const snakeBody = transformBody(body);
+  const client = createOrchestraClient(apiKey);
 
-  // Pass all query parameters to allow both ID and parent+name updates
-  const res = await fetch(`${baseUrl}/tile/${snakeQuery}`, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(snakeBody),
-  });
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
 
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
+  try {
+    const { data, error, response } = await client.PUT('/v0/tile/', {
+      params: {
+        query: {
+          tile_id: tileId || undefined,
+          tab_id: tabId || undefined,
+          name: name || undefined,
+        },
+      },
+      body: body,
+    });
 
-  return NextResponse.json(camelCaseData, { status: res.status });
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
   const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  // Transform query params to snake_case for Orchestra
-  const snakeQuery = transformQueryParams(url);
+  const client = createOrchestraClient(apiKey);
 
-  // Pass all query parameters to allow both ID and parent+name deletion
-  const res = await fetch(`${baseUrl}/tile/${snakeQuery}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
 
-  // Parse and transform response from snake_case to camelCase
-  const text = await res.text();
-  if (!text) {
-    return NextResponse.json({ success: true }, { status: res.status });
+  try {
+    const { data, error, response } = await client.DELETE('/v0/tile/', {
+      params: {
+        query: {
+          tile_id: tileId || undefined,
+          tab_id: tabId || undefined,
+          name: name || undefined,
+        },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-  const responseData = JSON.parse(text);
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -179,42 +201,59 @@ export async function PATCH(request: NextRequest) {
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  // Check if this is a specialized patch
-  const hasTileType = searchParams.has('tile_type');
+  const client = createOrchestraClient(apiKey);
 
-  // Determine endpoint based on parameters
-  let endpoint = '/tile/';
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
+  const tileType = searchParams.get('tile_type');
 
-  // If we have a tileType, we're patching a specialized tile
-  if (hasTileType) {
-    endpoint = '/tile/specialized';
+  try {
+    if (tileType) {
+      // Specialized tile patch
+      const { data, error, response } = await client.PATCH('/v0/tile/specialized', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+            tile_type: tileType,
+          },
+        },
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular tile patch - note: /v0/tile/ doesn't have PATCH, might need adjustment
+      const { data, error, response } = await client.PATCH('/v0/tile/specialized', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+          },
+        },
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
   }
-
-  // Transform to snake_case for Orchestra
-  const snakeQuery = transformQueryParams(url);
-  const snakeBody = transformBody(body);
-
-  // Pass all query parameters to allow both ID and parent+name updates
-  const res = await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(snakeBody),
-  });
-
-  // Parse and transform response from snake_case to camelCase
-  const responseData = await res.json();
-  const camelCaseData = snakeToCamelObject(responseData);
-
-  return NextResponse.json(camelCaseData, { status: res.status });
 }
