@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { data, error, response } = await client.GET('/v0/logs/latest_timestamp', {
       params: {
         query: {
-          project: project || undefined,
+          project_name: project || '',
         },
       },
     });

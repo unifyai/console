@@ -212,8 +212,9 @@ export async function PATCH(request: NextRequest) {
   const interfaceId = searchParams.get('interfaceId');
   const name = searchParams.get('name');
 
+  // Note: Orchestra API doesn't have a PATCH endpoint for tabs, use PUT instead
   try {
-    const { data, error, response } = await client.PATCH('/v0/tab', {
+    const { data, error, response } = await client.PUT('/v0/tab/', {
       params: {
         query: {
           tab_id: tabId || undefined,

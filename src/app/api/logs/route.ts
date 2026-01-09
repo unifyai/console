@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { data, error, response } = await client.GET('/v0/logs', {
       params: {
         query: {
-          project: project || undefined,
+          project_name: project || '',
           tags: tags || undefined,
           start_time: startTime || undefined,
           end_time: endTime || undefined,
@@ -82,11 +82,6 @@ export async function DELETE(request: NextRequest) {
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 
     const { data, error, response } = await client.DELETE('/v0/logs', {
-      params: {
-        query: {
-          delete_empty_logs: true,
-        },
-      },
       body: body,
     });
 

@@ -234,8 +234,8 @@ export async function PATCH(request: NextRequest) {
 
       return NextResponse.json(data, { status: response.status });
     } else {
-      // Regular tile patch - note: /v0/tile/ doesn't have PATCH, might need adjustment
-      const { data, error, response } = await client.PATCH('/v0/tile/specialized', {
+      // Regular tile update - use PUT since there's no PATCH without tile_type
+      const { data, error, response } = await client.PUT('/v0/tile/', {
         params: {
           query: {
             tile_id: tileId || undefined,

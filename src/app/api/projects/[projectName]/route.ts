@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
     } else {
       // Regular project creation with name from path
       const { data, error, response } = await client.POST('/v0/project', {
-        body: { name: params.projectName },
+        body: { name: params.projectName, is_versioned: false },
       });
 
       if (error) {

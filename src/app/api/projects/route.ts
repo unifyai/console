@@ -12,10 +12,15 @@ export async function GET(request: NextRequest) {
   const client = createOrchestraClient(apiKey);
 
   try {
-    const { data, error, response } = await client.GET('/v0/projects');
+    // Note: The /v0/projects endpoint returns unknown in schema, but it's actually string[]
+    const result = (await client.GET('/v0/projects', {})) as {
+      data?: string[];
+      error?: unknown;
+      response: Response;
+    };
 
-    if (error) {
-      return NextResponse.json(error, { status: response.status });
+    if (result.error) {
+      return NextResponse.json(result.error, { status: result.response.status });
     }
 
     // Cache projects list for 5 minutes - rarely changes
@@ -23,7 +28,7 @@ export async function GET(request: NextRequest) {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (cacheControl) headers['Cache-Control'] = cacheControl;
 
-    return NextResponse.json(data, { status: 200, headers });
+    return NextResponse.json(result.data, { status: 200, headers });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Request failed';
     return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
