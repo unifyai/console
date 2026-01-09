@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -12,11 +13,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  return await fetch(`${baseUrl}/providers`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  try {
+    const res = await fetch(`${baseUrl}/providers`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        accept: 'application/json',
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(snakeToCamelObject(data), { status: res.status });
+  } catch (error) {
+    return NextResponse.json({ detail: 'Failed to fetch providers' }, { status: 500 });
+  }
 }
