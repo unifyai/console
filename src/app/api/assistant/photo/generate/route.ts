@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -15,6 +16,9 @@ export async function POST(request: NextRequest) {
   try {
     const requestBody = await request.json();
 
+    // Transform camelCase keys to snake_case for Orchestra API
+    const snakeCaseBody = camelToSnakeObject(requestBody);
+
     const response = await fetch(`${ORCHESTRA_BASE_URL}/assistant/photo/generate`, {
       method: 'POST',
       headers: {
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const responseData = await response.json().catch((e) => {
@@ -43,7 +47,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (photo/generate):', error);
     return NextResponse.json(

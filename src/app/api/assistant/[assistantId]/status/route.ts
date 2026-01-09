@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -49,8 +50,11 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       return NextResponse.json({ detail }, { status: response.status });
     }
 
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+
     // If everything is OK, return the parsed data.
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error(
       `Error proxying to backend for assistant status (assistant ${params.assistantId}):`,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -39,6 +40,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { assist
     console.error('Failed to parse JSON body in PATCH /api/assistant/[assistantId]:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
+
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   return await fetch(`${baseUrl}/assistant/${params.assistantId}/config`, {
     method: 'PATCH',
     headers: {
@@ -46,6 +51,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { assist
       accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(snakeCaseBody),
   });
 }

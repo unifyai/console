@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
   }
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   try {
     const orchestraResponse = await fetch(`${ORCHESTRA_BASE_URL}/assistant/voice/generate`, {
       method: 'POST',
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/octet-stream, application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     if (!orchestraResponse.ok) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
   }
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   try {
     const orchestraResponse = await fetch(`${ORCHESTRA_BASE_URL}/assistant/voice/design/preview`, {
       method: 'POST',
@@ -28,11 +32,15 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const responseData = await orchestraResponse.json();
-    return NextResponse.json(responseData, { status: orchestraResponse.status });
+
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
   } catch (error: any) {
     console.error('Error proxying to backend (voice/design/preview):', error);
     return NextResponse.json(
