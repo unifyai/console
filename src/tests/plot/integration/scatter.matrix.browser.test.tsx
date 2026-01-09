@@ -64,7 +64,7 @@ function generateScatterMatrix(): ScatterMatrixConfig[] {
   // float, int, timestamp, time, timedelta, date, bool, Any
   // All are converted to numeric by getValue()
   const allDataTypes = generateDataTypeConfigs().filter((dt) =>
-    ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
+    ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.xAxisType)
   );
   const activeScales = getActiveScales();
 
@@ -134,15 +134,15 @@ function defineScatterTests(config: ScatterMatrixConfig, { it, expect }: TestUti
         assertPointPositionsMatchData(
           result,
           deterministicData,
-          plotConfig.scale_x,
-          plotConfig.scale_y
+          plotConfig.scaleX,
+          plotConfig.scaleY
         );
 
         // Point dimensions
         assertPointDimensions(result);
 
         // Grouped: different colors for groups
-        if (plotConfig.group_by) {
+        if (plotConfig.groupBy) {
           const fillColors = new Set(points.map((p) => p.getAttribute('fill')).filter(Boolean));
           expect(fillColors.size).toBeGreaterThanOrEqual(1);
         }
@@ -160,7 +160,7 @@ function defineScatterTests(config: ScatterMatrixConfig, { it, expect }: TestUti
       expect(yTicks.length).toBeGreaterThan(0);
 
       // Regression line (if enabled - always SVG overlay)
-      if (plotConfig.show_regression) {
+      if (plotConfig.showRegression) {
         const plotData = result.getPlotDataGroup();
         expect(plotData).not.toBeNull();
         const lines = plotData?.querySelectorAll('path.best-fit');

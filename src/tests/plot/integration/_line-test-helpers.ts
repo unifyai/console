@@ -23,7 +23,11 @@ export function parsePathD(d: string): Array<{ cmd: string; x?: number; y?: numb
 
   while ((match = regex.exec(d)) !== null) {
     const cmd = match[1];
-    const params = match[2].trim().split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+    const params = match[2]
+      .trim()
+      .split(/[\s,]+/)
+      .map(parseFloat)
+      .filter((n) => !isNaN(n));
 
     if (cmd === 'M' || cmd === 'L') {
       for (let i = 0; i < params.length; i += 2) {
@@ -128,13 +132,11 @@ export function assertLinePassesThroughPoints(
 
   if (numericXValues.length === 0 || numericYValues.length === 0) return 0;
 
-  const xDomain: Domain = scaleX === 'log'
-    ? calculateLogDomain(numericXValues)
-    : calculateDomain(numericXValues, true);
+  const xDomain: Domain =
+    scaleX === 'log' ? calculateLogDomain(numericXValues) : calculateDomain(numericXValues, true);
 
-  const yDomain: Domain = scaleY === 'log'
-    ? calculateLogDomain(numericYValues)
-    : calculateDomain(numericYValues, true);
+  const yDomain: Domain =
+    scaleY === 'log' ? calculateLogDomain(numericYValues) : calculateDomain(numericYValues, true);
 
   // Sample some data points and verify line passes near them
   const step = Math.max(1, Math.floor(deterministicData.logs.length / sampleSize));
@@ -162,11 +164,12 @@ export function assertLinePassesThroughPoints(
 
     // Check if any point on the line is close to the expected position
     const tolerance = POSITION_TOLERANCE * 15;
-    const hasNearbyPoint = commands.some(cmd =>
-      cmd.x !== undefined &&
-      cmd.y !== undefined &&
-      Math.abs(cmd.x - expectedPos.cx) < tolerance &&
-      Math.abs(cmd.y - expectedPos.cy) < tolerance
+    const hasNearbyPoint = commands.some(
+      (cmd) =>
+        cmd.x !== undefined &&
+        cmd.y !== undefined &&
+        Math.abs(cmd.x - expectedPos.cx) < tolerance &&
+        Math.abs(cmd.y - expectedPos.cy) < tolerance
     );
 
     if (hasNearbyPoint) {
@@ -198,12 +201,13 @@ export function assertLineSegmentCount(
   const commands = parsePathD(d);
 
   // Line should have roughly as many M/L commands as data points
-  const expectedPointCount = deterministicData.logs.filter(log =>
-    log['table1.entries']['table1.x_value'] !== null && log['table1.entries']['table1.y_value'] !== null
+  const expectedPointCount = deterministicData.logs.filter(
+    (log) =>
+      log['table1.entries']['table1.x_value'] !== null &&
+      log['table1.entries']['table1.y_value'] !== null
   ).length;
 
   // Commands should be proportional to data points
   expect(commands.length).toBeGreaterThan(0);
   expect(commands.length).toBeLessThanOrEqual(expectedPointCount * 3 + 10);
 }
-

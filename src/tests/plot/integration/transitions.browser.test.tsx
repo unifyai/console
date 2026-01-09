@@ -449,8 +449,17 @@ import {
  */
 function createLog(id: string, xValue: number, yValue: number, category: string = 'test') {
   return {
+    type: 'ungrouped',
     id,
-    timestamp: new Date().toISOString(),
+    ts: new Date().toISOString(),
+    params: {},
+    entries: {
+      'table1.x_value': xValue,
+      'table1.y_value': yValue,
+      'table1.category': category,
+    },
+    derivedEntries: {},
+    clippedFields: {},
     'table1.id': id,
     'table1.entries': {
       'table1.x_value': xValue,
@@ -460,7 +469,7 @@ function createLog(id: string, xValue: number, yValue: number, category: string 
   };
 }
 
-function createDataset(count: number): any[] {
+function createDataset(count: number) {
   return Array.from({ length: count }, (_, i) =>
     createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
   );

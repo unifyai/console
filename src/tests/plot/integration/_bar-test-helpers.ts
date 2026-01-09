@@ -83,28 +83,29 @@ export function assertExactBarCount(
   _groupByType: 'str' | 'bool' = 'str'
 ) {
   const bars = result.getBars();
-  
+
   let expectedCount: number;
 
   if (isGrouped) {
     // For grouped charts, count unique (x, group) pairs in the actual data
     const uniquePairs = new Set(
       deterministicData.logs
-        .filter(l => 
-          l['table1.entries'][xAxisField] !== null && 
-          l['table1.entries'][xAxisField] !== undefined &&
-          l['table1.entries']['table1.category'] !== null &&
-          l['table1.entries']['table1.category'] !== undefined
+        .filter(
+          (l) =>
+            l['table1.entries'][xAxisField] !== null &&
+            l['table1.entries'][xAxisField] !== undefined &&
+            l['table1.entries']['table1.category'] !== null &&
+            l['table1.entries']['table1.category'] !== undefined
         )
-        .map(l => `${l['table1.entries'][xAxisField]}|${l['table1.entries']['table1.category']}`)
+        .map((l) => `${l['table1.entries'][xAxisField]}|${l['table1.entries']['table1.category']}`)
     );
     expectedCount = uniquePairs.size;
   } else {
     // For non-grouped charts, count unique x-axis categories
     const uniqueXCategories = new Set(
       deterministicData.logs
-        .map(l => l['table1.entries'][xAxisField])
-        .filter(v => v !== null && v !== undefined)
+        .map((l) => l['table1.entries'][xAxisField])
+        .filter((v) => v !== null && v !== undefined)
     );
     expectedCount = uniqueXCategories.size;
   }
@@ -119,7 +120,7 @@ export function assertExactBarCount(
 export function assertConsistentBarWidths(bars: SVGRectElement[]) {
   if (bars.length <= 1) return;
 
-  const widths = bars.map(bar => parseFloat(bar.getAttribute('width') || '0'));
+  const widths = bars.map((bar) => parseFloat(bar.getAttribute('width') || '0'));
   const firstWidth = widths[0];
 
   for (const width of widths) {
@@ -134,7 +135,9 @@ export function assertConsistentBarWidths(bars: SVGRectElement[]) {
 export function assertBarsEvenlySpaced(bars: SVGRectElement[]) {
   if (bars.length <= 2) return;
 
-  const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0')).sort((a, b) => a - b);
+  const xPositions = bars
+    .map((bar) => parseFloat(bar.getAttribute('x') || '0'))
+    .sort((a, b) => a - b);
   const gaps: number[] = [];
 
   for (let i = 1; i < xPositions.length; i++) {
@@ -168,7 +171,7 @@ export function assertBarHeightsMatchAggregatedValues(
   );
 
   // Get bar data with heights
-  const barData = bars.map(bar => ({
+  const barData = bars.map((bar) => ({
     height: parseFloat(bar.getAttribute('height') || '0'),
     y: parseFloat(bar.getAttribute('y') || '0'),
   }));
@@ -179,11 +182,11 @@ export function assertBarHeightsMatchAggregatedValues(
   }
 
   // Get expected values sorted by magnitude
-  const expectedValues = Array.from(expectedAggregates.values()).filter(v => Number.isFinite(v));
+  const expectedValues = Array.from(expectedAggregates.values()).filter((v) => Number.isFinite(v));
   if (expectedValues.length < 2) return;
 
   const sortedExpected = [...expectedValues].sort((a, b) => b - a);
-  const sortedHeights = barData.map(b => b.height).sort((a, b) => b - a);
+  const sortedHeights = barData.map((b) => b.height).sort((a, b) => b - a);
 
   // Verify proportionality: the ratio of heights should match ratio of values
   const maxExpected = sortedExpected[0];
@@ -204,12 +207,11 @@ export function assertBarHeightsMatchAggregatedValues(
   }
 
   // Additional check: bars should be ordered consistently with values
-  const heightOrder = [...barData].sort((a, b) => b.height - a.height).map(b => b.height);
-  
+  const heightOrder = [...barData].sort((a, b) => b.height - a.height).map((b) => b.height);
+
   // Tallest bar should have height >= median bar
   if (expectedValues.length >= 2 && heightOrder.length >= 2) {
     const medianHeight = heightOrder[Math.floor(heightOrder.length / 2)];
     expect(heightOrder[0]).toBeGreaterThanOrEqual(medianHeight);
   }
 }
-

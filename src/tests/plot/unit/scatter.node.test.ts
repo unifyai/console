@@ -26,25 +26,25 @@ import { determineRenderMode } from '@/utils/interfaces/plots/plot-scatter/orche
 
 const mockFields: LogFieldsResponseProps = {
   'table1.x': {
-    data_type: 'float',
-    field_type: 'entry',
+    dataType: 'float',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
   'table1.y': {
-    data_type: 'float',
-    field_type: 'entry',
+    dataType: 'float',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
   'table1.group': {
-    data_type: 'str',
-    field_type: 'entry',
+    dataType: 'str',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
 };
 

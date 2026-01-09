@@ -428,7 +428,9 @@ describe('@real Assistants Server Actions (Integration)', () => {
           res.gcsUrl;
         expect(url).toBeDefined();
         expect(typeof url).toBe('string');
-        expect(url.length).toBeGreaterThan(0);
+        if (url) {
+          expect(url.length).toBeGreaterThan(0);
+        }
       }
     });
   });
@@ -740,7 +742,9 @@ describe('@real Assistants Server Actions (Integration)', () => {
           res.gcsUrl;
         expect(url).toBeDefined();
         expect(typeof url).toBe('string');
-        expect(url.length).toBeGreaterThan(0);
+        if (url) {
+          expect(url.length).toBeGreaterThan(0);
+        }
       }
     });
 

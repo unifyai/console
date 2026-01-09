@@ -1785,7 +1785,7 @@ export default function InterfaceNav({
     [setSelectedTab, setDeleteTabOpen]
   );
 
-  // Store API for context cascade operations
+  // Store API for cascade helpers (must be declared before callbacks that use it)
   const storeApi = useStoreApiContext();
 
   // Cascade helpers: set context at interface and project scope without overriding explicit child contexts

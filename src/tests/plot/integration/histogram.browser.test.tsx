@@ -8,10 +8,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { renderPlotCanvas } from '../fixtures/plotCanvasTestHarness';
-import {
-  assertBinsHaveValidDimensions,
-  assertBinsWithinPlotArea,
-} from './_histogram-test-helpers';
+import { assertBinsHaveValidDimensions, assertBinsWithinPlotArea } from './_histogram-test-helpers';
 
 // =============================================================================
 // Setup
@@ -41,11 +38,13 @@ describe('Histogram - Edge Cases', () => {
   });
 
   it('handles single data point', async () => {
-    const singleLog = [{
-      id: 'log_0',
-      timestamp: new Date().toISOString(),
-      'table1.entries': { 'table1.x_value': 50 },
-    }];
+    const singleLog = [
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 50 },
+      },
+    ];
 
     const result = renderPlotCanvas({
       plotType: 'Histogram',

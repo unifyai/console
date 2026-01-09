@@ -236,40 +236,48 @@ describe('@real Interfaces API', () => {
     }
   });
 
-  it('@real returns camelCase response properties for interface list', realTestOptions, async () => {
-    const result = await interfacesApi.list(testProject);
+  it(
+    '@real returns camelCase response properties for interface list',
+    realTestOptions,
+    async () => {
+      const result = await interfacesApi.list(testProject);
 
-    // Verify we get camelCase, not snake_case
-    expect(Array.isArray(result)).toBe(true);
+      // Verify we get camelCase, not snake_case
+      expect(Array.isArray(result)).toBe(true);
 
-    // If there are interfaces, check their properties are camelCase
-    if (result.length > 0) {
-      const iface = result[0];
-      // Should have camelCase keys
-      expect(iface).toHaveProperty('id');
-      expect(iface).toHaveProperty('name');
-      // Should NOT have snake_case keys
-      expect(iface).not.toHaveProperty('project_id');
-      expect(iface).not.toHaveProperty('created_at');
-      expect(iface).not.toHaveProperty('updated_at');
+      // If there are interfaces, check their properties are camelCase
+      if (result.length > 0) {
+        const iface = result[0];
+        // Should have camelCase keys
+        expect(iface).toHaveProperty('id');
+        expect(iface).toHaveProperty('name');
+        // Should NOT have snake_case keys
+        expect(iface).not.toHaveProperty('project_id');
+        expect(iface).not.toHaveProperty('created_at');
+        expect(iface).not.toHaveProperty('updated_at');
+      }
     }
-  });
+  );
 
-  it('@real returns camelCase response properties for interface create', realTestOptions, async () => {
-    const interfaceName = uniqueName('test-interface-casing');
+  it(
+    '@real returns camelCase response properties for interface create',
+    realTestOptions,
+    async () => {
+      const interfaceName = uniqueName('test-interface-casing');
 
-    const result = await interfacesApi.create(testProject, interfaceName);
-    createdInterfaceIds.push(result.id);
+      const result = await interfacesApi.create(testProject, interfaceName);
+      createdInterfaceIds.push(result.id);
 
-    // Should have camelCase keys
-    expect(result).toHaveProperty('id');
-    expect(result).toHaveProperty('name');
-    // Should NOT have snake_case keys
-    expect(result).not.toHaveProperty('project_id');
-    expect(result).not.toHaveProperty('project_name');
-    expect(result).not.toHaveProperty('created_at');
-    expect(result).not.toHaveProperty('updated_at');
-  });
+      // Should have camelCase keys
+      expect(result).toHaveProperty('id');
+      expect(result).toHaveProperty('name');
+      // Should NOT have snake_case keys
+      expect(result).not.toHaveProperty('project_id');
+      expect(result).not.toHaveProperty('project_name');
+      expect(result).not.toHaveProperty('created_at');
+      expect(result).not.toHaveProperty('updated_at');
+    }
+  );
 
   it('@real returns camelCase response properties for interface get', realTestOptions, async () => {
     const interfaceName = uniqueName('test-interface-casing-get');
