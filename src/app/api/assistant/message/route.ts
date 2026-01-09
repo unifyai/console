@@ -1,33 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
 
 export async function POST(request: NextRequest) {
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
     console.error('[API /api/assistant/message] ORCHESTRA_ADMIN_KEY is not set.');
-    return NextResponse.json({ detail: 'Server configuration error.' }, { status: 500 });
+    return internalError('Server configuration error.');
   }
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
   try {
     requestBody = await request.json();
   } catch (error) {
-    return NextResponse.json({ detail: 'Invalid JSON body' }, { status: 400 });
+    return badRequest('Invalid JSON body');
   }
 
   const { assistantId, contactId, message } = requestBody;
 
   if (!assistantId || !message) {
-    return NextResponse.json({ detail: "Missing 'assistantId' or 'message'" }, { status: 400 });
+    return badRequest("Missing 'assistantId' or 'message'");
   }
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
@@ -65,9 +62,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('[API /api/assistant/message] Error calling webhook:', error.message);
-    return NextResponse.json(
-      { detail: 'Failed to connect to messaging service.', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to messaging service.');
   }
 }

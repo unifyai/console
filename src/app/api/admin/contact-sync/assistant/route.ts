@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError, badRequest } from '../../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
@@ -15,12 +16,12 @@ const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 export async function POST(request: NextRequest) {
   if (!ORCHESTRA_ADMIN_KEY) {
     console.error('[API contact-sync/assistant] ORCHESTRA_ADMIN_KEY not configured');
-    return NextResponse.json({ detail: 'Admin key not configured' }, { status: 500 });
+    return internalError('Admin key not configured');
   }
 
   if (!ORCHESTRA_BASE_URL) {
     console.error('[API contact-sync/assistant] ORCHESTRA_URL not configured');
-    return NextResponse.json({ detail: 'Backend URL not configured' }, { status: 500 });
+    return internalError('Backend URL not configured');
   }
 
   let body: {
@@ -32,20 +33,17 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch (error) {
-    return NextResponse.json({ detail: 'Invalid JSON body' }, { status: 400 });
+    return badRequest('Invalid JSON body');
   }
 
   const { assistantId, timezone, about } = body;
 
   if (!assistantId || typeof assistantId !== 'number') {
-    return NextResponse.json({ detail: 'assistantId (number) is required' }, { status: 400 });
+    return badRequest('assistantId (number) is required');
   }
 
   if (timezone === undefined && about === undefined) {
-    return NextResponse.json(
-      { detail: 'At least one of timezone or about must be provided' },
-      { status: 400 }
-    );
+    return badRequest('At least one of timezone or about must be provided');
   }
 
   const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant/${assistantId}`;
@@ -90,6 +88,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error('[API contact-sync/assistant] Error proxying to backend:', error);
-    return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });
+    return internalError('Failed to connect to backend service');
   }
 }

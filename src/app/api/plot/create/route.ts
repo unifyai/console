@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
@@ -77,22 +78,10 @@ interface CreatePlotRequest {
   title?: string;
 }
 
-/**
- * Extract API key from Authorization header
- */
-function extractApiKey(request: NextRequest): string | null {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-  return authHeader.slice(7); // Remove 'Bearer ' prefix
-}
-
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Extract API key from Authorization header
-  const apiKey = extractApiKey(request);
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
+    return unauthorized();
   }
 
   // Parse request body
@@ -100,19 +89,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return badRequest('Invalid JSON body');
   }
 
   // Basic validation before forwarding
   if (!body.projectConfig?.projectName) {
-    return NextResponse.json({ error: 'Missing projectConfig.projectName' }, { status: 400 });
+    return badRequest('Missing projectConfig.projectName');
   }
 
   if (!body.plotConfig && !body.description) {
-    return NextResponse.json(
-      { error: 'Either plotConfig or description is required' },
-      { status: 400 }
-    );
+    return badRequest('Either plotConfig or description is required');
   }
 
   try {
@@ -164,6 +150,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(consoleResponse, { status: 201 });
   } catch (error) {
     console.error('[plot/create] Failed to proxy to Orchestra:', error);
-    return NextResponse.json({ error: 'Failed to create plot' }, { status: 500 });
+    return internalError('Failed to create plot');
   }
 }

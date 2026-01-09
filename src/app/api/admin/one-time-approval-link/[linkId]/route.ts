@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError, badRequest } from '../../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
@@ -6,12 +7,12 @@ const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 export async function DELETE(request: NextRequest, { params }: { params: { linkId: string } }) {
   if (!ORCHESTRA_ADMIN_KEY) {
-    return NextResponse.json({ detail: 'Admin key not configured' }, { status: 500 });
+    return internalError('Admin key not configured');
   }
 
   const { linkId } = params;
   if (!linkId) {
-    return NextResponse.json({ detail: 'Link ID is required' }, { status: 400 });
+    return badRequest('Link ID is required');
   }
 
   const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link/${linkId}`;
@@ -37,6 +38,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { linkI
     return NextResponse.json(snakeToCamelObject(data), { status: response.status });
   } catch (error) {
     console.error(`[API Admin One Time Link DELETE ${linkId}] Error proxying to Orchestra:`, error);
-    return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });
+    return internalError('Failed to connect to backend service');
   }
 }

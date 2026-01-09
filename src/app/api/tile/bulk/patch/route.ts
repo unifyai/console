@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
 import { camelToSnake, camelToSnakeObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ detail: 'Invalid JSON body' }, { status: 400 });
+    return badRequest('Invalid JSON body');
   }
 
   const updates: UpdateItem[] = Array.isArray(body?.updates) ? body.updates : [];
@@ -31,12 +31,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ results: [], errors: [] }, { status: 200 });
   }
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
   const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 

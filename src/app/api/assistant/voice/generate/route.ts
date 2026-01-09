@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import {
+  getApiKeyFromRequest,
+  unauthorized,
+  badRequest,
+  internalError,
+} from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
@@ -18,7 +20,7 @@ export async function POST(request: NextRequest) {
     requestBody = await request.json();
   } catch (error) {
     console.error('Failed to parse JSON body in POST /api/assistant/voice/generate:', error);
-    return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
+    return badRequest('Invalid request body');
   }
 
   // Transform camelCase keys to snake_case for Orchestra API
@@ -83,9 +85,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[API PROXY /api/assistant/voice/generate] Error proxying to backend:', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to speech generation service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to speech generation service');
   }
 }

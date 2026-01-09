@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processPhoneCountryCodes } from '@/utils/assistants/country-utils';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.COMMUNICATION_URL}`;
 
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
   try {
     const response = await fetch(`${baseUrl}/phone/available-countries`, {
@@ -63,9 +60,6 @@ export async function GET(request: NextRequest) {
       error.message,
       error.stack
     );
-    return NextResponse.json(
-      { error: 'Failed to connect to backend API', details: error.message },
-      { status: 500 }
-    );
+    return internalError('Failed to connect to backend API');
   }
 }

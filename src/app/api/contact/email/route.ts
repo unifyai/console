@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
@@ -7,12 +7,9 @@ const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
@@ -20,16 +17,16 @@ export async function POST(request: NextRequest) {
     requestBody = await request.json();
   } catch (error) {
     console.error('Failed to parse JSON body in POST /api/contact/email:', error);
-    return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
+    return badRequest('Invalid request body');
   }
 
   const { email } = requestBody;
   if (!email) {
-    return NextResponse.json({ detail: 'Missing required field: email' }, { status: 400 });
+    return badRequest('Missing required field: email');
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ detail: 'Invalid email format provided.' }, { status: 400 });
+    return badRequest('Invalid email format provided.');
   }
 
   try {
@@ -79,27 +76,27 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error proxying to communication service (email/create):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to communication service');
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  const apiKey = request.headers.get('apiKey');
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
   let requestBody;
   try {
     requestBody = await request.json();
   } catch (error) {
     console.error('Failed to parse JSON body in DELETE /api/contact/email:', error);
-    return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
+    return badRequest('Invalid request body');
   }
 
   const { primaryEmail } = requestBody;
   if (!primaryEmail) {
-    return NextResponse.json({ detail: 'Missing required field: primaryEmail' }, { status: 400 });
+    return badRequest('Missing required field: primaryEmail');
   }
 
   try {
@@ -141,15 +138,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(responseData, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to communication service (email/delete):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to communication service');
   }
 }
 
 export async function GET(request: NextRequest) {
-  const apiKey = request.headers.get('apiKey');
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
   try {
     const adminEmailsResponse = await fetch(`${ORCHESTRA_BASE_URL}/admin/assistant/emails`, {
@@ -198,9 +195,6 @@ export async function GET(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error proxying to admin backend (admin/assistant/emails):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to admin email listing service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to admin email listing service');
   }
 }

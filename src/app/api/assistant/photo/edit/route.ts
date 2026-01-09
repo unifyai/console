@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -45,9 +42,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (photo/edit):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to photo editing service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to photo editing service');
   }
 }

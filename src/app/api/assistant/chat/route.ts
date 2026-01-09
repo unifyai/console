@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { getCurrentUser } from '@/lib/user/user';
 import { ChatCompletionMessage, ChatCompletionRequest } from '@/types/assistants/chat';
 
@@ -6,15 +7,13 @@ type ChatRequestType = 'hire' | 'post-hire-greeting';
 
 export async function POST(request: NextRequest) {
   try {
+    // This route needs the full user object for userName, not just API key
     const user = await getCurrentUser();
-    if (!user || !user.apiKey) {
-      return new NextResponse(JSON.stringify({ detail: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const apiKey = user?.apiKey || request.headers.get('apiKey');
+    if (!apiKey) {
+      return unauthorized();
     }
-    const apiKey = user.apiKey;
-    const userName = `${user.name}${user.lastName}` || 'the user';
+    const userName = user ? `${user.name}${user.lastName}` : 'the user';
 
     // `messages` here is the full client-side session history
     const {
@@ -69,13 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!messages || !Array.isArray(messages)) {
-      return new NextResponse(
-        JSON.stringify({ detail: 'Invalid request body: messages are required.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return badRequest('Invalid request body: messages are required.');
     }
 
     // Only 'hire' type uses this streaming chat completion endpoint
@@ -169,9 +162,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[API /api/assistant/chat] Internal Server Error:', error);
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return new NextResponse(JSON.stringify({ detail: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return internalError(message);
   }
 }

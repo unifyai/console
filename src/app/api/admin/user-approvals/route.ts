@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
@@ -6,7 +7,7 @@ const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 export async function GET(request: NextRequest) {
   if (!ORCHESTRA_ADMIN_KEY) {
-    return NextResponse.json({ detail: 'Admin key not configured' }, { status: 500 });
+    return internalError('Admin key not configured');
   }
 
   const { searchParams } = new URL(request.url);
@@ -43,6 +44,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(snakeToCamelObject(data), { status: response.status });
   } catch (error) {
     console.error('[API Admin User Approvals GET] Error proxying to Orchestra:', error);
-    return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });
+    return internalError('Failed to connect to backend service');
   }
 }

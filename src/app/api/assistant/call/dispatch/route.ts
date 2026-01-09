@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { badRequest, internalError } from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
@@ -10,10 +11,7 @@ export async function POST(request: NextRequest) {
     const { assistantId, agentName, roomName } = body;
 
     if (!assistantId || !agentName || !roomName) {
-      return NextResponse.json(
-        { detail: 'assistantId, agentName, and roomName are required' },
-        { status: 400 }
-      );
+      return badRequest('assistantId, agentName, and roomName are required');
     }
 
     // Hardcode the base URL as requested
@@ -61,6 +59,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ info: 'Agent dispatched', data }, { status: 202 });
   } catch (error: any) {
     console.error(`[API /dispatch] Internal server error: ${error.message}`);
-    return NextResponse.json({ detail: error?.message || 'Unknown error' }, { status: 500 });
+    return internalError(error?.message || 'Unknown error');
   }
 }

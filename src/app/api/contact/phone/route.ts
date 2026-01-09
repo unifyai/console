@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 
 const baseUrl = process.env.COMMUNICATION_URL;
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -55,20 +52,14 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error proxying to communication service (phone/create):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to communication service');
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
@@ -76,12 +67,12 @@ export async function DELETE(request: NextRequest) {
     requestBody = await request.json();
   } catch (error) {
     console.error('Failed to parse JSON body in DELETE /api/contact/phone:', error);
-    return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
+    return badRequest('Invalid request body');
   }
 
   const { phoneNumber } = requestBody;
   if (!phoneNumber) {
-    return NextResponse.json({ detail: 'Missing required field: phoneNumber' }, { status: 400 });
+    return badRequest('Missing required field: phoneNumber');
   }
 
   try {
@@ -126,9 +117,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(responseData, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to communication service (phone/delete):', error);
-    return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to communication service');
   }
 }

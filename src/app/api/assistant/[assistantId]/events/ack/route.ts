@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { badRequest, internalError } from '../../../../_utils/auth';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 
@@ -24,18 +25,18 @@ async function getAuthClient() {
 
 export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
-  if (!assistantId) return NextResponse.json({ detail: 'AssistantId required' }, { status: 400 });
+  if (!assistantId) return badRequest('AssistantId required');
 
   let body: any = {};
   try {
     body = await request.json();
   } catch (e) {
-    return NextResponse.json({ detail: 'Invalid JSON' }, { status: 400 });
+    return badRequest('Invalid JSON');
   }
 
   const { ackId } = body;
 
-  if (!ackId) return NextResponse.json({ detail: 'Missing ackId' }, { status: 400 });
+  if (!ackId) return badRequest('Missing ackId');
 
   try {
     const { client, projectId } = await getAuthClient();
@@ -54,9 +55,6 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error('[ACK route] Error acknowledging:', err?.message || err);
-    return NextResponse.json(
-      { detail: 'ACK failed', error: err?.message || String(err) },
-      { status: 500 }
-    );
+    return internalError('ACK failed');
   }
 }

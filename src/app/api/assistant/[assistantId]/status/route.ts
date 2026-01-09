@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -60,9 +57,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       `Error proxying to backend for assistant status (assistant ${params.assistantId}):`,
       error
     );
-    return NextResponse.json(
-      { detail: 'Failed to connect to assistant status service', errorDetails: error.message },
-      { status: 503 }
-    );
+    return internalError('Failed to connect to assistant status service');
   }
 }

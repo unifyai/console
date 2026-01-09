@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { badRequest, internalError } from '../../../_utils/auth';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
@@ -314,13 +315,13 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 
   // Validate token format (12 hex chars)
   if (!/^[a-f0-9]{12}$/.test(token)) {
-    return NextResponse.json({ error: 'Invalid token format' }, { status: 400 });
+    return badRequest('Invalid token format');
   }
 
   // Check for admin key
   if (!ORCHESTRA_ADMIN_KEY) {
     console.error('[plot/data] ORCHESTRA_ADMIN_KEY not configured');
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    return internalError('Server configuration error');
   }
 
   try {
@@ -544,6 +545,6 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     });
   } catch (error) {
     console.error('[plot/data] Unexpected error:', error);
-    return NextResponse.json({ error: 'Failed to load plot' }, { status: 500 });
+    return internalError('Failed to load plot');
   }
 }
