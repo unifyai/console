@@ -51,3 +51,4 @@ application_default_credentials.json
 # Local plans and credentials
 plans/
 .credentials/
+.cursorrules
