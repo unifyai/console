@@ -775,6 +775,7 @@ export function useTileSync(
       setName: wrapName,
       setType: wrapType,
     } as TileMetaActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metaActions, tabId, tileName, granularTileActions]);
 
   // Create the enhanced actions object with the wrapped setters
@@ -797,6 +798,7 @@ export function useTileSync(
       setAutoUpdate: wrapAutoUpdate,
       setColor: wrapColor,
     } as TileDataActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataActions, tabId, tileName, granularTileActions, uiActions]);
 
   // Create the enhanced actions object with the wrapped setters
@@ -809,6 +811,7 @@ export function useTileSync(
       setVisible: wrapVisible,
       setColor: wrapColor,
     } as TileUIActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiActions, tabId, tileName, granularTileActions]);
 
   // Create the full actions object that incorporates the synced data actions
@@ -833,6 +836,7 @@ export function useTileSync(
     } as TileActions;
 
     return newActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     actions,
     syncedDataActions,

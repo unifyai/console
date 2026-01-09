@@ -1,4 +1,4 @@
-export default {
+const lineDemo3 = {
   gif: 'line_six_groups_dark',
   link: 'interfaces/plots#line-graphs',
   description:
@@ -78,3 +78,5 @@ for i in range(25):
   ],
   newCounter: 2,
 };
+
+export default lineDemo3;

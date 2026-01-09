@@ -106,6 +106,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
       binCount: plotTile.binCount,
       regressionLine: plotTile.regressionLine,
     } as PlotTileData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isPlotTile,
     tileId,
@@ -127,6 +128,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
     return {
       plotGroupByColors: plotTile.plotGroupByColors,
     } as PlotTileUI;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlotTile, tileId, plotTile?.plotGroupByColors]);
 
   // Get store update functions
@@ -223,6 +225,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
         storeUpdatePlotTile(tileId, update);
       },
     } as PlotTileUIActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlotTile, tileId]);
 
   // Build a final `plotTile` object from the separate meta, data, and UI objects

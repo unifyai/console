@@ -120,6 +120,7 @@ const StringColumnFilter = ({
       setFilters([defaultFilter]);
       setExpression('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFiltered, setIsFiltered, columnFilters, column]);
 
   const autocompleteOptions = useMemo(() => {

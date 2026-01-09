@@ -1,4 +1,4 @@
-export default {
+const groupingDemo = {
   gif: 'table_grouping_dark',
   link: 'interfaces/tables#grouping',
   description:
@@ -77,3 +77,5 @@ for with_tool in [True, False]:
   ],
   newCounter: 2,
 };
+
+export default groupingDemo;

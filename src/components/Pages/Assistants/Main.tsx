@@ -297,6 +297,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       setIsCallMinimized(false);
       await startCall(assistant, callType);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isCallConnected, isConnectingCall, startCall, activeCallAssistant, popOutCallAssistantId]
   );
 
@@ -493,6 +494,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     // Then, open the dialog. It will initially show its own loading state.
     setIsHireDialogOpen(true);
     refreshHiringProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     resetHireFormInternal,
     currentFilteredPresets,

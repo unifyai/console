@@ -998,6 +998,7 @@ export function useTabSync(
       updateTableTile: wrapUpdateTableTile,
       setGlobalContext: wrapGlobalContext,
     } as SyncedTabDataActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabDataActions, tabId, tabActions, tileActions]);
 
   // Create the enhanced actions object with the wrapped setters
@@ -1008,6 +1009,7 @@ export function useTabSync(
       ...tabUIActions,
       // Use the specialized wrapper functions for each property
     } as TabUIActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabUIActions, tabId, tabActions, tileActions]);
 
   // Create the full actions object that incorporates the synced data actions

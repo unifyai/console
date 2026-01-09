@@ -168,6 +168,7 @@ export function useTile(tileIdOrName: string | null, tabIdOrName?: string | null
     };
 
     return baseActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     tileId,
     activeTabId,

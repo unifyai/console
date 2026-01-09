@@ -1,4 +1,4 @@
-export default {
+const viewPaneDemo = {
   gif: 'view_pair_table_dark',
   link: 'interfaces/views',
   description:
@@ -101,3 +101,5 @@ for age, catchphrase, last_login, otp in zip(
   ],
   newCounter: 2,
 };
+
+export default viewPaneDemo;

@@ -62,6 +62,7 @@ export function usePlotAutoUpdateQuery(
   const autoUpdate = tileDataState?.autoUpdate === 'true';
 
   // Use a separate query key to avoid conflicts with manual cache updates
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const autoUpdateQueryKey = ['plotDataItem', 'autoUpdate', tileId];
   // Main cache key for syncing
   const mainQueryKey = ['plotDataItem', tileId];

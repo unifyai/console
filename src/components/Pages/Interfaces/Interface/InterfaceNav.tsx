@@ -1774,6 +1774,7 @@ export default function InterfaceNav({
       setSelectedTab(t);
       setTabContextOpen(true);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [handleTabClick, setGlobalContextOpen]
   );
 
@@ -1849,6 +1850,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [interfaceId, selectedProject, interfaceActions, tabActions, tileActions, queryClient]
   );
 
@@ -1927,6 +1929,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedProject, interfaceActions, tabActions, tileActions, queryClient]
   );
 
@@ -1995,6 +1998,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedTab, interfaceId, tabActions, tileActions, queryClient]
   );
 

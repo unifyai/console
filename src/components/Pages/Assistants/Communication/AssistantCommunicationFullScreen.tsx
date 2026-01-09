@@ -115,6 +115,7 @@ const FullScreenCallUI: React.FC<{
       return { participant: localParticipant, source: Track.Source.Camera, publication: pub };
     }
     return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;

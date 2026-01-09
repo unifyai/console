@@ -219,6 +219,7 @@ export default function NavMenu() {
 
   useEffect(() => {
     setOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const navItemsFromList = NavListSource();

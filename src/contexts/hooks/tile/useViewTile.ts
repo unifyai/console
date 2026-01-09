@@ -93,6 +93,7 @@ export function useViewTile(tileIdOrName: string | null, tabIdOrName?: string | 
     return {
       baseIndex: viewTile.baseIndex,
     } as ViewTileData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isViewTile, tileId, viewTile?.baseIndex]);
 
   // Access store for view-specific UI state

@@ -166,6 +166,7 @@ export function PlotCanvas({
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Attach hover handlers to container (expected by plot-scatter.ts)
@@ -173,6 +174,7 @@ export function PlotCanvas({
     if (!containerRef.current) return;
     (containerRef.current as any).__hoveredLog = hoveredLog ?? null;
     (containerRef.current as any).__setHoveredLog = onHoverLog ?? (() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoveredLog, onHoverLog]);
 
   // Reset zoom when plot configuration changes
@@ -182,6 +184,7 @@ export function PlotCanvas({
       const settings = d3.select(settingsRef.current);
       clearFixedTooltip(settings as any, setIsTooltipMinimized);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xAxis, yAxis, plotType]);
 
   // Create plot tile actions for drawPlot
@@ -262,6 +265,7 @@ export function PlotCanvas({
     } catch (err) {
       console.error('[PlotCanvas] drawPlot error:', err);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     logs,
     fields,

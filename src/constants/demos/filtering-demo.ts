@@ -1,4 +1,4 @@
-export default {
+const filteringDemo = {
   gif: 'table_filter_str_dark',
   link: 'interfaces/tables#filtering',
   description:
@@ -100,3 +100,5 @@ for age, catchphrase, last_login, otp in zip(
   ],
   newCounter: 2,
 };
+
+export default filteringDemo;

@@ -419,6 +419,7 @@ export function useWhyDidYouUpdate(name: string, deps: any[]) {
       console.log(`[why-did-you-update] ${name}`, changedDeps);
     }
     previousDeps.current = deps;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
 

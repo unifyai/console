@@ -96,6 +96,7 @@ export function useTerminalTileSync(
       ...terminalTileActions,
       setShellType: wrapShellType,
     } as TerminalActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalTileActions, tabId, tileName, granularTileActions]);
 
   if (!terminalTileActions || !granularTileActions) {

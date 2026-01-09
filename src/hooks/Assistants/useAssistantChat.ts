@@ -18,6 +18,7 @@ export function useAssistantChat(
   histories: Record<string, ChatMessage[]>,
   setHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
 ) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const messages = histories[configKey] || [];
   const [inputValue, setInputValue] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
@@ -68,6 +69,7 @@ export function useAssistantChat(
     }
     // By removing `histories` from the dependency array, we prevent this effect
     // from re-running every time we call `setHistories` inside it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configKey, assistantFirstName, setHistories]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

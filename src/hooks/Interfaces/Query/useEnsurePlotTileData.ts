@@ -98,6 +98,7 @@ export function useEnsurePlotTileData(params: {
 
     debugLog(`[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`);
     return true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tileId, projectId, tabId, tiles, queryClient]);
 
   return useQuery<PlotDataItem>({

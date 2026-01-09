@@ -75,6 +75,7 @@ export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName
         }
       },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeProjectId, interfaceId, storeSetActiveTab, storeUpdateInterface]
   );
 

@@ -1,4 +1,4 @@
-export default {
+const markingAssistant = {
   gif: 'demo_set_context_to_usage',
   link: 'case_study/usage_dashboard',
   description:
@@ -67,3 +67,5 @@ unify.create_logs(entries=usage_data)
   ],
   newCounter: 1,
 };
+
+export default markingAssistant;

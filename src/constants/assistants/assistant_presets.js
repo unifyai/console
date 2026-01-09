@@ -1,4 +1,4 @@
-export default [
+const assistantPresets = [
   {
     firstName: 'Ricardo',
     surname: 'Silva',
@@ -988,3 +988,5 @@ export default [
     },
   },
 ];
+
+export default assistantPresets;

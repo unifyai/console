@@ -1,4 +1,4 @@
-export default [
+const voicePresets = [
   {
     voiceId: '11af83e2-23eb-452f-956e-7fee218ccb5c',
     name: 'English Female Calm 1', // Original: Midwestern Woman
@@ -1124,3 +1124,5 @@ export default [
     provider: 'openai',
   },
 ];
+
+export default voicePresets;

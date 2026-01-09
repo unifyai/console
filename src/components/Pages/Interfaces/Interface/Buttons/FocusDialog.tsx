@@ -87,6 +87,7 @@ const FocusDialog = ({
       }
     }
     return tilesList.length > 0 ? tilesList : [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedTileNames.join(','), tiles]);
 
   const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTiles);

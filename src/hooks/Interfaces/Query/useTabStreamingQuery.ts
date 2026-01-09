@@ -350,6 +350,7 @@ export function useTabStreamingQuery(
     }, delay);
     errorRetryAttemptsRef.current[activeTabName] = attempts + 1;
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledActive, activeTabName, activeTabQuery.isError]);
 
   // Reset retry counter on success or when switching tabs
@@ -713,6 +714,7 @@ export function useTabStreamingQuery(
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       queryClient,
       interfaceId,
