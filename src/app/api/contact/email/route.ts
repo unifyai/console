@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;

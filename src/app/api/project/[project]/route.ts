@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 export async function GET(request: NextRequest, { params }: { params: { project: string } }) {
   const { project } = params;
@@ -21,9 +22,17 @@ export async function GET(request: NextRequest, { params }: { params: { project:
     );
 
     const text = await backendRes.text();
-    return new NextResponse(text, {
+    let data;
+    try {
+      data = JSON.parse(text);
+      // Transform snake_case response to camelCase for frontend
+      data = snakeToCamelObject(data);
+    } catch {
+      data = { detail: text };
+    }
+
+    return NextResponse.json(data, {
       status: backendRes.status,
-      headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
     return NextResponse.json({ detail: e.message || 'Failed' }, { status: 500 });
@@ -37,6 +46,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { projec
   if (!apiKey) return NextResponse.json({ detail: 'No API Key' }, { status: 401 });
 
   const bodyObj = await request.json();
+
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(bodyObj);
+
   try {
     const backendRes = await fetch(
       `${process.env.ORCHESTRA_URL}/v0/project/${encodeURIComponent(project)}`,
@@ -47,15 +60,23 @@ export async function PATCH(request: NextRequest, { params }: { params: { projec
           'Content-Type': 'application/json',
           accept: 'application/json',
         },
-        body: JSON.stringify(bodyObj),
+        body: JSON.stringify(snakeCaseBody),
         cache: 'no-store',
       }
     );
 
     const text = await backendRes.text();
-    return new NextResponse(text, {
+    let data;
+    try {
+      data = JSON.parse(text);
+      // Transform snake_case response to camelCase for frontend
+      data = snakeToCamelObject(data);
+    } catch {
+      data = { detail: text };
+    }
+
+    return NextResponse.json(data, {
       status: backendRes.status,
-      headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
     return NextResponse.json({ detail: e.message || 'Failed' }, { status: 500 });
