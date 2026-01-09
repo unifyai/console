@@ -1,77 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const response = await fetch(`${baseUrl}/assistant/voice`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  const client = createOrchestraClient(apiKey);
 
-  const responseData = await response.json().catch(() => ({}));
+  try {
+    const { data, error, response } = await client.GET('/v0/assistant/voice');
 
-  // Transform snake_case response to camelCase for frontend
-  const camelCaseResponse = snakeToCamelObject(responseData);
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
 
-  return NextResponse.json(camelCaseResponse, { status: response.status });
+    return NextResponse.json(data, { status: response.status });
+  } catch {
+    return NextResponse.json({ detail: 'Failed to fetch voices' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
   const requestBody = await request.json();
 
-  // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody = camelToSnakeObject(requestBody);
-
   try {
-    const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/assistant/voice`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(snakeCaseBody),
+    const { data, error, response } = await client.POST('/v0/assistant/voice', {
+      body: requestBody,
     });
 
-    const responseData = await response.json().catch((e) => {
-      console.error('Failed to parse JSON response from Unify API', e);
-      return { error: 'Invalid JSON response from backend API', status: response.status };
-    });
-
-    if (!response.ok) {
-      console.error(`Unify API Error (${response.status}):`, responseData);
-      return NextResponse.json(responseData, { status: response.status });
+    if (error) {
+      console.error(`Unify API Error (${response.status}):`, error);
+      return NextResponse.json(error, { status: response.status });
     }
 
-    // Transform snake_case response to camelCase for frontend
-    const camelCaseResponse = snakeToCamelObject(responseData);
-
-    return NextResponse.json(camelCaseResponse, { status: response.status });
-  } catch (error: any) {
-    console.error('Error fetching Unify API in /api/assistant/voice POST:', error);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error fetching Unify API in /api/assistant/voice POST:', e);
     return NextResponse.json(
-      { error: 'Failed to connect to backend API', details: error.message },
+      {
+        error: 'Failed to connect to backend API',
+        details: e instanceof Error ? e.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }

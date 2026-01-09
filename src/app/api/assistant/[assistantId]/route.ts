@@ -1,90 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { assistantId: string } }
 ) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
+
   try {
-    const orchestraResponse = await fetch(`${baseUrl}/assistant/${params.assistantId}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
+    const { data, error, response } = await client.DELETE('/v0/assistant/{assistant_id}', {
+      params: {
+        path: { assistant_id: parseInt(params.assistantId, 10) },
       },
     });
 
-    const responseText = await orchestraResponse.text();
-    let responseData;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      responseData = { detail: responseText || 'Unknown response' };
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(snakeToCamelObject(responseData), {
-      status: orchestraResponse.status,
-    });
-  } catch (error: any) {
-    console.error('[API /api/assistant/[assistantId] DELETE] Error:', error.message);
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/[assistantId] DELETE] Error:',
+      e instanceof Error ? e.message : e
+    );
     return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
   }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { assistantId: string } }) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
   try {
     requestBody = await request.json();
-  } catch (error) {
-    console.error('Failed to parse JSON body in PATCH /api/assistant/[assistantId]:', error);
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  } catch {
+    return badRequest('Invalid request body');
   }
 
-  // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody = camelToSnakeObject(requestBody);
+  const client = createOrchestraClient(apiKey);
 
   try {
-    const orchestraResponse = await fetch(`${baseUrl}/assistant/${params.assistantId}/config`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        accept: 'application/json',
-        'Content-Type': 'application/json',
+    const { data, error, response } = await client.PATCH('/v0/assistant/{assistant_id}/config', {
+      params: {
+        path: { assistant_id: parseInt(params.assistantId, 10) },
       },
-      body: JSON.stringify(snakeCaseBody),
+      body: requestBody,
     });
 
-    const responseText = await orchestraResponse.text();
-    let responseData;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      responseData = { detail: responseText || 'Unknown response' };
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(snakeToCamelObject(responseData), {
-      status: orchestraResponse.status,
-    });
-  } catch (error: any) {
-    console.error('[API /api/assistant/[assistantId] PATCH] Error:', error.message);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/[assistantId] PATCH] Error:',
+      e instanceof Error ? e.message : e
+    );
     return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
   }
 }

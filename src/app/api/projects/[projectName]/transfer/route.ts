@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject } from '@/utils/casing';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
-// Transfer project to organization
+// Transfer project to organization or personal
 export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
   const url = new URL(request.url);
-  const searchParams = new URLSearchParams(url.search);
-  const transferType = searchParams.get('type');
+  const transferType = url.searchParams.get('type');
 
   // The projectName here is actually the project ID for transfer operations
-  const projectId = params.projectName;
+  const projectId = parseInt(params.projectName, 10);
 
   try {
     if (transferType === 'organization') {
@@ -26,49 +22,46 @@ export async function POST(request: NextRequest, { params }: { params: { project
       const organizationId = body.organizationId;
 
       if (!organizationId) {
-        return NextResponse.json({ detail: 'organizationId is required' }, { status: 400 });
+        return badRequest('organizationId is required');
       }
 
-      const response = await fetch(`${baseUrl}/project/${projectId}/transfer-to-organization`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(camelToSnakeObject({ organizationId: organizationId })),
-      });
-
-      const text = await response.text();
-      return new NextResponse(text, {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } else if (transferType === 'personal') {
-      const response = await fetch(`${baseUrl}/project/${projectId}/transfer-to-personal`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-      });
-
-      const text = await response.text();
-      return new NextResponse(text, {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } else {
-      return NextResponse.json(
-        { detail: "Invalid transfer type. Use 'organization' or 'personal'" },
-        { status: 400 }
+      const { data, error, response } = await client.POST(
+        '/v0/project/{project_id}/transfer-to-organization',
+        {
+          params: {
+            path: { project_id: projectId },
+          },
+          body: { organization_id: organizationId },
+        }
       );
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else if (transferType === 'personal') {
+      const { data, error, response } = await client.POST(
+        '/v0/project/{project_id}/transfer-to-personal',
+        {
+          params: {
+            path: { project_id: projectId },
+          },
+        }
+      );
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      return badRequest("Invalid transfer type. Use 'organization' or 'personal'");
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('Transfer error:', e);
     return NextResponse.json(
-      { detail: e.message || 'Failed to transfer project' },
+      { detail: e instanceof Error ? e.message : 'Failed to transfer project' },
       { status: 500 }
     );
   }

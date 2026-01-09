@@ -1,49 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-
-const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   let requestBody;
   try {
     requestBody = await request.json();
-  } catch (error) {
-    return NextResponse.json({ detail: 'Invalid request body' }, { status: 400 });
+  } catch {
+    return badRequest('Invalid request body');
   }
 
-  // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody = camelToSnakeObject(requestBody);
+  const client = createOrchestraClient(apiKey);
 
   try {
-    const orchestraResponse = await fetch(`${ORCHESTRA_BASE_URL}/assistant/voice/design/create`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(snakeCaseBody),
+    const { data, error, response } = await client.POST('/v0/assistant/voice/design/create', {
+      body: requestBody,
     });
 
-    const responseData = await orchestraResponse.json();
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
 
-    // Transform snake_case response to camelCase for frontend
-    const camelCaseResponse = snakeToCamelObject(responseData);
-
-    return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
-  } catch (error: any) {
-    console.error('Error proxying to backend (voice/design/create):', error);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error proxying to backend (voice/design/create):', e);
     return NextResponse.json(
-      { detail: 'Failed to connect to voice design creation service', errorDetails: error.message },
+      {
+        detail: 'Failed to connect to voice design creation service',
+        errorDetails: e instanceof Error ? e.message : 'Unknown error',
+      },
       { status: 503 }
     );
   }

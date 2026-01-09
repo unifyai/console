@@ -1,41 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../../../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function POST(request: NextRequest, { params }: { params: { predictionId: string } }) {
-  const apiKey = request.headers.get('apiKey');
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'API key is missing' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
+
   try {
-    const response = await fetch(
-      `${ORCHESTRA_BASE_URL}/assistant/photo/animate/${params.predictionId}/cancel`,
+    const { data, error, response } = await client.POST(
+      '/v0/assistant/photo/animate/{prediction_id}/cancel',
       {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
+        params: {
+          path: { prediction_id: params.predictionId },
         },
       }
     );
 
-    const responseData = await response.json();
-    const camelCaseData = snakeToCamelObject(responseData) as Record<string, unknown>;
-
-    if (!response.ok) {
-      console.error(`Backend Error (photo/animate CANCEL - ${response.status}):`, responseData);
+    if (error) {
+      console.error(`Backend Error (photo/animate CANCEL - ${response.status}):`, error);
       return NextResponse.json(
-        { detail: camelCaseData.detail || 'Failed to cancel animation' },
+        { detail: (error as Record<string, unknown>)?.detail || 'Failed to cancel animation' },
         { status: response.status }
       );
     }
 
-    return NextResponse.json(camelCaseData, { status: response.status });
-  } catch (error: any) {
-    console.error('Error proxying to backend (photo/animate CANCEL):', error);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error proxying to backend (photo/animate CANCEL):', e);
     return NextResponse.json(
-      { detail: 'Failed to connect to animation service', errorDetails: error.message },
+      {
+        detail: 'Failed to connect to animation service',
+        errorDetails: e instanceof Error ? e.message : 'Unknown error',
+      },
       { status: 503 }
     );
   }

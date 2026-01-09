@@ -1,45 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest, { params }: { params: { predictionId: string } }) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
+
   try {
-    const response = await fetch(
-      `${ORCHESTRA_BASE_URL}/assistant/photo/animate/${params.predictionId}`,
+    const { data, error, response } = await client.GET(
+      '/v0/assistant/photo/animate/{prediction_id}',
       {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
+        params: {
+          path: { prediction_id: params.predictionId },
         },
-        cache: 'no-store', // Ensure we get the latest status
       }
     );
 
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      console.error(`Backend Error (photo/animate GET - ${response.status}):`, responseData);
+    if (error) {
+      console.error(`Backend Error (photo/animate GET - ${response.status}):`, error);
       return NextResponse.json(
-        { detail: responseData.detail || 'Failed to get animation status' },
+        { detail: (error as Record<string, unknown>)?.detail || 'Failed to get animation status' },
         { status: response.status }
       );
     }
 
-    return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
-  } catch (error: any) {
-    console.error('Error proxying to backend (photo/animate GET):', error);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error proxying to backend (photo/animate GET):', e);
     return NextResponse.json(
-      { detail: 'Failed to connect to animation service', errorDetails: error.message },
+      {
+        detail: 'Failed to connect to animation service',
+        errorDetails: e instanceof Error ? e.message : 'Unknown error',
+      },
       { status: 503 }
     );
   }

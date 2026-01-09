@@ -1,84 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest, { params }: { params: { project: string } }) {
   const { project } = params;
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey') || '';
-  if (!apiKey) return NextResponse.json({ detail: 'No API Key' }, { status: 401 });
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
 
   try {
-    const backendRes = await fetch(
-      `${process.env.ORCHESTRA_URL}/v0/project/${encodeURIComponent(project)}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          accept: 'application/json',
-        },
-        cache: 'no-store',
-      }
-    );
+    const { data, error, response } = await client.GET('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: project },
+      },
+    });
 
-    const text = await backendRes.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-      // Transform snake_case response to camelCase for frontend
-      data = snakeToCamelObject(data);
-    } catch {
-      data = { detail: text };
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(data, {
-      status: backendRes.status,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ detail: e.message || 'Failed' }, { status: 500 });
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { detail: e instanceof Error ? e.message : 'Failed' },
+      { status: 500 }
+    );
   }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { project: string } }) {
   const { project } = params;
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey') || '';
-  if (!apiKey) return NextResponse.json({ detail: 'No API Key' }, { status: 401 });
 
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
   const bodyObj = await request.json();
 
-  // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody = camelToSnakeObject(bodyObj);
-
   try {
-    const backendRes = await fetch(
-      `${process.env.ORCHESTRA_URL}/v0/project/${encodeURIComponent(project)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(snakeCaseBody),
-        cache: 'no-store',
-      }
-    );
+    const { data, error, response } = await client.PATCH('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: project },
+      },
+      body: bodyObj,
+    });
 
-    const text = await backendRes.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-      // Transform snake_case response to camelCase for frontend
-      data = snakeToCamelObject(data);
-    } catch {
-      data = { detail: text };
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(data, {
-      status: backendRes.status,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ detail: e.message || 'Failed' }, { status: 500 });
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { detail: e instanceof Error ? e.message : 'Failed' },
+      { status: 500 }
+    );
   }
 }

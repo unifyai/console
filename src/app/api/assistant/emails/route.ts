@@ -1,51 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  if (!ORCHESTRA_BASE_URL) {
-    return NextResponse.json({ detail: 'Backend URL not configured' }, { status: 500 });
-  }
+  const client = createOrchestraClient(apiKey);
 
   try {
-    const response = await fetch(`${ORCHESTRA_BASE_URL}/v0/assistant`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        accept: 'application/json',
-      },
-      cache: 'no-store',
-    });
+    const { data, error, response } = await client.GET('/v0/assistant');
 
-    const rawData = await response.json().catch(() => null);
-    if (!response.ok) {
-      const detail = rawData?.detail || 'Failed to fetch assistants';
+    if (error) {
+      const detail = (error as Record<string, unknown>)?.detail || 'Failed to fetch assistants';
       return NextResponse.json({ detail }, { status: response.status });
     }
 
-    // Transform snake_case to camelCase
-    const data = snakeToCamelObject(rawData);
-
+    // Data is already transformed to camelCase by the client middleware
     const assistants = Array.isArray(data)
       ? data
-      : Array.isArray((data as any)?.info)
-        ? (data as any).info
-        : Array.isArray((data as any)?.results)
-          ? (data as any).results
+      : Array.isArray((data as Record<string, unknown>)?.info)
+        ? (data as Record<string, unknown>).info
+        : Array.isArray((data as Record<string, unknown>)?.results)
+          ? (data as Record<string, unknown>).results
           : [];
+
     const emailsSet = new Set<string>();
     const emails: string[] = [];
-    for (const a of assistants) {
+    for (const a of assistants as Array<Record<string, unknown>>) {
       const email = a?.email;
       if (typeof email === 'string' && email.trim().length > 0 && !emailsSet.has(email)) {
         emailsSet.add(email);

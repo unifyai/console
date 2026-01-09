@@ -1,47 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function DELETE(request: NextRequest, { params }: { params: { voiceId: string } }) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
   const provider = request.nextUrl.searchParams.get('provider');
   if (!provider) {
-    return NextResponse.json({ detail: "Missing 'provider' query parameter." }, { status: 400 });
+    return badRequest("Missing 'provider' query parameter.");
   }
 
-  try {
-    const orchestraResponse = await fetch(
-      `${baseUrl}/assistant/voice/${params.voiceId}?provider=${provider}`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-      }
-    );
+  const client = createOrchestraClient(apiKey);
 
-    const responseText = await orchestraResponse.text();
-    let responseData;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      responseData = { detail: responseText || 'Unknown response' };
+  try {
+    const { data, error, response } = await client.DELETE('/v0/assistant/voice/{voice_id}', {
+      params: {
+        path: { voice_id: params.voiceId },
+        query: { provider },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(snakeToCamelObject(responseData), {
-      status: orchestraResponse.status,
-    });
-  } catch (error: any) {
-    console.error('[API /api/assistant/voice/[voiceId] DELETE] Error:', error.message);
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/voice/[voiceId] DELETE] Error:',
+      e instanceof Error ? e.message : e
+    );
     return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
   }
 }
