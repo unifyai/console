@@ -1,30 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  try {
-    const res = await fetch(`${baseUrl}/providers`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        accept: 'application/json',
-      },
-    });
+  const client = createOrchestraClient(apiKey);
 
-    const data = await res.json().catch(() => ({}));
-    return NextResponse.json(snakeToCamelObject(data), { status: res.status });
-  } catch (error) {
+  try {
+    const { data, error, response } = await client.GET('/v0/providers');
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch {
     return NextResponse.json({ detail: 'Failed to fetch providers' }, { status: 500 });
   }
 }

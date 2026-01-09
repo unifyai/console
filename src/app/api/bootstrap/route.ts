@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -10,68 +8,61 @@ export async function GET(request: NextRequest) {
   const project =
     url.searchParams.get('project') || url.searchParams.get('projectName') || undefined;
 
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const controller = new AbortController();
-  const ttl = setTimeout(() => controller.abort(), 90000); // 90s timeout - bootstrap aggregates multiple slow endpoints
-  try {
-    const headers = {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    } as const;
+  const client = createOrchestraClient(apiKey);
 
-    const projectsTreePromise = fetch(`${baseUrl}/projects/tree`, {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-      signal: controller.signal,
-    }).then(async (res) => ({
-      ok: res.ok,
-      status: res.status,
-      body: await res.json().catch(() => null),
-    }));
+  try {
+    // Fetch all data in parallel
+    const projectsTreePromise = client
+      .GET('/v0/projects/tree', {})
+      .then((result) => ({
+        ok: !result.error,
+        status: result.response.status,
+        body: result.data ?? null,
+      }))
+      .catch(() => ({ ok: false, status: 500, body: null }));
 
     const interfacesPromise = project
-      ? fetch(`${baseUrl}/interfaces/list?project_name=${encodeURIComponent(project)}`, {
-          method: 'GET',
-          headers,
-          cache: 'no-store',
-          signal: controller.signal,
-        }).then(async (res) => ({
-          ok: res.ok,
-          status: res.status,
-          body: await res.json().catch(() => null),
-        }))
+      ? client
+          .GET('/v0/interfaces/list', {
+            params: { query: { project_name: project } },
+          })
+          .then((result) => ({
+            ok: !result.error,
+            status: result.response.status,
+            body: result.data ?? null,
+          }))
+          .catch(() => ({ ok: false, status: 500, body: null }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const contextsPromise = project
-      ? fetch(`${baseUrl}/project/${encodeURIComponent(project)}/contexts`, {
-          method: 'GET',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          signal: controller.signal,
-        }).then(async (res) => ({
-          ok: res.ok,
-          status: res.status,
-          body: await res.json().catch(() => null),
-        }))
+      ? client
+          .GET('/v0/project/{project_name}/contexts', {
+            params: { path: { project_name: project } },
+          })
+          .then((result) => ({
+            ok: !result.error,
+            status: result.response.status,
+            body: result.data ?? null,
+          }))
+          .catch(() => ({ ok: false, status: 500, body: null }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const fieldsPromise = project
-      ? fetch(`${baseUrl}/logs/fields?project_name=${encodeURIComponent(project)}`, {
-          method: 'GET',
-          headers,
-          signal: controller.signal,
-        }).then(async (res) => ({
-          ok: res.ok,
-          status: res.status,
-          body: await res.json().catch(() => null),
-        }))
+      ? client
+          .GET('/v0/logs/fields', {
+            params: { query: { project_name: project } },
+          })
+          .then((result) => ({
+            ok: !result.error,
+            status: result.response.status,
+            body: result.data ?? null,
+          }))
+          .catch(() => ({ ok: false, status: 500, body: null }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const [projectsTree, interfaces, contexts, fields] = await Promise.all([
@@ -81,24 +72,13 @@ export async function GET(request: NextRequest) {
       fieldsPromise,
     ]);
 
-    // Transform each response body to camelCase
-    const transformedProjectsTree = Array.isArray(projectsTree.body)
-      ? snakeToCamelObject(projectsTree.body)
-      : [];
-    const transformedInterfaces = Array.isArray(interfaces.body)
-      ? snakeToCamelObject(interfaces.body)
-      : [];
-    const transformedContexts = Array.isArray(contexts.body)
-      ? snakeToCamelObject(contexts.body)
-      : [];
-    const transformedFields = Array.isArray(fields.body) ? snakeToCamelObject(fields.body) : [];
-
+    // Data is already transformed by the client middleware
     const responseBody = {
       project,
-      projectsTree: transformedProjectsTree,
-      interfaces: transformedInterfaces,
-      contexts: transformedContexts,
-      fields: transformedFields,
+      projectsTree: Array.isArray(projectsTree.body) ? projectsTree.body : [],
+      interfaces: Array.isArray(interfaces.body) ? interfaces.body : [],
+      contexts: Array.isArray(contexts.body) ? contexts.body : [],
+      fields: Array.isArray(fields.body) ? fields.body : [],
       fetchedAt: new Date().toISOString(),
       statuses: {
         projectsTree: projectsTree.status,
@@ -109,8 +89,8 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json(responseBody, { status: 200 });
-  } catch (e: any) {
-    const msg = e?.message || 'Bootstrap failed';
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Bootstrap failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
     console.error('[/api/bootstrap] Error:', msg, e);
     return NextResponse.json(
@@ -121,7 +101,5 @@ export async function GET(request: NextRequest) {
       },
       { status }
     );
-  } finally {
-    clearTimeout(ttl);
   }
 }

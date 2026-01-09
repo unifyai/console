@@ -1,29 +1,36 @@
-import { listEndpoints } from '@/lib/endpoints/endpoints';
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 /**
  * Handles GET requests to retrieve a list of endpoint names supported by a specific provider and model.
- *
- * Extracts the 'provider' and 'model' query parameters from the request URL,
- * and uses them to fetch the supported endpoints.
- *
- * @param request - The incoming NextRequest object containing the request information.
- * @returns A JSON response containing a list of endpoint names.
  */
 export async function GET(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ error: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
-  const provider = request.nextUrl.searchParams.get('provider') ?? '';
-  const model = request.nextUrl.searchParams.get('model') ?? '';
+  const client = createOrchestraClient(apiKey);
+  const provider = request.nextUrl.searchParams.get('provider');
+  const model = request.nextUrl.searchParams.get('model');
 
-  const endpoints = await listEndpoints(apiKey, provider, model);
+  try {
+    const { data, error, response } = await client.GET('/v0/endpoints', {
+      params: {
+        query: {
+          provider: provider || undefined,
+          model: model || undefined,
+        },
+      },
+    });
 
-  return NextResponse.json(endpoints);
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch {
+    return NextResponse.json({ detail: 'Failed to fetch endpoints' }, { status: 500 });
+  }
 }
