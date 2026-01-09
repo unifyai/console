@@ -12,16 +12,18 @@ import { getCurrentUser } from '@/lib/user/user';
  * @returns A JSON response containing a list of endpoint names.
  */
 export async function GET(request: NextRequest) {
+  // Get API key from session (fallback to header for backwards compatibility)
   const user = await getCurrentUser();
+  const apiKey = user?.apiKey || request.headers.get('apiKey');
 
-  if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Unauthorized - no API key' }, { status: 401 });
   }
 
   const provider = request.nextUrl.searchParams.get('provider') ?? '';
   const model = request.nextUrl.searchParams.get('model') ?? '';
 
-  const endpoints = await listEndpoints(user.apiKey, provider, model);
+  const endpoints = await listEndpoints(apiKey, provider, model);
 
   return NextResponse.json(endpoints);
 }
