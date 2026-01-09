@@ -30,11 +30,11 @@ const dummyLogsActions = {
 describe('buildPlotDataItem', () => {
   const baseFields: LogFieldsResponseProps = {
     'entries/val': {
-      data_type: 'float',
-      field_type: 'entry',
+      dataType: 'float',
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: '',
+      createdAt: '',
     },
   };
 
@@ -53,10 +53,10 @@ describe('buildPlotDataItem', () => {
       name: 'Plot 1',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {
-        x_axis: 'TableA.col1',
-        y_axis: 'TableB.col2',
-        plot_group_by: 'TableA.col3',
+      plotTile: {
+        xAxis: 'TableA.col1',
+        yAxis: 'TableB.col2',
+        plotGroupBy: 'TableA.col3',
       },
     };
 
@@ -72,7 +72,7 @@ describe('buildPlotDataItem', () => {
       name: 'Empty Plot',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {}, // No axes configured
+      plotTile: {}, // No axes configured
     };
 
     const result = await buildPlotDataItem(
@@ -95,9 +95,9 @@ describe('buildPlotDataItem', () => {
       name: 'Plot 1',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {
-        x_axis: 'TableA.x',
-        y_axis: 'TableA.y',
+      plotTile: {
+        xAxis: 'TableA.x',
+        yAxis: 'TableA.y',
       },
     };
 
@@ -143,8 +143,8 @@ describe('buildPlotDataItem', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const fetchUrl = mockFetch.mock.calls[0][0] as string;
     expect(fetchUrl).toContain('/api/logs');
-    expect(fetchUrl).toContain('project_name=proj-1');
-    expect(fetchUrl).toContain('from_fields=x%26y'); // URL encoded
+    expect(fetchUrl).toContain('projectName=proj-1');
+    expect(fetchUrl).toContain('fromFields=x%26y'); // URL encoded
 
     expect(result.plotLogs).toHaveLength(2);
     const log1 = result.plotLogs[0] as any;
@@ -161,11 +161,11 @@ describe('buildPlotDataItem', () => {
       name: 'Agg Plot',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {
-        x_axis: 'TableA.x',
-        y_axis: 'TableA.y',
-        plot_group_by: 'TableA.g',
-        plot_aggregate: 'TableA.g', // Trigger aggregation path
+      plotTile: {
+        xAxis: 'TableA.x',
+        yAxis: 'TableA.y',
+        plotGroupBy: 'TableA.g',
+        plotAggregate: 'TableA.g', // Trigger aggregation path
       },
     };
 
@@ -225,9 +225,9 @@ describe('buildPlotDataItem', () => {
       name: 'Error Plot',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {
-        x_axis: 'TableA.x',
-        y_axis: 'TableA.y',
+      plotTile: {
+        xAxis: 'TableA.x',
+        yAxis: 'TableA.y',
       },
     };
 
@@ -269,9 +269,9 @@ describe('buildPlotDataItem', () => {
       name: 'Network Error Plot',
       type: 'Plot',
       position: makePosition(),
-      plot_tile: {
-        x_axis: 'TableA.x',
-        y_axis: 'TableA.y',
+      plotTile: {
+        xAxis: 'TableA.x',
+        yAxis: 'TableA.y',
       },
     };
 
@@ -322,17 +322,17 @@ describe('convertMetricsToDataLabels', () => {
     expect(result).toContainEqual(['CategoryC', 55.8]);
   });
 
-  it('uses shared_value when present', () => {
+  it('uses sharedValue when present', () => {
     const metricsResponse = {
       'sales': {
-        'CategoryA': { mean: 42.5, shared_value: 100 },
-        'CategoryB': { mean: 31.2, shared_value: null },
+        'CategoryA': { mean: 42.5, sharedValue: 100 },
+        'CategoryB': { mean: 31.2, sharedValue: null },
       },
     };
 
     const result = convertMetricsToDataLabels(metricsResponse, 'sales', 'mean');
 
-    expect(result).toContainEqual(['CategoryA', 100]); // Uses shared_value
+    expect(result).toContainEqual(['CategoryA', 100]); // Uses sharedValue
     expect(result).toContainEqual(['CategoryB', 31.2]); // Falls back to metric
   });
 
@@ -387,11 +387,11 @@ describe('convertMetricsToGroupedDataLabels', () => {
     expect(result).toContainEqual(['GroupB', ['Cat2', 25]]);
   });
 
-  it('uses shared_value when present in nested structure', () => {
+  it('uses sharedValue when present in nested structure', () => {
     const metricsResponse = {
       'sales': {
         'GroupA': {
-          'Cat1': { mean: 10, shared_value: 100 },
+          'Cat1': { mean: 10, sharedValue: 100 },
         },
       },
     };

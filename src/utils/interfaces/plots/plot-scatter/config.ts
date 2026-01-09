@@ -5,58 +5,58 @@
  */
 export interface ScatterConfig {
   /** Maximum points for SVG rendering (default: 2000) */
-  SVG_MAX: number;
+  svgMax: number;
 
   /** Maximum points for WebGL without sampling (default: 1,000,000) */
-  WEBGL_MAX: number;
+  webglMax: number;
 
-  /** Target sample size for datasets > WEBGL_MAX (default: 500,000) */
-  SAMPLE_TARGET: number;
+  /** Target sample size for datasets > webglMax (default: 500,000) */
+  sampleTarget: number;
 
   /** Enable viewport culling for all render modes (default: true) */
-  VIEWPORT_CULLING: boolean;
+  viewportCulling: boolean;
 
   /** Hover detection radius in pixels (default: 10) */
-  HIT_THRESHOLD: number;
+  hitThreshold: number;
 
   /** Default point size in pixels (default: 3) */
-  POINT_SIZE: number;
+  pointSize: number;
 
   /** Hovered point size in pixels (default: 5) */
-  HOVER_SIZE: number;
+  hoverSize: number;
 
   /** WebGL point size in pixels (default: 5) */
-  WEBGL_POINT_SIZE: number;
+  webglPointSize: number;
 
   /** WebGL highlighted point size in pixels (default: 10) */
-  WEBGL_HIGHLIGHT_SIZE: number;
+  webglHighlightSize: number;
 
   /** Grid size for stratified sampling (cells per axis) (default: 50) */
-  SAMPLING_GRID_SIZE: number;
+  samplingGridSize: number;
 
   /** Dimmed point opacity (default: 0.2) */
-  DIM_OPACITY: number;
+  dimOpacity: number;
 
   /** Same-group point opacity when another point is hovered (default: 0.7) */
-  SAME_GROUP_OPACITY: number;
+  sameGroupOpacity: number;
 }
 
 /**
  * Default configuration values
  */
 const defaultConfig: ScatterConfig = {
-  SVG_MAX: 2000,
-  WEBGL_MAX: 1_000_000,
-  SAMPLE_TARGET: 500_000,
-  VIEWPORT_CULLING: true,
-  HIT_THRESHOLD: 10,
-  POINT_SIZE: 3,
-  HOVER_SIZE: 5,
-  WEBGL_POINT_SIZE: 5,
-  WEBGL_HIGHLIGHT_SIZE: 10,
-  SAMPLING_GRID_SIZE: 50,
-  DIM_OPACITY: 0.2,
-  SAME_GROUP_OPACITY: 0.7,
+  svgMax: 2000,
+  webglMax: 1_000_000,
+  sampleTarget: 500_000,
+  viewportCulling: true,
+  hitThreshold: 10,
+  pointSize: 3,
+  hoverSize: 5,
+  webglPointSize: 5,
+  webglHighlightSize: 10,
+  samplingGridSize: 50,
+  dimOpacity: 0.2,
+  sameGroupOpacity: 0.7,
 };
 
 /**

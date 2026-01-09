@@ -15,7 +15,7 @@ export function useAssistantProfileChat(
     preHireChat?: ChatMessage[],
     onFirstViewCompleted?: () => void,
 ) {
-    const assistantId = assistant?.agent_id || null;
+    const assistantId = assistant?.agentId || null;
 
     const messages = React.useMemo(() => {
         const raw = assistantId ? chatHistories[assistantId] || [] : [];
@@ -117,23 +117,23 @@ export function useAssistantProfileChat(
      */
     const resolveOwnerContext = React.useCallback(async (currentAssistant: Assistant): Promise<string | null> => {
         // Check cache first
-        const cached = ownerContextCacheRef.current.get(currentAssistant.agent_id);
+        const cached = ownerContextCacheRef.current.get(currentAssistant.agentId);
         if (cached) return cached;
 
         // Try direct names from assistant object
-        if (currentAssistant.user_first_name && currentAssistant.user_last_name) {
-            const context = `${currentAssistant.user_first_name}${currentAssistant.user_last_name}`;
-            ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+        if (currentAssistant.userFirstName && currentAssistant.userLastName) {
+            const context = `${currentAssistant.userFirstName}${currentAssistant.userLastName}`;
+            ownerContextCacheRef.current.set(currentAssistant.agentId, context);
             return context;
         }
 
         // Fallback: fetch user details via server action
-        if (currentAssistant.user_id) {
+        if (currentAssistant.userId) {
             try {
-                const userDetails = await assistantActions.chat.getAssistantOwnerById(currentAssistant.user_id);
-                if (userDetails && userDetails.first_name) {
-                    const context = `${userDetails.first_name}${userDetails.last_name || ''}`;
-                    ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+                const userDetails = await assistantActions.chat.getAssistantOwnerById(currentAssistant.userId);
+                if (userDetails && userDetails.firstName) {
+                    const context = `${userDetails.firstName}${userDetails.lastName || ''}`;
+                    ownerContextCacheRef.current.set(currentAssistant.agentId, context);
                     return context;
                 }
             } catch (error) {/* no-op */}
@@ -165,7 +165,7 @@ export function useAssistantProfileChat(
             return;
         }
 
-        const assistantContext = `${currentAssistant.first_name}${currentAssistant.surname}`;
+        const assistantContext = `${currentAssistant.firstName}${currentAssistant.surname}`;
 
         try {
             let contactId: number;
@@ -260,7 +260,7 @@ export function useAssistantProfileChat(
                         setCanChat(false);
                         return;
                     }
-                    const assistantContext = `${assistant.first_name}${assistant.surname}`;
+                    const assistantContext = `${assistant.firstName}${assistant.surname}`;
                     const contactId = await assistantActions.chat.getContactId(ownerContext, assistantContext, userEmail);
                     if (contactId === null) {
                         // User not in contacts - trigger contact sync (only once per assistant)
@@ -302,7 +302,7 @@ export function useAssistantProfileChat(
         }
 
         const oldestMessage = messages[0];
-        if (!oldestMessage || oldestMessage.message_id === undefined) {
+        if (!oldestMessage || oldestMessage.messageId === undefined) {
             setHasMoreMessages(false);
             return;
         }
@@ -316,9 +316,9 @@ export function useAssistantProfileChat(
 
         setLoadMoreError(false);
         setIsLoadingMore(true);
-        const assistantContext = `${assistant.first_name}${assistant.surname}`; 
+        const assistantContext = `${assistant.firstName}${assistant.surname}`; 
         try {
-            const result = await assistantActions.chat.getTranscripts(ownerContext, assistantContext, contactId, oldestMessage.message_id);
+            const result = await assistantActions.chat.getTranscripts(ownerContext, assistantContext, contactId, oldestMessage.messageId);
             setHasFetchedHistory(true);
             if ('detail' in result) {
                 setLoadMoreError(true);
@@ -403,7 +403,7 @@ export function useAssistantProfileChat(
                 const ackId = messagePayload.__ackId;
 
                 // Filter by contact_id: only display and ACK messages for this user
-                const messageContactId = messagePayload.contact_id;
+                const messageContactId = messagePayload.contactId;
                 if (messageContactId !== undefined && messageContactId !== userContactId) {
                     // Message is not for this user - don't ACK, let it be redelivered
                     return;
@@ -422,7 +422,7 @@ export function useAssistantProfileChat(
                 }
 
                 if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
-                    const content = messagePayload.event?.content ?? messagePayload.event?.body ?? messagePayload.content ?? messagePayload.raw_content ?? '';
+                    const content = messagePayload.event?.content ?? messagePayload.event?.body ?? messagePayload.content ?? messagePayload.rawContent ?? '';
                     const incomingId = messagePayload.id;
                     const serverMsgId = incomingId || uuidv4();
                     const publishTimeStr = messagePayload.publishTime;
@@ -547,8 +547,8 @@ export function useAssistantProfileChat(
 
         // 3. Send to Backend with contact_id
         assistantActions.chat.message({
-            assistant_id: parseInt(assistant.agent_id),
-            contact_id: contactId,
+            assistantId: parseInt(assistant.agentId),
+            contactId: contactId,
             message: messageToSend
         }).then(response => {
             if (response.detail) {

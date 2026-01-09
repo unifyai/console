@@ -124,32 +124,32 @@ const LogsPlot = ({
   let settingsRef = useRef<HTMLDivElement>(null);
 
   // Plot settings
-  let plotType = item?.plot_type;
+  let plotType = item?.plotType;
   plotType = plotType ? plotType : "Scatter Plot";
 
   let metric = item?.metric ? item?.metric : "mean";
-  let aggregateProperty = item?.plot_aggregate;
+  let aggregateProperty = item?.plotAggregate;
   const groupings = Object.fromEntries(
     Object.entries(args as PlotArguments)
       .filter(([_, tableArgs]) => tableArgs.grouping)
       .map(([table, tableArgs]) => [table, tableArgs.grouping.split(",")])
   );
 
-  let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
+  let binCount = item?.binCount ? parseFloat(item?.binCount) : 10;
   const [binCounts, setBinCounts] = useState([1, 100]);
-  let showRegression = item?.regression_line === "true" ? "true" : "false";
+  let showRegression = item?.regressionLine === "true" ? "true" : "false";
 
-  let scaleX = item?.plot_scale_x;
-  let scaleY = item?.plot_scale_y;
+  let scaleX = item?.plotScaleX;
+  let scaleY = item?.plotScaleY;
   const [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
   const [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
   scaleX = scaleX ? scaleX : "linear";
   scaleY = scaleY ? scaleY : "linear";
 
   // Axes and grouping selected on the plot
-  const selectedXAxisProperty = item?.x_axis;
-  const selectedYAxisProperty = item?.y_axis;
-  const groupByProperty = item?.plot_group_by;
+  const selectedXAxisProperty = item?.xAxis;
+  const selectedYAxisProperty = item?.yAxis;
+  const groupByProperty = item?.plotGroupBy;
   const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
 
   useEffect(() => {

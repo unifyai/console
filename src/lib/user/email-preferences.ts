@@ -47,7 +47,7 @@ export async function getMailchimpUser(email: string) {
  */
 export async function addMailchimpUser(email:string) {
     const response = await mailchimp.lists.addListMember(listId, {
-      email_address: email,
+      emailAddress: email,
       status: "subscribed",
       interests: {
         "5557d764ba": true,
@@ -72,9 +72,9 @@ export async function updateMailchimpUser(email: string, name: string, lastName:
     listId,
     subscriberHash,
     {
-      email_address: email,
-      status_if_new: "subscribed",
-      merge_fields: {
+      emailAddress: email,
+      statusIfNew: "subscribed",
+      mergeFields: {
         FNAME: name,
         LNAME: lastName
       }

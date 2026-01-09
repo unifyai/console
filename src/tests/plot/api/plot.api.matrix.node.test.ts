@@ -4,7 +4,7 @@
  * Comprehensive matrix tests covering all combinations of:
  * - Plot types: scatter, bar, histogram, line
  * - Plot configs: All valid combinations from configs.ts
- * - Project configs: Combinations of limit, filter_expr, group_by, sorting
+ * - Project configs: Combinations of limit, filterExpr, groupBy, sorting
  * - Data types: All combinations from dataTypeOptions
  * - Scales: small (100), medium (1000), large (10000)
  *
@@ -91,19 +91,19 @@ defineNodeMatrixTests<ApiMatrixTestContext>({
       if (PLOT_TEST_API_REAL) {
         // Real API: single API call for all assertions
         const createResponse = await createPlotRequest({
-          project_config: ctx.scaleAdjustedProjectConfig,
-          plot_config: {
+          projectConfig: ctx.scaleAdjustedProjectConfig,
+          plotConfig: {
             type: ctx.adjustedPlotConfig.type,
-            x_axis: ctx.adjustedPlotConfig.x_axis,
-            y_axis: ctx.adjustedPlotConfig.y_axis,
-            scale_x: ctx.adjustedPlotConfig.scale_x,
-            scale_y: ctx.adjustedPlotConfig.scale_y,
+            xAxis: ctx.adjustedPlotConfig.xAxis,
+            yAxis: ctx.adjustedPlotConfig.yAxis,
+            scaleX: ctx.adjustedPlotConfig.scaleX,
+            scaleY: ctx.adjustedPlotConfig.scaleY,
             aggregate: ctx.adjustedPlotConfig.aggregate,
-            group_by: ctx.adjustedPlotConfig.group_by,
-            show_regression: ctx.adjustedPlotConfig.show_regression,
-            sort_by: ctx.adjustedPlotConfig.sort_by,
-            sort_order: ctx.adjustedPlotConfig.sort_order,
-            bin_count: ctx.adjustedPlotConfig.bin_count,
+            groupBy: ctx.adjustedPlotConfig.groupBy,
+            showRegression: ctx.adjustedPlotConfig.showRegression,
+            sortBy: ctx.adjustedPlotConfig.sortBy,
+            sortOrder: ctx.adjustedPlotConfig.sortOrder,
+            binCount: ctx.adjustedPlotConfig.binCount,
           },
         });
         if (createResponse.status !== 201) {
@@ -148,7 +148,7 @@ defineNodeMatrixTests<ApiMatrixTestContext>({
           ctx.scaleAdjustedProjectConfig
         );
         assertFieldsCorrectness(result.data.fields, ctx.dataTypeConfig);
-        assertMetadataCorrectness(result.data.metadata, ctx.scaleAdjustedProjectConfig.project_name);
+        assertMetadataCorrectness(result.data.metadata, ctx.scaleAdjustedProjectConfig.projectName);
       } else {
         // Mocked: single mock setup for all assertions
         const mockSetup = getMockResponse(ctx);
@@ -171,7 +171,7 @@ defineNodeMatrixTests<ApiMatrixTestContext>({
         assertFieldsCorrectness(mockSetup.response.fields, ctx.dataTypeConfig);
         assertMetadataCorrectness(
           mockSetup.response.metadata,
-          ctx.scaleAdjustedProjectConfig.project_name
+          ctx.scaleAdjustedProjectConfig.projectName
         );
       }
     }, ctx.scale.timeout);

@@ -15,7 +15,7 @@ import { PromptSuggestions } from "@/components/UI/Chat/prompt-suggestions"
 interface ChatPropsBase {
   handleSubmit: (
     event?: { preventDefault?: () => void },
-    options?: { experimental_attachments?: FileList }
+    options?: { experimentalAttachments?: FileList }
   ) => void
   messages: Array<Message>
   input: string
@@ -182,7 +182,7 @@ interface ChatFormProps {
   isPending: boolean
   handleSubmit: (
     event?: { preventDefault?: () => void },
-    options?: { experimental_attachments?: FileList }
+    options?: { experimentalAttachments?: FileList }
   ) => void
   children: (props: {
     files: File[] | null
@@ -206,7 +206,7 @@ export const ChatForm = forwardRef<HTMLFormElement, ChatFormProps>(
       }
 
       const fileList = createFileList(files)
-      handleSubmit(event, { experimental_attachments: fileList })
+      handleSubmit(event, { experimentalAttachments: fileList })
       setFiles(null)
     }
 

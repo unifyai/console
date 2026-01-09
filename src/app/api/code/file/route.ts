@@ -22,9 +22,9 @@ async function ensureSandbox(userId: string) {
   return sandboxId;
 }
 
-function buildFilePath(project_name: string, filename?: string) {
+function buildFilePath(projectName: string, filename?: string) {
   // Always place files under their project directory inside the sandbox.
-  return filename ? `${project_name}/${filename}` : project_name;
+  return filename ? `${projectName}/${filename}` : projectName;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,22 +34,22 @@ function buildFilePath(project_name: string, filename?: string) {
 export async function POST(request: NextRequest) {
   /**
    * Create or overwrite a file inside the CodeSandbox FS.
-   * Expected JSON body: { user_id, project_name, filename, content }
+   * Expected JSON body: { userId, projectName, filename, content }
    */
   try {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
-    const { user_id: userId, project_name, filename, content } = await request.json();
+    const { userId: userId, projectName, filename, content } = await request.json();
 
-    if (!userId || !project_name || !filename || typeof content !== "string") {
-      return NextResponse.json({ detail: "Missing user_id, project_name, filename or content" }, { status: 400 });
+    if (!userId || !projectName || !filename || typeof content !== "string") {
+      return NextResponse.json({ detail: "Missing userId, projectName, filename or content" }, { status: 400 });
     }
 
     let contentToWrite = content;
     if (filename === ".env" && content === "") {
-      contentToWrite = `UNIFY_KEY=${apiKey}\nUNIFY_PROJECT=${project_name}`;
+      contentToWrite = `UNIFY_KEY=${apiKey}\nUNIFY_PROJECT=${projectName}`;
     }
 
     // Ensure sandbox exists and open the FS
@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 
-    const filePath = buildFilePath(project_name, filename);
+    const filePath = buildFilePath(projectName, filename);
     const encoded = new TextEncoder().encode(contentToWrite);
     await sandbox.fs.writeFile(filePath, encoded);
 
-    return Response.json({ detail: "File written", file_path: filePath });
+    return Response.json({ detail: "File written", filePath: filePath });
   } catch (err: any) {
     console.error("[file] POST error", err);
     return Response.json({ detail: "Failed to write file" }, { status: 500 });
@@ -71,20 +71,20 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   /**
    * Delete a file from the CodeSandbox FS.
-   * Expected JSON body: { user_id, project_name, filename, isDirectory }
+   * Expected JSON body: { userId, projectName, filename, isDirectory }
    */
   try {
-    const { user_id: userId, project_name, filename, isDirectory = false } = await request.json();
+    const { userId: userId, projectName, filename, isDirectory = false } = await request.json();
 
-    if (!userId || !project_name || (!isDirectory && !filename)) {
-      return Response.json({ detail: "Missing user_id, project_name or filename" }, { status: 400 });
+    if (!userId || !projectName || (!isDirectory && !filename)) {
+      return Response.json({ detail: "Missing userId, projectName or filename" }, { status: 400 });
     }
 
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 
-    const filePath = buildFilePath(project_name, filename);
+    const filePath = buildFilePath(projectName, filename);
 
     if (isDirectory) {
       // Use shell command to remove directory recursively
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest) {
       await sandbox.fs.remove(filePath);
     }
 
-    return Response.json({ detail: "File or directory deleted", file_path: filePath });
+    return Response.json({ detail: "File or directory deleted", filePath: filePath });
   } catch (err: any) {
     console.error("[file] DELETE error", err);
     return Response.json({ detail: "Failed to delete file" }, { status: 500 });
@@ -104,26 +104,26 @@ export async function DELETE(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   /**
    * Rename a file inside the CodeSandbox FS.
-   * Expected JSON body: { user_id, project_name, old_filename, new_filename }
+   * Expected JSON body: { userId, projectName, oldFilename, newFilename }
    */
   try {
-    const { user_id: userId, project_name, old_filename, new_filename } = await request.json();
+    const { userId: userId, projectName, oldFilename, newFilename } = await request.json();
 
-    if (!userId || !project_name || !old_filename || !new_filename) {
-      return Response.json({ detail: "Missing user_id, project_name, old_filename or new_filename" }, { status: 400 });
+    if (!userId || !projectName || !oldFilename || !newFilename) {
+      return Response.json({ detail: "Missing userId, projectName, oldFilename or newFilename" }, { status: 400 });
     }
 
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 
-    const oldPath = buildFilePath(project_name, old_filename);
-    const newPath = buildFilePath(project_name, new_filename);
+    const oldPath = buildFilePath(projectName, oldFilename);
+    const newPath = buildFilePath(projectName, newFilename);
 
     const cmd = sandbox.shells.run(`mv "${oldPath}" "${newPath}"`);
     await cmd;
 
-    return Response.json({ detail: "File renamed", old_path: oldPath, new_path: newPath });
+    return Response.json({ detail: "File renamed", oldPath: oldPath, newPath: newPath });
   } catch (err: any) {
     console.error("[file] PUT error", err);
     return Response.json({ detail: "Failed to rename file" }, { status: 500 });
@@ -133,16 +133,16 @@ export async function PUT(request: NextRequest) {
 export async function GET(request: NextRequest) {
   /**
    * Retrieve file content or list project directory.
-   * Search params: user_id, project_name, filename?, isDirectory ("true" | "false")
+   * Search params: userId, projectName, filename?, isDirectory ("true" | "false")
    */
   const params = new URL(request.url).searchParams;
-  const userId = params.get("user_id");
-  const project_name = params.get("project_name");
+  const userId = params.get("userId");
+  const projectName = params.get("projectName");
   const filename = params.get("filename") ?? undefined;
   const isDirectory = params.get("isDirectory") === "true";
 
-  if (!userId || !project_name) {
-    return Response.json({ detail: "Missing user_id or project_name" }, { status: 400 });
+  if (!userId || !projectName) {
+    return Response.json({ detail: "Missing userId or projectName" }, { status: 400 });
   }
 
   try {
@@ -177,14 +177,14 @@ export async function GET(request: NextRequest) {
         return results;
       };
 
-      const dirPath = buildFilePath(project_name);
+      const dirPath = buildFilePath(projectName);
       const files = await readDirRecursive(dirPath, "", new Set());
       return Response.json({ files });
     } else {
       if (!filename) {
         return Response.json({ detail: "Missing filename for file read" }, { status: 400 });
       }
-      const filePath = buildFilePath(project_name, filename);
+      const filePath = buildFilePath(projectName, filename);
       const data = await sandbox.fs.readFile(filePath);
       const decoded = new TextDecoder().decode(data);
       return Response.json({ content: decoded });

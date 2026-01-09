@@ -74,7 +74,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     const tileName = tileMetaState?.name;
     const tableName = tileDataState?.table;
     const context = tileDataState?.context;
-    const columnContext = tileDataState?.column_context;
+    const columnContext = tileDataState?.columnContext;
 
     // Get table names for linking
     const tableNames = syncedTabDataActions?.getTileNamesByType?.("Table")?.filter(Boolean) as string[] || [];

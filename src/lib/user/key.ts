@@ -1,6 +1,7 @@
 import {OrchestraAdminClient} from "../orchestra/orchestra-client";
 import { getCurrentUser } from "./user";
 import { User } from "@/types/user";
+import { snakeToCamelObject } from "@/utils/casing";
 
 
 /**
@@ -11,11 +12,11 @@ import { User } from "@/types/user";
  * @returns {Promise<any>} The new API key.
  */
 export async function regenerateUserKey(userID: string, organizationID?: string) {
-  const params: Record<string, string | number> = { user_id: userID };
+  const params: Record<string, string | number> = { userId: userID };
   if (organizationID) {
-    params.organization_id = organizationID;
+    params.organizationId = organizationID;
   }
-  let response = await OrchestraAdminClient.post("/api_key/reset", null, { params });
+  let response = await OrchestraAdminClient.post("/apiKey/reset", null, { params });
   const key = response.data;
   return key;
 };
@@ -28,6 +29,6 @@ export async function regenerateUserKey(userID: string, organizationID?: string)
  */
 export async function regenerateOnPremUserKey() {
   const userResponse = await fetch(`${process.env.NEXTAUTH_URL}/userInfo.json`);
-  const userInfo = (await userResponse.json()) as User;
-  return userInfo?.api_key || null;
+  const userInfo = snakeToCamelObject<User>(await userResponse.json());
+  return userInfo?.apiKey || null;
 };

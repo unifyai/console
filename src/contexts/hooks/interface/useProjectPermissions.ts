@@ -80,8 +80,8 @@ export function useProjectPermissions(options: UseProjectPermissionsOptions): Pr
 
     const projectData = projectQuery.data;
     const projectId = projectData?.id || null;
-    const organizationId = projectData?.organization_id || null;
-    const projectOwnerId = projectData?.user_id || null;
+    const organizationId = projectData?.organizationId || null;
+    const projectOwnerId = projectData?.userId || null;
     const isOrgProject = organizationId !== null && organizationId !== undefined;
     const isPersonalOwner = !!userId && !!projectOwnerId && userId === projectOwnerId;
 
@@ -223,11 +223,11 @@ export function useProjectPermissions(options: UseProjectPermissionsOptions): Pr
 
         const accessData = accessQuery.data;
         const roles = rolesQuery.data || [];
-        const accessEntries = accessData?.access_entries || [];
+        const accessEntries = accessData?.accessEntries || [];
 
         // Find user's access entry
         const userAccess = accessEntries.find(
-            (entry) => entry.grantee_type === "user" && entry.grantee_id === userId
+            (entry) => entry.granteeType === "user" && entry.granteeId === userId
         );
 
         let hasWrite = false;
@@ -236,8 +236,8 @@ export function useProjectPermissions(options: UseProjectPermissionsOptions): Pr
         let roleName: string | null = null;
 
         if (userAccess) {
-            roleName = userAccess.role_name;
-            const role = roles.find((r) => r.id === userAccess.role_id);
+            roleName = userAccess.roleName;
+            const role = roles.find((r) => r.id === userAccess.roleId);
             if (role) {
                 const permissionNames = role.permissions.map((p: Permission) => p.name);
                 hasWrite = permissionNames.includes("project:write");

@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { MouseEventHandler, KeyboardEventHandler } from "react";
 export default function BaseButton ({text, icon, variant, disabled = false, type, size = "sm", onClick, className, onKeyDown}: {
     text?: string,
-    variant?: "default" | "primary" | "secondary" | "destructive" | "warning" | "warning_outline" | "outline" | "ghost" | "link",
+    variant?: "default" | "primary" | "secondary" | "destructive" | "warning" | "warningOutline" | "outline" | "ghost" | "link",
     icon?: ReactNode,
     disabled?: boolean,
     type?: "submit" | "reset" | "button" | undefined,

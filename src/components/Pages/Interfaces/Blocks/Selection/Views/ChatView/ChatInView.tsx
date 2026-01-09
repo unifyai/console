@@ -138,10 +138,10 @@ function renderMessageContent(content: unknown): JSX.Element {
             if (chunk.type === "text" && typeof chunk.text === "string") {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
             } else if (
-              chunk.type === "image_url" &&
-              chunk.image_url?.url
+              chunk.type === "imageUrl" &&
+              chunk.imageUrl?.url
             ) {
-              return <Image key={i} src={chunk.image_url.url} alt={`Image ${i}`} width={200} height={200} />;
+              return <Image key={i} src={chunk.imageUrl.url} alt={`Image ${i}`} width={200} height={200} />;
             }
             // default => JSON
             return (

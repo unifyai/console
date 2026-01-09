@@ -9,7 +9,7 @@ import { Label } from "@/components/UI/label";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { Trash } from "lucide-react";
 
-export type DeleteOption = "project" | "logs" | "logs_and_contexts";
+export type DeleteOption = "project" | "logs" | "logsAndContexts";
 
 const DeleteProjectDialog = ({
     project,
@@ -40,7 +40,7 @@ const DeleteProjectDialog = ({
     const typeLabels = {
         "project": "project",
         "logs": "all logs in this project",
-        "logs_and_contexts": "all logs and contexts in this project"
+        "logsAndContexts": "all logs and contexts in this project"
     };
 
     const messages = {
@@ -59,7 +59,7 @@ const DeleteProjectDialog = ({
             case "logs":
                 deleteFn = deletingFunctions.logs;
                 break;
-            case "logs_and_contexts":
+            case "logsAndContexts":
                 deleteFn = deletingFunctions.logsAndContexts;
                 break;
             case "project":
@@ -110,7 +110,7 @@ const DeleteProjectDialog = ({
                         <Label htmlFor="delete-logs" className="pt-0.5">Delete all logs in the project</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="logs_and_contexts" id="delete-logs-contexts" className="p-0.5 pr-0.5"/>
+                        <RadioGroupItem value="logsAndContexts" id="delete-logs-contexts" className="p-0.5 pr-0.5"/>
                         <Label htmlFor="delete-logs-contexts" className="pt-0.5">Delete all logs and contexts in the project</Label>
                     </div>
                 </RadioGroup>

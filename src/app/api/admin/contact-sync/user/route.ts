@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     let body: {
-        assistant_id?: number;
-        target_user_email?: string;
+        assistantId?: number;
+        targetUserEmail?: string;
         timezone?: string;
         bio?: string;
     };
@@ -35,14 +35,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { assistant_id, target_user_email, timezone, bio } = body;
+    const { assistantId, targetUserEmail, timezone, bio } = body;
 
-    if (!assistant_id || typeof assistant_id !== "number") {
-        return NextResponse.json({ detail: "assistant_id (number) is required" }, { status: 400 });
+    if (!assistantId || typeof assistantId !== "number") {
+        return NextResponse.json({ detail: "assistantId (number) is required" }, { status: 400 });
     }
 
-    if (!target_user_email || typeof target_user_email !== "string") {
-        return NextResponse.json({ detail: "target_user_email (string) is required" }, { status: 400 });
+    if (!targetUserEmail || typeof targetUserEmail !== "string") {
+        return NextResponse.json({ detail: "targetUserEmail (string) is required" }, { status: 400 });
     }
 
     if (timezone === undefined && bio === undefined) {
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant/update-user`;
 
     const payload: Record<string, any> = {
-        assistant_id,
-        target_user_email,
+        assistantId,
+        targetUserEmail,
     };
     if (timezone !== undefined) payload.timezone = timezone;
     if (bio !== undefined) payload.bio = bio;

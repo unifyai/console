@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const billingDetails = await getUserBillingDetails(user.id as string)
 
-    return NextResponse.json({ billingDetails, userCreatedAt: user.created_at })
+    return NextResponse.json({ billingDetails, userCreatedAt: user.createdAt })
   } catch (error) {
     console.error('Error fetching billing details:', error);
     return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });

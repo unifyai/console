@@ -4,14 +4,14 @@ import { QueryKey } from '@tanstack/react-query';
 
 interface UsageHistoryResponse {
   queries: QueryResult[];
-  total_pages: number;
+  totalPages: number;
 }
 
 //Required due to TS constraints
 interface UseUsageHistoryQueryData {
   queries: QueryResult[];
   pages: UsageHistoryResponse[];
-  total_pages: number;
+  totalPages: number;
 }
 
 interface UseUsageHistoryQueryParams {
@@ -46,9 +46,9 @@ export function useUsageHistoryQuery({
     queryKey: ['usageHistory', { start, end, models, providers, tags, failures }],
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams({
-        start_time: start,
-        end_time: end,
-        page_number: pageParam.toString(),
+        startTime: start,
+        endTime: end,
+        pageNumber: pageParam.toString(),
       });
 
       const validEndpointsArray: string[] = await fetch('/api/endpoints/list')
@@ -109,7 +109,7 @@ export function useUsageHistoryQuery({
 
       return{
         queries: data.queries,
-        total_pages: data.total_pages,
+        totalPages: data.totalPages,
         pages: [data],
       } as UseUsageHistoryQueryData;
     },
@@ -123,7 +123,7 @@ export function useUsageHistoryQuery({
       
       const nextPage = pages.length + 1;
 
-      return nextPage <= lastPage.total_pages ? nextPage : undefined;
+      return nextPage <= lastPage.totalPages ? nextPage : undefined;
     },
     staleTime: 300000,
     retry: false,

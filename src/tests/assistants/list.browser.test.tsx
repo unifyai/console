@@ -192,7 +192,7 @@ describe('Component Tests', () => {
             // these are in the hover card content
             expect(screen.getByText(mockAssistants[0].email!)).toBeInTheDocument();
             expect(screen.getByText(mockAssistants[0].phone!)).toBeInTheDocument();
-            expect(screen.getByText(mockAssistants[0].assistant_whatsapp_number!)).toBeInTheDocument();
+            expect(screen.getByText(mockAssistants[0].assistantWhatsappNumber!)).toBeInTheDocument();
         });
 
         it('should display "Add" buttons for missing contact details', async () => {

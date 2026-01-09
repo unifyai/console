@@ -40,9 +40,9 @@ const MAX_PREVIEW_ROWS = 20;
 const ALLOWED_EXTENSIONS = ['.csv', '.jsonl', '.json'];
 
 export function FileUpload({ project, logsActions, contexts, customOpen, setCustomOpen, text, className }: FileUploadProps) {
-    const [open_, setOpen_] = useState(false);
-    const open = customOpen !== undefined ? customOpen : open_;
-    const setOpen = setCustomOpen || setOpen_;
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = customOpen !== undefined ? customOpen : internalOpen;
+    const setOpen = setCustomOpen || setInternalOpen;
     const [file, setFile] = useState<File | null>(null);
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [columnTypes, setColumnTypes] = useState<Record<string, ColumnType>>({});

@@ -7,7 +7,7 @@ const ChatPage = async () => {
 
     // get user and api key
     const user = await getCurrentUser();
-    const apiKey = user!.api_key;
+    const apiKey = user!.apiKey;
 
     // get endpoints
     const endpointsList: string[] = await listEndpoints(

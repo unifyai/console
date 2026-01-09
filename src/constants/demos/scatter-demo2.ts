@@ -22,7 +22,7 @@ for gender in ["male", "female"]:
 `,
     // Granular interface structure
     interface: {
-        project_id: "scatter-demo2",
+        projectId: "scatter-demo2",
         name: "interface1"
     },
     // Tab structure
@@ -43,8 +43,8 @@ for gender in ["male", "female"]:
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -56,14 +56,14 @@ for gender in ["male", "female"]:
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                plot_type: "Scatter",
-                x_axis: "Table.age",
-                y_axis: "Table.salary",
-                plot_group_by: "Table.gender",
-                regression_line: "true"
+            plotTile: {
+                plotType: "Scatter",
+                xAxis: "Table.age",
+                yAxis: "Table.salary",
+                plotGroupBy: "Table.gender",
+                regressionLine: "true"
             }
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

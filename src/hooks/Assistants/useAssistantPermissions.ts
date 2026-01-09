@@ -47,7 +47,7 @@ export function useAssistantPermissions(): AssistantPermissions {
   const { activeWorkspace, activeOrganization, currentUserId } = useWorkspace();
 
   const isOrgContext = activeWorkspace?.type === 'organization';
-  const isOrgOwner = activeOrganization?.role_name === 'Owner';
+  const isOrgOwner = activeOrganization?.roleName === 'Owner';
 
   return useMemo(() => ({
     isOrgContext,
@@ -60,18 +60,18 @@ export function useAssistantPermissions(): AssistantPermissions {
     // In personal workspace, user always has full access
     canWrite: (assistant: Assistant) => {
       if (!isOrgContext) return true;
-      return assistant.user_id === currentUserId;
+      return assistant.userId === currentUserId;
       // TODO v1: Add || isOrgOwner for org owner god-mode
-      // TODO v2: Add || checkResourcePermission('assistant:write', assistant.agent_id)
+      // TODO v2: Add || checkResourcePermission('assistant:write', assistant.agentId)
     },
 
     // v0: Only assistant creator can delete in org context
     // Same logic as canWrite for now
     canDelete: (assistant: Assistant) => {
       if (!isOrgContext) return true;
-      return assistant.user_id === currentUserId;
+      return assistant.userId === currentUserId;
       // TODO v1: Add || isOrgOwner for org owner god-mode
-      // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agent_id)
+      // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agentId)
     },
   }), [isOrgContext, isOrgOwner, currentUserId]);
 }

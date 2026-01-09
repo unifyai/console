@@ -9,52 +9,56 @@ import {
 import { Gender as CartesiaGender, SupportedLanguage } from "@cartesia/cartesia-js/api"; 
 import { arrayBufferToBase64 } from "@/utils/assistants/voice-utils";
 import { formatFastApiError } from "@/utils/assistants/api-utils";
+import { snakeToCamelObject, camelToSnakeObject } from "@/utils/casing";
 
 export const listVoices = async (apiKey: string) => {
-    return async (): Promise<(Voice & {is_preset?: boolean})[] | ResponseProps> => {
+    return async (): Promise<(Voice & {isPreset?: boolean})[] | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, { method: "GET", headers: { apiKey: apiKey }});
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
-            return (data.info || data) as (Voice & {is_preset?: boolean})[]; 
+            const rawVoices = data.info || data;
+            return snakeToCamelObject<(Voice & {isPreset?: boolean})[]>(rawVoices);
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
 
 export const registerVoice = async (apiKey: string) => {
-    return async (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage | "multi", is_preset: boolean): Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps> => {
+    return async (voiceId: string, provider: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage | "multi", isPreset: boolean): Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
                 method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ voice_id, provider, name, description, gender, language, is_preset })
+                // API expects snake_case
+                body: JSON.stringify({ voiceId: voiceId, provider, name, description, gender, language, isPreset: isPreset })
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
-            return { ...(data.info as Voice), info: `Voice ${name} registered.`, is_preset: (data.info as any)?.is_preset }; 
+            const voice = snakeToCamelObject<Voice>(data.info);
+            return { ...voice, info: `Voice ${name} registered.`, isPreset: (data.info as any)?.isPreset }; 
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
 
 export const deleteVoice = async (apiKey: string) => {
-    return async (voice_id: string, provider: string): Promise<ResponseProps> => {
+    return async (voiceId: string, provider: string): Promise<ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${voice_id}?provider=${provider}`, { method: "DELETE", headers: { apiKey: apiKey }});
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${voiceId}?provider=${provider}`, { method: "DELETE", headers: { apiKey: apiKey }});
             if (!response.ok && response.status !== 404) { 
                  const data = await response.json().catch(() => ({}));
                 return { detail: data.detail || `Failed to delete voice: ${response.statusText}` };
         }
-    if (response.status === 204) return { info: `Voice ${voice_id} deleted.`};
-            const data = await response.json().catch(() => ({info: `Voice ${voice_id} deleted.`}));
-            return { info: data.info || `Voice ${voice_id} deleted.` };
+    if (response.status === 204) return { info: `Voice ${voiceId} deleted.`};
+            const data = await response.json().catch(() => ({info: `Voice ${voiceId} deleted.`}));
+            return { info: data.info || `Voice ${voiceId} deleted.` };
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
 
 export const cloneVoice = async (apiKey: string) => {
-    return async (formData: FormData): Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps> => {
+    return async (formData: FormData): Promise<(Voice & {info?:string; isPreset?: boolean}) | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/clone`, {
@@ -64,7 +68,7 @@ export const cloneVoice = async (apiKey: string) => {
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
-            return data.info as (Voice & {info?:string; is_preset?: boolean});
+            return snakeToCamelObject<Voice & {info?:string; isPreset?: boolean}>(data.info);
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error during voice clone." }; }
     };
 };
@@ -74,13 +78,16 @@ export const generateSpeech = async (apiKey: string) => {
     return async (payload: GenerateSpeechPayload): Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }> => {
         "use server";
         try {
+            // Convert camelCase payload to snake_case for API
+            const snakeCasePayload = camelToSnakeObject(payload);
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/generate`, {
                 method: "POST",
                 headers: {
                     apiKey: apiKey,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(snakeCasePayload),
             });
 
             const contentType = response.headers.get("content-type") || "application/octet-stream";
@@ -115,10 +122,13 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
     return async (payload: VoiceDesignGeneratePreviewsRequest): Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps> => {
         "use server";
         try {
+            // Convert camelCase payload to snake_case for API
+            const snakeCasePayload = camelToSnakeObject(payload);
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/design/preview`, {
                 method: "POST",
                 headers: { apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(snakeCasePayload)
             });
             const data = await response.json();
             if (!response.ok) {
@@ -130,11 +140,11 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
             // Backend schema for /v0/assistant/voice/design/preview is InfoResponse[VoiceDesignGeneratePreviewsAPIResponse]
             // So data should be { info: { previews: [], text: "" } }
             if (data.info && data.info.previews !== undefined) {
-               return data.info as VoiceDesignGeneratePreviewsAPIResponse;
+               return snakeToCamelObject<VoiceDesignGeneratePreviewsAPIResponse>(data.info);
             }
             // If 'info' wrapper is missing but structure matches
             if (data.previews !== undefined) {
-               return data as VoiceDesignGeneratePreviewsAPIResponse;
+               return snakeToCamelObject<VoiceDesignGeneratePreviewsAPIResponse>(data);
             }
             return { detail: "Unexpected response structure from preview generation.", status: response.status };
         } catch (error) {
@@ -145,13 +155,16 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
 };
 
 export const designVoiceCreateFromPreview = async (apiKey: string) => {
-    return async (payload: VoiceDesignCreateFromPreviewRequest): Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps> => {
+    return async (payload: VoiceDesignCreateFromPreviewRequest): Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps> => {
         "use server";
         try {
+            // Convert camelCase payload to snake_case for API
+            const snakeCasePayload = camelToSnakeObject(payload);
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/design/create`, {
                 method: "POST",
                 headers: { apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(snakeCasePayload)
             });
             const data = await response.json();
             if (!response.ok) {
@@ -159,13 +172,13 @@ export const designVoiceCreateFromPreview = async (apiKey: string) => {
                 return { detail: errorMessage || `Failed to create voice from preview: ${response.statusText}`, status: response.status };
             }
             // Backend schema is InfoResponse[VoiceRead]
-            // So data should be { info: { voice_id: ..., name: ...}}
-            if (data.info && data.info.voice_id) {
-                return data.info as (Voice & {info?: string; is_preset?: boolean});
+            // So data should be { info: { voiceId: ..., name: ...}}
+            if (data.info && data.info.voiceId) {
+                return snakeToCamelObject<Voice & {info?: string; isPreset?: boolean}>(data.info);
             }
             // If 'info' wrapper is missing but structure matches
-            if (data.voice_id) {
-               return data as (Voice & {info?: string; is_preset?: boolean});
+            if (data.voiceId) {
+               return snakeToCamelObject<Voice & {info?: string; isPreset?: boolean}>(data);
             }
             return { detail: "Unexpected response structure from voice creation.", status: response.status };
         } catch (error) {

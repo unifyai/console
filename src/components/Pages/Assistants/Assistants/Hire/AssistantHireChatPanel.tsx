@@ -90,7 +90,7 @@ export function AssistantHireChatPanel({
 }: AssistantHireChatPanelProps) {
     const { watch } = useFormContext<AssistantFormData>();
     const photoPreviewUrl = watch("photoPreviewUrl");
-    const firstName = watch("first_name", "New");
+    const firstName = watch("firstName", "New");
     const surname = watch("surname", "Assistant");
     const age = watch("age");
     const bio = watch("about");

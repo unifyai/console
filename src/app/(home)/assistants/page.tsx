@@ -24,10 +24,10 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         signOut();
         redirect('/login');
     }
-    const apiKey = user.api_key;
+    const apiKey = user.apiKey;
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-    const userName = `${user.name}${user.last_name}`;
-    const isOrgContext = user.organizations?.some(org => org.api_key === apiKey) ?? false;
+    const userName = `${user.name}${user.lastName}`;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: AssistantActions = {
         "assistant": {
@@ -88,7 +88,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             dispatchToCall: await dispatchAssistantToCall(apiKey),
         },
         "desktop": {
-            getLiveviewUrl: await getLiveviewUrl(user.id, user.api_key),
+            getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
             sendSystemEvent: await sendSystemEvent(),
         }
     }

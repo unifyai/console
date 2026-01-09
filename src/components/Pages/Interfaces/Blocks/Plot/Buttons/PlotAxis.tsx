@@ -41,12 +41,12 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
     } else if (plotType === "Histogram" || plotType === "Line Chart" || "Scatter Plot") {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date" || data_type === "bool"))
+            .filter(([name, { dataType, fieldType }]) => (dataType === "float" || dataType === "int" || dataType === "timestamp" || dataType === "time" || dataType === "timedelta" || dataType === "date" || dataType === "bool"))
                .map(([name]) => name);
         } else {
         properties = Object
             .entries(fields)
-            .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
+            .filter(([name, { dataType, fieldType }]) => (dataType === "float" || dataType === "int"))
          .map(([name]) => name);
      }
     const choices = properties.reduce((acc: {[key: string]: string[]}, item) => {
@@ -155,7 +155,7 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
                                         variant={
                                             selection === axisProperty && m === metric
                                             ? "primary"
-                                            : "list_item"
+                                            : "listItem"
                                         }
                                         size="lg"
                                         className="w-full justify-start h-auto py-1 text-md"
@@ -178,7 +178,7 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
                             <Button
                             key={column}
                             variant={
-                                selection === axisProperty ? "primary" : "list_item"
+                                selection === axisProperty ? "primary" : "listItem"
                             }
                             size="lg"
                             className="w-full justify-start h-auto py-1 text-md"

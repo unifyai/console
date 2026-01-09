@@ -207,11 +207,11 @@ describe('@real Tabs API', () => {
     expect(result).toBeDefined();
 
     // Cleanup the imported tab
-    if (result.tab_id) {
-      createdTabIds.push(result.tab_id);
+    if (result.tabId) {
+      createdTabIds.push(result.tabId);
 
       // Verify the imported tab exists
-      const imported = await tabsApi.getById(result.tab_id);
+      const imported = await tabsApi.getById(result.tabId);
       expect(imported.name).toBe(newName);
     }
   });

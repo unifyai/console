@@ -1,11 +1,8 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { render, waitFor } from '@/tests/interfaces/utils/render-with-providers';
 import { useInterfaceSync } from '@/contexts/hooks/interface/sync';
-import type {
-  GranularInterfaceActions,
-  GranularTabActions,
-} from '@/types/interfaces/grid';
+import type { GranularInterfaceActions, GranularTabActions } from '@/types/interfaces/grid';
 
 // Mock useInterface to provide local data/ui actions
 const addTabMock = vi.fn();
@@ -69,7 +66,7 @@ vi.mock('@/contexts/providers/StoreProvider', async (importOriginal) => {
 });
 
 vi.mock('@/contexts/selectors/tab', async (orig) => {
-  const actual = await orig();
+  const actual = (await orig()) as any;
   return {
     ...actual,
     getTabId: vi.fn(() => 'tab-1'),
@@ -119,7 +116,7 @@ describe('useInterfaceSync', () => {
     vi.clearAllMocks();
   });
 
-  it('wrapAddTab updates local state, creates tab on server, and updates interface active_tab_id', async () => {
+  it('wrapAddTab updates local state, creates tab on server, and updates interface activeTabId', async () => {
     const interfaceActions = {} as GranularInterfaceActions;
     const tabActions = {} as GranularTabActions;
     const onReady = vi.fn();
@@ -129,7 +126,7 @@ describe('useInterfaceSync', () => {
         onReady={onReady}
         interfaceActions={interfaceActions}
         tabActions={tabActions}
-      />,
+      />
     );
 
     let actions: NonNullable<ReturnType<typeof useInterfaceSync>['actions']>;
@@ -150,17 +147,17 @@ describe('useInterfaceSync', () => {
     expect(addedTab.id).toEqual(expect.any(String));
     expect(addedTab.name).toBe(newTabName);
 
-    // Server create mutation called with same tab_id
+    // Server create mutation called with same tabId
     expect(createTabMutateAsync).toHaveBeenCalledTimes(1);
-    const createPayload = createTabMutateAsync.mock.calls[0][0];
-    expect(createPayload.tab_id).toBe(addedTab.id);
-    expect(createPayload.interface_id).toBe('iface-1');
+    const createPayload = (createTabMutateAsync.mock.calls[0] as any)?.[0];
+    expect(createPayload?.tabId).toBe(addedTab.id);
+    expect(createPayload?.interfaceId).toBe('iface-1');
 
-    // Interface active_tab_id is updated on server
+    // Interface activeTabId is updated on server
     expect(updateInterfaceMutateAsync).toHaveBeenCalledTimes(1);
-    const updatePayload = updateInterfaceMutateAsync.mock.calls[0][0];
-    expect(updatePayload.interfaceId).toBe('iface-1');
-    expect(updatePayload.data.active_tab_id).toBe(addedTab.id);
+    const updatePayload = (updateInterfaceMutateAsync.mock.calls[0] as any)?.[0];
+    expect(updatePayload?.interfaceId).toBe('iface-1');
+    expect(updatePayload?.data.activeTabId).toBe(addedTab.id);
   });
 
   it('wrapAddTab rolls back local state when server creation fails', async () => {
@@ -175,7 +172,7 @@ describe('useInterfaceSync', () => {
         onReady={onReady}
         interfaceActions={interfaceActions}
         tabActions={tabActions}
-      />,
+      />
     );
 
     let actions: NonNullable<ReturnType<typeof useInterfaceSync>['actions']>;
@@ -198,5 +195,3 @@ describe('useInterfaceSync', () => {
     expect(updateInterfaceMutateAsync).not.toHaveBeenCalled();
   });
 });
-
-

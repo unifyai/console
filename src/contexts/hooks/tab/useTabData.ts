@@ -141,35 +141,35 @@ export function useTabData(
             visible: tileItem.visible,
             color: tileItem.color,
             context: tileItem.context,
-            column_context: tileItem.column_context,
+            columnContext: tileItem.columnContext,
             grouping: tileItem.grouping,
-            plot_tile: {
-              plot_type: tileItem.plot_type,
-              x_axis: tileItem.x_axis,
-              y_axis: tileItem.y_axis,
-              plot_group_by: tileItem.plot_group_by,
-              regression_line: tileItem.regression_line,
+            plotTile: {
+              plotType: tileItem.plotType,
+              xAxis: tileItem.xAxis,
+              yAxis: tileItem.yAxis,
+              plotGroupBy: tileItem.plotGroupBy,
+              regressionLine: tileItem.regressionLine,
             },
-            table_tile: {
-              column_order: tileItem.column_order,
-              hidden_columns: tileItem.hidden_columns,
-              default_hidden_columns: tileItem.default_hidden_columns,
+            tableTile: {
+              columnOrder: tileItem.columnOrder,
+              hiddenColumns: tileItem.hiddenColumns,
+              defaultHiddenColumns: tileItem.defaultHiddenColumns,
               sorting: tileItem.sorting,
-              group_sorting: tileItem.group_sorting,
-              columns_pin_left: tileItem.columns_pin_left,
-              columns_pin_right: tileItem.columns_pin_right,
+              groupSorting: tileItem.groupSorting,
+              columnsPinLeft: tileItem.columnsPinLeft,
+              columnsPinRight: tileItem.columnsPinRight,
               selected: tileItem.selected,
             },
-            editor_tile: {
-              file_name: tileItem.file_name,
-              file_type: tileItem.file_type,
+            editorTile: {
+              fileName: tileItem.fileName,
+              fileType: tileItem.fileType,
               content: tileItem.content,
             },
-            terminal_tile: {
-              shell_type: tileItem.shell_type,
+            terminalTile: {
+              shellType: tileItem.shellType,
             },
-            view_tile: {
-              base_index: tileItem.base_index,
+            viewTile: {
+              baseIndex: tileItem.baseIndex,
             },
             itemsNeedRecompute: itemActions.getItemsNeedRecompute(),
             // Include other necessary tile properties
@@ -474,10 +474,10 @@ export function useTabData(
     },
 
     getReferencedPlotTileIdsByName: (tileName: string) => {
-      // Retrieve all tile ids for which the `tile.plotTile.x_axis` property matches the given tile name
-      const referencedByXAxis = tileIds.filter(id => tiles[id]?.plotTile?.x_axis?.includes(tileName + "."));
-      const referencedByYAxis = tileIds.filter(id => tiles[id]?.plotTile?.y_axis?.includes(tileName + "."));
-      const referencedByPlotGroupBy = tileIds.filter(id => tiles[id]?.plotTile?.plot_group_by?.includes(tileName + "."));
+      // Retrieve all tile ids for which the `tile.plotTile.xAxis` property matches the given tile name
+      const referencedByXAxis = tileIds.filter(id => tiles[id]?.plotTile?.xAxis?.includes(tileName + "."));
+      const referencedByYAxis = tileIds.filter(id => tiles[id]?.plotTile?.yAxis?.includes(tileName + "."));
+      const referencedByPlotGroupBy = tileIds.filter(id => tiles[id]?.plotTile?.plotGroupBy?.includes(tileName + "."));
       return {
         xAxis: referencedByXAxis,
         yAxis: referencedByYAxis,

@@ -31,7 +31,7 @@ export function convertTileToTileData(tile: Tile): TileData {
 
   const tileData: TileData = {
     id: tile.id,
-    tab_id: tile.tabId || "",
+    tabId: tile.tabId || "",
     name: tile.name,
     type: tile.type || "Table",
     position: tile.position || { x: 0, y: 0, width: 4, height: 4 },
@@ -45,12 +45,12 @@ export function convertTileToTileData(tile: Tile): TileData {
   if (tile.minH !== null && tile.minH !== undefined) tileData.minH = tile.minH;
   if (tile.context !== null && tile.context !== undefined) tileData.context = tile.context;
   if (tile.table !== null && tile.table !== undefined) tileData.table = tile.table;
-  if (tile.auto_update !== null && tile.auto_update !== undefined) tileData.auto_update = tile.auto_update;
+  if (tile.autoUpdate !== null && tile.autoUpdate !== undefined) tileData.autoUpdate = tile.autoUpdate;
   if (tile.freeze !== null && tile.freeze !== undefined) tileData.freeze = tile.freeze;
   if (tile.filters !== null && tile.filters !== undefined) tileData.filters = tile.filters;
-  if (tile.common_filter !== null && tile.common_filter !== undefined) tileData.common_filter = tile.common_filter;
+  if (tile.commonFilter !== null && tile.commonFilter !== undefined) tileData.commonFilter = tile.commonFilter;
   if (tile.metric !== null && tile.metric !== undefined) tileData.metric = tile.metric;
-  if (tile.column_context !== null && tile.column_context !== undefined) tileData.column_context = tile.column_context;
+  if (tile.columnContext !== null && tile.columnContext !== undefined) tileData.columnContext = tile.columnContext;
   if (tile.grouping !== null && tile.grouping !== undefined) tileData.grouping = tile.grouping;
   if (tile.color !== null && tile.color !== undefined) tileData.color = tile.color;
 
@@ -59,28 +59,28 @@ export function convertTileToTileData(tile: Tile): TileData {
     const tableTile: TableTileData = {};
     
     // Only add properties that aren't null
-    if (tile.tableTile.table_type !== null && tile.tableTile.table_type !== undefined) 
-      tableTile.table_type = tile.tableTile.table_type;
-    if (tile.tableTile.page_number !== null && tile.tableTile.page_number !== undefined) 
-      tableTile.page_number = tile.tableTile.page_number;
-    if (tile.tableTile.column_order !== null && tile.tableTile.column_order !== undefined) 
-      tableTile.column_order = tile.tableTile.column_order;
-    if (tile.tableTile.hidden_columns !== null && tile.tableTile.hidden_columns !== undefined) 
-      tableTile.hidden_columns = tile.tableTile.hidden_columns;
-    if (tile.tableTile.default_hidden_columns !== null && tile.tableTile.default_hidden_columns !== undefined) 
-      tableTile.default_hidden_columns = tile.tableTile.default_hidden_columns;
+    if (tile.tableTile.tableType !== null && tile.tableTile.tableType !== undefined) 
+      tableTile.tableType = tile.tableTile.tableType;
+    if (tile.tableTile.pageNumber !== null && tile.tableTile.pageNumber !== undefined) 
+      tableTile.pageNumber = tile.tableTile.pageNumber;
+    if (tile.tableTile.columnOrder !== null && tile.tableTile.columnOrder !== undefined) 
+      tableTile.columnOrder = tile.tableTile.columnOrder;
+    if (tile.tableTile.hiddenColumns !== null && tile.tableTile.hiddenColumns !== undefined) 
+      tableTile.hiddenColumns = tile.tableTile.hiddenColumns;
+    if (tile.tableTile.defaultHiddenColumns !== null && tile.tableTile.defaultHiddenColumns !== undefined) 
+      tableTile.defaultHiddenColumns = tile.tableTile.defaultHiddenColumns;
     if (tile.tableTile.sorting !== null && tile.tableTile.sorting !== undefined) 
       tableTile.sorting = tile.tableTile.sorting;
-    if (tile.tableTile.group_sorting !== null && tile.tableTile.group_sorting !== undefined) 
-      tableTile.group_sorting = tile.tableTile.group_sorting;
-    if (tile.tableTile.columns_pin_left !== null && tile.tableTile.columns_pin_left !== undefined) 
-      tableTile.columns_pin_left = tile.tableTile.columns_pin_left;
-    if (tile.tableTile.columns_pin_right !== null && tile.tableTile.columns_pin_right !== undefined) 
-      tableTile.columns_pin_right = tile.tableTile.columns_pin_right;
+    if (tile.tableTile.groupSorting !== null && tile.tableTile.groupSorting !== undefined) 
+      tableTile.groupSorting = tile.tableTile.groupSorting;
+    if (tile.tableTile.columnsPinLeft !== null && tile.tableTile.columnsPinLeft !== undefined) 
+      tableTile.columnsPinLeft = tile.tableTile.columnsPinLeft;
+    if (tile.tableTile.columnsPinRight !== null && tile.tableTile.columnsPinRight !== undefined) 
+      tableTile.columnsPinRight = tile.tableTile.columnsPinRight;
     if (tile.tableTile.selected !== null && tile.tableTile.selected !== undefined) 
       tableTile.selected = tile.tableTile.selected;
     
-    tileData.table_tile = tableTile;
+    tileData.tableTile = tableTile;
   }
 
   // Add plot tile data if present
@@ -88,26 +88,26 @@ export function convertTileToTileData(tile: Tile): TileData {
     const plotTile: PlotTileData = {};
     
     // Only add properties that aren't null
-    if (tile.plotTile.plot_type !== null && tile.plotTile.plot_type !== undefined) 
-      plotTile.plot_type = tile.plotTile.plot_type;
-    if (tile.plotTile.plot_scale_x !== null && tile.plotTile.plot_scale_x !== undefined) 
-      plotTile.plot_scale_x = tile.plotTile.plot_scale_x;
-    if (tile.plotTile.plot_scale_y !== null && tile.plotTile.plot_scale_y !== undefined) 
-      plotTile.plot_scale_y = tile.plotTile.plot_scale_y;
-    if (tile.plotTile.plot_aggregate !== null && tile.plotTile.plot_aggregate !== undefined) 
-      plotTile.plot_aggregate = tile.plotTile.plot_aggregate;
-    if (tile.plotTile.x_axis !== null && tile.plotTile.x_axis !== undefined) 
-      plotTile.x_axis = tile.plotTile.x_axis;
-    if (tile.plotTile.y_axis !== null && tile.plotTile.y_axis !== undefined) 
-      plotTile.y_axis = tile.plotTile.y_axis;
-    if (tile.plotTile.plot_group_by !== null && tile.plotTile.plot_group_by !== undefined) 
-      plotTile.plot_group_by = tile.plotTile.plot_group_by;
-    if (tile.plotTile.bin_count !== null && tile.plotTile.bin_count !== undefined) 
-      plotTile.bin_count = tile.plotTile.bin_count;
-    if (tile.plotTile.regression_line !== null && tile.plotTile.regression_line !== undefined) 
-      plotTile.regression_line = tile.plotTile.regression_line;
+    if (tile.plotTile.plotType !== null && tile.plotTile.plotType !== undefined) 
+      plotTile.plotType = tile.plotTile.plotType;
+    if (tile.plotTile.plotScaleX !== null && tile.plotTile.plotScaleX !== undefined) 
+      plotTile.plotScaleX = tile.plotTile.plotScaleX;
+    if (tile.plotTile.plotScaleY !== null && tile.plotTile.plotScaleY !== undefined) 
+      plotTile.plotScaleY = tile.plotTile.plotScaleY;
+    if (tile.plotTile.plotAggregate !== null && tile.plotTile.plotAggregate !== undefined) 
+      plotTile.plotAggregate = tile.plotTile.plotAggregate;
+    if (tile.plotTile.xAxis !== null && tile.plotTile.xAxis !== undefined) 
+      plotTile.xAxis = tile.plotTile.xAxis;
+    if (tile.plotTile.yAxis !== null && tile.plotTile.yAxis !== undefined) 
+      plotTile.yAxis = tile.plotTile.yAxis;
+    if (tile.plotTile.plotGroupBy !== null && tile.plotTile.plotGroupBy !== undefined) 
+      plotTile.plotGroupBy = tile.plotTile.plotGroupBy;
+    if (tile.plotTile.binCount !== null && tile.plotTile.binCount !== undefined) 
+      plotTile.binCount = tile.plotTile.binCount;
+    if (tile.plotTile.regressionLine !== null && tile.plotTile.regressionLine !== undefined) 
+      plotTile.regressionLine = tile.plotTile.regressionLine;
     
-    tileData.plot_tile = plotTile;
+    tileData.plotTile = plotTile;
   }
 
   // Add view tile data if present
@@ -115,10 +115,10 @@ export function convertTileToTileData(tile: Tile): TileData {
     const viewTile: ViewTileData = {};
     
     // Only add properties that aren't null
-    if (tile.viewTile.base_index !== null && tile.viewTile.base_index !== undefined) 
-      viewTile.base_index = tile.viewTile.base_index;
+    if (tile.viewTile.baseIndex !== null && tile.viewTile.baseIndex !== undefined) 
+      viewTile.baseIndex = tile.viewTile.baseIndex;
     
-    tileData.view_tile = viewTile;
+    tileData.viewTile = viewTile;
   }
 
   // Add editor tile data if present
@@ -126,14 +126,14 @@ export function convertTileToTileData(tile: Tile): TileData {
     const editorTile: EditorTileData = {};
     
     // Only add properties that aren't null
-    if (tile.editorTile.file_name !== null && tile.editorTile.file_name !== undefined) 
-      editorTile.file_name = tile.editorTile.file_name;
-    if (tile.editorTile.file_type !== null && tile.editorTile.file_type !== undefined) 
-      editorTile.file_type = tile.editorTile.file_type;
+    if (tile.editorTile.fileName !== null && tile.editorTile.fileName !== undefined) 
+      editorTile.fileName = tile.editorTile.fileName;
+    if (tile.editorTile.fileType !== null && tile.editorTile.fileType !== undefined) 
+      editorTile.fileType = tile.editorTile.fileType;
     if (tile.editorTile.content !== null && tile.editorTile.content !== undefined) 
       editorTile.content = tile.editorTile.content;
     
-    tileData.editor_tile = editorTile;
+    tileData.editorTile = editorTile;
   }
 
   // Add terminal tile data if present
@@ -141,10 +141,10 @@ export function convertTileToTileData(tile: Tile): TileData {
     const terminalTile: TerminalTileData = {};
     
     // Only add properties that aren't null
-    if (tile.terminalTile.shell_type !== null && tile.terminalTile.shell_type !== undefined) 
-      terminalTile.shell_type = tile.terminalTile.shell_type;
+    if (tile.terminalTile.shellType !== null && tile.terminalTile.shellType !== undefined) 
+      terminalTile.shellType = tile.terminalTile.shellType;
 
-    tileData.terminal_tile = terminalTile;
+    tileData.terminalTile = terminalTile;
   }
 
   return tileData;
@@ -162,8 +162,8 @@ export function convertTabToTabData(tab: Tab | null): TabData | null {
     // Handle id conversion from string | null to string | undefined
     id: tab.id || undefined,
     
-    // Handle interface_id conversion from interfaceId
-    interface_id: tab.interfaceId || undefined,
+    // Handle interfaceId conversion from interfaceId
+    interfaceId: tab.interfaceId || undefined,
     
     // Handle name conversion - TabData.name is required string, Tab.name is string | null
     name: tab.name || "",
@@ -179,10 +179,10 @@ export function convertTabToTabData(tab: Tab | null): TabData | null {
     // Handle color conversion
     color: tab.color || undefined,
     
-    // created_at and updated_at are not available in Tab interface
+    // createdAt and updatedAt are not available in Tab interface
     // These would typically be set by the server
-    created_at: undefined,
-    updated_at: undefined,
+    createdAt: undefined,
+    updatedAt: undefined,
   };
 
   return tabData;
@@ -508,18 +508,18 @@ export function removeTile(
       updateTile = true;
     }
 
-    // Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    // Update xAxis, yAxis, and plotGroupBy references for Plot tiles
     if (tile.type === 'Plot' && tile.plotTile) {
-      if (tile.plotTile.x_axis?.includes(tileName + ".")) {
-        tile.plotTile.x_axis = null;
+      if (tile.plotTile.xAxis?.includes(tileName + ".")) {
+        tile.plotTile.xAxis = null;
         updateTile = true;
       }
-      if (tile.plotTile?.y_axis?.includes(tileName + ".")) {
-        tile.plotTile.y_axis = null;
+      if (tile.plotTile?.yAxis?.includes(tileName + ".")) {
+        tile.plotTile.yAxis = null;
         updateTile = true;
       }
-      if (tile.plotTile?.plot_group_by?.includes(tileName + ".")) {
-        tile.plotTile.plot_group_by = null;
+      if (tile.plotTile?.plotGroupBy?.includes(tileName + ".")) {
+        tile.plotTile.plotGroupBy = null;
         updateTile = true;
       }
     }
@@ -566,18 +566,18 @@ export function renameTile(
       updateTile = true;
     }
 
-    // Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    // Update xAxis, yAxis, and plotGroupBy references for Plot tiles
     if (tile.type === 'Plot' && tile.plotTile) {
-      if (tile.plotTile.x_axis?.includes(sourceTileName + ".")) {
-        tile.plotTile.x_axis = tile.plotTile.x_axis?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile.xAxis?.includes(sourceTileName + ".")) {
+        tile.plotTile.xAxis = tile.plotTile.xAxis?.replace(sourceTileName + ".", newTileName + ".");
         updateTile = true;
       }
-      if (tile.plotTile?.y_axis?.includes(sourceTileName + ".")) {
-        tile.plotTile.y_axis = tile.plotTile.y_axis?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile?.yAxis?.includes(sourceTileName + ".")) {
+        tile.plotTile.yAxis = tile.plotTile.yAxis?.replace(sourceTileName + ".", newTileName + ".");
         updateTile = true;
       }
-      if (tile.plotTile?.plot_group_by?.includes(sourceTileName + ".")) {
-        tile.plotTile.plot_group_by = tile.plotTile.plot_group_by?.replace(sourceTileName + ".", newTileName + ".");
+      if (tile.plotTile?.plotGroupBy?.includes(sourceTileName + ".")) {
+        tile.plotTile.plotGroupBy = tile.plotTile.plotGroupBy?.replace(sourceTileName + ".", newTileName + ".");
         updateTile = true;
       }
     }
@@ -745,8 +745,8 @@ export function removeContextFromTab(
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;
       }
-      if (tile?.column_context === context && context !== undefined) {
-        tile.column_context = undefined;
+      if (tile?.columnContext === context && context !== undefined) {
+        tile.columnContext = undefined;
         tile.pending = true;
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;

@@ -63,7 +63,7 @@ const SummaryCell = ({
 		logsActions,
 		projectId,
 		tileDataState?.context,
-		tileDataState?.column_context,
+		tileDataState?.columnContext,
 		columns,
 		filterExpression,
 		tileDataState?.metric || "mean",

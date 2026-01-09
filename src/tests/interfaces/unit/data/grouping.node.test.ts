@@ -25,8 +25,8 @@ const makeUngroupedLog = (id: string, message: string): LogProps => ({
   ts: '2025-01-01T00:00:00Z',
   params: {},
   entries: { message },
-  derived_entries: {},
-  clipped_fields: {},
+  derivedEntries: {},
+  clippedFields: {},
 });
 
 const makeGroupedLog = (id: string, col: string, val: string, count = 1): GroupedLogProps => ({
@@ -50,7 +50,7 @@ describe('table grouping utilities', () => {
             { key: 'info', value: 10 },
             { key: 'error', value: 5 },
           ],
-          group_count: 2,
+          groupCount: 2,
           count: 15,
         },
         count: 15,
@@ -71,7 +71,7 @@ describe('table grouping utilities', () => {
       const raw: GroupedLogPropsRaw = {
         'Entries/level': {
           group: [{ key: 'info', value: 1 }],
-          group_count: 1,
+          groupCount: 1,
           count: 1,
         },
         count: 1,

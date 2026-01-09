@@ -67,7 +67,7 @@ const PlotSort = ({ interactive = true, plotType, groupByProperty, sortBars, set
                     {sortOptions.map((option) => (
                         <Button
                             key={option.key}
-                            variant={sortBars === option.key ? "primary" : "list_item"}
+                            variant={sortBars === option.key ? "primary" : "listItem"}
                             size="lg"
                             className="w-full justify-start h-auto py-1 text-md flex items-center gap-2"
                             onClick={() => onSelect(option.key)}

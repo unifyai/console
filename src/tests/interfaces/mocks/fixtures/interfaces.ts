@@ -3,7 +3,7 @@ import { mockProjectId } from './projects';
 
 export const mockInterfaceId = 'interface-1';
 
-export const mockInterface: Interface & { updated_at?: string } = {
+export const mockInterface: Interface & { updatedAt?: string } = {
   id: mockInterfaceId,
   name: 'Main Interface',
   projectId: mockProjectId,
@@ -11,7 +11,7 @@ export const mockInterface: Interface & { updated_at?: string } = {
   tabNames: ['Tab 1'],
   activeTabId: 'tab-1',
   pending: false,
-  updated_at: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
 

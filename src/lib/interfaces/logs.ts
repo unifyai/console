@@ -1,6 +1,6 @@
 "use server";
 
-import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/interfaces/logs";
+import { LogFieldsProps, LogItemProps, GetLogsParameters } from "@/types/interfaces/logs";
 import { sanitizeKey } from "../../app/(home)/interfaces/utils";
 import { ResponseProps } from "@/types/common";
 import { SyncableLogEntry } from "@/types/assistants/contact-sync";
@@ -22,7 +22,7 @@ export const createLogs = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project_name: project, ...contextBody, params, entries })
+                body: JSON.stringify({ projectName: project, ...contextBody, params, entries })
             }
         );
         return await response.json();
@@ -31,32 +31,32 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_limit: number | null, group_offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, fromIds: string | null, fromFields: string | null, excludeFields: string | null, limit: number | null, offset: number | null, groupLimit: number | null, groupOffset: number | null, groupDepth: number | null, returnIdsOnly: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
         "use server";
 
         try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}`
                 + (context ? `&context=${context}` : "")
-                + (columnContext ? `&column_context=${columnContext}` : "")
-                + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+                + (columnContext ? `&columnContext=${columnContext}` : "")
+                + (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : "")
                 + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
                 + (groupingExpression 
                     ? groupingExpression
                         .split(",")  // Split into individual grouping expressions
-                        .map(expr => `&group_by=${encodeURIComponent(expr.trim())}`) // Encode separately
-                        .join("")  // Concatenate each `group_by` separately
+                        .map(expr => `&groupBy=${encodeURIComponent(expr.trim())}`) // Encode separately
+                        .join("")  // Concatenate each `groupBy` separately
                     : "")
-                + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
-                + (from_ids ? `&from_ids=${encodeURIComponent(from_ids)}` : "")
-                + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
-                + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
+                + (groupSortingExpression ? `&groupSorting=${encodeURIComponent(groupSortingExpression)}` : "")
+                + (fromIds ? `&fromIds=${encodeURIComponent(fromIds)}` : "")
+                + (fromFields ? `&fromFields=${encodeURIComponent(fromFields)}` : "")
+                + (excludeFields ? `&excludeFields=${encodeURIComponent(excludeFields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
                 + (offset ? `&offset=${offset}` : "")
-                + (group_limit ? `&group_limit=${group_limit}` : "")
-                + (group_offset ? `&group_offset=${group_offset}` : "")
-                + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : "")
-                + (return_ids_only ? `&return_ids_only=${return_ids_only}` : "")
+                + (groupLimit ? `&groupLimit=${groupLimit}` : "")
+                + (groupOffset ? `&groupOffset=${groupOffset}` : "")
+                + (groupDepth !== null && groupDepth !== undefined ? `&groupDepth=${groupDepth}` : "")
+                + (returnIdsOnly ? `&returnIdsOnly=${returnIdsOnly}` : "")
                 + (randomize ? `&randomize=${randomize}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] }, signal },
             );
@@ -113,7 +113,7 @@ export const updateLogs = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ logs, project_name: project, context, params, entries, overwrite })
+                    body: JSON.stringify({ logs, projectName: project, context, params, entries, overwrite })
                 }
             );
 
@@ -189,7 +189,7 @@ export const getLogFields = async (apiKey: string) => {
 
         try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/logs/fields?project_name=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs/fields?projectName=${project}`
                 + (context ? `&context=${context}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, signal }
             );
@@ -232,10 +232,10 @@ export const renameLogFields = async (apiKey: string) => {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        project_name: project,
+                        projectName: project,
                         context,
-                        old_field_name: oldFieldName,
-                        new_field_name: newFieldName,
+                        oldFieldName: oldFieldName,
+                        newFieldName: newFieldName,
                     }),
                 }
             );
@@ -263,11 +263,11 @@ export const getLogMetrics = async (apiKey: string) => {
 
         const response = await fetch(
             (
-                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project_name=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?projectName=${project}`
                 + (context ? `&context=${context}` : "")
                 + `&key=${JSON.stringify(sanitizedKeyNames)}`
-                + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
-                + (groupingExpression ? `&group_by=${encodeURIComponent(JSON.stringify(groupingExpression.split(",")))}` : "")
+                + (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : "")
+                + (groupingExpression ? `&groupBy=${encodeURIComponent(JSON.stringify(groupingExpression.split(",")))}` : "")
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
@@ -291,28 +291,28 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, fromIds: string | null, fromFields: string | null, excludeFields: string | null, limit: number | null, offset: number | null, groupDepth: number | null, returnIdsOnly: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project_name=${project}`
+            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?projectName=${project}`
             + (context ? `&context=${context}` : "")
-            + (columnContext ? `&column_context=${columnContext}` : "")
-            + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
+            + (columnContext ? `&columnContext=${columnContext}` : "")
+            + (filterExpression ? `&filterExpr=${encodeURIComponent(filterExpression)}` : "")
             + (sortingExpression ? `&sorting=${encodeURIComponent(sortingExpression)}` : "")
             + (groupingExpression 
                 ? groupingExpression
                     .split(",")  // Split into individual grouping expressions
-                    .map(expr => `&group_by=${encodeURIComponent(expr.trim())}`) // Encode separately
-                    .join("")  // Concatenate each `group_by` separately
+                    .map(expr => `&groupBy=${encodeURIComponent(expr.trim())}`) // Encode separately
+                    .join("")  // Concatenate each `groupBy` separately
                 : "")
-            + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
-            + (from_ids ? `&from_ids=${encodeURIComponent(from_ids)}` : "")
-            + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
-            + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
+            + (groupSortingExpression ? `&groupSorting=${encodeURIComponent(groupSortingExpression)}` : "")
+            + (fromIds ? `&fromIds=${encodeURIComponent(fromIds)}` : "")
+            + (fromFields ? `&fromFields=${encodeURIComponent(fromFields)}` : "")
+            + (excludeFields ? `&excludeFields=${encodeURIComponent(excludeFields)}` : "")
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : "")
-            + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
+            + (groupDepth !== null && groupDepth !== undefined ? `&groupDepth=${groupDepth}` : ""),
             { method: "GET", headers: { apiKey: apiKey }, signal }
         );
         const contentType = response.headers.get("content-type") || "";
@@ -335,7 +335,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps) => {
+    return async (project: string, context: string | null, idsAndFields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -343,7 +343,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project_name: project, context, ids_and_fields, source_type: "all", delete_empty_logs: true, delete_empty_fields: true })
+                body: JSON.stringify({ projectName: project, context, idsAndFields, sourceType: "all", deleteEmptyLogs: true, deleteEmptyFields: true })
             }
         );
         return await response.json();
@@ -352,17 +352,17 @@ export const deleteLogs = async (apiKey: string) => {
 
 // create derived entry
 export const createDerivedEntry = async (apiKey: string) => {
-    return async (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
+    return async (project: string, context: string | undefined, key: string, equation: string, referencedLogs: {[table_name: string]: GetLogsParameters}): Promise<ResponseProps> => {
         "use server";
 
         try {
-            const context_body = context ? { context: context } : {};
+            const contextBody = context ? { context: context } : {};
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs/derived`,
                 {
                     method: "POST",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project_name: project, ...context_body, key, equation, referenced_logs })
+                    body: JSON.stringify({ projectName: project, ...contextBody, key, equation, referencedLogs })
                 }
             );
             return await response.json();
@@ -375,17 +375,17 @@ export const createDerivedEntry = async (apiKey: string) => {
 
 // update derived entry
 export const updateDerivedEntry = async (apiKey: string) => {
-    return async (project: string, context: string | undefined, key: string | null, equation: string | null, target_derived_logs: {[table_name: string]: getLogsParameters}): Promise<ResponseProps> => {
+    return async (project: string, context: string | undefined, key: string | null, equation: string | null, targetDerivedLogs: {[table_name: string]: GetLogsParameters}): Promise<ResponseProps> => {
         "use server";
 
         try {
-            const context_body = context ? { context: context } : {};
+            const contextBody = context ? { context: context } : {};
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs/derived`,
                 {
                     method: "PUT",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project_name: project, ...context_body, key, equation, target_derived_logs })
+                    body: JSON.stringify({ projectName: project, ...contextBody, key, equation, targetDerivedLogs })
                 }
             );
             return await response.json();

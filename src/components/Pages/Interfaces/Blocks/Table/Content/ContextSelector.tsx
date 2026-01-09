@@ -52,11 +52,11 @@ const ContextSelector = ({
     withButtonText?: boolean,
     text?: string
 }) => {
-    const [open_, setOpen_] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
     const [start, setStart] = useState(true);
 
-    const open = customOpen == undefined ? open_ : customOpen;
-    const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
+    const open = customOpen == undefined ? internalOpen : customOpen;
+    const setOpen = setCustomOpen == undefined ? setInternalOpen : setCustomOpen;
 
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);

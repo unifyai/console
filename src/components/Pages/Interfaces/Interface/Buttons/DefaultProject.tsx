@@ -13,7 +13,7 @@ import BaseDropdown from "../../../../Common/Dropdowns/Base";
 import Link from "next/link";
 import { DialogContent } from "../../../../UI/dialog";
 import { Dialog } from "../../../../UI/dialog";
-import { getLogsParameters } from "@/types/interfaces/logs";
+import { GetLogsParameters } from "@/types/interfaces/logs";
 import { Badge } from "../../../../UI/badge";
 import { buildNestedDropdownTree } from "@/utils/interfaces/common";
 import RenderMenuItems from "../../../../Common/Dropdowns/RenderMenuItems";
@@ -69,7 +69,7 @@ const DefaultProject = ({
         gif: demoGif,
         link: externalLink,
         description: demoDescription,
-        derived_columns: demoDerivedColumns,
+        derivedColumns: demoDerivedColumns,
         interface: demoInterface,
         tab: demoTab,
         tiles: demoTiles
@@ -84,9 +84,9 @@ const DefaultProject = ({
             return;
         }
 
-        if (projects?.includes(demoInterface.project_id || "")) {
+        if (projects?.includes(demoInterface.projectId || "")) {
             setTimeout(() => {
-                setProjectQueryParam(demoInterface.project_id || null);
+                setProjectQueryParam(demoInterface.projectId || null);
                 setDemo(null);
                 setCreate(null);
             }, 3000);
@@ -98,8 +98,8 @@ const DefaultProject = ({
             // by ensuring all required fields are defined
             const verifiedInterface: InterfaceData = {
                 ...demoInterface,
-                // Ensure project_id is defined (required by the hook)
-                project_id: demoInterface.project_id || "",
+                // Ensure projectId is defined (required by the hook)
+                projectId: demoInterface.projectId || "",
             };
             
             const verifiedTab: TabData = {
@@ -132,7 +132,7 @@ const DefaultProject = ({
             
             // After all operations complete successfully
             setTimeout(() => {
-                setProjectQueryParam(demoInterface.project_id || null);
+                setProjectQueryParam(demoInterface.projectId || null);
                 setInterfaceQueryParam(demoInterface.name || null);
                 setTabQueryParam(demoTab.name);
                 setDemo(null);

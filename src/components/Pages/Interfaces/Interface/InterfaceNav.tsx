@@ -544,7 +544,7 @@ export default function InterfaceNav({
   
   // Fetch project tree using React Query for better caching
   const { data: projectTree = [], isLoading: projectTreeLoading, isFetching: projectTreeFetching, isError: projectTreeError, refetch: refetchProjectTree } = useQuery<
-    Array<{project_name:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
+    Array<{projectName:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {
@@ -609,7 +609,7 @@ export default function InterfaceNav({
   
   // Find current interface data
   const currentProjectData = useMemo(() => {
-    return projectTree.find(p => p.project_name === selectedProject)
+    return projectTree.find(p => p.projectName === selectedProject)
   }, [projectTree, selectedProject])
   
   const currentInterfaces = useMemo(() => {
@@ -780,7 +780,7 @@ export default function InterfaceNav({
       newParams.delete('selectProject') // Clear the project selection screen flag
       
       // Find interfaces for the new project
-      const projectData = projectTree.find(p => p.project_name === newProject)
+      const projectData = projectTree.find(p => p.projectName === newProject)
       const interfaces = projectData?.interfaces || []
       
       if (interfaces.length === 1) {
@@ -864,7 +864,7 @@ export default function InterfaceNav({
         try {
           await tabActions.update({
             id: newTab.id,
-            interface_id: interfaceId,
+            interfaceId: interfaceId,
             name: tabName,
             data: { icon: tabIcon }
           })
@@ -920,7 +920,7 @@ export default function InterfaceNav({
     try {
       await tabActions.update({
         id: selectedTab.id,
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: selectedTab.name,
         data: { name: newTabName.trim() }
       })
@@ -956,7 +956,7 @@ export default function InterfaceNav({
     try {
       await tabActions.delete({
         id: selectedTab.id,
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: selectedTab.name
       })
       
@@ -991,7 +991,7 @@ export default function InterfaceNav({
     try {
       await tabActions.update({
         id: selectedTab.id,
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: selectedTab.name,
         data: { color: newTabColor || undefined }
       })
@@ -1013,7 +1013,7 @@ export default function InterfaceNav({
   }
   
   const handleCreateProject = useCallback(async (projectName: string, projectIcon?: string) => {
-    const result = await createProject(projectName, projectActions, projectTree.map(p => p.project_name), projectIcon)
+    const result = await createProject(projectName, projectActions, projectTree.map(p => p.projectName), projectIcon)
     
     if (result.success && result.projectName) {
       // Create default interface
@@ -1068,7 +1068,7 @@ export default function InterfaceNav({
     setIsSavingInterfaceIcon(true)
     try {
       await interfaceActions.update({
-        interface_id: selectedInterfaceForAction.id,
+        interfaceId: selectedInterfaceForAction.id,
         data: { icon: newInterfaceIcon || undefined }
       })
       
@@ -1092,7 +1092,7 @@ export default function InterfaceNav({
     try {
       await tabActions.update({
         id: selectedTab.id,
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: selectedTab.name,
         data: { icon: newTabIcon || undefined }
       })
@@ -1114,7 +1114,7 @@ export default function InterfaceNav({
   }
   
   const handleToggleFavourite = async () => {
-    const currentFavourite = favourites.find(f => f.project_name === selectedProject) || null
+    const currentFavourite = favourites.find(f => f.projectName === selectedProject) || null
     const result = await toggleFavourite(selectedProject, currentFavourite, favouritesActions, favourites)
     if (result.success && result.newFavourites) {
       setFavourites(result.newFavourites)
@@ -1129,7 +1129,7 @@ export default function InterfaceNav({
     try {
       await withLoadingToastFn(
         async () => {
-          const result = await interfaceActions.exportTemplate({ interface_id: interfaceId })
+          const result = await interfaceActions.exportTemplate({ interfaceId: interfaceId })
           if (result && typeof result === 'object' && 'template' in result) {
             const blob = new Blob([JSON.stringify(result.template, null, 2)], { type: 'application/json' })
             const url = URL.createObjectURL(blob)
@@ -1158,7 +1158,7 @@ export default function InterfaceNav({
   const handleRenameProject = useCallback(async (newName: string) => {
     if (!activeProject) throw new Error('No active project')
     
-    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.project_name))
+    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.projectName))
     
     if (result.success) {
       await refetchProjectTree()
@@ -1206,7 +1206,7 @@ export default function InterfaceNav({
       if (interfaceIcon && result.interface.id) {
         try {
           await interfaceActions.update({
-            interface_id: result.interface.id,
+            interfaceId: result.interface.id,
             data: { icon: interfaceIcon }
           })
         } catch (error) {
@@ -1234,7 +1234,7 @@ export default function InterfaceNav({
     setIsSavingAsNewInterface(true)
     try {
       // First export the current interface as a template
-      const exportResult = await interfaceActions.exportTemplate({ interface_id: selectedInterfaceForAction.id })
+      const exportResult = await interfaceActions.exportTemplate({ interfaceId: selectedInterfaceForAction.id })
       if (!exportResult || !('template' in exportResult)) {
         throw new Error('Failed to export interface')
       }
@@ -1422,7 +1422,7 @@ export default function InterfaceNav({
   const debouncedUpdateTheme = useRef(
     debounce(async (color: string) => {
       try {
-        await interfaceActions.update({ interface_id: interfaceId, data: { color } })
+        await interfaceActions.update({ interfaceId: interfaceId, data: { color } })
         await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'interfaces' })
       } catch (err) {
         console.error('Failed to update interface theme', err)
@@ -1438,7 +1438,7 @@ export default function InterfaceNav({
   const handleThemeReset = async () => {
     setThemeColor('')
     try {
-      await interfaceActions.update({ interface_id: interfaceId, data: { color: null as any } })
+      await interfaceActions.update({ interfaceId: interfaceId, data: { color: null as any } })
       await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'interfaces' })
     } catch (err) {
       console.error('Failed to reset theme colour', err)
@@ -1574,7 +1574,7 @@ export default function InterfaceNav({
       // Update the order for all affected tabs
       const updates = newTabs.map((tab, index) => ({
         id: tab.id,
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: tab.name,
         data: { order: index }
       }))

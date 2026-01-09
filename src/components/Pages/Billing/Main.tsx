@@ -12,11 +12,11 @@ import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 interface BillingEligibility {
-  user_id: string;
-  total_spending: number;
-  can_enable_monthly_billing: boolean;
-  minimum_spend_required: number;
-  remaining_spend_needed: number;
+  userId: string;
+  totalSpending: number;
+  canEnableMonthlyBilling: boolean;
+  minimumSpendRequired: number;
+  remainingSpendNeeded: number;
 }
 
 interface CheckoutStatus {
@@ -35,16 +35,16 @@ const Main = () => {
 
   useEffect(() => {
     const checkCheckoutStatus = async () => {
-      const sessionId = searchParams.get('session_id');
+      const sessionId = searchParams.get('sessionId');
       if (sessionId) {
         let status: CheckoutStatus | null = null;
         // Use a try-catch block to handle network errors
         try {
-          const res = await fetch(`/api/stripe/session-status?session_id=${sessionId}`);
+          const res = await fetch(`/api/stripe/session-status?sessionId=${sessionId}`);
           const data = await res.json();
 
           if (res.ok) {
-            if (data.payment_status === 'paid') {
+            if (data.paymentStatus === 'paid') {
               status = { message: 'Payment successful! Your new balance will be reflected shortly.', type: 'success' };
             } else {
               status = { message: 'Your payment was not successful. Please try again.', type: 'error' };
@@ -82,7 +82,7 @@ const Main = () => {
           await fetch("/api/user/account-type", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ account_type: "individual" }),
+            body: JSON.stringify({ accountType: "individual" }),
           });
           setIsNewUser(true);
         }
@@ -159,12 +159,12 @@ const Main = () => {
           <Subscriptions/>          
           
           <Separator/>
-          {billingEligibility && !billingEligibility.can_enable_monthly_billing ? (
+          {billingEligibility && !billingEligibility.canEnableMonthlyBilling ? (
             <Alert variant="default">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Spend $100 to Access Automated Top-ups</AlertTitle>
               <AlertDescription className="whitespace-normal break-words">
-                You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills. You can still purchase credits manually.
+                You&#39;ve spent ${billingEligibility.totalSpending.toFixed(2)}, spend ${billingEligibility.remainingSpendNeeded.toFixed(2)} more to unlock automatic refills. You can still purchase credits manually.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -174,7 +174,7 @@ const Main = () => {
           <Separator />
           <TaxClassification />
           
-          {billingEligibility?.can_enable_monthly_billing && (
+          {billingEligibility?.canEnableMonthlyBilling && (
             <>
               <Separator />
               <AutomaticRefill />

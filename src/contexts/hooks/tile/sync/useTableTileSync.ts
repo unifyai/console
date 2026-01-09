@@ -28,15 +28,15 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the TableTile that will be synced with the server
  */
-export type SyncedTableProperties = 'table_type' | 
-'page_number' | 
-'column_order' |
-'hidden_columns' |
-'default_hidden_columns' |
+export type SyncedTableProperties = 'tableType' | 
+'pageNumber' | 
+'columnOrder' |
+'hiddenColumns' |
+'defaultHiddenColumns' |
 'sorting' | 
-'group_sorting' | 
-'columns_pin_left' | 
-'columns_pin_right' | 
+'groupSorting' | 
+'columnsPinLeft' | 
+'columnsPinRight' | 
 'selected';
 
 /**
@@ -139,16 +139,16 @@ export function useTableTileSync(
   const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
-    table_type: tableTypeMutation,
+    tableType: tableTypeMutation,
     sorting: sortingMutation,
-    group_sorting: groupSortingMutation,
-    column_order: columnOrderMutation,
-    hidden_columns: hiddenColumnsMutation,
-    default_hidden_columns: defaultHiddenColumnsMutation,
-    columns_pin_left: columnsPinLeftMutation,
-    columns_pin_right: columnsPinRightMutation,
+    groupSorting: groupSortingMutation,
+    columnOrder: columnOrderMutation,
+    hiddenColumns: hiddenColumnsMutation,
+    defaultHiddenColumns: defaultHiddenColumnsMutation,
+    columnsPinLeft: columnsPinLeftMutation,
+    columnsPinRight: columnsPinRightMutation,
     selected: selectedMutation,
-    page_number: pageNumberMutation,
+    pageNumber: pageNumberMutation,
   };
 
   // Individual wrapper functions for each property
@@ -174,11 +174,11 @@ export function useTableTileSync(
     try {
       await withLoadingToastFn(
         () => tableTypeMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Table",
-          updateData: { table_type: value ?? null },
+          updateData: { tableType: value ?? null },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -228,7 +228,7 @@ export function useTableTileSync(
     try {
       await withLoadingToastFn(
         () => sortingMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Table",
@@ -281,11 +281,11 @@ export function useTableTileSync(
     try {
       await withLoadingToastFn(
         () => groupSortingMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Table",
-          updateData: { group_sorting: value ?? null },
+          updateData: { groupSorting: value ?? null },
           refetchProjects: false,
           refetchContexts: false,
           refetchFields: true,
@@ -331,10 +331,10 @@ export function useTableTileSync(
     // Set a new timeout for the server mutation
     columnOrderTimeoutRef.current = setTimeout(() => {
       columnOrderMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,
         tileType: "Table",
-        updateData: { column_order: value ?? null },
+        updateData: { columnOrder: value ?? null },
         actions: granularTileActions
       });
     }, 500); // 500ms debounce delay
@@ -358,10 +358,10 @@ export function useTableTileSync(
     // Set a new timeout for the server mutation
     hiddenColumnsTimeoutRef.current = setTimeout(() => {
       hiddenColumnsMutation.mutate({
-        tab_id: tabId,    
+        tabId: tabId,    
         name: tileName,
         tileType: "Table",
-        updateData: { hidden_columns: value ?? null },
+        updateData: { hiddenColumns: value ?? null },
         actions: granularTileActions
       });
     }, 500); // 500ms debounce delay
@@ -384,10 +384,10 @@ export function useTableTileSync(
 
     defaultHiddenColumnsTimeoutRef.current = setTimeout(() => {
       defaultHiddenColumnsMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,
         tileType: "Table",
-        updateData: { default_hidden_columns: value ?? true },
+        updateData: { defaultHiddenColumns: value ?? true },
         actions: granularTileActions
       });
     }, 500); // 500ms debounce delay
@@ -411,10 +411,10 @@ export function useTableTileSync(
     // Set a new timeout for the server mutation
     columnsPinLeftTimeoutRef.current = setTimeout(() => {
       columnsPinLeftMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,   
         tileType: "Table",
-        updateData: { columns_pin_left: value ?? null },
+        updateData: { columnsPinLeft: value ?? null },
         actions: granularTileActions
       });
     }, 500); // 500ms debounce delay
@@ -438,10 +438,10 @@ export function useTableTileSync(
     // Set a new timeout for the server mutation
     columnsPinRightTimeoutRef.current = setTimeout(() => {
       columnsPinRightMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,   
         tileType: "Table",
-        updateData: { columns_pin_right: value ?? null },
+        updateData: { columnsPinRight: value ?? null },
         actions: granularTileActions
       });
     }, 500); // 500ms debounce delay
@@ -465,7 +465,7 @@ export function useTableTileSync(
     // Set a new timeout for the server mutation
     selectedTimeoutRef.current = setTimeout(() => {
       selectedMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,   
         tileType: "Table",
         updateData: { selected: value ?? null },
@@ -495,11 +495,11 @@ export function useTableTileSync(
     try {
       await withLoadingToastFn(
         () => pageNumberMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,   
           projectId: state.activeProjectId || "",
           tileType: "Table",
-          updateData: { page_number: value ?? null },
+          updateData: { pageNumber: value ?? null },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -558,29 +558,29 @@ export function useTableTileSync(
       tableTile,
       tableTileActions: null,
       loading: {
-        table_type: false,
-        column_order: false,
-        hidden_columns: false,
-        default_hidden_columns: true,
+        tableType: false,
+        columnOrder: false,
+        hiddenColumns: false,
+        defaultHiddenColumns: true,
         sorting: false,
-        group_sorting: false,
-        columns_pin_left: false,
-        columns_pin_right: false,
+        groupSorting: false,
+        columnsPinLeft: false,
+        columnsPinRight: false,
         selected: false,
-        page_number: false,
+        pageNumber: false,
         any: false
       },
       error: {
-        table_type: null,
+        tableType: null,
         sorting: null,
-        group_sorting: null,
-        column_order: null,
-        hidden_columns: null,
-        default_hidden_columns: null,
-        columns_pin_left: null,
-        columns_pin_right: null,
+        groupSorting: null,
+        columnOrder: null,
+        hiddenColumns: null,
+        defaultHiddenColumns: null,
+        columnsPinLeft: null,
+        columnsPinRight: null,
         selected: null,
-        page_number: null,
+        pageNumber: null,
         any: false
       },
       exists: false
@@ -589,16 +589,16 @@ export function useTableTileSync(
 
   // Prepare loading states
   const loading: TableLoadingStates = {
-    table_type: mutations.table_type.isPending,
+    tableType: mutations.tableType.isPending,
     sorting: mutations.sorting.isPending,
-    group_sorting: mutations.group_sorting.isPending,
-    column_order: mutations.column_order.isPending,
-    hidden_columns: mutations.hidden_columns.isPending,
-    default_hidden_columns: mutations.default_hidden_columns.isPending,
-    columns_pin_left: mutations.columns_pin_left.isPending,
-    columns_pin_right: mutations.columns_pin_right.isPending,
+    groupSorting: mutations.groupSorting.isPending,
+    columnOrder: mutations.columnOrder.isPending,
+    hiddenColumns: mutations.hiddenColumns.isPending,
+    defaultHiddenColumns: mutations.defaultHiddenColumns.isPending,
+    columnsPinLeft: mutations.columnsPinLeft.isPending,
+    columnsPinRight: mutations.columnsPinRight.isPending,
     selected: mutations.selected.isPending,
-    page_number: mutations.page_number.isPending,
+    pageNumber: mutations.pageNumber.isPending,
     any: false
   };
   
@@ -607,16 +607,16 @@ export function useTableTileSync(
 
   // Prepare error states
   const error: TableErrorStates = {
-    table_type: mutations.table_type.error,
+    tableType: mutations.tableType.error,
     sorting: mutations.sorting.error,
-    group_sorting: mutations.group_sorting.error,
-    column_order: mutations.column_order.error,
-    hidden_columns: mutations.hidden_columns.error,
-    default_hidden_columns: mutations.default_hidden_columns.error,
-    columns_pin_left: mutations.columns_pin_left.error,
-    columns_pin_right: mutations.columns_pin_right.error,
+    groupSorting: mutations.groupSorting.error,
+    columnOrder: mutations.columnOrder.error,
+    hiddenColumns: mutations.hiddenColumns.error,
+    defaultHiddenColumns: mutations.defaultHiddenColumns.error,
+    columnsPinLeft: mutations.columnsPinLeft.error,
+    columnsPinRight: mutations.columnsPinRight.error,
     selected: mutations.selected.error,
-    page_number: mutations.page_number.error,
+    pageNumber: mutations.pageNumber.error,
     any: false
   };
   

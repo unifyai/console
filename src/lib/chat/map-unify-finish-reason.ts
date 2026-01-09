@@ -9,7 +9,7 @@ export function mapUnifyFinishReason(
     case 'length':
     case 'model_length':
       return 'length';
-    case 'tool_calls':
+    case 'toolCalls':
       return 'tool-calls';
     default:
       return 'unknown';

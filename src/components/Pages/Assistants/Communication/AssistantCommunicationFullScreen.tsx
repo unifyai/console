@@ -89,8 +89,8 @@ const FullScreenCallUI: React.FC<{
     }, [localParticipant, camToggle.track]);
 
     const userTrackRef = screenShareTrack || localVideoTrackRef;
-    const assistantName = `${assistant.first_name} ${assistant.surname}`;
-    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const assistantName = `${assistant.firstName} ${assistant.surname}`;
+    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
     return (
         <div className="h-full w-full flex flex-col bg-background text-foreground">
@@ -247,7 +247,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         };
         const assistantId = Array.isArray(params.assistantId) ? params.assistantId[0] : params.assistantId;
         if (assistant && assistantId) {
-            localStorage.setItem('activePopOutCall', JSON.stringify({ assistantId, assistantName: `${assistant.first_name} ${assistant.surname}` }));
+            localStorage.setItem('activePopOutCall', JSON.stringify({ assistantId, assistantName: `${assistant.firstName} ${assistant.surname}` }));
             window.dispatchEvent(new StorageEvent('storage', { key: 'activePopOutCall', newValue: localStorage.getItem('activePopOutCall') }));
         }
         window.addEventListener('beforeunload', handleUnload);
@@ -290,7 +290,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     }
 
     const showLoadingState = isConnecting || isWaitingForAssistant;
-    const loadingMessage = isConnecting ? "Setting up a connection..." : `Waiting for ${assistant.first_name} to join...`;
+    const loadingMessage = isConnecting ? "Setting up a connection..." : `Waiting for ${assistant.firstName} to join...`;
     
     return (
         <RoomContext.Provider value={room}>

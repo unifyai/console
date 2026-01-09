@@ -70,10 +70,7 @@ describe('@real Interface Mutation Hooks (Real API)', () => {
       await safeDelete(() => deleteFn(id), `interface: ${id}`);
     }
     // Cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProjectName),
-      `project: ${testProjectName}`
-    );
+    await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
   }, 30000);
 
   it(
@@ -103,7 +100,7 @@ describe('@real Interface Mutation Hooks (Real API)', () => {
       expect(mutationResult.name).toBe(interfaceName);
 
       // Track for cleanup
-      createdInterfaceIds.push(mutationResult.id);
+      createdInterfaceIds.push(mutationResult.id!);
     }
   );
 
@@ -194,10 +191,9 @@ describe('@real Interface Mutation Hooks (Real API)', () => {
       const { Wrapper } = createWrapper();
 
       // Update by ID
-      const { result: byIdResult } = renderHook(
-        () => useUpdateInterfaceUnifiedQuery(),
-        { wrapper: Wrapper }
-      );
+      const { result: byIdResult } = renderHook(() => useUpdateInterfaceUnifiedQuery(), {
+        wrapper: Wrapper,
+      });
 
       const byIdMutationResult = await byIdResult.current.mutateAsync({
         interfaceId: created.id,
@@ -208,10 +204,9 @@ describe('@real Interface Mutation Hooks (Real API)', () => {
       expect(byIdMutationResult.color).toBe('#0000ff');
 
       // Update by name
-      const { result: byNameResult } = renderHook(
-        () => useUpdateInterfaceUnifiedQuery(),
-        { wrapper: Wrapper }
-      );
+      const { result: byNameResult } = renderHook(() => useUpdateInterfaceUnifiedQuery(), {
+        wrapper: Wrapper,
+      });
 
       const byNameMutationResult = await byNameResult.current.mutateAsync({
         projectId: testProjectName,
@@ -224,28 +219,23 @@ describe('@real Interface Mutation Hooks (Real API)', () => {
     }
   );
 
-  it(
-    '@real mutation updates are reflected when re-fetching',
-    realTestOptionsExtended,
-    async () => {
-      // Create an interface
-      const createFn = await createNewInterface(TEST_API_KEY);
-      const interfaceName = uniqueName('test-verify-update');
-      const created = await createFn(testProjectName, interfaceName);
-      createdInterfaceIds.push(created.id);
+  it('@real mutation updates are reflected when re-fetching', realTestOptionsExtended, async () => {
+    // Create an interface
+    const createFn = await createNewInterface(TEST_API_KEY);
+    const interfaceName = uniqueName('test-verify-update');
+    const created = await createFn(testProjectName, interfaceName);
+    createdInterfaceIds.push(created.id);
 
-      // Update it
-      const updateByIdFn = await updateInterfaceById(TEST_API_KEY);
-      const newColor = '#abcdef';
-      await updateByIdFn(created.id, { color: newColor });
+    // Update it
+    const updateByIdFn = await updateInterfaceById(TEST_API_KEY);
+    const newColor = '#abcdef';
+    await updateByIdFn(created.id, { color: newColor });
 
-      // Verify by fetching
-      const getByIdFn = await getInterfaceById(TEST_API_KEY);
-      const fetched = await getByIdFn(created.id);
+    // Verify by fetching
+    const getByIdFn = await getInterfaceById(TEST_API_KEY);
+    const fetched = await getByIdFn(created.id);
 
-      expect(fetched).toBeDefined();
-      expect(fetched.color).toBe(newColor);
-    }
-  );
+    expect(fetched).toBeDefined();
+    expect(fetched.color).toBe(newColor);
+  });
 });
-

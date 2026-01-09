@@ -61,7 +61,7 @@ const PlotAggregate = ({
            {/* Button for "None" option */}
            <Button
              key="none-aggregate"
-             variant={!aggregateProperty ? "primary" : "list_item"}
+             variant={!aggregateProperty ? "primary" : "listItem"}
              size="lg"
              className="w-full justify-start h-auto py-1 text-md"
              onClick={() => onSelect(undefined)}
@@ -89,7 +89,7 @@ const PlotAggregate = ({
                         return (
                         <Button
                             key={selection}
-                            variant={selection === aggregateProperty ? "primary" : "list_item"}
+                            variant={selection === aggregateProperty ? "primary" : "listItem"}
                             size="lg"
                             className="flex flex-row gap-2 items-center w-full justify-start h-auto py-1 text-md"
                             onClick={() => onSelect(selection)}

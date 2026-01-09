@@ -75,7 +75,7 @@ describe('@real Custom Endpoints API', () => {
   );
 
   it(
-    '@real creates a custom endpoint with model_arg',
+    '@real creates a custom endpoint with modelArg',
     realTestOptionsExtended,
     async () => {
       const endpointName = `${uniqueName('test-model-arg')}@custom`;
@@ -93,11 +93,11 @@ describe('@real Custom Endpoints API', () => {
       expect(result).toBeDefined();
       expect(result.info).toBeDefined();
 
-      // Verify endpoint exists with correct model_arg
+      // Verify endpoint exists with correct modelArg
       const listResult = await customEndpointsApi.list();
       const found = listResult.find((e) => e.name === endpointName);
       expect(found).toBeDefined();
-      expect(found?.model_arg).toBe(modelArg);
+      expect(found?.modelArg).toBe(modelArg);
     }
   );
 

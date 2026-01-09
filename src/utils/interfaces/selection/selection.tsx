@@ -374,8 +374,8 @@ export function isSpan(obj: any): obj is Span {
     obj &&
     typeof obj === "object" &&
     typeof obj.id === "string" &&
-    typeof obj.span_name === "string" &&
-    (obj.child_spans === undefined || Array.isArray(obj.child_spans))
+    typeof obj.spanName === "string" &&
+    (obj.childSpans === undefined || Array.isArray(obj.childSpans))
   );
 }
 

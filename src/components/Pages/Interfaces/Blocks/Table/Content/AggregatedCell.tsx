@@ -84,14 +84,14 @@ const AggregatedCell = ({
       const groupingValue = row.getValue(key) as string;
       const value = relevantMetrics[newKey] ? relevantMetrics[newKey][groupingValue] : undefined;
       
-      const exclude_nulls = true;
-      const exclude_undefined = true;
+      const excludeNulls = true;
+      const excludeUndefined = true;
       const formattedValue = formatCellValue(
         value, 
         cell.column.columnDef.meta?.dataType ?? "",
         cell.column.getSize(),
-        exclude_nulls,
-        exclude_undefined
+        excludeNulls,
+        excludeUndefined
       );
       return formattedValue;
     };
@@ -110,21 +110,21 @@ const AggregatedCell = ({
           ? groupedMetrics[groupingColumnId]
           : groupedMetrics && slicedRowId in groupedMetrics
             ? groupedMetrics[slicedRowId]
-            : { "shared_value": {} }
-      )["shared_value"] || {};
+            : { "sharedValue": {} }
+      )["sharedValue"] || {};
       
       const newKey = sanitizeId(key);
       const groupingValue = row.getValue(key) as string;
       const value = relevantSharedValues[newKey] ? relevantSharedValues[newKey][groupingValue] : undefined;
       
-      const exclude_nulls = true;
-      const exclude_undefined = true;
+      const excludeNulls = true;
+      const excludeUndefined = true;
       const formattedValue = formatCellValue(
         value, 
         cell.column.columnDef.meta?.dataType ?? "", 
         cell.column.getSize(),
-        exclude_nulls,
-        exclude_undefined
+        excludeNulls,
+        excludeUndefined
       );
       return formattedValue;
     };

@@ -86,7 +86,7 @@ const CreateRoleDialog = ({ onCreate, availablePermissions }: CreateRoleDialogPr
                                     onCheckedChange={() => togglePermission(p.id)}
                                 />
                                 <Label htmlFor={`perm-${p.id}`} className="text-sm cursor-pointer">
-                                    {p.name} <span className="text-xs text-muted-foreground">({p.resource_type}:{p.action})</span>
+                                    {p.name} <span className="text-xs text-muted-foreground">({p.resourceType}:{p.action})</span>
                                 </Label>
                             </div>
                         ))}

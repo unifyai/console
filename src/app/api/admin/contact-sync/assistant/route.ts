@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     let body: {
-        assistant_id?: number;
+        assistantId?: number;
         timezone?: string;
         about?: string;
     };
@@ -34,17 +34,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { assistant_id, timezone, about } = body;
+    const { assistantId, timezone, about } = body;
 
-    if (!assistant_id || typeof assistant_id !== "number") {
-        return NextResponse.json({ detail: "assistant_id (number) is required" }, { status: 400 });
+    if (!assistantId || typeof assistantId !== "number") {
+        return NextResponse.json({ detail: "assistantId (number) is required" }, { status: 400 });
     }
 
     if (timezone === undefined && about === undefined) {
         return NextResponse.json({ detail: "At least one of timezone or about must be provided" }, { status: 400 });
     }
 
-    const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant/${assistant_id}`;
+    const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant/${assistantId}`;
 
     const payload: Record<string, any> = {};
     if (timezone !== undefined) payload.timezone = timezone;

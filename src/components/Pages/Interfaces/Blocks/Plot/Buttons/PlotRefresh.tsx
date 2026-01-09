@@ -25,7 +25,7 @@ function fetchLatestTimestamps(
     const promises = tables.map(table => {
       const tableArgs = args[table];
       const tableContext = tableArgs?.["context"] ?? null;
-      const tableColumnContext = tableArgs?.["column_context"] ?? null;
+      const tableColumnContext = tableArgs?.["columnContext"] ?? null;
       const tableFilters = tableArgs?.["filters"] ?? null;
       const tableSubset = tableArgs?.["subset"] ?? null;
       return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null, null, null, signal);
@@ -169,7 +169,7 @@ const PlotRefresh = ({
 
   // Auto-update toggle
   const onAutoClick = () => {
-    const nextValue = tileDataState?.auto_update === "true" ? "false" : "true";
+    const nextValue = tileDataState?.autoUpdate === "true" ? "false" : "true";
     if (nextValue === "false") {
         stop();
     }
@@ -187,7 +187,7 @@ const PlotRefresh = ({
       showSuccessToast("Already Refreshing", "A refresh is already in progress.");
       return;
     }
-    if (tileDataState?.auto_update === "true" || tables.length === 0) return;
+    if (tileDataState?.autoUpdate === "true" || tables.length === 0) return;
 
     setIsManualFetching(true);
 
@@ -231,7 +231,7 @@ const PlotRefresh = ({
     }
   };
 
-  const isAutoUpdating = tileDataState?.auto_update === "true";
+  const isAutoUpdating = tileDataState?.autoUpdate === "true";
   const isManualSpinning = isFetching || isManualFetching;
 
   const getIcon = () => {

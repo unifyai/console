@@ -49,8 +49,8 @@ const customEndpointsTableColumns = (
           return name
         }
     }
-    const model_arg = { 
-      accessorKey: "model_arg",
+    const modelArg = { 
+      accessorKey: "modelArg",
       header: ({column}: {column: Column<CustomEndpoint, unknown>}) => 
         <div className="flex flex-row justify-between gap-2 items-center">
           <p>{"Model Argument"}</p>
@@ -84,7 +84,7 @@ const customEndpointsTableColumns = (
           </div>
         )}
     }
-    return [name, url, key, model_arg, actions]
+    return [name, url, key, modelArg, actions]
 }
 
 export default customEndpointsTableColumns;

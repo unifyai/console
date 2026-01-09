@@ -1,46 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { transformQueryParams } from '../_utils/casingTransform';
+import { getCurrentUser } from '@/lib/user/user';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function POST(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const url = new URL(request.url);
-    return await fetch(
-        `${baseUrl}/custom_endpoint${url.search}`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`
-            }
-        },
-    );
+  // Get API key from session (fallback to header for backwards compatibility)
+  const user = await getCurrentUser();
+  const apiKey = user?.apiKey || request.headers.get('apiKey');
+
+  if (!apiKey) {
+    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+  }
+
+  const url = new URL(request.url);
+  const snakeQuery = transformQueryParams(url);
+
+  return await fetch(`${baseUrl}/custom_endpoint${snakeQuery}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
 }
 
 export async function DELETE(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const url = new URL(request.url)
-    return await fetch(
-        `${baseUrl}/custom_endpoint${url.search}`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`
-            }
-        },
-    );
+  // Get API key from session (fallback to header for backwards compatibility)
+  const user = await getCurrentUser();
+  const apiKey = user?.apiKey || request.headers.get('apiKey');
+
+  if (!apiKey) {
+    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+  }
+
+  const url = new URL(request.url);
+  const snakeQuery = transformQueryParams(url);
+
+  return await fetch(`${baseUrl}/custom_endpoint${snakeQuery}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
 }

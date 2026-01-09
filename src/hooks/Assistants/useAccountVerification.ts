@@ -83,8 +83,8 @@ export function useAccountVerification({
             setValue(fieldNames.isVerifying, false as PathValue<AssistantFormData, typeof fieldNames.isVerifying>, { shouldDirty: true });
         } else {
             toast.success(`Verification code sent to ${identifier}`);
-            setValue(fieldNames.verificationCodeSent, result.verification_code as PathValue<AssistantFormData, typeof fieldNames.verificationCodeSent>, { shouldDirty: true });
-            setValue(fieldNames.verificationSentAt, new Date(result.sent_at) as PathValue<AssistantFormData, typeof fieldNames.verificationSentAt>, { shouldDirty: true });
+            setValue(fieldNames.verificationCodeSent, result.verificationCode as PathValue<AssistantFormData, typeof fieldNames.verificationCodeSent>, { shouldDirty: true });
+            setValue(fieldNames.verificationSentAt, new Date(result.sentAt) as PathValue<AssistantFormData, typeof fieldNames.verificationSentAt>, { shouldDirty: true });
         }
     };
 

@@ -95,7 +95,7 @@ describe('Organization Management System', () => {
             activeWorkspaceRef.current = { type: 'personal', id: 'personal' };
             
             mockOrgActions.getAllOrganizations = vi.fn().mockResolvedValue({
-                organizations: [{ name: 'Existing Corp', id: 5, owner_id: '1', member_count: 1 }],
+                organizations: [{ name: 'Existing Corp', id: 5, ownerId: '1', member_count: 1 }],
                 limit: 10,
                 offset: 0
             });
@@ -244,8 +244,8 @@ describe('Organization Management System', () => {
             // Setup: Current user is a "Member" (Role ID 2), not Owner. 
             // Role 2 has "Read Org" but not "Write Org" in mock data.
             const readOnlyMembers = mockMembers.map(m => 
-                m.user_id === mockUser.id 
-                ? { ...m, role_id: 2, role_name: 'Member' } 
+                m.userId === mockUser.id 
+                ? { ...m, roleId: 2, roleName: 'Member' } 
                 : m
             );
             

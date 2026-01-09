@@ -66,7 +66,7 @@ const ContextContent = ({
 
     const finalSetContext = (syncedTileDataActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
-            // Update the tile's context and column_context
+            // Update the tile's context and columnContext
             syncedTileDataActions.setContextAndColumnContext(ctx, "");
         }
     } : setContext;

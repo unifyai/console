@@ -143,8 +143,8 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
 
       expect(result.current.data).toBeDefined();
       expect(result.current.data?.name).toBe(interfaceName);
-      // Checkpoint version should have is_checkpoint = true
-      expect((result.current.data as any)?.is_checkpoint).toBe(true);
+      // Checkpoint version should have isCheckpoint = true
+      expect((result.current.data as any)?.isCheckpoint).toBe(true);
     }
   );
 

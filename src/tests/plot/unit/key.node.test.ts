@@ -20,9 +20,7 @@ import type { GroupingColors } from '@/types/interfaces/plot';
 describe('keyTemplate', () => {
   describe('basic functionality', () => {
     it('generates HTML for single color entry', () => {
-      const colors: GroupingColors = [
-        { key: 'Category A', color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: 'Category A', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -48,9 +46,7 @@ describe('keyTemplate', () => {
     });
 
     it('creates correct structure for each entry', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: '#123456' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: '#123456' }];
 
       const html = keyTemplate(colors);
 
@@ -66,9 +62,7 @@ describe('keyTemplate', () => {
 
   describe('null and empty handling', () => {
     it('handles null key value', () => {
-      const colors: GroupingColors = [
-        { key: null, color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: 'null', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -86,9 +80,7 @@ describe('keyTemplate', () => {
 
   describe('key value formatting', () => {
     it('strips quotes from JSON stringified keys', () => {
-      const colors: GroupingColors = [
-        { key: '"Quoted Value"', color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: '"Quoted Value"', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -98,9 +90,7 @@ describe('keyTemplate', () => {
     });
 
     it('handles numeric keys as strings', () => {
-      const colors: GroupingColors = [
-        { key: '123', color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: '123', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -132,9 +122,7 @@ describe('keyTemplate', () => {
     });
 
     it('applies correct sizing to color dot', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -143,9 +131,7 @@ describe('keyTemplate', () => {
     });
 
     it('applies shrink-0 to prevent dot resizing', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: '#ff0000' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: '#ff0000' }];
 
       const html = keyTemplate(colors);
 
@@ -174,9 +160,7 @@ describe('keyTemplate', () => {
 
   describe('color format handling', () => {
     it('handles hex colors', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: '#ff5733' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: '#ff5733' }];
 
       const html = keyTemplate(colors);
 
@@ -184,9 +168,7 @@ describe('keyTemplate', () => {
     });
 
     it('handles rgb colors', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: 'rgb(255, 87, 51)' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: 'rgb(255, 87, 51)' }];
 
       const html = keyTemplate(colors);
 
@@ -194,9 +176,7 @@ describe('keyTemplate', () => {
     });
 
     it('handles named colors', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: 'red' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: 'red' }];
 
       const html = keyTemplate(colors);
 
@@ -204,9 +184,7 @@ describe('keyTemplate', () => {
     });
 
     it('handles hsl colors', () => {
-      const colors: GroupingColors = [
-        { key: 'Test', color: 'hsl(14, 100%, 60%)' },
-      ];
+      const colors: GroupingColors = [{ key: 'Test', color: 'hsl(14, 100%, 60%)' }];
 
       const html = keyTemplate(colors);
 
@@ -214,5 +192,3 @@ describe('keyTemplate', () => {
     });
   });
 });
-
-

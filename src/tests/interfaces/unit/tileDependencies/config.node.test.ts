@@ -74,7 +74,7 @@ describe('Tile Dependency Config', () => {
             return {
               isLoading: false,
               logs: [{ id: '1', entries: { col1: 'value' } }],
-              fields: { col1: { field_type: 'entry', data_type: 'str' } },
+              fields: { col1: { fieldType: 'entry', dataType: 'str' } },
             };
           }
           if (key[0] === 'tableArguments') return { someTile: {} };
@@ -95,7 +95,7 @@ describe('Tile Dependency Config', () => {
             return {
               isLoading: false,
               logs: [], // Empty logs is fine if fields exist
-              fields: { col1: { field_type: 'entry', data_type: 'str' } },
+              fields: { col1: { fieldType: 'entry', dataType: 'str' } },
             };
           }
           if (key[0] === 'tableArguments') return { someTile: {} };
@@ -116,7 +116,7 @@ describe('Tile Dependency Config', () => {
             return {
               isLoading: false,
               logs: [{ id: '1', entries: { col1: 'value' } }],
-              fields: { col1: { field_type: 'entry', data_type: 'str' } },
+              fields: { col1: { fieldType: 'entry', dataType: 'str' } },
             };
           }
           if (key[0] === 'tableArguments') return undefined; // Missing!

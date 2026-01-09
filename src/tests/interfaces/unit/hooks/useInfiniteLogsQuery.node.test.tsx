@@ -28,14 +28,20 @@ function makeLog(id: string, message: string): LogProps {
     ts: '2025-01-01T00:00:00Z',
     params: { level: 'info' },
     entries: { message },
-    derived_entries: {},
-    clipped_fields: {},
+    derivedEntries: {},
+    clippedFields: {},
   };
 }
 
-function TestComponent({ params, onResult }: { params: HookParams; onResult: (result: HookResult) => void }) {
+function TestComponent({
+  params,
+  onResult,
+}: {
+  params: HookParams;
+  onResult: (result: HookResult) => void;
+}) {
   const result = useInfiniteLogsQuery(params);
-  
+
   // Capture the result whenever it changes
   useEffect(() => {
     onResult(result);
@@ -43,7 +49,9 @@ function TestComponent({ params, onResult }: { params: HookParams; onResult: (re
 
   return (
     <div>
-        <button onClick={() => result.fetchNextPage()} data-testid="load-more">Load More</button>
+      <button onClick={() => result.fetchNextPage()} data-testid="load-more">
+        Load More
+      </button>
     </div>
   );
 }
@@ -56,26 +64,24 @@ describe('useInfiniteLogsQuery', () => {
   it('fetches first page via fetchLogsCore and calls updateLogs in append mode', async () => {
     const logs: LogProps[] = [makeLog('log-1', 'First'), makeLog('log-2', 'Second')];
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockResolvedValue({
-        response: {
-          params: {},
-          logs,
-          count: logs.length,
-          groups: {},
-        },
-        convertedLogs: logs,
-        totalCount: logs.length,
-        currentCount: logs.length,
-        hasMore: false,
-        useGroupPagination: false,
-        updatedFilterExpression: null,
-        updatedGroupingExpression: null,
-        targetGroupFilters: [],
-        effectiveLimit: 20,
-        effectiveOffset: 0,
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
+      response: {
+        params: {},
+        logs,
+        count: logs.length,
+        groups: {},
+      },
+      convertedLogs: logs,
+      totalCount: logs.length,
+      currentCount: logs.length,
+      hasMore: false,
+      useGroupPagination: false,
+      updatedFilterExpression: null,
+      updatedGroupingExpression: null,
+      targetGroupFilters: [],
+      effectiveLimit: 20,
+      effectiveOffset: 0,
+    });
 
     const updateLogs = vi.fn(() => ({ globalOffset: 0, groupOffset: 0 }));
 
@@ -99,7 +105,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions,
       updateLogs,
       enabled: true,
@@ -127,16 +133,16 @@ describe('useInfiniteLogsQuery', () => {
     const coreParams = fetchLogsCoreSpy.mock.calls[0][0];
     expect(coreParams.projectId).toBe('project-1');
     expect(coreParams.limit).toBe(20);
-    expect(coreParams.group_limit).toBe(20);
+    expect(coreParams.groupLimit).toBe(20);
 
     // updateLogs was called in append mode for forward pagination
     expect(updateLogs).toHaveBeenCalled();
-    const [, mode] = updateLogs.mock.calls[0];
+    const [, mode] = updateLogs.mock.calls[0] as any;
     expect(mode).toBe('append');
 
     // addInfiniteQueryKey should be called at least once to register the query key
     expect(addInfiniteQueryKey).toHaveBeenCalled();
-    
+
     fetchLogsCoreSpy.mockRestore();
   });
 
@@ -144,31 +150,29 @@ describe('useInfiniteLogsQuery', () => {
     // We will simulate fetching 5 pages when maxPagesInMemory is 3.
     // The pages should end up being [2, 3, 4] (indices).
     const maxPages = 3;
-    
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockImplementation(async (p) => {
-        const pageIndex = (p.offset || 0) / (p.limit || 20);
-        const logs = [makeLog(`log-p${pageIndex}`, `Page ${pageIndex}`)];
-        return {
-          response: {
-            params: {},
-            logs,
-            count: 1,
-            groups: {},
-          },
-          convertedLogs: logs,
-          totalCount: 100, // Plenty more
-          currentCount: 1,
-          hasMore: true,
-          useGroupPagination: false,
-          updatedFilterExpression: null,
-          updatedGroupingExpression: null,
-          targetGroupFilters: [],
-          effectiveLimit: 20,
-          effectiveOffset: p.offset || 0,
-        };
-      });
+
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockImplementation(async (p) => {
+      const pageIndex = (p.offset || 0) / (p.limit || 20);
+      const logs = [makeLog(`log-p${pageIndex}`, `Page ${pageIndex}`)];
+      return {
+        response: {
+          params: {},
+          logs,
+          count: 1,
+          groups: {},
+        },
+        convertedLogs: logs,
+        totalCount: 100, // Plenty more
+        currentCount: 1,
+        hasMore: true,
+        useGroupPagination: false,
+        updatedFilterExpression: null,
+        updatedGroupingExpression: null,
+        targetGroupFilters: [],
+        effectiveLimit: 20,
+        effectiveOffset: p.offset || 0,
+      };
+    });
 
     const params: HookParams = {
       tileId: 'tile-sliding',
@@ -181,7 +185,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions: {} as LogsActions,
       updateLogs: vi.fn(() => ({ globalOffset: 0, groupOffset: 0 })),
       enabled: true,
@@ -194,7 +198,9 @@ describe('useInfiniteLogsQuery', () => {
     };
 
     let latestResult: HookResult | undefined;
-    const onResult = (res: HookResult) => { latestResult = res; };
+    const onResult = (res: HookResult) => {
+      latestResult = res;
+    };
 
     render(<TestComponent params={params} onResult={onResult} />);
 
@@ -205,21 +211,27 @@ describe('useInfiniteLogsQuery', () => {
     });
 
     // Fetch Page 1
-    await act(async () => { await latestResult?.fetchNextPage(); });
+    await act(async () => {
+      await latestResult?.fetchNextPage();
+    });
     await waitFor(() => expect(latestResult?.data?.pages).toHaveLength(2));
 
     // Fetch Page 2
-    await act(async () => { await latestResult?.fetchNextPage(); });
+    await act(async () => {
+      await latestResult?.fetchNextPage();
+    });
     await waitFor(() => expect(latestResult?.data?.pages).toHaveLength(3));
 
     // Fetch Page 3 (Total 4 pages fetched, max is 3. Page 0 should be dropped)
-    await act(async () => { await latestResult?.fetchNextPage(); });
+    await act(async () => {
+      await latestResult?.fetchNextPage();
+    });
     await waitFor(() => {
-        // React Query with maxPages should keep the last 3 pages
-        expect(latestResult?.data?.pages).toHaveLength(3);
-        // Verify we have pages 1, 2, 3
-        const indices = latestResult?.data?.pages.map(p => p.pageIndex);
-        expect(indices).toEqual([1, 2, 3]);
+      // React Query with maxPages should keep the last 3 pages
+      expect(latestResult?.data?.pages).toHaveLength(3);
+      // Verify we have pages 1, 2, 3
+      const indices = latestResult?.data?.pages.map((p) => p.pageIndex);
+      expect(indices).toEqual([1, 2, 3]);
     });
 
     fetchLogsCoreSpy.mockRestore();
@@ -234,30 +246,28 @@ describe('useInfiniteLogsQuery', () => {
       3: [makeLog('log-p3', 'Page 3')],
     };
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockImplementation(async (p) => {
-        const pageIndex = (p.offset || 0) / (p.limit || limit);
-        const logs = pages[pageIndex] || [];
-        return {
-          response: {
-            params: {},
-            logs,
-            count: logs.length,
-            groups: {},
-          },
-          convertedLogs: logs,
-          totalCount: 4 * logs.length,
-          currentCount: logs.length,
-          hasMore: pageIndex < 3,
-          useGroupPagination: false,
-          updatedFilterExpression: null,
-          updatedGroupingExpression: null,
-          targetGroupFilters: [],
-          effectiveLimit: limit,
-          effectiveOffset: p.offset || 0,
-        };
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockImplementation(async (p) => {
+      const pageIndex = (p.offset || 0) / (p.limit || limit);
+      const logs = pages[pageIndex] || [];
+      return {
+        response: {
+          params: {},
+          logs,
+          count: logs.length,
+          groups: {},
+        },
+        convertedLogs: logs,
+        totalCount: 4 * logs.length,
+        currentCount: logs.length,
+        hasMore: pageIndex < 3,
+        useGroupPagination: false,
+        updatedFilterExpression: null,
+        updatedGroupingExpression: null,
+        targetGroupFilters: [],
+        effectiveLimit: limit,
+        effectiveOffset: p.offset || 0,
+      };
+    });
 
     const updateLogs = vi.fn(() => ({ globalOffset: 0, groupOffset: 0 }));
 
@@ -272,7 +282,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit,
-      group_limit: limit,
+      groupLimit: limit,
       logsActions: {} as LogsActions,
       updateLogs,
       enabled: true,
@@ -319,9 +329,7 @@ describe('useInfiniteLogsQuery', () => {
     });
 
     // At least one call during the backward fetch should use prepend mode
-    const modes = updateLogs.mock.calls.map(
-      (call) => (call as Parameters<NonNullable<HookParams['updateLogs']>>)[1],
-    );
+    const modes = updateLogs.mock.calls.map((call) => (call as any)[1]);
     expect(modes).toContain('prepend');
 
     // We should now have a window that includes pageIndex 0
@@ -335,26 +343,24 @@ describe('useInfiniteLogsQuery', () => {
     const limit = 5;
     const logs: LogProps[] = [makeLog('log-1', 'Only page')];
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockResolvedValue({
-        response: {
-          params: {},
-          logs,
-          count: logs.length,
-          groups: {},
-        },
-        convertedLogs: logs,
-        totalCount: logs.length,
-        currentCount: logs.length,
-        hasMore: false,
-        useGroupPagination: false,
-        updatedFilterExpression: null,
-        updatedGroupingExpression: null,
-        targetGroupFilters: [],
-        effectiveLimit: limit,
-        effectiveOffset: 0,
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
+      response: {
+        params: {},
+        logs,
+        count: logs.length,
+        groups: {},
+      },
+      convertedLogs: logs,
+      totalCount: logs.length,
+      currentCount: logs.length,
+      hasMore: false,
+      useGroupPagination: false,
+      updatedFilterExpression: null,
+      updatedGroupingExpression: null,
+      targetGroupFilters: [],
+      effectiveLimit: limit,
+      effectiveOffset: 0,
+    });
 
     const params: HookParams = {
       tileId: 'tile-no-more',
@@ -367,7 +373,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit,
-      group_limit: limit,
+      groupLimit: limit,
       logsActions: {} as LogsActions,
       updateLogs: vi.fn(() => ({ globalOffset: 0, groupOffset: 0 })),
       enabled: true,
@@ -406,26 +412,24 @@ describe('useInfiniteLogsQuery', () => {
     const limit = 5;
     const logs: LogProps[] = [makeLog('log-1', 'Grouped page')];
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockResolvedValue({
-        response: {
-          params: {},
-          logs,
-          count: logs.length,
-          groups: {},
-        },
-        convertedLogs: logs,
-        totalCount: logs.length,
-        currentCount: logs.length,
-        hasMore: false,
-        useGroupPagination: true,
-        updatedFilterExpression: null,
-        updatedGroupingExpression: null,
-        targetGroupFilters: [],
-        effectiveLimit: limit,
-        effectiveOffset: 0,
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
+      response: {
+        params: {},
+        logs,
+        count: logs.length,
+        groups: {},
+      },
+      convertedLogs: logs,
+      totalCount: logs.length,
+      currentCount: logs.length,
+      hasMore: false,
+      useGroupPagination: true,
+      updatedFilterExpression: null,
+      updatedGroupingExpression: null,
+      targetGroupFilters: [],
+      effectiveLimit: limit,
+      effectiveOffset: 0,
+    });
 
     const params: HookParams = {
       tileId: 'tile-no-more-grouped',
@@ -438,7 +442,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: 'entries/level',
       groupSortingExpression: null,
       limit,
-      group_limit: limit,
+      groupLimit: limit,
       logsActions: {} as LogsActions,
       updateLogs: vi.fn(() => ({ globalOffset: 0, groupOffset: 0 })),
       enabled: true,
@@ -478,29 +482,27 @@ describe('useInfiniteLogsQuery', () => {
       return [makeLog(`log-${label}`, `Filter ${label}`)];
     };
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockImplementation(async (p) => {
-        const logs = makeLogsForFilter(p.filterExpression ?? null);
-        return {
-          response: {
-            params: {},
-            logs,
-            count: logs.length,
-            groups: {},
-          },
-          convertedLogs: logs,
-          totalCount: logs.length,
-          currentCount: logs.length,
-          hasMore: false,
-          useGroupPagination: false,
-          updatedFilterExpression: p.filterExpression,
-          updatedGroupingExpression: null,
-          targetGroupFilters: [],
-          effectiveLimit: p.limit || 20,
-          effectiveOffset: p.offset || 0,
-        };
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockImplementation(async (p) => {
+      const logs = makeLogsForFilter(p.filterExpression ?? null);
+      return {
+        response: {
+          params: {},
+          logs,
+          count: logs.length,
+          groups: {},
+        },
+        convertedLogs: logs,
+        totalCount: logs.length,
+        currentCount: logs.length,
+        hasMore: false,
+        useGroupPagination: false,
+        updatedFilterExpression: p.filterExpression,
+        updatedGroupingExpression: null,
+        targetGroupFilters: [],
+        effectiveLimit: p.limit || 20,
+        effectiveOffset: p.offset || 0,
+      };
+    });
 
     const logsActions = {
       create: vi.fn(),
@@ -511,7 +513,7 @@ describe('useInfiniteLogsQuery', () => {
       update: vi.fn(),
     } as unknown as LogsActions;
 
-    const baseParams: Omit<HookParams, 'filterExpression'> = {
+    const baseParams: any = {
       tileId: 'tile-params',
       tabId: 'tab-params',
       projectId: 'project-params',
@@ -522,7 +524,7 @@ describe('useInfiniteLogsQuery', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions,
       updateLogs: vi.fn(() => ({ globalOffset: 0, groupOffset: 0 })),
       enabled: true,
@@ -548,7 +550,7 @@ describe('useInfiniteLogsQuery', () => {
         params={{ ...baseParams, filterExpression: 'level=info' }}
         onResult={onResult}
       />,
-      { queryClient },
+      { queryClient }
     );
 
     await waitFor(() => {
@@ -558,9 +560,7 @@ describe('useInfiniteLogsQuery', () => {
     const firstPageData = latestResult!.data!.pages[0].data;
     // There should be at least one core call with the initial filter
     expect(
-      fetchLogsCoreSpy.mock.calls.some(
-        (call) => call[0].filterExpression === 'level=info',
-      ),
+      fetchLogsCoreSpy.mock.calls.some((call) => call[0].filterExpression === 'level=info')
     ).toBe(true);
 
     // Change filterExpression and rerender with the same QueryClient
@@ -568,7 +568,7 @@ describe('useInfiniteLogsQuery', () => {
       <TestComponent
         params={{ ...baseParams, filterExpression: 'level=error' }}
         onResult={onResult}
-      />,
+      />
     );
 
     await waitFor(() => {
@@ -578,9 +578,7 @@ describe('useInfiniteLogsQuery', () => {
     });
 
     expect(
-      fetchLogsCoreSpy.mock.calls.some(
-        (call) => call[0].filterExpression === 'level=error',
-      ),
+      fetchLogsCoreSpy.mock.calls.some((call) => call[0].filterExpression === 'level=error')
     ).toBe(true);
 
     const secondPageData = latestResult!.data!.pages[0].data;

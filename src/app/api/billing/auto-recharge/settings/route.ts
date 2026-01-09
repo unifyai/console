@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     const billingDetails = billingDetailsRet[0]
 
     const autoRechargeEnabled = billingDetails.autorecharge;
-    const autoRechargeThreshold = billingDetails.autorecharge_threshold;
-    const autoRechargeQty = billingDetails.autorecharge_qty;
+    const autoRechargeThreshold = billingDetails.autorechargeThreshold;
+    const autoRechargeQty = billingDetails.autorechargeQty;
 
     return NextResponse.json({ autoRechargeEnabled, autoRechargeThreshold, autoRechargeQty })
 

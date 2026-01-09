@@ -115,7 +115,7 @@ export const drawPlot = async (
     const xTable = selectedXAxisProperty?.split('.')[0] || '';
     const yTable = selectedYAxisProperty?.split('.')[0] || '';
 
-    const groupByColors = plotTileState?.plot_group_by_colors ?? undefined;
+    const groupByColors = plotTileState?.plotGroupByColors ?? undefined;
 
     // Draw selected plot type
     if (plotType === 'Line Chart') {

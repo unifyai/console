@@ -9,16 +9,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  getActiveScales,
-  ScaleOption,
-  DataTypeConfig,
-} from '../fixtures/configs';
-import {
-  createMockLogs,
-  createMockFields,
-  createAggregatedMockData,
-} from '../fixtures/mockData';
+import { getActiveScales, ScaleOption, DataTypeConfig } from '../fixtures/configs';
+import { createMockLogs, createMockFields, createAggregatedMockData } from '../fixtures/mockData';
 
 // =============================================================================
 // Types
@@ -162,11 +154,11 @@ describe('Field Generation Benchmarks', () => {
       logBenchmarkResult({
         operation: 'createMockFields',
         scale: `${dataTypeConfig.x_axis_type}-${dataTypeConfig.y_axis_type}`,
-        dataCount: fields.length,
+        dataCount: Object.keys(fields).length,
         duration,
       });
 
-      expect(fields.length).toBeGreaterThan(0);
+      expect(Object.keys(fields).length).toBeGreaterThan(0);
       expect(duration).toBeLessThan(100); // Should be very fast
     });
   });
@@ -232,5 +224,3 @@ describe('Benchmark Summary', () => {
     expect(true).toBe(true);
   });
 });
-
-

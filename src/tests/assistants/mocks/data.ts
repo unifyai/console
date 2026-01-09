@@ -7,32 +7,32 @@ import { SupportedLanguage, Gender } from '@cartesia/cartesia-js/api';
  */
 export function createMockAssistant(overrides: Partial<Assistant> = {}): Assistant {
   return {
-    agent_id: faker.string.uuid(),
-    user_id: faker.string.uuid(), // ID of the user who created this assistant
-    organization_id: null, // null for personal workspace assistants
-    user_first_name: 'Test', // Owner's first name for transcript context
-    user_last_name: 'Owner', // Owner's last name for transcript context
-    first_name: faker.person.firstName(),
+    agentId: faker.string.uuid(),
+    userId: faker.string.uuid(), // ID of the user who created this assistant
+    organizationId: null, // null for personal workspace assistants
+    userFirstName: 'Test', // Owner's first name for transcript context
+    userLastName: 'Owner', // Owner's last name for transcript context
+    firstName: faker.person.firstName(),
     surname: faker.person.lastName(),
     email: faker.internet.email().toLowerCase(),
     phone: faker.phone.number(),
-    assistant_whatsapp_number: faker.phone.number(),
-    profile_photo: faker.image.avatar(),
-    profile_video: null,
+    assistantWhatsappNumber: faker.phone.number(),
+    profilePhoto: faker.image.avatar(),
+    profileVideo: null,
     age: faker.number.int({ min: 20, max: 50 }),
     nationality: 'United States',
     about: faker.lorem.paragraph(),
-    phone_country: 'US',
+    phoneCountry: 'US',
     timezone: 'UTC',
-    voice_id: `v_${faker.string.alphanumeric(10)}`,
-    voice_provider: 'elevenlabs',
-    voice_mode: 'tts',
-    user_phone: null,
-    user_whatsapp_number: null,
-    weekly_limit: 40,
-    max_parallel: 10,
-    created_at: faker.date.past().toISOString(),
-    updated_at: faker.date.recent().toISOString(),
+    voiceId: `v_${faker.string.alphanumeric(10)}`,
+    voiceProvider: 'elevenlabs',
+    voiceMode: 'tts',
+    userPhone: null,
+    userWhatsappNumber: null,
+    weeklyLimit: 40,
+    maxParallel: 10,
+    createdAt: faker.date.past().toISOString(),
+    updatedAt: faker.date.recent().toISOString(),
     ...overrides,
   };
 }
@@ -40,17 +40,17 @@ export function createMockAssistant(overrides: Partial<Assistant> = {}): Assista
 // --- Exported Mock Data ---
 
 export const mockAssistants: Assistant[] = [
-  createMockAssistant({ agent_id: '1', first_name: 'Jane', surname: 'Doe', email: 'jane.doe@example.com' }),
-  createMockAssistant({ agent_id: '2', first_name: 'John', surname: 'Smith', email: 'john.smith@example.com', phone: null, assistant_whatsapp_number: null }),
+  createMockAssistant({ agentId: '1', firstName: 'Jane', surname: 'Doe', email: 'jane.doe@example.com' }),
+  createMockAssistant({ agentId: '2', firstName: 'John', surname: 'Smith', email: 'john.smith@example.com', phone: null, assistantWhatsappNumber: null }),
 ];
 
 export const mockAssistantWithoutSocials: Assistant = createMockAssistant({
-    agent_id: '3',
-    first_name: 'Alex',
+    agentId: '3',
+    firstName: 'Alex',
     surname: 'Ray',
     email: null,
     phone: null,
-    assistant_whatsapp_number: null,
+    assistantWhatsappNumber: null,
 });
 
 export const mockStatuses = new Map<string, AssistantStatus | null>();
@@ -59,75 +59,75 @@ mockStatuses.set('2', { running: false } as AssistantStatus);
 
 export const mockVoices: VoiceOption[] = [
     {
-        voice_id: 'voice_1',
+        voiceId: 'voice_1',
         name: 'Alice (US)',
         description: 'Friendly American female',
         gender: 'female',
         language: 'en',
         provider: 'elevenlabs',
-        is_preset: true,
+        isPreset: true,
         isUserVoiceInOrchestra: false
     },
     {
-        voice_id: 'voice_2',
+        voiceId: 'voice_2',
         name: 'Bob (UK)',
         description: 'Professional British male',
         gender: 'male',
         language: 'en',
         provider: 'elevenlabs',
-        is_preset: true,
+        isPreset: true,
         isUserVoiceInOrchestra: false
     },
     {
-        voice_id: 'voice_3',
+        voiceId: 'voice_3',
         name: 'Speedy (OpenAI)',
         description: 'Low latency voice',
         gender: 'male',
         language: 'en',
         provider: 'openai',
-        is_preset: true,
+        isPreset: true,
         isUserVoiceInOrchestra: false
     }
 ];
 
 export const mockPresets: AssistantPreset[] = [
     {
-        first_name: 'Sarah',
+        firstName: 'Sarah',
         surname: 'Connor',
         age: 28,
         nationality: 'United States',
         about: 'Experienced scheduler.',
-        profile_photo: 'https://example.com/photo1.jpg',
-        profile_video: null,
-        phone_country: 'US',
+        profilePhoto: 'https://example.com/photo1.jpg',
+        profileVideo: null,
+        phoneCountry: 'US',
         timezone: 'America/New_York',
         gender: 'female',
-        voice_ids: {
+        voiceIds: {
             elevenlabs: 'voice_1',
             openai: 'voice_3',
             cartesia: null
         },
         language: 'en',
-        voice_mode: 'tts'
+        voiceMode: 'tts'
     },
     {
-        first_name: 'James',
+        firstName: 'James',
         surname: 'Bond',
         age: 40,
         nationality: 'United Kingdom',
         about: 'Secret agent assistant.',
-        profile_photo: 'https://example.com/photo2.jpg',
-        profile_video: null,
-        phone_country: 'GB',
+        profilePhoto: 'https://example.com/photo2.jpg',
+        profileVideo: null,
+        phoneCountry: 'GB',
         timezone: 'Europe/London',
         gender: 'male',
-        voice_ids: {
+        voiceIds: {
             elevenlabs: 'voice_2',
             openai: 'voice_3', // Reuse same openai voice for simplicity
             cartesia: null
         },
         language: 'en',
-        voice_mode: 'tts'
+        voiceMode: 'tts'
     }
 ];
 

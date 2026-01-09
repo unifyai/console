@@ -172,7 +172,7 @@ export async function seedTestProjectData(count: number = 100): Promise<void> {
         apiKey: VITE_TEST_API_KEY,
       },
       body: JSON.stringify({
-        project_name: projectName,
+        projectName: projectName,
         entries,
       }),
     });
@@ -288,30 +288,30 @@ export function assertConfigCorrectness(
   expectedConfig: PlotConfig
 ) {
   expect(responseConfig.type).toBe(expectedConfig.type);
-  expect(responseConfig.xAxis).toBe(expectedConfig.x_axis);
-  if (expectedConfig.y_axis) {
-    expect(responseConfig.yAxis).toBe(expectedConfig.y_axis);
+  expect(responseConfig.xAxis).toBe(expectedConfig.xAxis);
+  if (expectedConfig.yAxis) {
+    expect(responseConfig.yAxis).toBe(expectedConfig.yAxis);
   }
-  expect(responseConfig.scaleX).toBe(expectedConfig.scale_x);
-  expect(responseConfig.scaleY).toBe(expectedConfig.scale_y);
+  expect(responseConfig.scaleX).toBe(expectedConfig.scaleX);
+  expect(responseConfig.scaleY).toBe(expectedConfig.scaleY);
 
   if (expectedConfig.type === 'histogram') {
-    expect(responseConfig.binCount).toBe(expectedConfig.bin_count);
+    expect(responseConfig.binCount).toBe(expectedConfig.binCount);
     expect(responseConfig.yAxis).toBeUndefined();
   }
   if (expectedConfig.type === 'scatter') {
-    expect(responseConfig.showRegression).toBe(expectedConfig.show_regression);
+    expect(responseConfig.showRegression).toBe(expectedConfig.showRegression);
   }
   if (expectedConfig.type === 'bar') {
-    if (expectedConfig.sort_by) {
-      expect(responseConfig.sortBy).toBe(expectedConfig.sort_by);
+    if (expectedConfig.sortBy) {
+      expect(responseConfig.sortBy).toBe(expectedConfig.sortBy);
     }
-    if (expectedConfig.sort_order) {
-      expect(responseConfig.sortOrder).toBe(expectedConfig.sort_order);
+    if (expectedConfig.sortOrder) {
+      expect(responseConfig.sortOrder).toBe(expectedConfig.sortOrder);
     }
   }
-  if (expectedConfig.group_by) {
-    expect(responseConfig.groupBy).toBe(expectedConfig.group_by);
+  if (expectedConfig.groupBy) {
+    expect(responseConfig.groupBy).toBe(expectedConfig.groupBy);
   }
   if (expectedConfig.aggregate) {
     expect(responseConfig.aggregate).toBe(expectedConfig.aggregate);
@@ -332,7 +332,7 @@ export function assertDataCorrectness(
   if (expectedLogs) {
     expect(data.length).toBe(expectedLogs.length);
   } else {
-    const hasFilter = projectConfig?.filter_expr != null;
+    const hasFilter = projectConfig?.filterExpr != null;
     if (hasFilter) {
       expect(data.length).toBeGreaterThanOrEqual(0);
     } else {
@@ -362,7 +362,7 @@ export function assertDataCorrectness(
   for (const log of validLogs.slice(0, 20)) {
     const xValue = getLogFieldValue(log, 'table1.x_value');
 
-    switch (dataTypeConfig.x_axis_type) {
+    switch (dataTypeConfig.xAxisType) {
       case 'float':
       case 'int':
         expect(typeof xValue).toBe('number');
@@ -381,7 +381,7 @@ export function assertDataCorrectness(
     if (expectedConfig.type !== 'histogram') {
       const yValue = getLogFieldValue(log, 'table1.y_value');
       if (yValue !== null) {
-        switch (dataTypeConfig.y_axis_type) {
+        switch (dataTypeConfig.yAxisType) {
           case 'float':
           case 'int':
             expect(typeof yValue).toBe('number');
@@ -392,8 +392,8 @@ export function assertDataCorrectness(
     }
   }
 
-  if (expectedConfig.group_by) {
-    const categoryField = expectedConfig.group_by;
+  if (expectedConfig.groupBy) {
+    const categoryField = expectedConfig.groupBy;
     const categoryValues = data
       .map((log) => getLogFieldValue(log, categoryField))
       .filter((v) => v !== null && v !== undefined);
@@ -405,7 +405,7 @@ export function assertDataCorrectness(
   }
 
   const numericXValues = data
-    .map((log) => getLogFieldValue(log, expectedConfig.x_axis))
+    .map((log) => getLogFieldValue(log, expectedConfig.xAxis))
     .filter((v) => typeof v === 'number' && Number.isFinite(v)) as number[];
 
   if (numericXValues.length > 0) {
@@ -446,13 +446,13 @@ export function assertDataPreprocessing(
 
     const xValue = getLogFieldValue(log, 'table1.x_value');
     if (xValue !== null && xValue !== undefined) {
-      if (['float', 'int'].includes(dataTypeConfig.x_axis_type)) {
+      if (['float', 'int'].includes(dataTypeConfig.xAxisType)) {
         expect(typeof xValue).toBe('number');
       }
-      if (dataTypeConfig.x_axis_type === 'str') {
+      if (dataTypeConfig.xAxisType === 'str') {
         expect(typeof xValue).toBe('string');
       }
-      if (dataTypeConfig.x_axis_type === 'datetime') {
+      if (dataTypeConfig.xAxisType === 'datetime') {
         expect(typeof xValue).toBe('string');
         expect(() => new Date(xValue as string)).not.toThrow();
       }
@@ -477,8 +477,8 @@ export function assertDataPreprocessing(
   }
 
   if (projectConfig && PLOT_TEST_API_REAL) {
-    if (projectConfig.filter_expr) {
-      const filterExpr = projectConfig.filter_expr;
+    if (projectConfig.filterExpr) {
+      const filterExpr = projectConfig.filterExpr;
 
       if (filterExpr === "status == 'success'") {
         for (const log of data) {
@@ -522,8 +522,8 @@ export function assertDataPreprocessing(
       }
     }
 
-    if (projectConfig.group_by && projectConfig.group_by.length > 0) {
-      const groupFields = projectConfig.group_by;
+    if (projectConfig.groupBy && projectConfig.groupBy.length > 0) {
+      const groupFields = projectConfig.groupBy;
 
       for (const groupField of groupFields) {
         const hasGroupField = data.some((log) => {
@@ -593,9 +593,9 @@ export function assertMetadataCorrectness(
   expectedProjectName?: string
 ) {
   expect(metadata).toBeDefined();
-  expect(metadata.project_name).toBeDefined();
+  expect(metadata.projectName).toBeDefined();
   if (expectedProjectName) {
-    expect(metadata.project_name).toBe(expectedProjectName);
+    expect(metadata.projectName).toBe(expectedProjectName);
   }
   expect(metadata.created_at).toBeDefined();
   expect(metadata.token).toBeDefined();
@@ -641,19 +641,19 @@ export function buildApiTestMatrix(): ApiMatrixTestContext[] {
             const scaleAdjustedProjectConfig: ProjectConfig = {
               ...projectConfig,
               // Use shard-specific project name for real API to avoid conflicts
-              project_name: PLOT_TEST_API_REAL ? SHARD_TEST_PROJECT : projectConfig.project_name,
+              projectName: PLOT_TEST_API_REAL ? SHARD_TEST_PROJECT : projectConfig.projectName,
               limit: scale.count,
             };
 
             const adjustedPlotConfig: PlotConfig = PLOT_TEST_API_REAL
               ? {
                   ...plotConfig,
-                  x_axis: `table1.${getFieldForDataType('x_value', dataTypeConfig.x_axis_type)}`,
-                  y_axis: plotConfig.y_axis
-                    ? `table1.${getFieldForDataType('y_value', dataTypeConfig.y_axis_type)}`
+                  xAxis: `table1.${getFieldForDataType('x_value', dataTypeConfig.xAxisType)}`,
+                  yAxis: plotConfig.yAxis
+                    ? `table1.${getFieldForDataType('y_value', dataTypeConfig.yAxisType)}`
                     : undefined,
-                  group_by: plotConfig.group_by
-                    ? getGroupByFieldForType(dataTypeConfig.group_by_type)
+                  groupBy: plotConfig.groupBy
+                    ? getGroupByFieldForType(dataTypeConfig.groupByType)
                     : undefined,
                 }
               : plotConfig;
@@ -681,7 +681,7 @@ export function buildApiTestMatrix(): ApiMatrixTestContext[] {
  */
 export function getMockResponse(ctx: ApiMatrixTestContext) {
   return setupMatrixTestHandlers(ctx.adjustedPlotConfig, ctx.dataTypeConfig, ctx.scale, {
-    projectName: ctx.scaleAdjustedProjectConfig.project_name,
+    projectName: ctx.scaleAdjustedProjectConfig.projectName,
     includeEdgeCases: true,
   });
 }

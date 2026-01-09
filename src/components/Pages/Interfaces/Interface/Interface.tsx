@@ -291,7 +291,7 @@ const Interface = ({
 
   // Fetch project tree with icons
   const { data: projectTree = [], isLoading: isLoadingProjectTree, isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
-    Array<{project_name:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
+    Array<{projectName:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updatedAt?: string}>; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {
@@ -310,7 +310,7 @@ const Interface = ({
   
   // Get interfaces from projectTree for selection screen (faster than separate API call)
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
-  const currentProjectData = safeProjectTree.find(p => p.project_name === projectQueryParam);
+  const currentProjectData = safeProjectTree.find(p => p.projectName === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
   // Show loading if: projectTree is loading, OR no tree data yet, OR tree exists but current project has no interfaces yet (still fetching)
   const isLoadingInterfacesForSelection = showInterfaceSelection && (
@@ -689,8 +689,8 @@ const Interface = ({
           if (projectInterfaces.length > 0) {
             // If interfaces exist, find the most recently updated one and redirect.
             const sortedInterfaces = [...projectInterfaces].sort((a, b) => {
-              const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-              const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+              const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
               return dateB - dateA; // Sort descending (newest first)
             });
             const latestInterface = sortedInterfaces[0];
@@ -1040,9 +1040,9 @@ const Interface = ({
       
       // Perform the save operation
       await saveTabWithTilesMutation.mutateAsync({
-        interface_id: interfaceId,
-        tab_name: activeTabName,
-        tile_ids: tileIds
+        interfaceId: interfaceId,
+        tabName: activeTabName,
+        tileIds: tileIds
       });
       
       // Show success in overlay
@@ -1418,7 +1418,7 @@ const Interface = ({
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-1 pb-6 max-h-[250px]">
                   {projects?.map((project) => {
-                    const projectData = safeProjectTree.find(p => p.project_name === project);
+                    const projectData = safeProjectTree.find(p => p.projectName === project);
                     const icon = projectData?.icon;
                     const isLoading = loadingProjectName === project;
                     return (

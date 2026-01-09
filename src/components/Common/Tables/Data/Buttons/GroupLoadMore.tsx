@@ -17,7 +17,7 @@ export interface GroupLoadMoreProps {
   groupingExpression: string | null;
   groupSortingExpression: string | null;
   limit: number;
-  group_limit: number;
+  groupLimit: number;
   logsActions: LogsActions;
   
   // Group-specific parameters
@@ -86,7 +86,7 @@ export default function GroupLoadMore({
   groupingExpression,
   groupSortingExpression,
   limit,
-  group_limit,
+  groupLimit,
   logsActions,
   groupId,
   dataTypes,
@@ -108,7 +108,7 @@ export default function GroupLoadMore({
   position = "after", // Default to "after" for backward compatibility
 }: GroupLoadMoreProps) {
   const { data: tileDataState } = useTileData(tileId, tabId);
-  const autoUpdate = tileDataState?.auto_update === "true";
+  const autoUpdate = tileDataState?.autoUpdate === "true";
 
   const infiniteGroupQuery = useInfiniteGroupSpecificLogsQuery({
     tileId,
@@ -121,7 +121,7 @@ export default function GroupLoadMore({
     groupingExpression,
     groupSortingExpression,
     limit,
-    group_limit,
+    groupLimit,
     logsActions,
     updateLogs,
     onGroupOffsetChange,

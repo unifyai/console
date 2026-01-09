@@ -68,7 +68,7 @@ export default function Terminal({
   );
   const { data: tabData } = useTabData(tabId, interfaceId);
   const tileIds = tabData?.tileIds;
-  const tiles = useTiles(tileIds, ["type", "terminalTile.shell_type"]);
+  const tiles = useTiles(tileIds, ["type", "terminalTile.shellType"]);
   const terminalTiles = tiles.filter((tile) => tile.type == "Terminal");
 
   // Focus pane button support
@@ -82,7 +82,7 @@ export default function Terminal({
 
   /* -------------------------------------------------- state / refs */
   const [started, setStarted] = useState(false);
-  const [shell, setShell] = useState(terminalTileState?.shell_type || "bash");
+  const [shell, setShell] = useState(terminalTileState?.shellType || "bash");
   const containerRef = useRef<HTMLDivElement>(null);
   const bufferRef = useRef<string>("");
   const termRef = useRef<XTerm>();
@@ -135,9 +135,9 @@ export default function Terminal({
       } else {
         term.write("Starting terminal...\r\n");
       }
-      const { session_id } = await codeActions.createTerminal(shell, projectId);
+      const { sessionId: newSessionId } = await codeActions.createTerminal(shell, projectId);
       term.reset();
-      sessionId.current = session_id;
+      sessionId.current = newSessionId;
     } catch {
       term.reset();
       term.write("Failed to start terminal session\r\n");

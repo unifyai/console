@@ -42,7 +42,7 @@ describe('Cross-Table Plotting', () => {
   describe('getUsedTableNames - Table Name Extraction', () => {
     const meta = {
       scenario: 'Extracting table names from plot configuration',
-      behavior: 'Correctly identifies all tables used in x_axis, y_axis, and plot_group_by'
+      behavior: 'Correctly identifies all tables used in xAxis, yAxis, and plotGroupBy'
     };
 
     it('extracts table name from X axis property', () => {
@@ -56,8 +56,8 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.column1',
+        plotTile: {
+          xAxis: 'TableA.column1',
         },
       };
 
@@ -77,8 +77,8 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          y_axis: 'TableB.column2',
+        plotTile: {
+          yAxis: 'TableB.column2',
         },
       };
 
@@ -98,9 +98,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.column1',
-          y_axis: 'TableA.column2',
+        plotTile: {
+          xAxis: 'TableA.column1',
+          yAxis: 'TableA.column2',
         },
       };
 
@@ -120,9 +120,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.column1',
-          y_axis: 'TableB.column2',
+        plotTile: {
+          xAxis: 'TableA.column1',
+          yAxis: 'TableB.column2',
         },
       };
 
@@ -132,7 +132,7 @@ describe('Cross-Table Plotting', () => {
       expect(names).toHaveLength(2);
     });
 
-    it('extracts table name from plot_group_by', () => {
+    it('extracts table name from plotGroupBy', () => {
       const meta = {
         scenario: 'Grouping by a column from TableC',
         behavior: 'Returns TableC in addition to axis tables'
@@ -143,10 +143,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_group_by: 'TableC.category',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotGroupBy: 'TableC.category',
         },
       };
 
@@ -168,9 +168,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'column1', // No table prefix
-          y_axis: 'column2',
+        plotTile: {
+          xAxis: 'column1', // No table prefix
+          yAxis: 'column2',
         },
       };
 
@@ -178,7 +178,7 @@ describe('Cross-Table Plotting', () => {
       expect(names).toHaveLength(0);
     });
 
-    it('handles empty plot_tile configuration', () => {
+    it('handles empty plotTile configuration', () => {
       const meta = {
         scenario: 'Plot tile has no axis configuration',
         behavior: 'Returns empty array'
@@ -189,14 +189,14 @@ describe('Cross-Table Plotting', () => {
         name: 'Test Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {},
+        plotTile: {},
       };
 
       const names = getUsedTableNames(plotTile);
       expect(names).toHaveLength(0);
     });
 
-    it('handles undefined plot_tile', () => {
+    it('handles undefined plotTile', () => {
       const meta = {
         scenario: 'Plot tile configuration is undefined',
         behavior: 'Returns empty array without errors'
@@ -222,21 +222,21 @@ describe('Cross-Table Plotting', () => {
 
     const tableAFields: LogFieldsResponseProps = {
       'entries/x': {
-        data_type: 'float',
-        field_type: 'entry',
+        dataType: 'float',
+        fieldType: 'entry',
         artifacts: '',
         mutable: 'false',
-        created_at: '',
+        createdAt: '',
       },
     };
 
     const tableBFields: LogFieldsResponseProps = {
       'entries/y': {
-        data_type: 'float',
-        field_type: 'entry',
+        dataType: 'float',
+        fieldType: 'entry',
         artifacts: '',
         mutable: 'false',
-        created_at: '',
+        createdAt: '',
       },
     };
 
@@ -251,9 +251,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -323,9 +323,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -390,10 +390,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_group_by: 'TableC.category',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotGroupBy: 'TableC.category',
         },
       };
 
@@ -405,11 +405,11 @@ describe('Cross-Table Plotting', () => {
 
       const tableCFields: LogFieldsResponseProps = {
         'entries/category': {
-          data_type: 'string',
-          field_type: 'entry',
+          dataType: 'string',
+          fieldType: 'entry',
           artifacts: '',
           mutable: 'false',
-          created_at: '',
+          createdAt: '',
         },
       };
 
@@ -477,9 +477,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -538,9 +538,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -588,9 +588,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -655,9 +655,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -667,10 +667,10 @@ describe('Cross-Table Plotting', () => {
       ];
 
       const tableAFields: LogFieldsResponseProps = {
-        'entries/x': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/x': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
       const tableBFields: LogFieldsResponseProps = {
-        'entries/y': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/y': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
 
       const plotArguments: PlotArguments = {
@@ -714,9 +714,9 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Plot',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
         },
       };
 
@@ -726,10 +726,10 @@ describe('Cross-Table Plotting', () => {
       ];
 
       const tableAFields: LogFieldsResponseProps = {
-        'entries/x': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/x': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
       const tableBFields: LogFieldsResponseProps = {
-        'entries/y': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/y': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
 
       const plotArguments: PlotArguments = {
@@ -759,10 +759,10 @@ describe('Cross-Table Plotting', () => {
     };
 
     const tableAFields: LogFieldsResponseProps = {
-      'entries/x': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+      'entries/x': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
     };
     const tableBFields: LogFieldsResponseProps = {
-      'entries/y': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+      'entries/y': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
     };
 
     const setupCrossTableMocks = () => {
@@ -806,10 +806,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Line',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_type: 'Line Chart',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotType: 'Line Chart',
         },
       };
 
@@ -852,10 +852,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Bar',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_type: 'Bar Chart',
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotType: 'Bar Chart',
         },
       };
 
@@ -906,10 +906,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Histogram',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          // No y_axis for histogram
-          plot_type: 'Histogram',
+        plotTile: {
+          xAxis: 'TableA.x',
+          // No yAxis for histogram
+          plotType: 'Histogram',
         },
       };
 
@@ -941,8 +941,8 @@ describe('Cross-Table Plotting', () => {
       };
 
       const tableAFieldsWithGroup: LogFieldsResponseProps = {
-        'entries/x': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
-        'entries/category': { data_type: 'string', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/x': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
+        'entries/category': { dataType: 'string', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
 
       mockFetch
@@ -976,10 +976,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Grouped',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_group_by: 'TableA.category', // Group by from same table as X
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotGroupBy: 'TableA.category', // Group by from same table as X
         },
       };
 
@@ -1014,8 +1014,8 @@ describe('Cross-Table Plotting', () => {
       };
 
       const tableBFieldsWithGroup: LogFieldsResponseProps = {
-        'entries/y': { data_type: 'float', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
-        'entries/category': { data_type: 'string', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        'entries/y': { dataType: 'float', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
+        'entries/category': { dataType: 'string', fieldType: 'entry', artifacts: '', mutable: 'false', createdAt: '' },
       };
 
       mockFetch
@@ -1049,10 +1049,10 @@ describe('Cross-Table Plotting', () => {
         name: 'Cross Grouped',
         type: 'Plot',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableB.y',
-          plot_group_by: 'TableB.category', // Group by from same table as Y
+        plotTile: {
+          xAxis: 'TableA.x',
+          yAxis: 'TableB.y',
+          plotGroupBy: 'TableB.category', // Group by from same table as Y
         },
       };
 

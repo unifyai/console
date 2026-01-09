@@ -61,7 +61,7 @@ function generateBarChartMatrix(): BarMatrixConfig[] {
   const allPlotConfigs = generateValidPlotConfigsForType('bar');
 
   // Bar charts accept ANY x-axis type (used as categorical labels via JSON.stringify)
-  // Production code (plot-bar.ts line 168) has no data_type filter
+  // Production code (plot-bar.ts line 168) has no dataType filter
   // y-axis must be numeric for meaningful aggregation
   const allDataTypes = generateDataTypeConfigs().filter(
     (dt) => ['float', 'int'].includes(dt.y_axis_type)
@@ -124,7 +124,7 @@ function defineBarChartTests(
       result,
       deterministicData,
       'table1.x_value',
-      !!plotConfig.group_by,
+      !!plotConfig.groupBy,
       dataTypeConfig.group_by_type
     );
 
@@ -146,13 +146,13 @@ function defineBarChartTests(
     expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
 
     // Non-grouped: consistent widths and spacing
-    if (!plotConfig.group_by) {
+    if (!plotConfig.groupBy) {
       assertConsistentBarWidths(bars);
       assertBarsEvenlySpaced(bars);
     }
 
     // Grouped: different colors
-    if (plotConfig.group_by && bars.length > 1) {
+    if (plotConfig.groupBy && bars.length > 1) {
       const fillColors = new Set(
         bars.map((b) => b.getAttribute('fill')).filter(Boolean)
       );
@@ -160,14 +160,14 @@ function defineBarChartTests(
     }
 
     // Sorting assertions
-    if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by &&
-        (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y') && bars.length > 1) {
+    if (plotConfig.sortBy && plotConfig.sortOrder && !plotConfig.groupBy &&
+        (plotConfig.sortBy === 'value' || plotConfig.sortBy === 'y') && bars.length > 1) {
       const heights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
-      if (plotConfig.sort_order === 'asc') {
+      if (plotConfig.sortOrder === 'asc') {
         for (let i = 1; i < heights.length; i++) {
           expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1] - POSITION_TOLERANCE);
         }
-      } else if (plotConfig.sort_order === 'desc') {
+      } else if (plotConfig.sortOrder === 'desc') {
         for (let i = 1; i < heights.length; i++) {
           expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
         }
@@ -175,7 +175,7 @@ function defineBarChartTests(
     }
 
     // Grouped bar positions
-    if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
+    if (plotConfig.sortBy && plotConfig.sortOrder && plotConfig.groupBy) {
       expect(bars.length).toBeGreaterThan(0);
       const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0'));
       for (const x of xPositions) {

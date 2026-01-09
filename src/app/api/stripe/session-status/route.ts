@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const sessionId = searchParams.get('session_id');
+  const sessionId = searchParams.get('sessionId');
   if (!sessionId) {
-    return NextResponse.json({ error: 'Missing session_id' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
   }
 
   if (!stripe) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const billingDetails = await getUserBillingDetails(user.id);
-    const customerID = billingDetails[0]?.stripe_customer_id;
+    const customerID = billingDetails[0]?.stripeCustomerId;
 
     if (!customerID) {
       return NextResponse.json({ error: 'User has no Stripe customer ID' }, { status: 404 });
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       status: session.status,
-      payment_status: session.payment_status,
+      paymentStatus: session.payment_status,
     });
 
   } catch (error: any) {

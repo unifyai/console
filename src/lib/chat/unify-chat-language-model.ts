@@ -104,13 +104,13 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
       // safe_prompt: {}, //this.settings.safePrompt,
 
       // standardized settings:
-      max_tokens: maxTokens,
+      maxTokens: maxTokens,
       temperature,
-      top_p: topP,
-      random_seed: seed,
+      topP: topP,
+      randomSeed: seed,
 
       // response format:
-      response_format:
+      responseFormat:
         responseFormat?.type === 'json' ? { type: 'json_object' } : undefined,
 
       // messages:
@@ -119,10 +119,10 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
 
     switch (type) {
       case 'regular': {
-        const { tools, tool_choice, toolWarnings } = prepareTools(mode);
+        const { tools, toolChoice, toolWarnings } = prepareTools(mode);
 
         return {
-          args: { ...baseArgs, tools, tool_choice },
+          args: { ...baseArgs, tools, toolChoice },
           warnings: [...warnings, ...toolWarnings],
         };
       }
@@ -131,7 +131,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
         return {
           args: {
             ...baseArgs,
-            response_format: { type: 'json_object' },
+            responseFormat: { type: 'json_object' },
           },
           warnings,
         };
@@ -141,7 +141,7 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
         return {
           args: {
             ...baseArgs,
-            tool_choice: 'any',
+            toolChoice: 'any',
             tools: [{ type: 'function', function: mode.tool }],
           },
           warnings,
@@ -189,16 +189,16 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
 
     return {
       text,
-      toolCalls: choice.message.tool_calls?.map(toolCall => ({
+      toolCalls: choice.message.toolCalls?.map(toolCall => ({
         toolCallType: 'function',
         toolCallId: toolCall.id,
         toolName: toolCall.function.name,
         args: toolCall.function.arguments!,
       })),
-      finishReason: mapUnifyFinishReason(choice.finish_reason),
+      finishReason: mapUnifyFinishReason(choice.finishReason),
       usage: {
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
+        promptTokens: response.usage.promptTokens,
+        completionTokens: response.usage.completionTokens,
       },
       rawCall: { rawPrompt, rawSettings },
       rawResponse: { headers: responseHeaders },
@@ -262,15 +262,15 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
 
             if (value.usage != null) {
               usage = {
-                promptTokens: value.usage.prompt_tokens,
-                completionTokens: value.usage.completion_tokens,
+                promptTokens: value.usage.promptTokens,
+                completionTokens: value.usage.completionTokens,
               };
             }
 
             const choice = value.choices[0];
 
-            if (choice?.finish_reason != null) {
-              finishReason = mapUnifyFinishReason(choice.finish_reason);
+            if (choice?.finishReason != null) {
+              finishReason = mapUnifyFinishReason(choice.finishReason);
             }
 
             if (choice?.delta == null) {
@@ -311,8 +311,8 @@ export class UnifyChatLanguageModel implements LanguageModelV1 {
               trimLeadingSpace = false;
             }
 
-            if (delta.tool_calls != null) {
-              for (const toolCall of delta.tool_calls) {
+            if (delta.toolCalls != null) {
+              for (const toolCall of delta.toolCalls) {
                 // unify tool calls come in one piece:
                 controller.enqueue({
                   type: 'tool-call-delta',
@@ -356,7 +356,7 @@ const unifyChatResponseSchema = z.object({
       message: z.object({
         role: z.literal('assistant'),
         content: z.string().nullable(),
-        tool_calls: z
+        toolCalls: z
           .array(
             z.object({
               id: z.string(),
@@ -366,13 +366,13 @@ const unifyChatResponseSchema = z.object({
           .nullish(),
       }),
       index: z.number(),
-      finish_reason: z.string().nullish(),
+      finishReason: z.string().nullish(),
     }),
   ),
   object: z.literal('chat.completion'),
   usage: z.object({
-    prompt_tokens: z.number(),
-    completion_tokens: z.number(),
+    promptTokens: z.number(),
+    completionTokens: z.number(),
   }),
 });
 
@@ -387,7 +387,7 @@ const unifyChatChunkSchema = z.object({
       delta: z.object({
         role: z.enum(['assistant']).optional(),
         content: z.string().nullish(),
-        tool_calls: z
+        toolCalls: z
           .array(
             z.object({
               id: z.string(),
@@ -396,14 +396,14 @@ const unifyChatChunkSchema = z.object({
           )
           .nullish(),
       }),
-      finish_reason: z.string().nullish(),
+      finishReason: z.string().nullish(),
       index: z.number(),
     }),
   ),
   usage: z
     .object({
-      prompt_tokens: z.number(),
-      completion_tokens: z.number(),
+      promptTokens: z.number(),
+      completionTokens: z.number(),
     })
     .nullish(),
 });

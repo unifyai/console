@@ -35,7 +35,7 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the TerminalTile that will be synced with the server
  */
-export type SyncedTerminalProperties = "shell_type";
+export type SyncedTerminalProperties = "shellType";
 
 export type TerminalLoadingStates = {
   [key in SyncedTerminalProperties]: boolean;
@@ -76,7 +76,7 @@ export function useTerminalTileSync(
   // Only one property for terminal
   const shellTypeMutation = usePatchSpecializedTileQuery<"Terminal">();
 
-  const mutations = { shell_type: shellTypeMutation };
+  const mutations = { shellType: shellTypeMutation };
 
   // wrapper
   const wrapShellType = async (value: string | null | undefined) => {
@@ -87,10 +87,10 @@ export function useTerminalTileSync(
     if (!tileName || !tabId) return;
 
     shellTypeMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Terminal",
-      updateData: { shell_type: value ?? null },
+      updateData: { shellType: value ?? null },
       actions: granularTileActions,
     });
   };
@@ -109,11 +109,11 @@ export function useTerminalTileSync(
       terminalTile,
       terminalTileActions: null,
       loading: {
-        shell_type: false,
+        shellType: false,
         any: false,
       },    
       error: {
-        shell_type: null,
+        shellType: null,
         any: false,
       },
       exists: false,
@@ -122,14 +122,14 @@ export function useTerminalTileSync(
 
   // loading & error states
   const loading: TerminalLoadingStates = {
-    shell_type: mutations.shell_type.isPending,
+    shellType: mutations.shellType.isPending,
     any: false,
   };
 
   loading.any = Object.values(mutations).some(m => m.isPending);
 
   const error: TerminalErrorStates = {
-    shell_type: mutations.shell_type.error,
+    shellType: mutations.shellType.error,
     any: false,
   };
 

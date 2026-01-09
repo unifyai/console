@@ -5,9 +5,10 @@ import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage, UnifyMessage
 import { ResponseProps } from "@/types/common";
 import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from "@/constants/assistants/settings";
+import { camelToSnakeObject } from "@/utils/casing";
 
 /**
- * Looks up a user's contact_id from the Contacts table using their email address.
+ * Looks up a user's contactId from the Contacts table using their email address.
  * Returns null if no contact record is found (user cannot chat with this assistant).
  * 
  * Contact ID Reference:
@@ -21,8 +22,8 @@ export const getContactIdByEmail = async (apiKey: string) => {
         try {
             const project = "Assistants";
             const context = `${ownerContext}/${assistantContext}/Contacts`;
-            const filter_expr = `email_address == "${userEmail}"`;
-            const url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}&context=${context}&filter_expr=${encodeURIComponent(filter_expr)}&limit=1`;
+            const filterExpr = `emailAddress == "${userEmail}"`;
+            const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -48,7 +49,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
                 return null;
             }
 
-            const contactId = logs[0].entries?.contact_id;
+            const contactId = logs[0].entries?.contactId;
             if (typeof contactId !== 'number') {
                 console.warn(`[getContactIdByEmail] Invalid contact_id in log entry:`, logs[0]);
                 return null;
@@ -81,11 +82,11 @@ export const getTranscripts = async (apiKey: string) => {
             const context = `${ownerContext}/${assistantContext}/Transcripts`;
             const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
             // Filter: messages sent BY this contact OR assistant responses TO this contact
-            let filter_expr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+            let filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
             if (beforeMessageId !== undefined) {
-                filter_expr += ` and message_id < ${beforeMessageId}`;
+                filterExpr += ` and message_id < ${beforeMessageId}`;
             }
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}&context=${context}&limit=${limit}&filter_expr=${encodeURIComponent(filter_expr)}`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -125,7 +126,7 @@ export const getTranscripts = async (apiKey: string) => {
                         role: entries.sender_id === 0 ? 'assistant' : 'user',
                         content: entries.content,
                         timestamp: new Date(timestamp as string),
-                        message_id: typeof entries.message_id === 'number' ? entries.message_id : undefined,
+                        messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
                     };
                 })
                 .filter((msg): msg is ChatMessage => msg !== null);
@@ -143,13 +144,16 @@ export const messageAssistant = async (apiKey: string) => {
     return async (payload: UnifyMessage): Promise<ResponseProps & { info?: string }> => {
         "use server";
         try {
+            // Convert camelCase payload to snake_case for API
+            const snakeCasePayload = camelToSnakeObject(payload);
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/message`, {
                 method: "POST",
                 headers: {
                     apiKey: apiKey,
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(snakeCasePayload)
             });
             const data = await response.json();
             if (!response.ok) {
@@ -165,13 +169,13 @@ export const messageAssistant = async (apiKey: string) => {
 
 /**
  * Fetches a user's first and last name by their user ID.
- * Used as a fallback when assistant.user_first_name/user_last_name are missing.
+ * Used as a fallback when assistant.userFirstName/userLastName are missing.
  * 
  * @param userId - The user ID to look up
- * @returns Object with first_name and last_name, or null if lookup fails
+ * @returns Object with firstName and lastName, or null if lookup fails
  */
 export const getAssistantOwnerById = async () => {
-    return async (userId: string): Promise<{ first_name: string; last_name: string } | null> => {
+    return async (userId: string): Promise<{ firstName: string; lastName: string } | null> => {
         "use server";
         try {
             // Import here to avoid circular dependencies
@@ -184,8 +188,8 @@ export const getAssistantOwnerById = async () => {
             }
             
             return {
-                first_name: user.name,
-                last_name: user.last_name || '',
+                firstName: user.name,
+                lastName: user.lastName || '',
             };
         } catch (error) {
             console.error(`[getAssistantOwnerById] Error fetching user:`, error);
@@ -216,9 +220,10 @@ export const triggerContactSync = async () => {
 
         const webhookUrl = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unity/system-event`;
 
+        // API expects snake_case
         const payload = {
-            assistant_id: parseInt(assistantId),
-            event_type: "sync_contacts",
+            assistantId: parseInt(assistantId),
+            eventType: "sync_contacts",
             message: "Contacts sync triggered.",
         };
 

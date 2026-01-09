@@ -5,9 +5,9 @@ export interface Message {
   
   export interface Usage {
     cost: number;
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
   }
   
   export interface QueryBody {
@@ -23,8 +23,8 @@ export interface Message {
 
   export interface Query {
     endpoint: string;
-    query_body: QueryBody;
-    response_body: ResponseBody;
+    queryBody: QueryBody;
+    responseBody: ResponseBody;
     at: string;
     credits: number;
   }

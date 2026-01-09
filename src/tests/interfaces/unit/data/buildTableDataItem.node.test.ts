@@ -29,18 +29,18 @@ const makePosition = (): TilePosition => ({ x: 0, y: 0, width: 4, height: 4 });
 
 const baseFields: LogFieldsResponseProps = {
   'entries/message': {
-    data_type: 'string',
-    field_type: 'entry',
+    dataType: 'string',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '2025-01-01T00:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
   },
   'params/level': {
-    data_type: 'string',
-    field_type: 'param',
+    dataType: 'string',
+    fieldType: 'param',
     artifacts: '',
     mutable: 'false',
-    created_at: '2025-01-01T00:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
   },
 };
 
@@ -50,8 +50,8 @@ const makeUngroupedLog = (id: string, level: string, message: string): LogProps 
   ts: '2025-01-01T00:00:00Z',
   params: { level },
   entries: { message },
-  derived_entries: {},
-  clipped_fields: {},
+  derivedEntries: {},
+  clippedFields: {},
 });
 
 // Dummy logsActions (not used by fetchAndBuildTableDataItem but required by type)
@@ -72,15 +72,15 @@ describe('buildTableDataItem helpers', () => {
       name: 'Table Tile',
       position: makePosition(),
       type: 'Table',
-      tab_id: 'tab-1',
+      tabId: 'tab-1',
       table: 'logs',
       visible: true,
       locked: false,
-      table_tile: {
+      tableTile: {
         limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
       } as TableTileData,
     };
 
@@ -114,7 +114,7 @@ describe('buildTableDataItem helpers', () => {
     expect(tableDataItem.totalCount).toBe(logsArray.length);
     // Fields and column contexts should be wired through
     expect(tableDataItem.fields).toBe(baseFields);
-    // entriesProperties / paramsProperties should be partitioned by field_type
+    // entriesProperties / paramsProperties should be partitioned by fieldType
     expect(tableDataItem.entriesProperties).toEqual(['entries/message']);
     expect(tableDataItem.paramsProperties).toEqual(['params/level']);
     // Logs and params are derived from the response
@@ -139,14 +139,14 @@ describe('buildTableDataItem helpers', () => {
     expect(getTotalCountFromLogsResponse(response)).toBe(42);
   });
 
-  it('getTotalCountFromLogsResponse prefers group_count for grouped logs', () => {
+  it('getTotalCountFromLogsResponse prefers groupCount for grouped logs', () => {
     const groupedRaw: GroupedLogPropsRaw = {
       'Entries/i': {
         group: [
           { key: '0', value: 3 },
           { key: '1', value: 2 },
         ],
-        group_count: 5,
+        groupCount: 5,
         count: 5,
       },
       count: 5,
@@ -155,7 +155,7 @@ describe('buildTableDataItem helpers', () => {
     const response: LogsResponseProps = {
       params: {},
       logs: groupedRaw,
-      count: 123, // should be ignored in favour of group_count
+      count: 123, // should be ignored in favour of groupCount
       groups: {},
     };
 
@@ -169,16 +169,16 @@ describe('buildTableDataItem helpers', () => {
       name: 'Grouped Table Tile',
       position: makePosition(),
       type: 'Table',
-      tab_id: 'tab-1',
+      tabId: 'tab-1',
       table: 'logs',
       visible: true,
       locked: false,
       grouping: 'entries/group',
-      table_tile: {
+      tableTile: {
         limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
       } as TableTileData,
     };
 
@@ -188,7 +188,7 @@ describe('buildTableDataItem helpers', () => {
           { key: 'A', value: 3 },
           { key: 'B', value: 2 },
         ],
-        group_count: 2,
+        groupCount: 2,
         count: 5,
       },
       count: 5,
@@ -215,7 +215,7 @@ describe('buildTableDataItem helpers', () => {
       dummyLogsActions,
     );
 
-    // Total count should come from group_count via getTotalCountFromLogsResponse
+    // Total count should come from groupCount via getTotalCountFromLogsResponse
     expect(tableDataItem.totalCount).toBe(2);
     // Fields carried through
     expect(tableDataItem.fields).toBe(baseFields);
@@ -270,13 +270,13 @@ describe('buildTableDataItem helpers', () => {
     expect(result[0].id).toBe('log-2');
   });
 
-  it('getSortingObject builds a sorting map from tile.table_tile.sorting', () => {
+  it('getSortingObject builds a sorting map from tile.tableTile.sorting', () => {
     const tile: TileData = {
       id: 'tile-sort',
       name: 'Tile with sorting',
       position: makePosition(),
       type: 'Table',
-      table_tile: {
+      tableTile: {
         sorting: 'entries/message@true,params/level@false',
       } as TableTileData,
     };
@@ -288,7 +288,7 @@ describe('buildTableDataItem helpers', () => {
     });
   });
 
-  it('getGroupSortingObject builds group sorting config from tile.table_tile.group_sorting and grouping', () => {
+  it('getGroupSortingObject builds group sorting config from tile.tableTile.groupSorting and grouping', () => {
     const tile: TileData = {
       id: 'tile-group-sort',
       name: 'Tile with group sorting',
@@ -296,8 +296,8 @@ describe('buildTableDataItem helpers', () => {
       type: 'Table',
       grouping: 'entries/i',
       metric: 'sum',
-      table_tile: {
-        group_sorting: 'entries/value@true',
+      tableTile: {
+        groupSorting: 'entries/value@true',
       } as TableTileData,
     };
 

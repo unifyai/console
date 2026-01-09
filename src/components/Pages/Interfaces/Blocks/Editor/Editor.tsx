@@ -58,7 +58,7 @@ const Editor = ({
     const { data: tabData } = useTabData(tabId, interfaceId);
     const { meta: tileMetaState } = useTileMeta(tileId, tabId);
     const tileIds = tabData?.tileIds;
-    const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
+    const tiles = useTiles(tileIds, ["type", "editorTile.fileName", "editorTile.fileType", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
     // Access tab state for focus pane button
     const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
@@ -151,15 +151,15 @@ const Editor = ({
         } catch (e) { console.error('rename error', e); }
     };
 
-    const initialFileName = (editorTileState?.file_type === "env" && editorTileState?.file_name === "")
+    const initialFileName = (editorTileState?.fileType === "env" && editorTileState?.fileName === "")
         ? ""
-        : (editorTileState?.file_name ?? "main");
+        : (editorTileState?.fileName ?? "main");
     const [tempFileName, setTempFileName] = useState(initialFileName);
-    const [tempFileType, setTempFileType] = useState(editorTileState?.file_type || "txt");
+    const [tempFileType, setTempFileType] = useState(editorTileState?.fileType || "txt");
     const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [selectedPath, setSelectedPath] = useState<string | undefined>(() => {
-        if (editorTileState?.file_name && editorTileState?.file_type) {
-            return `${editorTileState.file_name}.${editorTileState.file_type}`;
+        if (editorTileState?.fileName && editorTileState?.fileType) {
+            return `${editorTileState.fileName}.${editorTileState.fileType}`;
         }
         return undefined;
     });
@@ -172,7 +172,7 @@ const Editor = ({
     /* FileDirectory dialog open state */
     const [selectFilesOpen, setSelectFilesOpen] = useState(false);
 
-    const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
+    const language = fileTypes[editorTileState?.fileType || "txt"] || "text";
 
     useEffect(() => {
         if (saved)

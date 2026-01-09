@@ -29,7 +29,7 @@ const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotT
 
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int"))
+        .filter(([name, { dataType, fieldType }]) => (dataType === "float" || dataType === "int"))
         .map(([name]) => name);
     
     // Update plot type and
@@ -76,7 +76,7 @@ const PlotType = ({ interactive = true, settingsRef, svgRef, containerRef, plotT
                 {plotTypes.map((pt) => (
                     <Button
                         key={pt}
-                        variant={plotType === pt ? "primary" : "list_item"}
+                        variant={plotType === pt ? "primary" : "listItem"}
                         size="lg"
                         className="w-full justify-start h-auto py-1 text-md flex items-center gap-2"
                         onClick={() => onClick(pt)}

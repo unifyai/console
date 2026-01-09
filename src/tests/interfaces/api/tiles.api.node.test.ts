@@ -201,7 +201,7 @@ describe('@real Tiles API', () => {
 
     // Patch specialized Table data
     const result = await tilesApi.patchSpecialized(created.id, 'Table', {
-      table_type: 'logs',
+      tableType: 'logs',
       limit: 50,
     });
 
@@ -219,8 +219,8 @@ describe('@real Tiles API', () => {
 
     // Patch specialized Plot data
     const result = await tilesApi.patchSpecialized(created.id, 'Plot', {
-      plot_type: 'scatter',
-      x_axis: 'time',
+      plotType: 'scatter',
+      xAxis: 'time',
     });
 
     expect(result).toBeDefined();
@@ -308,11 +308,11 @@ describe('@real Tiles API', () => {
     expect(result).toBeDefined();
 
     // Cleanup the imported tile
-    if (result.tile_id) {
-      createdTileIds.push(result.tile_id);
+    if (result.tileId) {
+      createdTileIds.push(result.tileId);
 
       // Verify the imported tile exists
-      const imported = await tilesApi.getById(result.tile_id);
+      const imported = await tilesApi.getById(result.tileId);
       expect(imported.name).toBe(newName);
     }
   });

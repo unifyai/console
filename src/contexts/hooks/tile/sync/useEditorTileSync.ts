@@ -27,7 +27,7 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the EditorTile that will be synced with the server
  */
-export type SyncedEditorProperties = 'file_type' | 'content' | 'file_name';
+export type SyncedEditorProperties = 'fileType' | 'content' | 'fileName';
 
 /**
  * Loading states for each property
@@ -92,9 +92,9 @@ export function useEditorTileSync(
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
-    file_type: fileTypeMutation,
+    fileType: fileTypeMutation,
     content: contentMutation,
-    file_name: fileNameMutation,
+    fileName: fileNameMutation,
   };
 
   // Individual wrapper functions for each property
@@ -114,10 +114,10 @@ export function useEditorTileSync(
 
     // 2) Optimistic server update
     await fileTypeMutation.mutateAsync({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Editor",
-      updateData: { file_type: value ?? null },
+      updateData: { fileType: value ?? null },
       actions: granularTileActions
     }).then(() => {
       // 3. Refresh the router and set the loading state
@@ -137,7 +137,7 @@ export function useEditorTileSync(
 
     // 2) Optimistic server update
     contentMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Editor",
       updateData: { content: value ?? null },
@@ -156,10 +156,10 @@ export function useEditorTileSync(
 
     // 2) Optimistic server update
     fileNameMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Editor",
-      updateData: { file_name: value ?? null },
+      updateData: { fileName: value ?? null },
       actions: granularTileActions
     });
   };
@@ -187,15 +187,15 @@ export function useEditorTileSync(
       editorTile,
       editorTileActions: null,
       loading: {
-        file_type: false,
+        fileType: false,
         content: false,
-        file_name: false,
+        fileName: false,
         any: false
       },
       error: {
-        file_type: null,
+        fileType: null,
         content: null,
-        file_name: null,
+        fileName: null,
         any: false
       },
       exists: false
@@ -204,9 +204,9 @@ export function useEditorTileSync(
 
   // Prepare loading states
   const loading: EditorLoadingStates = {
-    file_type: mutations.file_type.isPending,
+    fileType: mutations.fileType.isPending,
     content: mutations.content.isPending,
-    file_name: mutations.file_name.isPending,
+    fileName: mutations.fileName.isPending,
     any: false
   };
   
@@ -215,9 +215,9 @@ export function useEditorTileSync(
 
   // Prepare error states
   const error: EditorErrorStates = {
-    file_type: mutations.file_type.error,
+    fileType: mutations.fileType.error,
     content: mutations.content.error,
-    file_name: mutations.file_name.error,
+    fileName: mutations.fileName.error,
     any: false
   };
   

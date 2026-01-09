@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/user/user";
 export async function GET(request: NextRequest, { params }: { params: { project: string } }) {
   const { project } = params;
   const user = await getCurrentUser();
-  const apiKey = user?.api_key || request.headers.get("apiKey") || "";
+  const apiKey = user?.apiKey || request.headers.get("apiKey") || "";
   if (!apiKey) return NextResponse.json({ detail: "No API Key" }, { status: 401 });
 
   try {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: { project:
 export async function PATCH(request: NextRequest, { params }: { params: { project: string } }) {
   const { project } = params;
   const user = await getCurrentUser();
-  const apiKey = user?.api_key || request.headers.get("apiKey") || "";
+  const apiKey = user?.apiKey || request.headers.get("apiKey") || "";
   if (!apiKey) return NextResponse.json({ detail: "No API Key" }, { status: 401 });
 
   const bodyObj = await request.json();

@@ -38,19 +38,19 @@ export function useTracePolling(
             project,               // project
             context,               // context
             null,                  // columnContext
-            null,                  // filter_expr
+            null,                  // filterExpr
             null,                  // sortingExpression
             null,                  // groupingExpression
             null,                  // groupSortingExpression
-            String(logId),         // from_ids - ensure it's a string
-            fieldName,             // from_fields
-            null,                  // exclude_fields
+            String(logId),         // fromIds - ensure it's a string
+            fieldName,             // fromFields
+            null,                  // excludeFields
             1,                     // limit
             0,                     // offset
-            null,                  // group_limit
-            null,                  // group_offset
-            null,                  // group_depth
-            null,                  // return_ids_only
+            null,                  // groupLimit
+            null,                  // groupOffset
+            null,                  // groupDepth
+            null,                  // returnIdsOnly
             null,                  // randomize
             Date.now().toString()  // _timestamp for cache busting
           );

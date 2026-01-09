@@ -68,7 +68,7 @@ export function useAssistantSecrets(
         if (!assistantContext) return;
         const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
         try {
-            const result = await secretActions.delete(assistantContext, secretToDelete.log_id);
+            const result = await secretActions.delete(assistantContext, secretToDelete.logId);
             if ('detail' in result) throw new Error((result as ResponseProps).detail);
             
             toast.success("Secret deleted.", { id: toastId });

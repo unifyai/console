@@ -162,7 +162,7 @@ export function UserApprovalTable({ users, onUpdateStatus, isLoading, isLoadingM
                     }
 
                     const isUserUpdating = updatingStatusForUser[user.id];
-                    const currentStatusKey = user.assistant_hiring_approval || "none";
+                    const currentStatusKey = user.assistantHiringApproval || "none";
                     const StatusIcon = statusIcons[currentStatusKey] || HelpCircle;
 
                     return (
@@ -180,7 +180,7 @@ export function UserApprovalTable({ users, onUpdateStatus, isLoading, isLoadingM
                                     )}
                                 >
                                     <StatusIcon className="h-3 w-3 mr-1.5"/>
-                                    {ASSISTANT_HIRING_APPROVAL_DISPLAY[currentStatusKey as keyof typeof ASSISTANT_HIRING_APPROVAL_DISPLAY] || user.assistant_hiring_approval || "None"}
+                                    {ASSISTANT_HIRING_APPROVAL_DISPLAY[currentStatusKey as keyof typeof ASSISTANT_HIRING_APPROVAL_DISPLAY] || user.assistantHiringApproval || "None"}
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-right">
@@ -199,8 +199,8 @@ export function UserApprovalTable({ users, onUpdateStatus, isLoading, isLoadingM
                                                 <DropdownMenuItem
                                                     key={action}
                                                     onClick={() => openConfirmationDialog(user.id, action, user.email, user.name)}
-                                                    disabled={user.assistant_hiring_approval === action}
-                                                    className={cn(user.assistant_hiring_approval === action && "opacity-50 cursor-not-allowed")}
+                                                    disabled={user.assistantHiringApproval === action}
+                                                    className={cn(user.assistantHiringApproval === action && "opacity-50 cursor-not-allowed")}
                                                 >
                                                     Set to {ASSISTANT_HIRING_APPROVAL_DISPLAY[action]}
                                                 </DropdownMenuItem>

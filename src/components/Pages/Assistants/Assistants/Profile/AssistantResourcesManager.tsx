@@ -73,15 +73,15 @@ const ContactItem: React.FC<{
 
 export function AssistantResourcesManager({ assistant, assistantActions, onOpenContactManager, canWrite = true }: AssistantResourcesManagerProps) {
     const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
-    const assistantContext = `${assistant.first_name}${assistant.surname}`;
+    const assistantContext = `${assistant.firstName}${assistant.surname}`;
 
     return (
         <>
             <div className="w-full space-y-2">
-                {assistant.desktop_url &&
+                {assistant.desktopUrl &&
                     <ContactItem
                         value="Copy local workspace link"
-                        copyValue={assistant.desktop_url}
+                        copyValue={assistant.desktopUrl}
                         tooltip={"Copy the URL of your local desktop configuration"}
                         icon={<Laptop className="h-4 w-4 flex-shrink-0"/>}
                         isCopyable

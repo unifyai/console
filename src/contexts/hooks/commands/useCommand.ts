@@ -51,7 +51,7 @@ export interface UseCommandArgs {
   /* Router/query-param helpers */
   setProjectQueryParam?: (project: string | null) => void;
   setTabQueryParam?: (tab: string | null) => void;
-  setInterfaceQueryParam?: (interface_: string | null) => void;
+  setInterfaceQueryParam?: (builtInterface: string | null) => void;
   setSelectProjectParam?: (value: string | null) => void; // ensure we can force project selection UI
    /* Server-side actions */
    projectActions: ProjectsActions;
@@ -253,7 +253,7 @@ export function useCommand(args: UseCommandArgs) {
     // Prepare a default interface for the new project
     const newInterface = {
       ...defaultInterface,
-      project_id: name,
+      projectId: name,
     };
     debugLog("[createProject] Creating default interface:", newInterface.name);
 
@@ -384,7 +384,7 @@ export function useCommand(args: UseCommandArgs) {
 
     debugLog("[deleteProjectLogs] Starting logs deletion for project:", name);
     try {
-      // Passing null for context and empty array for ids_and_fields to delete all logs in project.
+      // Passing null for context and empty array for idsAndFields to delete all logs in project.
       const result = await logsActions.delete(name, null, []);
       debugLog("[deleteProjectLogs] Logs deletion completed for project:", name);
       return result as ResponseProps;
@@ -443,11 +443,11 @@ export function useCommand(args: UseCommandArgs) {
 
       // Perform the reset operation
       await restoreTabWithTilesMutation.mutateAsync({
-        interface_id: interfaceId,
-        project_id: projectId,
-        interface_actions: interfaceActions,
-        tab_actions: tabActions,
-        tile_actions: tileActions
+        interfaceId: interfaceId,
+        projectId: projectId,
+        interfaceActions: interfaceActions,
+        tabActions: tabActions,
+        tileActions: tileActions
       });
       
       // Show success in overlay

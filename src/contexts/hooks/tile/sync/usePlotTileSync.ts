@@ -28,7 +28,7 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the PlotTile that will be synced with the server
  */
-export type SyncedPlotProperties = 'plot_type' | 'plot_scale_x' | 'plot_scale_y' | 'x_axis' | 'y_axis' | 'plot_group_by' | 'plot_group_by_colors' | 'plot_aggregate' | 'bin_count' | 'regression_line';
+export type SyncedPlotProperties = 'plotType' | 'plotScaleX' | 'plotScaleY' | 'xAxis' | 'yAxis' | 'plotGroupBy' | 'plotGroupByColors' | 'plotAggregate' | 'binCount' | 'regressionLine';
 
 /**
  * Loading states for each property
@@ -100,16 +100,16 @@ export function usePlotTileSync(
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
-    plot_type: plotTypeMutation,
-    plot_scale_x: plotScaleXMutation,
-    plot_scale_y: plotScaleYMutation,
-    x_axis: xAxisMutation,
-    y_axis: yAxisMutation,
-    plot_group_by: plotGroupByMutation,
-    plot_group_by_colors: plotGroupByColorsMutation,
-    plot_aggregate: plotAggregateMutation,
-    bin_count: binCountMutation,
-    regression_line: regressionLineMutation,
+    plotType: plotTypeMutation,
+    plotScaleX: plotScaleXMutation,
+    plotScaleY: plotScaleYMutation,
+    xAxis: xAxisMutation,
+    yAxis: yAxisMutation,
+    plotGroupBy: plotGroupByMutation,
+    plotGroupByColors: plotGroupByColorsMutation,
+    plotAggregate: plotAggregateMutation,
+    binCount: binCountMutation,
+    regressionLine: regressionLineMutation,
   };
 
   // Helper function to create wrapped setters
@@ -131,10 +131,10 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => plotTypeMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           tileType: "Plot",
-          updateData: { plot_type: value ?? null },
+          updateData: { plotType: value ?? null },
           actions: granularTileActions,
         }),
         {
@@ -164,10 +164,10 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     await plotScaleXMutation.mutateAsync({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { plot_scale_x: value ?? null },
+      updateData: { plotScaleX: value ?? null },
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
@@ -185,10 +185,10 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     await plotScaleYMutation.mutateAsync({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { plot_scale_y: value ?? null },
+      updateData: { plotScaleY: value ?? null },
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
@@ -217,11 +217,11 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => xAxisMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Plot",
-          updateData: { x_axis: value ?? null },
+          updateData: { xAxis: value ?? null },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -270,11 +270,11 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => yAxisMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Plot",
-          updateData: { y_axis: value ?? null },
+          updateData: { yAxis: value ?? null },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -323,11 +323,11 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => plotGroupByMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Plot",
-          updateData: { plot_group_by: value ?? null },
+          updateData: { plotGroupBy: value ?? null },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -373,10 +373,10 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => plotGroupByColorsMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           tileType: "Plot",
-          updateData: { plot_group_by_colors: value ?? null },
+          updateData: { plotGroupByColors: value ?? null },
           actions: granularTileActions,
         }),
         {
@@ -416,11 +416,11 @@ export function usePlotTileSync(
     try {
       await withLoadingToastFn(
         () => plotAggregateMutation.mutateAsync({
-          tab_id: tabId,
+          tabId: tabId,
           name: tileName,
           projectId: state.activeProjectId || "",
           tileType: "Plot",
-          updateData: { plot_aggregate: value ?? "" },
+          updateData: { plotAggregate: value ?? "" },
           refetchProjects: true,
           refetchContexts: true,
           refetchFields: true,
@@ -458,10 +458,10 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     await binCountMutation.mutateAsync({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { bin_count: value ?? null },
+      updateData: { binCount: value ?? null },
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
@@ -479,10 +479,10 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     await regressionLineMutation.mutateAsync({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       tileType: "Plot",
-      updateData: { regression_line: value ?? null },
+      updateData: { regressionLine: value ?? null },
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
@@ -520,29 +520,29 @@ export function usePlotTileSync(
       plotTile,
       plotTileActions: null,
       loading: {
-        plot_type: false,
-        plot_scale_x: false,
-        plot_scale_y: false,
-        x_axis: false,
-        y_axis: false,
-        plot_group_by: false,
-        plot_group_by_colors: false,
-        plot_aggregate: false,
-        bin_count: false,
-        regression_line: false,
+        plotType: false,
+        plotScaleX: false,
+        plotScaleY: false,
+        xAxis: false,
+        yAxis: false,
+        plotGroupBy: false,
+        plotGroupByColors: false,
+        plotAggregate: false,
+        binCount: false,
+        regressionLine: false,
         any: false
       },
       error: {
-        plot_type: null,
-        plot_scale_x: null,
-        plot_scale_y: null,
-        x_axis: null,
-        y_axis: null,
-        plot_group_by: null,
-        plot_group_by_colors: null,
-        plot_aggregate: null,
-        bin_count: null,
-        regression_line: null,
+        plotType: null,
+        plotScaleX: null,
+        plotScaleY: null,
+        xAxis: null,
+        yAxis: null,
+        plotGroupBy: null,
+        plotGroupByColors: null,
+        plotAggregate: null,
+        binCount: null,
+        regressionLine: null,
         any: false
       },
       exists: false
@@ -551,16 +551,16 @@ export function usePlotTileSync(
 
   // Prepare loading states
   const loading: PlotLoadingStates = {
-    plot_type: mutations.plot_type.isPending,
-    plot_scale_x: mutations.plot_scale_x.isPending,
-    plot_scale_y: mutations.plot_scale_y.isPending,
-    x_axis: mutations.x_axis.isPending,
-    y_axis: mutations.y_axis.isPending,
-    plot_group_by: mutations.plot_group_by.isPending,
-    plot_group_by_colors: mutations.plot_group_by_colors.isPending,
-    plot_aggregate: mutations.plot_aggregate.isPending,
-    bin_count: mutations.bin_count.isPending,
-    regression_line: mutations.regression_line.isPending,
+    plotType: mutations.plotType.isPending,
+    plotScaleX: mutations.plotScaleX.isPending,
+    plotScaleY: mutations.plotScaleY.isPending,
+    xAxis: mutations.xAxis.isPending,
+    yAxis: mutations.yAxis.isPending,
+    plotGroupBy: mutations.plotGroupBy.isPending,
+    plotGroupByColors: mutations.plotGroupByColors.isPending,
+    plotAggregate: mutations.plotAggregate.isPending,
+    binCount: mutations.binCount.isPending,
+    regressionLine: mutations.regressionLine.isPending,
     any: false
   };
   
@@ -569,16 +569,16 @@ export function usePlotTileSync(
 
   // Prepare error states
   const error: PlotErrorStates = {
-    plot_type: mutations.plot_type.error,
-    plot_scale_x: mutations.plot_scale_x.error,
-    plot_scale_y: mutations.plot_scale_y.error,
-    x_axis: mutations.x_axis.error,
-    y_axis: mutations.y_axis.error,
-    plot_group_by: mutations.plot_group_by.error,
-    plot_group_by_colors: mutations.plot_group_by_colors.error,
-    plot_aggregate: mutations.plot_aggregate.error,
-    bin_count: mutations.bin_count.error,
-    regression_line: mutations.regression_line.error,
+    plotType: mutations.plotType.error,
+    plotScaleX: mutations.plotScaleX.error,
+    plotScaleY: mutations.plotScaleY.error,
+    xAxis: mutations.xAxis.error,
+    yAxis: mutations.yAxis.error,
+    plotGroupBy: mutations.plotGroupBy.error,
+    plotGroupByColors: mutations.plotGroupByColors.error,
+    plotAggregate: mutations.plotAggregate.error,
+    binCount: mutations.binCount.error,
+    regressionLine: mutations.regressionLine.error,
     any: false
   };
   

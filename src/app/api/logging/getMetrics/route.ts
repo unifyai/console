@@ -10,37 +10,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const apiKey = user.api_key;
+    const apiKey = user.apiKey;
 
     const url = new URL(req.url);
-    const start_time = url.searchParams.get("start_time") || undefined;
-    const end_time = url.searchParams.get("end_time") || undefined;
+    const startTime = url.searchParams.get("startTime") || undefined;
+    const endTime = url.searchParams.get("endTime") || undefined;
     const models = url.searchParams.get("models") || undefined;
     const providers = url.searchParams.get("providers") || undefined;
     const interval = url.searchParams.get("interval") || "300";
-    const secondary_user_id = url.searchParams.get("secondary_user_id") || undefined;
+    const secondaryUserId = url.searchParams.get("secondaryUserId") || undefined;
 
-    const metrics = await getQueryMetrics(apiKey, start_time, end_time, models, providers, interval, secondary_user_id);
+    const metrics = await getQueryMetrics(apiKey, startTime, endTime, models, providers, interval, secondaryUserId);
 
     const formattedMetrics = metrics.map((item: MetricItem) => ({
         tokenData: {
-            ts: item.time_bin,
-            total_completion_tokens: item.total_completion_tokens,
-            total_prompt_tokens: item.total_prompt_tokens
+            ts: item.timeBin,
+            totalCompletionTokens: item.totalCompletionTokens,
+            totalPromptTokens: item.totalPromptTokens
         } as TokensDataProps,
         callsData: {
-            ts: item.time_bin,
-            request_count: item.request_count
+            ts: item.timeBin,
+            requestCount: item.requestCount
         } as CallsDataProps,
         latencyData: {
-            ts: item.time_bin,
-            generation_time_p50: item.generation_time_p50,
-            generation_time_p95: item.generation_time_p95
+            ts: item.timeBin,
+            generationTimeP50: item.generationTimeP50,
+            generationTimeP95: item.generationTimeP95
         } as LatencyDataProps,
         throughputData: {
-            ts: item.time_bin,
-            tokens_per_sec_p50: item.tokens_per_sec_p50,
-            tokens_per_sec_p95: item.tokens_per_sec_p95
+            ts: item.timeBin,
+            tokensPerSecP50: item.tokensPerSecP50,
+            tokensPerSecP95: item.tokensPerSecP95
         } as ThroughputDataProps
     }));
 

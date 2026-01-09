@@ -18,40 +18,40 @@ export interface PreHireChatMessage {
 
 // Assistant profile types
 export interface Assistant {
-  agent_id: string;
-  user_id: string; // ID of the user who created/owns the assistant - used for permission checks
-  organization_id: number | null; // Organization ID if org assistant, null for personal - reserved for future use
-  user_first_name?: string | null; // Owner's first name - used for transcript context resolution
-  user_last_name?: string | null; // Owner's last name - used for transcript context resolution
-  first_name: string;
+  agentId: string;
+  userId: string; // ID of the user who created/owns the assistant - used for permission checks
+  organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
+  userFirstName?: string | null; // Owner's first name - used for transcript context resolution
+  userLastName?: string | null; // Owner's last name - used for transcript context resolution
+  firstName: string;
   surname: string;
-  profile_photo: string | null;
-  profile_video: string | null;
+  profilePhoto: string | null;
+  profileVideo: string | null;
   age: number | null;
   nationality: string | null;
   about: string | null;
-  phone_country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
+  phoneCountry: string | null; // Country code for phone number provisioning e.g. "US", "GB"
   timezone: string | null;
   gender?: 'male' | 'female';
   // Voice fields
-  voice_id: string | null; // Provider Voice ID
-  voice_provider: VoiceProvider | null;
-  voice_mode: VoiceMode | null;
+  voiceId: string | null; // Provider Voice ID
+  voiceProvider: VoiceProvider | null;
+  voiceMode: VoiceMode | null;
   // Contact fields
   email: string | null;
   phone: string | null;
-  assistant_whatsapp_number: string | null;
-  user_phone: string | null;
-  user_whatsapp_number: string | null;
+  assistantWhatsappNumber: string | null;
+  userPhone: string | null;
+  userWhatsappNumber: string | null;
   // Advanced fields
-  user_local_desktop?: UserLocalDesktop | null;
-  desktop_url?: string | null;
+  userLocalDesktop?: UserLocalDesktop | null;
+  desktopUrl?: string | null;
   // Contract fields
-  weekly_limit: number | null;
-  max_parallel: number | null;
+  weeklyLimit: number | null;
+  maxParallel: number | null;
   // Meta fields
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   // Client-side generated signed URL for GCS photos
   signedProfilePhotoUrl?: string;
   signedProfileVideoUrl?: string;
@@ -59,20 +59,20 @@ export interface Assistant {
 
 export interface AssistantStatus {
     running: boolean;
-    uptime_seconds: number;
-    process_id: number | null;
-    assistant_id: string;
-    shutdown_reason: string | null;
-    inactivity_timeout_minutes: number;
+    uptimeSeconds: number;
+    processId: number | null;
+    assistantId: string;
+    shutdownReason: string | null;
+    inactivityTimeoutMinutes: number;
     message: string | null;
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'user_id' | 'organization_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'>
+  Omit<Assistant, 'agentId' | 'userId' | 'organizationId' | 'createdAt' | 'updatedAt' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'userPhone' | 'userWhatsappNumber' | 'assistantWhatsappNumber' | 'weeklyLimit' | 'maxParallel' | 'voiceId' | 'voiceProvider'>
   & {
       gender?: 'male' | 'female';
-      phone_country: string;
-      voice_ids: {
+      phoneCountry: string;
+      voiceIds: {
           cartesia?: string | null;
           elevenlabs?: string | null;
           openai?: string | null;
@@ -95,65 +95,65 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'user_id' | 'organization_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'voice_provider' | 'email'>
+  Omit<Assistant, 'agentId' | 'userId' | 'organizationId' | 'createdAt' | 'updatedAt' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profilePhoto' | 'profileVideo' | 'phone' | 'assistantWhatsappNumber' | 'userWhatsappNumber' | 'weeklyLimit' | 'maxParallel' | 'gender' | 'voiceId' | 'voiceProvider' | 'email'>
   & {
       email?: string | null;
       isEmailAdded?: boolean;
       emailManuallyEdited?: boolean;
-      profile_photo_url?: string | null; // GCS URL for photo
-      profile_video_url?: string | null; // GCS URL for video
+      profilePhotoUrl?: string | null; // GCS URL for photo
+      profileVideoUrl?: string | null; // GCS URL for video
       photoFile?: File | null;
       videoFile?: File | null;
       photoPreviewUrl?: string | null;
       videoPreviewUrl?: string | null;
-      video_source_voice_id?: string | null;
-      user_phone?: string | null;
-      user_phone_isVerified?: boolean;
-      user_phone_isVerifying?: boolean;
-      user_phone_verificationCodeSent?: string | null;
-      user_phone_verificationSentAt?: Date | null;
-      user_phone_verificationAttempts?: number;
-      user_phone_verificationError?: string | null;
-      user_whatsapp_number?: string | null;
-      phone_country?: string;
+      videoSourceVoiceId?: string | null;
+      userPhone?: string | null;
+      userPhoneIsVerified?: boolean;
+      userPhoneIsVerifying?: boolean;
+      userPhoneVerificationCodeSent?: string | null;
+      userPhoneVerificationSentAt?: Date | null;
+      userPhoneVerificationAttempts?: number;
+      userPhoneVerificationError?: string | null;
+      userWhatsappNumber?: string | null;
+      phoneCountry?: string;
       timezone?: string | null;
-      voice_id?: string;
-      voice_name?: string;
-      voice_description?: string;
-      voice_gender?: CartesiaGender;
-      voice_language?: SupportedLanguage | "multi";
-      voice_exists?: boolean;
-      voice_provider?: VoiceProvider;
+      voiceId?: string;
+      voiceName?: string;
+      voiceDescription?: string;
+      voiceGender?: CartesiaGender;
+      voiceLanguage?: SupportedLanguage | "multi";
+      voiceExists?: boolean;
+      voiceProvider?: VoiceProvider;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'nationality' | 'voice_id' | 'profile_photo_url' | 'phone_country'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl' | 'phoneCountry'> | null;
       currentPreset?: AssistantPreset | null;
-      social_accounts?: SocialAccount[];
+      socialAccounts?: SocialAccount[];
       setup?: 'remote' | 'local';
       isPhoneNumberAdded?: boolean;
-      operating_system?: 'ubuntu' | 'windows' | 'macos';
-      design_include_bio?: boolean;
-      fast_mode?: boolean;
+      operatingSystem?: 'ubuntu' | 'windows' | 'macos';
+      designIncludeBio?: boolean;
+      fastMode?: boolean;
     };
 
 export interface PhotoUploadResponse {
-    gcs_url: string;
+    gcsUrl: string;
 }
 
 export interface PhotoGenerateRequest {
     prompt: string;
-    aspect_ratio?: string;
-    output_format?: string;
-    output_quality?: number;
-    safety_tolerance?: number;
-    prompt_upsampling?: boolean;
+    aspectRatio?: string;
+    outputFormat?: string;
+    outputQuality?: number;
+    safetyTolerance?: number;
+    promptUpsampling?: boolean;
 }
 
 export interface PhotoEditRequest {
     prompt: string;
-    input_image: string;
-    aspect_ratio?: string;
-    output_format?: string;
-    safety_tolerance?: number;
+    inputImage: string;
+    aspectRatio?: string;
+    outputFormat?: string;
+    safetyTolerance?: number;
 }
 
 export interface PhotoCreationResponse {
@@ -169,8 +169,8 @@ export interface ReplicatePredictionResponse {
     logs?: string;
     error?: any;
     status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
-    created_at: string;
-    completed_at?: string;
+    createdAt: string;
+    completedAt?: string;
     urls?: {
         get?: string;
         cancel?: string;
@@ -181,32 +181,32 @@ export interface ReplicatePredictionResponse {
 
 export interface AssistantUpdatePayload {
     about?: string | null;
-    weekly_limit?: number | null;
-    max_parallel?: number | null;
-    user_phone?: string | null;
+    weeklyLimit?: number | null;
+    maxParallel?: number | null;
+    userPhone?: string | null;
     phone?: string | null;
     email?: string | null;
-    user_whatsapp_number?: string | null;
-    voice_id?: string | null;
-    voice_provider?: VoiceProvider | null;
-    voice_mode?: VoiceMode | null;
-    phone_country?: string | null;
+    userWhatsappNumber?: string | null;
+    voiceId?: string | null;
+    voiceProvider?: VoiceProvider | null;
+    voiceMode?: VoiceMode | null;
+    phoneCountry?: string | null;
     timezone?: string | null;
-    profile_photo?: string | null;
-    profile_video?: string | null;
-    user_local_desktop?: UserLocalDesktop | null;
+    profilePhoto?: string | null;
+    profileVideo?: string | null;
+    userLocalDesktop?: UserLocalDesktop | null;
 }
 
 
 // Assistant voice types
 export interface Voice {
-  voice_id: string;
+  voiceId: string;
   name: string;
   description: string;
   gender: Gender;
   language: SupportedLanguage | "multi";
   provider: "cartesia" | "elevenlabs" | "openai";
-  is_preset?: boolean;
+  isPreset?: boolean;
 }
 
 export type VoiceOption = Voice & {
@@ -216,14 +216,14 @@ export type VoiceOption = Voice & {
 export interface GenerateSpeechPayload {
     text: string;
     provider: "cartesia" | "elevenlabs" | "openai";
-    voice_id: string;
-    model_id?: string;
-    output_format: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
-    cartesia_language?: SupportedLanguage;
-    cartesia_sample_rate?: number;
-    cartesia_bit_rate?: number;
-    elevenlabs_optimize_streaming_latency?: number;
-    elevenlabs_voice_settings_similarity_boost?: number;
+    voiceId: string;
+    modelId?: string;
+    outputFormat: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
+    cartesiaLanguage?: SupportedLanguage;
+    cartesiaSampleRate?: number;
+    cartesiaBitRate?: number;
+    elevenlabsOptimizeStreamingLatency?: number;
+    elevenlabsVoiceSettingsSimilarityBoost?: number;
 }
 
 export interface AvailablePhoneCountry {
@@ -238,18 +238,18 @@ export interface AvailableSocialPlatform {
 }
 
 export interface VoiceDesignGeneratePreviewsRequest {
-    voice_description?: string | null;
+    voiceDescription?: string | null;
     bio?: string | null;
     text?: string;
-    auto_generate_text?: boolean;
-    model_id?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";
+    autoGenerateText?: boolean;
+    modelId?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";
 }
 
 export interface VoiceDesignPreviewItem {
-    audio_base_64: string;
-    generated_voice_id: string;
-    media_type: string;
-    duration_secs?: number;
+    audioBase64: string;
+    generatedVoiceId: string;
+    mediaType: string;
+    durationSecs?: number;
 }
 
 export interface VoiceDesignGeneratePreviewsAPIResponse {
@@ -258,26 +258,26 @@ export interface VoiceDesignGeneratePreviewsAPIResponse {
 }
 
 export interface VoiceDesignCreateFromPreviewRequest {
-    generated_voice_id: string;
-    voice_name: string;
-    voice_description: string;
+    generatedVoiceId: string;
+    voiceName: string;
+    voiceDescription: string;
     labels?: { [key: string]: string };
     language?: SupportedLanguage;
     gender?: CartesiaGender | 'other';
-    audio_base_64?: string | null;
-    media_type?: string | null;
+    audioBase64?: string | null;
+    mediaType?: string | null;
 }
 
 export interface AssistantActions {
     "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    check: (hiring_fee: number) => Promise<AssistantHiringSufficientFunds | ResponseProps>;
+    check: (hiringFee: number) => Promise<AssistantHiringSufficientFunds | ResponseProps>;
     create: (
-        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, 
-        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
-        email: string | null, user_phone: string | null, phone_country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
+        firstName: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
+        profilePhoto: string | null, profileVideo: string | null, about: string | null, 
+        voiceId: string | null, voiceProvider: VoiceProvider | null, voiceMode: VoiceMode | null,
+        email: string | null, userPhone: string | null, phoneCountry: string | null,
+        userWhatsappNumber: string | null, userLocalDesktop: UserLocalDesktop | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
@@ -296,19 +296,19 @@ export interface AssistantActions {
     cancelAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
     },
     "voice": {
-    list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>;
-    register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
-    delete: (voice_id: string, voice_provider: string) => Promise<ResponseProps>;
-    clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
+    list: () => Promise<(Voice & {isPreset?: boolean})[] | ResponseProps>;
+    register: (voiceId: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", isPreset: boolean) => Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps>;
+    delete: (voiceId: string, voiceProvider: string) => Promise<ResponseProps>;
+    clone: (formData: FormData) => Promise<(Voice & {info?:string; isPreset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
     preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
-    design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; isPreset?: boolean}) | ResponseProps>;
     },
     "chat": {
         getContactId: (ownerContext: string, assistantContext: string, userEmail: string) => Promise<number | null>;
         getTranscripts: (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
         message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
-        getAssistantOwnerById: (userId: string) => Promise<{ first_name: string; last_name: string } | null>;
+        getAssistantOwnerById: (userId: string) => Promise<{ firstName: string; lastName: string } | null>;
         triggerContactSync: (assistantId: string) => Promise<ResponseProps>;
     },
     "contact": {
@@ -316,7 +316,7 @@ export interface AssistantActions {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
-    verifySocialAccount: (platform: string, account_identifier: string) => Promise<{ verification_code: string; sent_at: string; } | ResponseProps>;
+    verifySocialAccount: (platform: string, accountIdentifier: string) => Promise<{ verificationCode: string; sentAt: string; } | ResponseProps>;
     },
     "secret": SecretActions;
     "approval": {

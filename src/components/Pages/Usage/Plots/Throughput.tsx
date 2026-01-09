@@ -32,8 +32,8 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
         <ul className="list">
           {payload.map((entry: any, index: any) => {
             let quantile = "";
-            if (entry.dataKey === "tokens_per_sec_p50") quantile = "50th";
-            else if (entry.dataKey === "tokens_per_sec_p95") quantile = "95th";
+            if (entry.dataKey === "tokensPerSecP50") quantile = "50th";
+            else if (entry.dataKey === "tokensPerSecP95") quantile = "95th";
             return (
               <li key={`item-${index}`} style={{ color: entry.color }}>
                 {`${quantile} percentile: ${Math.round(entry.value)} tokens/sec`}
@@ -90,7 +90,7 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
         <Legend verticalAlign="top" height={36} />
         <Line
           type="monotone"
-          dataKey="tokens_per_sec_p50"
+          dataKey="tokensPerSecP50"
           stroke="var(--primary)"
           dot={false}
           name="50th Percentile"
@@ -98,7 +98,7 @@ export function ThroughputPlot({ data }: { data: ThroughputDataProps[] }) {
         />
         <Line
           type="monotone"
-          dataKey="tokens_per_sec_p95"
+          dataKey="tokensPerSecP95"
           stroke="var(--secondary)"
           dot={false}
           name="95th Percentile"

@@ -61,14 +61,14 @@ type InterfaceWrapperActions = {
 
 export default async function Main({
   project,
-  interface_,
+  interfaceName,
   actions,
   initialFavourites,
   searchParams,
   userMeta,
 }: {
   project: string | null;
-  interface_: string | null;  // This is the interface name from query param
+  interfaceName: string | null;  // This is the interface name from query param
   actions: InterfaceWrapperActions;
   initialFavourites: Favourite[];
   userMeta: Pick<User, "organizations" | "id">;
@@ -77,10 +77,10 @@ export default async function Main({
 
   debugLog("[Main.server] === PARAMETER DEBUG ===");
   debugLog("[Main.server] Received project:", project, typeof project);
-  debugLog("[Main.server] Received interface_:", interface_, typeof interface_);
+  debugLog("[Main.server] Received interfaceName:", interfaceName, typeof interfaceName);
   debugLog("[Main.server] === END PARAMETER DEBUG ===");
 
-  debugLog("[Main.server] Starting render with:", { project, interface_ });
+  debugLog("[Main.server] Starting render with:", { project, interfaceName });
   const qc = getQueryClient();
 
   /* Enhanced prefetch for projects and contexts */
@@ -99,7 +99,7 @@ export default async function Main({
   
   const userRequestedProjectSelection = searchParams?.selectProject === 'true';
   const userRequestedInterfaceSelection = searchParams?.selectInterface === 'true';
-  const selectingInterface = !interface_ || userRequestedInterfaceSelection;
+  const selectingInterface = !interfaceName || userRequestedInterfaceSelection;
   
   if (!currentProject && !project && !userRequestedProjectSelection) {
     // Check if "Assistants" project exists and use it as default (fresh session)
@@ -183,7 +183,7 @@ export default async function Main({
     // No additional slices needed
   }
   // Case 2: Project selected but no interface
-  else if (currentProject && !interface_) {
+  else if (currentProject && !interfaceName) {
     debugLog("[Main.server] Project selected but no interface");
     
     // Update global state to set active project
@@ -204,13 +204,13 @@ export default async function Main({
     debugLog("[Main.server] Project state slice built");
   }
   // Case 3: Both project and interface selected
-  else if (currentProject && interface_) {
-    const currentInterface = interfaces.find(i => i.name === interface_) || null;
-    debugLog("[Main.server] Validating interface:", interface_, "found:", !!currentInterface);
+  else if (currentProject && interfaceName) {
+    const currentInterface = interfaces.find(i => i.name === interfaceName) || null;
+    debugLog("[Main.server] Validating interface:", interfaceName, "found:", !!currentInterface);
     
     if (!currentInterface) {
       debugLog("[Main.server] Interface not found or inaccessible, redirecting to interface selection for project");
-      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interface_))}`);
+      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interfaceName))}`);
     }
     
     debugLog("[Main.server] Valid interface found, building all state slices");
@@ -251,8 +251,8 @@ export default async function Main({
     }
 
     // Build interface state slice
-    const activeTabId = currentInterface.active_tab_id || undefined;
-    // Prefer the URL tab if present (for SSR); otherwise use server's active_tab_id
+    const activeTabId = currentInterface.activeTabId || undefined;
+    // Prefer the URL tab if present (for SSR); otherwise use server's activeTabId
     let forcedActiveTabId: string | undefined = undefined;
     const spTab = (typeof searchParams?.tab === 'string') ? (searchParams!.tab as string) : undefined;
     if (spTab && Array.isArray(tabs)) {
@@ -376,8 +376,8 @@ export default async function Main({
   });
   
   // Always render the Interface component - it will handle missing interface logic internally
-  const interfaceId = (currentProject && interface_) ? 
-    (interfaces.find(i => i.name === interface_)?.id || "") : "";
+  const interfaceId = (currentProject && interfaceName) ? 
+    (interfaces.find(i => i.name === interfaceName)?.id || "") : "";
 
   return (
     <StoreInitializer initialState={completeInitialState}>

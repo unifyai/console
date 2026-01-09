@@ -110,10 +110,10 @@ export function AssistantSecretsManager({
                         <div className="space-y-1">
                                             {secrets.map((secret) => (
                                                 <div
-                                                    key={secret.log_id}
+                                                    key={secret.logId}
                                                     className={cn(
                                                         "flex items-center justify-between p-2 rounded-md cursor-pointer",
-                                                        selectedSecret?.log_id === secret.log_id
+                                                        selectedSecret?.logId === secret.logId
                                                             ? "bg-muted font-semibold"
                                                             : "hover:bg-muted/50"
                                                     )}

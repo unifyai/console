@@ -93,7 +93,7 @@ export default function InterfaceSelector({
   const [importResult, setImportResult] = useState<TemplateImportResponse | null>(null);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [tableState, setTableState] = useState<StateProps>({
-    sorting: [{ id: 'updated_at', desc: true }],
+    sorting: [{ id: 'updatedAt', desc: true }],
   });
 
   // State for auto-creating the default interface
@@ -252,7 +252,7 @@ export default function InterfaceSelector({
     setIsDeleting(true);
     try {
       console.log("[InterfaceSelector] Deleting interface:", deleteInterfaceId);
-      await interfaceActions.delete({ interface_id: deleteInterfaceId });
+      await interfaceActions.delete({ interfaceId: deleteInterfaceId });
       setDeleteResult("Interface deleted successfully!");
       setShowDeleteSuccess(true);
       
@@ -332,8 +332,8 @@ export default function InterfaceSelector({
     setIsExporting(true);
     try {
       const result = await interfaceActions.exportTemplate(
-        { interface_id: interfaceId, project_name: projectId, interface_name: interfaceName },
-        { include_metadata: true, template_name: interfaceName }
+        { interfaceId: interfaceId, projectName: projectId, interfaceName: interfaceName },
+        { includeMetadata: true, templateName: interfaceName }
       );
       
       if ('error' in result) {
@@ -493,10 +493,10 @@ export default function InterfaceSelector({
       const result = await interfaceActions.importTemplate(
         templateData.template, 
         { 
-          project_name: projectId, 
-          new_interface_name: importInterfaceName.trim(),
-          validate_first: true,
-          auto_sanitize: true,
+          projectName: projectId, 
+          newInterfaceName: importInterfaceName.trim(),
+          validateFirst: true,
+          autoSanitize: true,
         }
       );
 
@@ -722,9 +722,9 @@ export default function InterfaceSelector({
                     Template imported successfully!
                   </div>
                   <div className="text-sm text-green-700 dark:text-green-300 mt-1">
-                    Created: {importResult.import_stats?.interfaces} interface{importResult.import_stats?.interfaces !== 1 ? 's' : ''}, {' '}
-                    {importResult.import_stats?.tabs} tab{importResult.import_stats?.tabs !== 1 ? 's' : ''}, {' '}
-                    {importResult.import_stats?.tiles} tile{importResult.import_stats?.tiles !== 1 ? 's' : ''}
+                    Created: {importResult.importStats?.interfaces} interface{importResult.importStats?.interfaces !== 1 ? 's' : ''}, {' '}
+                    {importResult.importStats?.tabs} tab{importResult.importStats?.tabs !== 1 ? 's' : ''}, {' '}
+                    {importResult.importStats?.tiles} tile{importResult.importStats?.tiles !== 1 ? 's' : ''}
                   </div>
                 </div>
               </Alert>

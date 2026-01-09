@@ -32,29 +32,29 @@ import { createMockLogs, createMockFields } from '../fixtures/mockData';
 // =============================================================================
 
 export interface CreatePlotRequest {
-  plot_config?: {
+  plotConfig?: {
     type?: string;
-    x_axis: string;
-    y_axis?: string;
-    group_by?: string;
+    xAxis: string;
+    yAxis?: string;
+    groupBy?: string;
     aggregate?: string;
-    scale_x?: string;
-    scale_y?: string;
+    scaleX?: string;
+    scaleY?: string;
     metric?: string;
-    bin_count?: number;
-    show_regression?: boolean;
+    binCount?: number;
+    showRegression?: boolean;
     colors?: Record<string, string>;
-    sort_by?: string;
-    sort_order?: string;
+    sortBy?: string;
+    sortOrder?: string;
     title?: string;
   };
   description?: string;
-  project_config: {
-    project_name: string;
-    filter_expr?: string;
+  projectConfig: {
+    projectName: string;
+    filterExpr?: string;
     limit?: number;
     offset?: number;
-    group_by?: string[];
+    groupBy?: string[];
     sorting?: string;
   };
   title?: string;
@@ -65,9 +65,9 @@ export interface CreatePlotResponse {
   token: string;
   inferred_config?: {
     type: string;
-    x_axis: string;
-    y_axis?: string;
-    group_by?: string;
+    xAxis: string;
+    yAxis?: string;
+    groupBy?: string;
     confidence: number;
     reasoning: string;
   };
@@ -97,9 +97,9 @@ export interface PlotDataResponse {
   metadata: {
     token: string;
     title?: string;
-    project_name: string;
-    created_at: string;
-    created_by: string;
+    projectName: string;
+    createdAt: string;
+    createdBy: string;
   };
   preAggregatedBarData?: [string, number][] | [string, [string, number]][];
   isGroupedBarChart?: boolean;
@@ -178,8 +178,8 @@ export function createPlotDataResponse(
   const transformedFields: Record<string, unknown> = {};
   for (const [path, fieldDef] of Object.entries(fields)) {
     transformedFields[path] = {
-      type: fieldDef.data_type,
-      display_type: fieldDef.data_type,
+      type: fieldDef.dataType,
+      displayType: fieldDef.dataType,
       count: 100,
     };
   }
@@ -187,26 +187,26 @@ export function createPlotDataResponse(
   return {
     config: {
       type: plotConfig.type,
-      xAxis: plotConfig.x_axis,
-      yAxis: plotConfig.y_axis,
-      groupBy: plotConfig.group_by,
+      xAxis: plotConfig.xAxis,
+      yAxis: plotConfig.yAxis,
+      groupBy: plotConfig.groupBy,
       aggregate: plotConfig.aggregate,
-      scaleX: plotConfig.scale_x,
-      scaleY: plotConfig.scale_y,
+      scaleX: plotConfig.scaleX,
+      scaleY: plotConfig.scaleY,
       metric: 'mean',
-      binCount: plotConfig.bin_count,
-      showRegression: plotConfig.show_regression,
-      sortBy: plotConfig.sort_by,
-      sortOrder: plotConfig.sort_order,
+      binCount: plotConfig.binCount,
+      showRegression: plotConfig.showRegression,
+      sortBy: plotConfig.sortBy,
+      sortOrder: plotConfig.sortOrder,
     },
     data: transformedLogs,
     fields: transformedFields,
     metadata: {
       token: generateTestToken(),
       title: options.title,
-      project_name: options.projectName ?? 'test-project',
-      created_at: new Date().toISOString(),
-      created_by: 'test-user',
+      projectName: options.projectName ?? 'test-project',
+      createdAt: new Date().toISOString(),
+      createdBy: 'test-user',
     },
   };
 }
@@ -246,16 +246,13 @@ export function createPlotSuccessHandler(
     // Parse body and validate
     const body = (await request.json()) as CreatePlotRequest;
 
-    if (!body.project_config?.project_name) {
-      return HttpResponse.json(
-        { error: 'Missing project_config.project_name' },
-        { status: 400 }
-      );
+    if (!body.projectConfig?.projectName) {
+      return HttpResponse.json({ error: 'Missing projectConfig.projectName' }, { status: 400 });
     }
 
-    if (!body.plot_config && !body.description) {
+    if (!body.plotConfig && !body.description) {
       return HttpResponse.json(
-        { error: 'Either plot_config or description is required' },
+        { error: 'Either plotConfig or description is required' },
         { status: 400 }
       );
     }
@@ -286,10 +283,7 @@ export function createPlotErrorHandler(
 /**
  * Create plot data success handler
  */
-export function getPlotDataSuccessHandler(
-  response: PlotDataResponse,
-  config?: HandlerConfig
-) {
+export function getPlotDataSuccessHandler(response: PlotDataResponse, config?: HandlerConfig) {
   const tokenPattern = config?.token ?? ':token';
   return http.get(`/api/plot/data/${tokenPattern}`, async ({ params }) => {
     if (config?.delay) {
@@ -300,10 +294,7 @@ export function getPlotDataSuccessHandler(
 
     // Validate token format
     if (token && !/^[a-f0-9]{12}$|^test\d{8}$/.test(token)) {
-      return HttpResponse.json(
-        { error: 'Invalid token format' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Invalid token format' }, { status: 400 });
     }
 
     return HttpResponse.json(response);
@@ -336,18 +327,18 @@ export function getPlotDataErrorHandler(
 
 const defaultPlotConfig: PlotConfig = {
   type: 'scatter',
-  x_axis: 'table1.x_value',
-  y_axis: 'table1.y_value',
-  scale_x: 'linear',
-  scale_y: 'linear',
-  show_regression: false,
-  bin_count: 10,
+  xAxis: 'table1.x_value',
+  yAxis: 'table1.y_value',
+  scaleX: 'linear',
+  scaleY: 'linear',
+  showRegression: false,
+  binCount: 10,
 };
 
 const defaultDataTypeConfig: DataTypeConfig = {
-  x_axis_type: 'float',
-  y_axis_type: 'float',
-  group_by_type: 'str',
+  xAxisType: 'float',
+  yAxisType: 'float',
+  groupByType: 'str',
 };
 
 const defaultScale: ScaleOption = {
@@ -403,14 +394,17 @@ export interface MatrixTestSetup {
   response: PlotDataResponse;
   metadata: PlotDataResponse['metadata'];
   logs: LogEntry[];
-  fields: Record<string, {
-    data_type: string;
-    field_type: 'entry' | 'param' | 'derived_entry';
-    artifacts: string;
-    mutable: 'true' | 'false';
-    created_at: string;
-    description?: string;
-  }>;
+  fields: Record<
+    string,
+    {
+      dataType: string;
+      fieldType: 'entry' | 'param' | 'derived_entry';
+      artifacts: string;
+      mutable: 'true' | 'false';
+      createdAt: string;
+      description?: string;
+    }
+  >;
 }
 
 /**
@@ -436,12 +430,7 @@ export function setupMatrixTestHandlers(
 
   const fields = createMockFields(dataTypeConfig);
 
-  const response = createPlotDataResponse(
-    plotConfig,
-    dataTypeConfig,
-    scale,
-    options
-  );
+  const response = createPlotDataResponse(plotConfig, dataTypeConfig, scale, options);
 
   server.use(
     createPlotSuccessHandler({ token: response.metadata.token }),
@@ -460,13 +449,7 @@ export function setupMatrixTestHandlers(
  * Create a scenario-specific handler setup for API tests
  */
 export function createTestScenario(
-  scenario:
-    | 'success'
-    | 'auth-error'
-    | 'validation-error'
-    | 'not-found'
-    | 'expired'
-    | 'server-error'
+  scenario: 'success' | 'auth-error' | 'validation-error' | 'not-found' | 'expired' | 'server-error'
 ) {
   switch (scenario) {
     case 'success':
@@ -518,5 +501,3 @@ export function createTestScenario(
       return defaultHandlers;
   }
 }
-
-

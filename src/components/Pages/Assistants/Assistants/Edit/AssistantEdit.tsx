@@ -58,7 +58,7 @@ export function AssistantEdit({
         return "Update Assistant";
     };
 
-    const displayName = `${assistant.first_name} ${assistant.surname}`;
+    const displayName = `${assistant.firstName} ${assistant.surname}`;
 
     return (
         <Dialog 

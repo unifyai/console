@@ -226,11 +226,11 @@ describe('@real Interfaces API', () => {
     expect(result).toBeDefined();
 
     // Cleanup the imported interface
-    if (result.interface_id) {
-      createdInterfaceIds.push(result.interface_id);
+    if (result.interfaceId) {
+      createdInterfaceIds.push(result.interfaceId);
 
       // Verify the imported interface exists
-      const imported = await interfacesApi.getById(result.interface_id);
+      const imported = await interfacesApi.getById(result.interfaceId);
       expect(imported.name).toBe(newName);
     }
   });

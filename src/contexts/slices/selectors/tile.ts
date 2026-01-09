@@ -36,12 +36,12 @@ export interface TileMeta {
 export interface TileData {
   context?: string | null;
   table?: string | null;
-  auto_update?: string | null;
+  autoUpdate?: string | null;
   freeze?: string | null;
   filters?: string | null;
-  common_filter?: string | null;
+  commonFilter?: string | null;
   metric?: string | null;         // Current metric being displayed
-  column_context?: string | null;
+  columnContext?: string | null;
   grouping?: string | null;
 }
 
@@ -72,8 +72,8 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // tileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a Tile into a TileProps
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
-  "id","name","type","position","minW","minH","context","table","auto_update",
-  "freeze","filters","common_filter","metric","column_context","grouping",
+  "id","name","type","position","minW","minH","context","table","autoUpdate",
+  "freeze","filters","commonFilter","metric","columnContext","grouping",
   "visible","moved","static","color",
 ];
 
@@ -101,12 +101,12 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     // Data
     context: initialState.context !== undefined ? initialState.context : null,
     table: initialState.table !== undefined ? initialState.table : null,
-    auto_update: initialState.auto_update !== undefined ? initialState.auto_update : null,
+    autoUpdate: initialState.autoUpdate !== undefined ? initialState.autoUpdate : null,
     freeze: initialState.freeze !== undefined ? initialState.freeze : null,
     filters: initialState.filters !== undefined ? initialState.filters : null,
-    common_filter: initialState.common_filter !== undefined ? initialState.common_filter : null,
+    commonFilter: initialState.commonFilter !== undefined ? initialState.commonFilter : null,
     metric: initialState.metric !== undefined ? initialState.metric : null,
-    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
+    columnContext: initialState.columnContext !== undefined ? initialState.columnContext : null,
     grouping: initialState.grouping !== undefined ? initialState.grouping : null,
     
     // UI

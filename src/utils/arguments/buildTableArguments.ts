@@ -4,7 +4,7 @@ import { buildFilterExpression } from "@/utils/interfaces/table/filters";
 import { processContext } from "@/utils/interfaces/table/columnOperations";
 
 /*
- * Builds the available_fields for tableArgument for a tile
+ * Builds the availableFields for tableArgument for a tile
  */
 export function buildAvailableFieldsForTile(
   columnContext: string,
@@ -12,7 +12,7 @@ export function buildAvailableFieldsForTile(
   entriesProperties: string[],
   paramsProperties: string[]
 ): LogFieldsResponseProps {
-  const available_fields = Object.fromEntries(
+  const availableFields = Object.fromEntries(
     Object.entries(fields)
       .filter((([field, _]) => 
         entriesProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property)
@@ -20,7 +20,7 @@ export function buildAvailableFieldsForTile(
         .includes(field))
       )
   );
-  return available_fields;
+  return availableFields;
 }
 
 /**
@@ -38,16 +38,16 @@ export function buildTableArgumentsForTile(
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
-    tile.common_filter,
-    tile.column_context,
+    tile.commonFilter,
+    tile.columnContext,
     tile.freeze,
     fields
   );
   
   // Handle sorting
-  const sortingObject = tile.table_tile?.sorting ? Object.fromEntries(
-    tile.table_tile.sorting.split(",").map(value => [
-      tile.column_context ? processContext("merge", tile.column_context, value.split("@")[0]) : value.split("@")[0],
+  const sortingObject = tile.tableTile?.sorting ? Object.fromEntries(
+    tile.tableTile.sorting.split(",").map(value => [
+      tile.columnContext ? processContext("merge", tile.columnContext, value.split("@")[0]) : value.split("@")[0],
       value.split("@")[1].replace("true", "descending").replace("false", "ascending")
     ])
   ) : "";
@@ -57,13 +57,13 @@ export function buildTableArgumentsForTile(
   const groupingExpression = tile.grouping || null;
   
   // Handle group sorting
-  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? Object.fromEntries(
-    tile.table_tile.group_sorting.split(",").map(value => {
-      const group = tile.column_context 
-        ? processContext("merge", tile.column_context, tile.grouping!.split(",")[0]) 
+  const groupSortingObject = tile.tableTile?.groupSorting && tile.grouping ? Object.fromEntries(
+    tile.tableTile.groupSorting.split(",").map(value => {
+      const group = tile.columnContext 
+        ? processContext("merge", tile.columnContext, tile.grouping!.split(",")[0]) 
         : tile.grouping!.split(",")[0];
-      const field = tile.column_context 
-        ? processContext("merge", tile.column_context, value.split("@")[0]) 
+      const field = tile.columnContext 
+        ? processContext("merge", tile.columnContext, value.split("@")[0]) 
         : value.split("@")[0];
       const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending");
       const metric = tile.metric ?? "mean";
@@ -74,21 +74,21 @@ export function buildTableArgumentsForTile(
   
   // Create or update this tile's arguments
   tableArguments[tileName] = tableArguments[tileName] || {
-    getLogs_parameters: { filter_expr: "" },
+    getLogsParameters: { filterExpr: "" },
   };
   
   // Set filter expression
-  tableArguments[tileName].getLogs_parameters.filter_expr = filterExpression || "";
+  tableArguments[tileName].getLogsParameters.filterExpr = filterExpression || "";
   
   // Add optional parameters
-  if (tile.filters) tableArguments[tileName].getLogs_parameters["column_filters"] = tile.filters;
-  if (tile.common_filter) tableArguments[tileName].getLogs_parameters["common_filter"] = tile.common_filter;
-  if (tile.freeze) tableArguments[tileName].getLogs_parameters["freeze"] = tile.freeze;
-  if (sortingExpression) tableArguments[tileName].getLogs_parameters["sorting"] = sortingExpression;
-  if (groupingExpression) tableArguments[tileName].getLogs_parameters["grouping"] = groupingExpression;
-  if (groupSortingExpression) tableArguments[tileName].getLogs_parameters["group_sorting"] = groupSortingExpression;
-  if (tile.context) tableArguments[tileName].getLogs_parameters["context"] = tile.context;
-  if (tile.column_context) tableArguments[tileName].getLogs_parameters["column_context"] = tile.column_context;
+  if (tile.filters) tableArguments[tileName].getLogsParameters["column_filters"] = tile.filters;
+  if (tile.commonFilter) tableArguments[tileName].getLogsParameters["commonFilter"] = tile.commonFilter;
+  if (tile.freeze) tableArguments[tileName].getLogsParameters["freeze"] = tile.freeze;
+  if (sortingExpression) tableArguments[tileName].getLogsParameters["sorting"] = sortingExpression;
+  if (groupingExpression) tableArguments[tileName].getLogsParameters["grouping"] = groupingExpression;
+  if (groupSortingExpression) tableArguments[tileName].getLogsParameters["groupSorting"] = groupSortingExpression;
+  if (tile.context) tableArguments[tileName].getLogsParameters["context"] = tile.context;
+  if (tile.columnContext) tableArguments[tileName].getLogsParameters["columnContext"] = tile.columnContext;
   
   return tableArguments;
 }
@@ -106,7 +106,7 @@ export function buildTableArguments(
   // Process each table tile SEQUENTIALLY with a for loop
   for (let i = 0; i < tiles.length; i++) {
     const tile = tiles[i];
-    if (tile.table_tile) {
+    if (tile.tableTile) {
       tableArguments = buildTableArgumentsForTile(tile, fields[i], tableArguments);
     }
   }

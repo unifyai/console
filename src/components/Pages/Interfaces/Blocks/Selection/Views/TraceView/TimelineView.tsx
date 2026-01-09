@@ -424,10 +424,10 @@ export default function TimelineViewButton({
 
   useEffect(() => {
     function spanIsRunning(span: Span): boolean {
-      if (span.completed === false || span.exec_time === undefined || span.exec_time === null) {
+      if (span.completed === false || span.execTime === undefined || span.execTime === null) {
         return true;
       }
-      return span.child_spans?.some(spanIsRunning) ?? false;
+      return span.childSpans?.some(spanIsRunning) ?? false;
     }
 
     const hasRunning = traces.some(spanIsRunning);

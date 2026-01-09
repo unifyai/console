@@ -62,7 +62,7 @@ export function usePatchTileQueryOptimistic() {
   return useMutation({
     mutationFn: async ({ 
       id,
-      tab_id, 
+      tabId, 
       name, 
       projectId,
       updateData,
@@ -78,7 +78,7 @@ export function usePatchTileQueryOptimistic() {
       fieldsActions
     }: { 
       id: string;
-      tab_id: string; 
+      tabId: string; 
       name: string;
       projectId: string;
       updateData: {
@@ -93,12 +93,12 @@ export function usePatchTileQueryOptimistic() {
         color?: string;
         context?: string;
         table?: string;
-        auto_update?: string;
+        autoUpdate?: string;
         freeze?: string;
         filters?: string;
-        common_filter?: string;
+        commonFilter?: string;
         metric?: string;
-        column_context?: string;
+        columnContext?: string;
         grouping?: string;
       };
       refetchProjects: boolean;
@@ -114,8 +114,8 @@ export function usePatchTileQueryOptimistic() {
     }) => {
       if (id) {
         return actions.patchById(id, updateData);
-      } else if (tab_id && name) {
-        return actions.patchByName(tab_id, name, updateData);
+      } else if (tabId && name) {
+        return actions.patchByName(tabId, name, updateData);
       } else {
         throw new Error("Invalid arguments");
       }
@@ -124,7 +124,7 @@ export function usePatchTileQueryOptimistic() {
     onMutate: async (variables) => {
       const { 
         id,
-        tab_id, 
+        tabId, 
         name, 
         projectId,
         updateData, 
@@ -143,12 +143,12 @@ export function usePatchTileQueryOptimistic() {
       // High-level timer for the whole onMutate path
       const t0 = performance.now();
       
-      if (!tab_id) {
-        throw new Error("tab_id is required for optimistic updates");
+      if (!tabId) {
+        throw new Error("tabId is required for optimistic updates");
       }
       
       // Get actual query key
-      const tileKey = id ? ['tile-by-id', id] : ['tile', tab_id, name];
+      const tileKey = id ? ['tile-by-id', id] : ['tile', tabId, name];
       
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       const tCancel = performance.now();
@@ -161,12 +161,12 @@ export function usePatchTileQueryOptimistic() {
       
       // Get the previous tile data
       const tUpdateCache = performance.now();
-      const previousTiles = queryClient.getQueryData<TileData[]>(['tiles', tab_id]);
+      const previousTiles = queryClient.getQueryData<TileData[]>(['tiles', tabId]);
 
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
       const projectData = selectProjectById(state, projectId);
-      const tilesInTab = selectTilesForTab(state, tab_id);
+      const tilesInTab = selectTilesForTab(state, tabId);
       const tilesInTabData = tilesInTab.map(tile => convertTileToTileData(tile));
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
@@ -177,15 +177,15 @@ export function usePatchTileQueryOptimistic() {
       if (id) {
         optimisticTile = tilesInTab.find(tile => tile.id === id) as Tile;
         optimisticTileData = tilesInTabData.find(tileData => tileData.id === id) as TileData;
-      } else if (tab_id && name) {
-        optimisticTile = tilesInTab.find(tile => tile.tabId === tab_id && tile.name === name) as Tile;
-        optimisticTileData = tilesInTabData.find(tileData => tileData.tab_id === tab_id && tileData.name === name) as TileData;
+      } else if (tabId && name) {
+        optimisticTile = tilesInTab.find(tile => tile.tabId === tabId && tile.name === name) as Tile;
+        optimisticTileData = tilesInTabData.find(tileData => tileData.tabId === tabId && tileData.name === name) as TileData;
       }
 
       const tileType = optimisticTileData?.type;
       
       // Update the tiles list in the cache
-      queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
+      queryClient.setQueryData(['tiles', tabId], tilesInTabData);
       perfLog(
         `[perf] onMutate(${name}) – set tiles cache: ${(
           performance.now() - tUpdateCache
@@ -208,7 +208,7 @@ export function usePatchTileQueryOptimistic() {
             queryClient.prefetchQuery({
               queryKey: ["fields", projectId, context],
               queryFn: async () => {
-                const url = `/api/logs/fields?project_name=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
+                const url = `/api/logs/fields?projectName=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
                 const res = await fetch(url, { method: 'GET', cache: 'no-store' });
                 if (!res.ok) throw new Error(`Fields ${res.status}`);
                 return res.json();
@@ -220,8 +220,8 @@ export function usePatchTileQueryOptimistic() {
 
       // Get existing table and plot arguments from cache
       const tBuildArgs = performance.now();
-      const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tab_id]) || {} as TableArguments;
-      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
+      const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tabId]) || {} as TableArguments;
+      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) || {} as PlotArguments;
 
       // Build arguments for all tiles using cache-only fields
       if (tableTilesData.length > 0 || plotTilesData.length > 0) {
@@ -229,14 +229,14 @@ export function usePatchTileQueryOptimistic() {
         buildTabArguments(tilesInTabData, fieldsArray, existingTableArgs, existingPlotArgs);
 
         // Store the built arguments in the cache
-        queryClient.setQueryData(["tableArguments", tab_id], newTableArguments);
-        queryClient.setQueryData(["plotArguments", tab_id], newPlotArguments);
+        queryClient.setQueryData(["tableArguments", tabId], newTableArguments);
+        queryClient.setQueryData(["plotArguments", tabId], newPlotArguments);
         
       } else {
   
         // Initialize empty arguments if no tiles
-        queryClient.setQueryData(["tableArguments", tab_id], {});
-        queryClient.setQueryData(["plotArguments", tab_id], {});
+        queryClient.setQueryData(["tableArguments", tabId], {});
+        queryClient.setQueryData(["plotArguments", tabId], {});
       }
       perfLog(
         `[perf] onMutate(${name}) – buildTabArguments: ${(
@@ -286,17 +286,17 @@ export function usePatchTileQueryOptimistic() {
             );
 
             // Update available fields in the tableArguments (if we have tableArguments for this tile)
-            const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
+            const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tabId]) || {} as TableArguments;
             if (tableArguments[optimisticTileData.name]) {
-              tableArguments[optimisticTileData.name].available_fields = buildAvailableFieldsForTile(
-                optimisticTileData.column_context ?? "",
+              tableArguments[optimisticTileData.name].availableFields = buildAvailableFieldsForTile(
+                optimisticTileData.columnContext ?? "",
                 fields,
                 tableDataItem.entriesProperties,
                 tableDataItem.paramsProperties
               );
       
               // Update the cache with available fields
-              queryClient.setQueryData(["tableArguments", tab_id], tableArguments);
+              queryClient.setQueryData(["tableArguments", tabId], tableArguments);
             }
           
             // Update the TableDataItem in the cache
@@ -331,7 +331,7 @@ export function usePatchTileQueryOptimistic() {
           
           // Update each plot that needs updating
           const tPlotDataItem = performance.now();
-          const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
+          const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) || {} as PlotArguments;
           for (const plotTile of plotTilesToUpdate) {
             try {
               // Build the updated PlotDataItem
@@ -385,35 +385,35 @@ export function usePatchTileQueryOptimistic() {
     },
     
     onSuccess: (result, variables) => {
-      const { id, tab_id, name, projectId } = variables;
+      const { id, tabId, name, projectId } = variables;
       
       // Only invalidate without refetching since we've already updated the cache optimistically
       
       // Invalidate tiles list
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tiles', tab_id],
+          queryKey: ['tiles', tabId],
           refetchType: 'none'
         });
       }
       
       // Invalidate table and plot arguments
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tableArguments', tab_id],
+          queryKey: ['tableArguments', tabId],
           refetchType: 'none'
         });
         
         queryClient.invalidateQueries({ 
-          queryKey: ['plotArguments', tab_id],
+          queryKey: ['plotArguments', tabId],
           refetchType: 'none'
         });
       }
       
       // Invalidate tab with tiles if we know the tab
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tab_id],
+          queryKey: ['tab-with-tiles-by-id', tabId],
           refetchType: 'none'
         });
       }

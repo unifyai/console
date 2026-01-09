@@ -9,7 +9,7 @@ const LIVEVIEW_URL_RETRY_DELAY_MS = 2000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
-    return async (assistant_id: string): Promise<{ liveviewUrl?: string } | ResponseProps> => {
+    return async (assistantId: string): Promise<{ liveviewUrl?: string } | ResponseProps> => {
         "use server";
         
 
@@ -26,12 +26,12 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                 return { detail: "Server configuration error: Application URL not found." };
             }
 
-            const filter_expr = `user_id == '${userId}' and assistant_id == '${assistant_id}' and running == 'true'`;
+            const filterExpr = `userId == '${userId}' and assistantId == '${assistantId}' and running == 'true'`;
             
             const url = new URL(`${nextAuthUrl}/api/logs`);
-            url.searchParams.append("project_name", "AssistantJobs");
+            url.searchParams.append("projectName", "AssistantJobs");
             url.searchParams.append("context", "startup_events");
-            url.searchParams.append("filter_expr", filter_expr);
+            url.searchParams.append("filterExpr", filterExpr);
             
             for (let attempt = 1; attempt <= MAX_LIVEVIEW_URL_RETRIES; attempt++) {
 
@@ -49,7 +49,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
 
                 if (response.status === 404) {
                     if (attempt === MAX_LIVEVIEW_URL_RETRIES) {
-                        console.warn(`[getLiveviewUrl] Max retries reached. No active session found for assistant ${assistant_id} (404 Not Found).`);
+                        console.warn(`[getLiveviewUrl] Max retries reached. No active session found for assistant ${assistantId} (404 Not Found).`);
                         return { detail: "No active session found for this assistant. Please try again in a moment." };
                     }
                     await sleep(LIVEVIEW_URL_RETRY_DELAY_MS);
@@ -84,11 +84,11 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                 }
             }
             
-            console.warn(`[getLiveviewUrl] No logs with a valid 'liveview_url' found for assistant ${assistant_id} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`);
+            console.warn(`[getLiveviewUrl] No logs with a valid 'liveview_url' found for assistant ${assistantId} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`);
             return { detail: "Could not find an active remote control session. The assistant might still be starting up." };
 
         } catch (error) {
-            console.error(`[getLiveviewUrl] An unexpected error occurred while fetching session URL for assistant ${assistant_id}:`, error);
+            console.error(`[getLiveviewUrl] An unexpected error occurred while fetching session URL for assistant ${assistantId}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred while fetching session URL.";
             return { detail: errorMessage };
         }
@@ -111,8 +111,8 @@ export const sendSystemEvent = async () => {
         const webhookUrl = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unity/system-event`;
         
         const payload = {
-            assistant_id: parseInt(assistantId), // The webhook likely expects an integer ID
-            event_type: eventType,
+            assistantId: parseInt(assistantId), // The webhook likely expects an integer ID
+            eventType: eventType,
             message: message,
         };
 

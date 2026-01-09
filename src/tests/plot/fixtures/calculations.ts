@@ -493,7 +493,7 @@ export function calculateExpectedPointCount(
 
 /**
  * Calculate expected point count when aggregation is applied.
- * When aggregate + group_by are set, we get one point per unique group.
+ * When aggregate + groupBy are set, we get one point per unique group.
  */
 export function calculateExpectedAggregatedPointCount(
   logs: Array<{ [key: string]: unknown }>,

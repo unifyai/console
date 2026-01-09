@@ -24,7 +24,7 @@ const createMockResponse = (data: any, status = 200) => ({
 const mockInterface: InterfaceData = {
   id: 'interface-1',
   name: 'Main Interface',
-  project_id: 'project-1',
+  projectId: 'project-1',
 };
 
 const createQueryClient = () => new QueryClient({
@@ -59,7 +59,7 @@ describe('Interfaces query hooks (integration-style)', () => {
     // Mock fetch to return interfaces
     mockFetch.mockImplementation(async (url: string) => {
       if (url.includes('/api/interface')) {
-        return createMockResponse([{ ...mockInterface, project_id: 'project-1' }]);
+        return createMockResponse([{ ...mockInterface, projectId: 'project-1' }]);
       }
       return createMockResponse({}, 404);
     });
@@ -82,7 +82,7 @@ describe('Interfaces query hooks (integration-style)', () => {
     // Verify fetch was called instead of actions.list
     expect(mockFetch).toHaveBeenCalled();
     expect(mockFetch.mock.calls.some((call: unknown[]) => 
-      (call[0] as string).includes('/api/interface?project_name=project-1')
+      (call[0] as string).includes('/api/interface?projectName=project-1')
     )).toBe(true);
 
     // When projectId becomes null, the query should be disabled and not refetch;
@@ -100,7 +100,7 @@ describe('Interfaces query hooks (integration-style)', () => {
 
     const getByName = vi.fn(async (projectId: string, name: string) => ({
       ...mockInterface,
-      project_id: projectId,
+      projectId: projectId,
       name,
     }));
 
@@ -168,7 +168,7 @@ describe('Interfaces query hooks (integration-style)', () => {
 
     const getInterfaceWithTabs = vi.fn(
       async (projectId: string, name: string) => ({
-        interface: { ...mockInterface, project_id: projectId, name },
+        interface: { ...mockInterface, projectId: projectId, name },
         tabs: [{ id: 'tab-1', name: 'Tab 1' }],
       }),
     );
@@ -201,9 +201,9 @@ describe('Interfaces query hooks (integration-style)', () => {
     const getByName = vi.fn(
       async (projectId: string, name: string, checkpoint?: boolean) => ({
         ...mockInterface,
-        project_id: projectId,
+        projectId: projectId,
         name,
-        is_checkpoint: !!checkpoint,
+        isCheckpoint: !!checkpoint,
       }),
     );
 
@@ -242,7 +242,7 @@ describe('Interfaces query hooks (integration-style)', () => {
     await waitFor(() => {
       expect(byNameResult.current.isSuccess).toBe(true);
       expect(byNameResult.current.data?.name).toBe('Main Interface');
-      expect(byNameResult.current.data?.is_checkpoint).toBe(true);
+      expect(byNameResult.current.data?.isCheckpoint).toBe(true);
     });
     expect(getByName).toHaveBeenCalledTimes(1);
   });

@@ -97,12 +97,12 @@ export function useViewTile(
     if (!isViewTile || !tileId || !viewTile) return null;
     
     return {
-      base_index: viewTile.base_index
+      baseIndex: viewTile.baseIndex
     } as ViewTileData;
   }, [
     isViewTile,
     tileId,
-    viewTile?.base_index,
+    viewTile?.baseIndex,
   ]);
 
   // Access store for view-specific UI state
@@ -133,7 +133,7 @@ export function useViewTile(
     return {
       setBaseIndex: (baseIndex) => {
         const update: Partial<ViewTile> = { 
-          base_index: baseIndex 
+          baseIndex: baseIndex 
         };
         storeUpdateViewTile(tileId, update);
       }

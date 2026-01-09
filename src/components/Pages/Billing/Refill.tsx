@@ -9,11 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle } from "lucide-react";
 
 interface BillingEligibility {
-  user_id: string;
-  total_spending: number;
-  can_enable_monthly_billing: boolean;
-  minimum_spend_required: number;
-  remaining_spend_needed: number;
+  userId: string;
+  totalSpending: number;
+  canEnableMonthlyBilling: boolean;
+  minimumSpendRequired: number;
+  remainingSpendNeeded: number;
 }
 
 const AutomaticRefill = () => {
@@ -62,9 +62,9 @@ const AutomaticRefill = () => {
 
   const handleToggleAutoRecharge = async () => {
     // Only check eligibility when trying to ENABLE auto-recharge (not disable)
-    if (!isAutoRechargeEnabled && !billingEligibility?.can_enable_monthly_billing) {
+    if (!isAutoRechargeEnabled && !billingEligibility?.canEnableMonthlyBilling) {
       setAlertMessage(
-        `You need to spend $${billingEligibility?.minimum_spend_required} to access automated top-ups. You've spent $${billingEligibility?.total_spending?.toFixed(2)}, spend $${billingEligibility?.remaining_spend_needed?.toFixed(2)} more to unlock this feature.`
+        `You need to spend $${billingEligibility?.minimumSpendRequired} to access automated top-ups. You've spent $${billingEligibility?.totalSpending?.toFixed(2)}, spend $${billingEligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.`
       );
       setAlertType("error");
       return;
@@ -162,14 +162,14 @@ const AutomaticRefill = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {billingEligibility && !billingEligibility.can_enable_monthly_billing && !isAutoRechargeEnabled && (
+          {billingEligibility && !billingEligibility.canEnableMonthlyBilling && !isAutoRechargeEnabled && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="whitespace-normal break-words">
                 <div>
                   <strong>Spend $100 to Access Automated Top-ups</strong>
                   <br />
-                  You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills.
+                  You&#39;ve spent ${billingEligibility.totalSpending.toFixed(2)}, spend ${billingEligibility.remainingSpendNeeded.toFixed(2)} more to unlock automatic refills.
                 </div>
               </AlertDescription>
             </Alert>

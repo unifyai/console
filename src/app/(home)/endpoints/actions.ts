@@ -16,11 +16,11 @@ export const listCustomEndpoints = async (apiKey: string) => {
 };
 
 export const createCustomEndpoint = async (apiKey: string) => {
-    return async (name: string, url: string, key_name: string, model_arg?: string) : Promise<ResponseProps> => {
+    return async (name: string, url: string, keyName: string, modelArg?: string) : Promise<ResponseProps> => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/customEndpoints?name=${name}&url=${url}&key_name=${key_name}` + (model_arg ? `&model_arg=${model_arg}` : ""),
+            `${process.env.NEXTAUTH_URL}/api/customEndpoints?name=${name}&url=${url}&keyName=${keyName}` + (modelArg ? `&modelArg=${modelArg}` : ""),
             { method: "POST", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -44,7 +44,7 @@ export const renameCustomEndpoint = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/customEndpoints/rename?name=${name}&new_name=${newName}`,
+            `${process.env.NEXTAUTH_URL}/api/customEndpoints/rename?name=${name}&newName=${newName}`,
             { method: "RENAME", headers: { apiKey: apiKey } }
         );
         return await response.json();

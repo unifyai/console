@@ -84,7 +84,7 @@ export class SVGScatterRenderer implements ScatterRenderer {
             const val = getValue(fields, yAxisProperty, d, yTable) as number;
             return y(reverseY ? Math.abs(val) : val);
           })
-          .attr('r', config.POINT_SIZE)
+          .attr('r', config.pointSize)
           .style('opacity', 0)
           .style('cursor', 'pointer')
           .call((enter) => enter.transition('enter').duration(200).style('opacity', 1)),
@@ -114,7 +114,7 @@ export class SVGScatterRenderer implements ScatterRenderer {
                 const val = getValue(fields, yAxisProperty, d, yTable) as number;
                 return y(reverseY ? Math.abs(val) : val);
               })
-              .attr('r', config.POINT_SIZE)
+              .attr('r', config.pointSize)
               .style('opacity', 1)
           ),
       (exit) => exit.call((exit) => exit.transition('exit').duration(200).attr('r', 0).remove())
@@ -161,8 +161,8 @@ export class SVGScatterRenderer implements ScatterRenderer {
       .selectAll<SVGCircleElement, LogProps>('circle.data-point')
       .transition('hover_effect')
       .duration(150)
-      .attr('r', (d) => (d[`${xTable}.id`] === hoveredId ? config.HOVER_SIZE : config.POINT_SIZE))
-      .style('opacity', (d) => (d[`${xTable}.id`] === hoveredId ? 1 : config.DIM_OPACITY));
+      .attr('r', (d) => (d[`${xTable}.id`] === hoveredId ? config.hoverSize : config.pointSize))
+      .style('opacity', (d) => (d[`${xTable}.id`] === hoveredId ? 1 : config.dimOpacity));
 
     // Handle grouped dimming
     if (groupBy && showRegression === 'true') {
@@ -188,7 +188,7 @@ export class SVGScatterRenderer implements ScatterRenderer {
       .selectAll('circle.data-point')
       .transition('hover_effect_out')
       .duration(150)
-      .attr('r', config.POINT_SIZE)
+      .attr('r', config.pointSize)
       .style('opacity', 1);
 
     if (this.options.showRegression === 'true') {
@@ -215,7 +215,7 @@ export class SVGScatterRenderer implements ScatterRenderer {
     const mouseY = clientY - rect.top;
 
     let closestIndex = -1;
-    let closestDist = config.HIT_THRESHOLD;
+    let closestDist = config.hitThreshold;
 
     for (let i = 0; i < this.data.length; i++) {
       const d = this.data[i];

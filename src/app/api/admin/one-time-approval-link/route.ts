@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
 
-    const { expires_in_days = 1 } = requestBody; // Default to 1 day
+    const { expiresInDays = 1 } = requestBody; // Default to 1 day
 
     const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link`;
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
             },
-            body: JSON.stringify({ expires_in_days }),
+            body: JSON.stringify({ expiresInDays: expiresInDays }),
         });
 
         const data = await response.json();
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         });
 
         const data = await response.json();
-        // TODO: If backend returns user_id, fetch user email to enrich the response
+        // TODO: If backend returns userId, fetch user email to enrich the response
         // This would require another call to an admin endpoint to get user details by ID
         // For simplicity now, just pass through.
         return NextResponse.json(data, { status: response.status });

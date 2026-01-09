@@ -1,5 +1,6 @@
 import { Role, Permission } from "@/types/role";
 import { ResponseProps } from "@/types/common";
+import { snakeToCamelObject } from "@/utils/casing";
 
 const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -13,7 +14,8 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
             if (!response.ok) {
                 return { detail: data.detail || "Operation failed", status: response.status };
             }
-            return data;
+            // Transform snake_case response to camelCase
+            return snakeToCamelObject(data);
         }
         if (!response.ok) return { detail: response.statusText, status: response.status };
         return {};
@@ -42,7 +44,7 @@ export const createRoleAction = (apiKey: string) => async (orgId: number, name: 
     return safeFetch(`${backendUrl}/organizations/${orgId}/roles`, {
         method: "POST",
         headers: getHeaders(apiKey),
-        body: JSON.stringify({ name, description, permission_ids: permissionIds }),
+        body: JSON.stringify({ name, description, permissionIds: permissionIds }), // API expects snake_case
     }, "createRole");
 };
 
@@ -76,7 +78,7 @@ export const addPermissionsToRoleAction = (apiKey: string) => async (orgId: numb
     return safeFetch(`${backendUrl}/organizations/${orgId}/roles/${roleId}/permissions`, {
         method: "POST",
         headers: getHeaders(apiKey),
-        body: JSON.stringify({ permission_ids: permissionIds }),
+        body: JSON.stringify({ permissionIds: permissionIds }), // API expects snake_case
     }, "addPermissionsToRole");
 };
 

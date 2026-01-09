@@ -14,9 +14,9 @@ import { timeValueToTime, timeDeltaValueToDuration } from "../format";
  * @returns {boolean} True if the property exists in the expected location within the log object, false otherwise.
 */
 export const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
-    const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
+    const fieldType = fields[axisProperty] ? fields[axisProperty].fieldType : "entry"
     const hasValues = fieldType === "derived_entry"
-        ? log[`${table}.derived_entries`] && (log[`${table}.derived_entries`] as LogItemProps)[axisProperty] !== undefined
+        ? log[`${table}.derivedEntries`] && (log[`${table}.derivedEntries`] as LogItemProps)[axisProperty] !== undefined
         : fieldType === "param"
             ? log[`${table}.params`] && (log[`${table}.params`] as LogItemProps)[axisProperty] !== undefined
             : log[`${table}.entries`] && (log[`${table}.entries`] as LogItemProps)[axisProperty] !== undefined
@@ -29,7 +29,7 @@ export const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string
  * and converts certain data types (timestamp, date, timedelta, time, bool) to a numerical representation.
  * Returns undefined if the property does not exist in the log.
  *
- * @param {LogFieldsResponseProps} fields - Metadata describing the fields, including type and data_type.
+ * @param {LogFieldsResponseProps} fields - Metadata describing the fields, including type and dataType.
  * @param {string} axisProperty - The name of the property (field) whose value is to be retrieved.
  * @param {LogProps} log - The log object containing the data.
  * @param {string} table - The name of the table associated with the log.
@@ -38,13 +38,13 @@ export const hasProperty = (fields: LogFieldsResponseProps, axisProperty: string
 */
 export const getValue = (fields: LogFieldsResponseProps, axisProperty: string, log: LogProps, table: string) => {
     if (!hasProperty(fields, axisProperty, log, table)) return undefined;
-    const fieldType = fields[axisProperty] ? fields[axisProperty].field_type : "entry"
+    const fieldType = fields[axisProperty] ? fields[axisProperty].fieldType : "entry"
     let value = fieldType === "derived_entry"
-        ? (log[`${table}.derived_entries`] as LogItemProps)[axisProperty]
+        ? (log[`${table}.derivedEntries`] as LogItemProps)[axisProperty]
         : fieldType === "param"
             ? (log[`${table}.params`] as LogItemProps)[axisProperty]
             : (log[`${table}.entries`] as LogItemProps)[axisProperty]
-    const dataType = fields[axisProperty] ? fields[axisProperty].data_type : "float"
+    const dataType = fields[axisProperty] ? fields[axisProperty].dataType : "float"
     if (dataType === "timestamp" || dataType === "date") value = new Date(value).getTime()
     if (dataType === "timedelta") value = timeDeltaValueToDuration(value)
     if (dataType === "time") value = timeValueToTime(value).getTime()
@@ -71,7 +71,7 @@ export const getValue = (fields: LogFieldsResponseProps, axisProperty: string, l
  * @param {string} axisProperty - The name of the property to check.
  * @param {LogProps[]} logs - Array of log objects to sample for type inference.
  * @param {string} table - The table name associated with the logs.
- * @returns {string} The inferred display type ("timestamp", "float", or the original data_type).
+ * @returns {string} The inferred display type ("timestamp", "float", or the original dataType).
  */
 export const inferDisplayType = (
     fields: LogFieldsResponseProps, 
@@ -79,7 +79,7 @@ export const inferDisplayType = (
     logs: LogProps[], 
     table: string
 ): string => {
-    const dataType = fields[axisProperty]?.data_type;
+    const dataType = fields[axisProperty]?.dataType;
     if (dataType !== "Any") return dataType || "float";
     
     // Sample up to 5 logs to infer type
@@ -88,9 +88,9 @@ export const inferDisplayType = (
         const log = logs[i];
         if (!hasProperty(fields, axisProperty, log, table)) continue;
         
-        const fieldType = fields[axisProperty]?.field_type || "entry";
+        const fieldType = fields[axisProperty]?.fieldType || "entry";
         const value = fieldType === "derived_entry"
-            ? (log[`${table}.derived_entries`] as LogItemProps)?.[axisProperty]
+            ? (log[`${table}.derivedEntries`] as LogItemProps)?.[axisProperty]
             : fieldType === "param"
                 ? (log[`${table}.params`] as LogItemProps)?.[axisProperty]
                 : (log[`${table}.entries`] as LogItemProps)?.[axisProperty];

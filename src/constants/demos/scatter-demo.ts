@@ -2,7 +2,7 @@ export default {
     gif: "scatter_dark",
     link: "interfaces/plots#scatter-graphs",
     description: "Scatter graphs can be used to plot two numerical columns against each other.",
-    new_counter: 2,
+    newCounter: 2,
     code: `import unify
 import random
 
@@ -16,7 +16,7 @@ for i in range(10):
 `,
     // Granular interface structure
     interface: {
-        project_id: "scatter-demo",
+        projectId: "scatter-demo",
         name: "interface1",
     },
     // Tab structure
@@ -37,8 +37,8 @@ for i in range(10):
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -50,10 +50,10 @@ for i in range(10):
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                x_axis: "Table.x",
-                y_axis: "Table.y",
-                regression_line: "true"
+            plotTile: {
+                xAxis: "Table.x",
+                yAxis: "Table.y",
+                regressionLine: "true"
             }
         }
     ],

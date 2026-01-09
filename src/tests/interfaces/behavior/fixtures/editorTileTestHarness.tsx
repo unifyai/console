@@ -1,14 +1,14 @@
 /**
  * Editor Tile Test Harness
- * 
+ *
  * A reusable wrapper for testing code editor behaviors including
  * file management, code editing, and execution.
- * 
+ *
  * IMPROVED: Uses REAL Zustand store and `useEditorTile` hook for content management.
- * 
+ *
  * Usage:
  *   import { renderEditorTile } from '../fixtures/editorTileTestHarness';
- *   
+ *
  *   it('creates a file', async () => {
  *     const { getFiles, createFile } = renderEditorTile();
  *     createFile('test.js');
@@ -146,26 +146,26 @@ interface StateContainer {
 
 function createInitialStoreState(initialContent: string): Partial<IStoreState> {
   const tab = initTab(TAB_ID, { name: 'Test Tab', tileIds: [TILE_ID] });
-  
+
   const tile = initTile(TILE_ID, {
     type: 'Editor',
     tabId: TAB_ID,
     visible: true,
     editorTile: initEditorTile({
-      file_name: 'main.py',
-      file_type: 'python',
+      fileName: 'main.py',
+      fileType: 'python',
       content: initialContent,
-    })
+    }),
   });
 
   return {
     activeTabId: TAB_ID,
     tabsById: {
-      [TAB_ID]: tab
+      [TAB_ID]: tab,
     },
     tilesById: {
-      [TILE_ID]: tile
-    }
+      [TILE_ID]: tile,
+    },
   };
 }
 
@@ -204,7 +204,7 @@ function EditorTileWrapper({
 
   // Real store hook for editor tile content
   const { editorTile, editorTileActions, exists } = useEditorTile(TILE_ID, TAB_ID);
-  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
+  const storeUpdateEditorTile = useStoreContext((state) => state.updateEditorTile);
 
   const activeFile = files.find((f) => f.id === activeFileId);
 
@@ -214,133 +214,165 @@ function EditorTileWrapper({
       editorTileActions.setFileName(activeFile.name);
       editorTileActions.setContent(activeFile.content);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFileId]);
 
   // ==========================================================================
   // Handlers
   // ==========================================================================
 
-  const handleCreateFile = useCallback((name: string) => {
-    const newFile: EditorFile = {
-      id: `file-${Date.now()}`,
-      name,
-      content: '',
-      type: 'file',
-    };
-    setFiles((prev) => [...prev, newFile]);
-    setActiveFileId(newFile.id);
-    
-    // Update store with new file content
-    if (editorTileActions) {
-      editorTileActions.setFileName(name);
-      editorTileActions.setContent('');
-    }
-    
-    callbacks.onCreateFile?.(name);
-  }, [callbacks, editorTileActions]);
+  const handleCreateFile = useCallback(
+    (name: string) => {
+      const newFile: EditorFile = {
+        id: `file-${Date.now()}`,
+        name,
+        content: '',
+        type: 'file',
+      };
+      setFiles((prev) => [...prev, newFile]);
+      setActiveFileId(newFile.id);
 
-  const handleDeleteFile = useCallback((id: string) => {
-    setFiles((prev) => {
-      const newFiles = prev.filter((f) => f.id !== id);
-      if (activeFileId === id && newFiles.length > 0) {
-        setActiveFileId(newFiles[0].id);
+      // Update store with new file content
+      if (editorTileActions) {
+        editorTileActions.setFileName(name);
+        editorTileActions.setContent('');
       }
-      return newFiles;
-    });
-    callbacks.onDeleteFile?.(id);
-  }, [activeFileId, callbacks]);
 
-  const handleRenameFile = useCallback((id: string, newName: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
-    );
-    
-    // Update store if renaming active file
-    if (id === activeFileId && editorTileActions) {
-      editorTileActions.setFileName(newName);
-    }
-    
-    callbacks.onRenameFile?.(id, newName);
-  }, [activeFileId, callbacks, editorTileActions]);
+      callbacks.onCreateFile?.(name);
+    },
+    [callbacks, editorTileActions]
+  );
 
-  const handleSelectFile = useCallback((id: string) => {
-    const file = files.find(f => f.id === id);
-    setActiveFileId(id);
-    
-    // Update store with selected file
-    if (file && editorTileActions) {
-      editorTileActions.setFileName(file.name);
-      editorTileActions.setContent(file.content);
-    }
-    
-    callbacks.onFileSelect?.(id);
-  }, [files, callbacks, editorTileActions]);
+  const handleDeleteFile = useCallback(
+    (id: string) => {
+      setFiles((prev) => {
+        const newFiles = prev.filter((f) => f.id !== id);
+        if (activeFileId === id && newFiles.length > 0) {
+          setActiveFileId(newFiles[0].id);
+        }
+        return newFiles;
+      });
+      callbacks.onDeleteFile?.(id);
+    },
+    [activeFileId, callbacks]
+  );
 
-  const handleUpdateContent = useCallback((id: string, content: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, content } : f))
-    );
-    
-    // Update store if updating active file
-    if (id === activeFileId && editorTileActions) {
-      editorTileActions.setContent(content);
-    }
-    
-    callbacks.onContentChange?.(id, content);
-  }, [activeFileId, callbacks, editorTileActions]);
+  const handleRenameFile = useCallback(
+    (id: string, newName: string) => {
+      setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, name: newName } : f)));
+
+      // Update store if renaming active file
+      if (id === activeFileId && editorTileActions) {
+        editorTileActions.setFileName(newName);
+      }
+
+      callbacks.onRenameFile?.(id, newName);
+    },
+    [activeFileId, callbacks, editorTileActions]
+  );
+
+  const handleSelectFile = useCallback(
+    (id: string) => {
+      const file = files.find((f) => f.id === id);
+      setActiveFileId(id);
+
+      // Update store with selected file
+      if (file && editorTileActions) {
+        editorTileActions.setFileName(file.name);
+        editorTileActions.setContent(file.content);
+      }
+
+      callbacks.onFileSelect?.(id);
+    },
+    [files, callbacks, editorTileActions]
+  );
+
+  const handleUpdateContent = useCallback(
+    (id: string, content: string) => {
+      setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, content } : f)));
+
+      // Update store if updating active file
+      if (id === activeFileId && editorTileActions) {
+        editorTileActions.setContent(content);
+      }
+
+      callbacks.onContentChange?.(id, content);
+    },
+    [activeFileId, callbacks, editorTileActions]
+  );
 
   const handleRun = useCallback(async () => {
     setRunning(true);
     setOutput('');
-    
+
     // Simulate execution
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
+
     const result = `Output: ${activeFile?.content ?? 'No file selected'}`;
     setOutput(result);
     setRunning(false);
     callbacks.onRun?.(result);
   }, [activeFile, callbacks]);
 
-  const handleAddEnvVar = useCallback((key: string, value: string) => {
-    const newVars = [...envVars, { key, value }];
-    setEnvVars(newVars);
-    callbacks.onEnvVarChange?.(newVars);
-  }, [envVars, callbacks]);
+  const handleAddEnvVar = useCallback(
+    (key: string, value: string) => {
+      const newVars = [...envVars, { key, value }];
+      setEnvVars(newVars);
+      callbacks.onEnvVarChange?.(newVars);
+    },
+    [envVars, callbacks]
+  );
 
   // ==========================================================================
   // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  useStateContainer(stateContainerRef, () => ({
-    getFiles: () => files,
-    getActiveFile: () => activeFileId,
-    getFileContent: (id: string) => files.find((f) => f.id === id)?.content ?? '',
-    getEnvVars: () => envVars,
-    getOutput: () => output,
-    isRunning: () => running,
-    createFile: handleCreateFile,
-    deleteFile: handleDeleteFile,
-    renameFile: handleRenameFile,
-    selectFile: handleSelectFile,
-    updateContent: handleUpdateContent,
-    run: handleRun,
-    addEnvVar: handleAddEnvVar,
-  }), [files, activeFileId, envVars, output, running, handleCreateFile, handleDeleteFile, handleRenameFile, handleSelectFile, handleUpdateContent, handleRun, handleAddEnvVar]);
+  useStateContainer(
+    stateContainerRef,
+    () => ({
+      getFiles: () => files,
+      getActiveFile: () => activeFileId,
+      getFileContent: (id: string) => files.find((f) => f.id === id)?.content ?? '',
+      getEnvVars: () => envVars,
+      getOutput: () => output,
+      isRunning: () => running,
+      createFile: handleCreateFile,
+      deleteFile: handleDeleteFile,
+      renameFile: handleRenameFile,
+      selectFile: handleSelectFile,
+      updateContent: handleUpdateContent,
+      run: handleRun,
+      addEnvVar: handleAddEnvVar,
+    }),
+    [
+      files,
+      activeFileId,
+      envVars,
+      output,
+      running,
+      handleCreateFile,
+      handleDeleteFile,
+      handleRenameFile,
+      handleSelectFile,
+      handleUpdateContent,
+      handleRun,
+      handleAddEnvVar,
+    ]
+  );
 
   // ==========================================================================
   // Render
   // ==========================================================================
 
   return (
-    <div data-testid="editor-tile-container" className="bg-white border rounded-lg flex h-96">
+    <div data-testid="editor-tile-container" className="flex h-96 rounded-lg border bg-white">
       {/* File explorer */}
       <div className="w-48 border-r p-2" data-testid="file-explorer">
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-semibold">Files</span>
           <button
             onClick={() => setIsCreating(true)}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="rounded p-1 hover:bg-gray-100"
             data-testid="new-file-button"
           >
             <Plus className="h-4 w-4" />
@@ -366,7 +398,7 @@ function EditorTileWrapper({
                 }
               }}
               placeholder="filename.ext"
-              className="w-full px-2 py-1 text-sm border rounded"
+              className="w-full rounded border px-2 py-1 text-sm"
               autoFocus
               data-testid="new-file-input"
             />
@@ -378,7 +410,7 @@ function EditorTileWrapper({
           {files.map((file) => (
             <div
               key={file.id}
-              className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer group ${
+              className={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1 ${
                 file.id === activeFileId ? 'bg-blue-100 text-blue-900' : 'hover:bg-gray-100'
               }`}
               data-testid={`file-item-${file.id}`}
@@ -404,7 +436,7 @@ function EditorTileWrapper({
                     }
                     setRenamingId(null);
                   }}
-                  className="flex-1 px-1 text-sm border rounded"
+                  className="flex-1 rounded border px-1 text-sm"
                   autoFocus
                   data-testid="rename-input"
                 />
@@ -416,7 +448,7 @@ function EditorTileWrapper({
                     <File className="h-4 w-4 text-gray-400" />
                   )}
                   <button
-                    className="flex-1 text-left text-sm truncate"
+                    className="flex-1 truncate text-left text-sm"
                     onClick={() => handleSelectFile(file.id)}
                     onDoubleClick={() => {
                       if (!file.readOnly) {
@@ -437,7 +469,7 @@ function EditorTileWrapper({
                         e.stopPropagation();
                         handleDeleteFile(file.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded"
+                      className="rounded p-1 opacity-0 hover:bg-red-100 group-hover:opacity-100"
                       data-testid={`delete-file-${file.id}`}
                     >
                       <Trash2 className="h-3 w-3 text-red-500" />
@@ -450,7 +482,7 @@ function EditorTileWrapper({
         </div>
 
         {/* Env vars toggle */}
-        <div className="mt-4 pt-2 border-t">
+        <div className="mt-4 border-t pt-2">
           <button
             onClick={() => setShowEnvVars(!showEnvVars)}
             className="text-sm text-gray-600 hover:text-gray-900"
@@ -461,7 +493,11 @@ function EditorTileWrapper({
           {showEnvVars && (
             <div className="mt-2 space-y-1" data-testid="env-vars-panel">
               {envVars.map((v, i) => (
-                <div key={i} className="text-xs bg-gray-50 px-2 py-1 rounded" data-testid={`env-var-${i}`}>
+                <div
+                  key={i}
+                  className="rounded bg-gray-50 px-2 py-1 text-xs"
+                  data-testid={`env-var-${i}`}
+                >
                   {v.key}={v.value}
                 </div>
               ))}
@@ -471,7 +507,7 @@ function EditorTileWrapper({
                   value={newEnvKey}
                   onChange={(e) => setNewEnvKey(e.target.value)}
                   placeholder="KEY"
-                  className="w-1/2 px-1 py-0.5 text-xs border rounded"
+                  className="w-1/2 rounded border px-1 py-0.5 text-xs"
                   data-testid="env-key-input"
                 />
                 <input
@@ -479,7 +515,7 @@ function EditorTileWrapper({
                   value={newEnvValue}
                   onChange={(e) => setNewEnvValue(e.target.value)}
                   placeholder="value"
-                  className="w-1/2 px-1 py-0.5 text-xs border rounded"
+                  className="w-1/2 rounded border px-1 py-0.5 text-xs"
                   data-testid="env-value-input"
                 />
               </div>
@@ -502,27 +538,23 @@ function EditorTileWrapper({
       </div>
 
       {/* Editor area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col">
         {/* Editor header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b">
+        <div className="flex items-center justify-between border-b px-4 py-2">
           <span className="text-sm font-medium" data-testid="active-file-name">
             {activeFile?.name ?? 'No file selected'}
           </span>
           <button
             onClick={handleRun}
             disabled={running || !activeFile}
-            className={`flex items-center gap-1 px-3 py-1 rounded text-sm ${
+            className={`flex items-center gap-1 rounded px-3 py-1 text-sm ${
               running || !activeFile
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                ? 'cursor-not-allowed bg-gray-100 text-gray-400'
                 : 'bg-green-500 text-white hover:bg-green-600'
             }`}
             data-testid="run-button"
           >
-            {running ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             {running ? 'Running...' : 'Run'}
           </button>
         </div>
@@ -532,10 +564,13 @@ function EditorTileWrapper({
           {activeFile ? (
             activeFile.readOnly ? (
               <div className="h-full">
-                <div className="text-amber-600 text-sm mb-2" data-testid="readonly-warning">
+                <div className="mb-2 text-sm text-amber-600" data-testid="readonly-warning">
                   This file is read-only
                 </div>
-                <pre className="text-sm font-mono bg-gray-50 p-2 rounded" data-testid="readonly-content">
+                <pre
+                  className="rounded bg-gray-50 p-2 font-mono text-sm"
+                  data-testid="readonly-content"
+                >
                   {activeFile.content}
                 </pre>
               </div>
@@ -543,13 +578,13 @@ function EditorTileWrapper({
               <textarea
                 value={activeFile.content}
                 onChange={(e) => handleUpdateContent(activeFile.id, e.target.value)}
-                className="w-full h-full font-mono text-sm p-2 border rounded resize-none"
+                className="h-full w-full resize-none rounded border p-2 font-mono text-sm"
                 placeholder="Write your code here..."
                 data-testid="code-editor"
               />
             )
           ) : (
-            <div className="text-gray-500 text-center" data-testid="no-file-message">
+            <div className="text-center text-gray-500" data-testid="no-file-message">
               Select a file to edit
             </div>
           )}
@@ -558,8 +593,11 @@ function EditorTileWrapper({
         {/* Output panel */}
         {output && (
           <div className="border-t p-4" data-testid="output-panel">
-            <div className="text-sm font-semibold mb-2">Output</div>
-            <pre className="text-sm font-mono bg-gray-900 text-green-400 p-2 rounded" data-testid="output-content">
+            <div className="mb-2 text-sm font-semibold">Output</div>
+            <pre
+              className="rounded bg-gray-900 p-2 font-mono text-sm text-green-400"
+              data-testid="output-content"
+            >
               {output}
             </pre>
           </div>
@@ -575,12 +613,12 @@ function EditorTileWrapper({
 
 export function renderEditorTile(options: EditorTileTestOptions = {}): EditorTileTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
-  
+
   // Get initial content for store
   const initialFiles = options.initialFiles ?? createMockFiles();
   const initialActiveId = options.initialActiveFile ?? initialFiles[0]?.id;
-  const initialContent = initialFiles.find(f => f.id === initialActiveId)?.content ?? '';
-  
+  const initialContent = initialFiles.find((f) => f.id === initialActiveId)?.content ?? '';
+
   const initialState = createInitialStoreState(initialContent);
 
   const renderResult = render(

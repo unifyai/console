@@ -97,7 +97,7 @@ describe('Render Mode Determination', () => {
   });
 
   it('respects custom thresholds', () => {
-    updateConfig({ SVG_MAX: 100, WEBGL_MAX: 1000 });
+    updateConfig({ svgMax: 100, webglMax: 1000 });
 
     expect(determineRenderMode(50)).toBe('svg');
     expect(determineRenderMode(100)).toBe('svg');

@@ -9,8 +9,8 @@ export interface EditorTileMeta {
 
 // Editor tile data - business data 
 export interface EditorTileData {
-  file_name?: string; // name of the file
-  file_type?: string; // type of file
+  fileName?: string; // name of the file
+  fileType?: string; // type of file
   content?: string | null; // content of the file
 }
 
@@ -24,7 +24,7 @@ export type EditorTile = EditorTileMeta & EditorTileData & EditorTileUI;
 
 // editorTileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a EditorTile into a TileProps
-export const EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS: (keyof EditorTile)[] = ["file_name", "file_type", "content"];
+export const EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS: (keyof EditorTile)[] = ["fileName", "fileType", "content"];
 
 // editorTileKeys: all fields for EditorTile
 export const EDITOR_TILE_KEYS: (keyof EditorTile)[] = [
@@ -40,8 +40,8 @@ export function initEditorTile(
 ): EditorTile {
   return {
     // Data
-    file_name: initialState.file_name !== undefined ? initialState.file_name : null,
-    file_type: initialState.file_type !== undefined ? initialState.file_type : null,
+    fileName: initialState.fileName !== undefined ? initialState.fileName : null,
+    fileType: initialState.fileType !== undefined ? initialState.fileType : null,
     content: initialState.content !== undefined ? initialState.content : null,
 
     ...initialState,

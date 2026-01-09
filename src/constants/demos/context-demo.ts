@@ -4,7 +4,7 @@ export default {
     description: "Contexts enable you to compartmentalize your data for different tables or for different tabs within your interface.",
     // Granular interface structure
     interface: {
-        project_id: "context-demo",
+        projectId: "context-demo",
         name: "interface1",
     },
     // Tab structure
@@ -26,9 +26,9 @@ export default {
                 height: 8.0
             },
             context: "Sciences/Maths",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
+            columnContext: "",
+            tableTile: {
+                tableType: "Data Table",
             }
         },
         {
@@ -41,9 +41,9 @@ export default {
                 height: 8.0
             },
             context: "Sciences/Physics",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
+            columnContext: "",
+            tableTile: {
+                tableType: "Data Table",
             }
         },
         {
@@ -56,13 +56,13 @@ export default {
                 height: 8.0
             },
             context: "Arts/Literature",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
+            columnContext: "",
+            tableTile: {
+                tableType: "Data Table",
             }
         }
     ],
-    new_counter: 3,
+    newCounter: 3,
     code: `import unify
 
 unify.activate("context-demo", overwrite=True)

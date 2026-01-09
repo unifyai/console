@@ -1,58 +1,76 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/user/user';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const project = url.searchParams.get("project") || undefined;
-  
+  // Accept both project and projectName for backwards compatibility
+  const project =
+    url.searchParams.get('project') || url.searchParams.get('projectName') || undefined;
+
   // Get API key from session (fallback to header for backwards compatibility)
   const user = await getCurrentUser();
-  const apiKey = user?.api_key || request.headers.get("apiKey");
-  
+  const apiKey = user?.apiKey || request.headers.get('apiKey');
+
   if (!apiKey) {
-    return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
   const controller = new AbortController();
   const ttl = setTimeout(() => controller.abort(), 90000); // 90s timeout - bootstrap aggregates multiple slow endpoints
   try {
     const headers = {
-      "Authorization": `Bearer ${apiKey}`,
-      "accept": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      accept: 'application/json',
     } as const;
 
     const projectsTreePromise = fetch(`${baseUrl}/projects/tree`, {
-      method: "GET",
+      method: 'GET',
       headers,
-      cache: "no-store",
+      cache: 'no-store',
       signal: controller.signal,
-    }).then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }));
+    }).then(async (res) => ({
+      ok: res.ok,
+      status: res.status,
+      body: await res.json().catch(() => null),
+    }));
 
     const interfacesPromise = project
       ? fetch(`${baseUrl}/interfaces/list?project_name=${encodeURIComponent(project)}`, {
-          method: "GET",
+          method: 'GET',
           headers,
-          cache: "no-store",
+          cache: 'no-store',
           signal: controller.signal,
-        }).then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }))
+        }).then(async (res) => ({
+          ok: res.ok,
+          status: res.status,
+          body: await res.json().catch(() => null),
+        }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const contextsPromise = project
       ? fetch(`${baseUrl}/project/${encodeURIComponent(project)}/contexts`, {
-          method: "GET",
-          headers: { ...headers, "Content-Type": "application/json" },
+          method: 'GET',
+          headers: { ...headers, 'Content-Type': 'application/json' },
           signal: controller.signal,
-        }).then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }))
+        }).then(async (res) => ({
+          ok: res.ok,
+          status: res.status,
+          body: await res.json().catch(() => null),
+        }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const fieldsPromise = project
       ? fetch(`${baseUrl}/logs/fields?project_name=${encodeURIComponent(project)}`, {
-          method: "GET",
+          method: 'GET',
           headers,
           signal: controller.signal,
-        }).then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }))
+        }).then(async (res) => ({
+          ok: res.ok,
+          status: res.status,
+          body: await res.json().catch(() => null),
+        }))
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const [projectsTree, interfaces, contexts, fields] = await Promise.all([
@@ -79,14 +97,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(responseBody, { status: 200 });
   } catch (e: any) {
-    const msg = e?.message || "Bootstrap failed";
+    const msg = e?.message || 'Bootstrap failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
     console.error('[/api/bootstrap] Error:', msg, e);
-    return NextResponse.json({ 
-      error: "Bootstrap failed", 
-      detail: msg,
-      project 
-    }, { status });
+    return NextResponse.json(
+      {
+        error: 'Bootstrap failed',
+        detail: msg,
+        project,
+      },
+      { status }
+    );
   } finally {
     clearTimeout(ttl);
   }

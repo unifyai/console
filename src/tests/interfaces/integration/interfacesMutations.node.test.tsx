@@ -39,7 +39,7 @@ describe('Interfaces mutation hooks (integration-style)', () => {
     const create = vi.fn(async (projectId: string, name: string) => ({
       id: 'interface-1',
       name,
-      project_id: projectId,
+      projectId: projectId,
     } as InterfaceData));
 
     const actions = { create } as unknown as GranularInterfaceActions;
@@ -70,7 +70,7 @@ describe('Interfaces mutation hooks (integration-style)', () => {
     const updateByName = vi.fn(async () => ({
       id: 'interface-1',
       name: 'Main Interface',
-      project_id: 'project-1',
+      projectId: 'project-1',
     } as InterfaceData));
 
     const actions = { updateByName } as unknown as GranularInterfaceActions;
@@ -110,7 +110,7 @@ describe('Interfaces mutation hooks (integration-style)', () => {
 
     const updateById = vi.fn(async (id: string, data: Partial<InterfaceData>) => ({
       id,
-      project_id: 'project-1',
+      projectId: 'project-1',
       name: 'Main Interface',
       ...data,
     } as InterfaceData));
@@ -146,7 +146,7 @@ describe('Interfaces mutation hooks (integration-style)', () => {
 
     const updateById = vi.fn(async (id: string, data: Partial<InterfaceData>) => ({
       id,
-      project_id: 'project-1',
+      projectId: 'project-1',
       name: 'Main Interface',
       ...data,
     } as InterfaceData));
@@ -154,7 +154,7 @@ describe('Interfaces mutation hooks (integration-style)', () => {
     const updateByName = vi.fn(
       async (projectId: string, name: string, data: Partial<InterfaceData>) => ({
         id: 'interface-1',
-        project_id: projectId,
+        projectId: projectId,
         name,
         ...data,
       } as InterfaceData),

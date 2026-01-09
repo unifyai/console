@@ -44,7 +44,7 @@ export function useAssistantContactManager({
                     setEmailLocalPart(currentEmail || '');
                 }
             } else {
-                const baseLocalPart = `${assistant.first_name}.${assistant.surname}`
+                const baseLocalPart = `${assistant.firstName}.${assistant.surname}`
                     .toLowerCase()
                     .replace(/\s+/g, '.')
                     .replace(/[^a-z0-9.]/g, '');
@@ -84,7 +84,7 @@ export function useAssistantContactManager({
         const toastId = toast.loading(`Deleting ${confirmDelete}...`);
 
         try {
-            const result = await assistantActions.contact.delete(assistant.agent_id, confirmDelete);
+            const result = await assistantActions.contact.delete(assistant.agentId, confirmDelete);
 
             if (result.detail) {
                 throw new Error(result.detail);
@@ -102,8 +102,8 @@ export function useAssistantContactManager({
 
     const rhfIsEmailAdded = watch("isEmailAdded");
     const rhfIsPhoneNumberAdded = watch("isPhoneNumberAdded");
-    const rhfUserPhoneIsVerified = watch("user_phone_isVerified");
-    const socialAccounts = watch("social_accounts");
+    const rhfUserPhoneIsVerified = watch("userPhoneIsVerified");
+    const socialAccounts = watch("socialAccounts");
     const whatsAppAccount = socialAccounts?.find(acc => acc.platform === 'whatsapp');
 
     const creationCost = React.useMemo(() => {
@@ -128,7 +128,7 @@ export function useAssistantContactManager({
                 return !rhfIsEmailAdded || !!errors.email || !emailLocalPart;
             case 'phone':
                 // Button should be enabled if a phone number is being added AND it's verified.
-                const phoneValue = getValues('user_phone');
+                const phoneValue = getValues('userPhone');
                 return !rhfIsPhoneNumberAdded || !rhfUserPhoneIsVerified || !phoneValue;
             case 'whatsapp':
                 // Button should be enabled if the account exists, has an identifier, and is verified.
@@ -141,12 +141,12 @@ export function useAssistantContactManager({
     const showCreateButton =
       (activeTab === 'email' && !assistant.email) ||
       (activeTab === 'phone' && !assistant.phone) ||
-      (activeTab === 'whatsapp' && !assistant.assistant_whatsapp_number);
+      (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber);
     
     const showDeleteButton =
       (activeTab === 'email' && !!assistant.email) ||
       (activeTab === 'phone' && !!assistant.phone) ||
-      (activeTab === 'whatsapp' && !!assistant.assistant_whatsapp_number);
+      (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber);
 
 
     return {

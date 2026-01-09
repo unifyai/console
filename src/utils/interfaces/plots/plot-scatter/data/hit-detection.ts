@@ -40,7 +40,7 @@ export function findPointAtLinear(
   threshold?: number
 ): number {
   const config = getConfig();
-  const maxDist = threshold ?? config.HIT_THRESHOLD;
+  const maxDist = threshold ?? config.hitThreshold;
 
   let closestIndex = -1;
   let closestDist = maxDist;

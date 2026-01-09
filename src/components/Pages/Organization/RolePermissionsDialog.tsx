@@ -47,7 +47,7 @@ const RolePermissionsDialog = ({
 
     // Group permissions by resource type
     const groupedPermissions = role.permissions.reduce((acc, perm) => {
-        const key = perm.resource_type;
+        const key = perm.resourceType;
         if (!acc[key]) acc[key] = [];
         acc[key].push(perm);
         return acc;
@@ -65,7 +65,7 @@ const RolePermissionsDialog = ({
             <DialogContent className="max-w-2xl">
                 <div className="space-y-6">
                     {/* Add Permission Section - Only for custom roles */}
-                    {!role.is_system_role && (
+                    {!role.isSystemRole && (
                         <div className="flex items-end gap-2">
                             <div className="flex-1 space-y-2">
                                 <label className="text-sm font-medium">Add Permission</label>
@@ -77,7 +77,7 @@ const RolePermissionsDialog = ({
                                         {availablePermissions.length > 0 ? (
                                             availablePermissions.map(p => (
                                                 <SelectItem key={p.id} value={p.id.toString()}>
-                                                    {p.name} ({p.resource_type}:{p.action})
+                                                    {p.name} ({p.resourceType}:{p.action})
                                                 </SelectItem>
                                             ))
                                         ) : (
@@ -94,7 +94,7 @@ const RolePermissionsDialog = ({
                         </div>
                     )}
 
-                    {!role.is_system_role && <Separator />}
+                    {!role.isSystemRole && <Separator />}
 
                     {/* Permissions List */}
                     <div>
@@ -121,7 +121,7 @@ const RolePermissionsDialog = ({
                                                                 {p.action}
                                                             </span>
                                                         </div>
-                                                        {!role.is_system_role && (
+                                                        {!role.isSystemRole && (
                                                             <Button 
                                                                 variant="ghost" 
                                                                 size="icon" 

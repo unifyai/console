@@ -53,15 +53,15 @@ export function getTotalCountFromLogsResponse(logsData: LogsResponseProps): numb
     // For grouped logs, check if it's GroupedLogPropsRaw format
     if (typeof logsData.logs === 'object' && !Array.isArray(logsData.logs)) {
       const groupedLogs = logsData.logs as GroupedLogPropsRaw;
-      // Find the first group key and get its group_count
+      // Find the first group key and get its groupCount
       const firstGroupKey = Object.keys(groupedLogs).find(key => 
-        key !== 'group_count' && key !== 'count' && 
+        key !== 'groupCount' && key !== 'count' && 
         typeof groupedLogs[key] === 'object'
       );
       
       if (firstGroupKey && typeof groupedLogs[firstGroupKey] === 'object') {
         const groupData = groupedLogs[firstGroupKey] as any;
-        return groupData.group_count || 0;
+        return groupData.groupCount || 0;
       }
     }
     // Fallback to regular count
@@ -108,9 +108,9 @@ async function buildTableDataItem(
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
     logsData,
     fields,
-    tile.column_context || null,
-    tile.table_tile?.sorting || null,
-    tile.table_tile?.hidden_columns
+    tile.columnContext || null,
+    tile.tableTile?.sorting || null,
+    tile.tableTile?.hiddenColumns
   );
   const textractLogsDataExtract = performance.now();
   perfLog(`[perf] extractLogsData: ${(textractLogsDataExtract - textractLogsData).toFixed(2)} ms`);
@@ -160,8 +160,8 @@ export async function fetchAndBuildTableDataItem(
   signal?: AbortSignal
 ): Promise<TableDataItem> {
   // Remove all infinite logs queries for this tile before fetching fresh data
-  if (queryClient && tile.id && tile.tab_id && infiniteQueryKeys) {
-    removeInfiniteLogsQueries(tile.id, tile.tab_id, queryClient, infiniteQueryKeys);
+  if (queryClient && tile.id && tile.tabId && infiniteQueryKeys) {
+    removeInfiniteLogsQueries(tile.id, tile.tabId, queryClient, infiniteQueryKeys);
   }
 
   // If the tableDataItem for this tile is already in the cache, first mark it as loading
@@ -180,29 +180,29 @@ export async function fetchAndBuildTableDataItem(
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
-    tile.common_filter,
-    tile.column_context,
+    tile.commonFilter,
+    tile.columnContext,
     tile.freeze,
     fields
   );
 
   // Handle sorting
-  const sortingObject = tile.table_tile?.sorting ? getSortingObject(tile) : "";
+  const sortingObject = tile.tableTile?.sorting ? getSortingObject(tile) : "";
   const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
 
   // Handle grouping
   const groupingExpression = tile.grouping || null;
 
   // Handle group sorting
-  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? 
+  const groupSortingObject = tile.tableTile?.groupSorting && tile.grouping ? 
     getGroupSortingObject(tile) : "";
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Fetch logs data
-  const limit = tile.table_tile?.limit ?? 20;
-  const offset = tile.table_tile?.offset ?? 0;
-  const group_limit = tile.table_tile?.group_limit ?? 20;
-  const group_offset = tile.table_tile?.group_offset ?? 0;
+  const limit = tile.tableTile?.limit ?? 20;
+  const offset = tile.tableTile?.offset ?? 0;
+  const groupLimit = tile.tableTile?.groupLimit ?? 20;
+  const groupOffset = tile.tableTile?.groupOffset ?? 0;
 
   // Determine if we should use group pagination or regular pagination
   const useGroupPagination = !!groupingExpression;
@@ -213,22 +213,22 @@ export async function fetchAndBuildTableDataItem(
     // Call API route directly instead of server action to avoid POST /interfaces spam
     // Build query string with all parameters
     const params = new URLSearchParams();
-    params.set('project_name', projectId);
+    params.set('projectName', projectId);
     if (tile.context) params.set('context', tile.context);
-    if (tile.column_context) params.set('column_context', tile.column_context);
-    if (filterExpression) params.set('filter_expr', filterExpression);
+    if (tile.columnContext) params.set('columnContext', tile.columnContext);
+    if (filterExpression) params.set('filterExpr', filterExpression);
     if (sortingExpression) params.set('sorting', sortingExpression);
-    if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+    if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
     
     // Narrow payload: request only currently visible leaf columns when we can derive them.
     // Fallback to full payload if we cannot reliably compute a subset.
     try {
       // Build candidate IDs from column order or fields; remove hidden columns, parents, and util headers
-      const orderIds = tile.table_tile?.column_order
-        ? tile.table_tile?.column_order.split(",").filter(Boolean)
-        : Object.keys(fields).map((k) => processContext("split", tile.column_context || null, k)).filter(Boolean);
+      const orderIds = tile.tableTile?.columnOrder
+        ? tile.tableTile?.columnOrder.split(",").filter(Boolean)
+        : Object.keys(fields).map((k) => processContext("split", tile.columnContext || null, k)).filter(Boolean);
       const hiddenSet = new Set(
-        (tile.table_tile?.hidden_columns ? tile.table_tile?.hidden_columns.split(",").filter(Boolean) : []).map(sanitizeId)
+        (tile.tableTile?.hiddenColumns ? tile.tableTile?.hiddenColumns.split(",").filter(Boolean) : []).map(sanitizeId)
       );
       // Remove util headers and parents (keep only leaves)
       const idsSanitized = orderIds
@@ -251,12 +251,12 @@ export async function fetchAndBuildTableDataItem(
       }
       
       if (subsetIds.length > 0) {
-        // Merge back column_context for the API
+        // Merge back columnContext for the API
         const subset = subsetIds
-          .map((id) => processContext("merge", tile.column_context || null, id))
+          .map((id) => processContext("merge", tile.columnContext || null, id))
           .join("&");
         if (subset) {
-          params.set("from_fields", subset);
+          params.set("fromFields", subset);
         }
       }
     } catch {}
@@ -264,16 +264,16 @@ export async function fetchAndBuildTableDataItem(
     // Handle grouping (can be multiple values)
     if (groupingExpression) {
       groupingExpression.split(",").forEach(expr => {
-        params.append('group_by', expr.trim());
+        params.append('groupBy', expr.trim());
       });
     }
     
     // Pagination params
     if (!useGroupPagination && limit !== null) params.set('limit', limit.toString());
     if (!useGroupPagination && offset !== null) params.set('offset', offset.toString());
-    if (useGroupPagination && group_limit !== null) params.set('group_limit', group_limit.toString());
-    if (useGroupPagination && group_offset !== null) params.set('group_offset', group_offset.toString());
-    if (useGroupPagination) params.set('group_depth', '0');
+    if (useGroupPagination && groupLimit !== null) params.set('groupLimit', groupLimit.toString());
+    if (useGroupPagination && groupOffset !== null) params.set('groupOffset', groupOffset.toString());
+    if (useGroupPagination) params.set('groupDepth', '0');
 
     const pFetch = perfStart(`logs-fetch:${tile.name}:${projectId}`);
     const res = await withLogsSemaphore(() => fetch(`/api/logs?${params.toString()}`, {
@@ -387,16 +387,16 @@ export function removeInfiniteLogsQueries(tileId: string, tabId: string, queryCl
  * Helper function to get sorting object from tile
  */
 export function getSortingObject(tile: TileData) {
-  if (!tile.table_tile?.sorting) return "";
+  if (!tile.tableTile?.sorting) return "";
   
-  const { column_context, table_tile } = tile;
-  const sorting = table_tile?.sorting || "";
+  const { columnContext, tableTile } = tile;
+  const sorting = tableTile?.sorting || "";
   
   return Object.fromEntries(
     sorting.split(",").map(value => {
       const fieldName = value.split("@")[0];
-      const processedField = column_context
-        ? processContext("merge", column_context, fieldName) 
+      const processedField = columnContext
+        ? processContext("merge", columnContext, fieldName) 
         : fieldName;
       const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending");
       return [processedField, direction];
@@ -408,19 +408,19 @@ export function getSortingObject(tile: TileData) {
  * Helper function to get group sorting object from tile
  */
 export function getGroupSortingObject(tile: TileData) {
-  if (!tile.table_tile?.group_sorting || !tile.grouping) return "";
+  if (!tile.tableTile?.groupSorting || !tile.grouping) return "";
   
-  const { column_context, table_tile, grouping, metric } = tile;
-  const groupSorting = table_tile?.group_sorting || "";
+  const { columnContext, tableTile, grouping, metric } = tile;
+  const groupSorting = tableTile?.groupSorting || "";
   
   return Object.fromEntries(
     groupSorting.split(",").map(value => {
-      const group = column_context && grouping
-        ? processContext("merge", column_context, grouping.split(",")[0]) 
+      const group = columnContext && grouping
+        ? processContext("merge", columnContext, grouping.split(",")[0]) 
         : grouping!.split(",")[0];
       
-      const field = column_context && value.split("@")[0]
-        ? processContext("merge", column_context, value.split("@")[0]) 
+      const field = columnContext && value.split("@")[0]
+        ? processContext("merge", columnContext, value.split("@")[0]) 
         : value.split("@")[0];
       
       const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending");

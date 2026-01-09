@@ -75,8 +75,8 @@ export function generateInterfaceTags(interfaceData: InterfaceData): string[] {
   const tags: string[] = [];
   
   // Example logic based on interface properties
-  if (interfaceData.created_at) {
-    const createdDate = new Date(interfaceData.created_at);
+  if (interfaceData.createdAt) {
+    const createdDate = new Date(interfaceData.createdAt);
     const isRecent = Date.now() - createdDate.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
     if (isRecent) tags.push('Recent');
   }
@@ -140,7 +140,7 @@ export async function ensureInterfaceLoadable(
   name: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const qs = new URLSearchParams({ project_name: project, name, checkpoint: 'false' });
+  const qs = new URLSearchParams({ projectName: project, name, checkpoint: 'false' });
   const { ok, status, json } = await dedupedJson(`/api/interface?${qs.toString()}`, {
     method: 'GET',
     cache: 'no-store',
@@ -169,23 +169,23 @@ async function createDefaultTiles(
 
       // Handle specialized tile data
       const specializedData: {
-        table_tile?: typeof tile.table_tile;
-        plot_tile?: typeof tile.plot_tile;
-        view_tile?: typeof tile.view_tile;
-        editor_tile?: typeof tile.editor_tile;
-        terminal_tile?: typeof tile.terminal_tile;
+        tableTile?: typeof tile.tableTile;
+        plotTile?: typeof tile.plotTile;
+        viewTile?: typeof tile.viewTile;
+        editorTile?: typeof tile.editorTile;
+        terminalTile?: typeof tile.terminalTile;
       } = {};
       
-      if (tile.table_tile) specializedData.table_tile = tile.table_tile;
-      if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
-      if (tile.view_tile) specializedData.view_tile = tile.view_tile;
-      if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
-      if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
+      if (tile.tableTile) specializedData.tableTile = tile.tableTile;
+      if (tile.plotTile) specializedData.plotTile = tile.plotTile;
+      if (tile.viewTile) specializedData.viewTile = tile.viewTile;
+      if (tile.editorTile) specializedData.editorTile = tile.editorTile;
+      if (tile.terminalTile) specializedData.terminalTile = tile.terminalTile;
       
       // Remove specialized data and server-generated props from tileProps to avoid duplication
       const { 
-        table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
-        id, tab_id, created_at, updated_at, ...restTileProps 
+        tableTile, plotTile, viewTile, editorTile, terminalTile,
+        id, tabId: _tabId, createdAt, updatedAt, ...restTileProps 
       } = tileProps;
       
       // Prepare tile data with all available properties
@@ -195,11 +195,11 @@ async function createDefaultTiles(
       };
       
       await tileActions.create(
-        tabId, 
+        tabId, // Use the function parameter, not the destructured one 
         name, 
         position, 
         tileData,
-        undefined, // tile_id
+        undefined, // tileId
         type
       );
     }
@@ -279,14 +279,14 @@ export async function createCompleteDefaultInterface({
 
     // Update interface with active tab id
     await interfaceActions.update({
-      interface_id: newInterface.id,
-      data: { active_tab_id: newTab.id },
+      interfaceId: newInterface.id,
+      data: { activeTabId: newTab.id },
     });
 
     // Update cache with active tab id
     const updatedInterface = {
       ...newInterface,
-      active_tab_id: newTab.id,
+      activeTabId: newTab.id,
     };
     
     queryClient.setQueryData<InterfaceData[]>(

@@ -18,9 +18,9 @@ export async function getQueryTags(apiKey: string){
  * @param apiKey - The API key for authentication.
  * @param tags - Tags to filter for queries that are marked with these tags.
  * @param endpoints - Optionally specify an endpoint, or a list of endpoints to filter for.
- * @param start_time - Timestamp of the earliest query to aggregate. Format is `YYYY-MM-DD hh:mm:ss`.
- * @param end_time - Timestamp of the latest query to aggregate. Format is `YYYY-MM-DD hh:mm:ss`.
- * @param page_number - The query history is returned in pages, with up to 20 prompts per page. Increase the page number to see older prompts.
+ * @param startTime - Timestamp of the earliest query to aggregate. Format is `YYYY-MM-DD hh:mm:ss`.
+ * @param endTime - Timestamp of the latest query to aggregate. Format is `YYYY-MM-DD hh:mm:ss`.
+ * @param pageNumber - The query history is returned in pages, with up to 20 prompts per page. Increase the page number to see older prompts.
  * @param failures - Indicates whether to include failures in the return (when set as true), or whether to return failures exclusively (when set as 'only').
  * @returns An object containing an array of query objects and the total number of pages.
  */
@@ -28,9 +28,9 @@ export async function getQueries(
     apiKey: string,
     tags?: string | string[],
     endpoints?: string | string[],
-    start_time?: string,
-    end_time?: string,
-    page_number: number = 1,
+    startTime?: string,
+    endTime?: string,
+    pageNumber: number = 1,
     failures: boolean | 'only' = false
 ) {
     const OrchestraUserClient = await getOrchestraUserClient(apiKey);
@@ -52,9 +52,9 @@ export async function getQueries(
         }
     }
 
-    if (start_time) params.append('start_time', start_time);
-    if (end_time) params.append('end_time', end_time);
-    params.append('page_number', page_number.toString());
+    if (startTime) params.append('startTime', startTime);
+    if (endTime) params.append('endTime', endTime);
+    params.append('pageNumber', pageNumber.toString());
     
     if (failures === true) {
         params.append('failures', 'true');

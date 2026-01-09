@@ -17,11 +17,11 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
         outline:
           "border border-input bg-background shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
-        list_item:
+        listItem:
           "hover:bg-muted hover:text-muted-foreground",
         warning:
           "hover:text-destructive shadow-sm",
-        warning_outline:
+        warningOutline:
           "border border-input bg-background hover:text-destructive hover:border-destructive shadow-sm",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",

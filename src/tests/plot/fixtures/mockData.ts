@@ -187,14 +187,14 @@ export function createMockLogs(options: MockLogOptions): LogEntry[] {
         'table1.x_value': isNullEntry
           ? null
           : deterministic
-            ? generateDeterministicValue(dataTypeConfig.x_axis_type, i, count)
-            : generateValue(dataTypeConfig.x_axis_type, i, 0),
+            ? generateDeterministicValue(dataTypeConfig.xAxisType, i, count)
+            : generateValue(dataTypeConfig.xAxisType, i, 0),
         'table1.y_value': isNullEntry
           ? null
           : deterministic
-            ? generateDeterministicValue(dataTypeConfig.y_axis_type, i, count, 50) // offset by 50 for y
-            : generateValue(dataTypeConfig.y_axis_type, i, 100),
-        'table1.category': generateValue(dataTypeConfig.group_by_type, i, 200),
+            ? generateDeterministicValue(dataTypeConfig.yAxisType, i, count, 50) // offset by 50 for y
+            : generateValue(dataTypeConfig.yAxisType, i, 100),
+        'table1.category': generateValue(dataTypeConfig.groupByType, i, 200),
         'table1.status': i % 4 === 0 ? 'error' : i % 2 === 0 ? 'success' : 'pending',
         'table1.value': deterministic
           ? (i / Math.max(1, count - 1)) * 1000
@@ -311,7 +311,7 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
   });
 
   // Zero values (for numeric types)
-  if (['float', 'int'].includes(dataTypeConfig.x_axis_type)) {
+  if (['float', 'int'].includes(dataTypeConfig.xAxisType)) {
     edgeCases.push({
       id: `log_edge_zero_${startIndex + 1}`,
       timestamp: new Date().toISOString(),
@@ -329,7 +329,7 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
   }
 
   // Negative values (for numeric types)
-  if (['float', 'int'].includes(dataTypeConfig.x_axis_type)) {
+  if (['float', 'int'].includes(dataTypeConfig.xAxisType)) {
     edgeCases.push({
       id: `log_edge_negative_${startIndex + 2}`,
       timestamp: new Date().toISOString(),
@@ -347,14 +347,14 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
   }
 
   // Very large values (for numeric types)
-  if (['float', 'int'].includes(dataTypeConfig.x_axis_type)) {
+  if (['float', 'int'].includes(dataTypeConfig.xAxisType)) {
     edgeCases.push({
       id: `log_edge_large_${startIndex + 3}`,
       timestamp: new Date().toISOString(),
       'table1.id': `log_edge_large_${startIndex + 3}`,
       'table1.entries': {
-        'table1.x_value': dataTypeConfig.x_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
-        'table1.y_value': dataTypeConfig.y_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
+        'table1.x_value': dataTypeConfig.xAxisType === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
+        'table1.y_value': dataTypeConfig.yAxisType === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
         'table1.category': 'large_category',
         'table1.status': 'success',
         'table1.value': 1e10,
@@ -365,7 +365,7 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
   }
 
   // Empty string (for string types)
-  if (dataTypeConfig.x_axis_type === 'str') {
+  if (dataTypeConfig.xAxisType === 'str') {
     edgeCases.push({
       id: `log_edge_empty_str_${startIndex + 4}`,
       timestamp: new Date().toISOString(),
@@ -383,7 +383,7 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
   }
 
   // Extreme datetime (for datetime types)
-  if (dataTypeConfig.x_axis_type === 'datetime') {
+  if (dataTypeConfig.xAxisType === 'datetime') {
     edgeCases.push({
       id: `log_edge_future_date_${startIndex + 5}`,
       timestamp: new Date().toISOString(),
@@ -414,20 +414,20 @@ function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number):
 export function createMockFields(dataTypeConfig: DataTypeConfig): Record<
   string,
   {
-    data_type: string;
-    field_type: 'entry' | 'param' | 'derived_entry';
+    dataType: string;
+    fieldType: 'entry' | 'param' | 'derived_entry';
     artifacts: string;
     mutable: 'true' | 'false';
-    created_at: string;
+    createdAt: string;
     description?: string;
   }
 > {
   const now = new Date().toISOString();
 
   const fieldDefs = [
-    { path: 'table1.x_value', type: dataTypeConfig.x_axis_type },
-    { path: 'table1.y_value', type: dataTypeConfig.y_axis_type },
-    { path: 'table1.category', type: dataTypeConfig.group_by_type },
+    { path: 'table1.x_value', type: dataTypeConfig.xAxisType },
+    { path: 'table1.y_value', type: dataTypeConfig.yAxisType },
+    { path: 'table1.category', type: dataTypeConfig.groupByType },
     { path: 'table1.status', type: 'str' },
     { path: 'table1.value', type: 'float' },
     { path: 'table1.count', type: 'int' },
@@ -439,21 +439,21 @@ export function createMockFields(dataTypeConfig: DataTypeConfig): Record<
   const result: Record<
     string,
     {
-      data_type: string;
-      field_type: 'entry' | 'param' | 'derived_entry';
+      dataType: string;
+      fieldType: 'entry' | 'param' | 'derived_entry';
       artifacts: string;
       mutable: 'true' | 'false';
-      created_at: string;
+      createdAt: string;
     }
   > = {};
 
   for (const field of fieldDefs) {
     result[field.path] = {
-      data_type: field.type,
-      field_type: 'entry',
+      dataType: field.type,
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: now,
+      createdAt: now,
     };
   }
 
@@ -467,20 +467,20 @@ export function createMockFieldsArray(dataTypeConfig: DataTypeConfig): FieldDefi
   return [
     {
       path: 'table1.x_value',
-      type: dataTypeConfig.x_axis_type,
-      display_type: mapToDisplayType(dataTypeConfig.x_axis_type),
+      type: dataTypeConfig.xAxisType,
+      display_type: mapToDisplayType(dataTypeConfig.xAxisType),
       count: 100,
     },
     {
       path: 'table1.y_value',
-      type: dataTypeConfig.y_axis_type,
-      display_type: mapToDisplayType(dataTypeConfig.y_axis_type),
+      type: dataTypeConfig.yAxisType,
+      display_type: mapToDisplayType(dataTypeConfig.yAxisType),
       count: 100,
     },
     {
       path: 'table1.category',
-      type: dataTypeConfig.group_by_type,
-      display_type: mapToDisplayType(dataTypeConfig.group_by_type),
+      type: dataTypeConfig.groupByType,
+      display_type: mapToDisplayType(dataTypeConfig.groupByType),
       count: 5,
     },
     {

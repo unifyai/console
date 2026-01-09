@@ -25,8 +25,8 @@ export function convertToUnifyChatMessages(prompt: LanguageModelV1Prompt): Unify
               }
               case 'image': {
                 return {
-                  type: 'image_url',
-                  image_url:
+                  type: 'imageUrl',
+                  imageUrl:
                     part.image instanceof URL
                       ? part.image.toString()
                       : `data:${
@@ -81,7 +81,7 @@ export function convertToUnifyChatMessages(prompt: LanguageModelV1Prompt): Unify
           role: 'assistant',
           content: text,
           prefix: isLastMessage ? true : undefined,
-          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         });
 
         break;
@@ -92,7 +92,7 @@ export function convertToUnifyChatMessages(prompt: LanguageModelV1Prompt): Unify
             role: 'tool',
             name: toolResponse.toolName,
             content: JSON.stringify(toolResponse.result),
-            tool_call_id: toolResponse.toolCallId,
+            toolCallId: toolResponse.toolCallId,
           });
         }
         break;

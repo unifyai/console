@@ -43,7 +43,7 @@ export function useAssistants(
                 throw new Error(`Invalid response format received for assistants: ${detail}`);
             }
 
-            const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name);
+            const validAssistants = listResult.filter(a => a && a.agentId && a.firstName);
             if (validAssistants.length !== listResult.length) {/* no-op */}
 
             // Step 2: Set the core data immediately for a fast UI render
@@ -53,12 +53,12 @@ export function useAssistants(
 
             // Step 3: Progressively fetch signed URLs in the background
             validAssistants.forEach(assistant => {
-                if (assistant.profile_photo && isGcsPhoto(assistant.profile_photo)) {
-                    photoActions.download(assistant.profile_photo).then(result => {
+                if (assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)) {
+                    photoActions.download(assistant.profilePhoto).then(result => {
                         if (result.signedUrl) {
                             setAssistants(currentAssistants =>
                                 currentAssistants.map(a =>
-                                    a.agent_id === assistant.agent_id
+                                    a.agentId === assistant.agentId
                                         ? { ...a, signedProfilePhotoUrl: result.signedUrl }
                                         : a
                                 )
@@ -66,12 +66,12 @@ export function useAssistants(
                         }
                     });
                 }
-                if (assistant.profile_video && isGcsPhoto(assistant.profile_video)) {
-                    photoActions.download(assistant.profile_video).then(result => {
+                if (assistant.profileVideo && isGcsPhoto(assistant.profileVideo)) {
+                    photoActions.download(assistant.profileVideo).then(result => {
                         if (result.signedUrl) {
                             setAssistants(currentAssistants =>
                                 currentAssistants.map(a =>
-                                    a.agent_id === assistant.agent_id
+                                    a.agentId === assistant.agentId
                                         ? { ...a, signedProfileVideoUrl: result.signedUrl }
                                         : a
                                 )
@@ -100,8 +100,8 @@ export function useAssistants(
     }, [fetchAssistantsWithDetails]);
 
     const deleteAssistant = React.useCallback(async (assistantToDelete: Assistant): Promise<boolean> => {
-        const assistantId = assistantToDelete.agent_id;
-        const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
+        const assistantId = assistantToDelete.agentId;
+        const displayName = `${assistantToDelete.firstName} ${assistantToDelete.surname}`;
 
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
@@ -111,7 +111,7 @@ export function useAssistants(
                 throw new Error(deleteResult.detail || "Failed to delete assistant record.");
             }
 
-            setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
+            setAssistants((prev) => prev.filter((a) => a.agentId !== assistantId));
             toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
         } catch (error) {
@@ -133,13 +133,13 @@ export function useAssistants(
             }
 
             // Immediately update non-URL fields
-            setAssistants(prev => prev.map(a => a.agent_id === id ? { ...a, ...payload } : a));
+            setAssistants(prev => prev.map(a => a.agentId === id ? { ...a, ...payload } : a));
 
             // If a photo was part of the payload, refresh its URL
-            if (payload.profile_photo && isGcsPhoto(payload.profile_photo)) {
-                const res = await photoActions.download(payload.profile_photo);
+            if (payload.profilePhoto && isGcsPhoto(payload.profilePhoto)) {
+                const res = await photoActions.download(payload.profilePhoto);
                 if (res.signedUrl) {
-                    setAssistants(current => current.map(a => a.agent_id === id ? { ...a, signedProfilePhotoUrl: res.signedUrl } : a));
+                    setAssistants(current => current.map(a => a.agentId === id ? { ...a, signedProfilePhotoUrl: res.signedUrl } : a));
                 }
             }
 

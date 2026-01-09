@@ -173,8 +173,8 @@ export async function buildOptimisticTableDataItem(
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)
   if (tableArguments && tableArguments[tileData.name!]) {
-    tableArguments[tileData.name!].available_fields = buildAvailableFieldsForTile(
-      tileData.column_context ?? "",
+    tableArguments[tileData.name!].availableFields = buildAvailableFieldsForTile(
+      tileData.columnContext ?? "",
       fields,
       tableDataItem.entriesProperties,
       tableDataItem.paramsProperties

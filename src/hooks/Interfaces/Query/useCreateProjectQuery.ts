@@ -15,10 +15,10 @@ import { useQueryClient } from "@tanstack/react-query";
  * Input interface for the project creation process
  */
 export interface ProjectCreationInput {
-  interface: Omit<InterfaceData, 'id' | 'created_at' | 'updated_at'> & {
-    project_id: string; // Make project_id required for creation
+  interface: Omit<InterfaceData, 'id' | 'createdAt' | 'updatedAt'> & {
+    projectId: string; // Make projectId required for creation
   };
-  tab: Omit<TabData, 'id' | 'interface_id' | 'created_at' | 'updated_at'>;
+  tab: Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>;
   tiles?: TileData[];
   actions: {
     interfaceActions: GranularInterfaceActions;
@@ -53,19 +53,19 @@ export function useCreateProjectQuery() {
       
       try {
         // Step 1: Create interface
-        if (!projectInterface.project_id) {
-          throw new Error("Interface must have project_id defined");
+        if (!projectInterface.projectId) {
+          throw new Error("Interface must have projectId defined");
         }
         
         if (!projectInterface.name && projectInterface.name !== "") {
           throw new Error("Interface must have name defined");
         }
         
-        const { project_id, name, ...interfaceProps } = projectInterface;
+        const { projectId, name, ...interfaceProps } = projectInterface;
         
         // Create the interface
         const createdInterface = await actions.interfaceActions.create(
-          project_id, 
+          projectId, 
           name, 
           interfaceProps.color
         );
@@ -95,23 +95,23 @@ export function useCreateProjectQuery() {
             
             // Handle specialized tile data
             const specializedData: {
-              table_tile?: typeof tile.table_tile;
-              plot_tile?: typeof tile.plot_tile;
-              view_tile?: typeof tile.view_tile;
-              editor_tile?: typeof tile.editor_tile;
-              terminal_tile?: typeof tile.terminal_tile;
+              tableTile?: typeof tile.tableTile;
+              plotTile?: typeof tile.plotTile;
+              viewTile?: typeof tile.viewTile;
+              editorTile?: typeof tile.editorTile;
+              terminalTile?: typeof tile.terminalTile;
             } = {};
             
-            if (tile.table_tile) specializedData.table_tile = tile.table_tile;
-            if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
-            if (tile.view_tile) specializedData.view_tile = tile.view_tile;
-            if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
-            if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
+            if (tile.tableTile) specializedData.tableTile = tile.tableTile;
+            if (tile.plotTile) specializedData.plotTile = tile.plotTile;
+            if (tile.viewTile) specializedData.viewTile = tile.viewTile;
+            if (tile.editorTile) specializedData.editorTile = tile.editorTile;
+            if (tile.terminalTile) specializedData.terminalTile = tile.terminalTile;
             
             // Remove specialized data and server-generated props from tileProps to avoid duplication
             const { 
-              table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
-              id, tab_id, created_at, updated_at, ...restTileProps 
+              tableTile, plotTile, viewTile, editorTile, terminalTile,
+              id, tabId, createdAt, updatedAt, ...restTileProps 
             } = tileProps;
             
             // Prepare tile data with all available properties
@@ -141,7 +141,7 @@ export function useCreateProjectQuery() {
         // If anything fails, try to clean up by deleting the interface
         // This will cascade delete tabs and tiles
         try {
-          if (projectInterface.project_id) {
+          if (projectInterface.projectId) {
             // This is a simplification - ideally you'd use proper deletion
             // through the interface actions
             console.error("Error creating project, attempting cleanup:", error);
@@ -156,9 +156,9 @@ export function useCreateProjectQuery() {
     
     onSuccess: (result) => {
       // Invalidate queries related to the created resources
-      if (result.interface.project_id) {
+      if (result.interface.projectId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', result.interface.project_id] 
+          queryKey: ['interfaces', result.interface.projectId] 
         });
       }
       
@@ -168,13 +168,13 @@ export function useCreateProjectQuery() {
         });
       }
       
-      if (result.tab.interface_id) {
+      if (result.tab.interfaceId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tabs', result.tab.interface_id] 
+          queryKey: ['tabs', result.tab.interfaceId] 
         });
         
         queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', result.tab.interface_id] 
+          queryKey: ['interface-with-tabs', result.tab.interfaceId] 
         });
       }
       

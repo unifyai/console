@@ -80,12 +80,12 @@ export function AssistantHire ({
     }, [isHireDialogOpen]);
 
     const { watch, getValues } = useFormContext<AssistantFormData>();
-    const watchedConfigFields = watch(["first_name", "surname", "age", "nationality", "about"]);
+    const watchedConfigFields = watch(["firstName", "surname", "age", "nationality", "about"]);
 
     const assistantConfigKey = React.useMemo(() => {
-        const [first_name, surname, age, nationality, about] = watchedConfigFields;
+        const [firstName, surname, age, nationality, about] = watchedConfigFields;
         // Simple serialization of the core assistant properties to create a unique key
-        return `${first_name || ''}-${surname || ''}-${age || 'N/A'}-${nationality || ''}-${about || ''}`;
+        return `${firstName || ''}-${surname || ''}-${age || 'N/A'}-${nationality || ''}-${about || ''}`;
     }, [watchedConfigFields]);
 
     const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;

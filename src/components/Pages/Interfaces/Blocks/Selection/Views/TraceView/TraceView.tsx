@@ -531,8 +531,8 @@ function PatchDetailPanel({
         if (s.id === targetId) {
           return [...acc, i];
         }
-        if (s.child_spans && s.child_spans.length) {
-          const found = recurse(s.child_spans, [...acc, i, "child_spans"]);
+        if (s.childSpans && s.childSpans.length) {
+          const found = recurse(s.childSpans, [...acc, i, "child_spans"]);
           if (found) return found;
         }
       }
@@ -584,7 +584,7 @@ function PatchDetailPanel({
           const t = tSpan ? tSpan[field] : undefined;
           return { baseVal: b, comps: t !== undefined ? [t] : [] };
         }
-        const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+        const realName = bSpan?.spanName || tSpan?.spanName || node.name;
         const baseVal = bSpan?.[field];
         const compsArr = comparisonLogsIndex.map((r) => {
           const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
@@ -609,11 +609,11 @@ function findSpanByNameInRow(
     const queue = [...rowSpans];
     while (queue.length) {
       const s = queue.shift()!;
-      if (s.span_name === spanName) {
+      if (s.spanName === spanName) {
         return s;
       }
-      if (s.child_spans) {
-        queue.push(...s.child_spans);
+      if (s.childSpans) {
+        queue.push(...s.childSpans);
       }
     }
     return undefined;
@@ -643,8 +643,8 @@ function findSpanByNameInRow(
     while (stack.length) {
       const s = stack.pop()!;
       if (s.id === id) return s;
-      if (s.child_spans && s.child_spans.length) {
-        stack.push(...s.child_spans);
+      if (s.childSpans && s.childSpans.length) {
+        stack.push(...s.childSpans);
       }
     }
     return undefined;
@@ -717,10 +717,10 @@ function findSpanByNameInRow(
             <CopyButton
               content={node.baseSpanRef?.id ?? ""}
               copyMessage={
-                node.baseSpanRef?.parent_span_id ? "Copied span ID" : "Copied trace ID"
+                node.baseSpanRef?.parentSpanId ? "Copied span ID" : "Copied trace ID"
               }
               tooltipContent={
-                node.baseSpanRef?.parent_span_id ?
+                node.baseSpanRef?.parentSpanId ?
                 "Copy span ID" :
                 "Copy trace ID"
               }
@@ -763,7 +763,7 @@ function findSpanByNameInRow(
               const tId = tSpan?.id ?? "";
               return tId ? { baseVal: bId, comps: [tId] } : { baseVal: bId, comps: [] };
             }
-            const realName = bSpan?.span_name || tSpan?.span_name || node.name;
+            const realName = bSpan?.spanName || tSpan?.spanName || node.name;
             const bId = bSpan?.id ?? "";
             const compsArr = comparisonLogsIndex.map((r) => {
               const match = findSpanByNameInRow(allTraces, allRowIndexes, r, realName);
@@ -921,8 +921,8 @@ function CollapsiblePatchLineNode({
   const spanType = node.baseSpanRef?.type ?? node.targetSpanRef?.type;
   const IconComponent = getIconForSpanType(spanType);
 
-  const baseTime = node.baseSpanRef?.exec_time ?? 0;
-  const targetTime = node.targetSpanRef?.exec_time ?? 0;
+  const baseTime = node.baseSpanRef?.execTime ?? 0;
+  const targetTime = node.targetSpanRef?.execTime ?? 0;
 
   // Extract LLM usage data
   const baseLlmUsage = node.baseSpanRef?.llm_usage;
@@ -998,36 +998,36 @@ function CollapsiblePatchLineNode({
 
   // Get token details - for cached calls, prefer llm_usage_inc_cache
   const basePromptTokens = isBaseSpanCached
-    ? (baseLlmUsageIncCache?.prompt_tokens ?? baseLlmUsage?.prompt_tokens ?? 0)
-    : (baseLlmUsage?.prompt_tokens ?? 0);
+    ? (baseLlmUsageIncCache?.promptTokens ?? baseLlmUsage?.promptTokens ?? 0)
+    : (baseLlmUsage?.promptTokens ?? 0);
 
   const baseReasoningTokens = isBaseSpanCached
     ? (baseLlmUsageIncCache?.reasoning_tokens ?? baseLlmUsage?.reasoning_tokens ?? 0)
     : (baseLlmUsage?.reasoning_tokens ?? 0);
 
   const baseCompletionTokens = isBaseSpanCached
-    ? (baseLlmUsageIncCache?.completion_tokens ?? baseLlmUsage?.completion_tokens ?? 0)
-    : (baseLlmUsage?.completion_tokens ?? 0);
+    ? (baseLlmUsageIncCache?.completionTokens ?? baseLlmUsage?.completionTokens ?? 0)
+    : (baseLlmUsage?.completionTokens ?? 0);
 
   const baseTotalTokens = isBaseSpanCached
-    ? (baseLlmUsageIncCache?.total_tokens ?? baseLlmUsage?.total_tokens ?? 0)
-    : (baseLlmUsage?.total_tokens ?? 0);
+    ? (baseLlmUsageIncCache?.totalTokens ?? baseLlmUsage?.totalTokens ?? 0)
+    : (baseLlmUsage?.totalTokens ?? 0);
 
   const targetPromptTokens = isTargetSpanCached
-    ? (targetLlmUsageIncCache?.prompt_tokens ?? targetLlmUsage?.prompt_tokens ?? 0)
-    : (targetLlmUsage?.prompt_tokens ?? 0);
+    ? (targetLlmUsageIncCache?.promptTokens ?? targetLlmUsage?.promptTokens ?? 0)
+    : (targetLlmUsage?.promptTokens ?? 0);
 
   const targetReasoningTokens = isTargetSpanCached
     ? (targetLlmUsageIncCache?.reasoning_tokens ?? targetLlmUsage?.reasoning_tokens ?? 0)
     : (targetLlmUsage?.reasoning_tokens ?? 0);
 
   const targetCompletionTokens = isTargetSpanCached
-    ? (targetLlmUsageIncCache?.completion_tokens ?? targetLlmUsage?.completion_tokens ?? 0)
-    : (targetLlmUsage?.completion_tokens ?? 0);
+    ? (targetLlmUsageIncCache?.completionTokens ?? targetLlmUsage?.completionTokens ?? 0)
+    : (targetLlmUsage?.completionTokens ?? 0);
 
   const targetTotalTokens = isTargetSpanCached
-    ? (targetLlmUsageIncCache?.total_tokens ?? targetLlmUsage?.total_tokens ?? 0)
-    : (targetLlmUsage?.total_tokens ?? 0);
+    ? (targetLlmUsageIncCache?.totalTokens ?? targetLlmUsage?.totalTokens ?? 0)
+    : (targetLlmUsage?.totalTokens ?? 0);
 
   // Extract cached tokens info
   const baseCachedTokens = baseLlmUsage?.prompt_tokens_details?.cached_tokens ?? 0;
@@ -1564,7 +1564,7 @@ const MemoizedDetailPanel = React.memo(function DetailPanel({
 // Internal function to check completion recursively
 function isTraceComplete(spans: Span[]): boolean {
   if (!spans || !spans.length) return true; // An empty trace or no spans means it's "complete" in a sense.
-  return spans.every((s) => (s.completed ?? true) && isTraceComplete(s.child_spans ?? []));
+  return spans.every((s) => (s.completed ?? true) && isTraceComplete(s.childSpans ?? []));
 }
 
 // Helper component to manage polling for a single trace
@@ -1725,8 +1725,8 @@ export default function UnifiedTraceView({
   const baseRowSpans = useMemo(() => liveBaseTrace, [liveBaseTrace]);
 
   const minimalSpanHierarchy = React.useCallback((span: Span): any => ({
-    name: span.span_name,
-    children: (span.child_spans ?? []).map(minimalSpanHierarchy),
+    name: span.spanName,
+    children: (span.childSpans ?? []).map(minimalSpanHierarchy),
   }), []);
 
   const minimalSpanTree = React.useCallback((spans: Span[]): any => spans.map(minimalSpanHierarchy), [minimalSpanHierarchy]);

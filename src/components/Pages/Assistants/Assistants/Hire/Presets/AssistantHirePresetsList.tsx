@@ -208,7 +208,7 @@ export function PresetsPanel({
           {displayedPresets.length > 0 ? (
             displayedPresets.map((preset, index) => (
               <PresetListItem
-                key={`${preset.first_name}-${preset.surname}-${index}`} 
+                key={`${preset.firstName}-${preset.surname}-${index}`} 
                 preset={preset}
                 onSelect={onPresetSelect}
                 isFastMode={isFastMode}

@@ -49,7 +49,7 @@ const ResetServerAction = ({interactive, setterFunction, logs, type, condition}:
     const icons = {"grouping": <UngroupX/>, "filters": <FilterX/>, "sorting": <ListX/>}
     const resetIcon = loading ? <LoaderCircle className="animate-spin text-primary"/> : icons[type as keyof typeof icons] ?? <X/>
     const resetTooltip = `Reset all ${type}`
-    const resetVariant = "warning_outline" 
+    const resetVariant = "warningOutline" 
     const onClick = () => {
         setterFunction()
         setLoading(true);

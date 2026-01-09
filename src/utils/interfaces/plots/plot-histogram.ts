@@ -147,7 +147,7 @@ export const drawHistogram = (
     let data : DataRange | GroupedDataRange = [];
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date" || data_type === "bool" || data_type === "Any"))
+        .filter(([name, { dataType, fieldType }]) => (dataType === "float" || dataType === "int" || dataType === "timestamp" || dataType === "time" || dataType === "timedelta" || dataType === "date" || dataType === "bool" || dataType === "Any"))
         .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     let xType : string | undefined;

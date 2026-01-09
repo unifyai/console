@@ -19,14 +19,14 @@ export function useAssistantStatus(
 
         const promises = assistantList.map(async (assistant) => {
             try {
-                const result = await getStatusAction(assistant.agent_id);
+                const result = await getStatusAction(assistant.agentId);
                 if (result && 'running' in result) {
-                    return { assistantId: assistant.agent_id, status: result as AssistantStatus };
+                    return { assistantId: assistant.agentId, status: result as AssistantStatus };
                 }
                 // Don't log error here as it can be noisy, the action itself logs.
-                return { assistantId: assistant.agent_id, status: null };
+                return { assistantId: assistant.agentId, status: null };
             } catch (error) {
-                return { assistantId: assistant.agent_id, status: null };
+                return { assistantId: assistant.agentId, status: null };
             }
         });
 

@@ -48,11 +48,11 @@ type TabDataActions = {
 const baseFieldsArray: LogFieldsResponseProps[] = [
   {
     'entries/message': {
-      data_type: 'string',
-      field_type: 'entry',
+      dataType: 'string',
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: '2025-01-01T00:00:00Z',
+      createdAt: '2025-01-01T00:00:00Z',
     },
   },
 ];
@@ -73,18 +73,18 @@ const makeTableTileData = (): TileData => ({
   name: mockTile.name,
   position: mockTile.position,
   type: 'Table',
-  tab_id: mockTabId,
+  tabId: mockTabId,
   visible: true,
   locked: false,
   table: mockTile.table,
   context: mockTile.context,
-  column_context: mockTile.column_context,
+  columnContext: mockTile.columnContext,
   grouping: mockTile.grouping,
-  table_tile: {
+  tableTile: {
     limit: 20,
     offset: 0,
-    group_limit: 20,
-    group_offset: 0,
+    groupLimit: 20,
+    groupOffset: 0,
   } as TableTileData,
 } as TileData);
 

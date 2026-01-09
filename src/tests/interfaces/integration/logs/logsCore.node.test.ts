@@ -78,8 +78,8 @@ describe('logsCore + getLogs (MSW integration)', () => {
       groupSortingExpression: null,
       limit: 20,
       offset: 0,
-      group_limit: 20,
-      group_offset: 0,
+      groupLimit: 20,
+      groupOffset: 0,
       logsActions,
     };
 
@@ -106,7 +106,7 @@ describe('logsCore + getLogs (MSW integration)', () => {
     expect(first.type).toBe('ungrouped');
   });
 
-  it('fetchLogsCore passes limit/offset vs group_limit/group_offset correctly based on groupingExpression', async () => {
+  it('fetchLogsCore passes limit/offset vs groupLimit/groupOffset correctly based on groupingExpression', async () => {
     const logsActions = {
       create: vi.fn(),
       get: vi.fn(),
@@ -127,8 +127,8 @@ describe('logsCore + getLogs (MSW integration)', () => {
       groupSortingExpression: null,
       limit: 20,
       offset: 40,
-      group_limit: 20,
-      group_offset: 2,
+      groupLimit: 20,
+      groupOffset: 2,
       logsActions,
     };
 
@@ -142,8 +142,8 @@ describe('logsCore + getLogs (MSW integration)', () => {
     expect(ungroupedUrlObj.searchParams.get('limit')).toBe('20');
     expect(ungroupedUrlObj.searchParams.get('offset')).toBe('40');
     // group_* should NOT be in URL for ungrouped
-    expect(ungroupedUrlObj.searchParams.has('group_limit')).toBe(false);
-    expect(ungroupedUrlObj.searchParams.has('group_offset')).toBe(false);
+    expect(ungroupedUrlObj.searchParams.has('groupLimit')).toBe(false);
+    expect(ungroupedUrlObj.searchParams.has('groupOffset')).toBe(false);
 
     // Reset for grouped call
     mockFetch.mockClear();
@@ -171,8 +171,8 @@ describe('logsCore + getLogs (MSW integration)', () => {
       groupSortingExpression: null,
       limit: 20,
       offset: 0,
-      group_limit: 50,
-      group_offset: 10,
+      groupLimit: 50,
+      groupOffset: 10,
       logsActions,
     };
 
@@ -183,13 +183,13 @@ describe('logsCore + getLogs (MSW integration)', () => {
     const groupedUrlObj = new URL(groupedUrl, 'http://localhost');
     
     // group_* should be used for grouped
-    expect(groupedUrlObj.searchParams.get('group_limit')).toBe('50');
-    expect(groupedUrlObj.searchParams.get('group_offset')).toBe('10');
-    expect(groupedUrlObj.searchParams.get('group_depth')).toBe('0');
+    expect(groupedUrlObj.searchParams.get('groupLimit')).toBe('50');
+    expect(groupedUrlObj.searchParams.get('groupOffset')).toBe('10');
+    expect(groupedUrlObj.searchParams.get('groupDepth')).toBe('0');
     // limit/offset should NOT be in URL for grouped
     expect(groupedUrlObj.searchParams.has('limit')).toBe(false);
     expect(groupedUrlObj.searchParams.has('offset')).toBe(false);
     // grouping should be in URL
-    expect(groupedUrlObj.searchParams.get('group_by')).toBe('entries/group');
+    expect(groupedUrlObj.searchParams.get('groupBy')).toBe('entries/group');
   });
 });

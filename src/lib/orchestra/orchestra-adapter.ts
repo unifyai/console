@@ -8,7 +8,7 @@ export function OrchestraAdapter(): Adapter {
       return response.data;
     },
     async getUser(id: string): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>(`/auth-user`, { params: { user_id: id } });
+      const response = await OrchestraAdminClient.get<AdapterUser>(`/auth-user`, { params: { userId: id } });
       return response.data;
     },
     async getUserByEmail(email: string): Promise<AdapterUser | null> {
@@ -23,7 +23,7 @@ export function OrchestraAdapter(): Adapter {
       provider: string;
     }): Promise<AdapterUser | null> {
       const response = await OrchestraAdminClient.get<AdapterUser>("/auth-user/by-account", {
-        params: { provider_account_id: providerAccountId, provider: provider },
+        params: { providerAccountId: providerAccountId, provider: provider },
       });
       return response.data;
     },
@@ -32,15 +32,15 @@ export function OrchestraAdapter(): Adapter {
       return response.data;
     },
     async deleteUser(userId: string): Promise<void> {
-      await OrchestraAdminClient.delete("/auth-user", { params: { user_id: userId } });
+      await OrchestraAdminClient.delete("/auth-user", { params: { userId: userId } });
     },
     async linkAccount(account: AdapterAccount): Promise<void> {
       // Transform NextAuth's camelCase fields to orchestra's snake_case
       const { providerAccountId, userId, ...rest } = account;
       await OrchestraAdminClient.post("/account", {
         ...rest,
-        provider_account_id: providerAccountId,
-        user_id: userId,
+        providerAccountId: providerAccountId,
+        userId: userId,
       });
     },
     async unlinkAccount({
@@ -51,7 +51,7 @@ export function OrchestraAdapter(): Adapter {
       provider: string;
     }): Promise<void> {
       await OrchestraAdminClient.delete("/account", {
-        params: { provider_account_id: providerAccountId, provider },
+        params: { providerAccountId: providerAccountId, provider },
       });
     },
   };

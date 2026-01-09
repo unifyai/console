@@ -1166,7 +1166,7 @@ export default function SelectionPanel({
       }
       const targetRowId = String(targetLog.id);
 
-      const source = fields[fieldName].field_type === 'param' ? 'params' : 'entries' // Need to add support for derived_entries in Traces 
+      const source = fields[fieldName].fieldType === 'param' ? 'params' : 'entries' // Need to add support for derivedEntries in Traces 
 
       updateLogsByRowIds([targetRowId], {
           source: source,

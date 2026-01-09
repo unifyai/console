@@ -135,7 +135,7 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
   Plot: {
     tileType: 'Plot',
     isIndependent: false,
-    description: 'Dependent tile - requires table tiles referenced in x_axis, y_axis, plot_group_by',
+    description: 'Dependent tile - requires table tiles referenced in xAxis, yAxis, plotGroupBy',
     
     getExternalDependencies: getPlotDependencies,
     

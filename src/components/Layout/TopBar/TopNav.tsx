@@ -106,7 +106,7 @@ export default function TopNav() {
     ? userOrgs.find(o => o.id.toString() === activeWorkspace.id)
     : null;
   
-  const canManageBilling = !currentOrg || ['owner', 'admin'].includes(currentOrg.role_name?.toLowerCase() ?? '');
+  const canManageBilling = !currentOrg || ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
 
   return (
     <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">

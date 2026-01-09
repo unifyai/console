@@ -33,7 +33,7 @@ for i in range(25):
 `,
     // Granular interface structure
     interface: {
-        project_id: "line-demo3",
+        projectId: "line-demo3",
         name: "interface1"
     },
     // Tab structure
@@ -54,8 +54,8 @@ for i in range(25):
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -67,13 +67,13 @@ for i in range(25):
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                plot_type: "Line Chart",
-                x_axis: "Table.time",
-                y_axis: "Table.speed",
-                plot_group_by: "Table.endpoint"
+            plotTile: {
+                plotType: "Line Chart",
+                xAxis: "Table.time",
+                yAxis: "Table.speed",
+                plotGroupBy: "Table.endpoint"
             }
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

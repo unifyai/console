@@ -35,7 +35,7 @@ export function buildTabState(
   
   // Create tab UI
   const tabUI: TabUI = {
-    interfaceId: tabData.interface_id || null,
+    interfaceId: tabData.interfaceId || null,
     focusedTileNames: [undefined, undefined],
     resetting: false,
     edit: false,

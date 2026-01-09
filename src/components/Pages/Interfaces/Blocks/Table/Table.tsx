@@ -144,7 +144,7 @@ const LogsTable = ({
   const { ui: tabUIState, uiActions: tabUIActions, data: tabDataState } = useTab(tabId, interfaceId);
   const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
   const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
-  const context_ = tabDataState?.globalContext;
+  const globalContext = tabDataState?.globalContext;
   // Retry state for error screen
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -186,8 +186,8 @@ const LogsTable = ({
 
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const tileName = tileMetaState?.name || "";
-  const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
-  const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
+  const sortingExpression = tableArguments?.[tileName]?.getLogsParameters?.sorting || null;
+  const groupSortingExpression = tableArguments?.[tileName]?.getLogsParameters?.groupSorting || null;
 
   // TODO: See if we can directly wait for the table arguments to be updated,
   // rather than hacking this to manually get the correct get logs expressions
@@ -195,8 +195,8 @@ const LogsTable = ({
   const groupingExpression = tileDataState?.grouping || null;
   const filterExpression = buildFilterExpression(
     tileDataState?.filters || undefined,
-    tileDataState?.common_filter || undefined,
-    tileDataState?.column_context || undefined,
+    tileDataState?.commonFilter || undefined,
+    tileDataState?.columnContext || undefined,
     tileDataState?.freeze || undefined,
     fields
   );
@@ -221,17 +221,17 @@ const LogsTable = ({
     tileId,
     tabId,
     projectId: projectId || null,
-    context: item?.context || context_ || null,
-    columnContext: item?.column_context || null,
+    context: item?.context || globalContext || null,
+    columnContext: item?.columnContext || null,
     filterExpression,
     sortingExpression,
     groupingExpression,
     groupSortingExpression,
     limit: tableTileState?.limit || 20,
-    group_limit: tableTileState?.group_limit || 20,
+    groupLimit: tableTileState?.groupLimit || 20,
     logsActions,
     updateLogs,
-    enabled: !!projectId && !!tileId && !!tabId && item?.auto_update !== "true" && !isTableDataLoading,
+    enabled: !!projectId && !!tileId && !!tabId && item?.autoUpdate !== "true" && !isTableDataLoading,
     bidirectional: {
       enabled: useBidirectionalLoading,
       maxPagesInMemory: bidirectionalConfig.maxPagesInMemory,
@@ -256,8 +256,8 @@ const LogsTable = ({
   // Get access to the table tile specific data and actions with granular access
   const limit = tableTileState?.limit as number;
   const offset = tableTileState?.offset as number;
-  const group_limit = tableTileState?.group_limit as number;
-  const group_offset = tableTileState?.group_offset as number;
+  const groupLimit = tableTileState?.groupLimit as number;
+  const groupOffset = tableTileState?.groupOffset as number;
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -307,29 +307,29 @@ const LogsTable = ({
   // Various table states from the item
   const metric = item?.metric || "mean";
   const logsFilters = item?.filters;
-  const commonFilter = item?.common_filter;
+  const commonFilter = item?.commonFilter;
 
-  const pageNumber = item?.page_number;
+  const pageNumber = item?.pageNumber;
   const sortingStr = item?.sorting;
-  const columnOrderStr = item?.column_order;
-  const hiddenColumns = item?.hidden_columns;
+  const columnOrderStr = item?.columnOrder;
+  const hiddenColumns = item?.hiddenColumns;
   // Derive defaultHidden from store (tableTileState) so toggles persist
-  const defaultHidden = tableTileState?.default_hidden_columns;
+  const defaultHidden = tableTileState?.defaultHiddenColumns;
   const setDefaultHidden = useCallback((val: boolean) => {
     tableTileActions?.setDefaultHiddenColumns(val);
   }, [tableTileActions]);
   const groupingStr = item?.grouping;
-  const groupSortingStr = item?.group_sorting;
-  const columnsPinLeft = item?.columns_pin_left;
-  const columnsPinRight = item?.columns_pin_right;
+  const groupSortingStr = item?.groupSorting;
+  const columnsPinLeft = item?.columnsPinLeft;
+  const columnsPinRight = item?.columnsPinRight;
   const context = item?.context;
-  const columnContext = item?.column_context;
+  const columnContext = item?.columnContext;
 
   // Column definitions
   const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
   const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
-  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.data_type])) : {}, [fields]);
-  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.field_type])) : {}, [fields]);
+  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.dataType])) : {}, [fields]);
+  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.fieldType])) : {}, [fields]);
   const mutabilityMap = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.mutable])) : {}, [fields]);
 
   const indicesTitle = "RowNumbering";
@@ -684,14 +684,14 @@ const LogsTable = ({
     tableTileActions
   ]);
 
-  // On initial mount or when the context changes, we need to set the column_order
+  // On initial mount or when the context changes, we need to set the columnOrder
   // on item correctly so that the view pane can take this state and render
   // the accordions in the correct order
   useEffect(() => {
-    if (!shallow(columnOrder, item?.column_order?.split(","))) {
+    if (!shallow(columnOrder, item?.columnOrder?.split(","))) {
       setColumnOrder(columnOrder, false);
     }
-  }, [columnOrder, item?.column_order, setColumnOrder]);
+  }, [columnOrder, item?.columnOrder, setColumnOrder]);
 
   // Then when the context changes, we reset the manual override
   // so that the column order is not locked in and can be automatically
@@ -706,7 +706,7 @@ const LogsTable = ({
   // Finally, when either of entriesProperties or paramsProperties changes
   // and if the user hasn't manually updated the column order for this context,
   // re-apply the default
-  const hasNewColumns = !shallow(columnIDs, item?.column_order?.split(","));
+  const hasNewColumns = !shallow(columnIDs, item?.columnOrder?.split(","));
   useEffect(() => {
     if (!manualColumnOrderOverride && hasNewColumns) {
       // Because user hasn't manually adjusted anything for this "fresh" context
@@ -770,8 +770,8 @@ const LogsTable = ({
     infiniteLogsQuery.hasNextPage,
     logs.length,
     tableTileState?.limit,
-    tableTileState?.group_limit,
-    tableTileState?.group_offset,
+    tableTileState?.groupLimit,
+    tableTileState?.groupOffset,
     tableTileState?.offset,
     groupingExpression,
     totalCount
@@ -800,7 +800,7 @@ const LogsTable = ({
       groupId,
       dataTypes,
       fields,
-      tableTileState?.group_limit || 20,
+      tableTileState?.groupLimit || 20,
       groupOffset,
     );
   }, [
@@ -809,7 +809,7 @@ const LogsTable = ({
     filterExpression,
     dataTypes,
     fields,
-    tableTileState?.group_limit,
+    tableTileState?.groupLimit,
     groupOffsets,
   ]);
 
@@ -834,10 +834,10 @@ const LogsTable = ({
     const id = sanitizeId(rawId);
     const topLevelKey = id.split("/")[0];
     const colType = cell.column.columnDef.meta?.columnType;
-    const fieldType_ = cell.column.columnDef.meta?.fieldType;
+    const fieldTypeValue = cell.column.columnDef.meta?.fieldType;
     const m = mutabilityMap[topLevelKey];
     // Disallow derived entries
-    if (fieldType_ === "derived_entry") return false;
+    if (fieldTypeValue === "derived_entry") return false;
     // Return false for undefined or explicitly false mutability
     if (m === undefined) return false;
     return !(m === false || m === "false");
@@ -875,7 +875,7 @@ const LogsTable = ({
         const originalAtPath = prevValue;
         if ((originalAtPath === null || originalAtPath === undefined) && typeof newValue === 'string') {
           const fieldInfo = fields?.[topKey];
-          const pyType = fieldInfo?.data_type as any;
+          const pyType = fieldInfo?.dataType as any;
           if (pyType) {
             const casted = castToPythonType(newValue, pyType);
             if (!(casted && typeof casted === 'object' && 'error' in casted)) {
@@ -928,7 +928,7 @@ const LogsTable = ({
     // Persist to server
     const res = await logsActions.update(
       projectId,
-      item?.context || context_ || null,
+      item?.context || globalContext || null,
       rowIds.map(id => parseInt(String(id), 10)),
       entriesUpdate,
       paramsUpdate,
@@ -947,11 +947,11 @@ const LogsTable = ({
         showSuccessToast('Updated', 'Cell updated successfully');
       }
     } catch (_) {}
-  }, [projectId, logsActions, fields, tableDataItem, updateLogsByRowIds, item?.context, context_, showErrorToast]);
+  }, [projectId, logsActions, fields, tableDataItem, updateLogsByRowIds, item?.context, globalContext, showErrorToast]);
 
   // Compute inherited context: tile -> tab -> interface -> project (project has no explicit context so effectively tab->interface)
   const { interface: interfaceObj } = useInterface(interfaceId, projectId);
-  const inheritedContext = (item?.context || context_ || (interfaceObj as any)?.context || null);
+  const inheritedContext = (item?.context || globalContext || (interfaceObj as any)?.context || null);
 
   const onPickContext = (ctx: string) => {
     const s = (storeApi.getState() as any);
@@ -975,8 +975,8 @@ const LogsTable = ({
       <ContextTreePicker
           contexts={(listContextsQuery.data || []).map(c => c.name)}
           current={item?.context || null}
-          basePrefix={(context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || undefined) as any}
-          inherited={!item?.context ? (context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || null) : null}
+          basePrefix={(globalContext || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || undefined) as any}
+          inherited={!item?.context ? (globalContext || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || null) : null}
           onPick={onPick}
           className="w-full"
           projectId={projectId || undefined}
@@ -1491,7 +1491,7 @@ const LogsTable = ({
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
                         interactive={interactive}
-                        auto_update={item?.auto_update === "true"}
+                        autoUpdate={item?.autoUpdate === "true"}
                         data={logs}
                         columns={columns}
                         state={state}
@@ -1544,14 +1544,14 @@ const LogsTable = ({
                             tileId={tileId}
                             tabId={tabId}
                             projectId={projectId!}
-                            context={item?.context || context || context_ || null}
-                            columnContext={item?.column_context || null}
+                            context={item?.context || context || globalContext || null}
+                            columnContext={item?.columnContext || null}
                             filterExpression={filterExpression}
                             sortingExpression={sortingExpression}
                             groupingExpression={groupingExpression}
                             groupSortingExpression={groupSortingExpression}
                             limit={tableTileState?.limit || 20}
-                            group_limit={tableTileState?.group_limit || 20}
+                            groupLimit={tableTileState?.groupLimit || 20}
                             logsActions={logsActions}
                             groupId={groupId}
                             dataTypes={dataTypes}
@@ -1579,7 +1579,7 @@ const LogsTable = ({
                         ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                           <ColumnGroupBy
                             interactive={interactive}
-                            auto_update={item?.auto_update === "true"}
+                            autoUpdate={item?.autoUpdate === "true"}
                             column={column}
                             grouping={state.grouping}
                             setGrouping={setState.setGrouping}
@@ -1613,7 +1613,7 @@ const LogsTable = ({
                             projectId={projectId}
                             interactive={interactive}
                             setColumnFilterQuery={setLogsFilters}
-                            columnFilters={searchParamToFilters(logsFilters, item?.column_context)}
+                            columnFilters={searchParamToFilters(logsFilters, item?.columnContext)}
                             column={column.id}
                             dataTypes={dataTypes}
                             open={open}
@@ -1633,7 +1633,7 @@ const LogsTable = ({
                             tabId={tabId}
                             project={projectId}
                             context={context}
-                            columnContext={item?.column_context}
+                            columnContext={item?.columnContext}
                             column={column.id}
                             interactive={interactive}
                             setPending={setPending}
@@ -1651,7 +1651,7 @@ const LogsTable = ({
                             tabId={tabId}
                             project={projectId}
                             context={item?.context}
-                            columnContext={item?.column_context}
+                            columnContext={item?.columnContext}
                             currentTable={item?.name || ""}
                             tableArguments={tableArguments}
                             logs={logs}
@@ -1730,16 +1730,16 @@ const LogsTable = ({
                                 tileId,
                                 tabId,
                                 projectId!,
-                                item?.context || context || context_ || null,
-                                item?.column_context ?? null,
+                                item?.context || context || globalContext || null,
+                                item?.columnContext ?? null,
                                 filterExpression,
                                 sortingExpression,
                                 groupingExpression,
                                 groupSortingExpression,
                                 limit,
                                 offset,
-                                group_limit,
-                                group_offset,
+                                groupLimit,
+                                groupOffset,
                                 logsActions,
                                 setExpandingRowId,
                                 updateTableDataItemWithUpdater,
@@ -1764,8 +1764,8 @@ const LogsTable = ({
                             tileId={tileId}
                             tabId={tabId}
                             projectId={projectId}
-                            context={item?.context || context || context_ || null}
-                            columnContext={item?.column_context || null}
+                            context={item?.context || context || globalContext || null}
+                            columnContext={item?.columnContext || null}
                             columns={effectiveColumnNames}
                             filterExpression={filterExpression}
                             groupingExpression={groupingExpression}
@@ -1826,7 +1826,7 @@ const LogsTable = ({
                           </FooterCell>
                         }
                         ExtraComponents={(table) => {
-                          return <DeleteCells projectId={projectId} tabId={tabId} tileId={tileId} selectedCells={selectedCells} logs={logs} projectsActions={projectsActions} logsActions={logsActions} contextActions={contextActions} fieldsActions={fieldsActions} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
+                          return <DeleteCells projectId={projectId} tabId={tabId} tileId={tileId} selectedCells={selectedCells} logs={logs} projectsActions={projectsActions} logsActions={logsActions} contextActions={contextActions} fieldsActions={fieldsActions} columnContext={item?.columnContext} context={item?.context} setPending={setPending}/>
                         }}
                         ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                           <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

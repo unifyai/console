@@ -16,8 +16,8 @@ export interface CoreLogFetchParams {
   groupSortingExpression: string | null;
   limit: number;
   offset?: number;
-  group_limit: number;
-  group_offset?: number;
+  groupLimit: number;
+  groupOffset?: number;
   logsActions: LogsActions;
   // Optional group-specific parameters
   groupId?: string | null;
@@ -73,8 +73,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     groupSortingExpression,
     limit,
     offset = 0,
-    group_limit,
-    group_offset = 0,
+    groupLimit,
+    groupOffset = 0,
     logsActions,
     groupId,
     groupingColumnId,
@@ -111,26 +111,26 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
 
   // Call API route directly instead of server action to avoid POST /interfaces spam
   const queryParams = new URLSearchParams();
-  queryParams.set('project_name', projectId);
+  queryParams.set('projectName', projectId);
   if (context) queryParams.set('context', context);
-  if (columnContext) queryParams.set('column_context', columnContext);
-  if (effectiveFilterExpression) queryParams.set('filter_expr', effectiveFilterExpression);
+  if (columnContext) queryParams.set('columnContext', columnContext);
+  if (effectiveFilterExpression) queryParams.set('filterExpr', effectiveFilterExpression);
   if (sortingExpression) queryParams.set('sorting', sortingExpression);
-  if (groupSortingExpression) queryParams.set('group_sorting', groupSortingExpression);
+  if (groupSortingExpression) queryParams.set('groupSorting', groupSortingExpression);
   
   // Handle grouping (can be multiple values)
   if (effectiveGroupingExpression) {
     effectiveGroupingExpression.split(",").forEach(expr => {
-      queryParams.append('group_by', expr.trim());
+      queryParams.append('groupBy', expr.trim());
     });
   }
   
   // Pagination params
   if (!useGroupPagination && limit !== null) queryParams.set('limit', limit.toString());
   if (!useGroupPagination && offset !== null) queryParams.set('offset', offset.toString());
-  if (useGroupPagination && group_limit !== null) queryParams.set('group_limit', group_limit.toString());
-  if (useGroupPagination && group_offset !== null) queryParams.set('group_offset', group_offset.toString());
-  if (useGroupPagination) queryParams.set('group_depth', '0');
+  if (useGroupPagination && groupLimit !== null) queryParams.set('groupLimit', groupLimit.toString());
+  if (useGroupPagination && groupOffset !== null) queryParams.set('groupOffset', groupOffset.toString());
+  if (useGroupPagination) queryParams.set('groupDepth', '0');
 
   const logsRes = await fetch(`/api/logs?${queryParams.toString()}`, {
     method: 'GET',
@@ -156,7 +156,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
   // Calculate pagination metadata using utility functions
   const totalCount = getTotalCountFromLogsResponse(response);
   const currentCount = useGroupPagination 
-    ? getCurrentGroupCount(group_offset, group_limit, convertedLogs.length)
+    ? getCurrentGroupCount(groupOffset, groupLimit, convertedLogs.length)
     : getCurrentCount(offset, limit, convertedLogs.length);
   const hasMore = hasNextPage(currentCount, totalCount);
 
@@ -170,8 +170,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     updatedFilterExpression: effectiveFilterExpression,
     updatedGroupingExpression: effectiveGroupingExpression,
     targetGroupFilters,
-    effectiveLimit: useGroupPagination ? group_limit : limit,
-    effectiveOffset: useGroupPagination ? group_offset : offset
+    effectiveLimit: useGroupPagination ? groupLimit : limit,
+    effectiveOffset: useGroupPagination ? groupOffset : offset
   };
 }
 
@@ -193,7 +193,7 @@ export function buildLogQueryKey(
     groupingExpression: string | null;
     groupSortingExpression: string | null;
     limit: number;
-    group_limit: number;
+    groupLimit: number;
   },
   groupParams?: {
     groupId: string;
@@ -214,7 +214,7 @@ export function buildLogQueryKey(
     baseParams.groupingExpression,
     baseParams.groupSortingExpression,
     baseParams.limit,
-    baseParams.group_limit
+    baseParams.groupLimit
   ];
 
   if (groupParams) {

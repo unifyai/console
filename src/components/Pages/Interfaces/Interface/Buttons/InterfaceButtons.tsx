@@ -110,7 +110,7 @@ const InterfaceButtons = ({
 
     const currentFavourite = useMemo(() => {
         if (!currentInterface?.name || !favourites) return null;
-        return favourites.find(fav => fav.project_name === currentInterface.name) || null;
+        return favourites.find(fav => fav.projectName === currentInterface.name) || null;
     }, [currentInterface, favourites]);
 
     const handleToggleFavourite = async () => {
@@ -190,7 +190,7 @@ const InterfaceButtons = ({
         }
         setIsRenaming(true); setRenameError("");
         try {
-            await interfaceActions.update({ interface_id: interfaceId, data: { name: renameName.trim() }});
+            await interfaceActions.update({ interfaceId: interfaceId, data: { name: renameName.trim() }});
             const url = new URL(window.location.href);
             url.searchParams.set('interface', renameName.trim());
             router.push(url.toString());
@@ -211,7 +211,7 @@ const InterfaceButtons = ({
     const handleDeleteInterface = async () => {
         setIsDeleting(true);
         try {
-            await interfaceActions.delete({ interface_id: interfaceId });
+            await interfaceActions.delete({ interfaceId: interfaceId });
             router.push(`/interfaces?project=${project}`);
         } catch (error) {
             console.error("Failed to delete interface", error);
@@ -225,8 +225,8 @@ const InterfaceButtons = ({
         if (!currentInterface) return;
         try {
             const result = await interfaceActions.exportTemplate(
-                { interface_id: currentInterface.id!, project_name: project!, interface_name: currentInterface.name },
-                { include_metadata: true, template_name: currentInterface.name }
+                { interfaceId: currentInterface.id!, projectName: project!, interfaceName: currentInterface.name },
+                { includeMetadata: true, templateName: currentInterface.name }
             );
             if ('error' in result) throw new Error(result.error);
             const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
@@ -273,7 +273,7 @@ const InterfaceButtons = ({
         if (!selectedFile || !templateData || !validateImportName(importInterfaceName)) return;
         setIsImporting(true);
         try {
-            const result = await interfaceActions.importTemplate(templateData.template, { project_name: project!, new_interface_name: importInterfaceName.trim(), validate_first: true, auto_sanitize: true });
+            const result = await interfaceActions.importTemplate(templateData.template, { projectName: project!, newInterfaceName: importInterfaceName.trim(), validateFirst: true, autoSanitize: true });
             if ('error' in result) { throw new Error(result.error); }
             setImportResult(result as TemplateImportResponse);
             setShowImportSuccess(true);

@@ -37,7 +37,7 @@ unify.log(
 `,
     // Granular interface structure
     interface: {
-        project_id: "diffs-demo",
+        projectId: "diffs-demo",
         name: "interface1",
     },
     // Tab structure
@@ -58,8 +58,8 @@ unify.log(
                 width: 7.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table",
+            tableTile: {
+                tableType: "Data Table",
                 selected: "320993_Entries/msg,320992_Entries/msg,320991_Entries/msg"
             }
         },
@@ -73,8 +73,8 @@ unify.log(
                 height: 8.0
             },
             table: "Table",
-            view_tile: {}
+            viewTile: {}
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

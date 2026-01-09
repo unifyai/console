@@ -361,7 +361,7 @@ const PlotSettings = ({
             {showGroupByKey && (
               <ColorSchemePicker
                 placeholder="Select a grouping color scheme"
-                value={plotTileState?.plot_group_by_colors ?? undefined}
+                value={plotTileState?.plotGroupByColors ?? undefined}
                 onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
                 useDialog={true}
               />

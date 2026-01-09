@@ -20,7 +20,7 @@ export interface TileDataActions {
   setCommonFilter: (commonFilter?: string) => void;
   setMetric: (metric: string | undefined) => void;
   setColumnContext: (columnContext?: string) => void;
-  // Combined method to update both context and column_context at once
+  // Combined method to update both context and columnContext at once
   setContextAndColumnContext: (context?: string, columnContext?: string) => void;
   setGrouping: (grouping?: string) => void;
   
@@ -58,7 +58,7 @@ export function useTileData(
   
   const autoUpdate = useStoreContext(state => {
     if (!tileExists || !tileId) return null;
-    return state.tilesById[tileId].auto_update;
+    return state.tilesById[tileId].autoUpdate;
   });
   
   const freeze = useStoreContext(state => {
@@ -73,7 +73,7 @@ export function useTileData(
   
   const commonFilter = useStoreContext(state => {
     if (!tileExists || !tileId) return null;
-    return state.tilesById[tileId].common_filter;
+    return state.tilesById[tileId].commonFilter;
   });
 
   const metric = useStoreContext(state => {
@@ -83,7 +83,7 @@ export function useTileData(
 
   const columnContext = useStoreContext(state => {
     if (!tileExists || !tileId) return null;
-    return state.tilesById[tileId].column_context;
+    return state.tilesById[tileId].columnContext;
   });
 
   const grouping = useStoreContext(state => {
@@ -106,12 +106,12 @@ export function useTileData(
     return {
       context,
       table,
-      auto_update: autoUpdate,
+      autoUpdate: autoUpdate,
       freeze,
       filters,
-      common_filter: commonFilter,
+      commonFilter: commonFilter,
       metric,
-      column_context: columnContext,
+      columnContext: columnContext,
       grouping,
     };
   }, [
@@ -143,7 +143,7 @@ export function useTileData(
 
     setAutoUpdate: (autoUpdate) => {
       if (tileId) {
-        storeUpdateTile(tileId, { auto_update: autoUpdate });
+        storeUpdateTile(tileId, { autoUpdate: autoUpdate });
       }
     },
     
@@ -161,7 +161,7 @@ export function useTileData(
     
     setCommonFilter: (commonFilter) => {
       if (tileId) {
-        storeUpdateTile(tileId, { common_filter: commonFilter });
+        storeUpdateTile(tileId, { commonFilter: commonFilter });
       }
     },
 
@@ -173,7 +173,7 @@ export function useTileData(
 
     setColumnContext: (columnContext) => {
       if (tileId) {
-        storeUpdateTile(tileId, { column_context: columnContext });
+        storeUpdateTile(tileId, { columnContext: columnContext });
       }
     },
 
@@ -216,7 +216,7 @@ export function useTileData(
 
     setContextAndColumnContext: (context, columnContext) => {
       if (tileId) {
-        storeUpdateTile(tileId, { context, column_context: columnContext });
+        storeUpdateTile(tileId, { context, columnContext: columnContext });
       }
     },
   }), [

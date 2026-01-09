@@ -18,7 +18,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 export function useAssistantPresets() {
     const [allAssistantPresets] = React.useState<AssistantPreset[]>(() => shuffleArray(
-        assistantPresetsConstant.filter(assistant => assistant.voice_ids[PRIMARY_VOICE_PROVIDER] || assistant.voice_ids["openai"]) as AssistantPreset[]
+        assistantPresetsConstant.filter(assistant => assistant.voiceIds[PRIMARY_VOICE_PROVIDER] || assistant.voiceIds["openai"]) as AssistantPreset[]
     ));
 
     const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
@@ -39,8 +39,8 @@ export function useAssistantPresets() {
 
     const presetsWithLanguage = React.useMemo(() => {
         return allAssistantPresets.map(preset => {
-            const voiceId = preset.voice_ids[PRIMARY_VOICE_PROVIDER] || preset.voice_ids["openai"];
-            const voice = allPresetVoices.find(v => v.voice_id === voiceId);
+            const voiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] || preset.voiceIds["openai"];
+            const voice = allPresetVoices.find(v => v.voiceId === voiceId);
             return {
                 ...preset,
                 language: voice?.language || null

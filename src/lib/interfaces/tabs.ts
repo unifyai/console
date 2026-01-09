@@ -12,11 +12,11 @@ import {
 
 // List tabs in interface
 export const listTabs = async (apiKey: string) => {
-    return async (interface_id: string, checkpoint: boolean = false, signal?: AbortSignal) => {
+    return async (interfaceId: string, checkpoint: boolean = false, signal?: AbortSignal) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?interface_id=${interface_id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?interfaceId=${interfaceId}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -35,11 +35,11 @@ export const listTabs = async (apiKey: string) => {
 
 // Get tab by name
 export const getTabByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string, checkpoint: boolean = false) => {
+    return async (interfaceId: string, name: string, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?interface_id=${interface_id}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?interfaceId=${interfaceId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -62,7 +62,7 @@ export const getTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tabId=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -82,13 +82,13 @@ export const getTabById = async (apiKey: string) => {
 export const getTabUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        interface_id?: string; 
+        interfaceId?: string; 
         name?: string; 
         checkpoint?: boolean 
     }) => {
         "use server";
         
-        const { id, interface_id, name, checkpoint = false } = params;
+        const { id, interfaceId, name, checkpoint = false } = params;
         
         // If tab ID is provided, use it directly
         if (id) {
@@ -96,10 +96,10 @@ export const getTabUnified = async (apiKey: string) => {
             return getById(id, checkpoint);
         }
         
-        // Otherwise use interface_id+name
-        if (interface_id && name) {
+        // Otherwise use interfaceId+name
+        if (interfaceId && name) {
             const getByName = await getTabByName(apiKey);
-            return getByName(interface_id, name, checkpoint);
+            return getByName(interfaceId, name, checkpoint);
         }
         
         return null;
@@ -108,7 +108,7 @@ export const getTabUnified = async (apiKey: string) => {
 
 // Create tab
 export const createTab = async (apiKey: string) => {
-    return async (interface_id: string, name: string, data: Omit<CreateTabRequest, 'tab_id' | 'interface_id' | 'name'>, tab_id?: string) => {
+    return async (interfaceId: string, name: string, data: Omit<CreateTabRequest, 'tabId' | 'interfaceId' | 'name'>, tabId?: string) => {
         "use server";
 
         const response = await fetch(
@@ -117,9 +117,9 @@ export const createTab = async (apiKey: string) => {
                 method: "POST",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    interface_id,
+                    interfaceId,
                     name,
-                    tab_id,
+                    tabId,
                     ...data
                 }),
             }
@@ -135,11 +135,11 @@ export const createTab = async (apiKey: string) => {
 
 // Update tab by name
 export const updateTabByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string, data: UpdateTabRequest, checkpoint: boolean = false) => {
+    return async (interfaceId: string, name: string, data: UpdateTabRequest, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?interface_id=${interface_id}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?interfaceId=${interfaceId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -161,7 +161,7 @@ export const updateTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tabId=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -181,14 +181,14 @@ export const updateTabById = async (apiKey: string) => {
 export const updateTabUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        interface_id?: string; 
+        interfaceId?: string; 
         name?: string; 
         data: UpdateTabRequest;
         checkpoint?: boolean;
     }) => {
         "use server";
         
-        const { id, interface_id, name, data, checkpoint = false } = params;
+        const { id, interfaceId, name, data, checkpoint = false } = params;
         
         // If tab ID is provided, use it directly
         if (id) {
@@ -196,10 +196,10 @@ export const updateTabUnified = async (apiKey: string) => {
             return updateById(id, data, checkpoint);
         }
         
-        // Otherwise use interface_id+name
-        if (interface_id && name) {
+        // Otherwise use interfaceId+name
+        if (interfaceId && name) {
             const updateByName = await updateTabByName(apiKey);
-            return updateByName(interface_id, name, data, checkpoint);
+            return updateByName(interfaceId, name, data, checkpoint);
         }
         
         return { error: "Missing required parameters to identify the tab" };
@@ -208,11 +208,11 @@ export const updateTabUnified = async (apiKey: string) => {
 
 // Delete tab by name
 export const deleteTabByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string) => {
+    return async (interfaceId: string, name: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?interface_id=${interface_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?interfaceId=${interfaceId}&name=${encodeURIComponent(name)}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -233,7 +233,7 @@ export const deleteTabById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab?tab_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tab?tabId=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -252,12 +252,12 @@ export const deleteTabById = async (apiKey: string) => {
 export const deleteTabUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        interface_id?: string; 
+        interfaceId?: string; 
         name?: string; 
     }) => {
         "use server";
         
-        const { id, interface_id, name } = params;
+        const { id, interfaceId, name } = params;
         
         // If tab ID is provided, use it directly
         if (id) {
@@ -265,10 +265,10 @@ export const deleteTabUnified = async (apiKey: string) => {
             return deleteById(id);
         }
         
-        // Otherwise use interface_id+name
-        if (interface_id && name) {
+        // Otherwise use interfaceId+name
+        if (interfaceId && name) {
             const deleteByName = await deleteTabByName(apiKey);
-            return deleteByName(interface_id, name);
+            return deleteByName(interfaceId, name);
         }
         
         return { error: "Missing required parameters to identify the tab" };
@@ -277,11 +277,11 @@ export const deleteTabUnified = async (apiKey: string) => {
 
 // Create checkpoint for tab by name
 export const createTabCheckpointByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string, description: string) => {
+    return async (interfaceId: string, name: string, description: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?interface_id=${interface_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?interfaceId=${interfaceId}&name=${encodeURIComponent(name)}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -303,7 +303,7 @@ export const createTabCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tab_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tabId=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -323,13 +323,13 @@ export const createTabCheckpointById = async (apiKey: string) => {
 export const createTabCheckpointUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        interface_id?: string; 
+        interfaceId?: string; 
         name?: string;
         description: string 
     }) => {
         "use server";
         
-        const { id, interface_id, name, description } = params;
+        const { id, interfaceId, name, description } = params;
         
         // If tab ID is provided, use it directly
         if (id) {
@@ -337,10 +337,10 @@ export const createTabCheckpointUnified = async (apiKey: string) => {
             return checkpointById(id, description);
         }
         
-        // Otherwise use interface_id+name
-        if (interface_id && name) {
+        // Otherwise use interfaceId+name
+        if (interfaceId && name) {
             const checkpointByName = await createTabCheckpointByName(apiKey);
-            return checkpointByName(interface_id, name, description);
+            return checkpointByName(interfaceId, name, description);
         }
         
         return { error: "Missing required parameters to identify the tab" };
@@ -348,11 +348,11 @@ export const createTabCheckpointUnified = async (apiKey: string) => {
 };
 
 export const getTabCheckpointByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string) => {
+    return async (interfaceId: string, name: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?interface_id=${interface_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?interfaceId=${interfaceId}&name=${encodeURIComponent(name)}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -367,11 +367,11 @@ export const getTabCheckpointByName = async (apiKey: string) => {
 };
 
 export const getTabCheckpointById = async (apiKey: string) => {
-    return async (tab_id: string) => {
+    return async (tabId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tab_id=${tab_id}`,
+            `${process.env.NEXTAUTH_URL}/api/tab/checkpoint?tabId=${tabId}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -386,16 +386,16 @@ export const getTabCheckpointById = async (apiKey: string) => {
 };
 
 export const getTabCheckpointUnified = async (apiKey: string) => {
-    return async (params: { id?: string; interface_id?: string; name?: string }) => {
+    return async (params: { id?: string; interfaceId?: string; name?: string }) => {
         "use server";
-        const { id, interface_id, name } = params;
+        const { id, interfaceId, name } = params;
         if (id) {
             const fn = await getTabCheckpointById(apiKey);
             return fn(id);
         }
-        if (interface_id && name) {
+        if (interfaceId && name) {
             const fn = await getTabCheckpointByName(apiKey);
-            return fn(interface_id, name);
+            return fn(interfaceId, name);
         }
         return { error: "Missing parameters to identify the tab checkpoint" };
     };
@@ -404,22 +404,22 @@ export const getTabCheckpointUnified = async (apiKey: string) => {
 // Export tab template
 export const exportTabAsTemplate = async (apiKey: string) => {
     return async (
-        params: Omit<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
-        options?: Pick<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        params: Omit<ExportTabTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
+        options?: Pick<ExportTabTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
     ): Promise<TemplateExportResponse<TabTemplateSchema> | { error: string }> => {
         "use server";
 
-        const { tab_id, interface_id, tab_name } = params;
+        const { tabId, interfaceId, tabName } = params;
 
         const requestBody: ExportTabTemplateRequest = {
-            tab_id,
-            interface_id,
-            tab_name,
+            tabId,
+            interfaceId,
+            tabName,
             checkpoint: options?.checkpoint || false,
-            include_metadata: options?.include_metadata !== false,
+            includeMetadata: options?.includeMetadata !== false,
             description: options?.description,
             tags: options?.tags || [],
-            template_name: options?.template_name,
+            templateName: options?.templateName,
         };
 
         const response = await fetch(
@@ -443,22 +443,22 @@ export const exportTabAsTemplate = async (apiKey: string) => {
 export const importTabFromTemplate = async (apiKey: string) => {
     return async (
         template: TabTemplateSchema,
-        params: Pick<ImportTabTemplateRequest, 'interface_id' | 'interface_name'>,
-        options: Omit<ImportTabTemplateRequest, 'template' | 'interface_id' | 'interface_name'>,
+        params: Pick<ImportTabTemplateRequest, 'interfaceId' | 'interfaceName'>,
+        options: Omit<ImportTabTemplateRequest, 'template' | 'interfaceId' | 'interfaceName'>,
     ): Promise<TemplateImportResponse | { error: string }> => {
         "use server";
 
-        const { interface_id, interface_name } = params;
+        const { interfaceId, interfaceName } = params;
 
         const requestBody: ImportTabTemplateRequest = {
-            project_name: options.project_name,
+            projectName: options.projectName,
             template,
-            interface_id,
-            interface_name,
-            new_tab_name: options.new_tab_name,
-            validate_first: options.validate_first || true,
-            auto_sanitize: options.auto_sanitize || true,
-            overwrite_existing: options.overwrite_existing || false,
+            interfaceId,
+            interfaceName,
+            newTabName: options.newTabName,
+            validateFirst: options.validateFirst || true,
+            autoSanitize: options.autoSanitize || true,
+            overwriteExisting: options.overwriteExisting || false,
         };
 
         const response = await fetch(

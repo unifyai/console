@@ -27,7 +27,7 @@ import { renderSidebarIcon } from './utils'
 // ============================================================================
 
 export interface ProjectItem {
-  project_name: string;
+  projectName: string;
   icon?: string;
   favorite?: boolean;
 }
@@ -91,24 +91,24 @@ export function ProjectPicker({
   // Sort projects with selected/transitioning at top
   const sortedProjects = useMemo(() => {
     return [...projects].sort((a, b) => {
-      const aIsSelected = a.project_name === selectedProject;
-      const bIsSelected = b.project_name === selectedProject;
-      const aIsTransitioning = a.project_name === transitioningToProject;
-      const bIsTransitioning = b.project_name === transitioningToProject;
+      const aIsSelected = a.projectName === selectedProject;
+      const bIsSelected = b.projectName === selectedProject;
+      const aIsTransitioning = a.projectName === transitioningToProject;
+      const bIsTransitioning = b.projectName === transitioningToProject;
       
       // Transitioning item first, then selected, then rest alphabetically
       if (aIsTransitioning && !bIsTransitioning) return -1;
       if (bIsTransitioning && !aIsTransitioning) return 1;
       if (aIsSelected && !bIsSelected) return -1;
       if (bIsSelected && !aIsSelected) return 1;
-      return a.project_name.localeCompare(b.project_name);
+      return a.projectName.localeCompare(b.projectName);
     });
   }, [projects, selectedProject, transitioningToProject]);
 
   // Determine what to show in the trigger
   const displayProject = transitioningToProject || selectedProject;
   const displayIcon = transitioningToProject 
-    ? projects.find(p => p.project_name === transitioningToProject)?.icon 
+    ? projects.find(p => p.projectName === transitioningToProject)?.icon 
     : selectedProjectIcon;
 
   return (
@@ -172,18 +172,18 @@ export function ProjectPicker({
                   </div>
                 ) : (
                   sortedProjects.map((project) => {
-                    const isSelected = selectedProject === project.project_name;
-                    const isProjectLoading = isChangingProject && transitioningToProject === project.project_name;
+                    const isSelected = selectedProject === project.projectName;
+                    const isProjectLoading = isChangingProject && transitioningToProject === project.projectName;
                     return (
                       <CommandItem
-                        key={project.project_name}
-                        value={project.project_name}
-                        onSelect={() => handleSelect(project.project_name)}
+                        key={project.projectName}
+                        value={project.projectName}
+                        onSelect={() => handleSelect(project.projectName)}
                         className={cn(
                           "text-xs max-w-full overflow-hidden",
                           isSelected && !isProjectLoading && "bg-accent"
                         )}
-                        data-testid={`project-option-${project.project_name}`}
+                        data-testid={`project-option-${project.projectName}`}
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           {isProjectLoading ? (
@@ -194,8 +194,8 @@ export function ProjectPicker({
                             renderSidebarIcon(project.icon, "h-3.5 w-3.5 flex-shrink-0", "project")
                           )}
                           <div className="flex-1 w-0 min-w-0 overflow-hidden">
-                            <Tooltip content={project.project_name} side="right">
-                              <div className="truncate text-left">{project.project_name}</div>
+                            <Tooltip content={project.projectName} side="right">
+                              <div className="truncate text-left">{project.projectName}</div>
                             </Tooltip>
                           </div>
                         </div>

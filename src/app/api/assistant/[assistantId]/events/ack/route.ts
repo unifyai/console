@@ -13,10 +13,10 @@ async function getAuthClient() {
     const auth = new GoogleAuth({
         credentials,
         scopes: ['https://www.googleapis.com/auth/pubsub'],
-        projectId: credentials.project_id
+        projectId: credentials.projectId
     });
 
-    return { client: await auth.getClient(), projectId: credentials.project_id };
+    return { client: await auth.getClient(), projectId: credentials.projectId };
 }
 
 export async function POST(

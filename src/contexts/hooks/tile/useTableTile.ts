@@ -105,27 +105,27 @@ export function useTableTile(
     if (!isTableTile || !tileId || !tableTile) return null;
     
     return {
-      table_type: tableTile.table_type,
-      column_order: tableTile.column_order,
-      hidden_columns: tableTile.hidden_columns,
-      default_hidden_columns: tableTile.default_hidden_columns,
+      tableType: tableTile.tableType,
+      columnOrder: tableTile.columnOrder,
+      hiddenColumns: tableTile.hiddenColumns,
+      defaultHiddenColumns: tableTile.defaultHiddenColumns,
       sorting: tableTile.sorting,
-      group_sorting: tableTile.group_sorting,
-      columns_pin_left: tableTile.columns_pin_left,
-      columns_pin_right: tableTile.columns_pin_right,
+      groupSorting: tableTile.groupSorting,
+      columnsPinLeft: tableTile.columnsPinLeft,
+      columnsPinRight: tableTile.columnsPinRight,
       selected: tableTile.selected,
     } as TableTileData;
   }, [
     isTableTile,
     tileId,
-    tableTile?.table_type,
-    tableTile?.column_order,
-    tableTile?.hidden_columns,
-    tableTile?.default_hidden_columns,
+    tableTile?.tableType,
+    tableTile?.columnOrder,
+    tableTile?.hiddenColumns,
+    tableTile?.defaultHiddenColumns,
     tableTile?.sorting,
-    tableTile?.group_sorting,
-    tableTile?.columns_pin_left,
-    tableTile?.columns_pin_right,
+    tableTile?.groupSorting,
+    tableTile?.columnsPinLeft,
+    tableTile?.columnsPinRight,
     tableTile?.selected,
   ]);
 
@@ -136,9 +136,9 @@ export function useTableTile(
     return {
       limit: tableTile.limit,
       offset: tableTile.offset,
-      group_limit: tableTile.group_limit,
-      group_offset: tableTile.group_offset,
-      page_number: tableTile.page_number,
+      groupLimit: tableTile.groupLimit,
+      groupOffset: tableTile.groupOffset,
+      pageNumber: tableTile.pageNumber,
       infiniteQueryKeys: tableTile.infiniteQueryKeys
     } as TableTileUI;
   }, [
@@ -146,9 +146,9 @@ export function useTableTile(
     tileId,
     tableTile?.limit,
     tableTile?.offset,
-    tableTile?.group_limit,
-    tableTile?.group_offset,
-    tableTile?.page_number,
+    tableTile?.groupLimit,
+    tableTile?.groupOffset,
+    tableTile?.pageNumber,
     tableTile?.infiniteQueryKeys,
   ]);
 
@@ -173,28 +173,28 @@ export function useTableTile(
     return {
       setTableType: (tableType) => {
         const update: Partial<TableTile> = { 
-          table_type: tableType 
+          tableType: tableType 
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setColumnOrder: (columnOrder) => {
         const update: Partial<TableTile> = { 
-          column_order: columnOrder 
+          columnOrder: columnOrder 
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setHiddenColumns: (hiddenColumns) => {
         const update: Partial<TableTile> = { 
-          hidden_columns: hiddenColumns 
+          hiddenColumns: hiddenColumns 
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setDefaultHiddenColumns: (defaultHiddenColumns) => {
         const update: Partial<TableTile> = {
-          default_hidden_columns: defaultHiddenColumns
+          defaultHiddenColumns: defaultHiddenColumns
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -208,21 +208,21 @@ export function useTableTile(
       
       setGroupSorting: (groupSorting) => {
         const update: Partial<TableTile> = { 
-          group_sorting: groupSorting
+          groupSorting: groupSorting
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setColumnsPinLeft: (columnsPinLeft) => {
         const update: Partial<TableTile> = { 
-          columns_pin_left: columnsPinLeft
+          columnsPinLeft: columnsPinLeft
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setColumnsPinRight: (columnsPinRight) => {
         const update: Partial<TableTile> = { 
-          columns_pin_right: columnsPinRight
+          columnsPinRight: columnsPinRight
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -257,21 +257,21 @@ export function useTableTile(
 
       setGroupLimit: (groupLimit) => {
         const update: Partial<TableTile> = { 
-          group_limit: groupLimit
+          groupLimit: groupLimit
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setGroupOffset: (groupOffset) => {
         const update: Partial<TableTile> = { 
-          group_offset: groupOffset
+          groupOffset: groupOffset
         };
         storeUpdateTableTile(tileId, update);
       },
       
       setPageNumber: (pageNumber) => {
         const update: Partial<TableTile> = { 
-          page_number: pageNumber
+          pageNumber: pageNumber
         };
         storeUpdateTableTile(tileId, update);
       },

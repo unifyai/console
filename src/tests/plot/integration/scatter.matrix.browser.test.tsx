@@ -85,8 +85,8 @@ function defineScatterTests(config: ScatterMatrixConfig, { it, expect }: TestUti
   const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
   // Render mode is automatically determined by data size:
-  // - small (100) / medium (1000) → SVG (below SVG_MAX of 2000)
-  // - large (10000) → WebGL (above SVG_MAX)
+  // - small (100) / medium (1000) → SVG (below svgMax of 2000)
+  // - large (10000) → WebGL (above svgMax)
   const expectWebGL = scale.count > 2000;
 
   it(

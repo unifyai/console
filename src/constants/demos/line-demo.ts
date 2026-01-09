@@ -15,7 +15,7 @@ for i in range(10):
 `,
     // Granular interface structure
     interface: {
-        project_id: "line-demo",
+        projectId: "line-demo",
         name: "interface1"
     },
     // Tab structure
@@ -36,8 +36,8 @@ for i in range(10):
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -49,12 +49,12 @@ for i in range(10):
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                plot_type: "Line Chart",
-                x_axis: "Table.x",
-                y_axis: "Table.x"
+            plotTile: {
+                plotType: "Line Chart",
+                xAxis: "Table.x",
+                yAxis: "Table.x"
             }
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

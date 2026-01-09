@@ -9,7 +9,7 @@ const CreateEndpoint = ({type, paths, keys, creationFunction}: {
     type: string,
     paths: string[],
     keys: string[],
-    creationFunction: (name: string, url: string, key_name: string, model_arg?: string) => Promise<ResponseProps>
+    creationFunction: (name: string, url: string, keyName: string, modelArg?: string) => Promise<ResponseProps>
 }) => {
     // Handle input validation
     const CreateSchema = z.object({
@@ -29,27 +29,27 @@ const CreateEndpoint = ({type, paths, keys, creationFunction}: {
             .string()
             .url()
             .min(1, { message: "URL must be at least 1 character." }),
-        key_name: z
+        keyName: z
             .string()
             .min(1, { message: "Key value must be at least 1 character."})
             .refine((key) => keys.includes(key), {
                 message: "Key not found.",
             }),
-        model_arg: z
+        modelArg: z
             .string()
             .optional()
     });
  
     const form = useForm<z.infer<typeof CreateSchema>>({
         resolver: zodResolver(CreateSchema),
-        defaultValues: { name: "", url: "", key_name: "", model_arg: "" },
+        defaultValues: { name: "", url: "", keyName: "", modelArg: "" },
     })
 
     const entries = [
         { name: "name", label: "Name", description: "The endpoint name for your custom endpoint, in model@provider format. If it’s a custom endpoint following the OpenAI format then the provider must be @custom, otherwise if it’s a fine-tuned model from one of the existing providers it can be specified with a prepending custom-, i.e. @custom-anthropic." },
         { name: "url", label: "URL", description: "Base URL of the endpoint being called. Must support the OpenAI format."},
-        { name: "key_name", label: "API Key", choices: keys, description: "Name of the API key that will be passed as part of the query."},
-        { name: "model_arg", label: "Model Argument", description: "The value passed to the model arugment of the underlying API which is being wrapped into Unify. For example, you might call your endpoint llama-3-baseten@custom to distinguish the custom endpoint within Unify, but under the hood need to pass llama-3.2-90b-chat to the Baseten endpoint."}
+        { name: "keyName", label: "API Key", choices: keys, description: "Name of the API key that will be passed as part of the query."},
+        { name: "modelArg", label: "Model Argument", description: "The value passed to the model arugment of the underlying API which is being wrapped into Unify. For example, you might call your endpoint llama-3-baseten@custom to distinguish the custom endpoint within Unify, but under the hood need to pass llama-3.2-90b-chat to the Baseten endpoint."}
     ]
     const Fields =  <> {entries.map((entry, index) => 
         <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} choices={entry.choices} form={form as any}/>)

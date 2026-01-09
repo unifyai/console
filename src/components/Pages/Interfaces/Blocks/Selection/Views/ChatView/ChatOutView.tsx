@@ -135,11 +135,11 @@ function renderMessageContent(content: unknown): JSX.Element {
           if (chunk && typeof chunk === "object") {
             if (chunk.type === "text" && typeof chunk.text === "string") {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
-            } else if (chunk.type === "image_url" && chunk.image_url?.url) {
+            } else if (chunk.type === "imageUrl" && chunk.imageUrl?.url) {
               return (
                 <Image 
                   key={i} 
-                  src={chunk.image_url.url} 
+                  src={chunk.imageUrl.url} 
                   alt={`Image ${i}`} 
                   width={500} 
                   height={300} 
@@ -252,9 +252,9 @@ export default function ChatOutView({
                     const role = choice.message?.role || "assistant";
                     const label = formatRole(role);
                     const mainContent = choice.message?.content ?? "";
-                    const toolCalls = choice.message?.tool_calls ?? [];
+                    const toolCalls = choice.message?.toolCalls ?? [];
                     const contentPath = [...path, 'choices', idx, 'message', 'content'];
-                    const toolCallsPath = [...path, 'choices', idx, 'message', 'tool_calls'];
+                    const toolCallsPath = [...path, 'choices', idx, 'message', 'toolCalls'];
 
                     return (
                       <div
@@ -405,7 +405,7 @@ export default function ChatOutView({
     if (u.baseChoice) {
       const role = u.baseChoice.message?.role ?? "assistant";
       const content = u.baseChoice.message?.content ?? "";
-      const toolCalls = u.baseChoice.message?.tool_calls ?? [];
+      const toolCalls = u.baseChoice.message?.toolCalls ?? [];
       out.push({
         isBase: true,
         role,
@@ -427,7 +427,7 @@ export default function ChatOutView({
       } else {
         const role = cc.message?.role ?? "assistant";
         const content = cc.message?.content ?? "";
-        const toolCalls = cc.message?.tool_calls ?? [];
+        const toolCalls = cc.message?.toolCalls ?? [];
         out.push({
           isBase: false,
           role,
@@ -493,7 +493,7 @@ export default function ChatOutView({
                             {asstParts.map((m) => {
                               const label = formatRole(m.role);
                                const contentPath = [...path, 'choices', i, 'message', 'content']; // Path to content
-                               const toolCallsPath = [...path, 'choices', i, 'message', 'tool_calls']; // Path to tool calls
+                               const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls']; // Path to tool calls
                               return (
                                 <TabsContent
                                   key={m.rowIndex}
@@ -551,7 +551,7 @@ export default function ChatOutView({
                             {userParts.map((m) => {
                               const label = formatRole(m.role);
                                const contentPath = [...path, 'choices', i, 'message', 'content'];
-                               const toolCallsPath = [...path, 'choices', i, 'message', 'tool_calls'];
+                               const toolCallsPath = [...path, 'choices', i, 'message', 'toolCalls'];
                               return (
                                 <TabsContent
                                   key={m.rowIndex}

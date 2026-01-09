@@ -22,7 +22,7 @@ const AdminPage = async ({ searchParams }: { searchParams: { token?: string } })
         redirect('/login'); 
     }
     
-    const isAdmin = user.organizations.find(o => o.name === "Orchestra Admin Organization" && ["owner", "admin"].includes(o.role_name?.toLowerCase())) !== undefined
+    const isAdmin = user.organizations.find(o => o.name === "Orchestra Admin Organization" && ["owner", "admin"].includes(o.roleName?.toLowerCase())) !== undefined
 
     const adminApprovalActions: AdminApprovalActions = {
         listUsers: await listUsersForApproval(),

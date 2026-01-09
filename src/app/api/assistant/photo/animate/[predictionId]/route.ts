@@ -9,7 +9,7 @@ export async function GET(
 ) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });

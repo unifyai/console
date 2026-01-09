@@ -4,7 +4,7 @@ export default {
     description: "Bar charts are different to line graphs and scatter graphs. The x axis does not represent individual numerical values, but instead represents groups of data of any type (which share the same value). The y axis then represents a reduction across the data in each group (bar) in the graph.",
     // Granular interface structure
     interface: {
-        project_id: "bar-demo",
+        projectId: "bar-demo",
         name: "interface1",
     },
     // Tab structure
@@ -25,8 +25,8 @@ export default {
                 width: 7.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -39,21 +39,21 @@ export default {
                 height: 8.0
             },
             metric: "mean",
-            plot_tile: {
-                plot_type: "Bar Chart",
-                x_axis: "Table.experiment",
-                y_axis: "Table.score",
+            plotTile: {
+                plotType: "Bar Chart",
+                xAxis: "Table.experiment",
+                yAxis: "Table.score",
             }
         }
     ],
-    new_counter: 2,
-    derived_columns: {
+    newCounter: 2,
+    derivedColumns: {
         project: "bar-demo",
         key: "experiment",
         equation: "\"tool_use:\" + str( {Table:tool_use} ) + \",sys_msg:\" + str(version( {Table:sys_msg} ))",
-        referenced_logs: {
+        referencedLogs: {
             Table: {
-                filter_expr: ""
+                filterExpr: ""
             }
         }
     },
