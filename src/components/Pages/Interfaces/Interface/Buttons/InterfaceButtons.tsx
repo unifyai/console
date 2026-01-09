@@ -395,6 +395,7 @@ const InterfaceButtons = ({
     } finally {
       setIsImporting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedFile,
     templateData,

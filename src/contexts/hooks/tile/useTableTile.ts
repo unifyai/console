@@ -115,6 +115,7 @@ export function useTableTile(tileIdOrName: string | null, tabIdOrName?: string |
       columnsPinRight: tableTile.columnsPinRight,
       selected: tableTile.selected,
     } as TableTileData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isTableTile,
     tileId,
@@ -141,6 +142,7 @@ export function useTableTile(tileIdOrName: string | null, tabIdOrName?: string |
       pageNumber: tableTile.pageNumber,
       infiniteQueryKeys: tableTile.infiniteQueryKeys,
     } as TableTileUI;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isTableTile,
     tileId,

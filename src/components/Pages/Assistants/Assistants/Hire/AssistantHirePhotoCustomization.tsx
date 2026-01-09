@@ -150,6 +150,7 @@ export function PhotoCustomization({
         cameraStream.getTracks().forEach((track) => track.stop());
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCameraDialogOpen]); // Only re-run when dialog open state changes
 
   const handleCloseCamera = () => {

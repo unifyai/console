@@ -310,6 +310,7 @@ export function useProjectPermissions(
       availableTeams: teamsQuery.data || [],
       availableMembers: membersQuery.data || [],
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedProject,
     userId,

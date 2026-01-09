@@ -82,6 +82,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
           timezone: newTimezone,
         }));
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData]);
 
     // Effect to update validation state

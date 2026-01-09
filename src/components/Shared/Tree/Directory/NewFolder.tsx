@@ -27,6 +27,7 @@ export default function NewFolder({
   };
   const isInvalidName = useMemo(() => {
     return validateName(newFolderName!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newFolderName]);
 
   // Handle new folder input

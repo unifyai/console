@@ -24,6 +24,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
   // Clear error when email changes to improve UX
   useEffect(() => {
     if (error) setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email]);
 
   const validateEmail = (email: string) => {

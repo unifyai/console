@@ -1,4 +1,4 @@
-export default {
+const derivedColumnsDemo = {
   gif: 'table_derived_column_dark',
   link: 'interfaces/tables#derived-columns',
   description:
@@ -65,3 +65,5 @@ for _ in range(20):
     unify.log(x=random.random(), y=random.random())
 `,
 };
+
+export default derivedColumnsDemo;

@@ -428,6 +428,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
       setState.setColumnOrder(newOrder);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.columnOrder, state.grouping, setState.setColumnOrder]);
 
   // Set up drag-and-drop

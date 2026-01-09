@@ -233,6 +233,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
           }, 1);
         }
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [open, onOpenChange, virtualizer]
     );
 
@@ -242,6 +243,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
         setIsOpen(false);
         setSearch('');
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [handleValueChange]
     );
 
@@ -255,6 +257,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
 
         virtualizer.scrollToOffset(0);
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [virtualizer]
     );
 

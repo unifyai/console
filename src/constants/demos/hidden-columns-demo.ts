@@ -1,4 +1,4 @@
-export default {
+const hiddenColumnsDemo = {
   gif: 'view_show_hide_dark',
   link: 'interfaces/views#hidden-columns',
   description:
@@ -74,3 +74,5 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
   ],
   newCounter: 2,
 };
+
+export default hiddenColumnsDemo;

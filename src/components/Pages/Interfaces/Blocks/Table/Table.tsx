@@ -902,6 +902,7 @@ const LogsTable = ({
       effectiveOffset: tableTileState?.offset || 0,
       effectiveLimit: tableTileState?.limit || 20,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isTableDataLoading,
     infiniteLogsQuery.isLoading,
@@ -1121,6 +1122,7 @@ const LogsTable = ({
         }
       } catch (_) {}
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       projectId,
       logsActions,

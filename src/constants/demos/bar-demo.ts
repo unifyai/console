@@ -1,4 +1,4 @@
-export default {
+const barDemo = {
   gif: 'plots_bar_chart_grouping_dark',
   link: 'interfaces/plots#bar-charts',
   description:
@@ -80,3 +80,5 @@ for tool_use in [True, False]:
                     )
 `,
 };
+
+export default barDemo;

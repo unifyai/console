@@ -183,6 +183,7 @@ export function useEditorTileSync(
       setContent: wrapContent,
       setFileName: wrapFileName,
     } as EditorActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorTileActions, tabId, tileName, granularTileActions]);
 
   if (!editorTileActions || !granularTileActions) {

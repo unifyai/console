@@ -179,6 +179,7 @@ export function useTabData(tabIdOrName: string | null, interfaceIdOrName?: strin
     });
 
     return tileMap;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabExists, tabId, tileIds, itemsNeedRecompute, getTileItemActions, tabIdOrName]);
 
   // Create the grid items array with useMemo
@@ -213,6 +214,7 @@ export function useTabData(tabIdOrName: string | null, interfaceIdOrName?: strin
     // Update the ref and return the new items
     itemsRef.current = newItems;
     return newItems;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabExists, tabId, tiles, getTileItemActions, tabIdOrName, itemsNeedRecompute]);
 
   // Get all the store actions needed for data

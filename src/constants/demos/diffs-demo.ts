@@ -1,4 +1,4 @@
-export default {
+const diffsDemo = {
   gif: 'string_diffs_dark',
   link: 'interfaces/views#diffs',
   description: 'The view pane supports very expressive diffs across cells.',
@@ -78,3 +78,5 @@ unify.log(
   ],
   newCounter: 2,
 };
+
+export default diffsDemo;

@@ -1,4 +1,4 @@
-export default {
+const contextDemo = {
   gif: 'table_nested_contexts_dark',
   link: 'interfaces/basics#contexts',
   description:
@@ -90,3 +90,5 @@ with unify.Context("Arts"):
         )
 `,
 };
+
+export default contextDemo;

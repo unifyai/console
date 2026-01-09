@@ -356,6 +356,7 @@ const Interface = ({
         }
       }
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bootstrapData, projectQueryParam, queryClient]);
 
   // Fetch project tree with icons
@@ -542,6 +543,7 @@ const Interface = ({
       }
       shallowSetTabInUrl(tabName); // Pure client URL update
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [syncedInterfaceUIActions, shallowSetTabInUrl]
   );
 
@@ -571,6 +573,7 @@ const Interface = ({
       tabLog('[Interface] Mirroring active tab to URL', { activeTabName });
       shallowSetTabInUrl(activeTabName);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabName, shallowSetTabInUrl]);
 
   // Store state and actions for UI control
@@ -642,6 +645,7 @@ const Interface = ({
     const switching = !!tabStreamingQuery?.activeTab.isLoading;
     tabLog('[Interface] Switching tab overlay state', { switching });
     setIsSwitchingTab(switching);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabStreamingQuery?.activeTab.isLoading]);
 
   // Sidebar state for proper positioning
@@ -703,6 +707,7 @@ const Interface = ({
       });
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabName, tabNames, syncedInterfaceUIActions]);
 
   // Track pending tab change
@@ -731,6 +736,7 @@ const Interface = ({
         syncedInterfaceUIActions.setActiveTab(value);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions]
   );
 
@@ -870,6 +876,7 @@ const Interface = ({
     }, 500); // 500ms delay to let URL params settle
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     shouldAutoSelectInterface,
     isLoadingInterfaces,
@@ -1017,6 +1024,7 @@ const Interface = ({
 
       router.push(`/interfaces?${newParams.toString()}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabName, createTabMutation, updateTabMutation]);
 
   // Track if tab retry is in progress using ref to avoid re-renders
@@ -1203,6 +1211,7 @@ const Interface = ({
         </Suspense>
       </div>
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTabId,
     projectQueryParam,

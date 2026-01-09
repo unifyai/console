@@ -346,6 +346,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
         // Keep ISO code in both fields to ensure backend consistency
         handleAddressChange('country', formData.taxCountry);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.taxCountry]);
 
     // Back-fill ISO code when user types country name first
@@ -360,6 +361,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
           handleInputChange('taxCountry', code);
         }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.businessAddress.country]);
 
     const selectedCountry = supportedCountries.find(

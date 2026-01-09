@@ -1,4 +1,4 @@
-export default {
+const histogramDemo = {
   gif: 'histogram_dark',
   link: 'interfaces/plots#histograms',
   description:
@@ -68,3 +68,5 @@ for month in range(1, 13):
   ],
   newCounter: 2,
 };
+
+export default histogramDemo;

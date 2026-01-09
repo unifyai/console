@@ -1,4 +1,4 @@
-export default {
+const scatterDemo = {
   gif: 'scatter_dark',
   link: 'interfaces/plots#scatter-graphs',
   description: 'Scatter graphs can be used to plot two numerical columns against each other.',
@@ -58,3 +58,5 @@ for i in range(10):
     },
   ],
 };
+
+export default scatterDemo;

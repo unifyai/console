@@ -340,6 +340,7 @@ export function useInterfaceSync(
       renameTab: wrapRenameTab,
       removeTab: wrapRemoveTab,
     } as SyncedInterfaceDataActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interfaceDataActions, interfaceId, interfaceActions, tabActions]);
 
   // Create the enhanced actions object with the wrapped setters
@@ -351,6 +352,7 @@ export function useInterfaceSync(
       // Override setActiveTab with synced version
       setActiveTab: wrapSetActiveTab,
     } as SyncedInterfaceUIActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interfaceUIActions, interfaceId, interfaceActions, wrapSetActiveTab]);
 
   // Create the full actions object that incorporates the synced data actions

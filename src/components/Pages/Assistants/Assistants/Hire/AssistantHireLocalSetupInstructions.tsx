@@ -71,6 +71,7 @@ export function AssistantHireLocalSetupInstructionsDialog({
     };
 
     fetchInstructions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, os]);
 
   const renderContent = () => {

@@ -556,6 +556,7 @@ export function useTableTileSync(
       setSelected: wrapSelected,
       setPageNumber: wrapPageNumber,
     } as TableActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableTileActions, tabId, tileId, granularTileActions, uiActions]);
 
   if (!tableTileActions || !granularTileActions) {

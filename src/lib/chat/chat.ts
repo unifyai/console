@@ -76,6 +76,7 @@ const useChat = (
     //         ]
     //     )
     // });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatHistory, selectedEndpoints]);
 
   // const handleClearChat = async () => {

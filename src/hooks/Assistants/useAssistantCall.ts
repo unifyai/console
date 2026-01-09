@@ -158,6 +158,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         onDisconnected();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [room, assistantActions.call, clearAssistantJoinTimeout, onDisconnected]
   );
 

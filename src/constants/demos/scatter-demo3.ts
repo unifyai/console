@@ -1,4 +1,4 @@
-export default {
+const scatterDemo3 = {
   gif: 'scatter_two_groups_dark',
   link: 'interfaces/plots#scatter-graphs',
   description:
@@ -81,3 +81,5 @@ for gender in ["male", "female"]:
             )
 `,
 };
+
+export default scatterDemo3;

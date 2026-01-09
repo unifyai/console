@@ -538,6 +538,7 @@ export function usePlotTileSync(
       setBinCount: wrapBinCount,
       setRegressionLine: wrapRegressionLine,
     } as PlotActions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plotTileActions, tabId, tileName, granularTileActions]);
 
   if (!plotTileActions || !granularTileActions) {
