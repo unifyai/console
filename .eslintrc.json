@@ -54,6 +54,12 @@
   },
   "overrides": [
     {
+      "files": ["src/lib/orchestra/schema.d.ts", "src/lib/orchestra/client.ts"],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
       "files": ["src/tests/**/*.ts", "src/tests/**/*.tsx"],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
