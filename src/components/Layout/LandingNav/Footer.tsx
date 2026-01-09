@@ -36,21 +36,9 @@ const Footer = () => {
     <footer className="bg-[var(--background-color)] px-[20px] pb-[40px] pt-16">
       <div className="container">
         <div className="flex flex-wrap items-start justify-between gap-4 md:mr-[100px]">
-          <a href="/">
-            <Logo.light
-              className="block dark:hidden"
-              loading="lazy"
-              alt="Unify logo"
-              width={91}
-              height={35}
-            />
-            <Logo.dark
-              className="hidden dark:block"
-              loading="lazy"
-              alt="Unify logo"
-              width={91}
-              height={35}
-            />
+          <a href="/" aria-label="Unify logo">
+            <Logo.light className="block dark:hidden" width={91} height={35} />
+            <Logo.dark className="hidden dark:block" width={91} height={35} />
           </a>
           <div className="flex w-full flex-row flex-wrap items-start justify-start gap-6 gap-y-4 md:w-[60%] lg:justify-between lg:gap-6">
             {Object.keys(footerLinks).map((key) => (

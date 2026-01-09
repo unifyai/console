@@ -23,21 +23,11 @@ const Nav = ({ children, setMenuOpen: onOpenMenu, onSelectionHover, menuOpen }: 
       <a
         href="https://unify.ai/"
         aria-current="page"
-        aria-label="home"
+        aria-label="Unify logo"
         className="z-50 no-underline"
       >
-        <Logo.dark
-          className="hidden object-contain dark:block"
-          width={78}
-          loading="lazy"
-          alt="Unify logo"
-        />
-        <Logo.light
-          className="block object-contain dark:hidden"
-          width={78}
-          loading="lazy"
-          alt="Unify logo"
-        />
+        <Logo.dark className="hidden object-contain dark:block" width={78} />
+        <Logo.light className="block object-contain dark:hidden" width={78} />
       </a>
       {NavbarLinks.map((link, index) => {
         return (
