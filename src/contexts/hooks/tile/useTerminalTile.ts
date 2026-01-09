@@ -64,8 +64,7 @@ export function useTerminalTile(tileIdOrName: string | null, tabIdOrName?: strin
     return {
       shellType: terminalTile.shellType,
     } as TerminalTileData;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTerminalTile, tileId, terminalTile?.shellType]);
+  }, [isTerminalTile, tileId, terminalTile]);
 
   // Access store for terminal-specific UI state
   const terminalUI = useMemo(() => {

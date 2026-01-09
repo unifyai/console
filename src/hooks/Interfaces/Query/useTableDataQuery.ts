@@ -578,8 +578,7 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
         },
       })
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableFields, tabId, tileName]);
+  }, [availableFields, tabId, tileName, queryClient]);
 }
 
 /**

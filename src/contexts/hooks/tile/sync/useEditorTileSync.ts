@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
 import {
   ContextActions,
@@ -104,73 +104,82 @@ export function useEditorTileSync(
   };
 
   // Individual wrapper functions for each property
-  const wrapFileType = async (value: string | undefined) => {
-    if (!editorTileActions || !granularTileActions) return;
+  const wrapFileType = useCallback(
+    async (value: string | undefined) => {
+      if (!editorTileActions || !granularTileActions) return;
 
-    // Set UI states immediately before any operations
-    if (uiActions) {
-      uiActions.setLoading(true);
-    }
+      // Set UI states immediately before any operations
+      if (uiActions) {
+        uiActions.setLoading(true);
+      }
 
-    // 1) Update local state immediately
-    editorTileActions.setFileType(value);
+      // 1) Update local state immediately
+      editorTileActions.setFileType(value);
 
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    await fileTypeMutation
-      .mutateAsync({
+      // 2) Optimistic server update
+      await fileTypeMutation
+        .mutateAsync({
+          tabId: tabId,
+          name: tileName,
+          tileType: 'Editor',
+          updateData: { fileType: value ?? null },
+          actions: granularTileActions,
+        })
+        .then(() => {
+          // 3. Refresh the router and set the loading state
+          debugLog('[wrapFileType] onSettled:', value);
+          uiActions?.setLoading(false);
+        });
+    },
+    [editorTileActions, granularTileActions, uiActions, tileName, tabId, fileTypeMutation]
+  );
+
+  const wrapContent = useCallback(
+    (value: string) => {
+      if (!editorTileActions || !granularTileActions) return;
+
+      // 1) Update local state immediately
+      editorTileActions.setContent(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // 2) Optimistic server update
+      contentMutation.mutate({
         tabId: tabId,
         name: tileName,
         tileType: 'Editor',
-        updateData: { fileType: value ?? null },
+        updateData: { content: value ?? null },
         actions: granularTileActions,
-      })
-      .then(() => {
-        // 3. Refresh the router and set the loading state
-        debugLog('[wrapFileType] onSettled:', value);
-        uiActions?.setLoading(false);
       });
-  };
+    },
+    [editorTileActions, granularTileActions, tileName, tabId, contentMutation]
+  );
 
-  const wrapContent = (value: string) => {
-    if (!editorTileActions || !granularTileActions) return;
+  const wrapFileName = useCallback(
+    (value: string | undefined) => {
+      if (!editorTileActions || !granularTileActions) return;
 
-    // 1) Update local state immediately
-    editorTileActions.setContent(value);
+      // 1) Update local state immediately
+      editorTileActions.setFileName(value);
 
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    contentMutation.mutate({
-      tabId: tabId,
-      name: tileName,
-      tileType: 'Editor',
-      updateData: { content: value ?? null },
-      actions: granularTileActions,
-    });
-  };
-
-  const wrapFileName = (value: string | undefined) => {
-    if (!editorTileActions || !granularTileActions) return;
-
-    // 1) Update local state immediately
-    editorTileActions.setFileName(value);
-
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Optimistic server update
-    fileNameMutation.mutate({
-      tabId: tabId,
-      name: tileName,
-      tileType: 'Editor',
-      updateData: { fileName: value ?? null },
-      actions: granularTileActions,
-    });
-  };
+      // 2) Optimistic server update
+      fileNameMutation.mutate({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Editor',
+        updateData: { fileName: value ?? null },
+        actions: granularTileActions,
+      });
+    },
+    [editorTileActions, granularTileActions, tileName, tabId, fileNameMutation]
+  );
 
   // Create the enhanced actions object
   const syncedActions = useMemo(() => {
@@ -183,8 +192,7 @@ export function useEditorTileSync(
       setContent: wrapContent,
       setFileName: wrapFileName,
     } as EditorActions;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorTileActions, tabId, tileName, granularTileActions]);
+  }, [editorTileActions, wrapFileType, wrapContent, wrapFileName]);
 
   if (!editorTileActions || !granularTileActions) {
     return {

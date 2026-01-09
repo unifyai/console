@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import Tooltip from '../../../Common/Misc/Tooltip';
 import { FaPlus } from 'react-icons/fa';
 import { NodeProps } from '@/types/common';
@@ -17,18 +17,20 @@ export default function NewFolder({
 }) {
   // Validate new folder name
   const [newFolderName, setNewFolderName] = useState<string | undefined>();
-  const currentFolders = node.nodes!.map((n) => n.path);
-  const validateName = (value: string) => {
-    if (['', undefined].includes(value)) return 'empty';
-    if (currentFolders.findIndex((name) => name === value) != -1) {
-      return 'duplicate';
-    }
-    return 'valid';
-  };
+  const currentFolders = useMemo(() => node.nodes!.map((n) => n.path), [node.nodes]);
+  const validateName = useCallback(
+    (value: string) => {
+      if (['', undefined].includes(value)) return 'empty';
+      if (currentFolders.findIndex((name) => name === value) != -1) {
+        return 'duplicate';
+      }
+      return 'valid';
+    },
+    [currentFolders]
+  );
   const isInvalidName = useMemo(() => {
     return validateName(newFolderName!);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newFolderName]);
+  }, [newFolderName, validateName]);
 
   // Handle new folder input
   const inputRef = useRef<HTMLInputElement>(null);

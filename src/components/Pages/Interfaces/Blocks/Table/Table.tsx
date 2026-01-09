@@ -902,18 +902,14 @@ const LogsTable = ({
       effectiveOffset: tableTileState?.offset || 0,
       effectiveLimit: tableTileState?.limit || 20,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isTableDataLoading,
     infiniteLogsQuery.isLoading,
     infiniteLogsQuery.isPending,
     infiniteLogsQuery.hasNextPage,
-    logs.length,
+    logs,
     tableTileState?.limit,
-    tableTileState?.groupLimit,
-    tableTileState?.groupOffset,
     tableTileState?.offset,
-    groupingExpression,
     totalCount,
   ]);
 
@@ -1122,7 +1118,6 @@ const LogsTable = ({
         }
       } catch (_) {}
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       projectId,
       logsActions,
@@ -1131,7 +1126,6 @@ const LogsTable = ({
       updateLogsByRowIds,
       item?.context,
       globalContext,
-      showErrorToast,
     ]
   );
 

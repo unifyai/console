@@ -115,20 +115,7 @@ export function useTableTile(tileIdOrName: string | null, tabIdOrName?: string |
       columnsPinRight: tableTile.columnsPinRight,
       selected: tableTile.selected,
     } as TableTileData;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isTableTile,
-    tileId,
-    tableTile?.tableType,
-    tableTile?.columnOrder,
-    tableTile?.hiddenColumns,
-    tableTile?.defaultHiddenColumns,
-    tableTile?.sorting,
-    tableTile?.groupSorting,
-    tableTile?.columnsPinLeft,
-    tableTile?.columnsPinRight,
-    tableTile?.selected,
-  ]);
+  }, [isTableTile, tileId, tableTile]);
 
   // Access store for table-specific UI state
   const tableUI = useMemo(() => {
@@ -142,17 +129,7 @@ export function useTableTile(tileIdOrName: string | null, tabIdOrName?: string |
       pageNumber: tableTile.pageNumber,
       infiniteQueryKeys: tableTile.infiniteQueryKeys,
     } as TableTileUI;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isTableTile,
-    tileId,
-    tableTile?.limit,
-    tableTile?.offset,
-    tableTile?.groupLimit,
-    tableTile?.groupOffset,
-    tableTile?.pageNumber,
-    tableTile?.infiniteQueryKeys,
-  ]);
+  }, [isTableTile, tileId, tableTile]);
 
   // Get store update functions
   const storeUpdateTableTile = useStoreContext((state) => state.updateTableTile);

@@ -77,19 +77,25 @@ const ListColumnFilter = ({
   const [warningMessage, setWarningMessage] = useState('');
 
   /* Init filters */
-  const options = [
-    { name: 'in', label: 'Includes', description: `Filter for ${column} values included in..` },
-    {
-      name: 'not in',
-      label: 'Excludes',
-      description: `Filter for ${column} values not included in..`,
-    },
-    { name: 'exists', label: 'Exists', description: `Filter for existing ${column} values..` },
-    { name: 'isNone', label: 'Is None', description: `Filter for none ${column} values..` },
-  ];
-  const modes = options.map((option) => option.name);
-  let defaultFilter: ListFilter = { key: 0, mode: 'in', join: '&&', value: '' };
-  let initialValues: ListFilter[] = [];
+  const options = useMemo(
+    () => [
+      { name: 'in', label: 'Includes', description: `Filter for ${column} values included in..` },
+      {
+        name: 'not in',
+        label: 'Excludes',
+        description: `Filter for ${column} values not included in..`,
+      },
+      { name: 'exists', label: 'Exists', description: `Filter for existing ${column} values..` },
+      { name: 'isNone', label: 'Is None', description: `Filter for none ${column} values..` },
+    ],
+    [column]
+  );
+  const modes = useMemo(() => options.map((option) => option.name), [options]);
+  const defaultFilter: ListFilter = useMemo(
+    () => ({ key: 0, mode: 'in', join: '&&', value: '' }),
+    []
+  );
+  const initialValues: ListFilter[] = [];
   const [filters, setFilters] = useState(initialValues);
   const isFiltered = column in columnFilters;
 
@@ -120,8 +126,7 @@ const ListColumnFilter = ({
       setFilters([defaultFilter]);
       setExpression('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFiltered, setIsFiltered, columnFilters, column]);
+  }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
     const allColumns = [...entriesProperties, ...paramsProperties];

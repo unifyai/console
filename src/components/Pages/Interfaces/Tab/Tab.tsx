@@ -213,13 +213,13 @@ const Tab = ({
     return renderTiles.filter(
       (renderTile): renderTile is NonNullable<typeof renderTile> => renderTile !== null
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sortedTiles,
     tabId,
     interfaceId,
     projectId,
     tileActions,
+    tabActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,

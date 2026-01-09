@@ -442,8 +442,7 @@ export function useInfiniteLogsQuery({
   const globalOffset = useMemo(() => {
     if (!bidirectional.enabled) return 0;
     return slidingWindowRef.current.globalOffset;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bidirectional.enabled, slidingWindowRef.current.globalOffset]);
+  }, [bidirectional.enabled]);
 
   // Enhanced return object with bidirectional capabilities
   const bidirectionalInfo = useMemo(
@@ -456,10 +455,7 @@ export function useInfiniteLogsQuery({
       maxPagesInMemory: bidirectional.maxPagesInMemory,
       globalOffset, // Add global offset for row indexing
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      slidingWindowRef.current.windowStart,
-      slidingWindowRef.current.windowEnd,
       actualHasPreviousPage,
       actualHasNextPage,
       infiniteQuery.data?.pages?.length,
@@ -923,8 +919,7 @@ export function useInfiniteGroupSpecificLogsQuery({
   const groupOffset = useMemo(() => {
     if (!bidirectional.enabled) return 0;
     return groupSlidingWindowRef.current.groupOffset;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bidirectional.enabled, groupSlidingWindowRef.current.groupOffset]);
+  }, [bidirectional.enabled]);
 
   // Enhanced return object with bidirectional capabilities for groups
   const bidirectionalInfo = useMemo(
@@ -938,10 +933,7 @@ export function useInfiniteGroupSpecificLogsQuery({
       groupOffset, // Add group-specific offset for row indexing
       groupId, // Include groupId for offset mapping
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      groupSlidingWindowRef.current.windowStart,
-      groupSlidingWindowRef.current.windowEnd,
       actualGroupHasPreviousPage,
       actualGroupHasNextPage,
       groupInfiniteQuery.data?.pages?.length,

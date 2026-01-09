@@ -219,8 +219,7 @@ export default function NavMenu() {
 
   useEffect(() => {
     setOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setOpen]);
 
   const navItemsFromList = NavListSource();
   const assistantsItem = navItemsFromList.find((item) => item.title === 'Assistants');

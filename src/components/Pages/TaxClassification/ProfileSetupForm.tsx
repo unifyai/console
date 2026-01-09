@@ -66,6 +66,8 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
     }, [formData]);
 
     // Effect to update form data when initialData changes and auto-detect timezone if missing
+    // formData.timezone is intentionally omitted - we only want to run this when initialData changes,
+    // not when user manually updates timezone through other UI interactions
     useEffect(() => {
       if (initialData) {
         // If initialData has a timezone, use it.

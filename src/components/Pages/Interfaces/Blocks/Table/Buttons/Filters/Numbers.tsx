@@ -94,17 +94,20 @@ const NumericColumnFilter = ({
   const [warningMessage, setWarningMessage] = useState('');
 
   /* Initialize filters */
-  const options = [
-    { name: '==', label: '==', description: `Filter ${column} for values equal to..` },
-    { name: '!=', label: '!=', description: `Filter ${column} for values not equal to..` },
-    { name: '>', label: '>', description: `Filter ${column} for values greater than..` },
-    { name: '>=', label: '>=', description: `Filter ${column} for values greater or equal to..` },
-    { name: '<', label: '<', description: `Filter ${column} for values less than..` },
-    { name: '<=', label: '<=', description: `Filter ${column} for values less or equal to..` },
-    { name: 'exists', label: 'exists', description: `Filter ${column} for existing values..` },
-    { name: 'isNone', label: 'isNone', description: `Filter ${column} for none values..` },
-  ];
-  const modes = options.map((option) => option.name);
+  const options = useMemo(
+    () => [
+      { name: '==', label: '==', description: `Filter ${column} for values equal to..` },
+      { name: '!=', label: '!=', description: `Filter ${column} for values not equal to..` },
+      { name: '>', label: '>', description: `Filter ${column} for values greater than..` },
+      { name: '>=', label: '>=', description: `Filter ${column} for values greater or equal to..` },
+      { name: '<', label: '<', description: `Filter ${column} for values less than..` },
+      { name: '<=', label: '<=', description: `Filter ${column} for values less or equal to..` },
+      { name: 'exists', label: 'exists', description: `Filter ${column} for existing values..` },
+      { name: 'isNone', label: 'isNone', description: `Filter ${column} for none values..` },
+    ],
+    [column]
+  );
+  const modes = useMemo(() => options.map((option) => option.name), [options]);
 
   const [minValue, maxValue] = [
     queryBoundaries?.minimums[column],
@@ -125,8 +128,11 @@ const NumericColumnFilter = ({
     stepSize = range !== 0 ? range / 1000 : 1;
   }
 
-  let defaultFilter: NumericFilter = { key: 0, mode: '==', join: '&&', value: '' };
-  let initialValues: NumericFilter[] = [];
+  const defaultFilter: NumericFilter = useMemo(
+    () => ({ key: 0, mode: '==', join: '&&', value: '' }),
+    []
+  );
+  const initialValues: NumericFilter[] = [];
   const [filters, setFilters] = useState(initialValues);
   const isFiltered = column in columnFilters;
 
@@ -157,8 +163,7 @@ const NumericColumnFilter = ({
       setFilters([defaultFilter]);
       setExpression('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFiltered, setIsFiltered, columnFilters, column]);
+  }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
     const allColumns = [...entriesProperties, ...paramsProperties];

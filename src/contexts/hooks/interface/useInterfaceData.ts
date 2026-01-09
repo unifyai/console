@@ -114,17 +114,14 @@ export function useInterfaceData(
         }
       },
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       activeProjectId,
       interfaceId,
       tabIds,
       tabNames,
-      storeInitTab,
       storeAddTab,
       storeRemoveTab,
       storeRenameTab,
-      storeRenameTile,
       storeUpdateInterface,
     ]
   );

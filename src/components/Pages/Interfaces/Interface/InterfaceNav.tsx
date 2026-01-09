@@ -1774,8 +1774,7 @@ export default function InterfaceNav({
       setSelectedTab(t);
       setTabContextOpen(true);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [handleTabClick, setGlobalContextOpen]
+    [handleTabClick]
   );
 
   const onDeleteTab = useCallback(
@@ -1850,8 +1849,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [interfaceId, selectedProject, interfaceActions, tabActions, tileActions, queryClient]
+    [interfaceId, selectedProject, queryClient, storeApi]
   );
 
   const applyProjectContextCascade = useCallback(
@@ -1929,8 +1927,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedProject, interfaceActions, tabActions, tileActions, queryClient]
+    [selectedProject, storeApi]
   );
 
   const applyTabContextCascade = useCallback(
@@ -1998,8 +1995,7 @@ export default function InterfaceNav({
         // Leave dialog open; user closes explicitly
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedTab, interfaceId, tabActions, tileActions, queryClient]
+    [selectedTab, interfaceId, selectedProject, storeApi]
   );
 
   // Context dialogs

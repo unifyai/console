@@ -350,8 +350,7 @@ export function useTabStreamingQuery(
     }, delay);
     errorRetryAttemptsRef.current[activeTabName] = attempts + 1;
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledActive, activeTabName, activeTabQuery.isError]);
+  }, [enabledActive, activeTabName, activeTabQuery.isError, activeTabQuery]);
 
   // Reset retry counter on success or when switching tabs
   useEffect(() => {
@@ -714,7 +713,6 @@ export function useTabStreamingQuery(
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       queryClient,
       interfaceId,
@@ -724,6 +722,7 @@ export function useTabStreamingQuery(
       currentlyPrefetching,
       buildCompleteTabData,
       activeTabName,
+      storeApi,
     ]
   );
 

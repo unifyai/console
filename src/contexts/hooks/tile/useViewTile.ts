@@ -93,8 +93,7 @@ export function useViewTile(tileIdOrName: string | null, tabIdOrName?: string | 
     return {
       baseIndex: viewTile.baseIndex,
     } as ViewTileData;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewTile, tileId, viewTile?.baseIndex]);
+  }, [isViewTile, tileId, viewTile]);
 
   // Access store for view-specific UI state
   const viewUI = useMemo(() => {

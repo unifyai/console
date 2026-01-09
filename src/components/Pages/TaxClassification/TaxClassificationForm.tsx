@@ -337,6 +337,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
     }, [initialData]);
 
     // Auto-fill address country name when taxCountry (ISO) selected
+    // Sync business address country with taxCountry - intentionally only runs when taxCountry changes
     useEffect(() => {
       if (
         formData.accountType === 'business' &&
@@ -349,7 +350,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.taxCountry]);
 
-    // Back-fill ISO code when user types country name first
+    // Back-fill ISO code when user types country name first - intentionally only runs when country changes
     useEffect(() => {
       if (
         formData.accountType === 'business' &&

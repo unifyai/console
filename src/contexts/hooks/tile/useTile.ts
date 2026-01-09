@@ -168,7 +168,6 @@ export function useTile(tileIdOrName: string | null, tabIdOrName?: string | null
     };
 
     return baseActions;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     tileId,
     activeTabId,
@@ -178,16 +177,10 @@ export function useTile(tileIdOrName: string | null, tabIdOrName?: string | null
     storeInitTile,
     storeUpdateTile,
     storeRemoveTile,
-    tileType,
-    tableExists,
     tableTileActions,
-    plotExists,
     plotTileActions,
-    viewExists,
     viewTileActions,
-    editorExists,
     editorTileActions,
-    terminalExists,
     terminalTileActions,
   ]);
 
