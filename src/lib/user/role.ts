@@ -1,48 +1,27 @@
 import { Role, Permission } from '@/types/role';
 import { ResponseProps } from '@/types/common';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
-const safeFetch = async (url: string, options: RequestInit, context: string): Promise<any> => {
-  try {
-    const response = await fetch(url, options);
-    if (response.status === 204) return {};
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || 'Operation failed', status: response.status };
-      }
-      // Transform snake_case response to camelCase
-      return snakeToCamelObject(data);
-    }
-    if (!response.ok) return { detail: response.statusText, status: response.status };
-    return {};
-  } catch (error) {
-    console.error(`[Roles] ${context} error:`, error);
-    return { detail: 'Network error', status: 500 };
-  }
-};
-
-const getHeaders = (apiKey: string) => ({
-  'Content-Type': 'application/json',
-  accept: 'application/json',
-  Authorization: `Bearer ${apiKey}`,
-});
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export const getRolesAction =
   (apiKey: string) =>
   async (orgId: number): Promise<Role[] | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.GET(
+      '/v0/organizations/{organization_id}/roles',
       {
-        method: 'GET',
-        headers: getHeaders(apiKey),
-      },
-      'getRoles'
+        params: { path: { organization_id: orgId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get roles',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Role[];
   };
 
 export const createRoleAction =
@@ -54,15 +33,23 @@ export const createRoleAction =
     permissionIds: number[]
   ): Promise<Role | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.POST(
+      '/v0/organizations/{organization_id}/roles',
       {
-        method: 'POST',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ name, description, permissionIds: permissionIds }), // API expects snake_case
-      },
-      'createRole'
+        params: { path: { organization_id: orgId } },
+        body: { name, description, permission_ids: permissionIds } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create role',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Role;
   };
 
 export const updateRoleAction =
@@ -74,69 +61,111 @@ export const updateRoleAction =
     description: string
   ): Promise<Role | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles/${roleId}`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.PATCH(
+      '/v0/organizations/{organization_id}/roles/{role_id}',
       {
-        method: 'PATCH',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ name, description }),
-      },
-      'updateRole'
+        params: { path: { organization_id: orgId, role_id: roleId } },
+        body: { name, description } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update role',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Role;
   };
 
 export const deleteRoleAction =
   (apiKey: string) =>
   async (orgId: number, roleId: number): Promise<void | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles/${roleId}`,
+    const client = createOrchestraClient(apiKey);
+    const { error, response } = await client.DELETE(
+      '/v0/organizations/{organization_id}/roles/{role_id}',
       {
-        method: 'DELETE',
-        headers: getHeaders(apiKey),
-      },
-      'deleteRole'
+        params: { path: { organization_id: orgId, role_id: roleId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete role',
+        status: response?.status || 500,
+      };
+    }
+
+    return;
   };
 
 export const getAllPermissionsAction =
   (apiKey: string) => async (): Promise<Permission[] | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/permissions`,
-      {
-        method: 'GET',
-        headers: getHeaders(apiKey),
-      },
-      'getAllPermissions'
-    );
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.GET('/v0/permissions');
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) || 'Failed to get permissions',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Permission[];
   };
 
 export const addPermissionsToRoleAction =
   (apiKey: string) =>
   async (orgId: number, roleId: number, permissionIds: number[]): Promise<Role | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles/${roleId}/permissions`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.POST(
+      '/v0/organizations/{organization_id}/roles/{role_id}/permissions',
       {
-        method: 'POST',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ permissionIds: permissionIds }), // API expects snake_case
-      },
-      'addPermissionsToRole'
+        params: { path: { organization_id: orgId, role_id: roleId } },
+        body: { permission_ids: permissionIds } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) ||
+          'Failed to add permissions to role',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Role;
   };
 
 export const removePermissionFromRoleAction =
   (apiKey: string) =>
   async (orgId: number, roleId: number, permissionId: number): Promise<Role | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/roles/${roleId}/permissions/${permissionId}`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.DELETE(
+      '/v0/organizations/{organization_id}/roles/{role_id}/permissions/{permission_id}',
       {
-        method: 'DELETE',
-        headers: getHeaders(apiKey),
-      },
-      'removePermissionFromRole'
+        params: {
+          path: { organization_id: orgId, role_id: roleId, permission_id: permissionId },
+        },
+      }
     );
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) ||
+          'Failed to remove permission from role',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Role;
   };

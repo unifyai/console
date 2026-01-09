@@ -1,49 +1,28 @@
 import { Team } from '@/types/team';
 import { ResponseProps } from '@/types/common';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
-const safeFetch = async (url: string, options: RequestInit, context: string): Promise<any> => {
-  try {
-    const response = await fetch(url, options);
-    if (response.status === 204) return {};
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || 'Operation failed', status: response.status };
-      }
-      // Transform snake_case response to camelCase
-      return snakeToCamelObject(data);
-    }
-    if (!response.ok) return { detail: response.statusText, status: response.status };
-    return {};
-  } catch (error) {
-    console.error(`[Teams] ${context} error:`, error);
-    return { detail: 'Network error', status: 500 };
-  }
-};
-
-const getHeaders = (apiKey: string) => ({
-  'Content-Type': 'application/json',
-  accept: 'application/json',
-  Authorization: `Bearer ${apiKey}`,
-});
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export const createTeamAction =
   (apiKey: string) =>
   async (orgId: number, name: string, description?: string): Promise<Team | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.POST(
+      '/v0/organizations/{organization_id}/teams',
       {
-        method: 'POST',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ name, description }),
-      },
-      'createTeam'
+        params: { path: { organization_id: orgId } },
+        body: { name, description } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create team',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Team;
   };
 
 export const updateTeamAction =
@@ -55,84 +34,135 @@ export const updateTeamAction =
     description?: string
   ): Promise<Team | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams/${teamId}`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.PATCH(
+      '/v0/organizations/{organization_id}/teams/{team_id}',
       {
-        method: 'PATCH',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ name, description }),
-      },
-      'updateTeam'
+        params: { path: { organization_id: orgId, team_id: teamId } },
+        body: { name, description } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update team',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Team;
   };
 
 export const getTeamsAction =
   (apiKey: string) =>
   async (orgId: number): Promise<Team[] | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.GET(
+      '/v0/organizations/{organization_id}/teams',
       {
-        method: 'GET',
-        headers: getHeaders(apiKey),
-      },
-      'getTeams'
+        params: { path: { organization_id: orgId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get teams',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Team[];
   };
 
 export const getTeamDetailsAction =
   (apiKey: string) =>
   async (orgId: number, teamId: number): Promise<Team | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams/${teamId}`,
+    const client = createOrchestraClient(apiKey);
+    const { data, error, response } = await client.GET(
+      '/v0/organizations/{organization_id}/teams/{team_id}',
       {
-        method: 'GET',
-        headers: getHeaders(apiKey),
-      },
-      'getTeamDetails'
+        params: { path: { organization_id: orgId, team_id: teamId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) || 'Failed to get team details',
+        status: response?.status || 500,
+      };
+    }
+
+    return data as unknown as Team;
   };
 
 export const deleteTeamAction =
   (apiKey: string) =>
   async (orgId: number, teamId: number): Promise<void | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams/${teamId}`,
+    const client = createOrchestraClient(apiKey);
+    const { error, response } = await client.DELETE(
+      '/v0/organizations/{organization_id}/teams/{team_id}',
       {
-        method: 'DELETE',
-        headers: getHeaders(apiKey),
-      },
-      'deleteTeam'
+        params: { path: { organization_id: orgId, team_id: teamId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete team',
+        status: response?.status || 500,
+      };
+    }
+
+    return;
   };
 
 export const addTeamMemberAction =
   (apiKey: string) =>
   async (orgId: number, teamId: number, userId: string): Promise<void | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams/${teamId}/members`,
+    const client = createOrchestraClient(apiKey);
+    const { error, response } = await client.POST(
+      '/v0/organizations/{organization_id}/teams/{team_id}/members',
       {
-        method: 'POST',
-        headers: getHeaders(apiKey),
-        body: JSON.stringify({ userIds: [userId] }), // API expects snake_case
-      },
-      'addTeamMember'
+        params: { path: { organization_id: orgId, team_id: teamId } },
+        body: { user_ids: [userId] } as never,
+      }
     );
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) || 'Failed to add team member',
+        status: response?.status || 500,
+      };
+    }
+
+    return;
   };
 
 export const removeTeamMemberAction =
   (apiKey: string) =>
   async (orgId: number, teamId: number, userId: string): Promise<void | ResponseProps> => {
     'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/teams/${teamId}/members/${userId}`,
+    const client = createOrchestraClient(apiKey);
+    const { error, response } = await client.DELETE(
+      '/v0/organizations/{organization_id}/teams/{team_id}/members/{user_id_to_remove}',
       {
-        method: 'DELETE',
-        headers: getHeaders(apiKey),
-      },
-      'removeTeamMember'
+        params: { path: { organization_id: orgId, team_id: teamId, user_id_to_remove: userId } },
+      }
     );
+
+    if (error) {
+      return {
+        detail:
+          ((error as Record<string, unknown>)?.detail as string) || 'Failed to remove team member',
+        status: response?.status || 500,
+      };
+    }
+
+    return;
   };
