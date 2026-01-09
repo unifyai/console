@@ -1785,6 +1785,9 @@ export default function InterfaceNav({
     [setSelectedTab, setDeleteTabOpen]
   );
 
+  // Store API for cascade helpers (must be declared before callbacks that use it)
+  const storeApi = useStoreApiContext();
+
   // Cascade helpers: set context at interface and project scope without overriding explicit child contexts
   const applyInterfaceContextCascade = useCallback(
     async (ctx: string) => {
@@ -2014,7 +2017,6 @@ export default function InterfaceNav({
   }, []);
 
   // Sanitize via central contexts slice: set project contexts then sweep
-  const storeApi = useStoreApiContext();
   const projectDefaultCtx = useStoreContext((s) =>
     selectedProject ? (s.projectDefaultContext?.[selectedProject] ?? null) : null
   );

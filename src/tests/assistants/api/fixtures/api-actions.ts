@@ -215,7 +215,9 @@ export interface VerifySocialResponse {
 }
 
 export interface PhotoUploadResponse {
+  url?: string;
   gcsUrl?: string;
+  info?: { url?: string; gcsUrl?: string };
   detail?: string;
 }
 
@@ -535,7 +537,12 @@ export const photoApi = {
   async generate(
     prompt: string,
     apiKey?: string
-  ): Promise<{ url?: string; info?: { url?: string }; detail?: string }> {
+  ): Promise<{
+    url?: string;
+    gcsUrl?: string;
+    info?: { url?: string; gcsUrl?: string };
+    detail?: string;
+  }> {
     const endpoint = '/api/assistant/photo/generate';
     const res = await apiFetch(
       endpoint,
@@ -546,14 +553,15 @@ export const photoApi = {
       apiKey
     );
     const data = await parseResponse<
-      { info?: { url?: string } } | { url?: string; detail?: string }
+      | { info?: { url?: string; gcsUrl?: string } }
+      | { url?: string; gcsUrl?: string; detail?: string }
     >(res, endpoint);
     // Handle wrapped {info: {...}} format - return with unwrapped url at top level
     if (data && typeof data === 'object' && 'info' in data && typeof data.info === 'object') {
-      const info = data.info as { url?: string };
-      return { url: info.url, info };
+      const info = data.info as { url?: string; gcsUrl?: string };
+      return { url: info.url, gcsUrl: info.gcsUrl, info };
     }
-    return data as { url?: string; detail?: string };
+    return data as { url?: string; gcsUrl?: string; detail?: string };
   },
 };
 
@@ -809,7 +817,12 @@ export const photoApiExtended = {
   async edit(
     formData: FormData,
     apiKey?: string
-  ): Promise<{ url?: string; info?: { url?: string }; detail?: string }> {
+  ): Promise<{
+    url?: string;
+    gcsUrl?: string;
+    info?: { url?: string; gcsUrl?: string };
+    detail?: string;
+  }> {
     const key = apiKey || getTestApiKey();
     const url = `${BASE_URL}/api/assistant/photo/edit`;
 
@@ -825,14 +838,15 @@ export const photoApiExtended = {
       });
       clearTimeout(timeoutId);
       const data = await parseResponse<
-        { info?: { url?: string } } | { url?: string; detail?: string }
+        | { info?: { url?: string; gcsUrl?: string } }
+        | { url?: string; gcsUrl?: string; detail?: string }
       >(res, url);
       // Handle wrapped {info: {...}} format
       if (data && typeof data === 'object' && 'info' in data && typeof data.info === 'object') {
-        const info = data.info as { url?: string };
-        return { url: info.url, info };
+        const info = data.info as { url?: string; gcsUrl?: string };
+        return { url: info.url, gcsUrl: info.gcsUrl, info };
       }
-      return data as { url?: string; detail?: string };
+      return data as { url?: string; gcsUrl?: string; detail?: string };
     } catch (e) {
       clearTimeout(timeoutId);
       if (e instanceof Error && e.name === 'AbortError') {
@@ -845,7 +859,7 @@ export const photoApiExtended = {
   async animate(
     formData: FormData,
     apiKey?: string
-  ): Promise<{ id?: string; status?: string; detail?: string }> {
+  ): Promise<{ id?: string; status?: string; output?: string | string[]; detail?: string }> {
     const key = apiKey || getTestApiKey();
     const url = `${BASE_URL}/api/assistant/photo/animate`;
 
