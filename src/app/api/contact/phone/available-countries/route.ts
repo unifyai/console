@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processPhoneCountryCodes } from '@/utils/assistants/country-utils';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.COMMUNICATION_URL}`;
 
@@ -38,7 +39,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Validate and transform backend data
-      const codes = responseData?.countries;
+      const camelCaseData = snakeToCamelObject(responseData);
+      const codes = camelCaseData?.countries;
       const processed = processPhoneCountryCodes(codes);
       return NextResponse.json({ success: true, countries: processed }, { status: 200 });
     } else if (!response.ok) {

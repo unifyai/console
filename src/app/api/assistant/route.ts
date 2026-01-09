@@ -20,13 +20,40 @@ export async function GET(request: NextRequest) {
     url.searchParams.set('list_all_org', listAllOrg);
   }
 
-  return await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  try {
+    const orchestraResponse = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        accept: 'application/json',
+      },
+    });
+
+    const responseText = await orchestraResponse.text();
+    let responseData;
+
+    try {
+      responseData = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return NextResponse.json(
+        { detail: responseText || 'Invalid response from backend' },
+        { status: orchestraResponse.status }
+      );
+    }
+
+    if (!orchestraResponse.ok) {
+      return NextResponse.json(snakeToCamelObject(responseData), {
+        status: orchestraResponse.status,
+      });
+    }
+
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+    return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
+  } catch (error: any) {
+    console.error('[API /api/assistant GET] Error:', error.message);
+    return NextResponse.json({ detail: 'Failed to connect to backend API' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

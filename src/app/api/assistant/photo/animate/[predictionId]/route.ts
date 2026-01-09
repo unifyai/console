@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: { predicti
       );
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (photo/animate GET):', error);
     return NextResponse.json(
