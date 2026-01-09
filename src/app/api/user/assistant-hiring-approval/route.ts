@@ -1,51 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { snakeToCamelObject } from '@/utils/casing';
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function POST(request: NextRequest) {
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.apiKey || request.headers.get('apiKey');
-
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
+    return unauthorized();
   }
 
+  const client = createOrchestraClient(apiKey);
+
   try {
-    const response = await fetch(`${baseUrl}/user/assistant-hiring-approval`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-    });
-
-    const responseData = await response.json().catch((e) => {
-      console.error(
-        'Failed to parse JSON response from Orchestra API (assistant-hiring-approval):',
-        e
-      );
-      return { detail: 'Invalid JSON response from backend API', status: response.status };
-    });
-
-    const camelCaseData = snakeToCamelObject(responseData);
+    const { data, response } = await client.POST('/v0/user/assistant-hiring-approval');
 
     if (!response.ok) {
-      console.error(
-        `Orchestra API Error (assistant-hiring-approval - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(camelCaseData, { status: response.status });
+      console.error(`Orchestra API Error (assistant-hiring-approval - ${response.status}):`, data);
+      return NextResponse.json(data ?? { detail: 'Request failed' }, { status: response.status });
     }
 
-    return NextResponse.json(camelCaseData, { status: response.status });
-  } catch (error: any) {
-    console.error('Error proxying to Orchestra API (assistant-hiring-approval):', error);
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error proxying to Orchestra API (assistant-hiring-approval):', e);
     return NextResponse.json(
-      { detail: 'Failed to connect to backend API', errorDetails: error.message },
+      {
+        detail: 'Failed to connect to backend API',
+        errorDetails: e instanceof Error ? e.message : 'Unknown error',
+      },
       { status: 503 }
     );
   }
