@@ -166,16 +166,14 @@ export function PlotCanvas({
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [containerRef]);
 
   // Attach hover handlers to container (expected by plot-scatter.ts)
   useEffect(() => {
     if (!containerRef.current) return;
     (containerRef.current as any).__hoveredLog = hoveredLog ?? null;
     (containerRef.current as any).__setHoveredLog = onHoverLog ?? (() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredLog, onHoverLog]);
+  }, [containerRef, hoveredLog, onHoverLog]);
 
   // Reset zoom when plot configuration changes
   useEffect(() => {
@@ -184,8 +182,7 @@ export function PlotCanvas({
       const settings = d3.select(settingsRef.current);
       clearFixedTooltip(settings as any, setIsTooltipMinimized);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xAxis, yAxis, plotType]);
+  }, [settingsRef, xAxis, yAxis, plotType]);
 
   // Create plot tile actions for drawPlot
   const plotTileActions = useMemo(
@@ -265,7 +262,6 @@ export function PlotCanvas({
     } catch (err) {
       console.error('[PlotCanvas] drawPlot error:', err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     logs,
     fields,
@@ -291,6 +287,9 @@ export function PlotCanvas({
     onLogScaleXEnabledChange,
     onLogScaleYEnabledChange,
     preAggregatedBarData,
+    containerRef,
+    settingsRef,
+    svgRef,
   ]);
 
   return (

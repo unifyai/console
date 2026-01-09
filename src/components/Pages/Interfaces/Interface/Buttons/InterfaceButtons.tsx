@@ -395,7 +395,6 @@ const InterfaceButtons = ({
     } finally {
       setIsImporting(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedFile,
     templateData,
@@ -405,7 +404,6 @@ const InterfaceButtons = ({
     project,
     refetchInterfaces,
     router,
-    importInterfaceName,
   ]);
 
   return (

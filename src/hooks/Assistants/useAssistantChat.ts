@@ -18,8 +18,7 @@ export function useAssistantChat(
   histories: Record<string, ChatMessage[]>,
   setHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
 ) {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const messages = histories[configKey] || [];
+  const messages = React.useMemo(() => histories[configKey] || [], [histories, configKey]);
   const [inputValue, setInputValue] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [isInitialGreetingLoading, setIsInitialGreetingLoading] = React.useState(false);

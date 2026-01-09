@@ -106,20 +106,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
       binCount: plotTile.binCount,
       regressionLine: plotTile.regressionLine,
     } as PlotTileData;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isPlotTile,
-    tileId,
-    plotTile?.plotType,
-    plotTile?.plotScaleX,
-    plotTile?.plotScaleY,
-    plotTile?.plotAggregate,
-    plotTile?.xAxis,
-    plotTile?.yAxis,
-    plotTile?.plotGroupBy,
-    plotTile?.binCount,
-    plotTile?.regressionLine,
-  ]);
+  }, [isPlotTile, tileId, plotTile]);
 
   // Access store for plot-specific UI state
   const plotUI = useMemo(() => {
@@ -128,8 +115,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
     return {
       plotGroupByColors: plotTile.plotGroupByColors,
     } as PlotTileUI;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlotTile, tileId, plotTile?.plotGroupByColors]);
+  }, [isPlotTile, tileId, plotTile]);
 
   // Get store update functions
   const storeUpdatePlotTile = useStoreContext((state) => state.updatePlotTile);
@@ -225,8 +211,7 @@ export function usePlotTile(tileIdOrName: string | null, tabIdOrName?: string | 
         storeUpdatePlotTile(tileId, update);
       },
     } as PlotTileUIActions;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlotTile, tileId]);
+  }, [isPlotTile, tileId, storeUpdatePlotTile]);
 
   // Build a final `plotTile` object from the separate meta, data, and UI objects
   const combinedPlotTile = useMemo(() => {

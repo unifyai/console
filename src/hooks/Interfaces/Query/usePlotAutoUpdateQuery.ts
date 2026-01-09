@@ -16,7 +16,7 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { useTileData } from '@/contexts/hooks/tile/useTileData';
 import { fetchOrBuildProjectsContextsFields } from '@/utils/data/buildServerData';
 import { selectProjectById } from '@/contexts/selectors/project';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Debug flag for performance logging
@@ -62,10 +62,9 @@ export function usePlotAutoUpdateQuery(
   const autoUpdate = tileDataState?.autoUpdate === 'true';
 
   // Use a separate query key to avoid conflicts with manual cache updates
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const autoUpdateQueryKey = ['plotDataItem', 'autoUpdate', tileId];
+  const autoUpdateQueryKey = useMemo(() => ['plotDataItem', 'autoUpdate', tileId], [tileId]);
   // Main cache key for syncing
-  const mainQueryKey = ['plotDataItem', tileId];
+  const mainQueryKey = useMemo(() => ['plotDataItem', tileId], [tileId]);
 
   const queryFn = async ({ signal }: { signal?: AbortSignal }): Promise<PlotDataItem> => {
     if (!tileId || !tabId) throw new Error('Tile ID and Tab ID are required');

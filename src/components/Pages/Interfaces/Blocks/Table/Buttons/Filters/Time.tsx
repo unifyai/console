@@ -71,15 +71,21 @@ const TimeColumnFilter = ({
   const [warningMessage, setWarningMessage] = useState('');
 
   /* Initialize filters */
-  const options = [
-    { name: '>', label: '>', description: `Filter for ${column} values greater than..` },
-    { name: '<', label: '<', description: `Filter for ${column} values less than..` },
-    { name: 'exists', label: 'exists', description: `Filter for ${column} existing values..` },
-    { name: 'isNone', label: 'isNone', description: `Filter for ${column} none values..` },
-  ];
-  const modes = options.map((option) => option.name);
-  let defaultFilter: TimeFilter = { key: 0, mode: '>', join: '&&', value: defaultRelativeDate };
-  let initialValues: TimeFilter[] = [];
+  const options = useMemo(
+    () => [
+      { name: '>', label: '>', description: `Filter for ${column} values greater than..` },
+      { name: '<', label: '<', description: `Filter for ${column} values less than..` },
+      { name: 'exists', label: 'exists', description: `Filter for ${column} existing values..` },
+      { name: 'isNone', label: 'isNone', description: `Filter for ${column} none values..` },
+    ],
+    [column]
+  );
+  const modes = useMemo(() => options.map((option) => option.name), [options]);
+  const defaultFilter: TimeFilter = useMemo(
+    () => ({ key: 0, mode: '>', join: '&&', value: defaultRelativeDate }),
+    []
+  );
+  const initialValues: TimeFilter[] = [];
   const [filters, setFilters] = useState(initialValues);
   const isFiltered = column in columnFilters;
 
@@ -110,8 +116,7 @@ const TimeColumnFilter = ({
       setFilters([defaultFilter]);
       setExpression('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFiltered, setIsFiltered, columnFilters, column]);
+  }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
     const allColumns = [...entriesProperties, ...paramsProperties];

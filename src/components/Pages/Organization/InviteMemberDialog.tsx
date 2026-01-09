@@ -22,6 +22,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Clear error when email changes to improve UX
+  // error is intentionally omitted to prevent infinite loop - we only want to clear on email change
   useEffect(() => {
     if (error) setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps

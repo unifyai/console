@@ -98,8 +98,7 @@ export function useEditorTile(tileIdOrName: string | null, tabIdOrName?: string 
       fileType: editorTile.fileType,
       content: editorTile.content,
     } as EditorTileData;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditorTile, tileId, editorTile?.fileName, editorTile?.fileType, editorTile?.content]);
+  }, [isEditorTile, tileId, editorTile]);
 
   // Access store for editor-specific UI state
   const editorUI = useMemo(() => {

@@ -36,8 +36,7 @@ export function useAssistantHiringApproval({
       setApprovalStatus(profile.assistantHiringApproval as ApprovalStatus);
       setHasClaimedLink(profile.hasClaimedApprovalLink);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [approvalActions]);
 
   React.useEffect(() => {
     loadHiringProfile();
@@ -94,8 +93,7 @@ export function useAssistantHiringApproval({
       }
       return success;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loadHiringProfile]
+    [loadHiringProfile, approvalActions]
   );
 
   React.useEffect(() => {

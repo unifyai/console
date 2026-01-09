@@ -19,7 +19,6 @@ export const useDimensionsTracker = (divRef?: any) => {
     return () => {
       observer.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [divRef]);
   return dimensions;
 };

@@ -161,8 +161,7 @@ export function VoiceCustomization({
         setActiveMainTab('select');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialVoiceId, allDisplayableVoices]);
+  }, [initialVoiceId, allDisplayableVoices, activeMainTab]);
 
   // Update createMode in useVoiceCreator hook when tab changes
   React.useEffect(() => {
@@ -602,8 +601,7 @@ export function VoiceCustomization({
       setCloneAudioObjectURL(null);
       setIsPlayingClonePreview(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloneFile]);
+  }, [cloneFile, cloneAudioObjectURL]);
   React.useEffect(() => {
     const audioEl = cloneAudioRef.current; // Capture current value for cleanup
     const currentObjectUrl = cloneAudioObjectURL; // Capture current value

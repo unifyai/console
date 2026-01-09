@@ -110,12 +110,13 @@ const FullScreenCallUI: React.FC<{
   }, [room, room.state]);
 
   const localVideoTrackRef: TrackReference | undefined = React.useMemo(() => {
+    // camToggle.track is referenced to trigger recomputation when camera state changes
+    void camToggle.track;
     const pub = localParticipant.getTrackPublication(Track.Source.Camera);
     if (pub?.isSubscribed && pub.track) {
       return { participant: localParticipant, source: Track.Source.Camera, publication: pub };
     }
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;

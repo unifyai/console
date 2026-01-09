@@ -16,7 +16,7 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { useTileData } from '@/contexts/hooks/tile/useTileData';
 import { fetchOrBuildProjectsContextsFields } from '@/utils/data/buildServerData';
 import { selectProjectById } from '@/contexts/selectors/project';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Debug flag for performance logging
@@ -61,10 +61,9 @@ export function useTableAutoUpdateQuery(
   const autoUpdate = tileDataState?.autoUpdate === 'true';
 
   // Use a separate query key to avoid conflicts with manual cache updates
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const autoUpdateQueryKey = ['tableDataItem', 'autoUpdate', tileId];
+  const autoUpdateQueryKey = useMemo(() => ['tableDataItem', 'autoUpdate', tileId], [tileId]);
   // Main cache key for syncing
-  const mainQueryKey = ['tableDataItem', tileId];
+  const mainQueryKey = useMemo(() => ['tableDataItem', tileId], [tileId]);
 
   const queryFn = async ({ signal }: { signal?: AbortSignal }): Promise<TableDataItem> => {
     if (!tileId) throw new Error('Tile ID is required');

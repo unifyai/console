@@ -64,9 +64,13 @@ const FocusDialog = ({
   const state = storeApi.getState();
   const tiles = selectTilesForTab(state, tabId);
 
-  const focusedTileNames = tabUIState?.focusedTileNames
-    ? Array.from(tabUIState.focusedTileNames)
-    : [undefined, undefined];
+  const focusedTileNames = useMemo(
+    () =>
+      tabUIState?.focusedTileNames
+        ? Array.from(tabUIState.focusedTileNames)
+        : [undefined, undefined],
+    [tabUIState?.focusedTileNames]
+  );
 
   // Initialize focusedTiles based on focusedTileNames
   const initialFocusedTiles = useMemo(() => {
@@ -87,8 +91,7 @@ const FocusDialog = ({
       }
     }
     return tilesList.length > 0 ? tilesList : [];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedTileNames.join(','), tiles]);
+  }, [focusedTileNames, tiles]);
 
   const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTiles);
 

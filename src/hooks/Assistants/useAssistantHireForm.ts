@@ -145,8 +145,7 @@ export function useAssistantHireForm(
     if (isDialogOpen) {
       loadCountries();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDialogOpen, setValue]);
+  }, [isDialogOpen, setValue, assistantActions.contact]);
 
   const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);

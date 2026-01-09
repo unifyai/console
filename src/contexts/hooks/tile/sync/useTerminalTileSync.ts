@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
 import {
   ContextActions,
@@ -73,21 +73,24 @@ export function useTerminalTileSync(
   const mutations = { shellType: shellTypeMutation };
 
   // wrapper
-  const wrapShellType = async (value: string | null | undefined) => {
-    if (!terminalTileActions || !granularTileActions) return;
+  const wrapShellType = useCallback(
+    async (value: string | null | undefined) => {
+      if (!terminalTileActions || !granularTileActions) return;
 
-    terminalTileActions.setShellType(value);
+      terminalTileActions.setShellType(value);
 
-    if (!tileName || !tabId) return;
+      if (!tileName || !tabId) return;
 
-    shellTypeMutation.mutate({
-      tabId: tabId,
-      name: tileName,
-      tileType: 'Terminal',
-      updateData: { shellType: value ?? null },
-      actions: granularTileActions,
-    });
-  };
+      shellTypeMutation.mutate({
+        tabId: tabId,
+        name: tileName,
+        tileType: 'Terminal',
+        updateData: { shellType: value ?? null },
+        actions: granularTileActions,
+      });
+    },
+    [terminalTileActions, granularTileActions, tileName, tabId, shellTypeMutation]
+  );
 
   // enhanced actions
   const syncedActions = useMemo(() => {
@@ -96,8 +99,7 @@ export function useTerminalTileSync(
       ...terminalTileActions,
       setShellType: wrapShellType,
     } as TerminalActions;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [terminalTileActions, tabId, tileName, granularTileActions]);
+  }, [terminalTileActions, wrapShellType]);
 
   if (!terminalTileActions || !granularTileActions) {
     return {

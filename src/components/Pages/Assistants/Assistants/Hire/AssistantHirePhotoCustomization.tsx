@@ -150,8 +150,7 @@ export function PhotoCustomization({
         cameraStream.getTracks().forEach((track) => track.stop());
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCameraDialogOpen]); // Only re-run when dialog open state changes
+  }, [isCameraDialogOpen, cameraStream]);
 
   const handleCloseCamera = () => {
     setIsCameraDialogOpen(false); // This will trigger the useEffect cleanup

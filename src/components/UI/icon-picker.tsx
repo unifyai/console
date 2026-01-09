@@ -233,8 +233,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
           }, 1);
         }
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [open, onOpenChange, virtualizer]
+      [open, onOpenChange, virtualizer, setSearch]
     );
 
     const handleIconClick = useCallback(
@@ -243,8 +242,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
         setIsOpen(false);
         setSearch('');
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [handleValueChange]
+      [handleValueChange, setSearch]
     );
 
     const handleSearchChange = useCallback(
@@ -257,8 +255,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
 
         virtualizer.scrollToOffset(0);
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [virtualizer]
+      [virtualizer, setSearch]
     );
 
     const scrollToCategory = useCallback(

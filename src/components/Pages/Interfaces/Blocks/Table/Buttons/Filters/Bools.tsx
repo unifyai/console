@@ -91,14 +91,20 @@ const BooleanColumnFilter = ({
   const [warningMessage, setWarningMessage] = useState('');
 
   /* Init filters */
-  const options = [
-    { name: 'is', label: 'Is', description: `Filter for ${column} values equal to..` },
-    { name: 'exists', label: 'Exists', description: `Filter for ${column} existing values..` },
-    { name: 'isNone', label: 'Is None', description: `Filter for ${column} none values..` },
-  ];
-  const modes = options.map((option) => option.name);
-  let defaultFilter: BooleanFilter = { key: 0, mode: 'is', join: '&&', value: 'true' };
-  let initialValues: BooleanFilter[] = [];
+  const options = useMemo(
+    () => [
+      { name: 'is', label: 'Is', description: `Filter for ${column} values equal to..` },
+      { name: 'exists', label: 'Exists', description: `Filter for ${column} existing values..` },
+      { name: 'isNone', label: 'Is None', description: `Filter for ${column} none values..` },
+    ],
+    [column]
+  );
+  const modes = useMemo(() => options.map((option) => option.name), [options]);
+  const defaultFilter: BooleanFilter = useMemo(
+    () => ({ key: 0, mode: 'is', join: '&&', value: 'true' }),
+    []
+  );
+  const initialValues: BooleanFilter[] = [];
 
   const [filters, setFilters] = useState(initialValues);
   const isFiltered = column in columnFilters;
@@ -130,8 +136,7 @@ const BooleanColumnFilter = ({
       setFilters([defaultFilter]);
       setExpression('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFiltered, setIsFiltered, columnFilters, column]);
+  }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
     const allColumns = [...entriesProperties, ...paramsProperties];

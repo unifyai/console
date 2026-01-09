@@ -356,8 +356,7 @@ const Interface = ({
         }
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bootstrapData, projectQueryParam, queryClient]);
+  }, [bootstrapData, projectQueryParam, queryClient, storeApi]);
 
   // Fetch project tree with icons
   const {
@@ -525,9 +524,12 @@ const Interface = ({
 
   // Get current active tab name using selector - this is our source of truth
   const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
-  const tabLog = (...args: any[]) => {
-    if (DEBUG_TABS) console.log(...args);
-  };
+  const tabLog = useCallback(
+    (...args: any[]) => {
+      if (DEBUG_TABS) console.log(...args);
+    },
+    [DEBUG_TABS]
+  );
   const state = useStoreApiContext().getState();
   const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
@@ -543,8 +545,7 @@ const Interface = ({
       }
       shallowSetTabInUrl(tabName); // Pure client URL update
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [syncedInterfaceUIActions, shallowSetTabInUrl]
+    [syncedInterfaceUIActions, shallowSetTabInUrl, tabLog]
   );
 
   // On mount, adopt ?tab= from URL (no navigation)
@@ -573,8 +574,7 @@ const Interface = ({
       tabLog('[Interface] Mirroring active tab to URL', { activeTabName });
       shallowSetTabInUrl(activeTabName);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTabName, shallowSetTabInUrl]);
+  }, [activeTabName, shallowSetTabInUrl, tabLog]);
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -645,8 +645,7 @@ const Interface = ({
     const switching = !!tabStreamingQuery?.activeTab.isLoading;
     tabLog('[Interface] Switching tab overlay state', { switching });
     setIsSwitchingTab(switching);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabStreamingQuery?.activeTab.isLoading]);
+  }, [tabStreamingQuery?.activeTab.isLoading, tabLog]);
 
   // Sidebar state for proper positioning
   const isMobile = useIsMobile();
@@ -707,8 +706,7 @@ const Interface = ({
       });
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTabName, tabNames, syncedInterfaceUIActions]);
+  }, [activeTabName, tabNames, syncedInterfaceUIActions, tabLog]);
 
   // Track pending tab change
   const [pendingTabChange, setPendingTabChange] = useState<string | undefined>(undefined);
@@ -736,8 +734,7 @@ const Interface = ({
         syncedInterfaceUIActions.setActiveTab(value);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions]
+    [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions, tabLog]
   );
 
   // Create debounced version of tab switch handler
@@ -876,7 +873,6 @@ const Interface = ({
     }, 500); // 500ms delay to let URL params settle
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     shouldAutoSelectInterface,
     isLoadingInterfaces,
@@ -889,6 +885,7 @@ const Interface = ({
     tileActions,
     queryClient,
     preventAutoSelect,
+    setSelectInterfaceParam,
   ]);
 
   // Don't clean up selection params - they should persist until user makes a choice
@@ -1024,8 +1021,7 @@ const Interface = ({
 
       router.push(`/interfaces?${newParams.toString()}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTabName, createTabMutation, updateTabMutation]);
+  }, [interfaceLoadFailures, router]);
 
   // Track if tab retry is in progress using ref to avoid re-renders
   const isRetryingTabRef = useRef(false);
@@ -1211,7 +1207,6 @@ const Interface = ({
         </Suspense>
       </div>
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTabId,
     projectQueryParam,
@@ -1227,8 +1222,6 @@ const Interface = ({
     contextActions,
     codeActions,
     fileActions,
-    queryClient,
-    setTabQueryParamFromSync,
   ]);
 
   // Handle save dialog submission

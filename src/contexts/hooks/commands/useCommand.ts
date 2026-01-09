@@ -141,8 +141,7 @@ export function useCommand(args: UseCommandArgs) {
   /* -------------------------------------------------------------------------- */
   // Get interface data actions
   const { dataActions: interfaceDataActions } = useInterface(interfaceId || '');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const tabNames = interfaceDataActions?.getTabNames() || [];
+  const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
 
   // Get tab actions
   const { uiActions: tabUIActions } = useTab(tabId || '', interfaceId || '');
@@ -324,7 +323,6 @@ export function useCommand(args: UseCommandArgs) {
       debugLog('[createProject] Project creation completed successfully:', name);
       return { info: 'Project created successfully' } as unknown as ResponseProps;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       createOnlyProjectMutation,
       createProjectMutation,
@@ -335,6 +333,7 @@ export function useCommand(args: UseCommandArgs) {
       setDemo,
       setProjectQueryParam,
       setInterfaceQueryParam,
+      setTabQueryParam,
       tabUIActions,
       interfaceDataActions,
       setProjects,
@@ -563,29 +562,37 @@ export function useCommand(args: UseCommandArgs) {
     setOverlayState,
   ]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const setFileUpload = (fileUploadOpen: boolean) => {
-    debugLog('[setFileUpload] Setting file upload modal state:', fileUploadOpen);
-    storeSetFileUploadOpen(fileUploadOpen);
-  };
+  const setFileUpload = useCallback(
+    (fileUploadOpen: boolean) => {
+      debugLog('[setFileUpload] Setting file upload modal state:', fileUploadOpen);
+      storeSetFileUploadOpen(fileUploadOpen);
+    },
+    [storeSetFileUploadOpen]
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const setFocusPane = (focusPaneOpen: boolean) => {
-    debugLog('[setFocusPane] Setting focus pane state:', focusPaneOpen);
-    storeSetFocusPaneOpen(focusPaneOpen);
-  };
+  const setFocusPane = useCallback(
+    (focusPaneOpen: boolean) => {
+      debugLog('[setFocusPane] Setting focus pane state:', focusPaneOpen);
+      storeSetFocusPaneOpen(focusPaneOpen);
+    },
+    [storeSetFocusPaneOpen]
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const setGlobalContext = (globalContextOpen: boolean) => {
-    debugLog('[setGlobalContext] Setting global context modal state:', globalContextOpen);
-    storeSetGlobalContextOpen(globalContextOpen);
-  };
+  const setGlobalContext = useCallback(
+    (globalContextOpen: boolean) => {
+      debugLog('[setGlobalContext] Setting global context modal state:', globalContextOpen);
+      storeSetGlobalContextOpen(globalContextOpen);
+    },
+    [storeSetGlobalContextOpen]
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const setSaveInterface = (saveInterfaceOpen: boolean) => {
-    debugLog('[setSaveInterface] Setting save interface modal state:', saveInterfaceOpen);
-    storeSetSaveInterfaceOpen(saveInterfaceOpen);
-  };
+  const setSaveInterface = useCallback(
+    (saveInterfaceOpen: boolean) => {
+      debugLog('[setSaveInterface] Setting save interface modal state:', saveInterfaceOpen);
+      storeSetSaveInterfaceOpen(saveInterfaceOpen);
+    },
+    [storeSetSaveInterfaceOpen]
+  );
 
   /* -------------------------------------------------------------------------- */
   /* Build command list (metadata only – callbacks use hooks above)             */
