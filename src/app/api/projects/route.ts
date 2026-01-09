@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withCacheHeaders } from '../_utils/cacheResponse';
+import { buildCacheControl } from '../_utils/cacheResponse';
 import { transformBody } from '../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  const upstreamResponse = await fetch(`${baseUrl}/projects`, {
+  const res = await fetch(`${baseUrl}/projects`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -22,8 +23,22 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  if (!res.ok) {
+    return NextResponse.json(camelCaseData, { status: res.status });
+  }
+
   // Cache projects list for 5 minutes - rarely changes
-  return withCacheHeaders(upstreamResponse, 'LONG');
+  const cacheControl = buildCacheControl('LONG');
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (cacheControl) {
+    headers['Cache-Control'] = cacheControl;
+  }
+
+  return NextResponse.json(camelCaseData, { status: 200, headers });
 }
 
 export async function POST(request: NextRequest) {
@@ -40,7 +55,7 @@ export async function POST(request: NextRequest) {
   // Transform body to snake_case for Orchestra
   const snakeBody = transformBody(body);
 
-  return await fetch(`${baseUrl}/project`, {
+  const res = await fetch(`${baseUrl}/project`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -48,4 +63,14 @@ export async function POST(request: NextRequest) {
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }

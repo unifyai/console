@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: { predict
     );
 
     const responseData = await response.json();
-    const camelCaseData = snakeToCamelObject(responseData);
+    const camelCaseData = snakeToCamelObject(responseData) as Record<string, unknown>;
 
     if (!response.ok) {
       console.error(`Backend Error (photo/animate CANCEL - ${response.status}):`, responseData);

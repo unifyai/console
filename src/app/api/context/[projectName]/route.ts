@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withCacheHeaders } from '../../_utils/cacheResponse';
+import { buildCacheControl } from '../../_utils/cacheResponse';
 import { transformBody } from '../../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectN
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  const upstreamResponse = await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
+  const res = await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -22,8 +23,22 @@ export async function GET(request: NextRequest, { params }: { params: { projectN
     },
   });
 
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  if (!res.ok) {
+    return NextResponse.json(camelCaseData, { status: res.status });
+  }
+
   // Cache contexts list for 5 minutes - rarely changes
-  return withCacheHeaders(upstreamResponse, 'LONG');
+  const cacheControl = buildCacheControl('LONG');
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (cacheControl) {
+    headers['Cache-Control'] = cacheControl;
+  }
+
+  return NextResponse.json(camelCaseData, { status: 200, headers });
 }
 
 export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
@@ -40,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
   // Transform body to snake_case for Orchestra
   const snakeBody = transformBody(body);
 
-  return await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
+  const res = await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -48,6 +63,16 @@ export async function POST(request: NextRequest, { params }: { params: { project
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function DELETE(
@@ -62,11 +87,21 @@ export async function DELETE(
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  return await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
+  const res = await fetch(`${baseUrl}/project/${params.projectName}/contexts`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }

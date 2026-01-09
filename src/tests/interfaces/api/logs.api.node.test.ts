@@ -123,4 +123,32 @@ describe('@real Logs API', () => {
       expect(logsResult).toBeDefined();
     }
   });
+
+  it('@real returns camelCase response properties for logs get', realTestOptions, async () => {
+    const result = await logsApi.get(testProject, { limit: 10 });
+
+    expect(result).toBeDefined();
+    // Should NOT have snake_case keys in the response
+    expect(result).not.toHaveProperty('total_count');
+    // If there are logs, check their properties
+    if (result.logs && result.logs.length > 0) {
+      const log = result.logs[0];
+      // Should NOT have snake_case keys
+      expect(log).not.toHaveProperty('created_at');
+      expect(log).not.toHaveProperty('updated_at');
+    }
+  });
+
+  it('@real returns camelCase response properties for logs create', realTestOptions, async () => {
+    const result = await logsApi.create(
+      testProject,
+      [{ testParam: 'casing-test' }],
+      [{ message: 'Casing test entry', level: 'info' }]
+    );
+
+    expect(result).toBeDefined();
+    // Should NOT have snake_case keys
+    expect(result).not.toHaveProperty('log_ids');
+    expect(result).not.toHaveProperty('created_at');
+  });
 });

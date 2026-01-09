@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { transformBody } from '../../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
@@ -48,7 +49,16 @@ export async function POST(request: NextRequest) {
         })
       );
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const text = await res.text();
+    if (!text) {
+      return NextResponse.json({ success: true }, { status: res.status });
+    }
+    const responseData = JSON.parse(text);
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';
@@ -113,7 +123,16 @@ export async function PUT(request: NextRequest) {
         })
       );
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const text = await res.text();
+    if (!text) {
+      return NextResponse.json({ success: true }, { status: res.status });
+    }
+    const responseData = JSON.parse(text);
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';

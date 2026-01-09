@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Validate and transform backend data
-      const camelCaseData = snakeToCamelObject(responseData);
-      const codes = camelCaseData?.countries;
+      const camelCaseData = snakeToCamelObject(responseData) as Record<string, unknown>;
+      const codes = camelCaseData?.countries as string;
       const processed = processPhoneCountryCodes(codes);
       return NextResponse.json({ success: true, countries: processed }, { status: 200 });
     } else if (!response.ok) {

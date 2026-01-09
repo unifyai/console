@@ -249,4 +249,37 @@ describe('@real Tabs API', () => {
       expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
     }
   });
+
+  it('@real returns camelCase response properties for tab list', realTestOptions, async () => {
+    const result = await tabsApi.list(testInterfaceId);
+
+    expect(Array.isArray(result)).toBe(true);
+
+    // If there are tabs, check their properties are camelCase
+    if (result.length > 0) {
+      const tab = result[0];
+      // Should have camelCase keys
+      expect(tab).toHaveProperty('id');
+      expect(tab).toHaveProperty('name');
+      // Should NOT have snake_case keys
+      expect(tab).not.toHaveProperty('interface_id');
+      expect(tab).not.toHaveProperty('created_at');
+      expect(tab).not.toHaveProperty('updated_at');
+    }
+  });
+
+  it('@real returns camelCase response properties for tab create', realTestOptions, async () => {
+    const tabName = uniqueName('test-tab-casing');
+
+    const result = await tabsApi.create(testInterfaceId, tabName, { order: 99 });
+    createdTabIds.push(result.id);
+
+    // Should have camelCase keys
+    expect(result).toHaveProperty('id');
+    expect(result).toHaveProperty('name');
+    // Should NOT have snake_case keys
+    expect(result).not.toHaveProperty('interface_id');
+    expect(result).not.toHaveProperty('created_at');
+    expect(result).not.toHaveProperty('updated_at');
+  });
 });

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withCacheHeaders } from '../_utils/cacheResponse';
+import { buildCacheControl } from '../_utils/cacheResponse';
 import { transformQueryParams, transformBody } from '../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   const snakeQuery = transformQueryParams(url);
 
   // Let the backend handle the routing based on the query parameters
-  const upstreamResponse = await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
+  const res = await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -42,8 +43,22 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  if (!res.ok) {
+    return NextResponse.json(camelCaseData, { status: res.status });
+  }
+
   // Cache tile data for 60 seconds
-  return withCacheHeaders(upstreamResponse, 'MEDIUM');
+  const cacheControl = buildCacheControl('MEDIUM');
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (cacheControl) {
+    headers['Cache-Control'] = cacheControl;
+  }
+
+  return NextResponse.json(camelCaseData, { status: 200, headers });
 }
 
 export async function POST(request: NextRequest) {
@@ -76,7 +91,7 @@ export async function POST(request: NextRequest) {
   const snakeBody = transformBody(body);
 
   // For POST, we always create a new resource, so the endpoint is fixed
-  return await fetch(`${baseUrl}${endpoint}`, {
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -84,6 +99,12 @@ export async function POST(request: NextRequest) {
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PUT(request: NextRequest) {
@@ -103,7 +124,7 @@ export async function PUT(request: NextRequest) {
   const snakeBody = transformBody(body);
 
   // Pass all query parameters to allow both ID and parent+name updates
-  return await fetch(`${baseUrl}/tile/${snakeQuery}`, {
+  const res = await fetch(`${baseUrl}/tile/${snakeQuery}`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -111,6 +132,12 @@ export async function PUT(request: NextRequest) {
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -128,13 +155,23 @@ export async function DELETE(request: NextRequest) {
   const snakeQuery = transformQueryParams(url);
 
   // Pass all query parameters to allow both ID and parent+name deletion
-  return await fetch(`${baseUrl}/tile/${snakeQuery}`, {
+  const res = await fetch(`${baseUrl}/tile/${snakeQuery}`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       accept: 'application/json',
     },
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -166,7 +203,7 @@ export async function PATCH(request: NextRequest) {
   const snakeBody = transformBody(body);
 
   // Pass all query parameters to allow both ID and parent+name updates
-  return await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
+  const res = await fetch(`${baseUrl}${endpoint}${snakeQuery}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -174,4 +211,10 @@ export async function PATCH(request: NextRequest) {
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }

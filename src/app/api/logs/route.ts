@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withCacheHeaders } from '../_utils/cacheResponse';
+import { buildCacheControl } from '../_utils/cacheResponse';
 import { transformQueryParams } from '../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
-import { camelToSnakeObject } from '@/utils/casing';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
@@ -51,8 +51,23 @@ export async function GET(request: NextRequest) {
         );
       }
     }
+
+    // Parse and transform response from snake_case to camelCase
+    const responseData = await res.json();
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    if (!res.ok) {
+      return NextResponse.json(camelCaseData, { status: res.status });
+    }
+
     // Cache logs for 30 seconds - data changes frequently
-    return withCacheHeaders(res, 'SHORT');
+    const cacheControl = buildCacheControl('SHORT');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (cacheControl) {
+      headers['Cache-Control'] = cacheControl;
+    }
+
+    return NextResponse.json(camelCaseData, { status: 200, headers });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';
@@ -119,7 +134,16 @@ export async function DELETE(request: NextRequest) {
         );
       }
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const text = await res.text();
+    if (!text) {
+      return NextResponse.json({ success: true }, { status: res.status });
+    }
+    const responseData = JSON.parse(text);
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';
@@ -186,7 +210,16 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const text = await res.text();
+    if (!text) {
+      return NextResponse.json({ success: true }, { status: res.status });
+    }
+    const responseData = JSON.parse(text);
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';
@@ -260,7 +293,16 @@ export async function PUT(request: NextRequest) {
         );
       }
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const text = await res.text();
+    if (!text) {
+      return NextResponse.json({ success: true }, { status: res.status });
+    }
+    const responseData = JSON.parse(text);
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';

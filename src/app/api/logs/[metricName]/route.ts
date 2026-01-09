@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { transformQueryParams } from '../../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
@@ -50,7 +51,12 @@ export async function GET(
         })
       );
     }
-    return res;
+
+    // Parse and transform response from snake_case to camelCase
+    const responseData = await res.json();
+    const camelCaseData = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseData, { status: res.status });
   } catch (e: any) {
     clearTimeout(ttl);
     const msg = e?.message || 'Request failed';

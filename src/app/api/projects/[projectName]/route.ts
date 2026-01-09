@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { transformBody } from '../../_utils/casingTransform';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL || 'http://localhost:8000'}/v0`;
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
     requestBody = JSON.stringify({ name: params.projectName });
   }
 
-  return await fetch(`${baseUrl}${endpoint}`, {
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -45,6 +46,16 @@ export async function POST(request: NextRequest, { params }: { params: { project
     },
     body: requestBody,
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function DELETE(
@@ -59,12 +70,22 @@ export async function DELETE(
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  return await fetch(`${baseUrl}/project/${params.projectName}`, {
+  const res = await fetch(`${baseUrl}/project/${params.projectName}`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const text = await res.text();
+  if (!text) {
+    return NextResponse.json({ success: true }, { status: res.status });
+  }
+  const responseData = JSON.parse(text);
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { projectName: string } }) {
@@ -79,7 +100,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { projec
   const bodyObj = await request.json();
   const snakeBody = transformBody(bodyObj);
 
-  return await fetch(`${baseUrl}/project/${params.projectName}`, {
+  const res = await fetch(`${baseUrl}/project/${params.projectName}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -88,4 +109,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { projec
     },
     body: JSON.stringify(snakeBody),
   });
+
+  // Parse and transform response from snake_case to camelCase
+  const responseData = await res.json();
+  const camelCaseData = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseData, { status: res.status });
 }

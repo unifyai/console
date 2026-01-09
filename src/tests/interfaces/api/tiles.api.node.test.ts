@@ -323,4 +323,39 @@ describe('@real Tiles API', () => {
       expect(apiError.isNotFound() || apiError.status >= 400).toBe(true);
     }
   });
+
+  it('@real returns camelCase response properties for tile list', realTestOptions, async () => {
+    const result = await tilesApi.list(testTabId);
+
+    expect(Array.isArray(result)).toBe(true);
+
+    // If there are tiles, check their properties are camelCase
+    if (result.length > 0) {
+      const tile = result[0];
+      // Should have camelCase keys
+      expect(tile).toHaveProperty('id');
+      expect(tile).toHaveProperty('name');
+      // Should NOT have snake_case keys
+      expect(tile).not.toHaveProperty('tab_id');
+      expect(tile).not.toHaveProperty('created_at');
+      expect(tile).not.toHaveProperty('updated_at');
+    }
+  });
+
+  it('@real returns camelCase response properties for tile create', realTestOptions, async () => {
+    const tileName = uniqueName('test-tile-casing');
+
+    const result = await tilesApi.create(testTabId, tileName, defaultPosition, {
+      type: 'Table',
+    });
+    createdTileIds.push(result.id);
+
+    // Should have camelCase keys
+    expect(result).toHaveProperty('id');
+    expect(result).toHaveProperty('name');
+    // Should NOT have snake_case keys
+    expect(result).not.toHaveProperty('tab_id');
+    expect(result).not.toHaveProperty('created_at');
+    expect(result).not.toHaveProperty('updated_at');
+  });
 });

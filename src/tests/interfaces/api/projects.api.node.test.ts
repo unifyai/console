@@ -124,4 +124,20 @@ describe('@real Projects API', () => {
     const listResult = await projectsApi.list();
     expect(listResult).toContain(projectName);
   });
+
+  it('@real returns camelCase response properties for project create', realTestOptions, async () => {
+    const projectName = uniqueName('test-project-casing');
+
+    const result = await projectsApi.create(projectName);
+    createdProjects.push(projectName);
+
+    // Should have camelCase keys (or no keys if just info)
+    expect(result).toBeDefined();
+    if (result.info) {
+      expect(result).toHaveProperty('info');
+    }
+    // Should NOT have snake_case keys
+    expect(result).not.toHaveProperty('created_at');
+    expect(result).not.toHaveProperty('project_id');
+  });
 });
