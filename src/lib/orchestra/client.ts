@@ -20,27 +20,22 @@ import type { paths } from './schema';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 
 /**
- * Middleware to transform request bodies from camelCase to snake_case
- * and response bodies from snake_case to camelCase.
+ * Custom body serializer that transforms camelCase to snake_case
+ * before JSON serialization.
  */
-const casingMiddleware: Middleware = {
-  async onRequest({ request, options }) {
-    // Transform request body from camelCase to snake_case
-    // Access body from the options object - the type might vary by openapi-fetch version
-    const bodyValue = (options as Record<string, unknown>).body;
-    if (bodyValue && typeof bodyValue === 'object') {
-      const transformed = camelToSnakeObject(bodyValue as Record<string, unknown>);
-      // Create new request with transformed body
-      const newRequest = new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: JSON.stringify(transformed),
-      });
-      return newRequest;
-    }
-    return request;
-  },
+function casingBodySerializer<T>(body: T): string {
+  if (body && typeof body === 'object') {
+    const transformed = camelToSnakeObject(body as Record<string, unknown>);
+    return JSON.stringify(transformed);
+  }
+  return JSON.stringify(body);
+}
 
+/**
+ * Middleware to transform response bodies from snake_case to camelCase.
+ * Request body transformation is handled by the bodySerializer.
+ */
+const responseMiddleware: Middleware = {
   async onResponse({ response }) {
     // Only transform JSON responses
     const contentType = response.headers.get('content-type');
@@ -89,9 +84,10 @@ export function createOrchestraClient(apiKey: string) {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
+    bodySerializer: casingBodySerializer,
   });
 
-  client.use(casingMiddleware);
+  client.use(responseMiddleware);
 
   return client;
 }
@@ -114,9 +110,10 @@ export function createOrchestraAdminClient() {
       Authorization: `Bearer ${adminKey}`,
       'Content-Type': 'application/json',
     },
+    bodySerializer: casingBodySerializer,
   });
 
-  client.use(casingMiddleware);
+  client.use(responseMiddleware);
 
   return client;
 }
