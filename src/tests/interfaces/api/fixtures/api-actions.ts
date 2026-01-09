@@ -807,8 +807,8 @@ export const endpointsApi = {
     const params = new URLSearchParams();
     if (model) params.append('model', model);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/providers${query}`;
-    const res = await orchestraFetch(endpoint);
+    const endpoint = `/api/endpoints/providers${query}`;
+    const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
@@ -816,8 +816,8 @@ export const endpointsApi = {
     const params = new URLSearchParams();
     if (provider) params.append('provider', provider);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/models${query}`;
-    const res = await orchestraFetch(endpoint);
+    const endpoint = `/api/endpoints/models${query}`;
+    const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
@@ -826,8 +826,8 @@ export const endpointsApi = {
     if (options?.provider) params.append('provider', options.provider);
     if (options?.model) params.append('model', options.model);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/endpoints${query}`;
-    const res = await orchestraFetch(endpoint);
+    const endpoint = `/api/endpoints/list${query}`;
+    const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 };

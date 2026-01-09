@@ -1,14 +1,14 @@
 /**
- * Real Orchestra API tests for Endpoints.
+ * Real API tests for Endpoints routes.
  *
- * These tests hit the actual Orchestra API to verify endpoint listing functionality.
- * Run with: npm run test:interfaces:api
+ * These tests hit the Next.js API routes to verify endpoint listing functionality.
+ * Run with: npm run test:interfaces:real
  */
 
 import { describe, it, expect } from 'vitest';
 import { endpointsApi, realTestOptions } from './fixtures/api-actions';
 
-describe('@real Endpoints API', () => {
+describe('@real Endpoints API Routes', () => {
   it('@real lists all providers', realTestOptions, async () => {
     const result = await endpointsApi.listProviders();
 
