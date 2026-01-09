@@ -43,12 +43,11 @@ function createMockLog(
   value: unknown,
   fieldType: 'entry' | 'param' | 'derived_entry' = 'entry'
 ): LogProps {
-  const key =
-    fieldType === 'derived_entry'
-      ? `${table}.derivedEntries`
-      : fieldType === 'param'
-        ? `${table}.params`
-        : `${table}.entries`;
+  const key = fieldType === 'derived_entry'
+    ? `${table}.derivedEntries`
+    : fieldType === 'param'
+      ? `${table}.params`
+      : `${table}.entries`;
 
   return {
     [key]: {
@@ -319,12 +318,7 @@ describe('inferDisplayType', () => {
       const fields = createMockFields(fieldName, 'Any', 'entry');
       // Create 10 logs - function should only sample first 5
       const logs = Array.from({ length: 10 }, (_, i) =>
-        createMockLog(
-          table,
-          fieldName,
-          `2024-01-${(i + 1).toString().padStart(2, '0')}T00:00:00Z`,
-          'entry'
-        )
+        createMockLog(table, fieldName, `2024-01-${(i + 1).toString().padStart(2, '0')}T00:00:00Z`, 'entry')
       );
       expect(inferDisplayType(fields, fieldName, logs, table)).toBe('timestamp');
     });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
 
@@ -26,11 +27,14 @@ export async function GET(request: NextRequest) {
       cache: 'no-store',
     });
 
-    const data = await response.json().catch(() => null);
+    const rawData = await response.json().catch(() => null);
     if (!response.ok) {
-      const detail = data?.detail || 'Failed to fetch assistants';
+      const detail = rawData?.detail || 'Failed to fetch assistants';
       return NextResponse.json({ detail }, { status: response.status });
     }
+
+    // Transform snake_case to camelCase
+    const data = snakeToCamelObject(rawData);
 
     const assistants = Array.isArray(data)
       ? data

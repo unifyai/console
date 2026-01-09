@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -19,13 +20,40 @@ export async function GET(request: NextRequest) {
     url.searchParams.set('list_all_org', listAllOrg);
   }
 
-  return await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
-    },
-  });
+  try {
+    const orchestraResponse = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        accept: 'application/json',
+      },
+    });
+
+    const responseText = await orchestraResponse.text();
+    let responseData;
+
+    try {
+      responseData = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      return NextResponse.json(
+        { detail: responseText || 'Invalid response from backend' },
+        { status: orchestraResponse.status }
+      );
+    }
+
+    if (!orchestraResponse.ok) {
+      return NextResponse.json(snakeToCamelObject(responseData), {
+        status: orchestraResponse.status,
+      });
+    }
+
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+    return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
+  } catch (error: any) {
+    console.error('[API /api/assistant GET] Error:', error.message);
+    return NextResponse.json({ detail: 'Failed to connect to backend API' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -39,6 +67,9 @@ export async function POST(request: NextRequest) {
 
   const requestBody = await request.json();
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   try {
     const orchestraResponse = await fetch(`${baseUrl}/assistant`, {
       method: 'POST',
@@ -47,7 +78,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const responseText = await orchestraResponse.text();
@@ -91,9 +122,9 @@ export async function POST(request: NextRequest) {
     console.log(
       `[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Successfully proxied. Returning to client action.`
     );
-    // The original code returned `orchestraResponse` directly, which is a stream.
-    // It should return NextResponse.json(responseData)
-    return NextResponse.json(responseData, { status: orchestraResponse.status });
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+    return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
   } catch (error: any) {
     // This catch is for fetch failing to connect to Orchestra
     console.error(

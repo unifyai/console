@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -34,12 +35,14 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       console.error(`Backend Error (video/upload - ${response.status}):`, responseData);
       return NextResponse.json(
-        { detail: responseData.detail || 'Failed to upload video via backend service' },
+        snakeToCamelObject({
+          detail: responseData.detail || 'Failed to upload video via backend service',
+        }),
         { status: response.status }
       );
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (video/upload):', error);
     return NextResponse.json(

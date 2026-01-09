@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
 import { buildCacheControl } from '../../../_utils/cacheResponse';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -28,6 +29,14 @@ export async function GET(
     });
     const body = await res.text();
 
+    // Parse and transform to camelCase
+    let data;
+    try {
+      data = body ? snakeToCamelObject(JSON.parse(body)) : {};
+    } catch {
+      data = { detail: body || 'Invalid response from backend' };
+    }
+
     // Build response with caching headers
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -41,7 +50,7 @@ export async function GET(
       }
     }
 
-    return new NextResponse(body, { status: res.status, headers });
+    return new NextResponse(JSON.stringify(data), { status: res.status, headers });
   } catch (e) {
     return NextResponse.json({ detail: 'Failed to fetch members' }, { status: 500 });
   }

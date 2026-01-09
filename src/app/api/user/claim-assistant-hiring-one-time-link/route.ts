@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: 'Missing required field: token' }, { status: 400 });
   }
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject({ token });
+
   try {
     const response = await fetch(`${baseUrl}/user/claim-assistant-hiring-one-time-link`, {
       method: 'POST',
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const responseData = await response.json().catch((e) => {
@@ -44,7 +48,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseData, { status: response.status });
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to Orchestra API (claim-assistant-hiring-one-time-link):', error);
     return NextResponse.json(

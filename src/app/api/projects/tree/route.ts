@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
 import { buildCacheControl } from '../../_utils/cacheResponse';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -22,6 +23,14 @@ export async function GET(request: NextRequest) {
     });
     const body = await res.text();
 
+    // Parse and transform to camelCase
+    let data;
+    try {
+      data = body ? snakeToCamelObject(JSON.parse(body)) : {};
+    } catch {
+      data = { detail: body || 'Invalid response from backend' };
+    }
+
     // Build response with caching headers (5 minutes - tree rarely changes)
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return new NextResponse(body, { status: res.status, headers });
+    return new NextResponse(JSON.stringify(data), { status: res.status, headers });
   } catch (e) {
     return NextResponse.json({ detail: 'Failed to fetch project tree' }, { status: 500 });
   }

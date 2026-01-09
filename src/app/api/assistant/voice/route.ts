@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -12,13 +13,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Unauthorized - no API key' }, { status: 401 });
   }
 
-  return await fetch(`${baseUrl}/assistant/voice`, {
+  const response = await fetch(`${baseUrl}/assistant/voice`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       accept: 'application/json',
     },
   });
+
+  const responseData = await response.json().catch(() => ({}));
+
+  // Transform snake_case response to camelCase for frontend
+  const camelCaseResponse = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseResponse, { status: response.status });
 }
 
 export async function POST(request: NextRequest) {
@@ -32,6 +40,9 @@ export async function POST(request: NextRequest) {
 
   const requestBody = await request.json();
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   try {
     const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/assistant/voice`, {
       method: 'POST',
@@ -40,11 +51,10 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(snakeCaseBody),
     });
 
-    const responseClone = response.clone();
-    const responseData = await responseClone.json().catch((e) => {
+    const responseData = await response.json().catch((e) => {
       console.error('Failed to parse JSON response from Unify API', e);
       return { error: 'Invalid JSON response from backend API', status: response.status };
     });
@@ -54,7 +64,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(responseData, { status: response.status });
     }
 
-    return response;
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(responseData);
+
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error('Error fetching Unify API in /api/assistant/voice POST:', error);
     return NextResponse.json(

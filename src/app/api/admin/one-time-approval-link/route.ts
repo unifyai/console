@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL;
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
 
   const { expiresInDays = 1 } = requestBody; // Default to 1 day
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject({ expiresInDays });
+
   const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link`;
 
   try {
@@ -27,11 +31,15 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ expiresInDays: expiresInDays }),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(data);
+
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error) {
     console.error('[API Admin One Time Link POST] Error proxying to Orchestra:', error);
     return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });
@@ -60,10 +68,11 @@ export async function GET(request: NextRequest) {
     });
 
     const data = await response.json();
-    // TODO: If backend returns userId, fetch user email to enrich the response
-    // This would require another call to an admin endpoint to get user details by ID
-    // For simplicity now, just pass through.
-    return NextResponse.json(data, { status: response.status });
+
+    // Transform snake_case response to camelCase for frontend
+    const camelCaseResponse = snakeToCamelObject(data);
+
+    return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error) {
     console.error('[API Admin One Time Link GET] Error proxying to Orchestra:', error);
     return NextResponse.json({ detail: 'Failed to connect to backend service' }, { status: 503 });

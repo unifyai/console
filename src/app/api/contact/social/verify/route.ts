@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 
@@ -28,13 +29,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const snakeCaseBody = camelToSnakeObject({ platform, accountIdentifier });
+
     const response = await fetch(`${COMMUNICATION_URL}/social/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ platform, accountIdentifier }),
+      body: JSON.stringify(snakeCaseBody),
     });
 
     const responseData = await response.json().catch(() => null);
@@ -45,12 +48,14 @@ export async function POST(request: NextRequest) {
         responseData
       );
       return NextResponse.json(
-        { detail: responseData?.detail || 'Unknown error from verification service' },
+        snakeToCamelObject({
+          detail: responseData?.detail || 'Unknown error from verification service',
+        }),
         { status: response.status }
       );
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
   } catch (error: any) {
     console.error(`[API /api/contact/social/verify POST] - Fetch error:`, error.message);
     return NextResponse.json(

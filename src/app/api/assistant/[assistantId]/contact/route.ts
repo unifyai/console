@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -23,6 +24,9 @@ export async function DELETE(
     return NextResponse.json({ detail: 'Invalid JSON body for contact deletion' }, { status: 400 });
   }
 
+  // Transform camelCase keys to snake_case for Orchestra API
+  const snakeCaseBody = camelToSnakeObject(requestBody);
+
   // Proxying to the backend. The backend endpoint is assumed to be DELETE /assistant/{id}/contact
   // This is a DELETE request with a body, which is supported by fetch and HTTP/1.1+.
   const orchestraResponse = await fetch(`${baseUrl}/assistant/${params.assistantId}/contact`, {
@@ -31,12 +35,15 @@ export async function DELETE(
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(snakeCaseBody),
   });
 
   const responseData = await orchestraResponse
     .json()
     .catch(() => ({ detail: 'Invalid JSON response from backend' }));
 
-  return NextResponse.json(responseData, { status: orchestraResponse.status });
+  // Transform snake_case response to camelCase for frontend
+  const camelCaseResponse = snakeToCamelObject(responseData);
+
+  return NextResponse.json(camelCaseResponse, { status: orchestraResponse.status });
 }

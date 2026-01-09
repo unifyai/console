@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -80,12 +81,24 @@ export async function GET(request: NextRequest) {
       fieldsPromise,
     ]);
 
+    // Transform each response body to camelCase
+    const transformedProjectsTree = Array.isArray(projectsTree.body)
+      ? snakeToCamelObject(projectsTree.body)
+      : [];
+    const transformedInterfaces = Array.isArray(interfaces.body)
+      ? snakeToCamelObject(interfaces.body)
+      : [];
+    const transformedContexts = Array.isArray(contexts.body)
+      ? snakeToCamelObject(contexts.body)
+      : [];
+    const transformedFields = Array.isArray(fields.body) ? snakeToCamelObject(fields.body) : [];
+
     const responseBody = {
       project,
-      projectsTree: Array.isArray(projectsTree.body) ? projectsTree.body : [],
-      interfaces: Array.isArray(interfaces.body) ? interfaces.body : [],
-      contexts: Array.isArray(contexts.body) ? contexts.body : [],
-      fields: Array.isArray(fields.body) ? fields.body : [],
+      projectsTree: transformedProjectsTree,
+      interfaces: transformedInterfaces,
+      contexts: transformedContexts,
+      fields: transformedFields,
       fetchedAt: new Date().toISOString(),
       statuses: {
         projectsTree: projectsTree.status,

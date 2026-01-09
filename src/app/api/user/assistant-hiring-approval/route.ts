@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -30,15 +31,17 @@ export async function POST(request: NextRequest) {
       return { detail: 'Invalid JSON response from backend API', status: response.status };
     });
 
+    const camelCaseData = snakeToCamelObject(responseData);
+
     if (!response.ok) {
       console.error(
         `Orchestra API Error (assistant-hiring-approval - ${response.status}):`,
         responseData
       );
-      return NextResponse.json(responseData, { status: response.status });
+      return NextResponse.json(camelCaseData, { status: response.status });
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(camelCaseData, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to Orchestra API (assistant-hiring-approval):', error);
     return NextResponse.json(

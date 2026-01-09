@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,16 +21,17 @@ export async function POST(request: NextRequest, { params }: { params: { predict
     );
 
     const responseData = await response.json();
+    const camelCaseData = snakeToCamelObject(responseData);
 
     if (!response.ok) {
       console.error(`Backend Error (photo/animate CANCEL - ${response.status}):`, responseData);
       return NextResponse.json(
-        { detail: responseData.detail || 'Failed to cancel animation' },
+        { detail: camelCaseData.detail || 'Failed to cancel animation' },
         { status: response.status }
       );
     }
 
-    return NextResponse.json(responseData, { status: response.status });
+    return NextResponse.json(camelCaseData, { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (photo/animate CANCEL):', error);
     return NextResponse.json(
