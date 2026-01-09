@@ -1,5 +1,19 @@
 import { ResponseProps } from './common';
 
+// Re-export OpenAPI-generated types for new code
+// These are auto-generated from Orchestra's OpenAPI spec
+export type {
+  Organization as ApiOrganization,
+  OrganizationMember as ApiOrganizationMember,
+  InviteResponse,
+  RoleResponse,
+} from './orchestra';
+
+/**
+ * Organization type used in the frontend.
+ * Note: Consider migrating to ApiOrganization from '@/types/orchestra' for type safety.
+ * This type includes frontend-specific fields (roleId, roleName, apiKey) not in the API.
+ */
 export interface Organization {
   id: number;
   name: string;
