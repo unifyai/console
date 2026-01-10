@@ -1,14 +1,5 @@
-import { OrchestraAdminClient } from '../orchestra/orchestra-client';
-
 /**
- * Retrieves the credit balance for a specific user.
- *
- * @param userID - The ID of the user whose credits are to be retrieved.
- * @returns The user's credit balance.
+ * @deprecated Import from '@/lib/orchestra/api/billing' instead
+ * This file re-exports from the consolidated location for backward compatibility.
  */
-export async function getUserCredits(userID: string) {
-  const response = await OrchestraAdminClient.get('/auth-user/credits', {
-    params: { id: userID },
-  });
-  return response.data;
-}
+export { getUserCredits } from '@/lib/orchestra/api/billing';

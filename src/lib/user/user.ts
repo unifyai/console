@@ -3,12 +3,64 @@
 import { getServerSession } from 'next-auth/next';
 import { cache } from 'react';
 import authOptions from '@/app/api/auth/[...nextauth]/options';
-import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { Storage } from '@google-cloud/storage';
 import { Session, User, UserUpdateRequest } from '@/types/user';
-import { ConstructionOutlined } from '@mui/icons-material';
 import { cookies, headers } from 'next/headers';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+
+// Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
+// but also available from '@/lib/orchestra/api/admin' for new code
+
+/**
+ * Retrieves a user by their ID.
+ * @param userId The ID of the user.
+ * @returns The user with the given ID.
+ */
+export async function getUserByID(userId: string) {
+  const response = (await OrchestraAdminClient.get('/auth-user/by-user-id', {
+    params: { userId: userId },
+  })) as { data: unknown };
+  return snakeToCamelObject<User>(response.data as Record<string, unknown>);
+}
+
+/**
+ * Retrieves a user by their email address.
+ *
+ * @param email - The email address of the user.
+ * @returns The user associated with the given email address.
+ */
+export async function getUserByEmail(email: string) {
+  const response = (await OrchestraAdminClient.get('/auth-user/by-email', {
+    params: { email },
+  })) as { data: unknown };
+  return snakeToCamelObject<User>(response.data as Record<string, unknown>);
+}
+
+/**
+ * Updates a user's information.
+ *
+ * @param updatedUser The data to update. Only the fields provided will be updated.
+ *
+ * @returns {Promise<User>} The updated user information.
+ */
+export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> {
+  const apiPayload = camelToSnakeObject(updatedUser);
+  const response = (await OrchestraAdminClient.put('/auth-user', apiPayload)) as { data: unknown };
+  return snakeToCamelObject<User>(response.data as Record<string, unknown>);
+}
+
+/**
+ * Deletes a user's account.
+ * @param userID The user's id.
+ * @returns The response message.
+ */
+export async function deleteUser(userID: string) {
+  const response = (await OrchestraAdminClient.delete('/auth-user', {
+    params: { userId: userID },
+  })) as { data: string };
+  return response.data;
+}
 
 /**
  * Retrieves the current user's session information.
@@ -31,31 +83,6 @@ export async function getSession() {
     const session = await getServerSession(authOptions);
     return session;
   }
-}
-
-/**
- * Retrieves a user by their ID.
- * @param id The ID of the user.
- * @returns The user with the given ID.
- */
-export async function getUserByID(userId: string) {
-  const response = (await OrchestraAdminClient.get('/auth-user/by-user-id', {
-    params: { userId: userId },
-  })) as { data: any };
-  return snakeToCamelObject<User>(response.data);
-}
-
-/**
- * Retrieves a user by their email address.
- *
- * @param email - The email address of the user.
- * @returns The user associated with the given email address.
- */
-export async function getUserByEmail(email: string) {
-  const response = (await OrchestraAdminClient.get('/auth-user/by-email', {
-    params: { email },
-  })) as { data: any };
-  return snakeToCamelObject<User>(response.data);
 }
 
 /**
@@ -155,42 +182,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
 
-  // Case B: No Cookie set, or Cookie ID was invalid (orphaned)
-  // if (!contextResolved) {
-  //   // Default to the first Organization if available
-  //   if (user.organizations && user.organizations.length > 0) {
-  //     user.apiKey = user.organizations[0].apiKey;
-  //   }
-  //   // Else: User has no organizations, default to personal (user.apiKey is unmodified)
-  // }
-
   return user;
-}
-
-/**
- * Updates a user's information.
- *
- * @param updatedUser The data to update. Only the fields provided will be updated.
- *
- * @returns {Promise<User>} The updated user information.
- */
-export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> {
-  // Transform camelCase to snake_case for API
-  const apiPayload = camelToSnakeObject(updatedUser);
-  const response = (await OrchestraAdminClient.put('/auth-user', apiPayload)) as { data: any };
-  return snakeToCamelObject<User>(response.data);
-}
-
-/**
- * Deletes a user's account.
- * @param userID The user's id.
- * @returns The response message.
- */
-export async function deleteUser(userID: string) {
-  const response = (await OrchestraAdminClient.delete('/auth-user', {
-    params: { userId: userID },
-  })) as { data: string };
-  return response.data;
 }
 
 /**

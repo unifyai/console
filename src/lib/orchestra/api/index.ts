@@ -5,13 +5,13 @@
  * Everything here bypasses Next.js API routes and calls Orchestra directly.
  *
  * Structure:
- * - user.ts       - User account, onboarding, business status (typed client)
+ * - user.ts         - User account, onboarding, business status, tax (typed client)
  * - organization.ts - Orgs, roles, teams, resource access (typed client)
- * - endpoints.ts  - Providers, models, endpoints (typed client)
- * - favourites.ts - User favourites (typed client)
- * - billing.ts    - Billing, credits, stripe (admin client - not in OpenAPI)
- * - logging.ts    - Metrics, queries, tags (legacy client - not in OpenAPI)
- * - admin.ts      - Admin-only operations (admin client - not in OpenAPI)
+ * - endpoints.ts    - Providers, models, endpoints (typed client)
+ * - favourites.ts   - User favourites (typed client)
+ * - billing.ts      - Billing, credits, recharges (admin client - not in OpenAPI)
+ * - logging.ts      - Metrics, queries, tags (user client - not in OpenAPI)
+ * - admin.ts        - User CRUD, API key regeneration (admin client - not in OpenAPI)
  */
 
 // Typed client exports (using OpenAPI generated types)
@@ -20,4 +20,7 @@ export * from './endpoints';
 export * from './favourites';
 export * from './organization';
 
-// Note: billing, logging, and admin will be added as we migrate them
+// Admin/legacy client exports (not in public OpenAPI spec)
+export * from './billing';
+export * from './logging';
+export * from './admin';
