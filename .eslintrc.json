@@ -55,8 +55,7 @@
   "overrides": [
     {
       "files": [
-        "src/lib/orchestra/schema.d.ts",
-        "src/lib/orchestra/client.ts",
+        "src/lib/orchestra/**/*.ts",
         "src/app/api/**/*.ts",
         "src/lib/user/**/*.ts",
         "src/lib/endpoints/**/*.ts",
