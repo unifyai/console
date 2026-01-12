@@ -55,7 +55,7 @@ jobs:
           ORCHESTRA_BRANCH=${{ github.ref_name == 'main' && 'main' || 'staging' }}
           git clone --depth 1 --branch $ORCHESTRA_BRANCH https://github.com/unifyai/orchestra.git orchestra
         env:
-          GH_TOKEN: ${{ secrets.ORCHESTRA_CLONE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CLONE_TOKEN }}
 
       - name: Install Orchestra dependencies
         run: |
