@@ -3,11 +3,19 @@ import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_uti
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
+  // Verify user is authenticated
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
+  }
+
+  // Admin endpoints require ORCHESTRA_ADMIN_KEY
+  if (!ORCHESTRA_ADMIN_KEY) {
+    console.error('[API /assistant/[id]/status] ORCHESTRA_ADMIN_KEY not configured');
+    return internalError('Server configuration error');
   }
 
   try {
@@ -16,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
           'Content-Type': 'application/json',
         },
         // Add a no-cache header to ensure we get the latest status

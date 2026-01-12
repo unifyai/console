@@ -172,6 +172,7 @@ jobs:
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           NEXT_PUBLIC_ORCHESTRA_URL: http://localhost:8000
+          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
 
       - name: Start Console
         run: |
@@ -182,6 +183,7 @@ jobs:
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           ORCHESTRA_URL: http://localhost:8000
+          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
 
       - name: Run API Tests
         run: npm run test:real -- --run
