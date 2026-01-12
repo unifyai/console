@@ -114,8 +114,19 @@ jobs:
             (104, 104, 12, NOW(), true),
             (107, 107, 36, NOW(), true)
           ON CONFLICT (id) DO NOTHING;
+
+          -- Seed test voices (required before assistants due to FK)
+          INSERT INTO voices (voice_id, user_id, provider, name, description, gender, language, is_preset) VALUES
+            ('test-voice-preset-001', 'test-user-001', 'cartesia', 'Test Voice Preset', 'A preset test voice for CI', 'female', 'en', true),
+            ('test-voice-custom-001', 'test-user-001', 'cartesia', 'Test Voice Custom', 'A custom test voice for CI delete tests', 'male', 'en', false)
+          ON CONFLICT (user_id, voice_id, provider) DO NOTHING;
+
+          -- Seed test assistant
+          INSERT INTO assistants (agent_id, user_id, first_name, surname, age, nationality, profile_photo, profile_video, about, phone_country, timezone, weekly_limit, voice_id, voice_provider, voice_mode, created_at, updated_at) VALUES
+            (1, 'test-user-001', 'Test', 'Assistant', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant for CI integration tests', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW())
+          ON CONFLICT (agent_id) DO NOTHING;
           "
-          echo "✓ Orchestra test data seeded"
+          echo "✓ Orchestra test data seeded (users, providers, models, endpoints, voices, assistants)"
 
       - name: Start Orchestra API
         run: |

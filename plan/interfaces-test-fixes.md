@@ -317,6 +317,40 @@ This wasn't what the failing tests were hitting (they test single interface fetc
 
 ---
 
+## Assistants API Tests - Seed Data Fix
+
+**Problem:** 19 Assistants real tests were failing because:
+
+1. No assistants/voices were seeded in CI (11 tests)
+2. External services (ElevenLabs, photo/video) not configured (8 tests)
+
+**Fix Applied:** Added seed data to `.github/workflows/tests-api.yml`:
+
+```sql
+-- Seed test voices (required before assistants due to FK)
+INSERT INTO voices (voice_id, user_id, provider, name, description, gender, language, is_preset) VALUES
+  ('test-voice-preset-001', 'test-user-001', 'cartesia', 'Test Voice Preset', ...),
+  ('test-voice-custom-001', 'test-user-001', 'cartesia', 'Test Voice Custom', ...);
+
+-- Seed test assistant
+INSERT INTO assistants (agent_id, user_id, first_name, surname, ...) VALUES
+  (1, 'test-user-001', 'Test', 'Assistant', ...);
+```
+
+**Tests fixed by seed data (11):**
+
+- All `getTestAssistant()` tests now find the seeded assistant
+- All `getTestVoice()` tests now find the seeded voices
+
+**Tests still failing (8)** - need external service credentials:
+
+- Voice design/clone → `ELEVENLABS_API_KEY`
+- Photo generate/edit → photo service credentials
+- Video animate/cancel → video service credentials
+- Voice TTS → provider credentials
+
+---
+
 ## Skipped Real Test: `useListInterfacesQuery`
 
 **File:** `src/tests/interfaces/integration/interfacesQueries.real.node.test.tsx`
