@@ -121,10 +121,14 @@ jobs:
             ('test-voice-custom-001', 'test-user-001', 'cartesia', 'Test Voice Custom', 'A custom test voice for CI delete tests', 'male', 'en', false)
           ON CONFLICT (user_id, voice_id, provider) DO NOTHING;
 
-          -- Seed test assistant
+          -- Seed test assistants (multiple so delete tests don't break other tests)
           INSERT INTO assistants (agent_id, user_id, first_name, surname, age, nationality, profile_photo, profile_video, about, phone_country, timezone, weekly_limit, voice_id, voice_provider, voice_mode, created_at, updated_at) VALUES
-            (1, 'test-user-001', 'Test', 'Assistant', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant for CI integration tests', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW())
+            (1001, 'test-user-001', 'Test', 'Assistant', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant for CI integration tests', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW()),
+            (1002, 'test-user-001', 'Test', 'Deletable', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant that can be deleted', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW())
           ON CONFLICT (agent_id) DO NOTHING;
+
+          -- Update sequence to avoid conflicts when creating new assistants
+          SELECT setval('assistants_agent_id_seq', (SELECT COALESCE(MAX(agent_id), 0) + 1 FROM assistants), false);
           "
           echo "✓ Orchestra test data seeded (users, providers, models, endpoints, voices, assistants)"
 
