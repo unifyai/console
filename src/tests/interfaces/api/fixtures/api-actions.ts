@@ -47,9 +47,9 @@ export async function isServerReachable(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(BASE_URL, { 
+    const response = await fetch(BASE_URL, {
       method: 'HEAD',
-      signal: controller.signal 
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response.ok || response.status === 307; // 307 is redirect to login
@@ -67,7 +67,7 @@ export async function skipIfServerNotReachable(): Promise<void> {
   if (!reachable) {
     throw new Error(
       `Server at ${BASE_URL} is not reachable. ` +
-      'Start the dev server with `npm run dev` before running @real tests.'
+        'Start the dev server with `npm run dev` before running @real tests.'
     );
   }
 }
@@ -109,10 +109,7 @@ export class TimeoutError extends Error {
 /**
  * Helper to make authenticated fetch requests
  */
-async function apiFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
+async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const apiKey = getTestApiKey();
   const url = `${BASE_URL}${endpoint}`;
 
@@ -148,8 +145,7 @@ function safeJsonParse(text: string, url: string): Record<string, unknown> {
     return text ? JSON.parse(text) : {};
   } catch {
     throw new Error(
-      `Invalid JSON response from ${url}. ` +
-        `Response started with: ${text.slice(0, 100)}...`
+      `Invalid JSON response from ${url}. ` + `Response started with: ${text.slice(0, 100)}...`
     );
   }
 }
@@ -157,10 +153,7 @@ function safeJsonParse(text: string, url: string): Record<string, unknown> {
 /**
  * Parse response with proper error handling
  */
-async function parseResponse<T>(
-  res: Response,
-  url: string = 'unknown'
-): Promise<T> {
+async function parseResponse<T>(res: Response, url: string = 'unknown'): Promise<T> {
   const text = await res.text();
   const body = safeJsonParse(text, url);
 
@@ -289,10 +282,7 @@ export const projectsApi = {
     return parseResponse<CreateResponse>(res, endpoint);
   },
 
-  async update(
-    name: string,
-    data: { icon?: string; name?: string }
-  ): Promise<{ info?: string }> {
+  async update(name: string, data: { icon?: string; name?: string }): Promise<{ info?: string }> {
     // Use /api/projects/[name] route which accepts apiKey header
     const endpoint = `/api/projects/${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
@@ -342,11 +332,7 @@ export const interfacesApi = {
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    project: string,
-    name: string,
-    color?: string
-  ): Promise<InterfaceData> {
+  async create(project: string, name: string, color?: string): Promise<InterfaceData> {
     const endpoint = '/api/interface';
     const res = await apiFetch(endpoint, {
       method: 'POST',
@@ -356,10 +342,7 @@ export const interfacesApi = {
     return parseResponse(res, endpoint);
   },
 
-  async updateById(
-    interfaceId: string,
-    data: Partial<InterfaceData>
-  ): Promise<InterfaceData> {
+  async updateById(interfaceId: string, data: Partial<InterfaceData>): Promise<InterfaceData> {
     const endpoint = `/api/interface?interface_id=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
@@ -393,10 +376,7 @@ export const interfacesApi = {
     return parseOptionalResponse(res, endpoint);
   },
 
-  async createCheckpoint(
-    interfaceId: string,
-    description: string
-  ): Promise<CheckpointResponse> {
+  async createCheckpoint(interfaceId: string, description: string): Promise<CheckpointResponse> {
     const endpoint = `/api/interface/checkpoint?interface_id=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
@@ -457,11 +437,7 @@ export const tabsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    interfaceId: string,
-    name: string,
-    data: Partial<TabData> = {}
-  ): Promise<TabData> {
+  async create(interfaceId: string, name: string, data: Partial<TabData> = {}): Promise<TabData> {
     const endpoint = '/api/tab';
     const res = await apiFetch(endpoint, {
       method: 'POST',
@@ -480,11 +456,7 @@ export const tabsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async updateByName(
-    interfaceId: string,
-    name: string,
-    data: Partial<TabData>
-  ): Promise<TabData> {
+  async updateByName(interfaceId: string, name: string, data: Partial<TabData>): Promise<TabData> {
     const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
@@ -508,10 +480,7 @@ export const tabsApi = {
     return parseOptionalResponse(res, endpoint);
   },
 
-  async deleteByName(
-    interfaceId: string,
-    name: string
-  ): Promise<DeleteResponse> {
+  async deleteByName(interfaceId: string, name: string): Promise<DeleteResponse> {
     const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
@@ -596,11 +565,7 @@ export const tilesApi = {
     return parseResponse(res, endpoint);
   },
 
-  async updateByName(
-    tabId: string,
-    name: string,
-    data: Partial<TileData>
-  ): Promise<TileData> {
+  async updateByName(tabId: string, name: string, data: Partial<TileData>): Promise<TileData> {
     const endpoint = `/api/tile?tab_id=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
@@ -697,10 +662,7 @@ export const logsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async getLatestTimestamp(
-    project: string,
-    context?: string
-  ): Promise<{ timestamp?: string }> {
+  async getLatestTimestamp(project: string, context?: string): Promise<{ timestamp?: string }> {
     const params = new URLSearchParams({ project_name: project });
     if (context) params.set('context', context);
 
@@ -758,16 +720,16 @@ export const logsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async delete(
-    project: string,
-    context: string | null,
-    ids: number[]
-  ): Promise<DeleteResponse> {
+  async delete(project: string, context: string | null, ids: number[]): Promise<DeleteResponse> {
     const endpoint = '/api/logs';
     const res = await apiFetch(endpoint, {
       method: 'DELETE',
       // Orchestra expects ids_and_fields as a list of [id, field] tuples or just ids
-      body: JSON.stringify({ project_name: project, context, ids_and_fields: ids.map(id => [id, null]) }),
+      body: JSON.stringify({
+        project_name: project,
+        context,
+        ids_and_fields: ids.map((id) => [id, null]),
+      }),
     });
     return parseResponse(res, endpoint);
   },
@@ -784,11 +746,7 @@ export const contextsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    project: string,
-    name: string,
-    description?: string
-  ): Promise<{ info?: string }> {
+  async create(project: string, name: string, description?: string): Promise<{ info?: string }> {
     const endpoint = `/api/context/${encodeURIComponent(project)}`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
@@ -816,10 +774,7 @@ const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 /**
  * Helper to make authenticated fetch requests directly to Orchestra
  */
-async function orchestraFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
+async function orchestraFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const apiKey = getTestApiKey();
   const url = `${ORCHESTRA_URL}/v0${endpoint}`;
 
@@ -866,119 +821,13 @@ export const endpointsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async listEndpoints(options?: {
-    provider?: string;
-    model?: string;
-  }): Promise<string[]> {
+  async listEndpoints(options?: { provider?: string; model?: string }): Promise<string[]> {
     const params = new URLSearchParams();
     if (options?.provider) params.append('provider', options.provider);
     if (options?.model) params.append('model', options.model);
     const query = params.toString() ? `?${params.toString()}` : '';
     const endpoint = `/endpoints${query}`;
     const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
-// Custom Keys API Actions
-// ============================================
-
-interface CustomKeyResponse {
-  name: string;
-  value: string;
-}
-
-export const customKeysApi = {
-  async list(): Promise<CustomKeyResponse[]> {
-    const endpoint = '/api/customKeys/list';
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async get(name: string): Promise<CustomKeyResponse> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async create(name: string, value: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, value });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async delete(name: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'DELETE',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async rename(name: string, newName: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, new_name: newName });
-    const endpoint = `/api/customKeys/rename?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
-// Custom Endpoints API Actions
-// ============================================
-
-interface CustomEndpointResponse {
-  name: string;
-  model_arg: string;
-  url: string;
-  key: string;
-}
-
-export const customEndpointsApi = {
-  async list(): Promise<CustomEndpointResponse[]> {
-    const endpoint = '/api/customEndpoints/list';
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async create(
-    name: string,
-    url: string,
-    keyName: string,
-    modelArg?: string
-  ): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, url, key_name: keyName });
-    if (modelArg) params.append('model_arg', modelArg);
-    const endpoint = `/api/customEndpoints?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async delete(name: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customEndpoints?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'DELETE',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async rename(name: string, newName: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, new_name: newName });
-    const endpoint = `/api/customEndpoints/rename?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
     return parseResponse(res, endpoint);
   },
 };
