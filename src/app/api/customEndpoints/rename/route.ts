@@ -1,3 +1,9 @@
+/**
+ * ⚠️ DEPRECATED: Orchestra removed custom endpoints functionality
+ * - Orchestra commit 52d29237 (Jan 7, 2026): "removed custom endpoints and api keys"
+ * - Deleted Orchestra endpoint: /v0/custom_endpoint/rename
+ * - These routes will return 404 from Orchestra until the functionality is restored
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { transformQueryParams } from '../../_utils/casingTransform';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';

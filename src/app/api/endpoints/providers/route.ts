@@ -1,3 +1,9 @@
+/**
+ * ⚠️ DEPRECATED: Orchestra removed provider listing endpoints
+ * - Orchestra commit 9318f256: "removed admin provider endpoints, endpoint_metrics..."
+ * - Deleted Orchestra endpoint: /v0/providers
+ * - These routes will return 404 from Orchestra until the functionality is restored
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';

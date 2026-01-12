@@ -767,6 +767,10 @@ export const contextsApi = {
 
 // ============================================
 // Endpoints API Actions (calls Orchestra directly)
+// ⚠️ DEPRECATED: Orchestra removed these endpoints
+// - Commit 9318f256: "removed admin provider endpoints, endpoint_metrics..."
+// - Commit 2f638213: "removed the universal api related endpoints"
+// - /v0/providers, /v0/models, /v0/endpoints no longer exist
 // ============================================
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
@@ -802,6 +806,10 @@ async function orchestraFetch(endpoint: string, options: RequestInit = {}): Prom
   }
 }
 
+/**
+ * ⚠️ DEPRECATED: Orchestra removed these endpoints
+ * These methods will fail with 404 until Orchestra restores the functionality
+ */
 export const endpointsApi = {
   async listProviders(model?: string): Promise<string[]> {
     const params = new URLSearchParams();
@@ -834,6 +842,9 @@ export const endpointsApi = {
 
 // ============================================
 // Custom Keys API Actions
+// ⚠️ DEPRECATED: Orchestra removed custom API keys endpoints
+// - Commit 52d29237 (Jan 7, 2026): "removed custom endpoints and api keys"
+// - /v0/custom_api_key/* endpoints no longer exist
 // ============================================
 
 interface CustomKeyResponse {
@@ -841,6 +852,10 @@ interface CustomKeyResponse {
   value: string;
 }
 
+/**
+ * ⚠️ DEPRECATED: Orchestra removed these endpoints
+ * These methods will fail with 404 until Orchestra restores the functionality
+ */
 export const customKeysApi = {
   async list(): Promise<CustomKeyResponse[]> {
     const endpoint = '/api/customKeys/list';
@@ -885,6 +900,9 @@ export const customKeysApi = {
 
 // ============================================
 // Custom Endpoints API Actions
+// ⚠️ DEPRECATED: Orchestra removed custom endpoints functionality
+// - Commit 52d29237 (Jan 7, 2026): "removed custom endpoints and api keys"
+// - /v0/custom_endpoint/* endpoints no longer exist
 // ============================================
 
 interface CustomEndpointResponse {
@@ -894,6 +912,10 @@ interface CustomEndpointResponse {
   key: string;
 }
 
+/**
+ * ⚠️ DEPRECATED: Orchestra removed these endpoints
+ * These methods will fail with 404 until Orchestra restores the functionality
+ */
 export const customEndpointsApi = {
   async list(): Promise<CustomEndpointResponse[]> {
     const endpoint = '/api/customEndpoints/list';

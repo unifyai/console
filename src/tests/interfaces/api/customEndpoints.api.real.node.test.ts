@@ -4,6 +4,11 @@
  * These tests hit the actual Orchestra API to verify custom endpoint CRUD operations.
  * Note: Custom endpoints require a custom API key to be created first.
  * Run with: npm run test:interfaces:api
+ *
+ * ⚠️ SKIPPED: Orchestra removed custom endpoints in commit 52d29237 (Jan 7, 2026)
+ * - Deleted: /v0/custom_endpoint/* endpoints
+ * - See: orchestra commit "removed custom endpoints and api keys"
+ * - Console routes /api/customEndpoints/* will return 404 until Orchestra restores this functionality
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -17,7 +22,7 @@ import {
   realTestOptionsExtended,
 } from './fixtures/api-actions';
 
-describe('@real Custom Endpoints API', () => {
+describe.skip('@real Custom Endpoints API - SKIPPED: Orchestra endpoints removed', () => {
   // Track resources for cleanup
   const createdEndpoints: string[] = [];
   let testKeyName: string;

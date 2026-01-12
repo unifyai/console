@@ -3,6 +3,11 @@
  *
  * These tests hit the actual Orchestra API to verify custom API key CRUD operations.
  * Run with: npm run test:interfaces:api
+ *
+ * ⚠️ SKIPPED: Orchestra removed custom API keys endpoints in commit 52d29237 (Jan 7, 2026)
+ * - Deleted: /v0/custom_api_key/* endpoints
+ * - See: orchestra commit "removed custom endpoints and api keys"
+ * - Console routes /api/customKeys/* will return 404 until Orchestra restores this functionality
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
@@ -14,7 +19,7 @@ import {
   realTestOptions,
 } from './fixtures/api-actions';
 
-describe('@real Custom Keys API', () => {
+describe.skip('@real Custom Keys API - SKIPPED: Orchestra endpoints removed', () => {
   // Track resources for cleanup
   const createdKeys: string[] = [];
 

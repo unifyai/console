@@ -795,6 +795,7 @@ describe('Cross-Table Plotting', () => {
     };
 
     const setupCrossTableMocks = () => {
+      mockFetch.mockReset();
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -871,10 +872,32 @@ describe('Cross-Table Plotting', () => {
     it('handles cross-table plotting with Bar Chart type', async () => {
       const meta = {
         scenario: 'Bar chart with X from TableA, Y from TableB',
-        behavior: 'Data is merged and can be aggregated for bar chart',
+        behavior: 'Bar charts use pre-aggregated data from metrics endpoint',
       };
 
-      setupCrossTableMocks();
+      // Bar charts call /api/logs/mean for pre-aggregated data.
+      // Mock the metrics endpoint to return proper aggregated data format.
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            // Metrics response format: array of {group_values, metric_value} objects
+            metrics: [
+              { group_values: ['a'], mean: 10 },
+              { group_values: ['b'], mean: 20 },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            metrics: [
+              { group_values: ['a'], mean: 100 },
+              { group_values: ['b'], mean: 200 },
+            ],
+          }),
+        });
 
       const plotTile: TileData = {
         id: 'plot-bar',
@@ -907,7 +930,9 @@ describe('Cross-Table Plotting', () => {
         dummyLogsActions
       );
 
-      expect(result.plotLogs).toHaveLength(2);
+      // Bar charts use preAggregatedBarData instead of plotLogs
+      // The result should have preAggregatedBarData from the metrics endpoint
+      expect(result.preAggregatedBarData).toBeDefined();
     });
 
     it('handles cross-table plotting with Histogram (X axis only)', async () => {

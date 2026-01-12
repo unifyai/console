@@ -3,12 +3,18 @@
  *
  * These tests hit the Next.js API routes to verify endpoint listing functionality.
  * Run with: npm run test:interfaces:real
+ *
+ * ⚠️ SKIPPED: Orchestra removed provider/model/endpoint listing endpoints
+ * - Commit 9318f256: "removed admin provider endpoints, endpoint_metrics..."
+ * - Commit 2f638213: "removed the universal api related endpoints" (Jan 9, 2026)
+ * - Deleted: /v0/providers, /v0/models, /v0/endpoints
+ * - Console routes /api/endpoints/* will return 404 until Orchestra restores this functionality
  */
 
 import { describe, it, expect } from 'vitest';
 import { endpointsApi, realTestOptions } from './fixtures/api-actions';
 
-describe('@real Endpoints API Routes', () => {
+describe.skip('@real Endpoints API Routes - SKIPPED: Orchestra endpoints removed', () => {
   it('@real lists all providers', realTestOptions, async () => {
     const result = await endpointsApi.listProviders();
 

@@ -1,3 +1,9 @@
+/**
+ * ⚠️ DEPRECATED: Orchestra removed universal API endpoints
+ * - Orchestra commit 2f638213 (Jan 9, 2026): "removed the universal api related endpoints"
+ * - Deleted Orchestra endpoint: /v0/endpoints
+ * - These routes will return 404 from Orchestra until the functionality is restored
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';

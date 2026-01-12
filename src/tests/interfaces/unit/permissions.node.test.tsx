@@ -4,9 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useProjectPermissions } from '@/contexts/hooks/interface/useProjectPermissions';
 
-// Mock fetch for teams/members queries
-global.fetch = vi.fn();
-
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -34,7 +31,7 @@ const createMockOptions = (
 ) => {
   const {
     projectData = null,
-    accessData = { access_entries: [] },
+    accessData = { accessEntries: [] },
     rolesData = [],
     userId = 'user-123',
     selectedProject = 'test-project',
@@ -52,8 +49,8 @@ const createMockOptions = (
 describe('useProjectPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock fetch for teams/members API calls
-    (global.fetch as any).mockResolvedValue({
+    // Mock fetch for teams/members API calls - create fresh mock each time
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
     });
@@ -94,15 +91,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 2,
             roleName: 'Viewer',
-            grantee_type: 'user',
-            grantee_id: 'user-123',
+            granteeType: 'user',
+            granteeId: 'user-123',
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -112,13 +109,13 @@ describe('useProjectPermissions', () => {
           id: 2,
           name: 'Viewer',
           description: 'Read-only access',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -150,15 +147,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 3,
             roleName: 'Admin',
-            grantee_type: 'user',
-            grantee_id: 'user-123',
+            granteeType: 'user',
+            granteeId: 'user-123',
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -168,27 +165,27 @@ describe('useProjectPermissions', () => {
           id: 3,
           name: 'Admin',
           description: 'Admin access',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 2,
               name: 'project:write',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'write',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 3,
               name: 'project:delete',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'delete',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -244,15 +241,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 1,
             roleName: 'Owner',
-            grantee_type: 'user',
-            grantee_id: 'user-123',
+            granteeType: 'user',
+            granteeId: 'user-123',
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -262,27 +259,27 @@ describe('useProjectPermissions', () => {
           id: 1,
           name: 'Owner',
           description: 'Full access',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 2,
               name: 'project:write',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'write',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 3,
               name: 'project:delete',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'delete',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -314,15 +311,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 2,
             roleName: 'Viewer',
-            grantee_type: 'user',
-            grantee_id: 'different-user', // Different user
+            granteeType: 'user',
+            granteeId: 'different-user', // Different user
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -331,13 +328,13 @@ describe('useProjectPermissions', () => {
         {
           id: 2,
           name: 'Viewer',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -369,15 +366,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 4,
             roleName: 'Editor',
-            grantee_type: 'user',
-            grantee_id: 'user-123',
+            granteeType: 'user',
+            granteeId: 'user-123',
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -387,20 +384,20 @@ describe('useProjectPermissions', () => {
           id: 4,
           name: 'Editor',
           description: 'Can edit but not delete',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 2,
               name: 'project:write',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'write',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -445,23 +442,23 @@ describe('useProjectPermissions', () => {
     const accessEntries = [
       {
         id: 1,
-        resource_type: 'project',
-        resource_id: 1,
+        resourceType: 'project',
+        resourceId: 1,
         roleId: 1,
         roleName: 'Owner',
-        grantee_type: 'user',
-        grantee_id: 'user-123',
+        granteeType: 'user',
+        granteeId: 'user-123',
         granteeName: 'user@example.com',
         createdAt: '2024-01-01T00:00:00Z',
       },
       {
         id: 2,
-        resource_type: 'project',
-        resource_id: 1,
+        resourceType: 'project',
+        resourceId: 1,
         roleId: 2,
         roleName: 'Viewer',
-        grantee_type: 'team',
-        grantee_id: 'team-456',
+        granteeType: 'team',
+        granteeId: 'team-456',
         granteeName: 'Engineering Team',
         createdAt: '2024-01-01T00:00:00Z',
       },
@@ -475,33 +472,33 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: accessEntries,
+        accessEntries: accessEntries,
       },
       rolesData: [
         {
           id: 1,
           name: 'Owner',
-          is_system_role: true,
+          isSystemRole: true,
           createdAt: '2024-01-01T00:00:00Z',
           permissions: [
             {
               id: 1,
               name: 'project:read',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'read',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 2,
               name: 'project:write',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'write',
               createdAt: '2024-01-01T00:00:00Z',
             },
             {
               id: 3,
               name: 'project:delete',
-              resource_type: 'project',
+              resourceType: 'project',
               action: 'delete',
               createdAt: '2024-01-01T00:00:00Z',
             },
@@ -528,21 +525,21 @@ describe('useProjectPermissions', () => {
       {
         id: 1,
         name: 'Owner',
-        is_system_role: true,
+        isSystemRole: true,
         createdAt: '2024-01-01T00:00:00Z',
         permissions: [],
       },
       {
         id: 2,
         name: 'Viewer',
-        is_system_role: true,
+        isSystemRole: true,
         createdAt: '2024-01-01T00:00:00Z',
         permissions: [],
       },
       {
         id: 3,
         name: 'Editor',
-        is_system_role: true,
+        isSystemRole: true,
         createdAt: '2024-01-01T00:00:00Z',
         permissions: [],
       },
@@ -556,15 +553,15 @@ describe('useProjectPermissions', () => {
         organizationId: 100,
       },
       accessData: {
-        access_entries: [
+        accessEntries: [
           {
             id: 1,
-            resource_type: 'project',
-            resource_id: 1,
+            resourceType: 'project',
+            resourceId: 1,
             roleId: 1,
             roleName: 'Owner',
-            grantee_type: 'user',
-            grantee_id: 'user-123',
+            granteeType: 'user',
+            granteeId: 'user-123',
             createdAt: '2024-01-01T00:00:00Z',
           },
         ],
@@ -592,7 +589,7 @@ describe('useProjectPermissions', () => {
         userId: 'other-user',
         organizationId: 100,
       },
-      accessData: { access_entries: [] },
+      accessData: { accessEntries: [] },
       rolesData: [],
     });
 
@@ -652,7 +649,7 @@ describe('useProjectPermissions', () => {
         userId: 'other-user',
         organizationId: 100,
       },
-      accessData: { access_entries: [] },
+      accessData: { accessEntries: [] },
       rolesData: [],
     });
 
