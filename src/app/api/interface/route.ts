@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   const interfaceId = searchParams.get('interfaceId');
   const projectName = searchParams.get('projectName');
   const name = searchParams.get('name');
+  const checkpoint = searchParams.get('checkpoint') === 'true';
 
   try {
     const startedAt = Date.now();
@@ -58,7 +59,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data, { status: 200, headers });
     } else {
       // Get specific interface by ID or by project name + name
-      const { data, error, response } = await client.GET('/v0/interfaces/', {
+      // Use checkpoint endpoint if checkpoint=true
+      const endpoint = checkpoint ? '/v0/interfaces/checkpoint' : '/v0/interfaces/';
+      const { data, error, response } = await client.GET(endpoint, {
         params: {
           query: {
             interface_id: interfaceId || undefined,
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
           JSON.stringify({
             route: '/api/interface',
             method: 'GET',
-            endpoint: '/v0/interfaces/',
+            endpoint,
             status: response.status,
             latencyMs: Date.now() - startedAt,
             correlationId,
@@ -84,6 +87,8 @@ export async function GET(request: NextRequest) {
       if (error) {
         return NextResponse.json(error, { status: response.status });
       }
+
+      // Note: Orchestra already returns isCheckpoint (transformed from is_checkpoint) in the response
 
       const cacheControl = buildCacheControl('MEDIUM');
       const headers: HeadersInit = { 'Content-Type': 'application/json' };

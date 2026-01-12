@@ -18,6 +18,7 @@ import {
 
 // Test configuration
 const TEST_API_KEY = process.env.VITE_TEST_API_KEY || '';
+const TEST_HEADERS = { apiKey: TEST_API_KEY };
 
 describe('@real Infinite Logs Pagination (Real API)', () => {
   let testProjectName: string;
@@ -90,6 +91,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
       groupLimit: 5,
       groupOffset: 0,
       logsActions,
+      headers: TEST_HEADERS,
     };
 
     const result = await fetchLogsCore(params);
@@ -131,6 +133,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
       groupLimit: 5,
       groupOffset: 0,
       logsActions,
+      headers: TEST_HEADERS,
     };
 
     const firstPage = await fetchLogsCore(firstPageParams);
@@ -187,6 +190,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
       groupLimit: 10,
       groupOffset: 0,
       logsActions,
+      headers: TEST_HEADERS,
     };
 
     const result = await fetchLogsCore(params);
@@ -222,6 +226,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
       groupLimit: 3,
       groupOffset: 0,
       logsActions,
+      headers: TEST_HEADERS,
     };
 
     const firstResult = await fetchLogsCore(firstParams);

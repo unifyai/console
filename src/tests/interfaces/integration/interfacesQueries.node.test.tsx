@@ -65,9 +65,8 @@ describe('Interfaces query hooks (integration-style)', () => {
       return createMockResponse({}, 404);
     });
 
-    const actions = {
-      list: vi.fn(), // Not used - hook uses direct fetch
-    } as unknown as GranularInterfaceActions;
+    // Don't provide list action - hook will use direct fetch which we mock
+    const actions = {} as unknown as GranularInterfaceActions;
 
     const { result, rerender } = renderHook(
       ({ projectId }) => useListInterfacesQuery(projectId, actions),

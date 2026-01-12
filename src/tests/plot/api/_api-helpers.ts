@@ -597,7 +597,7 @@ export function assertMetadataCorrectness(
   if (expectedProjectName) {
     expect(metadata.projectName).toBe(expectedProjectName);
   }
-  expect(metadata.created_at).toBeDefined();
+  expect(metadata.createdAt).toBeDefined();
   expect(metadata.token).toBeDefined();
   expect(typeof metadata.token).toBe('string');
   expect((metadata.token as string).length).toBeGreaterThan(0);

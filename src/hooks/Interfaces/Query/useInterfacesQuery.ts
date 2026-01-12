@@ -19,7 +19,9 @@ export function useListInterfacesQuery(
     queryKey: ['interfaces', projectId],
     queryFn: async ({ signal, queryKey, meta }) => {
       if (!projectId) return [];
-      // Prefer API route on the client to avoid server action round-trips (RSC fetches)
+
+      // Use dedupedJson for request deduplication and ETag caching
+      // Note: actions.list is intentionally NOT used here - see optimisations-devlog.md
       const headers: HeadersInit = {};
       const et = eTagByProject.get(projectId);
       if (et) (headers as any)['If-None-Match'] = et;

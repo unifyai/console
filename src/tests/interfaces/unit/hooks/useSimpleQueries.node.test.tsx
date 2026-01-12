@@ -50,9 +50,8 @@ describe('Simple Query Hooks', () => {
         json: async () => mockInterfaces,
       });
 
-      const actions = {
-        list: vi.fn(), // Not used by implementation anymore
-      } as unknown as GranularInterfaceActions;
+      // Don't provide list action - hook will use direct fetch which we mock
+      const actions = {} as unknown as GranularInterfaceActions;
 
       const { result } = renderHook(() => useListInterfacesQuery('p1', actions), {
         wrapper: createQueryWrapper(),
