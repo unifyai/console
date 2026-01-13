@@ -10,8 +10,6 @@ import {
   GranularInterfaceActions,
   GranularTabActions,
   GranularTileActions,
-  FileActions,
-  CodeActions,
   LogsActions,
   ContextActions,
   Favourite,
@@ -45,10 +43,8 @@ const ProjectButtons = ({
   interfaceActions,
   tabActions,
   tileActions,
-  fileActions,
   logsActions,
   contextActions,
-  codeActions,
   favouritesActions,
   initialFavourites,
 }: {
@@ -63,10 +59,8 @@ const ProjectButtons = ({
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
-  fileActions: FileActions;
   logsActions: LogsActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
   favouritesActions: FavouritesActions;
   initialFavourites: Favourite[];
 }) => {
@@ -159,10 +153,8 @@ const ProjectButtons = ({
     interfaceActions,
     tabActions,
     tileActions,
-    fileActions,
     logsActions,
     contextActions,
-    codeActions,
   });
 
   const {

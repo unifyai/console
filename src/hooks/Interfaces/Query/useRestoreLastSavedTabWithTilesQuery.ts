@@ -212,8 +212,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 tableTile: checkpointedTile.tableTile,
                 plotTile: checkpointedTile.plotTile,
                 viewTile: checkpointedTile.viewTile,
-                editorTile: checkpointedTile.editorTile,
-                terminalTile: checkpointedTile.terminalTile,
               });
               restoredTiles++;
             } else {
@@ -240,8 +238,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                   tableTile: checkpointedTile.tableTile,
                   plotTile: checkpointedTile.plotTile,
                   viewTile: checkpointedTile.viewTile,
-                  editorTile: checkpointedTile.editorTile,
-                  terminalTile: checkpointedTile.terminalTile,
                 },
                 undefined,
                 checkpointedTile.type

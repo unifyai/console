@@ -2,22 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/utils/misc/cn';
-import {
-  User,
-  CreditCard,
-  Key,
-  LogOut,
-  ExternalLink,
-  Bot,
-  LayoutGrid,
-  BookOpen,
-  Check,
-  Building2,
-  Building,
-  AlertTriangle,
-} from 'lucide-react';
+import { User, CreditCard, LogOut, Check, Building2, Building, AlertTriangle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
 import {
@@ -52,7 +39,6 @@ import { UserOrganization } from '@/types/user';
 
 export default function TopNav() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileName, setProfileName] = useState('Profile');
@@ -157,33 +143,6 @@ export default function TopNav() {
             >
               Assistants
             </Link>
-
-            {/* Interfaces - Direct Link */}
-            <Link
-              href="/interfaces"
-              className={cn(
-                'text-label flex items-center gap-1.5 rounded-md px-1 py-1 transition-colors first:pl-0',
-                pathname === '/interfaces' && searchParams?.get('project') !== 'Usage'
-                  ? 'text-[color:var(--primary)]'
-                  : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
-              )}
-            >
-              Interfaces
-            </Link>
-
-            {/* Docs - External Link */}
-            <a
-              href="https://docs.unify.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                'text-label flex items-center gap-1.5 rounded-md px-1 py-1 transition-colors first:pl-0',
-                'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
-              )}
-            >
-              Docs
-              <ExternalLink className="h-3 w-3" />
-            </a>
           </nav>
         </div>
 

@@ -69,8 +69,6 @@ export const createInterfaceSlice: StateCreator<
                 if (tile.type === 'Table') state.tilesById[tileId].tableTile = null;
                 else if (tile.type === 'Plot') state.tilesById[tileId].plotTile = null;
                 else if (tile.type === 'View') state.tilesById[tileId].viewTile = null;
-                else if (tile.type === 'Editor') state.tilesById[tileId].editorTile = null;
-                else if (tile.type === 'Terminal') state.tilesById[tileId].terminalTile = null;
               }
               // Remove the tile
               delete state.tilesById[tileId];

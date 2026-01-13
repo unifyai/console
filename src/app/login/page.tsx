@@ -31,7 +31,7 @@ const Login = () => {
   const session = useSession();
 
   if (session.data) {
-    redirect('/interfaces');
+    redirect('/assistants');
   }
 
   const searchParams = useSearchParams();

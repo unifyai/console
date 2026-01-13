@@ -8,10 +8,8 @@ import {
   FieldsActions,
   DerivedEntryActions,
   ContextActions,
-  CodeActions,
   GranularTileActions,
   ProjectsActions,
-  FileActions,
 } from '@/types/interfaces/grid';
 import { useTileMeta } from '@/contexts/hooks/tile/useTileMeta';
 
@@ -35,8 +33,6 @@ export interface TileRendererProps {
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
-    codeActions: CodeActions;
-    fileActions: FileActions;
   };
 }
 

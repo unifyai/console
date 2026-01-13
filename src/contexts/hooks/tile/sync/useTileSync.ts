@@ -1021,8 +1021,6 @@ export function useTileSync(
       plotTileActions: plotTileSync.plotTileActions || undefined,
       // Keep the existing actions for view and editor
       viewTileActions: actions.viewTileActions,
-      editorTileActions: actions.editorTileActions,
-      terminalTileActions: actions.terminalTileActions,
     } as TileActions;
 
     return newActions;

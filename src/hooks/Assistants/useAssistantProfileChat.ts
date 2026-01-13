@@ -117,7 +117,7 @@ export function useAssistantProfileChat(
 
   /**
    * Resolves the owner context string from an assistant.
-   * Uses user_first_name/user_last_name if available.
+   * Uses userFirstName/userLastName if available.
    * Falls back to fetching user details via getAssistantOwnerById if names are missing.
    * Caches results to avoid repeated lookups.
    */
@@ -157,7 +157,7 @@ export function useAssistantProfileChat(
 
   /**
    * Initializes chat for an assistant:
-   * 1. Resolves owner context (uses user_first_name/user_last_name from assistant, or falls back to getAssistantOwnerById)
+   * 1. Resolves owner context (uses userFirstName/userLastName from assistant, or falls back to getAssistantOwnerById)
    * 2. Looks up user's contact_id
    * 3. Fetches transcripts if contact_id found
    * 4. Sets canChat=false if contact_id not found
@@ -458,7 +458,7 @@ export function useAssistantProfileChat(
         const ackId = messagePayload.__ackId;
 
         // Filter by contact_id: only display and ACK messages for this user
-        const messageContactId = messagePayload.contactId;
+        const messageContactId = messagePayload.event?.contactId ?? messagePayload.contactId;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
           // Message is not for this user - don't ACK, let it be redelivered
           return;

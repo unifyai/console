@@ -5,8 +5,6 @@ import { TileData } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
-import { EditorTile } from '../../slices/selectors/editorTile';
-import { TerminalTile } from '../../slices/selectors/terminalTile';
 
 /**
  * Interface for tile data-related actions
@@ -28,8 +26,6 @@ export interface TileDataActions {
   updateTableTile: (updates: Partial<TableTile>) => void;
   updatePlotTile: (updates: Partial<PlotTile>) => void;
   updateViewTile: (updates: Partial<ViewTile>) => void;
-  updateEditorTile: (updates: Partial<EditorTile>) => void;
-  updateTerminalTile: (updates: Partial<TerminalTile>) => void;
 }
 
 /**
@@ -93,8 +89,6 @@ export function useTileData(tileIdOrName: string | null, tabIdOrName: string | n
   const storeUpdateTableTile = useStoreContext((state) => state.updateTableTile);
   const storeUpdatePlotTile = useStoreContext((state) => state.updatePlotTile);
   const storeUpdateViewTile = useStoreContext((state) => state.updateViewTile);
-  const storeUpdateEditorTile = useStoreContext((state) => state.updateEditorTile);
-  const storeUpdateTerminalTile = useStoreContext((state) => state.updateTerminalTile);
 
   // Memoize the data object to prevent unnecessary rerenders
   const data = useMemo<Partial<TileData> | null>(() => {
@@ -200,33 +194,13 @@ export function useTileData(tileIdOrName: string | null, tabIdOrName: string | n
         }
       },
 
-      updateEditorTile: (updates) => {
-        if (tileId) {
-          storeUpdateEditorTile(tileId, updates);
-        }
-      },
-
-      updateTerminalTile: (updates) => {
-        if (tileId) {
-          storeUpdateTerminalTile(tileId, updates);
-        }
-      },
-
       setContextAndColumnContext: (context, columnContext) => {
         if (tileId) {
           storeUpdateTile(tileId, { context, columnContext: columnContext });
         }
       },
     }),
-    [
-      tileId,
-      storeUpdateTile,
-      storeUpdateTableTile,
-      storeUpdatePlotTile,
-      storeUpdateViewTile,
-      storeUpdateEditorTile,
-      storeUpdateTerminalTile,
-    ]
+    [tileId, storeUpdateTile, storeUpdateTableTile, storeUpdatePlotTile, storeUpdateViewTile]
   );
 
   return {

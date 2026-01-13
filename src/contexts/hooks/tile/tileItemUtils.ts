@@ -2,8 +2,6 @@ import { Tile } from '../../slices/selectors/tile';
 import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
-import { EditorTile } from '../../slices/selectors/editorTile';
-import { TerminalTile } from '../../slices/selectors/terminalTile';
 import { TileProps } from '@/types/interfaces/grid';
 import { constructHierarchicalId, getParentId } from '@/contexts/utils/sliceUtils';
 
@@ -76,18 +74,6 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     Object.assign(tileProps, {
       baseIndex: tile.viewTile.baseIndex,
     });
-  } else if (tile.type === 'Editor' && tile.editorTile) {
-    // Add editor-specific properties
-    Object.assign(tileProps, {
-      fileName: tile.editorTile.fileName,
-      fileType: tile.editorTile.fileType,
-      content: tile.editorTile.content,
-    });
-  } else if (tile.type === 'Terminal' && tile.terminalTile) {
-    // Add terminal-specific properties
-    Object.assign(tileProps, {
-      shellType: tile.terminalTile.shellType,
-    });
   }
 
   return tileProps;
@@ -118,7 +104,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     minW: tileItem.minW,
     minH: tileItem.minH,
     visible: tileItem.visible,
-    type: tileItem.tab as any, // 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal'
+    type: tileItem.tab as any, // 'Table' | 'Plot' | 'View'
 
     // Common fields shared across tile types
     moved: tileItem.moved,
@@ -139,8 +125,6 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   let tableTileUpdates: Partial<TableTile> | null = null;
   let plotTileUpdates: Partial<PlotTile> | null = null;
   let viewTileUpdates: Partial<ViewTile> | null = null;
-  let editorTileUpdates: Partial<EditorTile> | null = null;
-  let terminalTileUpdates: Partial<TerminalTile> | null = null;
 
   if (tileItem.tab === 'Table') {
     tableTileUpdates = {
@@ -177,18 +161,6 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       baseIndex: tileItem.baseIndex,
     } as Partial<ViewTile>;
     tileUpdates.viewTile = viewTileUpdates as ViewTile;
-  } else if (tileItem.tab === 'Editor') {
-    editorTileUpdates = {
-      fileName: tileItem.fileName,
-      fileType: tileItem.fileType,
-      content: tileItem.content,
-    } as Partial<EditorTile>;
-    tileUpdates.editorTile = editorTileUpdates as EditorTile;
-  } else if (tileItem.tab === 'Terminal') {
-    terminalTileUpdates = {
-      shellType: tileItem.shellType,
-    } as Partial<TerminalTile>;
-    tileUpdates.terminalTile = terminalTileUpdates as TerminalTile;
   }
 
   return tileUpdates as Tile;

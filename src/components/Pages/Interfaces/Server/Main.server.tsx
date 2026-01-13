@@ -17,12 +17,9 @@ import type {
   LogsActions,
   FieldsActions,
   DerivedEntryActions,
-  CodeActions,
-  FileActions,
   GranularInterfaceActions,
   GranularTabActions,
   GranularTileActions,
-  DevboxActions,
   InterfaceData,
   Context,
   TabData,
@@ -55,12 +52,9 @@ type InterfaceWrapperActions = {
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
-  codeActions: CodeActions;
-  devboxActions: DevboxActions;
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
-  fileActions: FileActions;
   favouritesActions: FavouritesActions;
   resourcesActions: ResourcesActions;
 };
@@ -148,8 +142,6 @@ export default async function Main({
 
   // Project contexts (deferred to client bootstrap)
   let contexts: Context[] = [];
-
-  // Devbox creation is deferred to client to keep SSR light
 
   // Get interfaces
   let interfaces: InterfaceData[] = [];
@@ -426,8 +418,6 @@ export default async function Main({
           fieldsActions={actions.fieldsActions}
           derivedEntryActions={actions.derivedEntryActions}
           contextActions={actions.contextActions}
-          codeActions={actions.codeActions}
-          fileActions={actions.fileActions}
           favouritesActions={actions.favouritesActions}
           resourcesActions={actions.resourcesActions}
           initialFavourites={initialFavourites}

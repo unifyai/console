@@ -88,10 +88,8 @@ import type {
   GranularInterfaceActions,
   GranularTabActions,
   GranularTileActions,
-  FileActions,
   LogsActions,
   ContextActions,
-  CodeActions,
   FavouritesActions,
   Favourite,
   FieldsActions,
@@ -173,10 +171,8 @@ interface InterfaceNavProps {
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
-  fileActions: FileActions;
   logsActions: LogsActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
   favouritesActions: FavouritesActions;
   initialFavourites: Favourite[];
   resourcesActions: ResourcesActions;
@@ -381,10 +377,8 @@ export default function InterfaceNav({
   interfaceActions,
   tabActions,
   tileActions,
-  fileActions,
   logsActions,
   contextActions,
-  codeActions,
   favouritesActions,
   initialFavourites,
   resourcesActions,

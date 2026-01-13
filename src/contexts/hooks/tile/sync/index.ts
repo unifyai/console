@@ -2,5 +2,3 @@
 export * from './useTileSync';
 export * from './useTableTileSync';
 export * from './usePlotTileSync';
-export * from './useEditorTileSync';
-export * from './useTerminalTileSync';

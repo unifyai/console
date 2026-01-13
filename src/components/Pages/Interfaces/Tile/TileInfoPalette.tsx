@@ -60,10 +60,6 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
         return 'https://docs.unify.ai/interfaces/plots';
       case 'View':
         return 'https://docs.unify.ai/interfaces/views';
-      case 'Editor':
-        return 'https://docs.unify.ai/interfaces/editors';
-      case 'Terminal':
-        return 'https://docs.unify.ai/interfaces/views';
       default:
         return 'https://docs.unify.ai/interfaces/tables';
     }
@@ -77,10 +73,6 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
         return <BarChart3 className="h-4 w-4" />;
       case 'View':
         return <Eye className="h-4 w-4" />;
-      case 'Editor':
-        return <Code className="h-4 w-4" />;
-      case 'Terminal':
-        return <Terminal className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }

@@ -5,8 +5,6 @@ import * as tabLogic from './selectors/tab';
 import * as tableTileLogic from './selectors/tableTile';
 import * as plotTileLogic from './selectors/plotTile';
 import * as viewTileLogic from './selectors/viewTile';
-import * as editorTileLogic from './selectors/editorTile';
-import * as terminalTileLogic from './selectors/terminalTile';
 import * as sliceUtils from '../utils/sliceUtils';
 import { Tile } from './selectors/tile';
 
@@ -93,10 +91,6 @@ export const createTileSlice: StateCreator<
           state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
         } else if (newTile.type === 'View') {
           state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-        } else if (newTile.type === 'Editor') {
-          state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-        } else if (newTile.type === 'Terminal') {
-          state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
         }
 
         // Add the tile to the tab
@@ -113,10 +107,6 @@ export const createTileSlice: StateCreator<
             state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
           } else if (initialState.type === 'View' && !state.tilesById[tileId].viewTile) {
             state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-          } else if (initialState.type === 'Editor' && !state.tilesById[tileId].editorTile) {
-            state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-          } else if (initialState.type === 'Terminal' && !state.tilesById[tileId].terminalTile) {
-            state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
           }
         }
 
@@ -147,14 +137,8 @@ export const createTileSlice: StateCreator<
       const tile = state.tilesById[tileId];
 
       if (tile) {
-        const {
-          tileUpdates,
-          tableTileUpdates,
-          plotTileUpdates,
-          viewTileUpdates,
-          editorTileUpdates,
-          terminalTileUpdates,
-        } = sliceUtils.splitTileUpdates(updates);
+        const { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates } =
+          sliceUtils.splitTileUpdates(updates);
 
         let updatedTile = tile;
         let tileUpdated = false;
@@ -255,60 +239,6 @@ export const createTileSlice: StateCreator<
           }
         }
 
-        // Update editor-specific data if needed
-        if (Object.keys(editorTileUpdates).length > 0) {
-          if (!updatedTile.editorTile) {
-            updatedTile.editorTile = editorTileLogic.initEditorTile();
-            tileUpdated = true;
-          }
-
-          const filteredEditorTileUpdates = sliceUtils.filterUnchangedUpdates(
-            updatedTile.editorTile,
-            editorTileUpdates
-          );
-          if (Object.keys(filteredEditorTileUpdates).length > 0) {
-            updatedTile.editorTile = editorTileLogic.updateEditorTile(
-              updatedTile.editorTile,
-              filteredEditorTileUpdates
-            );
-            tileUpdated = true;
-
-            // Check if editor tile updates need recompute
-            itemsNeedRecompute = Object.keys(filteredEditorTileUpdates).some((key) =>
-              editorTileLogic.EDITOR_TILE_PROPS_KEYS_AS_EDITOR_TILE_KEYS.includes(
-                key as keyof typeof tile.editorTile
-              )
-            );
-          }
-        }
-
-        // Update terminal-specific data if needed
-        if (Object.keys(terminalTileUpdates).length > 0) {
-          if (!updatedTile.terminalTile) {
-            updatedTile.terminalTile = terminalTileLogic.initTerminalTile();
-            tileUpdated = true;
-          }
-
-          const filteredTerminalTileUpdates = sliceUtils.filterUnchangedUpdates(
-            updatedTile.terminalTile,
-            terminalTileUpdates
-          );
-          if (Object.keys(filteredTerminalTileUpdates).length > 0) {
-            updatedTile.terminalTile = terminalTileLogic.updateTerminalTile(
-              updatedTile.terminalTile,
-              filteredTerminalTileUpdates
-            );
-            tileUpdated = true;
-
-            // Check if terminal tile updates need recompute
-            itemsNeedRecompute = Object.keys(filteredTerminalTileUpdates).some((key) =>
-              terminalTileLogic.TERMINAL_TILE_PROPS_KEYS_AS_TILE_KEYS.includes(
-                key as keyof typeof tile.terminalTile
-              )
-            );
-          }
-        }
-
         // If we need to recompute, add the flag to the updates
         if (itemsNeedRecompute) {
           if (!updatedTile.itemsNeedRecompute) {
@@ -344,10 +274,6 @@ export const createTileSlice: StateCreator<
           state.tilesById[tileId].plotTile = null;
         } else if (state.tilesById[tileId].type === 'View') {
           state.tilesById[tileId].viewTile = null;
-        } else if (state.tilesById[tileId].type === 'Editor') {
-          state.tilesById[tileId].editorTile = null;
-        } else if (state.tilesById[tileId].type === 'Terminal') {
-          state.tilesById[tileId].terminalTile = null;
         }
       }
 
@@ -361,10 +287,6 @@ export const createTileSlice: StateCreator<
         state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
       } else if (type === 'View') {
         state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
-      } else if (type === 'Editor') {
-        state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
-      } else if (type === 'Terminal') {
-        state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
       }
     }),
 });

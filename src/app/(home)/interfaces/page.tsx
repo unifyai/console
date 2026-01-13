@@ -1,7 +1,5 @@
 import { getCurrentUser } from '@/lib/user/user';
 
-import * as files from '@/lib/interfaces/files';
-import * as terminal from '@/lib/interfaces/terminal';
 import * as projects from '@/lib/interfaces/projects';
 import * as interfaces from '@/lib/interfaces/interfaces';
 import * as tabs from '@/lib/interfaces/tabs';
@@ -57,6 +55,13 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     signOut();
     redirect('/login');
   }
+
+  // Check if user is part of "Orchestra Admin Organization" - if not, redirect to assistants
+  const isUnifyMember = user.organizations?.some((o) => o.name === 'Orchestra Admin Organization');
+  if (!isUnifyMember) {
+    redirect('/assistants');
+  }
+
   const userId = user.id;
   const apiKey = user.apiKey;
 
@@ -98,29 +103,6 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     create: await contexts.createContext(apiKey),
     delete: await contexts.deleteContext(apiKey),
     rename: await contexts.renameContext(apiKey),
-  };
-
-  const codeActions = {
-    run: await terminal.runCode(apiKey, userId),
-    get: await terminal.getCodeOutput(apiKey),
-    createTerminal: await terminal.createTerminalSession(apiKey, userId),
-    runTerminal: await terminal.runTerminalCommand(apiKey),
-    getTerminalOutput: await terminal.getTerminalOutput(apiKey),
-    stopTerminal: await terminal.stopTerminalSession(apiKey),
-  };
-
-  const devboxActions = {
-    get: await terminal.getDevbox(apiKey, userId),
-    create: await terminal.createDevbox(apiKey, userId),
-  };
-
-  // File actions
-  const fileActions = {
-    list: await files.listFiles(apiKey, userId),
-    write: await files.writeFiles(apiKey, userId),
-    read: await files.readFile(apiKey, userId),
-    delete: await files.deleteFile(apiKey, userId),
-    rename: await files.renameFile(apiKey, userId),
   };
 
   // Favourites actions - gracefully handle failures
@@ -236,9 +218,6 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         derivedEntryActions,
         contextActions,
         fieldsActions,
-        codeActions,
-        fileActions,
-        devboxActions,
         interfaceActions,
         tabActions,
         tileActions,

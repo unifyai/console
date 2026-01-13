@@ -9,8 +9,6 @@ import { convertTileToTileItem, convertTileItemToTile } from './tileItemUtils';
 import { useTableTile } from './useTableTile';
 import { usePlotTile } from './usePlotTile';
 import { useViewTile } from './useViewTile';
-import { useEditorTile } from './useEditorTile';
-import { useTerminalTile } from './useTerminalTile';
 
 /**
  * Interface for tile item conversion actions
@@ -77,10 +75,6 @@ export function useTileItem(tileIdOrName: string | null, tabIdOrName: string | n
 
   const { viewTile } = useViewTile(tileIdOrName, tabIdOrName || null);
 
-  const { editorTile } = useEditorTile(tileIdOrName, tabIdOrName || null);
-
-  const { terminalTile } = useTerminalTile(tileIdOrName, tabIdOrName || null);
-
   // Get store actions for data management
   const storeUpdateTile = useStoreContext((state) => state.updateTile);
 
@@ -95,10 +89,8 @@ export function useTileItem(tileIdOrName: string | null, tabIdOrName: string | n
       tableTile,
       plotTile,
       viewTile,
-      editorTile,
-      terminalTile,
     };
-  }, [meta, data, ui, tableTile, plotTile, viewTile, editorTile, terminalTile, tileId]);
+  }, [meta, data, ui, tableTile, plotTile, viewTile, tileId]);
 
   // Memoize the item actions using the factory function
   const itemActions = useMemo(() => {

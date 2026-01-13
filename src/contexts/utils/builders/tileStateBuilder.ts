@@ -15,22 +15,7 @@ import {
   ViewTileData as ViewTileSliceData,
   ViewTileUI,
 } from '@/contexts/slices/selectors/viewTile';
-import {
-  EditorTile,
-  EditorTileData as EditorTileSliceData,
-} from '@/contexts/slices/selectors/editorTile';
-import {
-  TerminalTile,
-  TerminalTileData as TerminalTileSliceData,
-} from '@/contexts/slices/selectors/terminalTile';
-import {
-  TileData,
-  TableTileData,
-  PlotTileData,
-  ViewTileData,
-  EditorTileData,
-  TerminalTileData,
-} from '@/types/interfaces/grid';
+import { TileData, TableTileData, PlotTileData, ViewTileData } from '@/types/interfaces/grid';
 
 /**
  * Build tile state from API-returned tile data
@@ -85,8 +70,6 @@ export function buildTileState(tileData: TileData): Tile {
     tableTile: null,
     plotTile: null,
     viewTile: null,
-    editorTile: null,
-    terminalTile: null,
   };
 
   // Add specialized tile data based on type
@@ -113,16 +96,6 @@ function addSpecializedTileData(tile: Tile, tileData: TileData): Tile {
     case 'View':
       if (tileData.viewTile) {
         tile.viewTile = buildViewTileData(tileData.viewTile);
-      }
-      break;
-    case 'Editor':
-      if (tileData.editorTile) {
-        tile.editorTile = buildEditorTileData(tileData.editorTile);
-      }
-      break;
-    case 'Terminal':
-      if (tileData.terminalTile) {
-        tile.terminalTile = buildTerminalTileData(tileData.terminalTile);
       }
       break;
   }
@@ -176,26 +149,6 @@ function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
 function buildViewTileData(viewTileData: ViewTileData): ViewTile {
   return {
     baseIndex: viewTileData.baseIndex,
-  };
-}
-
-/**
- * Build EditorTile data from API-returned EditorTileData
- */
-function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
-  return {
-    fileName: editorTileData.fileName,
-    fileType: editorTileData.fileType,
-    content: editorTileData.content,
-  };
-}
-
-/**
- * Build TerminalTile data from API-returned TerminalTileData
- */
-function buildTerminalTileData(terminalTileData: TerminalTileData): TerminalTile {
-  return {
-    shellType: terminalTileData.shellType,
   };
 }
 

@@ -141,10 +141,6 @@ export function usePatchSpecializedTileQueryOptimistic<T extends TileType>() {
             return optimisticTileData.plotTile;
           case 'View':
             return optimisticTileData.viewTile;
-          case 'Editor':
-            return optimisticTileData.editorTile;
-          case 'Terminal':
-            return optimisticTileData.terminalTile;
           default:
             return null;
         }

@@ -9,14 +9,12 @@ import {
   DerivedEntryActions,
   LogsActions,
   ProjectsActions,
-  CodeActions,
   GranularInterfaceActions,
   GranularTabActions,
   GranularTileActions,
   InterfaceData,
   TabData,
   TileData,
-  FileActions,
 } from '@/types/interfaces/grid';
 import { useEffect, useState, useCallback } from 'react';
 import { demos } from '@/constants/logs';
@@ -42,9 +40,7 @@ const DefaultProject = ({
   tabActions,
   tileActions,
   logsActions,
-  codeActions,
   derivedEntryActions,
-  fileActions,
   setTabQueryParam,
   setInterfaceQueryParam,
   setProjectQueryParam,
@@ -54,9 +50,7 @@ const DefaultProject = ({
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   logsActions: LogsActions;
-  codeActions: CodeActions;
   derivedEntryActions: DerivedEntryActions;
-  fileActions: FileActions;
   setTabQueryParam: (value: string | null) => void;
   setInterfaceQueryParam: (value: string | null) => void;
   setProjectQueryParam: (value: string | null) => void;
@@ -132,8 +126,6 @@ const DefaultProject = ({
           interfaceActions,
           tabActions,
           tileActions,
-          codeActions,
-          fileActions,
           derivedEntryActions,
         },
       });
@@ -163,8 +155,6 @@ const DefaultProject = ({
     interfaceActions,
     tabActions,
     tileActions,
-    codeActions,
-    fileActions,
     derivedEntryActions,
     setInterfaceQueryParam,
     setTabQueryParam,

@@ -6,10 +6,8 @@ import {
   DerivedEntryActions,
   FieldsActions,
   ContextActions,
-  CodeActions,
   GranularTileActions,
   ProjectsActions,
-  FileActions,
   GranularTabActions,
 } from '@/types/interfaces/grid';
 import { LogsActions } from '@/types/interfaces/grid';
@@ -41,8 +39,6 @@ interface TileCardProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
-  fileActions: FileActions;
   children?: ReactNode;
 }
 
@@ -58,8 +54,6 @@ const TileCard = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
-  fileActions,
   children,
 }: TileCardProps) => {
   // Get refs from the registry instead of creating or receiving them via props
@@ -150,7 +144,6 @@ const TileCard = ({
               tileActions={tileActions}
               logsActions={logsActions}
               contextActions={contextActions}
-              codeActions={codeActions}
               projectsActions={projectsActions}
               fieldsActions={fieldsActions}
             />
@@ -193,8 +186,6 @@ const TileCard = ({
                   fieldsActions,
                   derivedEntryActions,
                   contextActions,
-                  codeActions,
-                  fileActions,
                 }}
               />
             </Suspense>

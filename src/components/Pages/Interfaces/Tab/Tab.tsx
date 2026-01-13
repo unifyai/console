@@ -10,12 +10,10 @@ import {
   DerivedEntryActions,
   TileProps,
   ContextActions,
-  CodeActions,
   GranularTileActions,
   GranularTabActions,
   TileLayout,
   ProjectsActions,
-  FileActions,
 } from '@/types/interfaces/grid';
 import { Loader2, Plus, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -45,8 +43,6 @@ interface TabComponentProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
-  fileActions: FileActions;
   /** Whether tiles are currently being loaded */
   isLoadingTiles?: boolean;
 }
@@ -62,8 +58,6 @@ const Tab = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
-  fileActions,
   isLoadingTiles = false,
 }: TabComponentProps) => {
   const widthFactor = 4;
@@ -202,8 +196,6 @@ const Tab = ({
               fieldsActions={fieldsActions}
               derivedEntryActions={derivedEntryActions}
               contextActions={contextActions}
-              codeActions={codeActions}
-              fileActions={fileActions}
             />
           </Suspense>
         ),
@@ -224,8 +216,6 @@ const Tab = ({
     fieldsActions,
     derivedEntryActions,
     contextActions,
-    codeActions,
-    fileActions,
     projectsActions,
   ]);
 

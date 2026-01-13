@@ -108,20 +108,6 @@ export interface PlotDataProps {
   [key: string]: PlotDataItem;
 }
 
-export interface EditorDataProps {
-  [key: string]: {
-    fileName: string;
-    fileType: string;
-    content: string;
-  };
-}
-
-export interface TerminalDataProps {
-  [key: string]: {
-    shellType: string;
-  };
-}
-
 export type ItemType =
   | 'tab'
   | 'binCount'
@@ -184,8 +170,6 @@ export interface TabsDataProps {
     tableTiles: TileProps[];
     plotTiles: TileProps[];
     viewTiles: TileProps[];
-    editorTiles: TileProps[];
-    terminalTiles: TileProps[];
     tabCreated: boolean;
     tempTabCreated: boolean;
     savedTab: TabProps | null;
@@ -251,20 +235,6 @@ export interface ViewTileData {
   baseIndex?: string;
 }
 
-export interface EditorTileData {
-  id?: string;
-  tileId?: string;
-  fileName?: string;
-  fileType?: string;
-  content?: string;
-}
-
-export interface TerminalTileData {
-  id?: string;
-  tileId?: string;
-  shellType?: string;
-}
-
 // Base template schema for tiles with common fields
 export interface BaseTileTemplateSchema {
   name: string;
@@ -290,8 +260,6 @@ export interface BaseTileTemplateSchema {
   tableTile?: TableTileData;
   plotTile?: PlotTileData;
   viewTile?: ViewTileData;
-  editorTile?: EditorTileData;
-  terminalTile?: TerminalTileData;
 }
 
 // Template schema for a detached tile - inherits all fields from base
@@ -423,8 +391,6 @@ export interface UpdateTileRequest {
   tableTile?: TableTileData;
   plotTile?: PlotTileData;
   viewTile?: ViewTileData;
-  editorTile?: EditorTileData;
-  terminalTile?: TerminalTileData;
 }
 
 export interface CreateTabRequest extends BaseTabTemplateSchema {
@@ -1014,14 +980,14 @@ export interface GranularTileActions {
   patchSpecializedByName: (
     tabId: string,
     name: string,
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal',
+    tileType: 'Table' | 'Plot' | 'View',
     updateData: Record<string, any>,
     checkpoint?: boolean
   ) => Promise<TileData>;
 
   patchSpecializedById: (
     id: string,
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal',
+    tileType: 'Table' | 'Plot' | 'View',
     updateData: Record<string, any>,
     checkpoint?: boolean
   ) => Promise<TileData>;
@@ -1030,7 +996,7 @@ export interface GranularTileActions {
     id?: string;
     tabId?: string;
     name?: string;
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal';
+    tileType: 'Table' | 'Plot' | 'View';
     updateData: Record<string, any>;
     checkpoint?: boolean;
   }) => Promise<TileData>;

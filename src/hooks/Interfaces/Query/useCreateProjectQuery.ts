@@ -98,23 +98,17 @@ export function useCreateProjectQuery() {
               tableTile?: typeof tile.tableTile;
               plotTile?: typeof tile.plotTile;
               viewTile?: typeof tile.viewTile;
-              editorTile?: typeof tile.editorTile;
-              terminalTile?: typeof tile.terminalTile;
             } = {};
 
             if (tile.tableTile) specializedData.tableTile = tile.tableTile;
             if (tile.plotTile) specializedData.plotTile = tile.plotTile;
             if (tile.viewTile) specializedData.viewTile = tile.viewTile;
-            if (tile.editorTile) specializedData.editorTile = tile.editorTile;
-            if (tile.terminalTile) specializedData.terminalTile = tile.terminalTile;
 
             // Remove specialized data and server-generated props from tileProps to avoid duplication
             const {
               tableTile,
               plotTile,
               viewTile,
-              editorTile,
-              terminalTile,
               id,
               tabId,
               createdAt,

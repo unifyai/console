@@ -306,7 +306,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
   return async (
     tabId: string,
     name: string,
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal',
+    tileType: 'Table' | 'Plot' | 'View',
     updateData: Record<string, any>,
     checkpoint: boolean = false
   ) => {
@@ -339,7 +339,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
 export const patchSpecializedTileById = async (apiKey: string) => {
   return async (
     id: string,
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal',
+    tileType: 'Table' | 'Plot' | 'View',
     updateData: Record<string, any>,
     checkpoint: boolean = false
   ) => {
@@ -373,7 +373,7 @@ export const patchSpecializedTileUnified = async (apiKey: string) => {
     id?: string;
     tabId?: string;
     name?: string;
-    tileType: 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal';
+    tileType: 'Table' | 'Plot' | 'View';
     updateData: Record<string, any>;
     checkpoint?: boolean;
   }) => {

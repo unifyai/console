@@ -11,10 +11,8 @@ import {
   LogsActions,
   FieldsActions,
   ContextActions,
-  CodeActions,
   GranularTileActions,
   ProjectsActions,
-  FileActions,
   GranularTabActions,
 } from '@/types/interfaces/grid';
 import { Plus, X } from 'lucide-react';
@@ -36,9 +34,7 @@ const FocusDialog = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
   projectsActions,
-  fileActions,
 }: {
   tabIdOrName: string;
   interfaceId: string;
@@ -49,9 +45,7 @@ const FocusDialog = ({
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
   projectsActions: ProjectsActions;
-  fileActions: FileActions;
 }) => {
   const {
     meta: tabMetaState,
@@ -160,8 +154,6 @@ const FocusDialog = ({
             fieldsActions={fieldsActions}
             derivedEntryActions={derivedEntryActions}
             contextActions={contextActions}
-            codeActions={codeActions}
-            fileActions={fileActions}
             projectsActions={projectsActions}
           />
         </div>

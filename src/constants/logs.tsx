@@ -112,7 +112,7 @@ export const icons = {
   Terminal: <TerminalIcon />,
 };
 
-export const tabTypes = ['Table', 'Plot', 'View', 'Editor', 'Terminal'];
+export const tabTypes = ['Table', 'Plot', 'View'];
 
 export const fileTypes: { [key: string]: string } = {
   py: 'python',

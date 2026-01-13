@@ -194,56 +194,6 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
       return { queries: [], isBuilding: false };
     },
   },
-
-  Editor: {
-    tileType: 'Editor',
-    isIndependent: true,
-    description: 'Independent tile - can render immediately',
-
-    getExternalDependencies: () => [],
-
-    needsTabArguments: false,
-    needsExternalDependencies: false,
-
-    shouldStartBuilding: () => true,
-
-    checkInternalDataReadiness: (tileId, tabId, queryClient) => {
-      // Editors manage their own internal state
-      return {
-        isReady: true,
-        missingData: [],
-      };
-    },
-
-    getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
-      return { queries: [], isBuilding: false };
-    },
-  },
-
-  Terminal: {
-    tileType: 'Terminal',
-    isIndependent: true,
-    description: 'Independent tile - can render immediately',
-
-    getExternalDependencies: () => [],
-
-    needsTabArguments: false,
-    needsExternalDependencies: false,
-
-    shouldStartBuilding: () => true,
-
-    checkInternalDataReadiness: (tileId, tabId, queryClient) => {
-      // Terminals manage their own internal state
-      return {
-        isReady: true,
-        missingData: [],
-      };
-    },
-
-    getDataBuildingHooks: (tileId, tabId, interfaceId, projectId, shouldStartBuilding, actions) => {
-      return { queries: [], isBuilding: false };
-    },
-  },
 };
 
 /**
