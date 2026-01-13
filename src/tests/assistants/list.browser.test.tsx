@@ -40,6 +40,18 @@ vi.mock('@/hooks/Assistants/useAssistantCall', () => ({
   })),
 }));
 
+// Mock WorkspaceProvider - Main component uses useAssistantPermissions which requires workspace context
+// See src/tests/mocks/workspaceProvider.ts for reusable mock patterns
+vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
+  useWorkspace: () => ({
+    workspaces: [{ id: 'personal', name: 'Test User', type: 'personal' }],
+    activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
+    activeOrganization: null,
+    currentUserId: 'test-user-001',
+    switchWorkspace: vi.fn(),
+  }),
+}));
+
 describe('Component Tests', () => {
   const defaultListProps = {
     assistants: mockAssistants,

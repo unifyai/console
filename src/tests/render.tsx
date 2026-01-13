@@ -17,7 +17,9 @@ const testQueryClient = new QueryClient({
 });
 
 const TestProviders = ({ children }: { children: React.ReactNode }) => {
-  // Mirrors the Providers tree in src/components/Pages/Providers/Base.tsx, excluding the SessionProvider
+  // Provides common test-safe providers (QueryClient, Theme, NextUI, Sidebar).
+  // Does NOT include WorkspaceProvider or SessionProvider - these require server-side data.
+  // Components using useWorkspace must mock it locally. See src/tests/mocks/workspaceProvider.ts
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={testQueryClient}>

@@ -119,6 +119,18 @@ vi.mock('@livekit/components-react', async (importOriginal) => {
   };
 });
 
+// 3. Mock WorkspaceProvider - Main component uses useAssistantPermissions which requires workspace context
+// See src/tests/mocks/workspaceProvider.ts for reusable mock patterns
+vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
+  useWorkspace: () => ({
+    workspaces: [{ id: 'personal', name: 'Test User', type: 'personal' }],
+    activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
+    activeOrganization: null,
+    currentUserId: 'test-user-001',
+    switchWorkspace: vi.fn(),
+  }),
+}));
+
 describe('Assistant Call', () => {
   // Default user for tests that don't need fake timer integration
   const defaultUser = userEvent.setup();
