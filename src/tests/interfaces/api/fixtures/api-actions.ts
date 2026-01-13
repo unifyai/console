@@ -802,36 +802,6 @@ async function orchestraFetch(endpoint: string, options: RequestInit = {}): Prom
   }
 }
 
-export const endpointsApi = {
-  async listProviders(model?: string): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (model) params.append('model', model);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/providers${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async listModels(provider?: string): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (provider) params.append('provider', provider);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/models${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async listEndpoints(options?: { provider?: string; model?: string }): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (options?.provider) params.append('provider', options.provider);
-    if (options?.model) params.append('model', options.model);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/endpoints${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-};
-
 // ============================================
 // Test Helpers
 // ============================================
