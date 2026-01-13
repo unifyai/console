@@ -392,6 +392,7 @@ describe('voice.ts', () => {
           voiceId: 'v1',
           text: 'Hello world',
           provider: 'elevenlabs',
+          outputFormat: 'mp3',
         });
 
         // Assert
@@ -426,6 +427,7 @@ describe('voice.ts', () => {
           voiceId: 'v1',
           text: 'Hello',
           provider: 'elevenlabs',
+          outputFormat: 'mp3',
         });
 
         // Assert
@@ -456,6 +458,7 @@ describe('voice.ts', () => {
           voiceId: 'v1',
           text: 'Hello',
           provider: 'elevenlabs',
+          outputFormat: 'mp3',
         });
 
         // Assert
@@ -487,6 +490,7 @@ describe('voice.ts', () => {
           voiceId: 'v1',
           text: 'Hello',
           provider: 'elevenlabs',
+          outputFormat: 'mp3',
         });
 
         // Assert
@@ -525,9 +529,8 @@ describe('voice.ts', () => {
         // Act
         const designFn = await designVoiceGeneratePreviews(TEST_API_KEY);
         const result = await designFn({
-          gender: 'female',
-          age: 'young',
-          accent: 'american',
+          voiceDescription: 'A young female American voice',
+          autoGenerateText: true,
         });
 
         // Assert
@@ -560,9 +563,8 @@ describe('voice.ts', () => {
         // Act
         const designFn = await designVoiceGeneratePreviews(TEST_API_KEY);
         const result = await designFn({
-          gender: 'male',
-          age: 'old',
-          accent: 'british',
+          voiceDescription: 'An older male British voice',
+          text: 'Direct text',
         });
 
         // Assert
@@ -590,9 +592,8 @@ describe('voice.ts', () => {
         // Act
         const designFn = await designVoiceGeneratePreviews(TEST_API_KEY);
         const result = await designFn({
-          gender: 'invalid' as any,
-          age: 'young',
-          accent: 'american',
+          voiceDescription: 'Invalid voice description',
+          autoGenerateText: true,
         });
 
         // Assert

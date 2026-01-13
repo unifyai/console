@@ -509,8 +509,8 @@ describe('assistant.ts', () => {
         );
 
         const preHireChat = [
-          { role: 'user' as const, content: 'Hello' },
-          { role: 'assistant' as const, content: 'Hi there!' },
+          { role: 'user' as const, msg: 'Hello' },
+          { role: 'assistant' as const, msg: 'Hi there!' },
         ];
 
         // Act

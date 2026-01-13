@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TaskListItem } from '@/components/Pages/Assistants/Tasks/List/TaskListItem';
 import { Accordion } from '@/components/UI/accordion';
 import { Task, TaskActions, Status, Priority } from '@/types/assistants/task';
+import { ResponseProps } from '@/types/common';
 import { createMockAssistant } from '../mocks/data';
 
 /**
@@ -611,7 +612,9 @@ describe('Task System', () => {
       },
       async () => {
         const user = userEvent.setup();
-        const updateMock = vi.fn(() => new Promise(() => {})); // Never resolves
+        const updateMock = vi.fn(
+          () => new Promise<ResponseProps>(() => {}) // Never resolves
+        );
         const task = createMockTask();
 
         render(

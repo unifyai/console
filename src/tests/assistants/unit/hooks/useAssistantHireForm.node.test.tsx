@@ -10,7 +10,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
-import { AssistantActions, VoiceOption, AssistantPreset } from '@/types/assistants/assistant';
+import {
+  AssistantActions,
+  VoiceOption,
+  AssistantPreset,
+  Assistant,
+  AssistantUpdatePayload,
+  AssistantFormData,
+} from '@/types/assistants/assistant';
+import { ChatMessage } from '@/types/assistants/chat';
 
 // Mock sonner toast
 vi.mock('sonner', () => ({
@@ -45,9 +53,10 @@ const createMockAssistantActions = (): AssistantActions => ({
     check: vi.fn().mockResolvedValue({ sufficient: true }),
   },
   chat: {
-    getContactIdByEmail: vi.fn(),
-    transcripts: vi.fn(),
+    getContactId: vi.fn(),
+    getTranscripts: vi.fn(),
     message: vi.fn(),
+    getAssistantOwnerById: vi.fn(),
     triggerContactSync: vi.fn(),
   },
   call: {
@@ -60,8 +69,8 @@ const createMockAssistantActions = (): AssistantActions => ({
     delete: vi.fn(),
     clone: vi.fn(),
     generate: vi.fn(),
-    designGeneratePreviews: vi.fn(),
-    designCreateFromPreview: vi.fn(),
+    preview: vi.fn(),
+    design: vi.fn(),
   },
   contact: {
     listAllAssistantEmails: vi.fn().mockResolvedValue([]),
@@ -71,7 +80,7 @@ const createMockAssistantActions = (): AssistantActions => ({
     ]),
     listAvailableSocialPlatforms: vi.fn(),
     verifySocialAccount: vi.fn(),
-    deleteContact: vi.fn(),
+    delete: vi.fn(),
   },
   photo: {
     upload: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/photo.jpg' }),
@@ -81,26 +90,22 @@ const createMockAssistantActions = (): AssistantActions => ({
     generate: vi.fn(),
     edit: vi.fn(),
     animate: vi.fn(),
-    getAnimationPrediction: vi.fn(),
-    cancelAnimationPrediction: vi.fn(),
+    getAnimation: vi.fn(),
+    cancelAnimation: vi.fn(),
   },
   secret: {
-    list: vi.fn(),
+    get: vi.fn(),
     create: vi.fn(),
     delete: vi.fn(),
-  },
-  task: {
-    list: vi.fn(),
-    getUniqueFieldValues: vi.fn(),
-    update: vi.fn(),
   },
   desktop: {
     getLiveviewUrl: vi.fn(),
     sendSystemEvent: vi.fn(),
   },
   approval: {
-    list: vi.fn(),
-    respond: vi.fn(),
+    getProfile: vi.fn(),
+    requestAccess: vi.fn(),
+    claimToken: vi.fn(),
   },
 });
 
@@ -131,8 +136,12 @@ const createMockVoices = (): VoiceOption[] => [
 describe('useAssistantHireForm', () => {
   let mockActions: AssistantActions;
   let mockVoices: VoiceOption[];
-  let onHireSuccess: ReturnType<typeof vi.fn>;
-  let onUpdateSuccess: ReturnType<typeof vi.fn>;
+  let onHireSuccess: (
+    newAssistant: Assistant,
+    formData: AssistantFormData,
+    chatHistory?: ChatMessage[]
+  ) => void;
+  let onUpdateSuccess: (updatedPayload: Partial<AssistantUpdatePayload>) => void;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -297,10 +306,12 @@ describe('useAssistantHireForm', () => {
       gender: 'female',
       about: 'A preset assistant',
       profilePhoto: 'https://example.com/preset-photo.jpg',
+      profileVideo: null,
       voiceIds: {
         elevenlabs: 'preset-el-voice',
         openai: 'preset-oai-voice',
       },
+      voiceMode: 'tts',
       timezone: 'America/Toronto',
       phoneCountry: 'CA',
     };

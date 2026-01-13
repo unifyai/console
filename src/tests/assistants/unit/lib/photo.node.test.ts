@@ -216,7 +216,7 @@ describe('photo.ts', () => {
         const generateFn = await generatePhoto(TEST_API_KEY);
         const result = await generateFn({
           prompt: 'A professional headshot',
-          style: 'realistic',
+          aspectRatio: '1:1',
         });
 
         // Assert
@@ -247,11 +247,11 @@ describe('photo.ts', () => {
         const generateFn = await generatePhoto(TEST_API_KEY);
         await generateFn({
           prompt: 'test',
-          negativePrompt: 'bad quality',
+          aspectRatio: '16:9',
         });
 
         // Assert
-        expect(capturedBody).toHaveProperty('negative_prompt', 'bad quality');
+        expect(capturedBody).toHaveProperty('aspect_ratio', '16:9');
       }
     );
 
