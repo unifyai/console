@@ -2,8 +2,8 @@ import { render, screen, waitFor, within, act } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Main from '@/components/Pages/Assistants/Main';
-import { mockAssistantActions, mockTaskActions } from './mocks/actions';
-import { mockAssistants } from './mocks/data';
+import { mockAssistantActions, mockTaskActions } from '../mocks/actions';
+import { mockAssistants } from '../mocks/data';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import { EventEmitter } from 'events';
 
@@ -1144,6 +1144,219 @@ describe('Assistant Call', () => {
 
         // Cleanup
         openSpy.mockRestore();
+      }
+    );
+  });
+
+  // =========================================================================
+  // SECTION E: CALL RECONNECTION
+  // =========================================================================
+  describe('E-Call Reconnection', () => {
+    it(
+      'handles assistant leaving and rejoining during call',
+      {
+        meta: {
+          alias: 'Call-Reconnect-Participant',
+          scenario: 'Assistant temporarily disconnects during an active call.',
+          behavior: 'The UI shows waiting state and reconnects when assistant rejoins.',
+        },
+      },
+      async () => {
+        renderPage();
+        const room = await establishCall('video');
+
+        // Verify call is active
+        expect(
+          screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+        ).toBeVisible();
+
+        // Simulate assistant leaving
+        room.numParticipants = 1;
+        room.emit(RoomEvent.ParticipantDisconnected, { identity: 'assistant-agent' });
+
+        // Should show waiting state
+        await waitFor(() => {
+          expect(
+            screen.getByText(`Waiting for ${targetAssistant.firstName} to join...`)
+          ).toBeVisible();
+        });
+
+        // Assistant rejoins
+        room.numParticipants = 2;
+        room.emit(RoomEvent.ParticipantConnected, { identity: 'assistant-agent' });
+
+        // Should resume normal call view
+        await waitFor(() => {
+          expect(
+            screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeVisible();
+        });
+      }
+    );
+
+    it(
+      'shows retry option when connection drops unexpectedly',
+      {
+        meta: {
+          alias: 'Call-Reconnect-Retry',
+          scenario: 'Room connection drops due to network issues.',
+          behavior: 'UI transitions to error state with retry option.',
+        },
+      },
+      async () => {
+        renderPage();
+        const room = await establishCall('audio');
+
+        // Simulate unexpected disconnect
+        room.state = ConnectionState.Disconnected;
+        room.emit(RoomEvent.Disconnected);
+
+        // Call view should be closed
+        await waitFor(() => {
+          expect(
+            screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeNull();
+        });
+
+        // Verify we can start a new call
+        const callButton = await screen.findByTestId('call-menu-trigger');
+        expect(callButton).toBeInTheDocument();
+      }
+    );
+
+    it(
+      'cleans up resources on connection failure during setup',
+      {
+        meta: {
+          alias: 'Call-Reconnect-Cleanup',
+          scenario: 'LiveKit room.connect() throws an error.',
+          behavior: 'Room is disconnected and resources are cleaned up properly.',
+        },
+      },
+      async () => {
+        const LiveKitClient = await import('livekit-client');
+        const mockRoom = new MockRoom();
+        mockRoom.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+        vi.mocked(LiveKitClient.Room).mockImplementationOnce(() => mockRoom);
+
+        renderPage();
+        const callButton = await openProfileAndGetCallButton();
+        await defaultUser.click(callButton);
+
+        const audioOption = await screen.findByTestId('call-option-audio');
+        await defaultUser.click(audioOption);
+
+        // Wait for error to be handled
+        await waitFor(() => {
+          expect(mockRoom.disconnect).toHaveBeenCalled();
+        });
+
+        // Should not show call view
+        expect(
+          screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+        ).toBeNull();
+      }
+    );
+
+    it(
+      'handles rapid disconnect/reconnect without state corruption',
+      {
+        meta: {
+          alias: 'Call-Reconnect-Rapid',
+          scenario: 'User rapidly disconnects and starts new call.',
+          behavior: 'Each call session is independent, no state leakage between calls.',
+        },
+      },
+      async () => {
+        renderPage();
+
+        // First call
+        const room1 = await establishCall('audio');
+        expect(
+          screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+        ).toBeVisible();
+
+        // Hang up
+        const hangUpButton = screen.getByRole('button', { name: /hang up/i });
+        await defaultUser.click(hangUpButton);
+
+        await waitFor(() => {
+          expect(room1.disconnect).toHaveBeenCalled();
+        });
+
+        // Wait for UI to reset
+        await waitFor(() => {
+          expect(
+            screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeNull();
+        });
+
+        // Start second call immediately
+        const callButton = await screen.findByTestId('call-menu-trigger');
+        await defaultUser.click(callButton);
+
+        const videoOption = await screen.findByTestId('call-option-video');
+        await defaultUser.click(videoOption);
+
+        // Wait for new connection
+        const room2 = await getMockRoomInstance();
+        await waitFor(() => expect(room2.connect).toHaveBeenCalled());
+
+        // Simulate assistant joining
+        room2.numParticipants = 2;
+        room2.emit(RoomEvent.ParticipantConnected, { identity: 'assistant-agent' });
+
+        // Second call should be active
+        await waitFor(() => {
+          expect(
+            screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeVisible();
+        });
+      }
+    );
+
+    it(
+      'maintains call controls after participant reconnect',
+      {
+        meta: {
+          alias: 'Call-Reconnect-Controls',
+          scenario: 'Assistant reconnects after brief disconnect.',
+          behavior: 'All call controls (mute, camera, etc.) remain functional.',
+        },
+      },
+      async () => {
+        renderPage();
+        const room = await establishCall('video');
+
+        // Verify controls work before disconnect
+        const muteButton = await screen.findByLabelText('Mute');
+        await defaultUser.click(muteButton);
+        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
+
+        // Simulate assistant disconnect and reconnect
+        room.numParticipants = 1;
+        room.emit(RoomEvent.ParticipantDisconnected, { identity: 'assistant-agent' });
+
+        await waitFor(() => {
+          expect(
+            screen.getByText(`Waiting for ${targetAssistant.firstName} to join...`)
+          ).toBeVisible();
+        });
+
+        room.numParticipants = 2;
+        room.emit(RoomEvent.ParticipantConnected, { identity: 'assistant-agent' });
+
+        await waitFor(() => {
+          expect(
+            screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeVisible();
+        });
+
+        // Verify controls still work after reconnect
+        vi.clearAllMocks();
+        const unmuteButton = await screen.findByLabelText('Unmute');
+        await defaultUser.click(unmuteButton);
+        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
       }
     );
   });

@@ -3,8 +3,8 @@ import { render, screen, waitFor, act, fireEvent } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
 import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
-import { createMockAssistant } from './mocks/data';
-import { mockAssistantActions } from './mocks/actions';
+import { createMockAssistant } from '../mocks/data';
+import { mockAssistantActions } from '../mocks/actions';
 import { AssistantActions, Assistant } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
@@ -2677,6 +2677,481 @@ describe('Assistant Profile Chat', () => {
             .getByText('Hello from the user')
             .closest('[data-testid="message-bubble"]');
           expect(bubble).toHaveAttribute('data-role', 'user');
+        });
+      }
+    );
+  });
+
+  // =========================================================================
+  // SECTION K: CROSS-USER CHAT ISOLATION
+  // =========================================================================
+  describe('K - Cross-User Chat Isolation', () => {
+    it(
+      'filters SSE messages by contact_id to ensure chat isolation',
+      {
+        meta: {
+          alias: 'Isolation-ContactId-Filter',
+          scenario:
+            'User A (contact_id=5) is chatting while User B (contact_id=10) messages arrive',
+          behavior: 'User A only sees messages with matching contact_id',
+        },
+      },
+      async () => {
+        const userAContactId = 5;
+        const userBContactId = 10;
+        const getContactIdMock = vi.fn(async () => userAContactId);
+
+        render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantActionsOverride={{
+              chat: {
+                getContactId: getContactIdMock,
+                getTranscripts: vi.fn(async () => []),
+                message: vi.fn(async () => ({})),
+                getAssistantOwnerById: vi.fn(async () => null),
+                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+              },
+            }}
+          />
+        );
+
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        // Message for User A - should be displayed
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-for-user-a',
+            contact_id: userAContactId,
+            publishTime: new Date().toISOString(),
+            event: { content: 'Hello User A!' },
+          });
+        });
+
+        // Message for User B - should NOT be displayed
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-for-user-b',
+            contact_id: userBContactId,
+            publishTime: new Date().toISOString(),
+            event: { content: 'Hello User B!' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Hello User A!')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('Hello User B!')).not.toBeInTheDocument();
+      }
+    );
+
+    it(
+      'only acks messages for current user session',
+      {
+        meta: {
+          alias: 'Isolation-Ack-Filter',
+          scenario: 'SSE messages for different users arrive with ack tokens',
+          behavior: 'Only messages for current user are acked',
+        },
+      },
+      async () => {
+        const userContactId = 7;
+        const otherContactId = 99;
+        const getContactIdMock = vi.fn(async () => userContactId);
+
+        render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantActionsOverride={{
+              chat: {
+                getContactId: getContactIdMock,
+                getTranscripts: vi.fn(async () => []),
+                message: vi.fn(async () => ({})),
+                getAssistantOwnerById: vi.fn(async () => null),
+                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+              },
+            }}
+          />
+        );
+
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        // Message for current user
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-mine',
+            contact_id: userContactId,
+            __ackId: 'ack-mine',
+            publishTime: new Date().toISOString(),
+            event: { content: 'My message' },
+          });
+        });
+
+        // Message for other user
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-other',
+            contact_id: otherContactId,
+            __ackId: 'ack-other',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Other message' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('My message')).toBeInTheDocument();
+        });
+
+        // Verify only the current user's message was acked
+        await waitFor(() => {
+          expect(fetchSpy).toHaveBeenCalledWith(
+            expect.stringContaining('/events/ack'),
+            expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-mine' }) })
+          );
+        });
+
+        // Other user's message should not have been acked
+        const ackCalls = fetchSpy.mock.calls.filter(
+          (call) =>
+            String(call[0]).includes('/events/ack') &&
+            call[1]?.body === JSON.stringify({ ackId: 'ack-other' })
+        );
+        expect(ackCalls.length).toBe(0);
+      }
+    );
+
+    it(
+      'loads only current user chat history via contactId',
+      {
+        meta: {
+          alias: 'Isolation-History-Load',
+          scenario: 'User opens chat for an assistant they share with others',
+          behavior: 'getTranscripts is called with correct contactId to load only their messages',
+        },
+      },
+      async () => {
+        const userContactId = 42;
+        const getContactIdMock = vi.fn(async () => userContactId);
+        const getTranscriptsMock = vi.fn(async () => [
+          {
+            id: 'msg-1',
+            role: 'user',
+            content: 'My previous message',
+            timestamp: new Date(),
+            messageId: 1,
+          },
+        ]);
+
+        render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantActionsOverride={{
+              chat: {
+                getContactId: getContactIdMock,
+                getTranscripts: getTranscriptsMock,
+                message: vi.fn(async () => ({})),
+                getAssistantOwnerById: vi.fn(async () => null),
+                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+              },
+            }}
+          />
+        );
+
+        await waitFor(() => {
+          expect(getTranscriptsMock).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.any(String),
+            userContactId,
+            undefined
+          );
+        });
+
+        expect(screen.getByText('My previous message')).toBeInTheDocument();
+      }
+    );
+  });
+
+  // =========================================================================
+  // SECTION L: ERROR RECOVERY
+  // =========================================================================
+  describe('L - Error Recovery', () => {
+    it(
+      'reconnects SSE after connection error',
+      {
+        meta: {
+          alias: 'Recovery-SSE-Reconnect',
+          scenario: 'SSE connection drops unexpectedly',
+          behavior: 'Component attempts to reconnect automatically',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        const firstConnection = mockEventSourceInstance;
+
+        // Simulate connection error
+        act(() => {
+          mockEventSourceInstance!.simulateError();
+        });
+
+        // Wait for reconnection attempt
+        await waitFor(
+          () => {
+            expect(eventSourceInstances.length).toBeGreaterThan(1);
+          },
+          { timeout: 5000 }
+        );
+
+        const secondConnection = eventSourceInstances[eventSourceInstances.length - 1];
+        expect(secondConnection).not.toBe(firstConnection);
+      }
+    );
+
+    it(
+      'retries message send on failure and restores input',
+      {
+        meta: {
+          alias: 'Recovery-Message-Retry',
+          scenario: 'Message send fails',
+          behavior: 'Message is removed from UI, input is restored, error toast shown',
+        },
+      },
+      async () => {
+        const failingMessageAction = vi.fn(async () => {
+          throw new Error('Network Error');
+        });
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: vi.fn(async () => []),
+            message: failingMessageAction,
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        render(
+          <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
+        );
+
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        const user = userEvent.setup();
+        const input = await screen.findByPlaceholderText('Send a message...');
+        await waitFor(() => expect(input).not.toBeDisabled());
+
+        await user.type(input, 'This will fail');
+        await user.keyboard('{Enter}');
+
+        // Optimistic update shows message
+        await waitFor(() => {
+          expect(screen.getByText('This will fail')).toBeInTheDocument();
+          expect(input).toHaveValue('');
+        });
+
+        // After failure, message is removed and input restored
+        await waitFor(() => {
+          const bubbles = screen.queryAllByTestId('message-bubble');
+          const bubbleContents = bubbles.map((b) => b.textContent);
+          expect(bubbleContents).not.toContain('This will fail');
+          expect(input).toHaveValue('This will fail');
+        });
+
+        // Error toast shown
+        expect(screen.getByText('Failed to send message.')).toBeInTheDocument();
+      }
+    );
+
+    it(
+      'continues receiving messages after history load failure retry',
+      {
+        meta: {
+          alias: 'Recovery-History-Then-SSE',
+          scenario: 'Initial history fails, user retries, then receives SSE messages',
+          behavior: 'After successful retry, SSE messages are properly received',
+        },
+      },
+      async () => {
+        let callCount = 0;
+        const getTranscriptsMock = vi.fn(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return { detail: 'Server Error' };
+          }
+          return [];
+        });
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: getTranscriptsMock,
+            message: vi.fn(async () => ({})),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        render(
+          <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
+        );
+
+        // Wait for error UI
+        await waitFor(() => {
+          expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
+        });
+
+        // No SSE connection yet
+        expect(eventSourceInstances.length).toBe(0);
+
+        // Click retry
+        await userEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+        // Wait for success
+        await waitFor(() => {
+          expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
+        });
+
+        // SSE should now be connected
+        await waitFor(() => {
+          expect(eventSourceInstances.length).toBe(1);
+        });
+
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        // Send a message via SSE
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-after-retry',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Hello after retry' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Hello after retry')).toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'handles malformed SSE messages gracefully',
+      {
+        meta: {
+          alias: 'Recovery-Malformed-SSE',
+          scenario: 'SSE receives malformed JSON or unexpected data format',
+          behavior: 'Component handles error without crashing, valid messages still work',
+        },
+      },
+      async () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        // Send malformed message
+        act(() => {
+          mockEventSourceInstance!.simulateMessage('not valid json {{{');
+        });
+
+        // Send valid message after
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-valid',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Valid message' },
+          });
+        });
+
+        // Valid message should still appear
+        await waitFor(() => {
+          expect(screen.getByText('Valid message')).toBeInTheDocument();
+        });
+
+        consoleSpy.mockRestore();
+      }
+    );
+
+    it(
+      'preserves messages when SSE reconnects',
+      {
+        meta: {
+          alias: 'Recovery-Preserve-On-Reconnect',
+          scenario: 'SSE disconnects and reconnects',
+          behavior: 'Previously received messages are preserved, no duplicates on replay',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+        act(() => mockEventSourceInstance!.simulateOpen());
+
+        // Receive message
+        act(() => {
+          mockEventSourceInstance!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-before-disconnect',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Before disconnect' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Before disconnect')).toBeInTheDocument();
+        });
+
+        // Simulate disconnect and reconnect
+        act(() => {
+          mockEventSourceInstance!.simulateError();
+        });
+
+        await waitFor(() => {
+          expect(eventSourceInstances.length).toBeGreaterThan(1);
+        });
+
+        const newConnection = eventSourceInstances[eventSourceInstances.length - 1];
+        act(() => newConnection.simulateOpen());
+
+        // Replay same message (simulating server resending on reconnect)
+        act(() => {
+          newConnection.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-before-disconnect',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Before disconnect' },
+          });
+        });
+
+        // Should still have only one message (deduplicated)
+        await waitFor(() => {
+          const bubbles = getChatBubbles();
+          expect(bubbles.filter((b) => b === 'Before disconnect').length).toBe(1);
+        });
+
+        // New message should also work
+        act(() => {
+          newConnection.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-after-reconnect',
+            publishTime: new Date().toISOString(),
+            event: { content: 'After reconnect' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('After reconnect')).toBeInTheDocument();
         });
       }
     );

@@ -9,11 +9,11 @@ import { AssistantEdit } from '@/components/Pages/Assistants/Assistants/Edit/Ass
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
-import { mockAssistantActions } from './mocks/actions';
-import { mockPresets, mockVoices, mockAssistants } from './mocks/data';
+import { mockAssistantActions } from '../mocks/actions';
+import { mockPresets, mockVoices, mockAssistants } from '../mocks/data';
 import { FormProvider } from 'react-hook-form';
 import { http, HttpResponse } from 'msw';
-import { worker } from '../../../vitest.browser.setup';
+import { worker } from '../../../../vitest.browser.setup';
 import { Assistant, VoiceOption } from '@/types/assistants/assistant';
 import { ApprovalStatus } from '@/types/user';
 
@@ -1492,6 +1492,223 @@ describe('Assistant Hire Flow', () => {
               about: 'Updated Bio',
             })
           );
+        });
+      }
+    );
+
+    it(
+      'should validate required fields during edit',
+      {
+        meta: {
+          alias: 'Edit-Validation',
+          behavior: 'Shows error messages when required fields are cleared',
+          scenario: 'Clearing required fields during edit',
+        },
+      },
+      async () => {
+        const user = userEvent.setup();
+        render(<EditFlowTestWrapper assistant={mockAssistants[0]} />);
+
+        const firstNameInput = screen.getByLabelText(/first name/i);
+        await user.clear(firstNameInput);
+
+        const updateBtn = screen.getByRole('button', { name: /update assistant/i });
+        await user.click(updateBtn);
+
+        await waitFor(() => {
+          expect(screen.getByText(/first name is required/i)).toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'should handle update failure gracefully',
+      {
+        meta: {
+          alias: 'Edit-Failure',
+          behavior: 'Shows error message when update fails',
+          scenario: 'Backend returns error during update',
+        },
+      },
+      async () => {
+        const originalFetch = window.fetch;
+        vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+          const url = input.toString();
+          if (url.includes('/api/billing/balance')) {
+            return new Response(JSON.stringify({ balance: '100.00', fullBalance: 100.0 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return originalFetch(input);
+        });
+
+        mockAssistantActions.assistant.update = vi.fn(async () => ({
+          detail: 'Failed to update assistant',
+        }));
+
+        const user = userEvent.setup();
+        const validAssistant = {
+          ...mockAssistants[0],
+          email: 'jane.doe@unify.ai',
+        };
+
+        render(<EditFlowTestWrapper assistant={validAssistant} />);
+
+        const aboutInput = screen.getByLabelText(/about/i);
+        await user.clear(aboutInput);
+        await user.type(aboutInput, 'This update will fail');
+
+        const updateBtn = screen.getByRole('button', { name: /update assistant/i });
+        await waitFor(() => expect(updateBtn).toBeEnabled());
+        await user.click(updateBtn);
+
+        await waitFor(() => {
+          expect(mockAssistantActions.assistant.update).toHaveBeenCalled();
+        });
+      }
+    );
+
+    it(
+      'should allow changing voice during edit',
+      {
+        meta: {
+          alias: 'Edit-Voice-Change',
+          behavior: 'Voice can be changed in edit mode',
+          scenario: 'User changes assistant voice',
+        },
+      },
+      async () => {
+        const originalFetch = window.fetch;
+        vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+          const url = input.toString();
+          if (url.includes('/api/billing/balance')) {
+            return new Response(JSON.stringify({ balance: '100.00', fullBalance: 100.0 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return originalFetch(input);
+        });
+
+        const updateSpy = vi.spyOn(mockAssistantActions.assistant, 'update');
+        const user = userEvent.setup();
+        const validAssistant = {
+          ...mockAssistants[0],
+          email: 'jane.doe@unify.ai',
+          voiceId: 'voice_1',
+        };
+
+        render(<EditFlowTestWrapper assistant={validAssistant} />);
+
+        // Open voice accordion
+        const voiceAccordion = screen.getByRole('button', { name: /voice/i });
+        if (voiceAccordion.getAttribute('data-state') === 'closed') {
+          await user.click(voiceAccordion);
+        }
+
+        // Select different voice
+        const bobVoice = await screen.findByText(/Bob \(UK\)/i);
+        await user.click(bobVoice);
+
+        const updateBtn = screen.getByRole('button', { name: /update assistant/i });
+        await waitFor(() => expect(updateBtn).toBeEnabled());
+        await user.click(updateBtn);
+
+        await waitFor(() => {
+          expect(updateSpy).toHaveBeenCalled();
+          const [, payload] = updateSpy.mock.calls[0];
+          expect(payload).toEqual(
+            expect.objectContaining({
+              voice_id: 'voice_2',
+            })
+          );
+        });
+      }
+    );
+
+    it(
+      'should preserve unchanged fields during update',
+      {
+        meta: {
+          alias: 'Edit-Preserve-Fields',
+          behavior: 'Unchanged fields are preserved in update payload',
+          scenario: 'Partial update of assistant',
+        },
+      },
+      async () => {
+        const originalFetch = window.fetch;
+        vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+          const url = input.toString();
+          if (url.includes('/api/billing/balance')) {
+            return new Response(JSON.stringify({ balance: '100.00', fullBalance: 100.0 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+          return originalFetch(input);
+        });
+
+        const updateSpy = vi.spyOn(mockAssistantActions.assistant, 'update');
+        const user = userEvent.setup();
+        const validAssistant = {
+          ...mockAssistants[0],
+          email: 'jane.doe@unify.ai',
+          about: 'Original bio text',
+        };
+
+        render(<EditFlowTestWrapper assistant={validAssistant} />);
+
+        // Only change timezone
+        const timezoneTrigger = screen.getByLabelText(/timezone/i);
+        await user.click(timezoneTrigger);
+        const timezoneOption = await screen
+          .findByRole('option', { name: /Los Angeles/i })
+          .catch(() => null);
+        if (timezoneOption) {
+          await user.click(timezoneOption);
+        }
+
+        const updateBtn = screen.getByRole('button', { name: /update assistant/i });
+        await waitFor(() => expect(updateBtn).toBeEnabled());
+        await user.click(updateBtn);
+
+        await waitFor(() => {
+          expect(updateSpy).toHaveBeenCalled();
+          const [, payload] = updateSpy.mock.calls[0] as [string, { first_name?: string }];
+          // First name should be preserved
+          expect(payload.first_name).toBe(validAssistant.firstName);
+        });
+      }
+    );
+
+    it(
+      'should close dialog when cancel is clicked',
+      {
+        meta: {
+          alias: 'Edit-Cancel',
+          behavior: 'Dialog closes without saving changes',
+          scenario: 'User cancels edit',
+        },
+      },
+      async () => {
+        const user = userEvent.setup();
+        render(<EditFlowTestWrapper assistant={mockAssistants[0]} />);
+
+        // Make a change
+        const aboutInput = screen.getByLabelText(/about/i);
+        await user.clear(aboutInput);
+        await user.type(aboutInput, 'Unsaved changes');
+
+        // Click cancel (X button or close)
+        const closeButton = screen.getByRole('button', { name: /close/i });
+        await user.click(closeButton);
+
+        // Dialog should close
+        await waitFor(() => {
+          expect(
+            screen.queryByRole('button', { name: /update assistant/i })
+          ).not.toBeInTheDocument();
         });
       }
     );

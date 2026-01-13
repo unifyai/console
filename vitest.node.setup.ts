@@ -1,10 +1,7 @@
 import { beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
-import { setupServer } from 'msw/node';
 import { http, passthrough } from 'msw';
-import { handlers } from '@/tests/handlers';
+import { server } from '@/tests/server';
 import '@testing-library/jest-dom/vitest';
-
-const server = setupServer(...handlers);
 
 // === Test Callbacks ===
 beforeAll(() => {
