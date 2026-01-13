@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import ActionButton from "../../../../Common/Buttons/Action";
-import { DerivedEntryActions, LogsActions, ProjectsActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData, FileActions } from "@/types/interfaces/grid";
+import { DerivedEntryActions, LogsActions, ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData } from "@/types/interfaces/grid";
 import { useEffect, useState, useCallback } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -30,9 +30,7 @@ const DefaultProject = ({
     tabActions,
     tileActions,
     logsActions,
-    codeActions,
     derivedEntryActions,
-    fileActions,
     setTabQueryParam,
     setInterfaceQueryParam,
     setProjectQueryParam
@@ -42,9 +40,7 @@ const DefaultProject = ({
     tabActions: GranularTabActions,
     tileActions: GranularTileActions,
     logsActions: LogsActions,
-    codeActions: CodeActions,
     derivedEntryActions: DerivedEntryActions,
-    fileActions: FileActions,
     setTabQueryParam: (value: string | null) => void,
     setInterfaceQueryParam: (value: string | null) => void,
     setProjectQueryParam: (value: string | null) => void,
@@ -119,13 +115,10 @@ const DefaultProject = ({
                 tab: verifiedTab,
                 tiles: verifiedTiles,
                 derivedColumns: demoDerivedColumns,
-                code: demoCode,
                 actions: {
                     interfaceActions,
                     tabActions,
                     tileActions,
-                    codeActions,
-                    fileActions,
                     derivedEntryActions
                 }
             });
@@ -143,7 +136,7 @@ const DefaultProject = ({
             console.error("Error creating demo:", error);
             // Error handling is now managed by the hook
         }
-    }, [demoInterface, demoTab, demoTiles, projects, setProjectQueryParam, setCreate, createDemoMutation, demoDerivedColumns, demoCode, interfaceActions, tabActions, tileActions, codeActions, fileActions, derivedEntryActions, setInterfaceQueryParam, setTabQueryParam, setDemo]);
+    }, [demoInterface, demoTab, demoTiles, projects, setProjectQueryParam, setCreate, createDemoMutation, demoDerivedColumns, interfaceActions, tabActions, tileActions, derivedEntryActions, setInterfaceQueryParam, setTabQueryParam, setDemo]);
 
     // Reset mutations if there was an error
     useEffect(() => {

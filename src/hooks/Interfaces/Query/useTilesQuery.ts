@@ -349,8 +349,6 @@ export function useTileDataQuery(
     getTableData?: (tab_id: string, name: string) => Promise<any>;
     getPlotData?: (tab_id: string, name: string) => Promise<any>;
     getViewData?: (tab_id: string, name: string) => Promise<any>;
-    getEditorData?: (tab_id: string, name: string) => Promise<any>;
-    getTerminalData?: (tab_id: string, name: string) => Promise<any>;
   }
 ) {
   return useQuery({
@@ -365,10 +363,6 @@ export function useTileDataQuery(
           return actions.getPlotData?.(tab_id, name);
         case 'view':
           return actions.getViewData?.(tab_id, name);
-        case 'editor':
-          return actions.getEditorData?.(tab_id, name);
-        case 'terminal':
-          return actions.getTerminalData?.(tab_id, name);
         default:
           return null;
       }

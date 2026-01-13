@@ -1,15 +1,11 @@
 import { PlotTile } from "./plotTile";
 import { TableTile } from "./tableTile";
 import { ViewTile } from "./viewTile";
-import { EditorTile } from "./editorTile";
-import { TerminalTile } from "./terminalTile";
 import { tabTypes } from "@/constants/logs";
 
 import * as tableTileLogic from "./tableTile";
 import * as plotTileLogic from "./plotTile";
 import * as viewTileLogic from "./viewTile";
-import * as editorTileLogic from "./editorTile";
-import * as terminalTileLogic from "./terminalTile";
 
 export interface TilePosition {
   x: number;
@@ -18,13 +14,13 @@ export interface TilePosition {
   height: number;
 }
 
-export type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
+export type TileType = "Table" | "Plot" | "View";
 
 // Tile metadata - core identifying information
 export interface TileMeta {
   id: string;
   name: string;
-  type?: (typeof tabTypes)[number] | null; // Optional during initialization, can only be "Table", "Plot", "View", "Editor", or "Terminal"
+  type?: (typeof tabTypes)[number] | null; // Optional during initialization, can only be "Table", "Plot", or "View"
   position: TilePosition;
   minW?: number | null;
   minH?: number | null;
@@ -65,8 +61,6 @@ export interface Tile extends TileMeta, TileData, TileUI {
   tableTile: TableTile | null;
   plotTile: PlotTile | null;
   viewTile: ViewTile | null;
-  editorTile: EditorTile | null;
-  terminalTile: TerminalTile | null;
 }
 
 // tileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
@@ -80,7 +74,7 @@ export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
 export const TILE_KEYS: (keyof Tile)[] = [
   ...TILE_PROPS_KEYS_AS_TILE_KEYS,
   "tabId","locked","pending","loading", "error",
-  "itemsNeedRecompute","tableTile","plotTile","viewTile","editorTile","terminalTile"
+  "itemsNeedRecompute","tableTile","plotTile","viewTile"
 ];
 
 /**
@@ -125,8 +119,6 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     tableTile: initialState.tableTile !== undefined ? initialState.tableTile : tableTileLogic.initTableTile(),
     plotTile: initialState.plotTile !== undefined ? initialState.plotTile : plotTileLogic.initPlotTile(),
     viewTile: initialState.viewTile !== undefined ? initialState.viewTile : viewTileLogic.initViewTile(),
-    editorTile: initialState.editorTile !== undefined ? initialState.editorTile : editorTileLogic.initEditorTile(),
-    terminalTile: initialState.terminalTile !== undefined ? initialState.terminalTile : terminalTileLogic.initTerminalTile(),
     ...initialState,
   };
 }

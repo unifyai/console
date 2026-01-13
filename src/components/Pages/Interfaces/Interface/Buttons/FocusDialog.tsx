@@ -6,7 +6,7 @@ import ActionButton from "../../../../Common/Buttons/Action";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
 import { Badge } from "../../../../UI/badge";
 import { DropdownMenuItem } from "../../../../UI/dropdown-menu";
-import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, GranularTileActions, ProjectsActions, GranularTabActions } from "@/types/interfaces/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "../../Tile/TileCard";
@@ -26,9 +26,7 @@ const FocusDialog = ({
     fieldsActions,
     derivedEntryActions,
     contextActions,
-    codeActions,
     projectsActions,
-    fileActions,
 }: {
     tabIdOrName: string;
     interfaceId: string;
@@ -39,9 +37,7 @@ const FocusDialog = ({
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
-    codeActions: CodeActions,
     projectsActions: ProjectsActions,
-    fileActions: FileActions,
 }) => {
     const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName, interfaceId);
     const tabId = tabMetaState?.id || "";
@@ -138,8 +134,6 @@ const FocusDialog = ({
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
-                        codeActions={codeActions}
-                        fileActions={fileActions}
                         projectsActions={projectsActions}
                     />
                 </div>

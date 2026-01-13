@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Database, FileText, BarChart3, Eye, Terminal, Code, Check, X } from "lucide-react";
+import { Database, FileText, BarChart3, Eye, Check, X } from "lucide-react";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../../../UI/dropdown-menu";
 import { icons, tabTypes } from "@/constants/logs";
@@ -53,8 +53,6 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
         switch (type) {
             case "Plot": return "https://docs.unify.ai/interfaces/plots";
             case "View": return "https://docs.unify.ai/interfaces/views";
-            case "Editor": return "https://docs.unify.ai/interfaces/editors";
-            case "Terminal": return "https://docs.unify.ai/interfaces/views";
             default: return "https://docs.unify.ai/interfaces/tables";
         }
     };
@@ -64,8 +62,6 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
             case "Table": return <Database className="h-4 w-4" />;
             case "Plot": return <BarChart3 className="h-4 w-4" />;
             case "View": return <Eye className="h-4 w-4" />;
-            case "Editor": return <Code className="h-4 w-4" />;
-            case "Terminal": return <Terminal className="h-4 w-4" />;
             default: return <FileText className="h-4 w-4" />;
         }
     };

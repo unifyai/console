@@ -89,8 +89,6 @@ const makeTiles = (): TileData[] => [
     },
     plot_tile: undefined,
     view_tile: undefined,
-    editor_tile: undefined,
-    terminal_tile: undefined,
   },
   {
     id: 'tile-plot',
@@ -119,8 +117,6 @@ const makeTiles = (): TileData[] => [
       plot_type: 'histogram',
     },
     view_tile: undefined,
-    editor_tile: undefined,
-    terminal_tile: undefined,
   },
 ];
 

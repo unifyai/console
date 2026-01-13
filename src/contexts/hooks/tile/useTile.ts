@@ -8,8 +8,6 @@ import { useTileItem } from './useTileItem';
 import { useTableTile, TableActions } from './useTableTile';
 import { usePlotTile, PlotActions } from './usePlotTile';
 import { useViewTile, ViewActions } from './useViewTile';
-import { useEditorTile, EditorActions } from './useEditorTile';
-import { useTerminalTile, TerminalActions } from './useTerminalTile';
 import { useShallow } from 'zustand/react/shallow';
 
 /**
@@ -31,15 +29,11 @@ export const DEFAULT_USE_TILE_RETURN = {
   tableTile: null,
   plotTile: null,
   viewTile: null,
-  editorTile: null,
-  terminalTile: null,
 
   // Type specific properties and actions
   tableTileActions: null,
   plotTileActions: null,
   viewTileActions: null,
-  editorTileActions: null,
-  terminalTileActions: null,
 };
 
 /**
@@ -60,8 +54,6 @@ export interface TileActions {
   tableTileActions?: TableActions;
   plotTileActions?: PlotActions;
   viewTileActions?: ViewActions;
-  editorTileActions?: EditorActions;
-  terminalTileActions?: TerminalActions;
 }
 
 /**
@@ -115,18 +107,6 @@ export function useTile(
     viewTileActions,
     exists: viewExists
   } = useViewTile(tileIdOrName, tabIdOrName || null);
-
-  const {
-    editorTile,
-    editorTileActions,
-    exists: editorExists
-  } = useEditorTile(tileIdOrName, tabIdOrName || null);
-
-  const {
-    terminalTile,
-    terminalTileActions,
-    exists: terminalExists
-  } = useTerminalTile(tileIdOrName, tabIdOrName || null);
 
   // Get active IDs from the store context
   const activeProjectId = useStoreContext(state => state.activeProjectId);
@@ -182,9 +162,7 @@ export function useTile(
       ui: uiActions,
       tableTileActions: tableTileActions as TableActions | undefined,
       plotTileActions: plotTileActions as PlotActions | undefined,
-      viewTileActions: viewTileActions as ViewActions | undefined,
-      editorTileActions: editorTileActions as EditorActions | undefined,
-      terminalTileActions: terminalTileActions as TerminalActions | undefined
+      viewTileActions: viewTileActions as ViewActions | undefined
     };
     
     return baseActions;
@@ -203,11 +181,7 @@ export function useTile(
     plotExists,
     plotTileActions,
     viewExists,
-    viewTileActions,
-    editorExists,
-    editorTileActions,
-    terminalExists,
-    terminalTileActions
+    viewTileActions
   ]);
   
   // Build a final 'tile' object from the separate meta, data, and UI objects
@@ -221,13 +195,11 @@ export function useTile(
       ...ui,
       tableTile,
       plotTile,
-      viewTile,
-      editorTile,
-      terminalTile
+      viewTile
     } as Tile;
     
     return baseTile;
-  }, [meta, data, ui, tableTile, plotTile, viewTile, editorTile, terminalTile]);
+  }, [meta, data, ui, tableTile, plotTile, viewTile]);
 
   // Use tileId to conditionally return values, but only after all hooks are called
   if (!tileIdOrName) {
@@ -251,13 +223,9 @@ export function useTile(
     tableTile: tableExists ? tableTile : null,
     plotTile: plotExists ? plotTile : null,
     viewTile: viewExists ? viewTile : null,
-    editorTile: editorExists ? editorTile : null,
-    terminalTile: terminalExists ? terminalTile : null,
 
     tableTileActions: tableExists ? tableTileActions : null,
     plotTileActions: plotExists ? plotTileActions : null,
     viewTileActions: viewExists ? viewTileActions : null,
-    editorTileActions: editorExists ? editorTileActions : null,
-    terminalTileActions: terminalExists ? terminalTileActions : null,
   };
 }

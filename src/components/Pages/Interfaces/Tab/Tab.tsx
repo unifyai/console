@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, Suspense, lazy } from "react";
 import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions, FileActions } from "@/types/interfaces/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions } from "@/types/interfaces/grid";
 import { Loader2, Plus, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/UI/button";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
@@ -33,8 +33,6 @@ interface TabComponentProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
-  fileActions: FileActions;
   /** Whether tiles are currently being loaded */
   isLoadingTiles?: boolean;
 }
@@ -50,8 +48,6 @@ const Tab = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
-  fileActions,
   isLoadingTiles = false,
 }: TabComponentProps) => {
   const widthFactor = 4;
@@ -186,8 +182,6 @@ const Tab = ({
               fieldsActions={fieldsActions}
               derivedEntryActions={derivedEntryActions}
               contextActions={contextActions}
-              codeActions={codeActions}
-              fileActions={fileActions}
             />
           </Suspense>
         ),
@@ -205,8 +199,6 @@ const Tab = ({
     fieldsActions,
     derivedEntryActions,
     contextActions,
-    codeActions,
-    fileActions,
     projectsActions,
   ]);
 

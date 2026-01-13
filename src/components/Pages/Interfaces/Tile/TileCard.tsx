@@ -2,7 +2,7 @@
 
 import React, { ReactNode, Suspense, lazy, useEffect } from "react";
 import { cn } from "@/utils/misc/cn";
-import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, GranularTileActions, ProjectsActions, GranularTabActions } from "@/types/interfaces/grid";
 import { LogsActions } from "@/types/interfaces/grid";
 import { Loader2 } from "lucide-react";
 import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
@@ -32,8 +32,6 @@ interface TileCardProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
-  fileActions: FileActions;
   children?: ReactNode;
 }
 
@@ -49,8 +47,6 @@ const TileCard = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
-  fileActions,
   children,
 }: TileCardProps) => {
 
@@ -143,7 +139,6 @@ const TileCard = ({
               tileActions={tileActions}
               logsActions={logsActions}
               contextActions={contextActions}
-              codeActions={codeActions}
               projectsActions={projectsActions}
               fieldsActions={fieldsActions}
             />
@@ -188,8 +183,6 @@ const TileCard = ({
                   fieldsActions,
                   derivedEntryActions,
                   contextActions,
-                  codeActions,
-                  fileActions,
                 }}
               />
             </Suspense>

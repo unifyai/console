@@ -3,7 +3,7 @@
 import React, { lazy, Suspense, useMemo } from "react";
 import { useEnsureTileDataBeforeRender } from "@/utils/interfaces/tileDependencies";
 import { Loader2 } from "lucide-react";
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, GranularTileActions, ProjectsActions } from "@/types/interfaces/grid";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 
 const Tile = lazy(() => import("@/components/Pages/Interfaces/Tile/Tile"));
@@ -26,8 +26,6 @@ export interface TileRendererProps {
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
-    codeActions: CodeActions;
-    fileActions: FileActions;
   };
 }
 

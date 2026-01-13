@@ -55,8 +55,6 @@ export const mockTile: Tile = {
   },
   plotTile: null,
   viewTile: null,
-  editorTile: null,
-  terminalTile: null,
 };
 
 

@@ -74,8 +74,6 @@ describe('P2-D: Tile Layout', () => {
       await waitFor(() => {
         expect(screen.getByTestId('select-tile-type-table')).toBeInTheDocument();
         expect(screen.getByTestId('select-tile-type-plot')).toBeInTheDocument();
-        expect(screen.getByTestId('select-tile-type-editor')).toBeInTheDocument();
-        expect(screen.getByTestId('select-tile-type-terminal')).toBeInTheDocument();
       });
     });
 
@@ -131,7 +129,7 @@ describe('P2-D: Tile Layout', () => {
         expect(screen.getByTestId('add-tile-overlay')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('select-tile-type-editor'));
+      await user.click(screen.getByTestId('select-tile-type-table'));
 
       await waitFor(() => {
         expect(screen.queryByTestId('add-tile-overlay')).not.toBeInTheDocument();

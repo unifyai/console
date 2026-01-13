@@ -10,8 +10,6 @@ import { createTileSlice, TileState, TileActions } from "./tileSlice";
 import { createTableTileSlice, TableTileState, TableTileActions } from "./tableTileSlice";
 import { createPlotTileSlice, PlotTileState, PlotTileActions } from "./plotTileSlice";
 import { createViewTileSlice, ViewTileState, ViewTileActions } from "./viewTileSlice";
-import { createEditorTileSlice, EditorTileState, EditorTileActions } from "./editorTileSlice";
-import { createTerminalTileSlice, TerminalTileState, TerminalTileActions } from "./terminalTileSlice";
 import { createAsyncSlice, AsyncState, AsyncActions } from "./asyncSlice";
 import { createContextsSlice, ContextsState, ContextsActions } from "./contextsSlice";
 
@@ -31,8 +29,6 @@ export interface StoreState extends
   TableTileState,
   PlotTileState,
   ViewTileState,
-  EditorTileState,
-  TerminalTileState,
   AsyncState,
   ContextsState {}
 
@@ -47,8 +43,6 @@ export interface StoreActions extends
   TableTileActions,
   PlotTileActions,
   ViewTileActions,
-  EditorTileActions,
-  TerminalTileActions,
   AsyncActions,
   ContextsActions {}
 
@@ -71,8 +65,6 @@ export const createStoreSlice: StateCreator<
   ...createTableTileSlice(...a),
   ...createPlotTileSlice(...a),
   ...createViewTileSlice(...a),
-  ...createEditorTileSlice(...a),
-  ...createTerminalTileSlice(...a),
   ...createAsyncSlice(...a),
   ...createContextsSlice(...a),
 }); 

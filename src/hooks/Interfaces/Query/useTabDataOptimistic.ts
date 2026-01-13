@@ -292,7 +292,6 @@ export function useTabDataOptimistic() {
               break;
             }
             case "View":
-            case "Editor":
               // No additional processing
               break;
           }

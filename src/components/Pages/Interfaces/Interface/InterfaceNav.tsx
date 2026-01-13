@@ -73,7 +73,7 @@ import { IconSelector } from '@/components/UI/icon-selector'
 import SubmitButton from '@/components/Common/Buttons/Submit'
 import { HexColorPicker } from "react-colorful"
 import { showLoadingToast, showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications'
-import type { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, LogsActions, ContextActions, CodeActions, FavouritesActions, Favourite, FieldsActions, TemplateExportResponse, InterfaceTemplateSchema } from '@/types/interfaces/grid'
+import type { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, LogsActions, ContextActions, FavouritesActions, Favourite, FieldsActions, TemplateExportResponse, InterfaceTemplateSchema } from '@/types/interfaces/grid'
 import { ResourcesActions } from '@/types/resource'
 import {
   createProject,
@@ -149,10 +149,8 @@ interface InterfaceNavProps {
   interfaceActions: GranularInterfaceActions
   tabActions: GranularTabActions
   tileActions: GranularTileActions
-  fileActions: FileActions
   logsActions: LogsActions
   contextActions: ContextActions
-  codeActions: CodeActions
   favouritesActions: FavouritesActions
   initialFavourites: Favourite[]
   resourcesActions: ResourcesActions
@@ -359,10 +357,8 @@ export default function InterfaceNav({
   interfaceActions,
   tabActions,
   tileActions,
-  fileActions,
   logsActions,
   contextActions,
-  codeActions,
   favouritesActions,
   initialFavourites,
   resourcesActions,

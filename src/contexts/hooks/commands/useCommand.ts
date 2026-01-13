@@ -16,7 +16,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { Command, CommandCategory, CommandIcon } from "@/contexts/slices/selectors/commands";
 import { useCreateProjectQuery } from "@/hooks/Interfaces/Query/useCreateProjectQuery";
 import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Interfaces/Query/useProjectsQuery";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions, ContextActions, LogsActions } from "@/types/interfaces/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, ContextActions, LogsActions } from "@/types/interfaces/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { ResponseProps, FileProps } from "@/types/common";
 import { useTab } from "@/contexts/hooks/tab";
@@ -58,10 +58,8 @@ export interface UseCommandArgs {
    interfaceActions: GranularInterfaceActions;
    tabActions: GranularTabActions;
    tileActions: GranularTileActions;
-   fileActions: FileActions;
    logsActions: LogsActions;
    contextActions: ContextActions;
-   codeActions: CodeActions;
    /* Overlay state setter for save/reset operations */
    setOverlayState?: (state: {
      isVisible: boolean;
@@ -87,10 +85,8 @@ export function useCommand(args: UseCommandArgs) {
     interfaceActions,
     tabActions,
     tileActions,
-    fileActions,
     logsActions,
     contextActions,
-    codeActions,
     setOverlayState,
   } = args;
 
@@ -180,42 +176,12 @@ export function useCommand(args: UseCommandArgs) {
         setProjectQueryParam(newProj);
       }
 
-      // Ensure project directory exists & has .env
-      try {
-        debugLog("[selectProject] Checking for .env file in project:", newProj);
-        const res: any = await fileActions.list(newProj);
-        const hasEnv = Array.isArray(res)
-          ? res.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"))
-          : Array.isArray(res.files) && res.files.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"));
-        if (!hasEnv) {
-          debugLog("[selectProject] Creating .env file for project:", newProj);
-          await fileActions.write(newProj, { ".env": "" });
-        } else {
-          debugLog("[selectProject] .env file already exists");
-        }
-      } catch(e) {
-        // Directory might not exist; create .env to implicitly create dir
-        debugLog("[selectProject] Project directory may not exist, creating .env to initialize:", newProj);
-        try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
-      }
-
-      // Ensure .env file is not empty
-      debugLog("[selectProject] Verifying .env file content");
-      const res: any = await fileActions.read(newProj, ".env");
-      const content = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
-      if (content === "") {
-        debugLog("[selectProject] .env file is empty, initializing with empty content");
-        await fileActions.write(newProj, { ".env": "" });
-      }
     } else {
       debugLog("[selectProject] No project selected or missing setInterfaceQueryParam, using demo mode");
       setDemo(null);
       setTabQueryParam("tab1");
       setInterfaceQueryParam("interface1");
       setProjectQueryParam(newProj);
-      if (newProj) {
-        try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
-      }
     }
     
     debugLog("[selectProject] Project selection completed:", newProj);
@@ -227,7 +193,6 @@ export function useCommand(args: UseCommandArgs) {
     setProjectQueryParam, 
     setInterfaceQueryParam, 
     interfaceActions,
-    fileActions,
     projectId
   ]);
 
@@ -243,12 +208,6 @@ export function useCommand(args: UseCommandArgs) {
     // First create the base project on the backend (simple project)
     debugLog("[createProject] Creating base project on backend");
     await createOnlyProjectMutation.mutateAsync({ name, actions: projectActions });
-
-    // Immediately create an .env file in the new project
-    try {
-      debugLog("[createProject] Creating .env file for new project");
-      await fileActions.write(name, { ".env": "" });
-    } catch(e) { console.error("Failed to write .env", e); }
 
     // Prepare a default interface for the new project
     const newInterface = {
@@ -296,8 +255,7 @@ export function useCommand(args: UseCommandArgs) {
     tabUIActions,
     interfaceDataActions,
     setProjects,
-    projects,
-    fileActions
+    projects
   ]);
 
   const closeProject = useCallback(() => {
@@ -334,15 +292,6 @@ export function useCommand(args: UseCommandArgs) {
 
   const deleteProject = useCallback(async (name: string): Promise<ResponseProps> => {
     debugLog("[deleteProject] Starting project deletion:", name);
-    
-    // Remove project directory via fileActions helper
-    try {
-      debugLog("[deleteProject] Deleting project directory");
-      await fileActions.delete(name, "", true);
-    } catch (e) {
-      console.error("Failed to delete project directory", e);
-    }
-    
     debugLog("[deleteProject] Deleting project from backend");
     await deleteProjectMutation.mutateAsync({ name, actions: projectActions });
 
@@ -375,8 +324,7 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions,
     setTabQueryParam,
     setInterfaceQueryParam,
-    setProjectQueryParam,
-    fileActions
+    setProjectQueryParam
   ]);
 
   const deleteProjectLogs = useCallback(async (name: string): Promise<ResponseProps> => {

@@ -5,7 +5,7 @@ import { Pen, Settings, Star, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateProject from "../../Blocks/Table/Buttons/CreateProject";
 import { ResponseProps } from "@/types/common";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, CodeActions, LogsActions, ContextActions, Favourite, FavouritesActions } from "@/types/interfaces/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, LogsActions, ContextActions, Favourite, FavouritesActions } from "@/types/interfaces/grid";
 import ActionButton from "../../../../Common/Buttons/Action";
 import { useEffect, useState, useMemo } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
@@ -34,10 +34,8 @@ const ProjectButtons = ({
     interfaceActions,
     tabActions,
     tileActions,
-    fileActions,
     logsActions,
     contextActions,
-    codeActions,
     favouritesActions,
     initialFavourites,
 }: {
@@ -52,10 +50,8 @@ const ProjectButtons = ({
     interfaceActions: GranularInterfaceActions;
     tabActions: GranularTabActions;
     tileActions: GranularTileActions;
-    fileActions: FileActions;
     logsActions: LogsActions;
     contextActions: ContextActions;
-    codeActions: CodeActions;
     favouritesActions: FavouritesActions;
     initialFavourites: Favourite[];
 }) => {
@@ -141,10 +137,8 @@ const ProjectButtons = ({
         interfaceActions,
         tabActions,
         tileActions,
-        fileActions,
         logsActions,
         contextActions,
-        codeActions,
     });
     
     const { 

@@ -95,7 +95,7 @@ export interface TileGridTestResult extends RenderResult {
  * Creates mock tile data with default positions.
  */
 export function createMockTiles(count: number = 4): Partial<Tile>[] {
-  const types: TileType[] = ['Table', 'Plot', 'Editor', 'Terminal'];
+  const types: TileType[] = ['Table', 'Plot'];
   
   return Array.from({ length: count }, (_, i) => ({
     id: `tile-${i + 1}`,
@@ -336,7 +336,7 @@ interface AddTileOverlayProps {
 }
 
 function AddTileOverlay({ onSelect, onClose }: AddTileOverlayProps) {
-  const tileTypes: TileType[] = ['Table', 'Plot', 'Editor', 'Terminal'];
+  const tileTypes: TileType[] = ['Table', 'Plot'];
 
   return (
     <div

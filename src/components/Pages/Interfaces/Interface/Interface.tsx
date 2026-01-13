@@ -14,7 +14,7 @@ import { Icon } from "../../../UI/icon-picker";
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
+import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
 import { ResourcesActions } from '@/types/resource';
 import { User } from '@/types/user';
 import { debounce } from 'lodash';
@@ -90,8 +90,6 @@ interface InterfaceComponentProps {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
-  codeActions: CodeActions;
-  fileActions: FileActions;
   favouritesActions: FavouritesActions;
   resourcesActions: ResourcesActions;
   initialFavourites: Favourite[];
@@ -108,8 +106,6 @@ const Interface = ({
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  codeActions,
-  fileActions,
   favouritesActions,
   resourcesActions,
   initialFavourites,
@@ -579,10 +575,8 @@ const Interface = ({
     interfaceActions,
     tabActions,
     tileActions,
-    fileActions,
     logsActions,
     contextActions,
-    codeActions,
     setOverlayState,
   });
   const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
@@ -1005,14 +999,12 @@ const Interface = ({
             fieldsActions={fieldsActions}
             derivedEntryActions={derivedEntryActions}
             contextActions={contextActions}
-            codeActions={codeActions}
-            fileActions={fileActions}
             isLoadingTiles={tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending}
           />
         </Suspense>
       </div>
     );
-  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions, queryClient, setTabQueryParamFromSync]);
+  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, queryClient, setTabQueryParamFromSync]);
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
@@ -1273,10 +1265,8 @@ const Interface = ({
         interfaceActions={interfaceActions}
         tabActions={tabActions}
         tileActions={tileActions}
-        fileActions={fileActions}
         logsActions={logsActions}
         contextActions={contextActions}
-        codeActions={codeActions}
         favouritesActions={favouritesActions}
         resourcesActions={resourcesActions}
         userMeta={userMeta}
@@ -1682,8 +1672,6 @@ const Interface = ({
                         tabActions={tabActions}
                         tileActions={tileActions}
                         logsActions={logsActions}
-                        codeActions={codeActions}
-                        fileActions={fileActions}
                         derivedEntryActions={derivedEntryActions}
                         setTabQueryParam={setTabQueryParamFromSync}
                         setInterfaceQueryParam={setInterfaceQueryParam}
@@ -1854,8 +1842,6 @@ const Interface = ({
                   fieldsActions={fieldsActions}
                   derivedEntryActions={derivedEntryActions}
                   contextActions={contextActions}
-                  codeActions={codeActions}
-                  fileActions={fileActions}
                   projectsActions={projectsActions}
                   />
               </Suspense>

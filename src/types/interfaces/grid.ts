@@ -99,20 +99,6 @@ export interface PlotDataProps {
     [key: string]: PlotDataItem
 }
 
-export interface EditorDataProps {
-    [key: string]: {
-        file_name: string,
-        file_type: string,
-        content: string,
-    }
-}
-
-export interface TerminalDataProps {
-    [key: string]: {
-        shell_type: string,
-    }
-}
-
 export type ItemType =
     | "tab"
     | "bin_count"
@@ -175,8 +161,6 @@ export interface TabsDataProps {
         tableTiles: TileProps[],
         plotTiles: TileProps[],
         viewTiles: TileProps[],
-        editorTiles: TileProps[],
-        terminalTiles: TileProps[],
         tabCreated: boolean,
         tempTabCreated: boolean,
         savedTab: TabProps | null,
@@ -242,20 +226,6 @@ export interface ViewTileData {
     base_index?: string;
 }
 
-export interface EditorTileData {
-    id?: string;
-    tile_id?: string;
-    file_name?: string;
-    file_type?: string;
-    content?: string;
-}
-
-export interface TerminalTileData {
-    id?: string;
-    tile_id?: string;
-    shell_type?: string;
-}
-
 // Base template schema for tiles with common fields
 export interface BaseTileTemplateSchema {
     name: string;
@@ -281,8 +251,6 @@ export interface BaseTileTemplateSchema {
     table_tile?: TableTileData;
     plot_tile?: PlotTileData;
     view_tile?: ViewTileData;
-    editor_tile?: EditorTileData;
-    terminal_tile?: TerminalTileData;
 }
 
 // Template schema for a detached tile - inherits all fields from base
@@ -415,8 +383,6 @@ export interface UpdateTileRequest {
     table_tile?: TableTileData;
     plot_tile?: PlotTileData;
     view_tile?: ViewTileData;
-    editor_tile?: EditorTileData;
-    terminal_tile?: TerminalTileData;
 }
 
 export interface CreateTabRequest extends BaseTabTemplateSchema {
@@ -667,20 +633,6 @@ export interface TabActions {
     delete: (name: string, project: string, temporary: boolean) => Promise<ResponseProps>
 }
 
-export interface CodeActions {
-    run: (project: string, filePath: string, env?: { [key: string]: string } | { key: string; value: string }[]) => Promise<ResponseProps>
-    get: (filePath: string) => Promise<{ output: string, done: boolean }>;
-    createTerminal: (shell?: string, cwd?: string) => Promise<{ session_id: string }>;
-    runTerminal: (sessionId: string, cmd: string) => Promise<{ output: string }>;
-    getTerminalOutput: (sessionId: string) => Promise<{ output: string }>;
-    stopTerminal: (sessionId: string) => Promise<void>;
-}
-
-export interface DevboxActions {
-    get: () => Promise<ResponseProps>,
-    create: () => Promise<ResponseProps>
-}
-
 export interface GranularInterfaceActions {
     // Get interface by name (hierarchical path)
     getByName: (projectId: string, name: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
@@ -813,14 +765,14 @@ export interface GranularTileActions {
     patchSpecializedByName: (
         tab_id: string,
         name: string,
-        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
+        tileType: "Table" | "Plot" | "View",
         updateData: Record<string, any>,
         checkpoint?: boolean
     ) => Promise<TileData>;
 
     patchSpecializedById: (
         id: string,
-        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
+        tileType: "Table" | "Plot" | "View",
         updateData: Record<string, any>,
         checkpoint?: boolean
     ) => Promise<TileData>;
@@ -829,7 +781,7 @@ export interface GranularTileActions {
         id?: string;
         tab_id?: string;
         name?: string;
-        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal";
+        tileType: "Table" | "Plot" | "View";
         updateData: Record<string, any>;
         checkpoint?: boolean
     }) => Promise<TileData>;
@@ -855,26 +807,6 @@ export interface GranularTileActions {
     // Template methods - reuse template request/response schemas
     exportTemplate: (params: Omit<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<TileTemplateSchema> | { error: string }>;
     importTemplate: (template: TileTemplateSchema, params: Pick<ImportTileTemplateRequest, 'tab_id' | 'interface_id' | 'tab_name'>, options?: Omit<ImportTileTemplateRequest, 'template' | 'tab_id' | 'interface_id' | 'tab_name'>) => Promise<TemplateImportResponse | { error: string }>;
-}
-
-export interface FileEntry {
-    name: string;
-    type: string;
-    isSymlink?: boolean;
-}
-
-export interface FileActions {
-    // Retrieve list of file entries in the given project directory.
-    // Depending on the backend, this may return the array directly or under a `files` key.
-    list: (project: string) => Promise<{ files: FileEntry[] } | FileEntry[]>;
-    // Write/overwrite multiple files in the project directory (path -> content)
-    write: (project: string, files: Record<string, string>) => Promise<any>;
-    // Read the contents of a single file
-    read: (project: string, path: string) => Promise<{ content: string }>;
-    // Delete a single file from the project directory
-    delete: (project: string, path: string, isDirectory?: boolean) => Promise<any>;
-    // Rename file or directory
-    rename: (project: string, oldPath: string, newPath: string) => Promise<any>;
 }
 
 export interface Favourite {

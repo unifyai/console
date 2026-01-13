@@ -2,9 +2,7 @@ import { Tile, TileMeta, TileData as TileSliceData, TileUI } from '@/contexts/sl
 import { TableTile, TableTileData as TableTileSliceData } from '@/contexts/slices/selectors/tableTile';
 import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/selectors/plotTile';
 import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
-import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
-import { TerminalTile, TerminalTileData as TerminalTileSliceData } from '@/contexts/slices/selectors/terminalTile';
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from '@/types/interfaces/grid';
+import { TileData, TableTileData, PlotTileData, ViewTileData } from '@/types/interfaces/grid';
 
 /**
  * Build tile state from API-returned tile data
@@ -59,8 +57,6 @@ export function buildTileState(tileData: TileData): Tile {
     tableTile: null,
     plotTile: null,
     viewTile: null,
-    editorTile: null,
-    terminalTile: null,
   };
 
   // Add specialized tile data based on type
@@ -90,16 +86,6 @@ function addSpecializedTileData(
     case 'View':
       if (tileData.view_tile) {
         tile.viewTile = buildViewTileData(tileData.view_tile);
-      }
-      break;
-    case 'Editor':
-      if (tileData.editor_tile) {
-        tile.editorTile = buildEditorTileData(tileData.editor_tile);
-      }
-      break;
-    case 'Terminal':
-      if (tileData.terminal_tile) {
-        tile.terminalTile = buildTerminalTileData(tileData.terminal_tile);
       }
       break;
   }
@@ -153,26 +139,6 @@ function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
 function buildViewTileData(viewTileData: ViewTileData): ViewTile {
   return {
     base_index: viewTileData.base_index,
-  };
-}
-
-/**
- * Build EditorTile data from API-returned EditorTileData
- */
-function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
-  return {
-    file_name: editorTileData.file_name,
-    file_type: editorTileData.file_type,
-    content: editorTileData.content,
-  };
-}
-
-/**
- * Build TerminalTile data from API-returned TerminalTileData
- */
-function buildTerminalTileData(terminalTileData: TerminalTileData): TerminalTile {
-  return {
-    shell_type: terminalTileData.shell_type,
   };
 }
 

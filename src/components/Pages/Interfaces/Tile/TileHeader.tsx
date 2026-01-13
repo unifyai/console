@@ -10,7 +10,7 @@ import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
 import TileInfoPalette from "./TileInfoPalette";
-import { LogsActions, ContextActions, CodeActions, GranularTileActions, GranularTabActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
+import { LogsActions, ContextActions, GranularTileActions, GranularTabActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { getTileHeaderRef } from '@/utils/interfaces/refRegistry';
@@ -35,7 +35,6 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     tileActions: GranularTileActions;
     logsActions: LogsActions;
     contextActions: ContextActions;
-    codeActions: CodeActions;
     projectsActions: ProjectsActions;
     fieldsActions: FieldsActions;
 }) => {

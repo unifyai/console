@@ -145,8 +145,6 @@ T extends TileType
           case 'Table': return optimisticTileData.table_tile;
           case 'Plot': return optimisticTileData.plot_tile;
           case 'View': return optimisticTileData.view_tile;
-          case 'Editor': return optimisticTileData.editor_tile;
-          case 'Terminal': return optimisticTileData.terminal_tile;
           default: return null;
         }
       })();

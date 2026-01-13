@@ -8,9 +8,7 @@ import {
   GranularInterfaceActions, 
   GranularTabActions, 
   GranularTileActions,
-  CodeActions,
-  DerivedEntryActions,
-  FileActions
+  DerivedEntryActions
 } from '@/types/interfaces/grid';
 import { getLogsParameters } from '@/types/interfaces/logs';
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,14 +28,11 @@ export interface DemoCreationInput {
     equation: string;
     referenced_logs: { [table_name: string]: getLogsParameters };
   };
-  code?: string;
   actions: {
     interfaceActions: GranularInterfaceActions;
     tabActions: GranularTabActions;
     tileActions: GranularTileActions;
-    codeActions?: CodeActions;
     derivedEntryActions?: DerivedEntryActions;
-    fileActions?: FileActions;
   };
 }
 
@@ -63,22 +58,10 @@ export function useCreateDemoQuery() {
         tab: demoTab, 
         tiles: demoTiles, 
         derivedColumns, 
-        code,
         actions
       } = input;
 
       console.log("[useCreateDemoQuery] Creating demo with input:", input);
-      
-      // Run code if provided
-      if (code && actions.codeActions && actions.fileActions) {
-        console.log("[useCreateDemoQuery] Running code...");
-        await actions.fileActions.write("demo", { "main.py": code });
-        await actions.codeActions.run("demo", "main.py");
-        while (!(await actions.codeActions.get("demo/main.py")).done) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        console.log("[useCreateDemoQuery] Code ran successfully");
-      }
       
       try {
         // Step 1: Create interface
@@ -138,19 +121,15 @@ export function useCreateDemoQuery() {
               table_tile?: typeof tile.table_tile;
               plot_tile?: typeof tile.plot_tile;
               view_tile?: typeof tile.view_tile;
-              editor_tile?: typeof tile.editor_tile;
-              terminal_tile?: typeof tile.terminal_tile;
             } = {};
             
             if (tile.table_tile) specializedData.table_tile = tile.table_tile;
             if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
             if (tile.view_tile) specializedData.view_tile = tile.view_tile;
-            if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
-            if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
             
             // Remove specialized data from tileProps to avoid duplication
             const { 
-              table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
+              table_tile, plot_tile, view_tile,
               id, tab_id, created_at, updated_at, ...restTileProps 
             } = tileProps;
             

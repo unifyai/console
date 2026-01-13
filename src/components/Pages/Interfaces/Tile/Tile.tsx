@@ -1,6 +1,6 @@
 "use client";
 
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, GranularTileActions, ProjectsActions } from "@/types/interfaces/grid";
 import { useEffect, Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -17,8 +17,6 @@ import { getTileHeaderRef, getTileCardRef } from '@/utils/interfaces/refRegistry
 const LogsTable = lazy(() => import("@/components/Pages/Interfaces/Blocks/Table/Table"));
 const LogsPlot = lazy(() => import("@/components/Pages/Interfaces/Blocks/Plot/Plot"));
 const Selection = lazy(() => import("@/components/Pages/Interfaces/Blocks/Selection/Selection"));
-const Editor = lazy(() => import("@/components/Pages/Interfaces/Blocks/Editor/Editor"));
-const Terminal = lazy(() => import("@/components/Pages/Interfaces/Blocks/Terminal/Terminal"));
 
 // Define main Tile component props
 interface TileProps {
@@ -33,8 +31,6 @@ interface TileProps {
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
-    codeActions: CodeActions;
-    fileActions: FileActions;
   };
 }
 
@@ -42,8 +38,6 @@ interface TileProps {
 interface TableTileProps extends TileProps {}
 interface PlotTileProps extends TileProps {}
 interface ViewTileProps extends TileProps {}
-interface EditorTileProps extends TileProps {}
-interface TerminalTileProps extends TileProps {}
 
 /**
  * Inner component that renders the actual tile content
@@ -116,24 +110,6 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
       
     case "View":
       return <ViewTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "Editor":
-      return <EditorTile 
-        tileId={tileId}
-        tabId={tabId} 
-        interfaceId={interfaceId} 
-        projectId={projectId} 
-        actions={actions} 
-      />;
-      
-    case "Terminal":
-      return <TerminalTile 
         tileId={tileId}
         tabId={tabId} 
         interfaceId={interfaceId} 
@@ -224,52 +200,6 @@ const ViewTile: React.FC<ViewTileProps> = ({ tileId, tabId, interfaceId, project
             />
         </Suspense>
       </ExpandProvider>
-    </div>
-  );
-};
-
-/**
- * Editor tile renderer (independent)
- */
-const EditorTile: React.FC<EditorTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
-  return (
-    <div className="w-full h-full overflow-y-auto">
-      <Editor
-        tileId={tileId}
-        tabId={tabId}
-        interfaceId={interfaceId}
-        projectId={projectId}
-        codeActions={actions.codeActions}
-        fileActions={actions.fileActions}
-        tileActions={actions.tileActions}
-        projectsActions={actions.projectsActions}
-        contextActions={actions.contextActions}
-        fieldsActions={actions.fieldsActions}
-        logsActions={actions.logsActions}
-      />
-    </div>
-  );
-};
-
-/**
- * Terminal tile renderer (independent)
- */
-const TerminalTile: React.FC<TerminalTileProps> = ({ tileId, tabId, interfaceId, projectId, actions }) => {
-  return (
-    <div className="w-full h-full overflow-y-auto">
-      <Terminal
-        tileId={tileId}
-        tabId={tabId}
-        interfaceId={interfaceId}
-        projectId={projectId}
-        tileActions={actions.tileActions}
-        logsActions={actions.logsActions}
-        fieldsActions={actions.fieldsActions}
-        contextActions={actions.contextActions}
-        codeActions={actions.codeActions}
-        fileActions={actions.fileActions}
-        projectsActions={actions.projectsActions}
-      />
     </div>
   );
 };

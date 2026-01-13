@@ -13,8 +13,6 @@ import {
   mockFieldsActions,
   mockDerivedEntryActions,
   mockContextActions,
-  mockCodeActions,
-  mockFileActions,
   mockFavouritesActions,
 } from '@/tests/interfaces/mocks/fixtures/actions';
 import { mockProjectId } from '@/tests/interfaces/mocks/fixtures/projects';
@@ -213,8 +211,6 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
     fieldsActions: mockFieldsActions,
     derivedEntryActions: mockDerivedEntryActions,
     contextActions: mockContextActions,
-    codeActions: mockCodeActions,
-    fileActions: mockFileActions,
     favouritesActions: mockFavouritesActions,
     initialFavourites: [],
   };

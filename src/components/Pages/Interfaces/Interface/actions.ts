@@ -4,10 +4,8 @@ import {
   GranularInterfaceActions, 
   GranularTabActions, 
   GranularTileActions, 
-  FileActions, 
   LogsActions, 
   ContextActions, 
-  CodeActions, 
   FavouritesActions,
   Favourite,
   InterfaceTemplateSchema,
@@ -23,10 +21,8 @@ export interface InterfacePageActions {
   interfaces: GranularInterfaceActions;
   tabs: GranularTabActions;
   tiles: GranularTileActions;
-  files: FileActions;
   logs: LogsActions;
   contexts: ContextActions;
-  code: CodeActions;
 }
 
 // ===============================================
