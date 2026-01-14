@@ -756,18 +756,6 @@ export const taskApi = {
     return parseResponse(res, endpoint);
   },
 
-  async getUniqueFieldValues(
-    userName: string,
-    assistantName: string,
-    field: string,
-    apiKey?: string
-  ): Promise<string[] | { detail: string }> {
-    const params = new URLSearchParams({ userName, assistantName, field });
-    const endpoint = `/api/assistant/tasks/fields?${params.toString()}`;
-    const res = await apiFetch(endpoint, {}, apiKey);
-    return parseResponse(res, endpoint);
-  },
-
   async update(
     userName: string,
     assistantName: string,
@@ -1002,21 +990,6 @@ export const desktopApiExtended = {
     const endpoint = `/api/assistant/desktop/liveview?assistantId=${assistantId}&userId=${encodeURIComponent(userId)}`;
     const res = await apiFetch(endpoint, {}, apiKey);
     return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
-// Emails API Actions
-// ============================================
-
-export const emailsApi = {
-  /**
-   * List all assistant emails for the current user
-   */
-  async list(apiKey?: string): Promise<{ emails: string[] }> {
-    const endpoint = '/api/assistant/emails';
-    const res = await apiFetch(endpoint, {}, apiKey);
-    return parseResponse<{ emails: string[] }>(res, endpoint);
   },
 };
 

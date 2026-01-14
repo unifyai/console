@@ -3,26 +3,6 @@ export const isGcsPhoto = (photoPath: string | null | undefined): boolean => {
   return photoPath.startsWith('gs://') || photoPath.startsWith('https://storage.googleapis.com/');
 };
 
-export async function uploadImageToGCS(file: File, signedUrl: string): Promise<boolean> {
-  /* ... as before ... */
-  try {
-    const response = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[gcs-utils.ts ]GCS Upload Failed:', response.status, errorText);
-      return false;
-    }
-    return true;
-  } catch (error: any) {
-    console.error('[gcs-utils.ts ] Error during GCS fetch:', error);
-    return false;
-  }
-}
-
 export const getObjectPathFromUrl = (gcsUrl: string): string | null => {
   const gcsGsPrefix = 'gs://';
   const gcsHttpPrefix = 'https://storage.googleapis.com/';

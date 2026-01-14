@@ -20,7 +20,7 @@ import {
   skipIfServerNotReachable,
   realTestOptions,
 } from '@/tests/assistants/api/fixtures/api-actions';
-import { getTasks, getUniqueFieldValues, updateTask } from '@/lib/assistants/task';
+import { getTasks, updateTask } from '@/lib/assistants/task';
 
 const isError = (res: unknown): res is { detail: string } => {
   return res !== null && typeof res === 'object' && 'detail' in res;
@@ -101,52 +101,6 @@ describe('@real task.ts - Orchestra Integration', () => {
 
       expect(page1).toHaveProperty('logs');
       expect(page2).toHaveProperty('logs');
-    });
-  });
-
-  describe('getUniqueFieldValues', () => {
-    it('@real should return unique values for status field', realTestOptions, async () => {
-      const getFieldValuesAction = await getUniqueFieldValues(API_KEY, TEST_USER_CONTEXT);
-      const result = await getFieldValuesAction(TEST_ASSISTANT_CONTEXT, 'status');
-
-      if (isError(result)) {
-        // Might return error if no tasks exist
-        console.log('Note: getUniqueFieldValues returned detail:', result.detail);
-        return;
-      }
-
-      expect(Array.isArray(result)).toBe(true);
-      // If there are statuses, they should be strings
-      const values = result as string[];
-      if (values.length > 0) {
-        expect(typeof values[0]).toBe('string');
-      }
-    });
-
-    it('@real should return unique values for priority field', realTestOptions, async () => {
-      const getFieldValuesAction = await getUniqueFieldValues(API_KEY, TEST_USER_CONTEXT);
-      const result = await getFieldValuesAction(TEST_ASSISTANT_CONTEXT, 'priority');
-
-      if (isError(result)) {
-        console.log('Note: getUniqueFieldValues for priority returned detail:', result.detail);
-        return;
-      }
-
-      expect(Array.isArray(result)).toBe(true);
-    });
-
-    it('@real should return empty array for non-existent field', realTestOptions, async () => {
-      const getFieldValuesAction = await getUniqueFieldValues(API_KEY, TEST_USER_CONTEXT);
-      const result = await getFieldValuesAction(TEST_ASSISTANT_CONTEXT, 'nonexistent_field_xyz');
-
-      if (isError(result)) {
-        // API might return error for invalid field
-        return;
-      }
-
-      expect(Array.isArray(result)).toBe(true);
-      // Should be empty since field doesn't exist
-      expect(result).toEqual([]);
     });
   });
 
