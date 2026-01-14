@@ -238,12 +238,26 @@ export function getSecretButtons(screen: {
 
 /**
  * Find delete buttons for secrets.
+ * Delete buttons are icon buttons in the secrets list (left panel with border-r).
+ * They're next to secret name spans within clickable divs.
  */
 export function getDeleteButtons(container: HTMLElement): HTMLButtonElement[] {
-  const trashIcons = container.querySelectorAll('[class*="trash"]');
-  return Array.from(trashIcons)
-    .map((icon) => icon.closest('button'))
-    .filter((btn): btn is HTMLButtonElement => btn !== null);
+  // The secrets list is in a div with "border-r" class (left panel)
+  // Delete buttons are siblings to spans containing secret names
+  const deleteButtons: HTMLButtonElement[] = [];
+
+  // Find all divs that contain secret names (they have a span.truncate with the name)
+  const secretRows = container.querySelectorAll('[class*="cursor-pointer"]');
+
+  secretRows.forEach((row) => {
+    // Look for buttons with SVG inside this row
+    const button = row.querySelector('button');
+    if (button && button.querySelector('svg')) {
+      deleteButtons.push(button as HTMLButtonElement);
+    }
+  });
+
+  return deleteButtons;
 }
 
 /**

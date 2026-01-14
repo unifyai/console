@@ -37,6 +37,7 @@ interface AssistantCommunicationDialogContentProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
   isRemoteControlActive: boolean;
@@ -61,6 +62,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   userEmail,
   userImage,
   isWaitingForAssistant,
+  waitingMessage,
   connectionError,
   onRetry,
   isRemoteControlActive,
@@ -206,7 +208,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const showLoadingState = isConnecting || isWaitingForAssistant;
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : `Waiting for ${assistant.firstName} to join...`;
+    : waitingMessage || `Waiting for ${assistant.firstName} to join...`;
 
   return (
     <>
@@ -369,6 +371,7 @@ interface AssistantCommunicationDialogProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
   isRemoteControlActive: boolean;
@@ -395,6 +398,7 @@ export function AssistantCommunicationDialog({
   userEmail,
   userImage,
   isWaitingForAssistant,
+  waitingMessage,
   connectionError,
   onRetry,
   isRemoteControlActive,
@@ -427,6 +431,7 @@ export function AssistantCommunicationDialog({
           userEmail={userEmail}
           userImage={userImage}
           isWaitingForAssistant={isWaitingForAssistant}
+          waitingMessage={waitingMessage}
           connectionError={connectionError}
           onRetry={onRetry}
           isRemoteControlActive={isRemoteControlActive}

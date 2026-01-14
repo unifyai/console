@@ -429,7 +429,8 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const deleteButtons = getDeleteButtons(container);
+        // Dialog renders in a portal - use document.body instead of container
+        const deleteButtons = getDeleteButtons(document.body as HTMLElement);
         expect(deleteButtons.length).toBeGreaterThan(0);
       }
     );
@@ -454,7 +455,8 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const deleteButtons = getDeleteButtons(container);
+        // Dialog renders in a portal - use document.body
+        const deleteButtons = getDeleteButtons(document.body as HTMLElement);
         expect(deleteButtons.length).toBe(0);
       }
     );
@@ -478,7 +480,8 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const deleteButtons = getDeleteButtons(container);
+        // Dialog renders in a portal - use document.body
+        const deleteButtons = getDeleteButtons(document.body as HTMLElement);
         expect(deleteButtons.length).toBeGreaterThan(0);
 
         await user.click(deleteButtons[0]);
@@ -514,8 +517,8 @@ describe('Assistant Secrets Manager', () => {
         await waitFor(() => {
           expect(errorActions.get).toHaveBeenCalledTimes(1);
         });
-        // Verify get was called with the correct agent ID
-        expect(errorActions.get).toHaveBeenCalledWith('assistant-1');
+        // Verify get was called with the correct assistant context
+        expect(errorActions.get).toHaveBeenCalledWith('TestAssistant');
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       }
@@ -560,11 +563,11 @@ describe('Assistant Secrets Manager', () => {
           expect(errorActions.create).toHaveBeenCalledTimes(1);
         });
         // Verify create was called with correct secret details
-        expect(errorActions.create).toHaveBeenCalledWith(
-          'assistant-1',
-          'TEST_SECRET',
-          'test-value'
-        );
+        expect(errorActions.create).toHaveBeenCalledWith('TestAssistant', {
+          name: 'TEST_SECRET',
+          value: 'test-value',
+          description: '',
+        });
       }
     );
 
@@ -592,7 +595,8 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const deleteButtons = getDeleteButtons(container);
+        // Dialog renders in a portal - use document.body
+        const deleteButtons = getDeleteButtons(document.body as HTMLElement);
         if (deleteButtons.length > 0) {
           await user.click(deleteButtons[0]);
         }
@@ -600,8 +604,8 @@ describe('Assistant Secrets Manager', () => {
         await waitFor(() => {
           expect(errorActions.delete).toHaveBeenCalledTimes(1);
         });
-        // Verify delete was called with correct agent ID and secret ID
-        expect(errorActions.delete).toHaveBeenCalledWith('assistant-1', 1);
+        // Verify delete was called with correct assistant context and secret ID
+        expect(errorActions.delete).toHaveBeenCalledWith('TestAssistant', 1);
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       }
@@ -631,7 +635,8 @@ describe('Assistant Secrets Manager', () => {
         });
 
         expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument();
-        expect(getDeleteButtons(container).length).toBe(0);
+        // Dialog renders in a portal - use document.body
+        expect(getDeleteButtons(document.body as HTMLElement).length).toBe(0);
       }
     );
 
@@ -647,15 +652,14 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        const { container } = render(
-          <SecretsTestHarness secretActions={actions} canWrite={false} />
-        );
+        render(<SecretsTestHarness secretActions={actions} canWrite={false} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const toggleButtons = getVisibilityToggles(container);
+        // Dialog renders in a portal - use document.body
+        const toggleButtons = getVisibilityToggles(document.body as HTMLElement);
         expect(toggleButtons.length).toBeGreaterThan(0);
       }
     );

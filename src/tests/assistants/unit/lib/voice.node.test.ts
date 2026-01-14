@@ -121,6 +121,32 @@ describe('voice.ts', () => {
         expect(result).toHaveProperty('detail', 'Service unavailable');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'ListVoices-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/assistant/voice`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const listFn = await listVoices(TEST_API_KEY);
+        const result = await listFn();
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('registerVoice', () => {
@@ -363,6 +389,35 @@ describe('voice.ts', () => {
         expect(result).toHaveProperty('detail', 'Audio file too short');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'CloneVoice-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/voice/clone`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('audio', new Blob(['data']), 'audio.mp3');
+
+        // Act
+        const cloneFn = await cloneVoice(TEST_API_KEY);
+        const result = await cloneFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('generateSpeech', () => {
@@ -496,6 +551,37 @@ describe('voice.ts', () => {
         // Assert
         expect(result).toHaveProperty('detail', 'Insufficient credits');
         expect(result).toHaveProperty('status', 402);
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GenerateSpeech-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/voice/generate`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const generateFn = await generateSpeech(TEST_API_KEY);
+        const result = await generateFn({
+          voiceId: 'v1',
+          text: 'Hello',
+          provider: 'elevenlabs',
+          outputFormat: 'mp3',
+        });
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });

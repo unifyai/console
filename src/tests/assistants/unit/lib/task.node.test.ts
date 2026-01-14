@@ -202,6 +202,32 @@ describe('task.ts', () => {
         expect(result).toHaveProperty('detail', 'Access denied');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GetTasks-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
+        const result = await getTasksFn('assistant-ctx', null, null, null);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('getUniqueFieldValues', () => {
@@ -369,6 +395,32 @@ describe('task.ts', () => {
         expect(result).toHaveProperty('detail');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GetUniqueValues-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const getValuesFn = await getUniqueFieldValues(TEST_API_KEY, USER_CONTEXT);
+        const result = await getValuesFn('assistant-ctx', 'status');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('updateTask', () => {
@@ -483,6 +535,32 @@ describe('task.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Tasks not found');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'UpdateTask-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.put(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const updateFn = await updateTask(TEST_API_KEY, USER_CONTEXT);
+        const result = await updateFn('assistant-ctx', [1], { status: 'x' });
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });

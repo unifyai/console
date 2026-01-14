@@ -10,12 +10,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/server';
+import type { User } from '@/types/user';
 import {
   getContactIdByEmail,
   getTranscripts,
   messageAssistant,
   triggerContactSync,
+  getAssistantOwnerById,
 } from '@/lib/assistants/chat';
+
+// Mock the user module for getAssistantOwnerById tests
+vi.mock('@/lib/user/user', () => ({
+  getUserByID: vi.fn(),
+}));
 
 // Mock environment variables
 const MOCK_BASE_URL = 'http://localhost:3000';
@@ -440,6 +447,136 @@ describe('chat.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail');
+      }
+    );
+  });
+
+  describe('getAssistantOwnerById', () => {
+    it(
+      'returns firstName and lastName when user exists',
+      {
+        meta: {
+          alias: 'GetOwner-Success',
+          scenario: 'User exists with name',
+          behavior: 'Returns object with firstName and lastName',
+        },
+      },
+      async () => {
+        // Arrange
+        const { getUserByID } = await import('@/lib/user/user');
+        vi.mocked(getUserByID).mockResolvedValue({
+          id: 'user-123',
+          name: 'John',
+          lastName: 'Doe',
+          email: 'john@example.com',
+        } as any);
+
+        // Act
+        const getOwnerFn = await getAssistantOwnerById();
+        const result = await getOwnerFn('user-123');
+
+        // Assert
+        expect(result).toEqual({ firstName: 'John', lastName: 'Doe' });
+      }
+    );
+
+    it(
+      'returns empty lastName when user has no lastName',
+      {
+        meta: {
+          alias: 'GetOwner-NoLastName',
+          scenario: 'User exists but has no lastName field',
+          behavior: 'Returns firstName with empty lastName',
+        },
+      },
+      async () => {
+        // Arrange
+        const { getUserByID } = await import('@/lib/user/user');
+        vi.mocked(getUserByID).mockResolvedValue({
+          id: 'user-123',
+          name: 'Jane',
+          email: 'jane@example.com',
+        } as any);
+
+        // Act
+        const getOwnerFn = await getAssistantOwnerById();
+        const result = await getOwnerFn('user-123');
+
+        // Assert
+        expect(result).toEqual({ firstName: 'Jane', lastName: '' });
+      }
+    );
+
+    it(
+      'returns null when user not found',
+      {
+        meta: {
+          alias: 'GetOwner-NotFound',
+          scenario: 'getUserByID returns null',
+          behavior: 'Returns null',
+        },
+      },
+      async () => {
+        // Arrange
+        const { getUserByID } = await import('@/lib/user/user');
+        vi.mocked(getUserByID).mockResolvedValue(null as unknown as User);
+
+        // Act
+        const getOwnerFn = await getAssistantOwnerById();
+        const result = await getOwnerFn('nonexistent-user');
+
+        // Assert
+        expect(result).toBeNull();
+      }
+    );
+
+    it(
+      'returns null when user has no name',
+      {
+        meta: {
+          alias: 'GetOwner-NoName',
+          scenario: 'User exists but name is empty',
+          behavior: 'Returns null',
+        },
+      },
+      async () => {
+        // Arrange
+        const { getUserByID } = await import('@/lib/user/user');
+        vi.mocked(getUserByID).mockResolvedValue({
+          id: 'user-123',
+          name: '',
+          email: 'user@example.com',
+        } as any);
+
+        // Act
+        const getOwnerFn = await getAssistantOwnerById();
+        const result = await getOwnerFn('user-123');
+
+        // Assert
+        expect(result).toBeNull();
+      }
+    );
+
+    it(
+      'returns null when getUserByID throws an error',
+      {
+        meta: {
+          alias: 'GetOwner-Error',
+          scenario: 'getUserByID throws an exception',
+          behavior: 'Catches error and returns null',
+        },
+      },
+      async () => {
+        // Arrange
+        const { getUserByID } = await import('@/lib/user/user');
+        vi.mocked(getUserByID).mockRejectedValue(new Error('Database error'));
+
+        // Act
+        const getOwnerFn = await getAssistantOwnerById();
+        const result = await getOwnerFn('user-123');
+
+        // Assert
+        expect(result).toBeNull();
       }
     );
   });

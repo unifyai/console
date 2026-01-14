@@ -355,9 +355,14 @@ export function ChatTestHarness({
 
 /**
  * Query helper to get chat message bubbles.
+ * Returns only the message content text, excluding avatar fallback text.
  */
 export function getChatBubbles(screen: { queryAllByTestId: (id: string) => HTMLElement[] }) {
-  return screen.queryAllByTestId('message-bubble').map((el) => el.textContent);
+  return screen.queryAllByTestId('message-bubble').map((el) => {
+    // Find the actual message content div (the one with whitespace-pre-wrap class)
+    const contentDiv = el.querySelector('.whitespace-pre-wrap');
+    return contentDiv ? contentDiv.textContent : el.textContent;
+  });
 }
 
 /**

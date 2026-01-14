@@ -239,12 +239,15 @@ describe('Assistant Profile Chat', () => {
         },
       },
       async () => {
-        vi.useFakeTimers();
+        // Render and wait for initialization with real timers
         render(<ChatTestWrapper initialHistory={undefined} />);
         await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         const input = screen.getByRole('textbox');
+
+        // Now switch to fake timers for timing control
+        vi.useFakeTimers();
 
         // 1. Manually trigger send synchronously
         act(() => {
@@ -283,10 +286,13 @@ describe('Assistant Profile Chat', () => {
         },
       },
       async () => {
-        vi.useFakeTimers();
+        // Render and wait for initialization with real timers
         render(<ChatTestWrapper initialHistory={undefined} />);
         await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Now switch to fake timers for timing control
+        vi.useFakeTimers();
 
         const input = screen.getByRole('textbox');
         act(() => {
@@ -723,6 +729,7 @@ describe('Assistant Profile Chat', () => {
           } as ChatMessage,
         ];
         render(<ChatTestWrapper initialHistory={history} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         const duplicateMsg = {
@@ -765,6 +772,7 @@ describe('Assistant Profile Chat', () => {
         });
 
         render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
@@ -891,6 +899,7 @@ describe('Assistant Profile Chat', () => {
         const timeB = new Date(now - 10000).toISOString();
 
         render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         // Newer
@@ -940,6 +949,7 @@ describe('Assistant Profile Chat', () => {
         ];
 
         render(<ChatTestWrapper initialHistory={history} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
@@ -1025,6 +1035,7 @@ describe('Assistant Profile Chat', () => {
         ];
 
         render(<ChatTestWrapper initialHistory={initialHistory} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Verify History
@@ -1095,12 +1106,12 @@ describe('Assistant Profile Chat', () => {
         const assistantB = createMockAssistant({ agentId: 'assistant-b', firstName: 'B' });
 
         // Mock Transcripts for A
-        const getTranscriptsMock = vi.fn(async (context) => {
-          if (context.includes('A')) {
+        const getTranscriptsMock = vi.fn(async (ownerContext: string, assistantContext: string) => {
+          if (assistantContext.includes('A')) {
             return [
               {
                 id: 'msg-transcript',
-                role: 'assistant',
+                role: 'assistant' as const,
                 content: 'Transcript Msg',
                 timestamp: tTranscript,
                 messageId: 1,
@@ -1517,16 +1528,16 @@ describe('Assistant Profile Chat', () => {
         },
       },
       async () => {
-        let callCount = 0;
+        // Use a controlled error that persists until we explicitly change it
+        let shouldFail = true;
         const getTranscriptsMock = vi.fn(async () => {
-          callCount++;
-          if (callCount === 1) {
+          if (shouldFail) {
             return { detail: 'Simulated Initial Error' };
           }
           return [
             {
               id: 'msg-1',
-              role: 'assistant',
+              role: 'assistant' as const,
               content: 'Loaded after retry',
               timestamp: new Date(),
               messageId: 1,
@@ -1548,7 +1559,7 @@ describe('Assistant Profile Chat', () => {
           <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
         );
 
-        // 1. Wait for Error UI
+        // 1. Wait for Error UI (may take multiple calls due to Strict Mode)
         await waitFor(() => {
           expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
           expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
@@ -1562,7 +1573,10 @@ describe('Assistant Profile Chat', () => {
         expect(input).toBeDisabled();
         expect(input).toHaveAttribute('placeholder', 'Connection failed');
 
-        // 4. Click Retry
+        // 4. Switch to success mode before clicking retry
+        shouldFail = false;
+
+        // 5. Click Retry
         await userEvent.click(screen.getByRole('button', { name: /retry/i }));
 
         // 5. Wait for Success UI
@@ -1671,6 +1685,7 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Find the channel listening for this assistant
@@ -1754,6 +1769,7 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
         const user = userEvent.setup();
 
@@ -1896,6 +1912,7 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Identify listener channel
@@ -1984,8 +2001,8 @@ describe('Assistant Profile Chat', () => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
             'JohnDoe', // ownerContext
             'AdaLovelace', // assistantContext
-            1, // contactId returned by getContactIdMock
-            undefined // beforeMessageId
+            1 // contactId returned by getContactIdMock
+            // beforeMessageId is not passed for initial load
           );
         });
       }
@@ -2161,7 +2178,7 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(screen.getByText('Chat is not available')).toBeInTheDocument();
-          expect(screen.getByText(/may not have permission/i)).toBeInTheDocument();
+          expect(screen.getByText(/Please try again in a few minutes/i)).toBeInTheDocument();
         });
 
         // Input should be disabled
@@ -2318,11 +2335,11 @@ describe('Assistant Profile Chat', () => {
         await waitFor(() => {
           expect(messageMock).toHaveBeenCalled();
           const callArgs = messageMock.mock.calls[0] as unknown as [
-            { assistant_id: number; contact_id: number; message: string },
+            { assistantId: number; contactId: number; message: string },
           ];
           expect(callArgs[0]).toMatchObject({
-            assistant_id: expect.any(Number),
-            contact_id: 7, // Should be the resolved contact_id
+            assistantId: expect.any(Number),
+            contactId: 7, // Should be the resolved contactId
             message: 'Hello with contact_id',
           });
         });
@@ -2406,7 +2423,7 @@ describe('Assistant Profile Chat', () => {
         const sseMessage = {
           thread: 'unify_message_outbound',
           id: 'msg-for-me',
-          contact_id: userContactId, // Matches user's contact_id
+          contactId: userContactId, // Matches user's contactId
           publishTime: new Date().toISOString(),
           event: { content: 'Message for me!' },
         };
@@ -2458,7 +2475,7 @@ describe('Assistant Profile Chat', () => {
         const sseMessage = {
           thread: 'unify_message_outbound',
           id: 'msg-for-other',
-          contact_id: otherContactId, // Different user
+          contactId: otherContactId, // Different user
           publishTime: new Date().toISOString(),
           event: { content: 'Not for me!' },
         };
@@ -2664,7 +2681,7 @@ describe('Assistant Profile Chat', () => {
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-for-user-a',
-            contact_id: userAContactId,
+            contactId: userAContactId,
             publishTime: new Date().toISOString(),
             event: { content: 'Hello User A!' },
           });
@@ -2675,7 +2692,7 @@ describe('Assistant Profile Chat', () => {
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-for-user-b',
-            contact_id: userBContactId,
+            contactId: userBContactId,
             publishTime: new Date().toISOString(),
             event: { content: 'Hello User B!' },
           });
@@ -2725,7 +2742,7 @@ describe('Assistant Profile Chat', () => {
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-mine',
-            contact_id: userContactId,
+            contactId: userContactId,
             __ackId: 'ack-mine',
             publishTime: new Date().toISOString(),
             event: { content: 'My message' },
@@ -2737,7 +2754,7 @@ describe('Assistant Profile Chat', () => {
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-other',
-            contact_id: otherContactId,
+            contactId: otherContactId,
             __ackId: 'ack-other',
             publishTime: new Date().toISOString(),
             event: { content: 'Other message' },
@@ -2807,8 +2824,8 @@ describe('Assistant Profile Chat', () => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
             expect.any(String),
             expect.any(String),
-            userContactId,
-            undefined
+            userContactId
+            // beforeMessageId is not passed for initial load
           );
         });
 
@@ -2866,6 +2883,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         const failingMessageAction = vi.fn(async () => {
+          // Small delay to allow optimistic update to complete before failure
+          await new Promise((r) => setTimeout(r, 50));
           throw new Error('Network Error');
         });
 
@@ -2905,10 +2924,9 @@ describe('Assistant Profile Chat', () => {
           const bubbleContents = bubbles.map((b) => b.textContent);
           expect(bubbleContents).not.toContain('This will fail');
           expect(input).toHaveValue('This will fail');
+          // Error toast shown
+          expect(screen.getByText('Failed to send message.')).toBeInTheDocument();
         });
-
-        // Error toast shown
-        expect(screen.getByText('Failed to send message.')).toBeInTheDocument();
       }
     );
 
@@ -2922,10 +2940,10 @@ describe('Assistant Profile Chat', () => {
         },
       },
       async () => {
-        let callCount = 0;
+        // Use a controlled error that persists until we change it
+        let shouldFail = true;
         const getTranscriptsMock = vi.fn(async () => {
-          callCount++;
-          if (callCount === 1) {
+          if (shouldFail) {
             return { detail: 'Server Error' };
           }
           return [];
@@ -2942,16 +2960,23 @@ describe('Assistant Profile Chat', () => {
         };
 
         render(
-          <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantActionsOverride={actionsOverride}
+            panelKey="error-recovery-test"
+          />
         );
 
-        // Wait for error UI
+        // Wait for error UI (may take multiple calls due to Strict Mode)
         await waitFor(() => {
           expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
         });
 
         // No SSE connection yet
         expect(chatMocks.allEventSources.length).toBe(0);
+
+        // Switch to success mode before clicking retry
+        shouldFail = false;
 
         // Click retry
         await userEvent.click(screen.getByRole('button', { name: /retry/i }));

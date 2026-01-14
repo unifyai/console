@@ -181,6 +181,32 @@ describe('secret.ts', () => {
         expect(result).toHaveProperty('detail', 'Database error');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GetSecrets-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT);
+        const result = await getSecretsFn('assistant-ctx');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('createSecret', () => {
@@ -275,6 +301,35 @@ describe('secret.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Duplicate secret name');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'CreateSecret-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const createFn = await createSecret(TEST_API_KEY, USER_CONTEXT);
+        const result = await createFn('assistant-ctx', {
+          name: 'SECRET',
+          value: 'value',
+        });
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });
@@ -376,6 +431,32 @@ describe('secret.ts', () => {
         server.use(
           http.delete(`${MOCK_BASE_URL}/api/logs`, () => {
             return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
+          })
+        );
+
+        // Act
+        const deleteFn = await deleteSecret(TEST_API_KEY, USER_CONTEXT);
+        const result = await deleteFn('assistant-ctx', 1);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'DeleteSecret-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.delete(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.error();
           })
         );
 

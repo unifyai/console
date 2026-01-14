@@ -53,8 +53,8 @@ const HireFlowTestWrapper = ({
     if (onHireSuccess) onHireSuccess(assistant, formData);
     if (onClose) onClose();
 
-    if (formData.setup === 'local' && formData.operating_system) {
-      setSetupInstructions({ os: formData.operating_system, isOpen: true });
+    if (formData.setup === 'local' && formData.operatingSystem) {
+      setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
     }
   };
 
@@ -232,13 +232,10 @@ const waitForFormReady = async () => {
 
 describe('Assistant Hire Flow', () => {
   beforeAll(() => {
-    Object.defineProperty(window, 'URL', {
-      writable: true,
-      value: {
-        createObjectURL: vi.fn(() => 'blob:mock-url'),
-        revokeObjectURL: vi.fn(),
-      },
-    });
+    // Mock URL methods while preserving the URL constructor (needed by MSW)
+    const originalURL = window.URL;
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
     Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
       configurable: true,
       value: vi.fn(),
@@ -1543,8 +1540,18 @@ describe('Assistant Hire Flow', () => {
         const user = userEvent.setup();
         render(<EditFlowTestWrapper assistant={mockAssistants[0]} />);
 
-        const firstNameInput = screen.getByLabelText(/first name/i);
-        await user.clear(firstNameInput);
+        // Wait for form to be populated with assistant data
+        const firstNameInput = (await screen.findByLabelText(/first name/i)) as HTMLInputElement;
+        await waitFor(() => {
+          expect(firstNameInput).toHaveValue(mockAssistants[0].firstName);
+        });
+
+        // Clear the controlled input using fireEvent
+        fireEvent.change(firstNameInput, { target: { value: '' } });
+        fireEvent.blur(firstNameInput);
+
+        // Verify input is empty
+        expect(firstNameInput).toHaveValue('');
 
         const updateBtn = screen.getByRole('button', { name: /update assistant/i });
         await user.click(updateBtn);
