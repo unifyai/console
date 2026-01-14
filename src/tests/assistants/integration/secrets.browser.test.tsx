@@ -1,10 +1,18 @@
 import React from 'react';
-import { render, screen, waitFor, within } from '@/tests/render';
+import { render, screen, waitFor } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { AssistantSecretsManager } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSecretsManager';
-import { Secret, SecretActions } from '@/types/assistants/secret';
+import {
+  SecretsTestHarness,
+  createMockSecrets,
+  createMockSecretActions,
+  createPendingSecretActions,
+  getDeleteButtons,
+  getVisibilityToggles,
+  isValueMasked,
+  resetSecretIdCounter,
+} from './fixtures';
 
 /**
  * Behavior tests for the Assistant Secrets Manager component.
@@ -16,30 +24,10 @@ import { Secret, SecretActions } from '@/types/assistants/secret';
  * - Permission checks
  */
 
-const createMockSecrets = (): Secret[] => [
-  {
-    logId: 1,
-    name: 'API_KEY',
-    value: 'sk-super-secret-key-12345',
-    description: 'Production API key',
-  },
-  {
-    logId: 2,
-    name: 'DATABASE_URL',
-    value: 'postgres://user:pass@host:5432/db',
-    description: 'Main database connection string',
-  },
-];
-
-const createMockSecretActions = (secretsOverride?: Secret[]): SecretActions => ({
-  get: vi.fn(async (): Promise<Secret[]> => secretsOverride ?? createMockSecrets()),
-  create: vi.fn(async () => ({ info: 'Secret created' })),
-  delete: vi.fn(async () => ({ info: 'Secret deleted' })),
-});
-
 describe('Assistant Secrets Manager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSecretIdCounter();
   });
 
   afterEach(() => {
@@ -57,20 +45,9 @@ describe('Assistant Secrets Manager', () => {
         },
       },
       async () => {
-        const slowActions: SecretActions = {
-          get: vi.fn(() => new Promise<Secret[]>(() => {})), // Never resolves
-          create: vi.fn(async () => ({ info: '' })),
-          delete: vi.fn(async () => ({ info: '' })),
-        };
+        const slowActions = createPendingSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={slowActions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={slowActions} />);
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(document.querySelector('.animate-spin')).toBeInTheDocument();
@@ -87,16 +64,9 @@ describe('Assistant Secrets Manager', () => {
         },
       },
       async () => {
-        const emptyActions = createMockSecretActions([]);
+        const emptyActions = createMockSecretActions({ initialSecrets: [] });
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={emptyActions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={emptyActions} />);
 
         await waitFor(() => {
           expect(screen.getByText(/no secret found/i)).toBeInTheDocument();
@@ -116,14 +86,7 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
@@ -144,21 +107,13 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
         // The first secret should be displayed in the detail view
-        // Wait for selection to propagate to the form
         await waitFor(() => {
           expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
         });
@@ -179,22 +134,14 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
         // Value should be in a password-type input
-        const valueInput = screen.getByLabelText(/value/i);
-        expect(valueInput).toHaveAttribute('type', 'password');
+        expect(isValueMasked(screen)).toBe(true);
       }
     );
 
@@ -211,32 +158,15 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        const { container } = render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Find and click the visibility toggle
-        let toggleButton: HTMLElement | null = null;
-        try {
-          toggleButton = screen.getByRole('button', { name: /show/i });
-        } catch {
-          toggleButton =
-            document
-              .querySelector('button .lucide-eye, button .lucide-eye-off')
-              ?.closest('button') ?? null;
-        }
-
-        if (toggleButton) {
-          await user.click(toggleButton);
+        const toggleButtons = getVisibilityToggles(container);
+        if (toggleButtons.length > 0) {
+          await user.click(toggleButtons[0]);
           const valueInput = screen.getByLabelText(/value/i);
           expect(valueInput).toHaveAttribute('type', 'text');
         }
@@ -256,30 +186,19 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        const { container } = render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Find the visibility toggle buttons
-        const eyeIcons = document.querySelectorAll('.lucide-eye, .lucide-eye-off');
-        const toggleButton = eyeIcons[0]?.closest('button');
-
-        if (toggleButton) {
+        const toggleButtons = getVisibilityToggles(container);
+        if (toggleButtons.length > 0) {
           // Click to show
-          await user.click(toggleButton);
+          await user.click(toggleButtons[0]);
           // Click to hide
-          await user.click(toggleButton);
-          const valueInput = screen.getByLabelText(/value/i);
-          expect(valueInput).toHaveAttribute('type', 'password');
+          await user.click(toggleButtons[0]);
+          expect(isValueMasked(screen)).toBe(true);
         }
       }
     );
@@ -298,15 +217,7 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={true}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} canWrite={true} />);
 
         await waitFor(() => {
           expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
@@ -326,15 +237,7 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={false}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} canWrite={false} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
@@ -357,14 +260,7 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
@@ -391,22 +287,15 @@ describe('Assistant Secrets Manager', () => {
       },
       async () => {
         const user = userEvent.setup();
-        const actions = createMockSecretActions([]);
+        const actions = createMockSecretActions({ initialSecrets: [] });
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText(/no secret found/i)).toBeInTheDocument();
         });
 
-        // Click create first secret button - the empty state has "Add a secret" button
+        // Click create first secret button
         let createButton: HTMLElement | null = null;
         try {
           createButton = screen.getByRole('button', { name: /add a secret/i });
@@ -421,24 +310,19 @@ describe('Assistant Secrets Manager', () => {
         if (createButton) {
           await user.click(createButton);
 
-          // The form should be in create mode now
           // Type in value but not name to trigger validation
           const valueInput = await screen.findByLabelText(/value/i);
           await user.type(valueInput, 'some-value');
 
-          // Try to submit - this will either trigger validation or the button is disabled
           const saveButton = screen.getByRole('button', { name: /save/i });
 
-          // Check if button is disabled (which is also valid - means validation is working)
           if (!saveButton.hasAttribute('disabled')) {
             await user.click(saveButton);
-            // Should show validation error
             await waitFor(() => {
               const errors = document.querySelectorAll('.text-destructive');
               expect(errors.length).toBeGreaterThan(0);
             });
           } else {
-            // Button being disabled is also a valid form of validation
             expect(saveButton).toBeDisabled();
           }
         }
@@ -456,33 +340,23 @@ describe('Assistant Secrets Manager', () => {
       },
       async () => {
         const user = userEvent.setup();
-        const actions = createMockSecretActions([]);
+        const actions = createMockSecretActions({ initialSecrets: [] });
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText(/no secret found/i)).toBeInTheDocument();
         });
 
-        // Click create button in empty state - the button says "Add a secret"
         const createButton = screen.getByRole('button', { name: /add a secret/i });
         await user.click(createButton);
 
-        // Fill form
         const nameInput = await screen.findByLabelText(/name/i);
         await user.type(nameInput, 'NEW_SECRET');
 
         const valueInput = screen.getByLabelText(/value/i);
         await user.type(valueInput, 'my-secret-value');
 
-        // Save
         const saveButton = screen.getByRole('button', { name: /save/i });
         await user.click(saveButton);
 
@@ -511,14 +385,7 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByRole('button', { name: /new/i })).toBeInTheDocument();
@@ -526,18 +393,14 @@ describe('Assistant Secrets Manager', () => {
 
         await user.click(screen.getByRole('button', { name: /new/i }));
 
-        // Fill form
         const nameInput = await screen.findByLabelText(/name/i);
         await user.type(nameInput, 'TEMP_SECRET');
 
-        // Cancel
         const cancelButton = screen.getByRole('button', { name: /cancel/i });
         await user.click(cancelButton);
 
-        // Should not have called create
         expect(actions.create).not.toHaveBeenCalled();
 
-        // Should show first secret again
         await waitFor(() => {
           expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
         });
@@ -558,22 +421,15 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={true}
-          />
+        const { container } = render(
+          <SecretsTestHarness secretActions={actions} canWrite={true} />
         );
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Look for trash icon in SVG - the class could be 'lucide lucide-trash-2' or similar
-        const deleteButtons = document.querySelectorAll('[class*="trash"]');
+        const deleteButtons = getDeleteButtons(container);
         expect(deleteButtons.length).toBeGreaterThan(0);
       }
     );
@@ -590,21 +446,15 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={false}
-          />
+        const { container } = render(
+          <SecretsTestHarness secretActions={actions} canWrite={false} />
         );
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const deleteButtons = document.querySelectorAll('.lucide-trash-2');
+        const deleteButtons = getDeleteButtons(container);
         expect(deleteButtons.length).toBe(0);
       }
     );
@@ -622,25 +472,16 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        const { container } = render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Find and click delete button for first secret using class that contains 'trash'
-        const trashIcon = document.querySelector('[class*="trash"]');
-        const deleteButton = trashIcon?.closest('button');
-        expect(deleteButton).toBeInTheDocument();
+        const deleteButtons = getDeleteButtons(container);
+        expect(deleteButtons.length).toBeGreaterThan(0);
 
-        await user.click(deleteButton!);
+        await user.click(deleteButtons[0]);
 
         await waitFor(() => {
           expect(actions.delete).toHaveBeenCalledWith(
@@ -663,27 +504,19 @@ describe('Assistant Secrets Manager', () => {
         },
       },
       async () => {
-        const errorActions: SecretActions = {
-          get: vi.fn(async () => ({ detail: 'Failed to fetch secrets' })),
-          create: vi.fn(async () => ({ info: '' })),
-          delete: vi.fn(async () => ({ info: '' })),
-        };
-
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={errorActions}
-          />
-        );
-
-        // Wait for error to be handled
-        await waitFor(() => {
-          expect(errorActions.get).toHaveBeenCalled();
+        const errorActions = createMockSecretActions({
+          getSuccess: false,
+          errorMessage: 'Failed to fetch secrets',
         });
 
-        // Component should still be functional (not crash)
+        render(<SecretsTestHarness secretActions={errorActions} />);
+
+        await waitFor(() => {
+          expect(errorActions.get).toHaveBeenCalledTimes(1);
+        });
+        // Verify get was called with the correct agent ID
+        expect(errorActions.get).toHaveBeenCalledWith('assistant-1');
+
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       }
     );
@@ -699,20 +532,13 @@ describe('Assistant Secrets Manager', () => {
       },
       async () => {
         const user = userEvent.setup();
-        const errorActions: SecretActions = {
-          get: vi.fn(async (): Promise<Secret[]> => []),
-          create: vi.fn(async () => ({ detail: 'Failed to create secret' })),
-          delete: vi.fn(async () => ({ info: '' })),
-        };
+        const errorActions = createMockSecretActions({
+          initialSecrets: [],
+          createSuccess: false,
+          errorMessage: 'Failed to create secret',
+        });
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={errorActions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={errorActions} />);
 
         await waitFor(() => {
           expect(screen.getByText(/no secret found/i)).toBeInTheDocument();
@@ -731,8 +557,14 @@ describe('Assistant Secrets Manager', () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-          expect(errorActions.create).toHaveBeenCalled();
+          expect(errorActions.create).toHaveBeenCalledTimes(1);
         });
+        // Verify create was called with correct secret details
+        expect(errorActions.create).toHaveBeenCalledWith(
+          'assistant-1',
+          'TEST_SECRET',
+          'test-value'
+        );
       }
     );
 
@@ -747,36 +579,30 @@ describe('Assistant Secrets Manager', () => {
       },
       async () => {
         const user = userEvent.setup();
-        const errorActions: SecretActions = {
-          get: vi.fn(async (): Promise<Secret[]> => createMockSecrets()),
-          create: vi.fn(async () => ({ info: '' })),
-          delete: vi.fn(async () => ({ detail: 'Failed to delete secret' })),
-        };
+        const secrets = createMockSecrets();
+        const errorActions = createMockSecretActions({
+          initialSecrets: secrets,
+          deleteSuccess: false,
+          errorMessage: 'Failed to delete secret',
+        });
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={errorActions}
-          />
-        );
+        const { container } = render(<SecretsTestHarness secretActions={errorActions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        const trashIcon = document.querySelector('[class*="trash"]');
-        const deleteButton = trashIcon?.closest('button');
-        if (deleteButton) {
-          await user.click(deleteButton);
+        const deleteButtons = getDeleteButtons(container);
+        if (deleteButtons.length > 0) {
+          await user.click(deleteButtons[0]);
         }
 
         await waitFor(() => {
-          expect(errorActions.delete).toHaveBeenCalled();
+          expect(errorActions.delete).toHaveBeenCalledTimes(1);
         });
+        // Verify delete was called with correct agent ID and secret ID
+        expect(errorActions.delete).toHaveBeenCalledWith('assistant-1', 1);
 
-        // Component should still be functional
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       }
     );
@@ -795,14 +621,8 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={false}
-          />
+        const { container } = render(
+          <SecretsTestHarness secretActions={actions} canWrite={false} />
         );
 
         await waitFor(() => {
@@ -810,12 +630,8 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('DATABASE_URL')).toBeInTheDocument();
         });
 
-        // No new button
         expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument();
-
-        // No delete buttons
-        const deleteButtons = document.querySelectorAll('.lucide-trash-2');
-        expect(deleteButtons.length).toBe(0);
+        expect(getDeleteButtons(container).length).toBe(0);
       }
     );
 
@@ -831,23 +647,16 @@ describe('Assistant Secrets Manager', () => {
       async () => {
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-            canWrite={false}
-          />
+        const { container } = render(
+          <SecretsTestHarness secretActions={actions} canWrite={false} />
         );
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Eye icon should still be present for viewing
-        const eyeIcons = document.querySelectorAll('.lucide-eye, .lucide-eye-off');
-        expect(eyeIcons.length).toBeGreaterThan(0);
+        const toggleButtons = getVisibilityToggles(container);
+        expect(toggleButtons.length).toBeGreaterThan(0);
       }
     );
   });
@@ -867,20 +676,12 @@ describe('Assistant Secrets Manager', () => {
         const onCloseMock = vi.fn();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={onCloseMock}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} onClose={onCloseMock} />);
 
         await waitFor(() => {
           expect(screen.getByRole('dialog')).toBeInTheDocument();
         });
 
-        // Find and click close button
         const closeButton = screen.getByRole('button', { name: /close/i });
         await user.click(closeButton);
 
@@ -901,23 +702,14 @@ describe('Assistant Secrets Manager', () => {
         const user = userEvent.setup();
         const actions = createMockSecretActions();
 
-        render(
-          <AssistantSecretsManager
-            isOpen={true}
-            onClose={vi.fn()}
-            assistantContext="TestAssistant"
-            secretActions={actions}
-          />
-        );
+        render(<SecretsTestHarness secretActions={actions} />);
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Click on second secret
         await user.click(screen.getByText('DATABASE_URL'));
 
-        // Detail view should update
         await waitFor(() => {
           expect(screen.getByDisplayValue('DATABASE_URL')).toBeInTheDocument();
         });

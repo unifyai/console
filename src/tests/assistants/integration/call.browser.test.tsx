@@ -7,6 +7,9 @@ import { mockAssistants } from '../mocks/data';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import { EventEmitter } from 'events';
 
+// Import harness utilities for track state management
+import { setLiveKitTrackState, clearLiveKitTrackState } from './fixtures';
+
 // 1. Mock LiveKit Client
 class MockLocalParticipant {
   setMicrophoneEnabled = vi.fn().mockResolvedValue(undefined);
@@ -166,11 +169,11 @@ describe('Assistant Call', () => {
   // Helper to get to a connected call state quickly and robustly
   const establishCall = async (type: 'video' | 'audio' = 'video') => {
     // Initialize the shared mock state based on call type intent
-    (window as any).__mockLiveKitState = {
+    setLiveKitTrackState({
       micEnabled: true,
       camEnabled: type === 'video',
       screenShareEnabled: false,
-    };
+    });
 
     const callButton = await openProfileAndGetCallButton();
     await defaultUser.click(callButton);
@@ -200,12 +203,12 @@ describe('Assistant Call', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    // Reset shared state
-    (window as any).__mockLiveKitState = {
+    // Reset shared state using harness helper
+    setLiveKitTrackState({
       micEnabled: true,
       camEnabled: false,
       screenShareEnabled: false,
-    };
+    });
 
     mockAssistantActions.call.getConnectionDetails = vi.fn().mockResolvedValue({
       serverUrl: 'ws://test-livekit',
@@ -221,6 +224,8 @@ describe('Assistant Call', () => {
 
   afterEach(() => {
     delete (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT;
+    // Clean up LiveKit track state using harness helper
+    clearLiveKitTrackState();
   });
 
   describe('A-LiveKit Room Connection', () => {
@@ -245,8 +250,12 @@ describe('Assistant Call', () => {
         expect(await screen.findByText('Setting up a connection...')).toBeInTheDocument();
 
         await waitFor(() => {
-          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalled();
+          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledTimes(1);
         });
+        // Verify connection details requested for correct assistant
+        expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledWith(
+          targetAssistant.agentId
+        );
 
         expect(
           await screen.findByText(`Waiting for ${targetAssistant.firstName} to join...`)
@@ -482,7 +491,9 @@ describe('Assistant Call', () => {
         });
 
         await waitFor(() => {
-          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalled();
+          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledWith(
+            targetAssistant.agentId
+          );
         });
       }
     );
@@ -1140,7 +1151,10 @@ describe('Assistant Call', () => {
         const popOutBtn = await screen.findByLabelText('Open in new tab');
         await defaultUser.click(popOutBtn);
 
-        expect(openSpy).toHaveBeenCalled();
+        // Verify window.open was called with a call URL pattern
+        expect(openSpy).toHaveBeenCalledTimes(1);
+        const openedUrl = openSpy.mock.calls[0][0] as string;
+        expect(openedUrl).toMatch(/\/call\?/);
 
         // Cleanup
         openSpy.mockRestore();
@@ -1331,7 +1345,8 @@ describe('Assistant Call', () => {
         // Verify controls work before disconnect
         const muteButton = await screen.findByLabelText('Mute');
         await defaultUser.click(muteButton);
-        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
+        // Mute = set microphone enabled to false
+        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
 
         // Simulate assistant disconnect and reconnect
         room.numParticipants = 1;
@@ -1356,7 +1371,8 @@ describe('Assistant Call', () => {
         vi.clearAllMocks();
         const unmuteButton = await screen.findByLabelText('Unmute');
         await defaultUser.click(unmuteButton);
-        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
+        // Unmute = set microphone enabled to true
+        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
       }
     );
   });

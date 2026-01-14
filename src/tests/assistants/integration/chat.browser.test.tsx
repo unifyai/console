@@ -9,6 +9,18 @@ import { AssistantActions, Assistant } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 
+// Import harness utilities
+import {
+  ControllableMockEventSource,
+  ControllableMockBroadcastChannel,
+  setupChatMocks,
+  cleanupChatMocks,
+  getChatBubbles as getChatBubblesHelper,
+} from './fixtures';
+
+// Chat mocks state - managed via harness
+let chatMocks: ReturnType<typeof setupChatMocks>;
+
 /**
  * Helper to create mock chat actions with the new signature.
  * getContactId returns 1 (owner) by default.
@@ -26,78 +38,9 @@ const createMockChatActions = (
   getContactId: vi.fn(async () => 1), // Default: owner contact_id
   getTranscripts: getTranscriptsMock ? vi.fn(getTranscriptsMock) : vi.fn(async () => []),
   message: messageMock ? vi.fn(messageMock) : vi.fn(async () => ({ info: 'Message sent' })),
+  getAssistantOwnerById: vi.fn(async () => ({ firstName: 'Test', lastName: 'Owner' })),
+  triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
 });
-
-// --- Mock EventSource Infrastructure ---
-const originalEventSource = window.EventSource;
-let mockEventSourceInstance: ControllableMockEventSource | null = null;
-let eventSourceInstances: ControllableMockEventSource[] = [];
-
-class ControllableMockEventSource {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSED = 2;
-
-  onopen: (() => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  onerror: ((error: any) => void) | null = null;
-  readyState = 0;
-  url: string;
-  closeSpy = vi.fn();
-
-  constructor(url: string) {
-    this.url = url;
-    this.readyState = 0; // Start connecting
-    mockEventSourceInstance = this;
-    eventSourceInstances.push(this);
-  }
-
-  close() {
-    this.readyState = 2;
-    this.closeSpy();
-  }
-
-  // Test Helpers
-  simulateOpen() {
-    this.readyState = 1;
-    if (this.onopen) this.onopen();
-  }
-
-  simulateError() {
-    this.readyState = 0;
-    if (this.onerror) this.onerror(new Event('error'));
-  }
-
-  simulateMessage(data: object | string) {
-    if (this.onmessage && this.readyState === 1) {
-      const payload = typeof data === 'string' ? data : JSON.stringify(data);
-      this.onmessage(new MessageEvent('message', { data: payload }));
-    }
-  }
-}
-
-// --- Mock BroadcastChannel Infrastructure ---
-const originalBroadcastChannel = window.BroadcastChannel;
-let mockBroadcastChannels: ControllableBroadcastChannel[] = [];
-
-class ControllableBroadcastChannel {
-  name: string;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  postMessage = vi.fn();
-  close = vi.fn();
-
-  constructor(name: string) {
-    this.name = name;
-    mockBroadcastChannels.push(this);
-  }
-
-  // Helper to simulate incoming message FROM "other tabs"
-  simulateIncomingMessage(data: any) {
-    if (this.onmessage) {
-      this.onmessage(new MessageEvent('message', { data }));
-    }
-  }
-}
 
 // --- Helper: Real Fetch Implementation for Tests ---
 // This mimics the server action src/lib/assistants/chat.ts to hit the MSW handlers
@@ -210,25 +153,21 @@ describe('Assistant Profile Chat', () => {
   let fetchSpy: MockInstance;
 
   beforeEach(() => {
-    window.EventSource = ControllableMockEventSource as any;
-    window.BroadcastChannel = ControllableBroadcastChannel as any;
-    mockEventSourceInstance = null;
-    eventSourceInstances = [];
-    mockBroadcastChannels = [];
+    // Setup mocks using harness
+    chatMocks = setupChatMocks();
 
     // Setup Fresh Spy (but allow passthrough for our helper fetch)
     fetchSpy = vi.spyOn(window, 'fetch');
   });
 
   afterEach(() => {
-    window.EventSource = originalEventSource;
-    window.BroadcastChannel = originalBroadcastChannel;
+    // Cleanup mocks using harness
+    cleanupChatMocks();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  const getChatBubbles = () =>
-    screen.queryAllByTestId('message-bubble').map((el) => el.textContent);
+  const getChatBubbles = () => getChatBubblesHelper(screen);
 
   // =========================================================================
   // SECTION A: GENERAL FEATURES AND UX
@@ -263,8 +202,8 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for async initialization (contact lookup) to complete and SSE to connect
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const user = userEvent.setup();
         const input = await screen.findByPlaceholderText('Send a message...');
@@ -302,8 +241,8 @@ describe('Assistant Profile Chat', () => {
       async () => {
         vi.useFakeTimers();
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const input = screen.getByRole('textbox');
 
@@ -322,7 +261,7 @@ describe('Assistant Profile Chat', () => {
 
         // 3. Receive Reply
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-reply',
             event: { content: 'Here is your reply' },
@@ -346,8 +285,8 @@ describe('Assistant Profile Chat', () => {
       async () => {
         vi.useFakeTimers();
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const input = screen.getByRole('textbox');
         act(() => {
@@ -380,8 +319,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
         const user = userEvent.setup();
 
         const input = await screen.findByPlaceholderText('Send a message...');
@@ -389,7 +328,7 @@ describe('Assistant Profile Chat', () => {
 
         await act(async () => {
           const sendPromise = user.keyboard('{Enter}');
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-concurrent',
             publishTime: new Date().toISOString(),
@@ -445,7 +384,7 @@ describe('Assistant Profile Chat', () => {
         expect(screen.getByPlaceholderText('Loading messages...')).toBeInTheDocument();
 
         // 2. Assert No EventSource created yet
-        expect(eventSourceInstances.length).toBe(0);
+        expect(chatMocks.allEventSources.length).toBe(0);
 
         // 3. Finish Loading
         await act(async () => {
@@ -460,7 +399,7 @@ describe('Assistant Profile Chat', () => {
 
         // 5. Assert EventSource created
         await waitFor(() => {
-          expect(eventSourceInstances.length).toBe(1);
+          expect(chatMocks.allEventSources.length).toBe(1);
         });
       }
     );
@@ -477,11 +416,11 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-stable',
             publishTime: new Date().toISOString(),
@@ -490,12 +429,12 @@ describe('Assistant Profile Chat', () => {
         });
 
         // Drop and Reconnect
-        act(() => mockEventSourceInstance!.simulateError());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateError());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Replay message
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-stable',
             publishTime: new Date().toISOString(),
@@ -522,18 +461,18 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'system_logs',
             data: { content: 'Ignore me' },
           });
         });
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-1',
             publishTime: new Date().toISOString(),
@@ -559,8 +498,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const messageCount = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
         const messages = Array.from({ length: messageCount }, (_, i) => ({
@@ -571,7 +510,7 @@ describe('Assistant Profile Chat', () => {
         }));
 
         act(() => {
-          messages.forEach((msg) => mockEventSourceInstance!.simulateMessage(msg));
+          messages.forEach((msg) => chatMocks.eventSource!.simulateMessage(msg));
         });
 
         await waitFor(() => {
@@ -600,15 +539,15 @@ describe('Assistant Profile Chat', () => {
           <ChatTestWrapper initialHistory={[]} assistantOverride={assistantA} />
         );
 
-        await waitFor(() => expect(eventSourceInstances.length).toBe(1));
-        const connectionA = eventSourceInstances[0];
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(1));
+        const connectionA = chatMocks.allEventSources[0];
         expect(connectionA.url).toContain('/assistant-a/events');
         expect(connectionA.readyState).not.toBe(2);
 
         rerender(<ChatTestWrapper initialHistory={[]} assistantOverride={assistantB} />);
 
-        await waitFor(() => expect(eventSourceInstances.length).toBe(2));
-        const connectionB = eventSourceInstances[1];
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(2));
+        const connectionB = chatMocks.allEventSources[1];
 
         expect(connectionA.closeSpy).toHaveBeenCalled();
         expect(connectionB.url).toContain('/assistant-b/events');
@@ -626,8 +565,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         const { unmount } = render(<ChatTestWrapper initialHistory={[]} />);
-        await waitFor(() => expect(eventSourceInstances.length).toBe(1));
-        const connection = eventSourceInstances[0];
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(1));
+        const connection = chatMocks.allEventSources[0];
         unmount();
         expect(connection.closeSpy).toHaveBeenCalled();
       }
@@ -649,13 +588,13 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const ackId = 'ack-token-xyz';
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-ack-test',
             publishTime: new Date().toISOString(),
@@ -691,8 +630,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const msg1 = {
           thread: 'unify_message_outbound',
@@ -709,8 +648,8 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(msg1);
-          mockEventSourceInstance!.simulateMessage(msg2);
+          chatMocks.eventSource!.simulateMessage(msg1);
+          chatMocks.eventSource!.simulateMessage(msg2);
         });
 
         await waitFor(() => {
@@ -738,11 +677,11 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-1',
             publishTime: new Date().toISOString(),
@@ -784,7 +723,7 @@ describe('Assistant Profile Chat', () => {
           } as ChatMessage,
         ];
         render(<ChatTestWrapper initialHistory={history} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const duplicateMsg = {
           thread: 'unify_message_outbound',
@@ -794,7 +733,7 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(duplicateMsg);
+          chatMocks.eventSource!.simulateMessage(duplicateMsg);
         });
 
         await waitFor(() => {
@@ -826,10 +765,10 @@ describe('Assistant Profile Chat', () => {
         });
 
         render(<ChatTestWrapper initialHistory={[]} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-fail',
             __ackId: 'ack-fail-token',
@@ -888,14 +827,15 @@ describe('Assistant Profile Chat', () => {
         await waitFor(() => {
           expect(screen.getByText('Message A')).toBeInTheDocument();
         });
-        expect(getTranscriptsMock).toHaveBeenCalled();
+        // Verify transcripts were fetched (setup validation)
+        expect(getTranscriptsMock).toHaveBeenCalledTimes(1);
 
         // 3. Open SSE and send backlog
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
           // Re-send MsgA (should be deduped)
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-a',
             publishTime: '2023-01-01T10:00:00Z',
@@ -904,7 +844,7 @@ describe('Assistant Profile Chat', () => {
           });
 
           // Send MsgB (New/Backlog)
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-b',
             publishTime: '2023-01-01T10:00:05Z',
@@ -951,11 +891,11 @@ describe('Assistant Profile Chat', () => {
         const timeB = new Date(now - 10000).toISOString();
 
         render(<ChatTestWrapper initialHistory={[]} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Newer
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-a',
             publishTime: timeA,
@@ -965,7 +905,7 @@ describe('Assistant Profile Chat', () => {
 
         // Older
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-b',
             publishTime: timeB,
@@ -1000,10 +940,10 @@ describe('Assistant Profile Chat', () => {
         ];
 
         render(<ChatTestWrapper initialHistory={history} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'sse-1',
             publishTime: new Date().toISOString(),
@@ -1029,12 +969,12 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. First message (No ID)
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             event: { content: 'Echo?' },
           });
@@ -1044,7 +984,7 @@ describe('Assistant Profile Chat', () => {
 
         // 2. Second exact message (No ID)
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             event: { content: 'Echo?' },
           });
@@ -1085,14 +1025,14 @@ describe('Assistant Profile Chat', () => {
         ];
 
         render(<ChatTestWrapper initialHistory={initialHistory} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Verify History
         expect(screen.getByText('1. History')).toBeInTheDocument();
 
         // 2. SSE Backlog arrives (Timestamp is OLDER than current User time)
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'backlog-1',
             publishTime: tBacklog.toISOString(),
@@ -1109,7 +1049,7 @@ describe('Assistant Profile Chat', () => {
 
         // 4. SSE Reply arrives (Timestamp > tUser)
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'reply-1',
             publishTime: tReply.toISOString(), // Future
@@ -1193,8 +1133,8 @@ describe('Assistant Profile Chat', () => {
 
         // 2. Connect SSE and receive "Live Cached" message
         await act(async () => {
-          mockEventSourceInstance!.simulateOpen();
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateOpen();
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-live',
             publishTime: tLiveCached.toISOString(),
@@ -1213,7 +1153,7 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for B to load (empty transcripts)
-        await waitFor(() => expect(eventSourceInstances[1]?.url).toContain('assistant-b'));
+        await waitFor(() => expect(chatMocks.allEventSources[1]?.url).toContain('assistant-b'));
 
         // 4. Switch back to A
         rerender(
@@ -1230,8 +1170,8 @@ describe('Assistant Profile Chat', () => {
         expect(getTranscriptsMock).toHaveBeenCalledTimes(2);
 
         // Wait for SSE A to reconnect
-        await waitFor(() => expect(eventSourceInstances[2]?.url).toContain('assistant-a'));
-        const connectionA = eventSourceInstances[2];
+        await waitFor(() => expect(chatMocks.allEventSources[2]?.url).toContain('assistant-a'));
+        const connectionA = chatMocks.allEventSources[2];
         await act(async () => connectionA.simulateOpen());
 
         // 5. Send "Late" message (Older than Live, Newer than Transcript)
@@ -1615,7 +1555,7 @@ describe('Assistant Profile Chat', () => {
         });
 
         // 2. Assert NO SSE connection
-        expect(eventSourceInstances.length).toBe(0);
+        expect(chatMocks.allEventSources.length).toBe(0);
 
         // 3. Assert Input Disabled/Placeholder
         const input = screen.getByRole('textbox');
@@ -1632,11 +1572,11 @@ describe('Assistant Profile Chat', () => {
 
         // 6. Assert SSE Connected
         await waitFor(() => {
-          expect(eventSourceInstances.length).toBe(1);
+          expect(chatMocks.allEventSources.length).toBe(1);
         });
 
         // 7. Manually trigger OPEN to enable input (since we use a mock)
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // 8. Assert Input Enabled
         await waitFor(() => {
@@ -1731,10 +1671,10 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Find the channel listening for this assistant
-        const listenerChannel = mockBroadcastChannels.find(
+        const listenerChannel = chatMocks.allBroadcastChannels.find(
           (c) => c.name.includes(assistantId) && c.onmessage
         );
         expect(listenerChannel).toBeDefined();
@@ -1770,8 +1710,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
         const user = userEvent.setup();
 
         const input = screen.getByRole('textbox');
@@ -1780,7 +1720,7 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           // Find channels that were used to POST
-          const postingChannels = mockBroadcastChannels.filter(
+          const postingChannels = chatMocks.allBroadcastChannels.filter(
             (c) => c.postMessage.mock.calls.length > 0
           );
           expect(postingChannels.length).toBeGreaterThan(0);
@@ -1814,7 +1754,7 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
         const user = userEvent.setup();
 
         // 1. Send Message
@@ -1823,7 +1763,7 @@ describe('Assistant Profile Chat', () => {
         await user.keyboard('{Enter}');
 
         // 2. Capture the ID generated for the sent message from the postMessage call
-        const postingChannels = mockBroadcastChannels.filter(
+        const postingChannels = chatMocks.allBroadcastChannels.filter(
           (c) => c.postMessage.mock.calls.length > 0
         );
         const sentPayload =
@@ -1834,7 +1774,7 @@ describe('Assistant Profile Chat', () => {
         await waitFor(() => expect(screen.getAllByText('Race Condition')).toHaveLength(1));
 
         // 4. Simulate receiving exact same message via BroadcastChannel
-        const listenerChannel = mockBroadcastChannels.find(
+        const listenerChannel = chatMocks.allBroadcastChannels.find(
           (c) => c.name.includes(assistantId) && c.onmessage
         );
 
@@ -1865,8 +1805,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Simulate incoming SSE message
         const sseMessage = {
@@ -1877,7 +1817,7 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(sseMessage);
+          chatMocks.eventSource!.simulateMessage(sseMessage);
         });
 
         // Verify UI update
@@ -1887,7 +1827,7 @@ describe('Assistant Profile Chat', () => {
 
         // Verify Broadcast
         await waitFor(() => {
-          const postingChannels = mockBroadcastChannels.filter(
+          const postingChannels = chatMocks.allBroadcastChannels.filter(
             (c) => c.postMessage.mock.calls.length > 0
           );
           expect(postingChannels.length).toBeGreaterThan(0);
@@ -1916,8 +1856,8 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const sseMessageWithAck = {
           thread: 'unify_message_outbound',
@@ -1927,11 +1867,11 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(sseMessageWithAck);
+          chatMocks.eventSource!.simulateMessage(sseMessageWithAck);
         });
 
         await waitFor(() => {
-          const postingChannels = mockBroadcastChannels.filter(
+          const postingChannels = chatMocks.allBroadcastChannels.filter(
             (c) => c.postMessage.mock.calls.length > 0
           );
           const lastPost = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
@@ -1956,10 +1896,10 @@ describe('Assistant Profile Chat', () => {
       async () => {
         const assistantId = 'stress-test-id';
         render(<ChatTestWrapper initialHistory={[]} />);
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // 1. Identify listener channel
-        const listenerChannel = mockBroadcastChannels.find(
+        const listenerChannel = chatMocks.allBroadcastChannels.find(
           (c) => c.name.includes(assistantId) && c.onmessage
         );
 
@@ -1982,7 +1922,7 @@ describe('Assistant Profile Chat', () => {
         });
 
         // 4. Verify NO outgoing broadcast was triggered
-        const postingChannels = mockBroadcastChannels.filter(
+        const postingChannels = chatMocks.allBroadcastChannels.filter(
           (c) => c.postMessage.mock.calls.length > 0
         );
         expect(postingChannels.length).toBe(0);
@@ -2365,8 +2305,8 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for async initialization to complete and SSE to connect
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const user = userEvent.setup();
         const input = await screen.findByRole('textbox');
@@ -2459,8 +2399,8 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for async initialization to complete and SSE to connect
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Simulate SSE message FOR this user
         const sseMessage = {
@@ -2472,7 +2412,7 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(sseMessage);
+          chatMocks.eventSource!.simulateMessage(sseMessage);
         });
 
         await waitFor(() => {
@@ -2511,8 +2451,8 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for async initialization to complete and SSE to connect
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Simulate SSE message for ANOTHER user
         const sseMessage = {
@@ -2524,7 +2464,7 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(sseMessage);
+          chatMocks.eventSource!.simulateMessage(sseMessage);
         });
 
         // Wait a bit to ensure message processing
@@ -2562,8 +2502,8 @@ describe('Assistant Profile Chat', () => {
         );
 
         // Wait for async initialization to complete and SSE to connect
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Simulate SSE message WITHOUT contact_id
         const sseMessage = {
@@ -2575,7 +2515,7 @@ describe('Assistant Profile Chat', () => {
         };
 
         act(() => {
-          mockEventSourceInstance!.simulateMessage(sseMessage);
+          chatMocks.eventSource!.simulateMessage(sseMessage);
         });
 
         await waitFor(() => {
@@ -2716,12 +2656,12 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Message for User A - should be displayed
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-for-user-a',
             contact_id: userAContactId,
@@ -2732,7 +2672,7 @@ describe('Assistant Profile Chat', () => {
 
         // Message for User B - should NOT be displayed
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-for-user-b',
             contact_id: userBContactId,
@@ -2777,12 +2717,12 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Message for current user
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-mine',
             contact_id: userContactId,
@@ -2794,7 +2734,7 @@ describe('Assistant Profile Chat', () => {
 
         // Message for other user
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-other',
             contact_id: otherContactId,
@@ -2892,25 +2832,25 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={[]} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
-        const firstConnection = mockEventSourceInstance;
+        const firstConnection = chatMocks.eventSource;
 
         // Simulate connection error
         act(() => {
-          mockEventSourceInstance!.simulateError();
+          chatMocks.eventSource!.simulateError();
         });
 
         // Wait for reconnection attempt
         await waitFor(
           () => {
-            expect(eventSourceInstances.length).toBeGreaterThan(1);
+            expect(chatMocks.allEventSources.length).toBeGreaterThan(1);
           },
           { timeout: 5000 }
         );
 
-        const secondConnection = eventSourceInstances[eventSourceInstances.length - 1];
+        const secondConnection = chatMocks.allEventSources[chatMocks.allEventSources.length - 1];
         expect(secondConnection).not.toBe(firstConnection);
       }
     );
@@ -2943,8 +2883,8 @@ describe('Assistant Profile Chat', () => {
           <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
         );
 
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         const user = userEvent.setup();
         const input = await screen.findByPlaceholderText('Send a message...');
@@ -3011,7 +2951,7 @@ describe('Assistant Profile Chat', () => {
         });
 
         // No SSE connection yet
-        expect(eventSourceInstances.length).toBe(0);
+        expect(chatMocks.allEventSources.length).toBe(0);
 
         // Click retry
         await userEvent.click(screen.getByRole('button', { name: /retry/i }));
@@ -3023,14 +2963,14 @@ describe('Assistant Profile Chat', () => {
 
         // SSE should now be connected
         await waitFor(() => {
-          expect(eventSourceInstances.length).toBe(1);
+          expect(chatMocks.allEventSources.length).toBe(1);
         });
 
-        act(() => mockEventSourceInstance!.simulateOpen());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Send a message via SSE
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-after-retry',
             publishTime: new Date().toISOString(),
@@ -3057,17 +2997,17 @@ describe('Assistant Profile Chat', () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         render(<ChatTestWrapper initialHistory={[]} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Send malformed message
         act(() => {
-          mockEventSourceInstance!.simulateMessage('not valid json {{{');
+          chatMocks.eventSource!.simulateMessage('not valid json {{{');
         });
 
         // Send valid message after
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-valid',
             publishTime: new Date().toISOString(),
@@ -3095,12 +3035,12 @@ describe('Assistant Profile Chat', () => {
       },
       async () => {
         render(<ChatTestWrapper initialHistory={[]} />);
-        await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
-        act(() => mockEventSourceInstance!.simulateOpen());
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
 
         // Receive message
         act(() => {
-          mockEventSourceInstance!.simulateMessage({
+          chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-before-disconnect',
             publishTime: new Date().toISOString(),
@@ -3114,14 +3054,14 @@ describe('Assistant Profile Chat', () => {
 
         // Simulate disconnect and reconnect
         act(() => {
-          mockEventSourceInstance!.simulateError();
+          chatMocks.eventSource!.simulateError();
         });
 
         await waitFor(() => {
-          expect(eventSourceInstances.length).toBeGreaterThan(1);
+          expect(chatMocks.allEventSources.length).toBeGreaterThan(1);
         });
 
-        const newConnection = eventSourceInstances[eventSourceInstances.length - 1];
+        const newConnection = chatMocks.allEventSources[chatMocks.allEventSources.length - 1];
         act(() => newConnection.simulateOpen());
 
         // Replay same message (simulating server resending on reconnect)
