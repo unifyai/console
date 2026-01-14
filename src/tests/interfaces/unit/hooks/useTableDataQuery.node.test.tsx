@@ -127,7 +127,7 @@ describe('useTableDataQueryWithTracking', () => {
       result.current.updateLogs(
         {
           logs: [{ id: 'new' }] as any,
-          params: {},
+
           count: 1,
           groups: {},
         },

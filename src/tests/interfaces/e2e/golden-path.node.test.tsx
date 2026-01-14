@@ -171,7 +171,6 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
         const paginatedLogs = (allLogs.logs as any[])?.slice(offset, offset + limit) ?? [];
 
         return createMockResponse({
-          params: allLogs.params,
           logs: paginatedLogs,
           count: allLogs.count,
           groups: allLogs.groups || [],

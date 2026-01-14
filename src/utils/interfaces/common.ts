@@ -125,8 +125,12 @@ export function computeStatistic(statistic: string, data: number[]): string {
 
 /*
   Extract logs from a logs response.
+  Note: params support has been removed, kept for API compatibility
 */
-export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedLogPropsRaw) {
+export function extractLogs(
+  params: LogItemProps | undefined,
+  rawLogs: LogProps[] | GroupedLogPropsRaw
+) {
   // If logs is an array (non-grouped case), process it directly
   // If it's GroupedLogPropsRaw (grouped case), convert it first
   const logs = Array.isArray(rawLogs)
@@ -136,13 +140,12 @@ export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedL
             type: 'ungrouped',
             id: log.id,
             ts: log.ts,
-            params: log.params,
             derivedEntries: {},
             entries: { ...log.entries, ...log.derivedEntries }, // Bundle derived entries with entries
             clippedFields: log.clippedFields,
           }) as LogProps
       )
-    : maybeConvertRawToGroupedLogs(params, rawLogs, null);
+    : maybeConvertRawToGroupedLogs(undefined, rawLogs, null);
 
   return logs;
 }
@@ -157,9 +160,8 @@ export function extractLogsData(
   sorting: string | null,
   hiddenColumns: string | undefined
 ) {
-  const params = logsResponse.params;
   const rawLogs = logsResponse.logs;
-  const logs = extractLogs(params, rawLogs);
+  const logs = extractLogs(undefined, rawLogs);
 
   // Helper: recursively collect nested keys as slash paths
   const collectKeys = (obj: any, prefix = ''): string[] => {
@@ -176,72 +178,44 @@ export function extractLogsData(
     return keys;
   };
 
-  let paramsProperties: string[];
   let entriesProperties: string[];
 
   if (!fields || Object.keys(fields).length === 0) {
     // Fallback: derive columns from the first log if fields are unavailable
     const first = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
-    const rawParamsKeys = first?.params ? collectKeys(first.params) : [];
     const rawEntriesKeys = first?.entries ? collectKeys(first.entries) : [];
     // Build absolute keys with context
-    let absParams = rawParamsKeys.map((k) =>
-      columnContext ? processContext('merge', columnContext, k) : k
-    );
     let absEntries = rawEntriesKeys.map((k) =>
       columnContext ? processContext('merge', columnContext, k) : k
     );
     // Apply hidden filtering on relative keys
     if (hiddenColumns) {
       const hidden = new Set(hiddenColumns.split(','));
-      // Convert to relative for comparison with hidden list
-      const relParams = absParams.map((k) =>
-        columnContext ? processContext('split', columnContext, k) : k
-      );
       const relEntries = absEntries.map((k) =>
         columnContext ? processContext('split', columnContext, k) : k
       );
-      paramsProperties = relParams.filter((p) => !hidden.has(p));
       entriesProperties = relEntries.filter((p) => !hidden.has(p));
     } else {
       // Return relative keys
-      paramsProperties = absParams.map((k) =>
-        columnContext ? processContext('split', columnContext, k) : k
-      );
       entriesProperties = absEntries.map((k) =>
         columnContext ? processContext('split', columnContext, k) : k
       );
     }
   } else {
-    // Normal path using fields metadata
-    [paramsProperties, entriesProperties] = [
-      Object.entries(fields)
-        .filter((entry) => entry[1].fieldType === 'param')
-        .map((entry) => entry[0]),
-      Object.entries(fields)
-        .filter((entry) => entry[1].fieldType != 'param')
-        .map((entry) => entry[0]),
-    ];
+    // Normal path using fields metadata - only entries (no params)
+    entriesProperties = Object.entries(fields).map((entry) => entry[0]);
     if (columnContext) {
-      [paramsProperties, entriesProperties] = [
-        paramsProperties
-          .filter((property) => property.includes(columnContext))
-          .map((property) => processContext('split', columnContext, property)),
-        entriesProperties
-          .filter((property) => property.includes(columnContext))
-          .map((property) => processContext('split', columnContext, property)),
-      ];
+      entriesProperties = entriesProperties
+        .filter((property) => property.includes(columnContext))
+        .map((property) => processContext('split', columnContext, property));
     }
     if (hiddenColumns) {
       const hidden = hiddenColumns.split(',');
-      [paramsProperties, entriesProperties] = [
-        paramsProperties.filter((property) => !hidden.includes(property)),
-        entriesProperties.filter((property) => !hidden.includes(property)),
-      ];
+      entriesProperties = entriesProperties.filter((property) => !hidden.includes(property));
     }
   }
 
-  return { entriesProperties, paramsProperties, logs, params };
+  return { entriesProperties, logs };
 }
 
 export const getColumnMetrics = async (
@@ -330,7 +304,7 @@ export const getLogsDetails = async (
   logsActions: LogsActions
 ) => {
   // Unpack log data
-  const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
+  const { entriesProperties, logs } = extractLogsData(
     logsData,
     fields,
     columnContext,
@@ -338,7 +312,7 @@ export const getLogsDetails = async (
     hiddenColumns
   );
 
-  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+  const columns = logs.length ? entriesProperties : [];
 
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
@@ -407,9 +381,7 @@ export const getLogsDetails = async (
 
     return {
       entriesProperties,
-      paramsProperties,
       logs,
-      params,
       metrics,
       boundaries,
     };
@@ -418,9 +390,7 @@ export const getLogsDetails = async (
     // Return a default/empty state on error
     return {
       entriesProperties: [],
-      paramsProperties: [],
       logs: [],
-      params: {},
       metrics: {},
       boundaries: { minimums: {}, maximums: {} },
     };
@@ -554,25 +524,13 @@ export const buildNestedDropdownTree = (paths: string[]) => {
 };
 
 /**
- * Replaces parameter indices within log entries with their corresponding actual values
- * from a central parameter map.
+ * Previously replaced parameter indices within log entries with actual values.
+ * Params support has been removed - this function now returns data unchanged.
  *
  * @param {LogsResponseProps} data - The input log response object from get_logs.
- * @returns {LogsResponseProps} The modified `data` object. The `logs` array within
- *   this object will contain log entries where the `params` object now holds the actual
- *   resolved values instead of indices.
- *   If the initial `data.logs` or `data.params` is empty (or evaluates to empty via
- *   Object.entries), the original `data` object is returned unmodified.
+ * @returns {LogsResponseProps} The original `data` object unmodified.
  */
 export const replaceParamsIndicesWithValues = (data: LogsResponseProps) => {
-  const params = data.params;
-  const logs = data.logs as LogProps[];
-  if (!Object.entries(logs).length || !Object.entries(params).length) return data;
-  data.logs = logs.map((log) => {
-    const logParams: LogItemProps = {};
-    Object.entries(log.params).map(([key, value]) => (logParams[key] = params[key][value]));
-    return { ...log, params: logParams };
-  });
   return data;
 };
 
@@ -717,8 +675,7 @@ export const convertMetricsToLogs = (
       const groupValue = combination[groupKey];
       if (fields[groupKey]) {
         const fieldMeta = fields[groupKey];
-        if (fieldMeta.fieldType === 'param') metricLog.params[groupKey] = groupValue;
-        else if (fieldMeta.fieldType === 'derived_entry')
+        if (fieldMeta.fieldType === 'derived_entry')
           metricLog.derivedEntries[groupKey] = groupValue;
         else metricLog.entries[groupKey] = groupValue;
       } else {
@@ -745,8 +702,7 @@ export const convertMetricsToLogs = (
         if (fieldValue !== undefined) {
           if (fields[column]) {
             const fieldMeta = fields[column];
-            if (fieldMeta.fieldType === 'param') metricLog.params[column] = fieldValue;
-            else if (fieldMeta.fieldType === 'derived_entry')
+            if (fieldMeta.fieldType === 'derived_entry')
               metricLog.derivedEntries[column] = fieldValue;
             else metricLog.entries[column] = fieldValue;
           } else {

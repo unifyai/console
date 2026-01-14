@@ -61,7 +61,7 @@ type ParsedData = {
   previewRows: Record<string, any>[];
 };
 
-type ColumnType = 'param' | 'entry';
+type ColumnType = 'entry';
 
 const MAX_PREVIEW_ROWS = 20;
 const ALLOWED_EXTENSIONS = ['.csv', '.jsonl', '.json'];
@@ -406,7 +406,6 @@ export function FileUpload({
     // e: Allow upload without context
     const finalContext = contextInputValue.trim() ? contextInputValue.trim() : null;
 
-    const paramKeys = Object.keys(columnTypes).filter((k) => columnTypes[k] === 'param');
     const entryKeys = Object.keys(columnTypes).filter((k) => columnTypes[k] === 'entry');
 
     if (entryKeys.length === 0) {
@@ -416,23 +415,15 @@ export function FileUpload({
     }
 
     const allRows = parsedData.rows;
-    const paramsArray: Record<string, any>[] = [];
     const entriesArray: Record<string, any>[] = [];
 
     allRows.forEach((row) => {
-      const paramObj: Record<string, any> = {};
-      paramKeys.forEach((key) => {
-        if (row.hasOwnProperty(key)) {
-          paramObj[key] = row[key];
-        }
-      });
       const entryObj: Record<string, any> = {};
       entryKeys.forEach((key) => {
         if (row.hasOwnProperty(key)) {
           entryObj[key] = row[key];
         }
       });
-      paramsArray.push(paramObj);
       entriesArray.push(entryObj);
     });
 
@@ -442,12 +433,7 @@ export function FileUpload({
     const toastId = showLoadingToast(`Uploading ${allRows.length} logs...`);
 
     try {
-      const response: ResponseProps = await logsActions.create(
-        project,
-        finalContext,
-        paramsArray,
-        entriesArray
-      );
+      const response: ResponseProps = await logsActions.create(project, finalContext, entriesArray);
 
       if (response && response.info) {
         showSuccessToast(response.info, undefined, toastId);
@@ -470,9 +456,7 @@ export function FileUpload({
   const canUpload = !!file && !!parsedData && !!project && !isUploading && error === null;
 
   // Calculate column spans for header
-  const paramHeaders = parsedData?.headers.filter((h) => columnTypes[h] === 'param') ?? [];
   const entryHeaders = parsedData?.headers.filter((h) => columnTypes[h] === 'entry') ?? [];
-  const paramColSpan = paramHeaders.length;
   const entryColSpan = entryHeaders.length;
 
   return (
@@ -566,32 +550,7 @@ export function FileUpload({
                         <div className="flex shrink-0 items-center gap-1.5">
                           <Label
                             htmlFor={`switch-${header}`}
-                            className={cn(
-                              'text-caption cursor-pointer',
-                              columnTypes[header] === 'param'
-                                ? 'text-strong text-primary'
-                                : 'text-muted-foreground'
-                            )}
-                          >
-                            Param
-                          </Label>
-                          <Switch
-                            id={`switch-${header}`}
-                            checked={columnTypes[header] === 'entry'}
-                            onCheckedChange={(checked) =>
-                              handleColumnTypeChange(header, checked ? 'entry' : 'param')
-                            }
-                            disabled={isUploading}
-                            aria-label={`Mark ${header} as ${columnTypes[header] === 'entry' ? 'Parameter' : 'Entry'}`}
-                          />
-                          <Label
-                            htmlFor={`switch-${header}`}
-                            className={cn(
-                              'text-caption cursor-pointer',
-                              columnTypes[header] === 'entry'
-                                ? 'text-strong text-primary'
-                                : 'text-muted-foreground'
-                            )}
+                            className="text-caption text-strong text-primary"
                           >
                             Entry
                           </Label>
@@ -612,40 +571,22 @@ export function FileUpload({
                       <Table className="text-caption relative">
                         {' '}
                         {/* Add relative for sticky header */}
-                        {/* Two-level table header */}
+                        {/* Table header */}
                         <TableHeader className="sticky top-0 z-10 bg-background">
-                          {/* Parent Headers */}
+                          {/* Parent Header */}
                           <TableRow>
-                            {paramColSpan > 0 && (
-                              <TableHead
-                                colSpan={paramColSpan}
-                                className="border-b border-r bg-blue-50/50 text-center font-semibold" // Added borders
-                              >
-                                Parameters
-                              </TableHead>
-                            )}
                             {entryColSpan > 0 && (
                               <TableHead
                                 colSpan={entryColSpan}
-                                className="border-b bg-green-50/50 text-center font-semibold" // Added border
+                                className="border-b bg-green-50/50 text-center font-semibold"
                               >
                                 Entries
                               </TableHead>
                             )}
-                            {/* Add empty header if no params/entries exist to prevent layout shift? Maybe not needed. */}
-                            {paramColSpan === 0 && entryColSpan === 0 && (
-                              <TableHead>No Columns Mapped</TableHead>
-                            )}
+                            {entryColSpan === 0 && <TableHead>No Columns Mapped</TableHead>}
                           </TableRow>
                           {/* Sub Headers (Column Names) */}
                           <TableRow>
-                            {paramHeaders.map((header) => (
-                              <TableHead key={header} className="border-r bg-blue-50/50">
-                                {' '}
-                                {/* Added border */}
-                                {header}
-                              </TableHead>
-                            ))}
                             {entryHeaders.map((header) => (
                               <TableHead key={header} className="bg-green-50/50">
                                 {header}
@@ -657,15 +598,6 @@ export function FileUpload({
                           {parsedData.previewRows.map((row, rowIndex) => (
                             <TableRow key={rowIndex}>
                               {/* Render cells in the same order as headers */}
-                              {paramHeaders.map((header) => (
-                                <TableCell
-                                  key={`${rowIndex}-${header}-param`}
-                                  className="max-w-[150px] truncate border-r" /* Added border */
-                                  title={String(row[header] ?? '')}
-                                >
-                                  {String(row[header] ?? '')}
-                                </TableCell>
-                              ))}
                               {entryHeaders.map((header) => (
                                 <TableCell
                                   key={`${rowIndex}-${header}-entry`}

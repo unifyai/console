@@ -9,19 +9,13 @@ import { processContext } from '@/utils/interfaces/table/columnOperations';
 export function buildAvailableFieldsForTile(
   columnContext: string,
   fields: LogFieldsResponseProps,
-  entriesProperties: string[],
-  paramsProperties: string[]
+  entriesProperties: string[]
 ): LogFieldsResponseProps {
   const availableFields = Object.fromEntries(
     Object.entries(fields).filter(([field, _]) =>
       entriesProperties
         .map((property) =>
           columnContext ? processContext('merge', columnContext, property) : property
-        )
-        .concat(
-          paramsProperties.map((property) =>
-            columnContext ? processContext('merge', columnContext, property) : property
-          )
         )
         .includes(field)
     )

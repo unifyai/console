@@ -65,7 +65,7 @@ describe('Logs API Error Handling', () => {
     it('should return fields on successful response', async () => {
       const mockFields = {
         field1: { dataType: 'str', fieldType: 'entry' },
-        field2: { dataType: 'int', fieldType: 'param' },
+        field2: { dataType: 'int', fieldType: 'entry' },
       };
 
       global.fetch = vi.fn().mockResolvedValue({
@@ -114,7 +114,6 @@ describe('Logs API Error Handling', () => {
       );
 
       expect(result).toEqual({
-        params: {},
         logs: [],
         count: 0,
         groups: [],
@@ -149,7 +148,6 @@ describe('Logs API Error Handling', () => {
       );
 
       expect(result).toEqual({
-        params: {},
         logs: [],
         count: 0,
         groups: [],

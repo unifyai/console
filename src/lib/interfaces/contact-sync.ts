@@ -83,7 +83,6 @@ export async function maybeSyncContactFields(
   project: string,
   context: string | null,
   entriesUpdate: Record<string, any>,
-  paramsUpdate: Record<string, any>,
   affectedLogs: SyncableLogEntry[]
 ): Promise<void> {
   // Guard: Only for project="Assistants"
@@ -97,7 +96,7 @@ export async function maybeSyncContactFields(
   }
 
   // Determine which syncable fields are being updated
-  const updatedFields = [...Object.keys(entriesUpdate || {}), ...Object.keys(paramsUpdate || {})];
+  const updatedFields = Object.keys(entriesUpdate || {});
 
   const fieldsToSync = updatedFields.filter((f) =>
     (SYNCABLE_FIELDS as readonly string[]).includes(f)
@@ -144,7 +143,7 @@ export async function maybeSyncContactFields(
       const existing = assistantSyncs.get(assistantId) || {};
 
       for (const field of fieldsToSync) {
-        const newValue = entriesUpdate[field] ?? paramsUpdate[field];
+        const newValue = entriesUpdate[field];
         if (field === 'timezone') {
           existing.timezone = newValue;
         } else if (field === 'bio') {
@@ -168,7 +167,7 @@ export async function maybeSyncContactFields(
       };
 
       for (const field of fieldsToSync) {
-        const newValue = entriesUpdate[field] ?? paramsUpdate[field];
+        const newValue = entriesUpdate[field];
         if (field === 'timezone') {
           existing.timezone = newValue;
         } else if (field === 'bio') {

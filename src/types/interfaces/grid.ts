@@ -80,9 +80,7 @@ export interface TableDataItem {
   fields: LogFieldsResponseProps;
   totalCount: number;
   entriesProperties: string[];
-  paramsProperties: string[];
   logs: LogProps[] | GroupedLogProps[];
-  params: LogItemProps;
   error: string | undefined;
   isLoading: boolean; // Flag to indicate the table data is loading/being built. Might remove this later.
   newCells?: string[];
@@ -576,7 +574,6 @@ export interface LogsActions {
   create: (
     project: string,
     context: string | null,
-    params: { [param: string]: string }[],
     entries: { [entry: string]: string }[]
   ) => Promise<ResponseProps>;
   get: (
@@ -639,7 +636,6 @@ export interface LogsActions {
     context: string | null,
     logs: number[],
     entries: LogItemProps,
-    params: LogItemProps,
     overwrite?: boolean,
     affectedLogs?: SyncableLogEntry[]
   ) => Promise<ResponseProps>;

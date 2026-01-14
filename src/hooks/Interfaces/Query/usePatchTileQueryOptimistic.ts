@@ -302,8 +302,7 @@ export function usePatchTileQueryOptimistic() {
               tableArguments[optimisticTileData.name].availableFields = buildAvailableFieldsForTile(
                 optimisticTileData.columnContext ?? '',
                 fields,
-                tableDataItem.entriesProperties,
-                tableDataItem.paramsProperties
+                tableDataItem.entriesProperties
               );
 
               // Update the cache with available fields

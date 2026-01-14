@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
 import {
   Accordion,
   AccordionItem,
@@ -15,7 +15,6 @@ import {
   isList,
   isMatrix,
   isImage,
-  isTrace,
   isNumber,
   isTimestamp,
   isChat,
@@ -30,14 +29,12 @@ import {
 } from '@/utils/interfaces/selection/pathUtils';
 import { usePanelExpandContextSelector } from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
 import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from './useIndentation';
-import { useTraceExpandContextSelector } from './TraceView/TraceExpandContext';
 
 import { LogComparisonProps } from './types';
 import { getValueType, getTypeIcon } from './ViewTypes';
 import RowBadge from './RowBadge';
 
 // Subcomponents
-import TraceView from './TraceView';
 import ChatView from './ChatView';
 import ListView from './ListView';
 import ImageView from './ImageView';
@@ -48,7 +45,6 @@ import TimestampView from './TimestampView';
 import PdfView from './PdfView';
 import { LogProps } from '@/types/interfaces/logs';
 import { LogsActions } from '@/types/interfaces/grid';
-import { Span } from '@/types/interfaces/traces';
 import AudioView from './AudioView';
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -77,44 +73,15 @@ function pickView(
     isImmutable?: boolean;
     prefix?: string;
     parentPath?: string;
-    viewTracesAsDict?: boolean;
     logsActions?: LogsActions;
     context: string | null;
     baseLog: LogProps | undefined;
     comparisonLogs: LogProps[] | undefined;
     fieldName: string;
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
-  const {
-    value,
-    parentPath = '',
-    prefix = '',
-    nestingLevel = 0,
-    viewTracesAsDict,
-    logsActions,
-    context,
-    baseLog,
-    comparisonLogs,
-    fieldName,
-    onTraceUpdate,
-  } = props;
+  const { value, logsActions, context, baseLog, comparisonLogs, fieldName } = props;
 
-  // Handle trace rendering based on viewTracesAsDict flag
-  if (isTrace(value) && !viewTracesAsDict) {
-    return (
-      <TraceView
-        {...props}
-        logsActions={logsActions}
-        context={context}
-        baseLog={baseLog}
-        comparisonLogs={comparisonLogs}
-        fieldName={fieldName}
-        onTraceUpdate={onTraceUpdate}
-      />
-    );
-  }
-  // For non-trace types, continue normal rendering
   if (isChat(value)) {
     return <ChatView {...props} />;
   }
@@ -127,12 +94,11 @@ function pickView(
         baseLog={baseLog}
         comparisonLogs={comparisonLogs}
         fieldName={fieldName}
-        onTraceUpdate={onTraceUpdate}
       />
     );
   }
   if (isList(value)) {
-    return <ListView {...props} onTraceUpdate={onTraceUpdate} />;
+    return <ListView {...props} />;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -269,7 +235,6 @@ interface DictionaryViewProps extends LogComparisonProps {
   parentPath?: string; // The parent's fully qualified path (e.g. "entries.dict.0.a")
   nestingLevel?: number;
   customIconMapping?: Record<string, JSX.Element>; // New prop for custom icons
-  viewTracesAsDict?: boolean; // Add prop to pass down the setting
   cellEditMode?: boolean;
   onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
   onGroupSaveEdit?: (desc: {
@@ -284,7 +249,6 @@ interface DictionaryViewProps extends LogComparisonProps {
   baseLog: LogProps | undefined;
   comparisonLogs: LogProps[] | undefined;
   fieldName: string;
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
 }
 
 /*─────────────────────────────────────────────────────────────────────────
@@ -312,7 +276,6 @@ function renderNoDiffMode(
     collapseRecursively: (paths: string[]) => void;
     isImmutable?: boolean;
     customIconMapping?: Record<string, JSX.Element>; // Add custom icon mapping to options
-    viewTracesAsDict?: boolean; // Receive the trace view setting
     cellEditMode?: boolean;
     onSaveEdit?: LogComparisonProps['onSaveEdit']; // Keep single save handler
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
@@ -322,7 +285,6 @@ function renderNoDiffMode(
     baseLog: LogProps | undefined;
     comparisonLogs: LogProps[] | undefined;
     fieldName: string;
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
@@ -336,13 +298,11 @@ function renderNoDiffMode(
     nestingLevel,
     prefix,
     parentPath,
-    viewTracesAsDict,
     isImmutable,
     cellEditMode = false,
     onSaveEdit,
     onGroupSaveEdit,
     path: parentEditPath = [],
-    onTraceUpdate,
     expandRecursively,
     collapseRecursively,
     customIconMapping,
@@ -468,9 +428,7 @@ function renderNoDiffMode(
                 </div>
               </span>
               {/* Show button if dict/list OR if trace rendered as dict */}
-              {(keyType === 'dict' ||
-                keyType === 'list' ||
-                (keyType === 'trace' && viewTracesAsDict)) && (
+              {(keyType === 'dict' || keyType === 'list') && (
                 <div className="absolute right-5 flex items-center gap-1">
                   <ActionButton
                     variant="ghost"
@@ -524,7 +482,6 @@ function renderNoDiffMode(
                             nestingLevel: nestingLevel + 1,
                             prefix,
                             parentPath: path,
-                            viewTracesAsDict,
                             isImmutable,
                             cellEditMode,
                             onSaveEdit, // Pass single save (might be used by child if group save is missing)
@@ -537,7 +494,6 @@ function renderNoDiffMode(
                             baseLog,
                             comparisonLogs,
                             fieldName,
-                            onTraceUpdate,
                           })}
                         </div>
                       ));
@@ -565,7 +521,6 @@ function renderNoDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       isImmutable,
                       cellEditMode,
                       onSaveEdit,
@@ -576,7 +531,6 @@ function renderNoDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate,
                     });
                   })()
                 )}
@@ -613,7 +567,6 @@ function renderDiffMode(
     expandRecursively: (paths: string[]) => void;
     collapseRecursively: (paths: string[]) => void;
     customIconMapping?: Record<string, JSX.Element>; // Add custom icon mapping to options
-    viewTracesAsDict?: boolean; // Receive the trace view setting
     cellEditMode?: boolean;
     onSaveEdit?: LogComparisonProps['onSaveEdit']; // Keep single save handler
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
@@ -623,7 +576,6 @@ function renderDiffMode(
     baseLog: LogProps | undefined;
     comparisonLogs: LogProps[] | undefined;
     fieldName: string;
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
@@ -637,12 +589,10 @@ function renderDiffMode(
     nestingLevel,
     prefix,
     parentPath,
-    viewTracesAsDict,
     cellEditMode = false,
     onSaveEdit,
     onGroupSaveEdit,
     path: parentEditPath = [],
-    onTraceUpdate,
     expandRecursively,
     collapseRecursively,
     customIconMapping,
@@ -797,9 +747,7 @@ function renderDiffMode(
                 </div>
               </span>
               {/* Show button if dict/list OR if trace rendered as dict */}
-              {(keyType === 'dict' ||
-                keyType === 'list' ||
-                (keyType === 'trace' && viewTracesAsDict)) && (
+              {(keyType === 'dict' || keyType === 'list') && (
                 <div className="absolute right-5 flex items-center gap-1">
                   <ActionButton
                     variant="ghost"
@@ -849,7 +797,6 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -859,7 +806,6 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate,
                     });
                   }
 
@@ -939,7 +885,6 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
-                                viewTracesAsDict,
                                 cellEditMode,
                                 onSaveEdit,
                                 onGroupSaveEdit,
@@ -949,7 +894,6 @@ function renderDiffMode(
                                 baseLog,
                                 comparisonLogs,
                                 fieldName,
-                                onTraceUpdate,
                               })}
                             </div>
                           )}
@@ -979,7 +923,6 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
-                                viewTracesAsDict,
                                 cellEditMode,
                                 onSaveEdit,
                                 onGroupSaveEdit,
@@ -989,7 +932,6 @@ function renderDiffMode(
                                 baseLog,
                                 comparisonLogs,
                                 fieldName,
-                                onTraceUpdate,
                               })}
                             </div>
                           )}
@@ -1043,7 +985,6 @@ function renderDiffMode(
                                         nestingLevel: nestingLevel + 1,
                                         prefix,
                                         parentPath: path,
-                                        viewTracesAsDict,
                                         cellEditMode,
                                         onSaveEdit,
                                         onGroupSaveEdit,
@@ -1053,7 +994,6 @@ function renderDiffMode(
                                         baseLog,
                                         comparisonLogs,
                                         fieldName,
-                                        onTraceUpdate,
                                       })}
                                     </div>
                                   );
@@ -1111,7 +1051,6 @@ function renderDiffMode(
                                       nestingLevel: nestingLevel + 1,
                                       prefix,
                                       parentPath: path,
-                                      viewTracesAsDict,
                                       cellEditMode,
                                       onSaveEdit,
                                       onGroupSaveEdit,
@@ -1121,7 +1060,6 @@ function renderDiffMode(
                                       baseLog,
                                       comparisonLogs,
                                       fieldName,
-                                      onTraceUpdate,
                                     })}
                                   </div>
                                 ));
@@ -1152,7 +1090,6 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       cellEditMode,
                       onSaveEdit,
                       onGroupSaveEdit,
@@ -1162,7 +1099,6 @@ function renderDiffMode(
                       baseLog,
                       comparisonLogs,
                       fieldName,
-                      onTraceUpdate,
                     });
                   }
 
@@ -1180,7 +1116,6 @@ function renderDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
-                    viewTracesAsDict,
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
@@ -1190,7 +1125,6 @@ function renderDiffMode(
                     baseLog,
                     comparisonLogs,
                     fieldName,
-                    onTraceUpdate,
                   });
                 })()}
               </div>
@@ -1216,7 +1150,6 @@ export default function DictionaryView({
   prefix = 'entries',
   parentPath = '', // new param to track parent's path
   customIconMapping, // New prop for custom icons
-  viewTracesAsDict, // Receive the prop
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
@@ -1229,41 +1162,16 @@ export default function DictionaryView({
   comparisonLogs,
   fieldName,
 }: DictionaryViewProps) {
-  // Context detection and state management
-  const [inTraceView, setInTraceView] = useState(false);
-  const traceOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.openKeys);
-  const traceSetOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.setOpenKeys);
-  const traceForceExpandAll = useTraceExpandContextSelector((ctx) => ctx?.forceExpandAll);
-  const traceForceCollapseAll = useTraceExpandContextSelector((ctx) => ctx?.forceCollapseAll);
-  const traceExpandRecursively = useTraceExpandContextSelector((ctx) => ctx?.expandRecursively);
-  const traceCollapseRecursively = useTraceExpandContextSelector((ctx) => ctx?.collapseRecursively);
-  const traceToggleKey = useTraceExpandContextSelector((ctx) => ctx?.toggleKey);
-  const traceInstanceId = useTraceExpandContextSelector((ctx) => ctx?.instanceId);
-  const panelOpenKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
-  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  // Context state management - use panel context directly
+  const effectiveOpenKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
+  const effectiveSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
   const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
   const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
-  const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
-  const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
-  const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
-
-  useEffect(() => {
-    const isInTraceView =
-      Boolean(traceInstanceId) &&
-      typeof traceSetOpenKeys === 'function' &&
-      traceSetOpenKeys.toString() !== '()=>{}';
-    setInTraceView(isInTraceView);
-  }, [traceInstanceId, traceSetOpenKeys]);
-
-  const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
-  const effectiveSetOpenKeys = inTraceView ? traceSetOpenKeys : panelSetOpenKeys;
-  const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
-  const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
-  const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
-  const effectiveCollapseRecursively = inTraceView
-    ? traceCollapseRecursively
-    : panelCollapseRecursively;
-  const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
+  const effectiveExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const effectiveCollapseRecursively = usePanelExpandContextSelector(
+    (ctx) => ctx.collapseRecursively
+  );
+  const effectiveToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
 
   // Key and path calculation
   const allKeys = useMemo(() => {
@@ -1323,23 +1231,16 @@ export default function DictionaryView({
 
   // Effect for force expand/collapse
   useEffect(() => {
-    if (!inTraceView) {
-      // When not in TraceView, rely on parent context
-      return;
-    }
-
-    // Handle local expand/collapse for TraceView mode
-    if (traceForceExpandAll) {
+    if (panelForceExpandAll) {
       const paths = gatherAllPaths();
       effectiveExpandRecursively(paths);
-    } else if (traceForceCollapseAll) {
+    } else if (panelForceCollapseAll) {
       const paths = gatherAllPaths();
       effectiveCollapseRecursively(paths);
     }
   }, [
-    traceForceExpandAll,
-    traceForceCollapseAll,
-    inTraceView,
+    panelForceExpandAll,
+    panelForceCollapseAll,
     effectiveExpandRecursively,
     effectiveCollapseRecursively,
     gatherAllPaths,
@@ -1368,7 +1269,6 @@ export default function DictionaryView({
         collapseRecursively: effectiveCollapseRecursively,
         isImmutable,
         customIconMapping,
-        viewTracesAsDict,
         cellEditMode,
         onSaveEdit,
         onGroupSaveEdit,
@@ -1404,7 +1304,6 @@ export default function DictionaryView({
       expandRecursively: effectiveExpandRecursively,
       collapseRecursively: effectiveCollapseRecursively,
       customIconMapping,
-      viewTracesAsDict,
       cellEditMode,
       onSaveEdit,
       onGroupSaveEdit,

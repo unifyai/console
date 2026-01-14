@@ -66,7 +66,6 @@ describe('useInfiniteLogsQuery', () => {
 
     const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
       response: {
-        params: {},
         logs,
         count: logs.length,
         groups: {},
@@ -156,7 +155,6 @@ describe('useInfiniteLogsQuery', () => {
       const logs = [makeLog(`log-p${pageIndex}`, `Page ${pageIndex}`)];
       return {
         response: {
-          params: {},
           logs,
           count: 1,
           groups: {},
@@ -251,7 +249,6 @@ describe('useInfiniteLogsQuery', () => {
       const logs = pages[pageIndex] || [];
       return {
         response: {
-          params: {},
           logs,
           count: logs.length,
           groups: {},
@@ -345,7 +342,6 @@ describe('useInfiniteLogsQuery', () => {
 
     const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
       response: {
-        params: {},
         logs,
         count: logs.length,
         groups: {},
@@ -414,7 +410,6 @@ describe('useInfiniteLogsQuery', () => {
 
     const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
       response: {
-        params: {},
         logs,
         count: logs.length,
         groups: {},
@@ -486,7 +481,6 @@ describe('useInfiniteLogsQuery', () => {
       const logs = makeLogsForFilter(p.filterExpression ?? null);
       return {
         response: {
-          params: {},
           logs,
           count: logs.length,
           groups: {},

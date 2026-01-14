@@ -398,7 +398,7 @@ export interface MatrixTestSetup {
     string,
     {
       dataType: string;
-      fieldType: 'entry' | 'param' | 'derived_entry';
+      fieldType: 'entry' | 'derived_entry';
       artifacts: string;
       mutable: 'true' | 'false';
       createdAt: string;

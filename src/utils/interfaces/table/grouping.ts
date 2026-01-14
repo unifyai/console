@@ -42,7 +42,7 @@ function isParamsGroup(groupingColumnId: string): boolean {
   top level, you'll get multiple siblings in the array.
 */
 export function maybeConvertRawToGroupedLogs(
-  params: LogItemProps,
+  params: LogItemProps | undefined,
   rawGroupedLogs: GroupedLogPropsRaw | LogProps[],
   parentId: string | null = null
 ): GroupedLogProps[] | LogProps[] {
@@ -160,7 +160,7 @@ export function updateGroupedSubRows(
   const convertedNewLogs =
     preConvertedLogs ||
     maybeConvertRawToGroupedLogs(
-      newLogsData.params,
+      undefined, // params support removed
       newLogsData.logs,
       parentId // parentId will be set by the conversion function based on filters
     );

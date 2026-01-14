@@ -415,7 +415,7 @@ export function createMockFields(dataTypeConfig: DataTypeConfig): Record<
   string,
   {
     dataType: string;
-    fieldType: 'entry' | 'param' | 'derived_entry';
+    fieldType: 'entry' | 'derived_entry';
     artifacts: string;
     mutable: 'true' | 'false';
     createdAt: string;
@@ -440,7 +440,7 @@ export function createMockFields(dataTypeConfig: DataTypeConfig): Record<
     string,
     {
       dataType: string;
-      fieldType: 'entry' | 'param' | 'derived_entry';
+      fieldType: 'entry' | 'derived_entry';
       artifacts: string;
       mutable: 'true' | 'false';
       createdAt: string;

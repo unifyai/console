@@ -24,7 +24,7 @@ import type { LogFieldsResponseProps, LogProps } from '@/types/interfaces/logs';
 function createMockFields(
   fieldName: string,
   dataType: string,
-  fieldType: 'entry' | 'param' | 'derived_entry' = 'entry'
+  fieldType: 'entry' | 'derived_entry' = 'entry'
 ): LogFieldsResponseProps {
   return {
     [fieldName]: {
@@ -41,14 +41,9 @@ function createMockLog(
   table: string,
   fieldName: string,
   value: unknown,
-  fieldType: 'entry' | 'param' | 'derived_entry' = 'entry'
+  fieldType: 'entry' | 'derived_entry' = 'entry'
 ): LogProps {
-  const key =
-    fieldType === 'derived_entry'
-      ? `${table}.derivedEntries`
-      : fieldType === 'param'
-        ? `${table}.params`
-        : `${table}.entries`;
+  const key = fieldType === 'derived_entry' ? `${table}.derivedEntries` : `${table}.entries`;
 
   return {
     [key]: {
@@ -99,15 +94,9 @@ describe('hasProperty', () => {
       expect(hasProperty(fields, fieldName, log, table)).toBe(true);
     });
 
-    it('checks param location', () => {
-      const fields = createMockFields(fieldName, 'string', 'param');
-      const log = createMockLog(table, fieldName, 'test', 'param');
-      expect(hasProperty(fields, fieldName, log, table)).toBe(true);
-    });
-
     it('returns false when value is in wrong location', () => {
-      const fields = createMockFields(fieldName, 'float', 'param');
-      const log = createMockLog(table, fieldName, 42, 'entry'); // Value is in entries, not params
+      const fields = createMockFields(fieldName, 'float', 'derived_entry');
+      const log = createMockLog(table, fieldName, 42, 'entry'); // Value is in entries, not derived_entries
       expect(hasProperty(fields, fieldName, log, table)).toBeFalsy();
     });
   });
@@ -162,10 +151,10 @@ describe('getValue', () => {
       expect(getValue(fields, fieldName, log, table)).toBe(100);
     });
 
-    it('retrieves value from params', () => {
-      const fields = createMockFields(fieldName, 'string', 'param');
-      const log = createMockLog(table, fieldName, 'param_value', 'param');
-      expect(getValue(fields, fieldName, log, table)).toBe('param_value');
+    it('retrieves value from entries', () => {
+      const fields = createMockFields(fieldName, 'string', 'entry');
+      const log = createMockLog(table, fieldName, 'entry_value', 'entry');
+      expect(getValue(fields, fieldName, log, table)).toBe('entry_value');
     });
   });
 

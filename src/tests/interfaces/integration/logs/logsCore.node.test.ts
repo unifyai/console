@@ -44,7 +44,6 @@ describe('logsCore + getLogs (MSW integration)', () => {
         const paginatedLogs = (allLogs.logs as LogProps[]).slice(offset, offset + limit);
 
         return createMockResponse({
-          params: allLogs.params,
           logs: paginatedLogs,
           count: allLogs.count,
           groups: allLogs.groups || [],
@@ -156,7 +155,6 @@ describe('logsCore + getLogs (MSW integration)', () => {
     mockFetch.mockImplementation(async (url: string) => {
       fetchCallUrls.push(url);
       return createMockResponse({
-        params: {},
         logs: [],
         count: 0,
         groups: [],

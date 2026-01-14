@@ -61,13 +61,11 @@ const CellPopover = ({
       </Markdown>
     );
   } else {
-    // --- Content for Regular Cells (Use flatLogs and paramsValues) ---
+    // --- Content for Regular Cells (Use flatLogs) ---
     const field = sanitizeId(getPartAfterFirstUnderscore(cell.id));
     const log = flatLogs.find((l) => String(l.id) === cell.row.id);
 
-    if (fieldType === 'param') {
-      content = paramsValues[field];
-    } else if (log) {
+    if (log) {
       content = log.entries?.[field] ?? log.derivedEntries?.[field] ?? '';
     } else {
       content = '';

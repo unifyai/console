@@ -27,27 +27,13 @@ const VisibilityFilter = ({
   defaultHidden: boolean;
   setDefaultHidden: (val: boolean) => void;
 }) => {
-  const [paramColumns, entryColumns] = fields
-    ? [
-        Object.entries(fields)
-          .filter(([key, value]) => value.fieldType === 'param')
-          .map(([key, value]) => `Parameters/${key}`),
-        Object.entries(fields)
-          .filter(([key, value]) => value.fieldType !== 'param')
-          .map(([key, value]) => `Entries/${key}`),
-      ]
-    : [[], []];
+  const entryColumns = fields ? Object.entries(fields).map(([key, value]) => `Entries/${key}`) : [];
 
-  const [anyHiddenParam, anyHiddenEntry] = [
-    Object.entries(columnVisibility)
-      .filter(([column, visible]) => column.startsWith('Parameters'))
-      .some(([colum, visible]) => !visible),
-    Object.entries(columnVisibility)
-      .filter(([column, visible]) => column.startsWith('Entries'))
-      .some(([colum, visible]) => !visible),
-  ];
+  const anyHiddenEntry = Object.entries(columnVisibility)
+    .filter(([column, visible]) => column.startsWith('Entries'))
+    .some(([colum, visible]) => !visible);
 
-  const anyHidden = anyHiddenParam || anyHiddenEntry;
+  const anyHidden = anyHiddenEntry;
 
   /* Event handlers */
   const handleAllCheck = () => {
@@ -62,19 +48,7 @@ const VisibilityFilter = ({
     };
     setColumnVisibility(newColumnVisibility);
   };
-  const handleAllParamsCheck = () => {
-    const state = anyHiddenParam ? true : false;
-    const newColumnVisibility = {
-      ...columnVisibility,
-      RowNumbering: true,
-      ...Object.fromEntries(
-        Object.entries(columnVisibility)
-          .filter(([k, _]) => k.startsWith('Parameters'))
-          .map(([key]) => [key, state])
-      ),
-    };
-    setColumnVisibility(newColumnVisibility);
-  };
+  // Params support removed - handleAllParamsCheck no longer needed
   const handleAllEntriesCheck = () => {
     const state = anyHiddenEntry ? true : false;
     const newColumnVisibility = {
@@ -102,26 +76,8 @@ const VisibilityFilter = ({
     </div>
   );
 
-  /* Params toggles - moved to appear before Entries */
-  const hideParams = paramColumns.length > 0 && (
-    <div className="mt-2">
-      <div className="mb-1 flex items-center justify-between">
-        <p className="text-label text-strong">Params</p>
-        <Switch checked={!anyHiddenParam} onCheckedChange={handleAllParamsCheck} />
-      </div>
-      {paramColumns.map((column, index) => (
-        <div key={index} className="flex items-center justify-between py-1 pl-4">
-          <span className="text-body-sm max-w-[200px] truncate" title={column}>
-            {context ? sanitizeId(processContext('split', context, column)) : column}
-          </span>
-          <Switch
-            checked={columnVisibility[column]}
-            onCheckedChange={() => handleSingleCheck(column)}
-          />
-        </div>
-      ))}
-    </div>
-  );
+  /* Params toggles removed - params support no longer available */
+  const hideParams = null;
 
   /* Entries toggles - moved to appear after Params */
   const hideEntries = (

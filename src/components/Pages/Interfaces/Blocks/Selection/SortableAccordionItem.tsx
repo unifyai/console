@@ -2,18 +2,15 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import { Span } from '@/types/interfaces/traces';
 
 export default function SortableAccordionItem({
   id,
   children,
   editMode,
-  onTraceUpdate,
 }: {
   id: string;
   children: React.ReactNode;
   editMode?: boolean;
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -37,7 +34,6 @@ export default function SortableAccordionItem({
       >
         {React.cloneElement(children as React.ReactElement, {
           ...(editMode ? { dragAttributes: attributes, dragListeners: listeners } : {}),
-          onTraceUpdate,
         })}
       </div>
     </div>

@@ -40,7 +40,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
       index: String(i + 1),
     }));
 
-    const result = await createLogsFn(testProjectName, null, [], logs);
+    const result = await createLogsFn(testProjectName, null, logs);
 
     if (result.ids) {
       createdLogIds = result.ids;

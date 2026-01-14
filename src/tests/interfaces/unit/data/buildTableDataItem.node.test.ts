@@ -30,21 +30,14 @@ const baseFields: LogFieldsResponseProps = {
     mutable: 'false',
     createdAt: '2025-01-01T00:00:00Z',
   },
-  'params/level': {
-    dataType: 'string',
-    fieldType: 'param',
-    artifacts: '',
-    mutable: 'false',
-    createdAt: '2025-01-01T00:00:00Z',
-  },
+  // params/level field removed - params support no longer available
 };
 
 const makeUngroupedLog = (id: string, level: string, message: string): LogProps => ({
   type: 'ungrouped',
   id,
   ts: '2025-01-01T00:00:00Z',
-  params: { level },
-  entries: { message },
+  entries: { message, level },
   derivedEntries: {},
   clippedFields: {},
 });
@@ -85,7 +78,6 @@ describe('buildTableDataItem helpers', () => {
     ];
 
     const logsResponse: LogsResponseProps = {
-      params: {},
       logs: logsArray,
       count: logsArray.length,
       groups: {},
@@ -109,12 +101,10 @@ describe('buildTableDataItem helpers', () => {
     expect(tableDataItem.totalCount).toBe(logsArray.length);
     // Fields and column contexts should be wired through
     expect(tableDataItem.fields).toBe(baseFields);
-    // entriesProperties / paramsProperties should be partitioned by fieldType
+    // entriesProperties should contain all fields (params support removed)
     expect(tableDataItem.entriesProperties).toEqual(['entries/message']);
-    expect(tableDataItem.paramsProperties).toEqual(['params/level']);
-    // Logs and params are derived from the response
+    // Logs are derived from the response
     expect(tableDataItem.logs).toHaveLength(2);
-    expect(tableDataItem.params).toEqual({});
     // No previous logs provided → no newCells
     expect(tableDataItem.newCells).toEqual([]);
     // No error detail on the response
@@ -125,7 +115,6 @@ describe('buildTableDataItem helpers', () => {
 
   it('getTotalCountFromLogsResponse returns count for ungrouped logs', () => {
     const response: LogsResponseProps = {
-      params: {},
       logs: [makeUngroupedLog('log-1', 'info', 'Msg')],
       count: 42,
       groups: {},
@@ -148,7 +137,6 @@ describe('buildTableDataItem helpers', () => {
     };
 
     const response: LogsResponseProps = {
-      params: {},
       logs: groupedRaw,
       count: 123, // should be ignored in favour of groupCount
       groups: {},
@@ -190,7 +178,6 @@ describe('buildTableDataItem helpers', () => {
     };
 
     const logsResponse: LogsResponseProps = {
-      params: {},
       logs: groupedRaw,
       count: 5,
       groups: {},
@@ -266,14 +253,14 @@ describe('buildTableDataItem helpers', () => {
       position: makePosition(),
       type: 'Table',
       tableTile: {
-        sorting: 'entries/message@true,params/level@false',
+        sorting: 'entries/message@true,entries/level@false',
       } as TableTileData,
     };
 
     const sorting = getSortingObject(tile);
     expect(sorting).toEqual({
       'entries/message': 'descending',
-      'params/level': 'ascending',
+      'entries/level': 'ascending',
     });
   });
 

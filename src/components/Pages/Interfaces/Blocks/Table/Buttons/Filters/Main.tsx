@@ -34,7 +34,6 @@ type ColumnFilterProps = {
   setIsFiltered: (isFiltered: boolean) => void;
   renderMode: 'button' | 'menuItem';
   entriesProperties: string[];
-  paramsProperties: string[];
   logsActions: LogsActions;
 };
 
@@ -54,7 +53,6 @@ const ColumnFilter = ({
   setFilterLoading,
   renderMode,
   entriesProperties,
-  paramsProperties,
   logsActions,
 }: ColumnFilterProps) => {
   let filter;
@@ -78,7 +76,6 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}
         entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
         logsActions={logsActions}
       />
     );
@@ -102,7 +99,6 @@ const ColumnFilter = ({
         dataType={dataTypes[column] as 'timedelta' | 'timestamp' | 'date' | 'time'}
         renderMode={renderMode}
         entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
       />
     );
   } else if (dataTypes[column] === 'image') {
@@ -132,7 +128,6 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}
         entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
       />
     );
   } else if (dataTypes[column] === 'list') {
@@ -149,7 +144,6 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}
         entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
       />
     );
   } else {
@@ -166,7 +160,6 @@ const ColumnFilter = ({
         setIsFiltered={setIsFiltered}
         renderMode={renderMode}
         entriesProperties={entriesProperties}
-        paramsProperties={paramsProperties}
       />
     );
   }

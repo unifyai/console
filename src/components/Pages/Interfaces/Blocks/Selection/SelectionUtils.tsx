@@ -1,4 +1,4 @@
-import { LogProps } from '@/types/interfaces/logs';
+import { LogItemProps, LogProps } from '@/types/interfaces/logs';
 import { sanitizeId } from '@/utils/interfaces/table/columnOperations';
 
 /*******************************************************************************
@@ -63,17 +63,6 @@ export function isTrace(val: any): boolean {
 }
 export function isNumber(val: any): boolean {
   return typeof val === 'number' || val instanceof Number;
-}
-
-/** Possibly used for param expansions from the old code. */
-export function unwrapSingleKeyObject(val: unknown) {
-  if (val && typeof val === 'object' && !Array.isArray(val)) {
-    const keys = Object.keys(val);
-    if (keys.length === 1 && keys[0] === '0') {
-      return (val as Record<string, unknown>)['0'];
-    }
-  }
-  return val;
 }
 
 /** For row labeling in combobox, etc. */
@@ -164,12 +153,12 @@ export function buildRowIndicesInSelectionOrder(
 
 /*******************************************************************************
  * buildLogWithChosenColumns
- *   From original code, merges param expansions and hidden/ordered columns.
+ *   Filters log entries based on chosen columns and column ordering.
  ******************************************************************************/
 export function buildLogWithChosenColumns(
   originalLog: LogProps,
   rowIndex: number,
-  globalParams: Record<string, unknown>,
+  _globalParams: Record<string, unknown>, // Params support removed - kept for API compatibility
   indexToColumns: Record<number, Set<string>>,
   columnOrdering: string[]
 ): LogProps {
@@ -177,8 +166,8 @@ export function buildLogWithChosenColumns(
 
   const safeEntries = originalLog.entries ?? {};
 
-  // The key fix: If none of the columnOrdering items match the chosen columns,
-  // fall back to using all chosen columns directly (even if columnOrdering.length > 0)
+  // If none of the columnOrdering items match the chosen columns,
+  // fall back to using all chosen columns directly
   let finalColsEntries: string[];
   if (columnOrdering.length > 0) {
     const filtered = columnOrdering.filter((c) => chosen.has(c)).map(sanitizeId);
@@ -196,52 +185,12 @@ export function buildLogWithChosenColumns(
   for (const c of finalColsEntries) {
     if (Object.prototype.hasOwnProperty.call(safeEntries, c)) {
       newEntries[c] = safeEntries[c];
-    } else {
     }
-  }
-
-  const safeParams = originalLog.params ?? {};
-
-  // Apply the same fix for params
-  let finalColsParams: string[];
-  if (columnOrdering.length > 0) {
-    const filtered = columnOrdering.filter((c) => chosen.has(c)).map(sanitizeId);
-    if (filtered.length > 0) {
-      finalColsParams = filtered;
-    } else {
-      // If nothing matched, use the chosen columns directly
-      finalColsParams = Array.from(chosen).map(sanitizeId);
-    }
-  } else {
-    finalColsParams = Array.from(chosen).map(sanitizeId);
-  }
-
-  const newParams: Record<string, unknown> = {};
-  for (const c of finalColsParams) {
-    if (!Object.prototype.hasOwnProperty.call(safeParams, c)) {
-      continue;
-    }
-    const storedVal = safeParams[c];
-
-    if (typeof storedVal === 'string' && globalParams.hasOwnProperty(c)) {
-      const candidateObj = globalParams[c];
-      if (candidateObj && typeof candidateObj === 'object') {
-        if ((candidateObj as Record<string, unknown>).hasOwnProperty(storedVal)) {
-          newParams[c] = {
-            paramValue: (candidateObj as Record<string, unknown>)[storedVal],
-            paramVersion: unwrapSingleKeyObject(storedVal),
-          };
-          continue;
-        }
-      }
-    }
-    newParams[c] = unwrapSingleKeyObject(storedVal);
   }
 
   return {
     ...originalLog,
     entries: newEntries,
-    params: newParams,
   };
 }
 

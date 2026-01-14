@@ -57,7 +57,6 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
 
     const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
       response: {
-        params: {},
         logs,
         count: logs.length,
         groups: {},

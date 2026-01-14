@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useEffect, useCallback, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
 import {
   Accordion,
   AccordionItem,
@@ -15,7 +15,6 @@ import {
   isDict,
   isMatrix,
   isImage,
-  isTrace,
   isNumber,
   isTimestamp,
   isChat,
@@ -30,14 +29,12 @@ import {
 } from '@/utils/interfaces/selection/pathUtils';
 import { usePanelExpandContextSelector } from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
 import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from './useIndentation';
-import { useTraceExpandContextSelector } from './TraceView/TraceExpandContext';
 
 import { LogComparisonProps } from './types';
 import { getValueType, getTypeIcon } from './ViewTypes';
 import RowBadge from './RowBadge';
 
-// Subcomponents (similar to dictionary)
-import TraceView from './TraceView';
+// Subcomponents
 import ChatView from './ChatView';
 import DictionaryView from './DictionaryView';
 import ImageView from './ImageView';
@@ -48,7 +45,6 @@ import TimestampView from './TimestampView';
 import PdfView from './PdfView';
 import { LogsActions } from '@/types/interfaces/grid';
 import { LogProps } from '@/types/interfaces/logs';
-import { Span } from '@/types/interfaces/traces';
 import AudioView from './AudioView';
 
 /*────────────────────────────────────────────────────────────────────────────
@@ -78,40 +74,14 @@ function pickView(
     prefix?: string;
     parentPath?: string;
     nestingLevel?: number;
-    viewTracesAsDict?: boolean;
     fieldName: string;
     context: string | null;
     baseLog: LogProps | undefined;
     comparisonLogs: LogProps[] | undefined;
     logsActions?: LogsActions;
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
-  const {
-    value,
-    viewTracesAsDict,
-    fieldName,
-    context,
-    baseLog,
-    comparisonLogs,
-    logsActions,
-    onTraceUpdate,
-  } = props;
-
-  // Handle trace rendering based on viewTracesAsDict flag
-  if (isTrace(value) && !viewTracesAsDict) {
-    return (
-      <TraceView
-        {...props}
-        logsActions={logsActions}
-        context={context}
-        baseLog={baseLog}
-        comparisonLogs={comparisonLogs}
-        fieldName={fieldName}
-        onTraceUpdate={onTraceUpdate}
-      />
-    );
-  }
+  const { value, fieldName, context, baseLog, comparisonLogs, logsActions } = props;
 
   if (isChat(value)) {
     return (
@@ -134,12 +104,11 @@ function pickView(
         baseLog={baseLog}
         comparisonLogs={comparisonLogs}
         fieldName={fieldName}
-        onTraceUpdate={onTraceUpdate}
       />
     );
   }
   if (isList(value)) {
-    return <ListView {...props} onTraceUpdate={onTraceUpdate} />;
+    return <ListView {...props} />;
   }
   if (isImage(value)) {
     return <ImageView {...props} />;
@@ -299,7 +268,6 @@ function renderNoDiffMode(
     parentPath: string;
     expandRecursively: (paths: string[]) => void;
     collapseRecursively: (paths: string[]) => void;
-    viewTracesAsDict?: boolean;
     isImmutable?: boolean;
     fieldName: string;
     context: string | null;
@@ -310,7 +278,6 @@ function renderNoDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit']; // Keep single save
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit']; // Add group save
     path: (string | number)[];
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
@@ -324,7 +291,6 @@ function renderNoDiffMode(
     nestingLevel,
     prefix,
     parentPath,
-    viewTracesAsDict,
     expandRecursively,
     collapseRecursively,
     path: parentEditPath,
@@ -332,7 +298,6 @@ function renderNoDiffMode(
     cellEditMode,
     onSaveEdit,
     onGroupSaveEdit,
-    onTraceUpdate,
     fieldName,
     context,
     baseLog,
@@ -548,7 +513,6 @@ function renderNoDiffMode(
                           nestingLevel: nestingLevel + 1,
                           prefix,
                           parentPath: path,
-                          viewTracesAsDict,
                           isImmutable,
                           fieldName,
                           context,
@@ -561,7 +525,6 @@ function renderNoDiffMode(
                           onGroupSaveEdit: (desc) =>
                             onGroupSaveEdit?.({ ...desc, logIndices: group.rows }),
                           path: currentItemEditPath,
-                          onTraceUpdate,
                         })}
                       </div>
                     ))}
@@ -585,7 +548,6 @@ function renderNoDiffMode(
                           nestingLevel: nestingLevel + 1,
                           prefix,
                           parentPath: path,
-                          viewTracesAsDict,
                           isImmutable,
                           fieldName,
                           context,
@@ -596,7 +558,6 @@ function renderNoDiffMode(
                           onSaveEdit,
                           onGroupSaveEdit,
                           path: currentItemEditPath,
-                          onTraceUpdate,
                         })}
                       </div>
                     </div>
@@ -636,7 +597,6 @@ function renderDiffMode(
     parentPath: string;
     expandRecursively: (paths: string[]) => void;
     collapseRecursively: (paths: string[]) => void;
-    viewTracesAsDict?: boolean;
     fieldName: string;
     context: string | null;
     baseLog: LogProps | undefined;
@@ -646,7 +606,6 @@ function renderDiffMode(
     onSaveEdit?: LogComparisonProps['onSaveEdit'];
     onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'];
     path?: (string | number)[];
-    onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   }
 ) {
   const {
@@ -660,14 +619,12 @@ function renderDiffMode(
     nestingLevel,
     prefix,
     parentPath,
-    viewTracesAsDict,
     expandRecursively,
     collapseRecursively,
     cellEditMode,
     onSaveEdit,
     onGroupSaveEdit,
     path: parentEditPath = [],
-    onTraceUpdate,
     fieldName,
     context,
     baseLog,
@@ -878,7 +835,6 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       fieldName,
                       context,
                       baseLog,
@@ -888,7 +844,6 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
-                      onTraceUpdate,
                     });
                   }
 
@@ -968,7 +923,6 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
-                                viewTracesAsDict,
                                 fieldName,
                                 context,
                                 baseLog,
@@ -978,7 +932,6 @@ function renderDiffMode(
                                 onSaveEdit,
                                 onGroupSaveEdit,
                                 path: currentItemEditPath,
-                                onTraceUpdate,
                               })}
                             </div>
                           )}
@@ -1008,7 +961,6 @@ function renderDiffMode(
                                 nestingLevel: nestingLevel + 1,
                                 prefix,
                                 parentPath: path,
-                                viewTracesAsDict,
                                 fieldName,
                                 context,
                                 baseLog,
@@ -1018,7 +970,6 @@ function renderDiffMode(
                                 onSaveEdit,
                                 onGroupSaveEdit,
                                 path: currentItemEditPath,
-                                onTraceUpdate,
                               })}
                             </div>
                           )}
@@ -1072,7 +1023,6 @@ function renderDiffMode(
                                         nestingLevel: nestingLevel + 1,
                                         prefix,
                                         parentPath: path,
-                                        viewTracesAsDict,
                                         fieldName,
                                         context,
                                         baseLog,
@@ -1082,7 +1032,6 @@ function renderDiffMode(
                                         onSaveEdit,
                                         onGroupSaveEdit,
                                         path: currentItemEditPath,
-                                        onTraceUpdate,
                                       })}
                                     </div>
                                   );
@@ -1140,7 +1089,6 @@ function renderDiffMode(
                                       nestingLevel: nestingLevel + 1,
                                       prefix,
                                       parentPath: path,
-                                      viewTracesAsDict,
                                       fieldName,
                                       context,
                                       baseLog,
@@ -1150,7 +1098,6 @@ function renderDiffMode(
                                       onSaveEdit,
                                       onGroupSaveEdit,
                                       path: currentItemEditPath,
-                                      onTraceUpdate,
                                     })}
                                   </div>
                                 ));
@@ -1181,7 +1128,6 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       fieldName,
                       context,
                       baseLog,
@@ -1191,7 +1137,6 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
-                      onTraceUpdate,
                     });
                   }
 
@@ -1215,7 +1160,6 @@ function renderDiffMode(
                       nestingLevel: nestingLevel + 1,
                       prefix,
                       parentPath: path,
-                      viewTracesAsDict,
                       fieldName,
                       context,
                       baseLog,
@@ -1225,7 +1169,6 @@ function renderDiffMode(
                       onSaveEdit,
                       onGroupSaveEdit,
                       path: currentItemEditPath,
-                      onTraceUpdate,
                     });
                   }
 
@@ -1243,7 +1186,6 @@ function renderDiffMode(
                     nestingLevel: nestingLevel + 1,
                     prefix,
                     parentPath: path,
-                    viewTracesAsDict,
                     fieldName,
                     context,
                     baseLog,
@@ -1253,7 +1195,6 @@ function renderDiffMode(
                     onSaveEdit,
                     onGroupSaveEdit,
                     path: currentItemEditPath,
-                    onTraceUpdate,
                   });
                 })()}
               </div>
@@ -1279,8 +1220,6 @@ interface ListViewProps extends LogComparisonProps {
   prefix?: string;
   parentPath?: string; // parent's fully qualified path
   nestingLevel?: number;
-  viewTracesAsDict?: boolean;
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   // Note: cellEditMode and onSaveEdit are inherited from LogComparisonProps
   // onGroupSaveEdit is also inherited
 }
@@ -1298,7 +1237,6 @@ export default function ListView({
   nestingLevel = 0,
   prefix = 'entries',
   parentPath = '',
-  viewTracesAsDict,
   isImmutable,
   cellEditMode,
   onSaveEdit,
@@ -1309,43 +1247,17 @@ export default function ListView({
   baseLog,
   comparisonLogs,
   logsActions,
-  onTraceUpdate,
 }: ListViewProps) {
-  // Context detection and state management (unchanged)
-  const [inTraceView, setInTraceView] = useState(false);
-  const traceOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.openKeys);
-  const traceSetOpenKeys = useTraceExpandContextSelector((ctx) => ctx?.setOpenKeys);
-  const traceForceExpandAll = useTraceExpandContextSelector((ctx) => ctx?.forceExpandAll);
-  const traceForceCollapseAll = useTraceExpandContextSelector((ctx) => ctx?.forceCollapseAll);
-  const traceExpandRecursively = useTraceExpandContextSelector((ctx) => ctx?.expandRecursively);
-  const traceCollapseRecursively = useTraceExpandContextSelector((ctx) => ctx?.collapseRecursively);
-  const traceToggleKey = useTraceExpandContextSelector((ctx) => ctx?.toggleKey);
-  const traceInstanceId = useTraceExpandContextSelector((ctx) => ctx?.instanceId);
-  const panelOpenKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
-  const panelSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
-  const panelForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
-  const panelForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
-  const panelExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
-  const panelCollapseRecursively = usePanelExpandContextSelector((ctx) => ctx.collapseRecursively);
-  const panelToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
-
-  useEffect(() => {
-    const isInTraceView =
-      Boolean(traceInstanceId) &&
-      typeof traceSetOpenKeys === 'function' &&
-      traceSetOpenKeys.toString() !== '()=>{}';
-    setInTraceView(isInTraceView);
-  }, [traceInstanceId, traceSetOpenKeys]);
-
-  const effectiveOpenKeys = inTraceView ? traceOpenKeys : panelOpenKeys;
-  const effectiveSetOpenKeys = inTraceView ? traceSetOpenKeys : panelSetOpenKeys;
-  const effectiveForceExpandAll = inTraceView ? traceForceExpandAll : panelForceExpandAll;
-  const effectiveForceCollapseAll = inTraceView ? traceForceCollapseAll : panelForceCollapseAll;
-  const effectiveExpandRecursively = inTraceView ? traceExpandRecursively : panelExpandRecursively;
-  const effectiveCollapseRecursively = inTraceView
-    ? traceCollapseRecursively
-    : panelCollapseRecursively;
-  const effectiveToggleKey = inTraceView ? traceToggleKey : panelToggleKey;
+  // Context state management - use panel context directly
+  const effectiveOpenKeys = usePanelExpandContextSelector((ctx) => ctx.openKeys);
+  const effectiveSetOpenKeys = usePanelExpandContextSelector((ctx) => ctx.setOpenKeys);
+  const effectiveForceExpandAll = usePanelExpandContextSelector((ctx) => ctx.forceExpandAll);
+  const effectiveForceCollapseAll = usePanelExpandContextSelector((ctx) => ctx.forceCollapseAll);
+  const effectiveExpandRecursively = usePanelExpandContextSelector((ctx) => ctx.expandRecursively);
+  const effectiveCollapseRecursively = usePanelExpandContextSelector(
+    (ctx) => ctx.collapseRecursively
+  );
+  const effectiveToggleKey = usePanelExpandContextSelector((ctx) => ctx.toggleKey);
 
   // List validation and length calculation (unchanged)
   const { isValidBase, isValidComparables, maxLength } = useMemo(() => {
@@ -1441,7 +1353,6 @@ export default function ListView({
               prefix,
               parentPath: accordionPathString,
               path: itemEditPathForChild,
-              viewTracesAsDict,
               isImmutable,
               fieldName,
               context,
@@ -1451,7 +1362,6 @@ export default function ListView({
               cellEditMode,
               onSaveEdit,
               onGroupSaveEdit,
-              onTraceUpdate,
             })}
           </div>
         </AccordionContent>
@@ -1578,7 +1488,6 @@ export default function ListView({
         parentPath,
         expandRecursively: effectiveExpandRecursively,
         collapseRecursively: effectiveCollapseRecursively,
-        viewTracesAsDict,
         cellEditMode,
         isImmutable,
         fieldName,
@@ -1623,7 +1532,6 @@ export default function ListView({
         parentPath,
         expandRecursively: effectiveExpandRecursively,
         collapseRecursively: effectiveCollapseRecursively,
-        viewTracesAsDict,
         fieldName,
         context,
         baseLog,

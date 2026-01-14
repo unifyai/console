@@ -290,74 +290,8 @@ describe('P3-K: File Operations (Real Component)', () => {
       expect(result.getColumnType('response')).toBe('entry');
     });
 
-    it('can toggle column to param type', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(
-        () => {
-          expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-        },
-        { timeout: 2000 }
-      );
-
-      // Toggle userId to param
-      await result.toggleColumnType('userId');
-
-      await waitFor(() => {
-        expect(result.getColumnType('userId')).toBe('param');
-      });
-    });
-
-    it('can toggle column back to entry type', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(
-        () => {
-          expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-        },
-        { timeout: 2000 }
-      );
-
-      // Toggle to param
-      await result.toggleColumnType('userId');
-      await waitFor(() => {
-        expect(result.getColumnType('userId')).toBe('param');
-      });
-
-      // Toggle back to entry
-      await result.toggleColumnType('userId');
-      await waitFor(() => {
-        expect(result.getColumnType('userId')).toBe('entry');
-      });
-    });
-
-    it('shows column mapping section with switches', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(
-        () => {
-          const dialog = screen.getByRole('dialog');
-          expect(within(dialog).getByText('Map Columns')).toBeInTheDocument();
-        },
-        { timeout: 2000 }
-      );
-
-      // Check that switches exist for each column
-      const switches = screen.getAllByRole('switch');
-      expect(switches.length).toBe(3); // userId, prompt, response
-    });
+    // Note: Param column type toggle tests removed - param support has been removed from FileUpload
+    // All columns are now entries by default
   });
 
   // ==========================================================================
@@ -597,47 +531,8 @@ describe('P3-K: File Operations (Real Component)', () => {
       expect(context).toBeNull();
     });
 
-    it('separates params and entries correctly when uploading', async () => {
-      result = renderFileUpload({
-        initiallyOpen: true,
-        uploadShouldSucceed: true,
-      });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(
-        () => {
-          expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-        },
-        { timeout: 2000 }
-      );
-
-      // Set 'input' as param
-      await result.toggleColumnType('input');
-
-      await waitFor(() => {
-        expect(result.getColumnType('input')).toBe('param');
-      });
-
-      await result.clickUploadButton();
-
-      await waitFor(() => {
-        const mock = result.getLogsActionsMock();
-        expect(mock.create).toHaveBeenCalled();
-      });
-
-      // Verify params and entries are separated correctly
-      const mock = result.getLogsActionsMock();
-      const [, , params, entries] = mock.create.mock.calls[0];
-
-      expect(params[0]).toHaveProperty('input');
-      expect(params[0]).not.toHaveProperty('output');
-
-      expect(entries[0]).toHaveProperty('output');
-      expect(entries[0]).not.toHaveProperty('input');
-    });
+    // Note: "separates params and entries correctly when uploading" test removed
+    // Param support has been removed - all columns are now uploaded as entries
   });
 
   // ==========================================================================

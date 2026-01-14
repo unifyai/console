@@ -82,27 +82,22 @@ function formatOrchestraTimestamp(date: Date): string {
  * Use createMockLogs() for dynamic/parameterized tests.
  */
 export const mockLogsResponse: LogsResponseProps = {
-  params: baseParams,
   logs: [
     {
       type: 'ungrouped',
       id: '1',
       ts: formatOrchestraTimestamp(new Date()),
-      params: {},
       entries: { message: 'First log message' },
       derivedEntries: {},
-      versions: {},
-      clippedFields: [],
+      clippedFields: {},
     },
     {
       type: 'ungrouped',
       id: '2',
       ts: formatOrchestraTimestamp(new Date()),
-      params: {},
       entries: { message: 'Second log message' },
       derivedEntries: {},
-      versions: {},
-      clippedFields: [],
+      clippedFields: {},
     },
   ],
   count: 2,
@@ -148,7 +143,6 @@ export function createMockLogs(
       type: 'ungrouped',
       id: String(logId),
       ts: formatOrchestraTimestamp(timestamp),
-      params: {},
       entries: {
         message: `Log message ${index + 1}`,
         status: index % 3 === 0 ? 'error' : index % 3 === 1 ? 'warning' : 'success',
@@ -159,13 +153,11 @@ export function createMockLogs(
         createdAt: formatOrchestraTimestamp(timestamp),
       },
       derivedEntries: {},
-      versions: {},
-      clippedFields: [] as string[],
+      clippedFields: {} as Record<string, unknown>,
     };
   });
 
   return {
-    params: baseParams,
     logs,
     count: totalCount,
     groups: baseGroups,
