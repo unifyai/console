@@ -48,18 +48,48 @@ export default defineConfig({
     'process.env': JSON.stringify(TEST_ENV),
   },
   // Optimize dependency pre-bundling for faster CI runs
+  // This prevents Vite from discovering dependencies at runtime and triggering
+  // page reloads that crash the Vitest browser runner (causes "Failed to fetch
+  // dynamically imported module" and "Vitest failed to find the runner" errors)
   optimizeDeps: {
-    // Pre-bundle these heavy dependencies to avoid transform delays in CI
+    // Force pre-bundle ALL dependencies that tests might import
+    // Without this, Vite discovers them at runtime, triggers a reload, and crashes tests
     include: [
+      // React core
       'react',
       'react-dom',
+      'react-dom/client',
+      // Testing utilities
+      '@testing-library/react',
+      '@testing-library/user-event',
+      // State management
       '@tanstack/react-query',
       'zustand',
+      'use-context-selector',
+      // UI components (Radix)
       '@radix-ui/react-tooltip',
       '@radix-ui/react-popover',
       '@radix-ui/react-accordion',
-      '@testing-library/react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-tabs',
+      // Drag and drop (used by DataTable, SelectionPanel)
+      '@dnd-kit/core',
+      '@dnd-kit/modifiers',
+      '@dnd-kit/sortable',
+      '@dnd-kit/utilities',
+      // Virtualization (used by DataTable)
+      'react-window',
+      'react-window-infinite-loader',
+      // Table (used extensively)
+      '@tanstack/react-table',
+      // URL state management
+      'nuqs',
     ],
+    // Ensure Vite scans test files for dependencies before running
+    entries: ['./src/tests/**/*.browser.test.tsx'],
   },
   // Server settings for better CI stability
   server: {
