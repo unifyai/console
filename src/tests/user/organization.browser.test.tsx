@@ -38,10 +38,10 @@ describe('Organization Management System', () => {
     mockOrgActions.getMembers.mockResolvedValue(mockMembers);
   });
 
-  const renderMain = () => {
+  const renderMain = (options?: { initialOrganizations?: typeof mockOrganizations }) => {
     return render(
       <Main
-        initialOrganizations={mockOrganizations}
+        initialOrganizations={options?.initialOrganizations ?? mockOrganizations}
         userId={mockUser.id}
         actions={mockOrgActions}
         teamActions={mockTeamActions}
@@ -69,7 +69,8 @@ describe('Organization Management System', () => {
       },
       async () => {
         activeWorkspaceRef.current = { type: 'personal', id: 'personal' };
-        renderMain();
+        // Pass empty initialOrganizations so the Create button is shown
+        renderMain({ initialOrganizations: [] });
 
         const createBtn = screen.getByRole('button', { name: /create organization/i });
         await userEvent.click(createBtn);
@@ -105,7 +106,8 @@ describe('Organization Management System', () => {
           offset: 0,
         });
 
-        renderMain();
+        // Pass empty initialOrganizations so the Create button is shown
+        renderMain({ initialOrganizations: [] });
 
         await userEvent.click(screen.getByRole('button', { name: /create organization/i }));
 
@@ -353,7 +355,12 @@ describe('Organization Management System', () => {
         await waitForDataLoad();
 
         // "pending@acme.com" is in default mockInvites
-        const pendingRow = screen.getByText('pending@acme.com').closest('tr');
+        // The email appears in both name and email columns for pending invites (same row)
+        // Use getAllByText and find the containing row - both elements are in the same <tr>
+        const pendingEmail = screen.getAllByText('pending@acme.com')[0];
+        const pendingRow = pendingEmail.closest('tr');
+        expect(pendingRow).not.toBeNull(); // Verify we found a row
+
         const menuBtn = within(pendingRow!).getByRole('button', { name: /manage member/i });
         await userEvent.click(menuBtn);
 
@@ -377,7 +384,11 @@ describe('Organization Management System', () => {
         renderMain();
         await waitForDataLoad();
 
-        const pendingRow = screen.getByText('pending@acme.com').closest('tr');
+        // The email appears in both name and email columns for pending invites (same row)
+        const pendingEmail = screen.getAllByText('pending@acme.com')[0];
+        const pendingRow = pendingEmail.closest('tr');
+        expect(pendingRow).not.toBeNull(); // Verify we found a row
+
         const menuBtn = within(pendingRow!).getByRole('button', { name: /manage member/i });
         await userEvent.click(menuBtn);
 
@@ -471,15 +482,19 @@ describe('Organization Management System', () => {
 
         await userEvent.click(screen.getByText(/add member/i));
 
-        // Interact with the Select component
-        const selectTrigger = screen.getByRole('combobox');
+        // Wait for the dialog to open
+        const dialog = await screen.findByRole('dialog');
+
+        // Interact with the Select component within the dialog
+        const selectTrigger = within(dialog).getByRole('combobox');
         await userEvent.click(selectTrigger);
 
-        // Select user 'Jane Doe' from the list
-        const userOption = await screen.findByText('Jane Doe');
+        // Select user 'Jane Doe' from the listbox
+        const listbox = await screen.findByRole('listbox');
+        const userOption = within(listbox).getByText('Jane Doe');
         await userEvent.click(userOption);
 
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }));
 
         expect(mockTeamActions.addTeamMember).toHaveBeenCalledWith(1, 101, 'user_2');
       }
@@ -502,15 +517,21 @@ describe('Organization Management System', () => {
 
         await userEvent.click(screen.getByText(/remove member/i));
 
-        const selectTrigger = screen.getByRole('combobox');
+        // Wait for the dialog to open
+        const dialog = await screen.findByRole('dialog');
+
+        // Click the select trigger within the dialog
+        const selectTrigger = within(dialog).getByRole('combobox');
         await userEvent.click(selectTrigger);
 
-        // Select the user to remove. Engineering has mockUser (id: user_1) and user_2
-        // We search for "Test User" which matches mockUser
-        const userOption = await screen.findByText(/Test User/i);
+        // Wait for the select content to be visible and find the option
+        // The SelectItem renders in a portal, so we search in the document
+        // Use getAllByText since the name may appear elsewhere, pick the one in the listbox
+        const listbox = await screen.findByRole('listbox');
+        const userOption = within(listbox).getByText(/Test User/i);
         await userEvent.click(userOption);
 
-        await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
 
         expect(mockTeamActions.removeTeamMember).toHaveBeenCalledWith(1, 101, 'user_1');
       }

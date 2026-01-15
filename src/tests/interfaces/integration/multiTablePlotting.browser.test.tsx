@@ -717,7 +717,7 @@ describe('Multi-Table Plotting Integration', () => {
       );
 
       expect(screen.queryByTestId('grouping-key')).not.toBeInTheDocument();
-      expect(screen.getByTestId('group-by')).not.toBeInTheDocument;
+      expect(screen.queryByTestId('group-by')).not.toBeInTheDocument();
     });
 
     it('calls onRender when complex data changes', async () => {

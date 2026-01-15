@@ -19,9 +19,6 @@ import { render, screen, within, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from 'next-themes';
-import { NextUIProvider } from '@nextui-org/react';
-import { SidebarProvider } from '@/components/UI/sidebar';
 import { StoreProvider, useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { useStore } from 'zustand';
 import { StoreState } from '@/contexts/slices/slice';
@@ -582,16 +579,13 @@ interface TestProvidersProps {
 }
 
 function TestProviders({ children, initialState, queryClient }: TestProvidersProps) {
+  // Note: We intentionally avoid heavy providers like ThemeProvider, NextUIProvider,
+  // and SidebarProvider here as they can cause Vitest browser runner crashes.
+  // The ContextSelectorInner component renders its own mock UI and doesn't need them.
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
-      <QueryClientProvider client={queryClient}>
-        <NextUIProvider>
-          <SidebarProvider>
-            <StoreProvider initialState={initialState}>{children}</StoreProvider>
-          </SidebarProvider>
-        </NextUIProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <StoreProvider initialState={initialState}>{children}</StoreProvider>
+    </QueryClientProvider>
   );
 }
 

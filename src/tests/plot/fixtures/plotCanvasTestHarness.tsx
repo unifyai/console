@@ -12,7 +12,7 @@
  */
 
 import React, { useRef, useState, useCallback } from 'react';
-import { render, RenderResult, screen, waitFor } from '@testing-library/react';
+import { render, RenderResult, waitFor } from '@/tests/render';
 import { PlotCanvas, PlotCanvasProps } from '../../../components/Common/Plot/PlotCanvas';
 import type { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import type { DataTypeConfig, PlotConfig } from './configs';

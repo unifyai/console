@@ -19,7 +19,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
-// TraceView feature has been removed - no mocks needed
+// Mock use-context-selector to avoid Vitest browser runner issues
+// This library uses React internals that can cause "Vitest failed to find the runner" errors
+vi.mock('use-context-selector', () => ({
+  createContext: React.createContext,
+  useContextSelector: <T,>(context: React.Context<T>, selector: (state: T) => any) => {
+    const value = React.useContext(context);
+    return selector(value);
+  },
+  useContext: React.useContext,
+}));
 
 // Real component import (after mocks are set up)
 import SelectionPanel from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';

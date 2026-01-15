@@ -139,8 +139,9 @@ export const mockTeams: Team[] = [
     description: 'Core dev team',
     organizationId: 1,
     createdAt: new Date().toISOString(),
-    memberCount: 2,
-    members: [mockUser.id, 'user_2'],
+    memberCount: 1,
+    // Only mockUser (Test User) is in the team; Jane Doe (user_2) is available to add
+    members: [mockUser.id],
   },
   {
     id: 102,

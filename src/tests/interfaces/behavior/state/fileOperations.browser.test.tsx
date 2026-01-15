@@ -378,8 +378,9 @@ describe('P3-K: File Operations (Real Component)', () => {
 
       // Verify the call arguments
       const mock = result.getLogsActionsMock();
-      const [project, context, params, entries] = mock.create.mock.calls[0];
+      const [project, context, entries] = mock.create.mock.calls[0];
       expect(project).toBe('test-project');
+      expect(context).toBeNull(); // No context selected
       expect(entries.length).toBe(2);
       expect(entries[0]).toHaveProperty('input');
       expect(entries[0]).toHaveProperty('output');
