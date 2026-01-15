@@ -1,4 +1,4 @@
-name: Tests
+name: Browser Tests
 
 on:
   push:
@@ -12,13 +12,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  browser:
-    name: Browser ${{ matrix.group }}
+  # ===========================================================================
+  # ASSISTANTS - Heavy integration tests (chat, hire, call flows)
+  # 7 files, ~8700 lines - needs more resources
+  # ===========================================================================
+  browser-assistants:
+    name: Assistants ${{ matrix.shard }}/4
     runs-on: ubuntu-latest-4-cores
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4]
 
     steps:
       - name: Checkout
@@ -36,179 +40,32 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Browser Tests (group ${{ matrix.group }}/4, 4 shards each)
+      - name: Run Assistants Browser Tests
         run: |
-          set -x  # Enable command tracing for debugging
-
+          set -x
           echo "═══════════════════════════════════════════════════════════"
-          echo "              BROWSER TESTS - GROUP ${{ matrix.group }}"
+          echo "         ASSISTANTS BROWSER TESTS - SHARD ${{ matrix.shard }}/4"
           echo "═══════════════════════════════════════════════════════════"
 
-          # Configuration
-          GROUP=${{ matrix.group }}
-          NUM_GROUPS=4
-          SHARDS_PER_GROUP=4
-          START_SHARD=$(( (GROUP - 1) * SHARDS_PER_GROUP + 1 ))
-          END_SHARD=$(( GROUP * SHARDS_PER_GROUP ))
-          TOTAL_SHARDS=$(( NUM_GROUPS * SHARDS_PER_GROUP ))
-
-          echo ""
-          echo "📋 CONFIGURATION:"
-          echo "   GROUP=$GROUP"
-          echo "   NUM_GROUPS=$NUM_GROUPS"
-          echo "   SHARDS_PER_GROUP=$SHARDS_PER_GROUP"
-          echo "   START_SHARD=$START_SHARD"
-          echo "   END_SHARD=$END_SHARD"
-          echo "   TOTAL_SHARDS=$TOTAL_SHARDS"
-          echo ""
-
-          # Verify arithmetic is correct
-          if [ "$TOTAL_SHARDS" != "16" ]; then
-            echo "❌ ERROR: TOTAL_SHARDS should be 16, got $TOTAL_SHARDS"
-            echo "   This indicates a variable collision or arithmetic error"
-            exit 1
-          fi
-
-          LOG_DIR=$(mktemp -d)
-          echo "📁 Log directory: $LOG_DIR"
-          echo ""
-
-          # Show the exact command we'll run
-          echo "🔧 COMMAND TEMPLATE:"
-          echo "   npm run test:browser -- --run --shard=N/$TOTAL_SHARDS \\"
-          echo "     --exclude='**/generated/**' \\"
-          echo "     --exclude='**/*.matrix.browser.test.*'"
-          echo ""
-
-          # First, do a dry run to see what tests would be discovered
-          echo "🔍 TEST DISCOVERY (checking what tests exist):"
-          npm run test:browser -- --run --shard=1/$TOTAL_SHARDS \
+          npm run test:browser -- --run \
+            --include='src/tests/assistants/**/*.browser.test.*' \
             --exclude='**/generated/**' \
             --exclude='**/*.matrix.browser.test.*' \
-            --reporter=verbose 2>&1 | head -50 || true
-          echo ""
-          echo "(above is first 50 lines of shard 1 output for discovery check)"
-          echo ""
+            --exclude='**/*benchmarks*/**' \
+            --shard=${{ matrix.shard }}/4 \
+            --reporter=verbose 2>&1 | tee test-output.log
 
-          # Now run all shards
-          echo "═══════════════════════════════════════════════════════════"
-          echo "🚀 LAUNCHING SHARDS $START_SHARD to $END_SHARD"
-          echo "═══════════════════════════════════════════════════════════"
-
-          PIDS=()
-          for i in $(seq $START_SHARD $END_SHARD); do
-            CMD="npm run test:browser -- --run --shard=$i/$TOTAL_SHARDS --exclude='**/generated/**' --exclude='**/*.matrix.browser.test.*'"
-            echo ""
-            echo "[SHARD $i] Command: $CMD"
-            echo "[SHARD $i] Log file: $LOG_DIR/shard-$i.log"
-            echo "[SHARD $i] Starting..."
-            
-            # Run with tee to both log and show some output
-            $CMD > "$LOG_DIR/shard-$i.log" 2>&1 &
-            PID=$!
-            PIDS+=($PID)
-            echo "[SHARD $i] Started with PID $PID"
-          done
-
-          echo ""
-          echo "📊 All shards launched. PIDs: ${PIDS[*]}"
-          echo ""
-
-          # Wait a few seconds then show initial log content
-          sleep 10
-          echo "═══════════════════════════════════════════════════════════"
-          echo "📋 INITIAL LOG CHECK (10s after launch)"
-          echo "═══════════════════════════════════════════════════════════"
-          for i in $(seq $START_SHARD $END_SHARD); do
-            echo ""
-            echo "--- SHARD $i (first 30 lines) ---"
-            head -30 "$LOG_DIR/shard-$i.log" 2>/dev/null || echo "(no output yet)"
-            echo "--- end shard $i ---"
-          done
-
-          # Monitor and wait
-          echo ""
-          echo "⏳ Waiting for shards to complete..."
-          echo ""
-
-          OVERALL_START=$(date +%s)
-          while true; do
-            running=0
-            for pid in "${PIDS[@]}"; do
-              if kill -0 $pid 2>/dev/null; then
-                running=$((running + 1))
-              fi
-            done
-            
-            if [ $running -eq 0 ]; then
-              break
-            fi
-            
-            elapsed=$(( $(date +%s) - OVERALL_START ))
-            echo "[$(date +%H:%M:%S)] Still running: $running shards (${elapsed}s elapsed)"
-            
-            # Every 60 seconds, show log tails
-            if [ $((elapsed % 60)) -lt 10 ] && [ $elapsed -gt 30 ]; then
-              echo "--- Log tails ---"
-              for i in $(seq $START_SHARD $END_SHARD); do
-                lines=$(wc -l < "$LOG_DIR/shard-$i.log" 2>/dev/null || echo 0)
-                last=$(tail -1 "$LOG_DIR/shard-$i.log" 2>/dev/null || echo "(empty)")
-                echo "  Shard $i: $lines lines, last: ${last:0:80}"
-              done
-            fi
-            
-            sleep 10
-          done
-
-          OVERALL_END=$(date +%s)
-          echo ""
-          echo "═══════════════════════════════════════════════════════════"
-          echo "                    RESULTS"
-          echo "═══════════════════════════════════════════════════════════"
-          echo "⏱️  Total duration: $((OVERALL_END - OVERALL_START))s"
-          echo ""
-
-          # Collect results
-          EXIT_CODE=0
-          FAILED_SHARDS=()
-
-          for i in $(seq $START_SHARD $END_SHARD); do
-            PID_IDX=$((i - START_SHARD))
-            # Capture exit code without triggering errexit
-            SHARD_EXIT=0
-            wait ${PIDS[$PID_IDX]} || SHARD_EXIT=$?
-            
-            LOG_FILE="$LOG_DIR/shard-$i.log"
-            LOG_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
-            
-            if [ $SHARD_EXIT -eq 0 ]; then
-              SUMMARY=$(grep -E "Tests.*passed" "$LOG_FILE" | tail -1 || echo "passed")
-              echo "✅ SHARD $i: PASSED (exit=0, $LOG_LINES lines)"
-              echo "   Summary: $SUMMARY"
-            else
-              FAILED_SHARDS+=($i)
-              EXIT_CODE=1
-              echo "❌ SHARD $i: FAILED (exit=$SHARD_EXIT, $LOG_LINES lines)"
-              
-              # Show full log for failed shard
-              echo ""
-              echo "═══════════════════════════════════════════════════════════"
-              echo "📋 FULL LOG FOR FAILED SHARD $i"
-              echo "═══════════════════════════════════════════════════════════"
-              cat "$LOG_FILE"
-              echo "═══════════════════════════════════════════════════════════"
-              echo "END OF SHARD $i LOG"
-              echo "═══════════════════════════════════════════════════════════"
-              echo ""
-            fi
-          done
+          EXIT_CODE=${PIPESTATUS[0]}
 
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ GROUP $GROUP: ALL SHARDS PASSED"
+            echo "✅ ASSISTANTS SHARD ${{ matrix.shard }}: PASSED"
           else
-            echo "❌ GROUP $GROUP: FAILED SHARDS: ${FAILED_SHARDS[*]}"
+            echo "❌ ASSISTANTS SHARD ${{ matrix.shard }}: FAILED"
+            echo ""
+            echo "📋 FULL LOG:"
+            cat test-output.log
           fi
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -216,3 +73,233 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+
+  # ===========================================================================
+  # INTERFACES - UI behavior and integration tests
+  # ~20 files - medium weight
+  # ===========================================================================
+  browser-interfaces:
+    name: Interfaces ${{ matrix.shard }}/2
+    runs-on: ubuntu-latest-4-cores
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Interfaces Browser Tests
+        run: |
+          set -x
+          echo "═══════════════════════════════════════════════════════════"
+          echo "         INTERFACES BROWSER TESTS - SHARD ${{ matrix.shard }}/2"
+          echo "═══════════════════════════════════════════════════════════"
+
+          npm run test:browser -- --run \
+            --include='src/tests/interfaces/**/*.browser.test.*' \
+            --exclude='**/generated/**' \
+            --exclude='**/*.matrix.browser.test.*' \
+            --exclude='**/*benchmarks*/**' \
+            --shard=${{ matrix.shard }}/2 \
+            --reporter=verbose 2>&1 | tee test-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ INTERFACES SHARD ${{ matrix.shard }}: PASSED"
+          else
+            echo "❌ INTERFACES SHARD ${{ matrix.shard }}: FAILED"
+            echo ""
+            echo "📋 FULL LOG:"
+            cat test-output.log
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          exit $EXIT_CODE
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  # ===========================================================================
+  # PLOT - Visualization tests (lighter weight)
+  # 5 files - runs on cheaper 2-core
+  # ===========================================================================
+  browser-plot:
+    name: Plot Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Plot Browser Tests
+        run: |
+          set -x
+          echo "═══════════════════════════════════════════════════════════"
+          echo "                   PLOT BROWSER TESTS"
+          echo "═══════════════════════════════════════════════════════════"
+
+          npm run test:browser -- --run \
+            --include='src/tests/plot/integration/**/*.browser.test.*' \
+            --exclude='**/generated/**' \
+            --exclude='**/*.matrix.browser.test.*' \
+            --exclude='**/*benchmarks*/**' \
+            --reporter=verbose 2>&1 | tee test-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ PLOT TESTS: PASSED"
+          else
+            echo "❌ PLOT TESTS: FAILED"
+            echo ""
+            echo "📋 FULL LOG:"
+            cat test-output.log
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          exit $EXIT_CODE
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  # ===========================================================================
+  # USER - Organization/user tests (single file)
+  # ===========================================================================
+  browser-user:
+    name: User Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run User Browser Tests
+        run: |
+          set -x
+          echo "═══════════════════════════════════════════════════════════"
+          echo "                   USER BROWSER TESTS"
+          echo "═══════════════════════════════════════════════════════════"
+
+          npm run test:browser -- --run \
+            --include='src/tests/user/**/*.browser.test.*' \
+            --exclude='**/generated/**' \
+            --exclude='**/*.matrix.browser.test.*' \
+            --reporter=verbose 2>&1 | tee test-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ USER TESTS: PASSED"
+          else
+            echo "❌ USER TESTS: FAILED"
+            echo ""
+            echo "📋 FULL LOG:"
+            cat test-output.log
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          exit $EXIT_CODE
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  # ===========================================================================
+  # BENCHMARKS - Performance tests (only on staging)
+  # ===========================================================================
+  browser-benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest-4-cores
+    if: github.ref == 'refs/heads/staging'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Benchmark Tests
+        run: |
+          set -x
+          echo "═══════════════════════════════════════════════════════════"
+          echo "              BROWSER BENCHMARK TESTS (STAGING ONLY)"
+          echo "═══════════════════════════════════════════════════════════"
+
+          npm run test:browser -- --run \
+            --include='**/*benchmarks*/**/*.browser.test.*' \
+            --exclude='**/generated/**' \
+            --exclude='**/*.matrix.browser.test.*' \
+            --reporter=verbose 2>&1 | tee test-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ BENCHMARKS: PASSED"
+          else
+            echo "❌ BENCHMARKS: FAILED"
+            echo ""
+            echo "📋 FULL LOG:"
+            cat test-output.log
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          exit $EXIT_CODE
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=8192
