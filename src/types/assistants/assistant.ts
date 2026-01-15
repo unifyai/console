@@ -8,6 +8,7 @@ import { ConnectionDetails } from "./call";
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
 export type VoiceMode = "sts" | "tts"
 export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
+export type DesktopMode = "ubuntu" | "windows" | "macos";
 export type AssistantHiringSufficientFunds = {sufficient: boolean};
 
 // Type for the pre_hire_chat payload
@@ -44,7 +45,8 @@ export interface Assistant {
   user_phone: string | null;
   user_whatsapp_number: string | null;
   // Advanced fields
-  user_local_desktop?: UserLocalDesktop | null;
+  is_user_desktop?: boolean;
+  desktop_mode?: DesktopMode | null;
   desktop_url?: string | null;
   // Contract fields
   weekly_limit: number | null;
@@ -194,7 +196,7 @@ export interface AssistantUpdatePayload {
     timezone?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
-    user_local_desktop?: UserLocalDesktop | null;
+    // Note: is_user_desktop and desktop_mode are set at creation time only and cannot be updated
 }
 
 
@@ -277,7 +279,7 @@ export interface AssistantActions {
         profile_photo: string | null, profile_video: string | null, about: string | null, 
         voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
         email: string | null, user_phone: string | null, phone_country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
+        user_whatsapp_number: string | null, is_user_desktop: boolean, desktop_mode: DesktopMode | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;

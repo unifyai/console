@@ -354,9 +354,8 @@ export default function Main({
         refreshAssistants(false);
         setAssistantToEdit(null);
         setContactManagerAssistant(null);
-        if (updatedPayload?.user_local_desktop) {
-            setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
-        }
+        // Note: desktop_mode is set at creation time only and cannot be updated,
+        // so we no longer show setup instructions on update
     }, [refreshAssistants]);
     
     // --- Combined Hire/Edit Form Hook ---

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, UserLocalDesktop, AssistantHiringSufficientFunds } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, DesktopMode, AssistantHiringSufficientFunds } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -405,8 +405,8 @@ export function useAssistantHireForm(
             voice_exists: !!assistantVoiceDetails, 
 
             // Advanced
-            setup: assistant.user_local_desktop ? 'local' : 'remote',
-            operating_system: (assistant.user_local_desktop as UserLocalDesktop | null) || 'ubuntu',
+            setup: assistant.is_user_desktop ? 'local' : 'remote',
+            operating_system: (assistant.desktop_mode as DesktopMode | null) || 'ubuntu',
         });
         setShowInsufficientFundsHint(false);
     }, [reset, getValues, registeredVoices]);
@@ -473,10 +473,7 @@ export function useAssistantHireForm(
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
             if (user_whatsapp_number !== editingAssistant.user_whatsapp_number) payload.user_whatsapp_number = user_whatsapp_number;
 
-            const setupValue = data.setup === 'local' ? data.operating_system : null;
-            if (setupValue !== (editingAssistant.user_local_desktop || null)) {
-                payload.user_local_desktop = setupValue;
-            }
+            // Note: is_user_desktop and desktop_mode are set at creation time only and cannot be updated
 
             // Image/Video upload logic
             if (data.photoFile) {
@@ -617,7 +614,8 @@ export function useAssistantHireForm(
                 }
             }
             
-            const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
+            const is_user_desktop = data.setup === 'local';
+            const desktop_mode_payload = is_user_desktop ? (data.operating_system as DesktopMode) : null;
             const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({ role, msg: content }));
             const voice_mode = data.fast_mode ? "sts" : "tts";
 
@@ -626,7 +624,7 @@ export function useAssistantHireForm(
                 data.first_name, data.surname, ageNumber, data.nationality, data.timezone,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id, voice_provider, voice_mode,
-                null, null, null, null, user_local_desktop_payload,
+                null, null, null, null, is_user_desktop, desktop_mode_payload,
                 formattedPreHireChat
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {

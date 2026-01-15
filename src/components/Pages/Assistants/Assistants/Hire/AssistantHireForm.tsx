@@ -455,25 +455,25 @@ export function HireForm({
                                        <div className="flex items-center gap-2">
                                            <Laptop className="h-4 w-4 text-muted-foreground mb-1" />
                                            <Label htmlFor="operating_system">Assistant&apos;s Setup</Label>
-                                           <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                           <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{isEditMode ? "Desktop mode cannot be changed after the assistant is created." : "Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop."}</p></TooltipContent></Tooltip></TooltipProvider>
                                        </div>
                                        <Controller
                                            name="setup"
                                            control={control}
                                            render={({ field }) => (
-                                               <div className="space-y-2">
-                                                   <div className={cn("flex items-center space-x-2 rounded-md border p-3 cursor-pointer", field.value === 'remote' && "border-primary")} onClick={() => field.onChange('remote')}>
+                                               <div className={cn("space-y-2", isEditMode && "opacity-60 pointer-events-none")}>
+                                                   <div className={cn("flex items-center space-x-2 rounded-md border p-3", !isEditMode && "cursor-pointer", field.value === 'remote' && "border-primary")} onClick={() => !isEditMode && field.onChange('remote')}>
                                                        <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'remote' && "border-primary")}>
                                                            {field.value === 'remote' && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                        </div>
-                                                       <Label htmlFor="setup-remote" className="text-label font-normal cursor-pointer">Remote - Use a virtual machine</Label>
+                                                       <Label htmlFor="setup-remote" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Remote - Use a virtual machine</Label>
                                                    </div>
-                                                   <div className={cn("flex flex-col space-y-3 rounded-md border p-3 cursor-pointer", field.value === 'local' && "border-primary")} onClick={() => field.onChange('local')}>
+                                                   <div className={cn("flex flex-col space-y-3 rounded-md border p-3", !isEditMode && "cursor-pointer", field.value === 'local' && "border-primary")} onClick={() => !isEditMode && field.onChange('local')}>
                                                        <div className="flex items-center space-x-2">
                                                            <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'local' && "border-primary")}>
                                                                {field.value === 'local' && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                            </div>
-                                                           <Label htmlFor="setup-local" className="text-label font-normal cursor-pointer">Local - Connect to your desktop</Label>
+                                                           <Label htmlFor="setup-local" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Local - Connect to your desktop</Label>
                                                        </div>
                                                        {field.value === 'local' && (
                                                            <Controller
@@ -481,26 +481,26 @@ export function HireForm({
                                                                control={control}
                                                                render={({ field: osField }) => (
                                                                    <div className="pl-6 space-y-2">
-                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('ubuntu'); }}>
+                                                                       <div className={cn("flex items-center space-x-2", !isEditMode && "cursor-pointer")} onClick={(e) => { e.stopPropagation(); if (!isEditMode) osField.onChange('ubuntu'); }}>
                                                                            <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'ubuntu' && "border-primary")}>
                                                                                {osField.value === 'ubuntu' && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                                            </div>
                                                                            <FaUbuntu className="h-4 w-4" />
-                                                                           <Label htmlFor="os-ubuntu" className="text-label font-normal cursor-pointer">Ubuntu</Label>
+                                                                           <Label htmlFor="os-ubuntu" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Ubuntu</Label>
                                                                        </div>
-                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('windows'); }}>
+                                                                       <div className={cn("flex items-center space-x-2", !isEditMode && "cursor-pointer")} onClick={(e) => { e.stopPropagation(); if (!isEditMode) osField.onChange('windows'); }}>
                                                                            <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'windows' && "border-primary")}>
                                                                                {osField.value === 'windows' && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                                            </div>
                                                                            <FaWindows className="h-4 w-4" />
-                                                                           <Label htmlFor="os-windows" className="text-label font-normal cursor-pointer">Windows</Label>
+                                                                           <Label htmlFor="os-windows" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Windows</Label>
                                                                        </div>
-                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('macos'); }}>
+                                                                       <div className={cn("flex items-center space-x-2", !isEditMode && "cursor-pointer")} onClick={(e) => { e.stopPropagation(); if (!isEditMode) osField.onChange('macos'); }}>
                                                                            <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'macos' && "border-primary")}>
                                                                                {osField.value === 'macos' && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                                            </div>
                                                                            <FaApple className="h-4 w-4" />
-                                                                           <Label htmlFor="os-macos" className="text-label font-normal cursor-pointer">MacOS</Label>
+                                                                           <Label htmlFor="os-macos" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>MacOS</Label>
                                                                        </div>
                                                                    </div>
                                                                )}

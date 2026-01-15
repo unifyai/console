@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, DesktopMode, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
 import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
 
 export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
@@ -178,7 +178,7 @@ export const createAssistant = async (apiKey: string) => {
         profile_photo: string | null, profile_video: string | null, about: string | null, 
         voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
         email: string | null, user_phone: string | null, phone_country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
+        user_whatsapp_number: string | null, is_user_desktop: boolean, desktop_mode: DesktopMode | null,
         pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
@@ -208,7 +208,8 @@ export const createAssistant = async (apiKey: string) => {
                         phone_country,
                         timezone,
                         user_whatsapp_number,
-                        user_local_desktop,
+                        is_user_desktop,
+                        desktop_mode,
                         max_parallel: 10,
                         weekly_limit: 40,
                         create_infra: true,
