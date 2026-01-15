@@ -250,6 +250,21 @@ const responseMiddleware: Middleware = {
 };
 
 /**
+ * IMPORTANT: DELETE requests with body
+ *
+ * openapi-fetch does not reliably send bodies for DELETE requests due to
+ * limitations in the Fetch API spec. If you need to send a DELETE request
+ * with a body, use direct `fetch` or `loggedFetch` instead of client.DELETE().
+ *
+ * Example (see /api/logs/route.ts):
+ *   const response = await loggedFetch(`${orchestraUrl}/v0/logs`, {
+ *     method: 'DELETE',
+ *     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+ *     body: JSON.stringify({ project_name: '...' }),
+ *   }, 'ORCHESTRA');
+ */
+
+/**
  * Create a typed Orchestra API client for user operations.
  *
  * @param apiKey - User's API key for authentication

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildCacheControl } from '../_utils/cacheResponse';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
+import { loggedFetch } from '@/lib/logging/fetch';
 
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
@@ -113,15 +114,42 @@ export async function DELETE(request: NextRequest) {
     return unauthorized();
   }
 
-  const client = createOrchestraClient(apiKey);
+  // Support both camelCase (frontend) and snake_case input
+  const projectName = body.projectName || body.project_name || '';
+  const context = body.context || undefined;
+  const idsAndFields = body.idsAndFields || body.ids_and_fields || [];
+  const sourceType = body.sourceType || body.source_type || 'all';
+  const deleteEmptyLogs = body.deleteEmptyLogs ?? body.delete_empty_logs ?? false;
+  const deleteEmptyFields = body.deleteEmptyFields ?? body.delete_empty_fields ?? true;
+
+  const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
   try {
     const startedAt = Date.now();
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 
-    const { data, error, response } = await client.DELETE('/v0/logs', {
-      body: body,
-    });
+    // Use direct fetch for DELETE because openapi-fetch doesn't properly send body for DELETE requests
+    const response = await loggedFetch(
+      `${orchestraUrl}/v0/logs`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          project_name: projectName,
+          context: context,
+          ids_and_fields: idsAndFields,
+          source_type: sourceType,
+          delete_empty_logs: deleteEmptyLogs,
+          delete_empty_fields: deleteEmptyFields,
+        }),
+      },
+      'ORCHESTRA'
+    );
+
+    const data = await response.json().catch(() => null);
 
     if (DEBUG_API && !response.ok) {
       console.warn(
@@ -136,8 +164,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (error) {
-      return NextResponse.json(error, { status: response.status });
+    if (!response.ok) {
+      return NextResponse.json(data || { detail: 'Delete failed' }, { status: response.status });
     }
 
     return NextResponse.json(data ?? { success: true }, { status: response.status });
