@@ -358,6 +358,7 @@ export function PhotoCustomization({
                         className="h-8 w-8"
                         onClick={() => handleAnimate(imageSourceForOperations!)}
                         disabled={isAnimateDisabled}
+                        aria-label="Animate photo"
                       >
                         {isProcessing ? (
                           <Loader2 className="h-4 w-4 animate-spin" />

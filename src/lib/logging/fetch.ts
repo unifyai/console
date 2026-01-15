@@ -564,14 +564,25 @@ export function createLoggedFetch(serviceName: string) {
  * Wrap an existing request function with logging.
  * Only logs requests that match filters in .log-filter file.
  */
+type HttpMethod =
+  | 'GET'
+  | 'DELETE'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'POST'
+  | 'PUT'
+  | 'PATCH'
+  | 'CONNECT'
+  | 'TRACE';
+
 export function wrapRequestWithLogging(serviceName: string) {
   return async <T>(
     requestFn: (config: {
       url: string;
-      method: string;
+      method: HttpMethod;
       data?: unknown;
     }) => Promise<{ status: number; data: T }>,
-    config: { url: string; method: string; data?: unknown }
+    config: { url: string; method: HttpMethod; data?: unknown }
   ): Promise<{ status: number; data: T }> => {
     const startTime = Date.now();
     const stackTrace = getFullStackTrace();
