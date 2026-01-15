@@ -1,7 +1,7 @@
 import { setupWorker } from 'msw/browser';
 import { handlers } from '@/tests/handlers';
 import { beforeAll, beforeEach, afterEach, vi } from 'vitest';
-import { page } from 'vitest/browser';
+import { page } from '@vitest/browser/context';
 import { UserEvent } from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import '@/styles/globals.css';
