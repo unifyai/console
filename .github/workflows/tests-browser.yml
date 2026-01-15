@@ -14,7 +14,7 @@ concurrency:
 jobs:
   browser:
     name: Browser
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-cores
 
     steps:
       - name: Checkout
@@ -32,13 +32,43 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Browser Tests
+      - name: Run Browser Tests (8 parallel shards)
         run: |
-          # Run non-matrix browser tests only
-          # Matrix tests are handled by tests-browser-matrix.yml
-          npm run test:browser -- --run \
-            --exclude='**/generated/**' \
-            --exclude='**/*.matrix.browser.test.*'
+          SHARDS=${SHARDS:-8}
+          LOG_DIR=$(mktemp -d)
+          EXIT_CODE=0
+
+          echo "🚀 Running $SHARDS parallel shards..."
+
+          for i in $(seq 1 $SHARDS); do
+            npm run test:browser -- --run --shard=$i/$SHARDS \
+              --exclude='**/generated/**' \
+              --exclude='**/*.matrix.browser.test.*' > "$LOG_DIR/shard-$i.log" 2>&1 &
+          done
+
+          # Wait for all shards and collect exit codes
+          for job in $(jobs -p); do
+            wait $job || EXIT_CODE=1
+          done
+
+          # Show summaries
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          for i in $(seq 1 $SHARDS); do
+            SUMMARY=$(grep -E "Tests.*passed|Tests.*failed" "$LOG_DIR/shard-$i.log" | tail -1 || echo "no summary")
+            if grep -q "failed" <<< "$SUMMARY"; then
+              echo "❌ Shard $i: $SUMMARY"
+            else
+              echo "✅ Shard $i: $SUMMARY"
+            fi
+          done
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "View logs: $LOG_DIR"
+          fi
+
+          exit $EXIT_CODE
         env:
           CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=16384
