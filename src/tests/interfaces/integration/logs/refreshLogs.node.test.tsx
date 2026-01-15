@@ -152,7 +152,6 @@ describe('Refresh Logs Pathways', () => {
         const paginatedLogs = (allLogs.logs as LogProps[]).slice(offset, offset + limit);
 
         return createMockResponse({
-          params: allLogs.params,
           logs: paginatedLogs,
           count: allLogs.count,
           groups: allLogs.groups || [],

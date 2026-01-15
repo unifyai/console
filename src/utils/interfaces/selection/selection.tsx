@@ -1,8 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Span } from '@/types/interfaces/traces';
 import { LogProps } from '@/types/interfaces/logs';
+
+// Span interface for trace data (kept inline after traces.ts removal)
+export interface Span {
+  id: string;
+  type?: string;
+  parentSpanId?: string | null;
+  spanName: string;
+  timestamp?: string;
+  offset?: number;
+  execTime?: number;
+  code?: string;
+  inputs?: any;
+  outputs?: any;
+  errors?: string | null;
+  childSpans: Span[];
+  [key: string]: any;
+}
 import { sanitizeId } from '../table/columnOperations';
 import Image from 'next/image';
 
@@ -507,7 +523,6 @@ export function extractBaseAndComparisonLogs(selectedCells: string[], logs: LogP
       .map((cell) => getPartAfterFirstUnderscore(cell));
     columnIds = Array.from(new Set(columnIds.map(sanitizeId)));
     baseLog = { ...baseLog, entries: getDictSubset(baseLog.entries, columnIds) };
-    if (baseLog.params) baseLog.params = getDictSubset(baseLog.params, columnIds);
   } else selectedCells = [];
 
   // Fix for case where on row is selected
@@ -538,7 +553,7 @@ export function extractBaseAndComparisonLogs(selectedCells: string[], logs: LogP
         .map((cell) => getPartAfterFirstUnderscore(cell));
       columnIds = Array.from(new Set(columnIds.map(sanitizeId)));
       const comparisonLog = { ...cl, entries: getDictSubset(cl.entries, columnIds) };
-      if (cl.params) comparisonLog.params = getDictSubset(cl.params, columnIds);
+      // Params support removed
       return comparisonLog;
     });
   }

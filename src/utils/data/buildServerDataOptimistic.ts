@@ -176,8 +176,7 @@ export async function buildOptimisticTableDataItem(
     tableArguments[tileData.name!].availableFields = buildAvailableFieldsForTile(
       tileData.columnContext ?? '',
       fields,
-      tableDataItem.entriesProperties,
-      tableDataItem.paramsProperties
+      tableDataItem.entriesProperties
     );
 
     // Update the cache with available fields

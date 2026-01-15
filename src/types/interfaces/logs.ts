@@ -13,7 +13,6 @@ export interface LogProps {
   type: string; // "ungrouped" or "grouped"
   id: string;
   ts: string;
-  params: LogItemProps;
   entries: LogItemProps;
   derivedEntries: LogItemProps;
   clippedFields: LogItemProps;
@@ -63,7 +62,6 @@ export interface LogGroupsProps {
 }
 
 export interface LogsResponseProps {
-  params: LogItemProps;
   logs: LogProps[] | GroupedLogPropsRaw;
   count: number;
   groups: LogItemProps;
@@ -75,7 +73,7 @@ export type LogFieldsProps = [number, string][];
 export interface LogFieldsResponseProps {
   [name: string]: {
     dataType: string;
-    fieldType: 'entry' | 'param' | 'derived_entry';
+    fieldType: 'entry' | 'derived_entry';
     artifacts: string;
     mutable: 'true' | 'false';
     createdAt: string;

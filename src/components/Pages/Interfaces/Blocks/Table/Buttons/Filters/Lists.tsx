@@ -55,7 +55,6 @@ const ListColumnFilter = ({
   setIsFiltered,
   renderMode,
   entriesProperties,
-  paramsProperties,
 }: {
   interactive: boolean;
   column: string;
@@ -68,7 +67,6 @@ const ListColumnFilter = ({
   setIsFiltered: (isFiltered: boolean) => void;
   renderMode: 'button' | 'menuItem';
   entriesProperties: string[];
-  paramsProperties: string[];
 }) => {
   /* Display loader when data updates */
   const [spinnerColor, setSpinnerColor] = useState('white');
@@ -129,9 +127,8 @@ const ListColumnFilter = ({
   }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
-    const allColumns = [...entriesProperties, ...paramsProperties];
-    return allColumns.map((col) => ({ name: col, type: 'Column Name', children: [] }));
-  }, [entriesProperties, paramsProperties]);
+    return entriesProperties.map((col) => ({ name: col, type: 'Column Name', children: [] }));
+  }, [entriesProperties]);
 
   const structuredToExpression = (structuredFilters: ListFilter[]): string => {
     if (

@@ -50,9 +50,7 @@ export const EMPTY_TABLEDATAITEM: TableDataItem = {
   totalCount: 0,
   error: undefined,
   entriesProperties: [],
-  paramsProperties: [],
   logs: [],
-  params: [],
   isLoading: true,
 };
 
@@ -166,7 +164,7 @@ export function useTableDataQueryWithTracking(
       const nextLogs = currentLogs.map((l: any) => {
         if (!idSet.has(String(l.id))) return l;
 
-        const container = desc.source === 'params' ? (l.params ?? {}) : (l.entries ?? {});
+        const container = l.entries ?? {};
         const updated = setDeep(container, desc.path, desc.newValue);
 
         if (updated === container) return l; // no real change
@@ -175,7 +173,7 @@ export function useTableDataQueryWithTracking(
 
         return {
           ...l,
-          ...(desc.source === 'params' ? { params: updated } : { entries: updated }),
+          entries: updated,
         };
       });
 
@@ -234,8 +232,7 @@ export function useTableDataQueryWithTracking(
 
       // Convert raw logs using the same logic as onGroupExpand
       const newLogs =
-        preConvertedLogs ||
-        maybeConvertRawToGroupedLogs(logsData.params, logsData.logs, targetGroupId);
+        preConvertedLogs || maybeConvertRawToGroupedLogs(undefined, logsData.logs, targetGroupId);
 
       // Calculate new cells by comparing with existing logs
       const previousLogs = currentTableDataItem.logs;
@@ -455,7 +452,6 @@ export function useTableDataQueryWithTracking(
       updateTableDataItem({
         ...currentTableDataItem,
         logs: finalLogs,
-        params: logsData.params,
         newCells,
         error,
       });
@@ -541,7 +537,6 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
   tileIdOrName: string | null,
   tabIdOrName: string | null,
   entriesProperties: string[],
-  paramsProperties: string[],
   fields: LogFieldsResponseProps,
   interfaceIdOrName?: string | null
 ) {
@@ -554,13 +549,8 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
 
   const availableFields = useMemo(
     () =>
-      buildAvailableFieldsForTile(
-        tileDataState?.columnContext ?? '',
-        fields,
-        entriesProperties,
-        paramsProperties
-      ),
-    [tileDataState?.columnContext, fields, entriesProperties, paramsProperties]
+      buildAvailableFieldsForTile(tileDataState?.columnContext ?? '', fields, entriesProperties),
+    [tileDataState?.columnContext, fields, entriesProperties]
   );
 
   const tileName = tileMetaState?.name;

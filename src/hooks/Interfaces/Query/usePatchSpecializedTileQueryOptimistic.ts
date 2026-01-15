@@ -252,8 +252,7 @@ export function usePatchSpecializedTileQueryOptimistic<T extends TileType>() {
             tableArguments[optimisticTileData.name].availableFields = buildAvailableFieldsForTile(
               optimisticTileData.columnContext ?? '',
               fields,
-              tableDataItem.entriesProperties,
-              tableDataItem.paramsProperties
+              tableDataItem.entriesProperties
             );
 
             // Update the cache with available fields

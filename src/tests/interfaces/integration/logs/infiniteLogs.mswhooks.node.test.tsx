@@ -71,7 +71,6 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
           effectiveOffset + effectiveLimit
         );
         return {
-          params: allLogs.params,
           logs: paginatedLogs,
           count: 20,
           groups: allLogs.groups,

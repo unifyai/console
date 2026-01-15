@@ -19,28 +19,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
-// Mock computeDiff due to difflib browser compatibility issues
-// The real computeDiff functions are tested in Node.js tests
-vi.mock('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff', () => ({
-  wrapAsRootSpan: (spans: unknown[], syntheticId: string) => ({
-    id: syntheticId,
-    spanName: 'ROOT',
-    childSpans: spans || [],
-  }),
-  computeSpanDiffByName: (baseSpan?: unknown, targetSpan?: unknown) => {
-    // Simplified mock that returns realistic diff structure
-    if (!baseSpan && !targetSpan) return { name: '', marker: ' ', children: [] };
-    if (baseSpan && !targetSpan)
-      return { name: (baseSpan as { spanName: string }).spanName || '', marker: '-', children: [] };
-    if (!baseSpan && targetSpan)
-      return {
-        name: (targetSpan as { spanName: string }).spanName || '',
-        marker: '+',
-        children: [],
-      };
-    return { name: (baseSpan as { spanName: string }).spanName || '', marker: ' ', children: [] };
-  },
-}));
+// TraceView feature has been removed - no mocks needed
 
 // Real component import (after mocks are set up)
 import SelectionPanel from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
@@ -62,13 +41,13 @@ function createMockFields(): LogFieldsResponseProps {
     output: { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
     trace: { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' },
     score: {
-      fieldType: 'param',
+      fieldType: 'entry',
       dataType: 'float',
       mutable: 'false',
       artifacts: '',
       createdAt: '',
     },
-    model: { fieldType: 'param', dataType: 'str', mutable: 'false', artifacts: '', createdAt: '' },
+    model: { fieldType: 'entry', dataType: 'str', mutable: 'false', artifacts: '', createdAt: '' },
   };
 }
 
@@ -117,14 +96,10 @@ function createMockPanelState() {
     editMode: false,
     cellEditMode: false,
     entriesFilter: {},
-    paramsFilter: {},
     entryOrderings: {},
-    paramOrderings: {},
     entryOrder: [],
-    paramOrder: [],
     localOpenKeys: new Set<string>(),
     savedOpenKeys: new Set<string>(),
-    viewTracesAsDict: false,
   };
 }
 
@@ -193,7 +168,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
     item: createMockTileProps('Test Selection'),
     updateItem: vi.fn(() => vi.fn()),
     initialBaseIndex: 0,
-    allPossibleColumns: { entries: ['input', 'output', 'trace'], params: ['score', 'model'] },
+    allPossibleColumns: { entries: ['input', 'output', 'trace', 'score', 'model'] },
     selectedRowCount: 1,
     currentPanelCount: 1,
     onPanelCountChange: vi.fn(),
@@ -408,26 +383,6 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       // The component should render without errors with the filter applied
       // Entries section may or may not appear depending on remaining visible entries
     });
-
-    it('filters params based on paramsFilter', async () => {
-      const panelState = {
-        ...createMockPanelState(),
-        paramsFilter: { score: false }, // Hide 'score' param
-      };
-
-      render(
-        <TestWrapper>
-          <SelectionPanel {...defaultProps} panelState={panelState} />
-        </TestWrapper>
-      );
-
-      // Wait for the component to render with filters applied
-      await waitFor(() => {
-        expect(screen.getByText(/Selected 1 row/)).toBeInTheDocument();
-      });
-
-      // The component should render without errors with the filter applied
-    });
   });
 
   describe('Expand/Collapse', () => {
@@ -587,73 +542,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
   // Diff Computation Mock Verification Tests
   // =========================================================================
   // Note: The real computeSpanDiffByName and wrapAsRootSpan functions use difflib
-  // which has browser compatibility issues. These tests verify the mock behavior.
-  // Real diff computation is tested in Node.js tests: computeDiff.node.test.ts
-  describe('Diff Computation (Mocked)', () => {
-    it('mock computeSpanDiffByName handles identical spans', async () => {
-      const { computeSpanDiffByName } =
-        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-
-      const span = {
-        id: 'span-1',
-        spanName: 'Request',
-        childSpans: [],
-      };
-
-      const result = computeSpanDiffByName(span, span);
-
-      expect(result.name).toBe('Request');
-      expect(result.marker).toBe(' '); // Unchanged
-    });
-
-    it('mock computeSpanDiffByName detects added spans', async () => {
-      const { computeSpanDiffByName } =
-        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-
-      const targetSpan = {
-        id: 'span-1',
-        spanName: 'NewSpan',
-        childSpans: [],
-      };
-
-      const result = computeSpanDiffByName(undefined, targetSpan);
-
-      expect(result.name).toBe('NewSpan');
-      expect(result.marker).toBe('+'); // Added
-    });
-
-    it('mock computeSpanDiffByName detects removed spans', async () => {
-      const { computeSpanDiffByName } =
-        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-
-      const baseSpan = {
-        id: 'span-1',
-        spanName: 'OldSpan',
-        childSpans: [],
-      };
-
-      const result = computeSpanDiffByName(baseSpan, undefined);
-
-      expect(result.name).toBe('OldSpan');
-      expect(result.marker).toBe('-'); // Removed
-    });
-
-    it('mock wrapAsRootSpan creates synthetic root', async () => {
-      const { wrapAsRootSpan } =
-        await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
-
-      const spans = [
-        { id: 'span-1', spanName: 'Span1', childSpans: [] },
-        { id: 'span-2', spanName: 'Span2', childSpans: [] },
-      ];
-
-      const result = wrapAsRootSpan(spans, 'synthetic-root');
-
-      expect(result.id).toBe('synthetic-root');
-      expect(result.spanName).toBe('ROOT');
-      expect(result.childSpans).toHaveLength(2);
-    });
-  });
+  // Trace diff computation tests removed - TraceView feature has been removed
 
   // =========================================================================
   // Real Trace Visualization Tests
@@ -682,7 +571,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
               },
             ],
           },
-          params: {},
+
           derivedEntries: {},
           clippedFields: {},
         },
@@ -725,7 +614,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
               },
             ],
           },
-          params: {},
+
           derivedEntries: {},
           clippedFields: {},
         },
@@ -771,7 +660,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
               '# Heading\n\nThis is **bold** and *italic* text.\n\n- List item 1\n- List item 2',
             output: '```python\nprint("Hello World")\n```',
           },
-          params: {},
+
           derivedEntries: {},
           clippedFields: {},
         },
@@ -807,7 +696,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
           entries: {
             input: 'Text with <html> tags and & ampersands and "quotes"',
           },
-          params: {},
+
           derivedEntries: {},
           clippedFields: {},
         },

@@ -324,7 +324,7 @@ async function fetchPlotDataByTable(
     const tableFields = fields[tableTileIndex] || {};
 
     // Get plot data
-    let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
+    let data: LogsResponseProps = { logs: [], count: 0, groups: [] };
 
     let [xAxis, yAxis, group] = [
       plotTile.plotTile?.xAxis,

@@ -31,7 +31,6 @@ const ColumnMetrics = ({
   colSpan = 1,
   logs,
   entriesProperties,
-  paramsProperties,
   filterExpression,
   logsActions,
 }: {
@@ -44,7 +43,6 @@ const ColumnMetrics = ({
   colSpan?: number;
   logs: LogProps[] | GroupedLogProps[];
   entriesProperties: string[];
-  paramsProperties: string[];
   filterExpression: string | null;
   logsActions: LogsActions;
 }) => {
@@ -55,7 +53,7 @@ const ColumnMetrics = ({
   const { data: tileDataState } = useTileData(tileId || null, tabId || null);
 
   // Monitor the same query that SummaryCell triggers (reactive state tracking)
-  const columns = logs.length > 0 ? [...entriesProperties, ...paramsProperties] : [];
+  const columns = logs.length > 0 ? entriesProperties : [];
   const {
     isLoading: isMetricsLoading,
     isFetching,

@@ -56,9 +56,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
       entriesForAPI[newFieldName.trim()] = null;
     } else {
       Object.entries(fields).forEach(([fieldName, fieldMeta]) => {
-        if (fieldMeta.fieldType === 'param') {
-          paramsForAPI[fieldName] = null;
-        } else if (fieldMeta.fieldType === 'entry') {
+        if (fieldMeta.fieldType === 'entry') {
           entriesForAPI[fieldName] = null;
         }
       });

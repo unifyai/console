@@ -49,9 +49,9 @@ function EnsureTableFastPathTest({
       totalCount: 42,
       error: undefined,
       entriesProperties: [],
-      paramsProperties: [],
+
       logs: [],
-      params: [],
+
       isLoading: false,
     };
     queryClient.setQueryData(['tableDataItem', tableTileId], tableDataItem);
@@ -194,9 +194,9 @@ describe('useEnsureTableTileData', () => {
       totalCount: 10,
       error: undefined,
       entriesProperties: [],
-      paramsProperties: [],
+
       logs: [],
-      params: [],
+
       isLoading: false,
     };
 

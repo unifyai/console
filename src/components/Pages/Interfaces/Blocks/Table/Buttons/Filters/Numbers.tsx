@@ -47,7 +47,6 @@ const NumericColumnFilter = ({
   setIsFiltered,
   renderMode,
   entriesProperties,
-  paramsProperties,
   logsActions,
 }: {
   tileId?: string;
@@ -65,7 +64,6 @@ const NumericColumnFilter = ({
   setIsFiltered: (isFiltered: boolean) => void;
   renderMode: 'button' | 'menuItem';
   entriesProperties: string[];
-  paramsProperties: string[];
   logsActions: LogsActions;
 }) => {
   const { data: tileDataState } = useTileData(tileId || null, tabId || null);
@@ -166,9 +164,8 @@ const NumericColumnFilter = ({
   }, [isFiltered, setIsFiltered, columnFilters, column, defaultFilter, modes]);
 
   const autocompleteOptions = useMemo(() => {
-    const allColumns = [...entriesProperties, ...paramsProperties];
-    return allColumns.map((col) => ({ name: col, type: 'Column Name', children: [] }));
-  }, [entriesProperties, paramsProperties]);
+    return entriesProperties.map((col) => ({ name: col, type: 'Column Name', children: [] }));
+  }, [entriesProperties]);
 
   const structuredToExpression = (filters: NumericFilter[]): string => {
     if (!filters.length || (filters.length === 1 && !filters[0].value.trim())) return '';

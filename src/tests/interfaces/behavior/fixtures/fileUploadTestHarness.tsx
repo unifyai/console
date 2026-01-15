@@ -60,7 +60,7 @@ vi.mock('@/components/Common/Toasts/notifications', () => ({
 // Types
 // ============================================================================
 
-export type ColumnType = 'param' | 'entry';
+export type ColumnType = 'entry';
 
 export interface ParsedRow {
   [key: string]: string | number | boolean | null;
@@ -251,7 +251,6 @@ export function renderFileUpload(options: FileUploadTestOptions = {}): FileUploa
       async (
         project: string,
         context: string | null,
-        params: Record<string, any>[],
         entries: Record<string, any>[]
       ): Promise<ResponseProps> => {
         // Simulate network delay
@@ -380,11 +379,9 @@ export function renderFileUpload(options: FileUploadTestOptions = {}): FileUploa
         .filter(Boolean);
     },
 
-    toggleColumnType: async (headerName: string) => {
-      const switchElement = screen.getByRole('switch', {
-        name: new RegExp(`mark ${headerName} as`, 'i'),
-      });
-      await user.click(switchElement);
+    toggleColumnType: async (_headerName: string) => {
+      // Param/entry toggle removed - all columns are now entries
+      // This is a no-op for backwards compatibility with existing tests
     },
 
     getColumnType: (headerName: string): ColumnType | null => {
@@ -392,8 +389,8 @@ export function renderFileUpload(options: FileUploadTestOptions = {}): FileUploa
         name: new RegExp(`mark ${headerName} as`, 'i'),
       });
       if (!switchElement) return null;
-      // Switch checked = entry, unchecked = param
-      return switchElement.getAttribute('data-state') === 'checked' ? 'entry' : 'param';
+      // All columns are now entries (param support removed)
+      return 'entry';
     },
 
     // Preview table

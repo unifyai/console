@@ -11,7 +11,6 @@ export const createLogs = async (apiKey: string) => {
   return async (
     project: string,
     context: string | null,
-    params: { [param: string]: string }[],
     entries: { [entry: string | number]: string }[]
   ) => {
     'use server';
@@ -20,7 +19,7 @@ export const createLogs = async (apiKey: string) => {
     const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
       method: 'POST',
       headers: { apiKey: apiKey },
-      body: JSON.stringify({ projectName: project, ...contextBody, params, entries }),
+      body: JSON.stringify({ projectName: project, ...contextBody, entries }),
     });
     return await response.json();
   };
@@ -88,15 +87,15 @@ export const getLogs = async (apiKey: string) => {
       // Handle 404 - context not found
       if (response.status === 404) {
         console.warn(`[getLogs] Context not found: ${context} in project ${project}`);
-        return { params: {}, logs: [], count: 0, groups: [], contextNotFound: true };
+        return { logs: [], count: 0, groups: [], contextNotFound: true };
       }
 
       const json = await response.json();
-      if (!response.ok) return { params: {}, logs: [], count: 0, groups: [], detail: json.detail };
+      if (!response.ok) return { logs: [], count: 0, groups: [], detail: json.detail };
       return await json;
     } catch (e: any) {
       console.log(`Failed to get logs error: ${e?.message || e}`);
-      return { params: {}, logs: [], count: 0, groups: [] };
+      return { logs: [], count: 0, groups: [] };
     }
   };
 };
@@ -108,7 +107,6 @@ export const updateLogs = async (apiKey: string) => {
     context: string | null,
     logs: number[],
     entries: LogItemProps,
-    params: LogItemProps,
     overwrite: boolean = true
   ): Promise<ResponseProps> => {
     'use server';
@@ -124,11 +122,9 @@ export const updateLogs = async (apiKey: string) => {
         return { detail: "Invalid 'logs' payload. Expected a non-empty array of integer IDs." };
       }
       const hasEntries = entries && Object.keys(entries).length > 0;
-      const hasParams = params && Object.keys(params).length > 0;
-      if (!hasEntries && !hasParams) {
+      if (!hasEntries) {
         return {
-          detail:
-            "No changes provided. 'entries' or 'params' must include at least one field to update.",
+          detail: "No changes provided. 'entries' must include at least one field to update.",
         };
       }
 
@@ -138,7 +134,7 @@ export const updateLogs = async (apiKey: string) => {
           apiKey: apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ logs, projectName: project, context, params, entries, overwrite }),
+        body: JSON.stringify({ logs, projectName: project, context, entries, overwrite }),
       });
 
       let data;
@@ -189,18 +185,17 @@ export const updateLogsWithSync = async (apiKey: string) => {
     context: string | null,
     logs: number[],
     entries: LogItemProps,
-    params: LogItemProps,
     overwrite: boolean = true,
     affectedLogs?: SyncableLogEntry[]
   ): Promise<ResponseProps> => {
     'use server';
 
     // 1. Call base update
-    const result = await baseUpdate(project, context, logs, entries, params, overwrite);
+    const result = await baseUpdate(project, context, logs, entries, overwrite);
 
     // 2. On success, trigger contact sync (fire-and-forget)
     if (!result.detail && affectedLogs && affectedLogs.length > 0) {
-      maybeSyncContactFields(project, context, entries, params, affectedLogs).catch((err) =>
+      maybeSyncContactFields(project, context, entries, affectedLogs).catch((err) =>
         console.warn('[ContactSync] Sync failed:', err)
       );
     }

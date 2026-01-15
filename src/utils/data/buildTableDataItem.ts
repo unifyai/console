@@ -117,7 +117,7 @@ async function buildTableDataItem(
 
   // Get logs details WITHOUT metrics and boundaries for faster loading
   const textractLogsData = performance.now();
-  const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
+  const { entriesProperties, logs } = extractLogsData(
     logsData,
     fields,
     tile.columnContext || null,
@@ -146,9 +146,7 @@ async function buildTableDataItem(
     fields,
     totalCount,
     entriesProperties,
-    paramsProperties,
     logs,
-    params,
     isLoading: false,
     newCells: newCells,
     error: error,
@@ -315,9 +313,7 @@ export async function fetchAndBuildTableDataItem(
         fields,
         totalCount: 0,
         entriesProperties: [],
-        paramsProperties: [],
         logs: [],
-        params: {} as any,
         isLoading: false,
         error: errorData.detail || `Context '${tile.context}' not found`,
         contextNotFound: true, // Key flag for overlay
@@ -343,9 +339,7 @@ export async function fetchAndBuildTableDataItem(
       fields,
       totalCount: 0,
       entriesProperties: [],
-      paramsProperties: [],
       logs: [],
-      params: {} as any,
       isLoading: false,
       error: errorMsg,
       contextNotFound: isContextNotFound,
@@ -495,10 +489,7 @@ export function getNewCells(
       const entryCells = Object.keys(currentLog.entries || {}).map(
         (key) => `${currentLog.id}_${key}`
       );
-      const paramCells = Object.keys(currentLog.params || {}).map(
-        (key) => `${currentLog.id}_${key}`
-      );
-      newOrUpdatedCellIds.push(...entryCells, ...paramCells);
+      newOrUpdatedCellIds.push(...entryCells);
       continue;
     }
 
@@ -523,7 +514,6 @@ export function getNewCells(
     };
 
     checkAndUpdate(currentLog.entries || {}, previousLog.entries || {}, currentLog.id);
-    checkAndUpdate(currentLog.params || {}, previousLog.params || {}, currentLog.id);
   }
   return newOrUpdatedCellIds;
 }

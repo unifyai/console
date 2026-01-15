@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { LogProps } from '@/types/interfaces/logs';
+import { LogItemProps, LogProps } from '@/types/interfaces/logs';
 import {
   Accordion,
   AccordionContent,
@@ -14,8 +14,6 @@ import ImageView from './Views/ImageView';
 import ListView from './Views/ListView';
 import MatrixView from './Views/MatrixView';
 import StringView from './Views/StringView';
-import TraceView from './Views/TraceView';
-import { PersistedTraceViewState } from './Views/TraceView/TraceView';
 import NumberView from './Views/NumberView';
 import TimestampView from './Views/TimestampView';
 import ChatOutView from './Views/ChatView/ChatOutView';
@@ -27,7 +25,6 @@ import ActionButton from '@/components/Common/Buttons/Action';
 
 import RawView from './Views/RawView';
 import {
-  isTrace,
   isDict,
   isList,
   isImage,
@@ -41,7 +38,6 @@ import {
 import { isPdf } from './SelectionUtils';
 
 import {
-  Waypoints,
   CurlyBraces,
   Brackets,
   ImageIcon,
@@ -67,7 +63,6 @@ import { createContext, useContextSelector } from 'use-context-selector';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import { LogComparisonProps } from './Views/types';
-import { Span } from '@/types/interfaces/traces';
 
 //////////////////////////////////////////////////////////////////////////////
 // Type definitions
@@ -88,7 +83,6 @@ function isEmptyOrBlank(v: any): boolean {
 function getValueType(
   value: any
 ):
-  | 'trace'
   | 'dict'
   | 'list'
   | 'image'
@@ -99,7 +93,6 @@ function getValueType(
   | 'timestamp'
   | 'chat'
   | 'pdf' {
-  if (isTrace(value)) return 'trace';
   if (isDict(value)) return 'dict';
   if (isList(value)) return 'list';
   if (isPdf(value)) return 'pdf';
@@ -130,8 +123,6 @@ function unifyType(baseVal: any, comps: any[]): string {
 
 function getTypeIcon(valueType: string) {
   switch (valueType) {
-    case 'trace':
-      return <Waypoints className="h-4 w-4 text-primary" />;
     case 'dict':
       return <CurlyBraces className="h-4 w-4 text-primary" />;
     case 'list':
@@ -176,12 +167,9 @@ function getSelectionView(
   valueType: string,
   fieldName: string,
   isImmutable?: boolean,
-  viewTracesAsDict?: boolean,
-  persistedTraceState?: PersistedTraceViewState,
   cellEditMode?: boolean,
   onSaveEdit?: LogComparisonProps['onSaveEdit'],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void,
   path?: (string | number)[],
   logsActions?: LogsActions,
   context: string | null = null
@@ -211,43 +199,8 @@ function getSelectionView(
     return <RawView {...commonViewProps} />;
   }
 
-  // Check if we should override trace view
-  if (valueType === 'trace' && viewTracesAsDict) {
-    // When viewTracesAsDict is true, render the trace as a dictionary
-    return (
-      <DictionaryView
-        {...commonViewProps}
-        nestingLevel={nestingLevel}
-        prefix={prefix}
-        parentPath={parentPath}
-        viewTracesAsDict={viewTracesAsDict}
-        logsActions={logsActions}
-        context={context}
-        baseLog={baseLog}
-        comparisonLogs={comparisonLogs}
-        fieldName={fieldName}
-      />
-    );
-  }
-
   // Use the determined type instead of re-unifying
   switch (valueType) {
-    case 'trace':
-      return (
-        <TraceView
-          {...commonViewProps}
-          value={Array.isArray(val) ? val : [val]}
-          comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))}
-          persistedState={persistedTraceState}
-          isImmutable={isImmutable}
-          logsActions={logsActions}
-          context={context}
-          baseLog={baseLog}
-          comparisonLogs={comparisonLogs}
-          fieldName={fieldName}
-          onTraceUpdate={onTraceUpdate}
-        />
-      );
     case 'chat':
       return (
         <ChatOutView
@@ -267,14 +220,12 @@ function getSelectionView(
           nestingLevel={nestingLevel}
           prefix={prefix}
           parentPath={parentPath}
-          viewTracesAsDict={viewTracesAsDict}
           isImmutable={isImmutable}
           logsActions={logsActions}
           context={context}
           baseLog={baseLog}
           comparisonLogs={comparisonLogs}
           fieldName={fieldName}
-          onTraceUpdate={onTraceUpdate}
         />
       );
     case 'list':
@@ -284,14 +235,12 @@ function getSelectionView(
           nestingLevel={nestingLevel}
           prefix={prefix}
           parentPath={parentPath}
-          viewTracesAsDict={viewTracesAsDict}
           isImmutable={isImmutable}
           logsActions={logsActions}
           context={context}
           baseLog={baseLog}
           comparisonLogs={comparisonLogs}
           fieldName={fieldName}
-          onTraceUpdate={onTraceUpdate}
         />
       );
     case 'pdf':
@@ -335,8 +284,6 @@ interface SelectionEntryProps {
   forceCollapseAll?: boolean;
   panelOpenKeys: Set<string>;
   panelSetOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
-  viewTracesAsDict?: boolean;
-  externalTraceState?: PersistedTraceViewState;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
   fieldName: string;
@@ -354,7 +301,6 @@ interface SelectionEntryProps {
     path: (string | number)[];
     newValue: any;
   }) => void;
-  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
   path?: (string | number)[];
   logsActions: LogsActions;
   context: string | null;
@@ -387,8 +333,6 @@ export default function SelectionEntry({
   forceCollapseAll,
   panelOpenKeys,
   panelSetOpenKeys,
-  viewTracesAsDict = false,
-  externalTraceState,
   dragAttributes,
   dragListeners,
   fieldName,
@@ -396,7 +340,6 @@ export default function SelectionEntry({
   cellEditMode = false,
   onSaveEdit,
   onGroupSaveEdit,
-  onTraceUpdate,
   path: incomingPath,
   logsActions,
   context,
@@ -420,7 +363,8 @@ export default function SelectionEntry({
   // const setOpenKeys = panelSetOpenKeys; // Not directly used below, but needed for context
 
   const comps = (comparisonLogs ?? []).map((cl) => {
-    const container = source === 'params' ? cl.params || {} : cl.entries || {};
+    // Params support removed - only use entries
+    const container = (cl.entries || {}) as LogItemProps;
     const rawVal = container[property];
     if (source === 'params' && rawVal && typeof rawVal === 'object') {
       return rawVal.paramValue;
@@ -435,11 +379,7 @@ export default function SelectionEntry({
   const isEmpty = allVals.every(isEmptyOrBlank); // Still useful for conditional logic, just not for early return
   const unifiedType = unifyType(rawValue, comps); // unifyType will return "string" if all are empty/null
   const icon = getTypeIcon(unifiedType); // getTypeIcon will return Text icon for "string"
-  const isTopLevelExpandable =
-    !isEmpty &&
-    (unifiedType === 'dict' ||
-      unifiedType === 'list' ||
-      (unifiedType === 'trace' && viewTracesAsDict));
+  const isTopLevelExpandable = !isEmpty && (unifiedType === 'dict' || unifiedType === 'list');
   const childNesting = 0;
   const topLevelPath = useMemo(() => {
     if (!isTopLevelExpandable) return '';
@@ -464,75 +404,6 @@ export default function SelectionEntry({
     return subPaths.every((path) => panelOpenKeys.has(path));
   }, [isTopLevelExpandable, subPaths, panelOpenKeys]);
 
-  // Trace state management
-  const [traceUIState, setTraceUIState] = useState({
-    collapsedNodes: {} as Record<string, boolean>,
-    selectedNode: null as any | null,
-    selectedSpanId: '',
-    groupSignature: '',
-    traceExpandOpenKeys: new Set<string>(),
-  });
-  const [traceScrollState, setTraceScrollState] = useState({
-    leftScrollPosition: 0,
-    rightScrollPosition: 0,
-  });
-
-  // Memoize trace state setters to prevent unnecessary re-renders
-  const traceStateSetters = useMemo(
-    () => ({
-      setCollapsedNodes: (v: any) =>
-        setTraceUIState((p) => ({
-          ...p,
-          collapsedNodes: typeof v === 'function' ? v(p.collapsedNodes) : v,
-        })),
-      setSelectedNode: (v: any) =>
-        setTraceUIState((p) => ({
-          ...p,
-          selectedNode: typeof v === 'function' ? v(p.selectedNode) : v,
-        })),
-      setSelectedSpanId: (v: any) =>
-        setTraceUIState((p) => ({
-          ...p,
-          selectedSpanId: typeof v === 'function' ? v(p.selectedSpanId) : v,
-        })),
-      setGroupSignature: (v: any) =>
-        setTraceUIState((p) => ({
-          ...p,
-          groupSignature: typeof v === 'function' ? v(p.groupSignature) : v,
-        })),
-      setTraceExpandOpenKeys: (v: any) =>
-        setTraceUIState((p) => ({
-          ...p,
-          traceExpandOpenKeys: typeof v === 'function' ? v(p.traceExpandOpenKeys) : v,
-        })),
-      setLeftScrollPosition: (v: any) =>
-        setTraceScrollState((p) => ({
-          ...p,
-          leftScrollPosition: typeof v === 'function' ? v(p.leftScrollPosition) : v,
-        })),
-      setRightScrollPosition: (v: any) =>
-        setTraceScrollState((p) => ({
-          ...p,
-          rightScrollPosition: typeof v === 'function' ? v(p.rightScrollPosition) : v,
-        })),
-    }),
-    []
-  );
-
-  const persistedTraceState = useMemo(
-    () =>
-      externalTraceState || {
-        collapsedNodes: traceUIState.collapsedNodes,
-        selectedNode: traceUIState.selectedNode,
-        selectedSpanId: traceUIState.selectedSpanId,
-        groupSignature: traceUIState.groupSignature,
-        traceExpandOpenKeys: traceUIState.traceExpandOpenKeys,
-        leftScrollPosition: traceScrollState.leftScrollPosition,
-        rightScrollPosition: traceScrollState.rightScrollPosition,
-        ...traceStateSetters,
-      },
-    [traceUIState, traceScrollState, externalTraceState, traceStateSetters]
-  );
   const valuePath: (string | number)[] = useMemo(
     () => (incomingPath && incomingPath.length > 0 ? incomingPath : [property]),
     [incomingPath, property]
@@ -579,12 +450,9 @@ export default function SelectionEntry({
       unifiedType,
       fieldName,
       isImmutable,
-      viewTracesAsDict,
-      persistedTraceState,
       cellEditMode,
       handleSaveEditForView,
       handleGroupSaveEditForView,
-      onTraceUpdate,
       valuePath,
       logsActions,
       context
@@ -607,12 +475,9 @@ export default function SelectionEntry({
     unifiedType,
     fieldName,
     isImmutable,
-    viewTracesAsDict,
-    persistedTraceState,
     cellEditMode,
     handleSaveEditForView,
     handleGroupSaveEditForView,
-    onTraceUpdate,
     valuePath,
     logsActions,
     context,

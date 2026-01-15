@@ -1019,7 +1019,7 @@ export function useTileSync(
       // Include specialized actions
       tableTileActions: tableTileSync.tableTileActions || undefined,
       plotTileActions: plotTileSync.plotTileActions || undefined,
-      // Keep the existing actions for view and editor
+      // Keep the existing actions for view
       viewTileActions: actions.viewTileActions,
     } as TileActions;
 

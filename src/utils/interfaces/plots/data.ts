@@ -5,9 +5,9 @@ import { timeValueToTime, timeDeltaValueToDuration } from '../format';
 
 /**
  * Checks if a specific property exists within a log object, considering its potential location
- * (derived_entry, param, or entry) based on the field metadata.
+ * (derived_entry or entry) based on the field metadata.
  *
- * @param {LogFieldsResponseProps} fields - Metadata describing the fields, including their type ('derived_entry', 'param', 'entry').
+ * @param {LogFieldsResponseProps} fields - Metadata describing the fields, including their type ('derived_entry', 'entry').
  * @param {string} axisProperty - The name of the property (field) to check for.
  * @param {LogProps} log - The log object potentially containing the property.
  * @param {string} table - The name of the table associated with the log, used to access nested properties like `${table}.entries`.
@@ -20,15 +20,13 @@ export const hasProperty = (
   table: string
 ) => {
   const fieldType = fields[axisProperty] ? fields[axisProperty].fieldType : 'entry';
+  // Params support removed - only check derived_entry or entry
   const hasValues =
     fieldType === 'derived_entry'
       ? log[`${table}.derivedEntries`] &&
         (log[`${table}.derivedEntries`] as LogItemProps)[axisProperty] !== undefined
-      : fieldType === 'param'
-        ? log[`${table}.params`] &&
-          (log[`${table}.params`] as LogItemProps)[axisProperty] !== undefined
-        : log[`${table}.entries`] &&
-          (log[`${table}.entries`] as LogItemProps)[axisProperty] !== undefined;
+      : log[`${table}.entries`] &&
+        (log[`${table}.entries`] as LogItemProps)[axisProperty] !== undefined;
   return hasValues;
 };
 
@@ -53,12 +51,11 @@ export const getValue = (
 ) => {
   if (!hasProperty(fields, axisProperty, log, table)) return undefined;
   const fieldType = fields[axisProperty] ? fields[axisProperty].fieldType : 'entry';
+  // Params support removed - only get from derived_entry or entry
   let value =
     fieldType === 'derived_entry'
       ? (log[`${table}.derivedEntries`] as LogItemProps)[axisProperty]
-      : fieldType === 'param'
-        ? (log[`${table}.params`] as LogItemProps)[axisProperty]
-        : (log[`${table}.entries`] as LogItemProps)[axisProperty];
+      : (log[`${table}.entries`] as LogItemProps)[axisProperty];
   const dataType = fields[axisProperty] ? fields[axisProperty].dataType : 'float';
   if (dataType === 'timestamp' || dataType === 'date') value = new Date(value).getTime();
   if (dataType === 'timedelta') value = timeDeltaValueToDuration(value);
@@ -104,12 +101,11 @@ export const inferDisplayType = (
     if (!hasProperty(fields, axisProperty, log, table)) continue;
 
     const fieldType = fields[axisProperty]?.fieldType || 'entry';
+    // Params support removed - only get from derived_entry or entry
     const value =
       fieldType === 'derived_entry'
         ? (log[`${table}.derivedEntries`] as LogItemProps)?.[axisProperty]
-        : fieldType === 'param'
-          ? (log[`${table}.params`] as LogItemProps)?.[axisProperty]
-          : (log[`${table}.entries`] as LogItemProps)?.[axisProperty];
+        : (log[`${table}.entries`] as LogItemProps)?.[axisProperty];
 
     if (value === undefined || value === null) continue;
 

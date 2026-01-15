@@ -163,9 +163,9 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
 
   const response: LogsResponseProps = await logsRes.json();
 
-  // Convert raw logs to appropriate format
+  // Convert raw logs to appropriate format (params support removed)
   const convertedLogs: LogProps[] | GroupedLogProps[] = maybeConvertRawToGroupedLogs(
-    response.params,
+    undefined,
     response.logs,
     groupId || null
   );

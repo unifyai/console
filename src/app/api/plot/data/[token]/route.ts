@@ -96,14 +96,12 @@ interface LogEntry {
   ts: string;
   entries?: Record<string, unknown>;
   derivedEntries?: Record<string, unknown>;
-  params?: Record<string, unknown>;
   clippedFields?: Record<string, unknown>;
 }
 
 interface LogsResponse {
   logs: LogEntry[];
   count?: number;
-  params?: Record<string, unknown>;
 }
 
 // Pre-aggregated bar chart data types
@@ -130,7 +128,6 @@ function transformLogsForFrontend(rawLogs: LogEntry[]): Record<string, unknown>[
   return rawLogs.map((log) => {
     const rawEntries = log.entries || {};
     const rawDerivedEntries = log.derivedEntries || {};
-    const rawParams = log.params || {};
     const rawClippedFields = log.clippedFields || {};
 
     // Merge entries with derived entries
@@ -140,11 +137,6 @@ function transformLogsForFrontend(rawLogs: LogEntry[]): Record<string, unknown>[
     const prefixedEntries: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(combinedEntries)) {
       prefixedEntries[`table1.${key}`] = value;
-    }
-
-    const prefixedParams: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(rawParams)) {
-      prefixedParams[`table1.${key}`] = value;
     }
 
     const prefixedDerivedEntries: Record<string, unknown> = {};
@@ -160,12 +152,10 @@ function transformLogsForFrontend(rawLogs: LogEntry[]): Record<string, unknown>[
       'table1.id': log.id,
       'table1.ts': log.ts,
       // Original flat structure
-      params: rawParams,
       entries: combinedEntries,
       derivedEntries: rawDerivedEntries,
       clippedFields: rawClippedFields,
       // Table-prefixed structure for plot code
-      'table1.params': prefixedParams,
       'table1.entries': prefixedEntries,
       'table1.derivedEntries': prefixedDerivedEntries,
       'table1.clippedFields': rawClippedFields,

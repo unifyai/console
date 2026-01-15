@@ -219,9 +219,7 @@ const LogsTable = ({
   const {
     fields,
     logs,
-    params,
     entriesProperties,
-    paramsProperties,
     totalCount,
     newCells,
     error,
@@ -314,13 +312,9 @@ const LogsTable = ({
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
 
-  // Extract params values from logs
+  // Extract params values from logs (params support removed)
   const paramsValues: LogItemProps = {};
   const flatLogs = maybeFlattenGroupedLogs(logs);
-  if (Object.entries(params).length && Object.entries(logs).length)
-    flatLogs.map((log) =>
-      Object.entries(log.params).map(([key, value]) => (paramsValues[key] = params[key][value]))
-    );
 
   // Get global UI mode settings
   const { isInteractive, isEditMode } = useGlobalUIMode();
@@ -385,7 +379,6 @@ const LogsTable = ({
 
   // Column definitions
   const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
-  const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
   const dataTypes = useMemo(
     () =>
       fields
@@ -416,14 +409,13 @@ const LogsTable = ({
 
   const indicesTitle = 'RowNumbering';
   const entriesTitle = 'Entries';
-  const paramsTitle = 'Parameters';
 
   const effectiveColumnNames = useMemo(() => {
-    return logs.length ? [...entriesProperties, ...paramsProperties] : [];
-  }, [logs.length, entriesProperties, paramsProperties]);
+    return logs.length ? entriesProperties : [];
+  }, [logs.length, entriesProperties]);
 
   const columns = useMemo(() => {
-    // Construct the columns array
+    // Construct the columns array - entries only (params support removed)
     return [
       {
         id: indicesTitle,
@@ -438,80 +430,24 @@ const LogsTable = ({
           renderedDepth: -1,
         },
       },
-      ...(paramsProperties.length
-        ? [
-            {
-              id: paramsTitle,
-              header: paramsTitle,
-              columns: nestedColumns(
-                paramsTree,
-                'params',
-                paramsTitle,
-                params,
-                true,
-                dataTypes,
-                fieldTypes,
-                columnContext,
-                fields
-              ),
-              meta: {
-                columnType: 'paramsHeader',
-                isParent: true,
-                renderedDepth: -1,
-              },
-            },
-          ]
-        : []),
-      ...(paramsProperties.length
-        ? [
-            {
-              id: entriesTitle,
-              header: entriesTitle,
-              columns: nestedColumns(
-                entriesTree,
-                'entries',
-                entriesTitle,
-                params,
-                false,
-                dataTypes,
-                fieldTypes,
-                columnContext,
-                fields
-              ),
-              meta: {
-                columnType: 'entriesHeader',
-                isParent: true,
-                renderedDepth: -1,
-              },
-            },
-          ]
-        : nestedColumns(
-            entriesTree,
-            'entries',
-            entriesTitle,
-            params,
-            false,
-            dataTypes,
-            fieldTypes,
-            columnContext,
-            fields
-          )),
+      ...nestedColumns(
+        entriesTree,
+        'entries',
+        entriesTitle,
+        {},
+        false,
+        dataTypes,
+        fieldTypes,
+        columnContext,
+        fields
+      ),
     ];
-  }, [
-    entriesTree,
-    paramsTree,
-    dataTypes,
-    fieldTypes,
-    params,
-    columnContext,
-    fields,
-    paramsProperties.length,
-  ]);
+  }, [entriesTree, dataTypes, fieldTypes, columnContext, fields]);
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
   // Always assign depth = 0 for the meta column types as passed here
-  encodeRenderedDepth(columns, ['util', 'paramsHeader', 'entriesHeader']);
+  encodeRenderedDepth(columns, ['util', 'entriesHeader']);
 
   // Convert those strings → arrays/objects
   const columnIDs = useMemo(() => flattenColumnIDs(columns), [columns]);
@@ -842,9 +778,8 @@ const LogsTable = ({
     prevContextRef.current = context;
   }, [context]);
 
-  // Finally, when either of entriesProperties or paramsProperties changes
-  // and if the user hasn't manually updated the column order for this context,
-  // re-apply the default
+  // Finally, when entriesProperties changes and if the user hasn't manually
+  // updated the column order for this context, re-apply the default
   const hasNewColumns = !shallow(columnIDs, item?.columnOrder?.split(','));
   useEffect(() => {
     if (!manualColumnOrderOverride && hasNewColumns) {
@@ -1028,7 +963,7 @@ const LogsTable = ({
       );
       if (!firstPrev) return;
       const topKey = String(path[0]);
-      const prevTop = source === 'entries' ? (firstPrev.entries ?? {}) : (firstPrev.params ?? {});
+      const prevTop = firstPrev.entries ?? {};
       const prevValue = getDeep(prevTop, path);
 
       // Optimistic local update first
@@ -1101,7 +1036,6 @@ const LogsTable = ({
         item?.context || globalContext || null,
         rowIds.map((id) => parseInt(String(id), 10)),
         entriesUpdate,
-        paramsUpdate,
         true,
         affectedLogs
       );
@@ -1981,7 +1915,6 @@ const LogsTable = ({
                             setFilterLoading={setFilterLoading}
                             renderMode={renderMode as 'button' | 'menuItem'}
                             entriesProperties={entriesProperties}
-                            paramsProperties={paramsProperties}
                             logsActions={logsActions}
                           />
                         )}
@@ -2178,7 +2111,6 @@ const LogsTable = ({
                                   setMetric={setState.setMetric}
                                   logs={logs}
                                   entriesProperties={entriesProperties}
-                                  paramsProperties={paramsProperties}
                                   filterExpression={filterExpression}
                                   logsActions={logsActions}
                                 />
@@ -2193,7 +2125,6 @@ const LogsTable = ({
                                 pending={summaryPending}
                                 draggingColumns={state.draggingColumns}
                                 entriesProperties={entriesProperties}
-                                paramsProperties={paramsProperties}
                                 filterExpression={filterExpression}
                                 logsLength={logs.length}
                                 logsActions={logsActions}

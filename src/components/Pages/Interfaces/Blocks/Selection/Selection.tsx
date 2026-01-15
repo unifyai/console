@@ -19,15 +19,11 @@ interface PanelState {
   splitView: boolean;
   editMode: boolean;
   entriesFilter: Record<string, boolean>;
-  paramsFilter: Record<string, boolean>;
   entryOrderings: { [key: string]: string[] };
-  paramOrderings: { [key: string]: string[] };
   entryOrder: string[];
-  paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-  viewTracesAsDict: false;
-  cellEditMode: false;
+  cellEditMode: boolean;
 }
 
 // Default values for a new panel
@@ -37,14 +33,10 @@ const defaultPanelState: PanelState = {
   splitView: false,
   editMode: false,
   entriesFilter: {},
-  paramsFilter: {},
   entryOrderings: {},
-  paramOrderings: {},
   entryOrder: [],
-  paramOrder: [],
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
-  viewTracesAsDict: false,
   cellEditMode: false,
 };
 
@@ -135,7 +127,8 @@ export default function Selection({
     [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]
   );
 
-  const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem]);
+  // Params support removed - always empty
+  const params = useMemo(() => ({}), []);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem]);
   const selectionValue = useMemo(
     () => relevantItem?.selected || undefined,
@@ -194,45 +187,34 @@ export default function Selection({
     // Parse the columnOrderingValue string which contains all column names
     if (columnOrderingValue && columnOrderingValue.length > 0) {
       const entryColumns = new Set<string>();
-      const paramColumns = new Set<string>();
 
       columnOrderingValue.split(',').forEach((col) => {
-        // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
-        if (col.startsWith('Parameters/')) {
-          // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
-          const paramName = col.substring('Parameters/'.length);
-          paramColumns.add(paramName);
-        } else if (col.startsWith('Entries/')) {
+        // Some columns might look like "Entries/trace" or "Entries/context1/fieldA"
+        if (col.startsWith('Entries/')) {
           // Extract the entry name without the "Entries/" prefix but preserve internal slashes
           const entryName = col.substring('Entries/'.length);
           entryColumns.add(entryName);
         }
-        // Skip other entries like "Parameters" or "Entries" or "RowNumbering" which are categories
+        // Skip other entries like "Entries" or "RowNumbering" which are categories
       });
 
       return {
         entries: Array.from(entryColumns),
-        params: Array.from(paramColumns),
       };
     }
 
     // Fallback: if no columnOrderingValue, gather from logs (less reliable)
     // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
-    const paramColumns = new Set<string>();
 
     logs.forEach((log) => {
       if (log.entries) {
         Object.keys(log.entries).forEach((key) => entryColumns.add(key));
       }
-      if (log.params) {
-        Object.keys(log.params).forEach((key) => paramColumns.add(key));
-      }
     });
 
     return {
       entries: Array.from(entryColumns),
-      params: Array.from(paramColumns),
     };
   }, [logs, columnOrderingValue]);
 
@@ -347,7 +329,7 @@ export default function Selection({
       }
 
       let entriesUpdate: LogItemProps = {};
-      let paramsUpdate: LogItemProps = {};
+      const paramsUpdate: LogItemProps = {}; // Params support removed
 
       if (desc.source === 'entries') {
         if (desc.path.length > 0) {
@@ -372,32 +354,14 @@ export default function Selection({
           }
         }
       } else {
-        if (desc.path.length > 0) {
-          const topLevelKey = desc.path[0] as string;
-          const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
-          const updatedValueContainer = setDeep(
-            originalTopLevelValue,
-            desc.path.slice(1),
-            desc.newValue
-          );
-          paramsUpdate = { [topLevelKey as string]: updatedValueContainer };
-        } else {
-          console.warn(
-            "Attempting to update 'params' with an empty path. New value:",
-            desc.newValue
-          );
-          if (typeof desc.newValue === 'object' && desc.newValue !== null) {
-            paramsUpdate = desc.newValue as LogItemProps;
-          } else {
-            return;
-          }
-        }
+        // Params source is no longer supported
+        console.warn('Params source is no longer supported, ignoring update');
+        return;
       }
 
       try {
         const entriesKeys = Object.keys(entriesUpdate || {});
-        const paramsKeys = Object.keys(paramsUpdate || {});
-        if (!entriesKeys.length && !paramsKeys.length) return;
+        if (!entriesKeys.length) return;
       } catch (_) {}
 
       // Build affected logs for contact sync
@@ -415,7 +379,6 @@ export default function Selection({
           context,
           rowIds.map((id) => parseInt(id, 10)),
           entriesUpdate,
-          paramsUpdate,
           true,
           affectedLogs
         );
@@ -466,12 +429,8 @@ export default function Selection({
           if (!panelState.localOpenKeys) panelState.localOpenKeys = new Set<string>();
           if (!panelState.savedOpenKeys) panelState.savedOpenKeys = new Set<string>();
           if (!panelState.entriesFilter) panelState.entriesFilter = {};
-          if (!panelState.paramsFilter) panelState.paramsFilter = {};
           if (!panelState.entryOrderings) panelState.entryOrderings = {};
-          if (!panelState.paramOrderings) panelState.paramOrderings = {};
           if (!panelState.entryOrder) panelState.entryOrder = [];
-          if (!panelState.paramOrder) panelState.paramOrder = [];
-          if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
           if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
 
           return (

@@ -623,7 +623,8 @@ export const nestedColumns = (
           }
           return value;
         } else {
-          return (log as LogProps).params?.[node.path];
+          // Params support removed - return undefined
+          return undefined;
         }
       },
       sortDescFirst: true,
@@ -643,12 +644,6 @@ export const nestedColumns = (
           cell.row.groupingColumnId !== cell.column.id
         ) {
           return null;
-        }
-
-        // Attempt to map param-based lookups if needed
-        if (type === 'params' && cellValue !== undefined && cellValue !== null) {
-          // If data.params[node.path] does not exist or is undefined, handle gracefully
-          cellValue = params?.[node.path]?.[cellValue as string] ?? cellValue;
         }
 
         // Now call our utility for final formatting

@@ -94,7 +94,6 @@ export const interfaceHandlers = [
     const paginatedLogs = logsArray.slice(offset, offset + limit);
 
     return HttpResponse.json({
-      params: allLogs.params,
       logs: paginatedLogs,
       count: totalCount,
       groups: allLogs.groups,

@@ -39,7 +39,6 @@ describe('@real logsCore + getLogs (Real API)', () => {
     const result = await createLogsFn(
       testProjectName,
       null, // context
-      [], // params
       [
         { message: 'Test log 1', level: 'info' },
         { message: 'Test log 2', level: 'warn' },

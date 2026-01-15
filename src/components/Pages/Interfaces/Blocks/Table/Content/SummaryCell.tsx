@@ -26,7 +26,6 @@ const SummaryCell = ({
   pending,
   draggingColumns,
   entriesProperties,
-  paramsProperties,
   filterExpression,
   logsLength,
   logsActions,
@@ -40,7 +39,6 @@ const SummaryCell = ({
   pending: boolean;
   draggingColumns: DraggingColumnsState;
   entriesProperties: string[];
-  paramsProperties: string[];
   filterExpression: string | null;
   logsLength: number;
   logsActions: LogsActions;
@@ -55,7 +53,7 @@ const SummaryCell = ({
   const currentMetricRef = useRef(tileDataState?.metric);
 
   // Use the metrics query - this will actively fetch metrics
-  const columns = logsLength > 0 ? [...entriesProperties, ...paramsProperties] : [];
+  const columns = logsLength > 0 ? entriesProperties : [];
   const {
     data: queryMetrics,
     isLoading: isMetricsLoading,

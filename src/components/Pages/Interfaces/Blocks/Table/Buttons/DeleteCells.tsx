@@ -110,9 +110,7 @@ const DeleteCells = ({
     const allMatch = selectedIds.every((rowId) => {
       const log = flattenedLogs.find((l) => String(l.id) === rowId) as LogProps | undefined;
       if (!log) return false;
-      const totalFields =
-        Object.keys((log as any).params || {}).length +
-        Object.keys((log as any).entries || {}).length;
+      const totalFields = Object.keys(log.entries || {}).length;
       const selectedCount = deletableCells.filter((cell) => cell.split('_')[0] === rowId).length;
       return selectedCount === totalFields;
     });

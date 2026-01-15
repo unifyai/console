@@ -23,7 +23,7 @@ const makeUngroupedLog = (id: string, message: string): LogProps => ({
   type: 'ungrouped',
   id,
   ts: '2025-01-01T00:00:00Z',
-  params: {},
+
   entries: { message },
   derivedEntries: {},
   clippedFields: {},
@@ -91,7 +91,6 @@ describe('table grouping utilities', () => {
 
       const newLogs: LogProps[] = [makeUngroupedLog('log-1', 'First')];
       const response: LogsResponseProps = {
-        params: {},
         logs: newLogs,
         count: 1,
         groups: {},

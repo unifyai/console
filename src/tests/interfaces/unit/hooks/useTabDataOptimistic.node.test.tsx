@@ -265,9 +265,7 @@ describe('useTabDataOptimistic', () => {
         fields: baseFieldsArray[0],
         totalCount: 0,
         entriesProperties: [],
-        paramsProperties: [],
         logs: [],
-        params: {} as LogItemProps,
         isLoading: false,
         error: undefined,
       });
