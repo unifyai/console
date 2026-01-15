@@ -288,7 +288,7 @@ export function drawScatterPlot(
   }
 
   // Get valid properties
-  const properties = Object.entries(fields)
+  const properties = Object.entries(fields || {})
     .filter(
       ([, { dataType }]) =>
         dataType === 'float' ||

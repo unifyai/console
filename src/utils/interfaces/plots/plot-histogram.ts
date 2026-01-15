@@ -157,7 +157,7 @@ export const drawHistogram = (
 
   // Prepare data
   let data: DataRange | GroupedDataRange = [];
-  const properties = Object.entries(fields)
+  const properties = Object.entries(fields || {})
     .filter(
       ([name, { dataType, fieldType }]) =>
         dataType === 'float' ||

@@ -35,7 +35,7 @@ const PlotGroupBy = ({
   }, [logs]);
 
   /* Available options */
-  const properties = Object.entries(fields).map(([name]) => name);
+  const properties = Object.entries(fields || {}).map(([name]) => name);
   const options = properties.reduce((acc: { [key: string]: string[] }, item) => {
     const [table, column] = item.split('.');
     if (table && column) {

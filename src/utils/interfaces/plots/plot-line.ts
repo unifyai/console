@@ -138,7 +138,7 @@ export const drawLineChart = (
   // 4- Sort logs by x axis value
   // 5- Return plotting data as arrays of x / y values, or arrays of groupedBy x / y values if grouping
   let data: DataPoint[] | GroupedDataPoint[] = [];
-  const properties = Object.entries(fields)
+  const properties = Object.entries(fields || {})
     .filter(
       ([name, { dataType, fieldType }]) =>
         dataType === 'float' ||

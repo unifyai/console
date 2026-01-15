@@ -160,7 +160,7 @@ export const drawBarChart = (
   g.selectAll('path.best-fit').remove();
 
   // Prepare data
-  const properties = Object.entries(fields).map(([name]) => name);
+  const properties = Object.entries(fields || {}).map(([name]) => name);
   const xAxisProperty =
     selectedXAxisProperty && properties.includes(selectedXAxisProperty)
       ? selectedXAxisProperty

@@ -48,9 +48,9 @@ const PlotAxis = ({
   /* Available options */
   let properties: string[];
   if (plotType === 'Bar Chart') {
-    properties = Object.entries(fields).map(([name]) => name);
+    properties = Object.entries(fields || {}).map(([name]) => name);
   } else if (plotType === 'Histogram' || plotType === 'Line Chart' || 'Scatter Plot') {
-    properties = Object.entries(fields)
+    properties = Object.entries(fields || {})
       .filter(
         ([name, { dataType, fieldType }]) =>
           dataType === 'float' ||
@@ -63,7 +63,7 @@ const PlotAxis = ({
       )
       .map(([name]) => name);
   } else {
-    properties = Object.entries(fields)
+    properties = Object.entries(fields || {})
       .filter(([name, { dataType, fieldType }]) => dataType === 'float' || dataType === 'int')
       .map(([name]) => name);
   }

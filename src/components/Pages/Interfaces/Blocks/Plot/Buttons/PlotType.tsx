@@ -40,7 +40,7 @@ const PlotType = ({
   const settings = d3.select(settingsRef.current);
   const plotTypes = ['Scatter Plot', 'Line Chart', 'Bar Chart', 'Histogram'];
 
-  const properties = Object.entries(fields)
+  const properties = Object.entries(fields || {})
     .filter(([name, { dataType, fieldType }]) => dataType === 'float' || dataType === 'int')
     .map(([name]) => name);
 

@@ -209,7 +209,16 @@ export function PlotCanvas({
     const hasPreAggregatedData = preAggregatedBarData && preAggregatedBarData.length > 0;
     const hasRawLogsData = logs && logs.length > 0;
 
-    if (!svgRef.current || !containerRef.current || (!hasRawLogsData && !hasPreAggregatedData)) {
+    // Guard: ensure all required data is available before drawing
+    // - fields must be defined (not null/undefined) for axis property lookups
+    // - either raw logs or pre-aggregated data must be present
+    if (
+      !svgRef.current ||
+      !containerRef.current ||
+      !fields ||
+      Object.keys(fields).length === 0 ||
+      (!hasRawLogsData && !hasPreAggregatedData)
+    ) {
       return;
     }
 
