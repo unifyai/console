@@ -65,7 +65,8 @@ const createMockAssistant = (userId: string): Assistant => ({
   maxParallel: null,
   signedProfilePhotoUrl: undefined,
   signedProfileVideoUrl: undefined,
-  userLocalDesktop: null,
+  isUserDesktop: false,
+  desktopMode: null,
   createdAt: '2024-01-01',
   updatedAt: '2024-01-01',
 });

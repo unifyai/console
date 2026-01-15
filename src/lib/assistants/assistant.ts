@@ -4,7 +4,7 @@ import {
   AssistantUpdatePayload,
   AssistantStatus,
   PreHireChatMessage,
-  UserLocalDesktop,
+  DesktopMode,
   VoiceProvider,
   VoiceMode,
   AssistantHiringSufficientFunds,
@@ -211,7 +211,8 @@ export const createAssistant = async (apiKey: string) => {
     userPhone: string | null,
     phoneCountry: string | null,
     userWhatsappNumber: string | null,
-    userLocalDesktop: UserLocalDesktop | null,
+    isUserDesktop: boolean,
+    desktopMode: DesktopMode | null,
     preHireChat?: PreHireChatMessage[]
   ): Promise<ResponseProps & { assistant?: Assistant }> => {
     'use server';
@@ -240,7 +241,8 @@ export const createAssistant = async (apiKey: string) => {
           phoneCountry: phoneCountry,
           timezone,
           userWhatsappNumber: userWhatsappNumber,
-          userLocalDesktop: userLocalDesktop,
+          isUserDesktop: isUserDesktop,
+          desktopMode: desktopMode,
           maxParallel: 10,
           weeklyLimit: 40,
           createInfra: true,

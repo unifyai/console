@@ -617,9 +617,9 @@ export function HireForm({
                               className="text-caption max-w-xs"
                             >
                               <p>
-                                {
-                                  'Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop.'
-                                }
+                                {isEditMode
+                                  ? 'Desktop mode cannot be changed after the assistant is created.'
+                                  : 'Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop.'}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -629,13 +629,19 @@ export function HireForm({
                         name="setup"
                         control={control}
                         render={({ field }) => (
-                          <div className="space-y-2">
+                          <div
+                            className={cn(
+                              'space-y-2',
+                              isEditMode && 'pointer-events-none opacity-60'
+                            )}
+                          >
                             <div
                               className={cn(
-                                'flex cursor-pointer items-center space-x-2 rounded-md border p-3',
+                                'flex items-center space-x-2 rounded-md border p-3',
+                                !isEditMode && 'cursor-pointer',
                                 field.value === 'remote' && 'border-primary'
                               )}
-                              onClick={() => field.onChange('remote')}
+                              onClick={() => !isEditMode && field.onChange('remote')}
                             >
                               <div
                                 className={cn(
@@ -649,17 +655,21 @@ export function HireForm({
                               </div>
                               <Label
                                 htmlFor="setup-remote"
-                                className="text-label cursor-pointer font-normal"
+                                className={cn(
+                                  'text-label font-normal',
+                                  !isEditMode && 'cursor-pointer'
+                                )}
                               >
                                 Remote - Use a virtual machine
                               </Label>
                             </div>
                             <div
                               className={cn(
-                                'flex cursor-pointer flex-col space-y-3 rounded-md border p-3',
+                                'flex flex-col space-y-3 rounded-md border p-3',
+                                !isEditMode && 'cursor-pointer',
                                 field.value === 'local' && 'border-primary'
                               )}
-                              onClick={() => field.onChange('local')}
+                              onClick={() => !isEditMode && field.onChange('local')}
                             >
                               <div className="flex items-center space-x-2">
                                 <div
@@ -674,7 +684,10 @@ export function HireForm({
                                 </div>
                                 <Label
                                   htmlFor="setup-local"
-                                  className="text-label cursor-pointer font-normal"
+                                  className={cn(
+                                    'text-label font-normal',
+                                    !isEditMode && 'cursor-pointer'
+                                  )}
                                 >
                                   Local - Connect to your desktop
                                 </Label>
@@ -686,10 +699,13 @@ export function HireForm({
                                   render={({ field: osField }) => (
                                     <div className="space-y-2 pl-6">
                                       <div
-                                        className="flex cursor-pointer items-center space-x-2"
+                                        className={cn(
+                                          'flex items-center space-x-2',
+                                          !isEditMode && 'cursor-pointer'
+                                        )}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          osField.onChange('ubuntu');
+                                          if (!isEditMode) osField.onChange('ubuntu');
                                         }}
                                       >
                                         <div
@@ -705,16 +721,22 @@ export function HireForm({
                                         <FaUbuntu className="h-4 w-4" />
                                         <Label
                                           htmlFor="os-ubuntu"
-                                          className="text-label cursor-pointer font-normal"
+                                          className={cn(
+                                            'text-label font-normal',
+                                            !isEditMode && 'cursor-pointer'
+                                          )}
                                         >
                                           Ubuntu
                                         </Label>
                                       </div>
                                       <div
-                                        className="flex cursor-pointer items-center space-x-2"
+                                        className={cn(
+                                          'flex items-center space-x-2',
+                                          !isEditMode && 'cursor-pointer'
+                                        )}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          osField.onChange('windows');
+                                          if (!isEditMode) osField.onChange('windows');
                                         }}
                                       >
                                         <div
@@ -730,16 +752,22 @@ export function HireForm({
                                         <FaWindows className="h-4 w-4" />
                                         <Label
                                           htmlFor="os-windows"
-                                          className="text-label cursor-pointer font-normal"
+                                          className={cn(
+                                            'text-label font-normal',
+                                            !isEditMode && 'cursor-pointer'
+                                          )}
                                         >
                                           Windows
                                         </Label>
                                       </div>
                                       <div
-                                        className="flex cursor-pointer items-center space-x-2"
+                                        className={cn(
+                                          'flex items-center space-x-2',
+                                          !isEditMode && 'cursor-pointer'
+                                        )}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          osField.onChange('macos');
+                                          if (!isEditMode) osField.onChange('macos');
                                         }}
                                       >
                                         <div
@@ -755,7 +783,10 @@ export function HireForm({
                                         <FaApple className="h-4 w-4" />
                                         <Label
                                           htmlFor="os-macos"
-                                          className="text-label cursor-pointer font-normal"
+                                          className={cn(
+                                            'text-label font-normal',
+                                            !isEditMode && 'cursor-pointer'
+                                          )}
                                         >
                                           MacOS
                                         </Label>

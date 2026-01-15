@@ -8,6 +8,7 @@ import { ConnectionDetails } from './call';
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 export type VoiceMode = 'sts' | 'tts';
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
+export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
 
 // Type for the pre_hire_chat payload
@@ -44,7 +45,8 @@ export interface Assistant {
   userPhone: string | null;
   userWhatsappNumber: string | null;
   // Advanced fields
-  userLocalDesktop?: UserLocalDesktop | null;
+  isUserDesktop?: boolean;
+  desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
   // Contract fields
   weeklyLimit: number | null;
@@ -229,7 +231,7 @@ export interface AssistantUpdatePayload {
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
-  userLocalDesktop?: UserLocalDesktop | null;
+  // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 }
 
 // Assistant voice types
@@ -322,7 +324,8 @@ export interface AssistantActions {
       userPhone: string | null,
       phoneCountry: string | null,
       userWhatsappNumber: string | null,
-      userLocalDesktop: UserLocalDesktop | null,
+      isUserDesktop: boolean,
+      desktopMode: DesktopMode | null,
       preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (

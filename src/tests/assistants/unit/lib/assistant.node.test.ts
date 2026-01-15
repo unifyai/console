@@ -478,7 +478,8 @@ describe('assistant.ts', () => {
           null,
           null,
           null,
-          null
+          false, // isUserDesktop
+          null // desktopMode
         );
 
         // Assert
@@ -531,7 +532,8 @@ describe('assistant.ts', () => {
           null,
           null,
           null,
-          null,
+          false, // isUserDesktop
+          null, // desktopMode
           preHireChat
         );
 
@@ -579,7 +581,8 @@ describe('assistant.ts', () => {
           null,
           null,
           null,
-          null
+          false, // isUserDesktop
+          null // desktopMode
         );
 
         // Assert

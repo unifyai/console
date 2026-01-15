@@ -9,7 +9,7 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   SocialAccount,
-  UserLocalDesktop,
+  DesktopMode,
   AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
@@ -511,8 +511,8 @@ export function useAssistantHireForm(
         voiceExists: !!assistantVoiceDetails,
 
         // Advanced
-        setup: assistant.userLocalDesktop ? 'local' : 'remote',
-        operatingSystem: (assistant.userLocalDesktop as UserLocalDesktop | null) || 'ubuntu',
+        setup: assistant.isUserDesktop ? 'local' : 'remote',
+        operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
       setShowInsufficientFundsHint(false);
     },
@@ -590,10 +590,7 @@ export function useAssistantHireForm(
       if (userWhatsappNumber !== editingAssistant.userWhatsappNumber)
         payload.userWhatsappNumber = userWhatsappNumber;
 
-      const setupValue = data.setup === 'local' ? data.operatingSystem : null;
-      if (setupValue !== (editingAssistant.userLocalDesktop || null)) {
-        payload.userLocalDesktop = setupValue;
-      }
+      // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
       // Image/Video upload logic
       if (data.photoFile) {
@@ -777,9 +774,8 @@ export function useAssistantHireForm(
         }
       }
 
-      const userLocalDesktopPayload = (
-        data.setup === 'local' ? data.operatingSystem : null
-      ) as UserLocalDesktop | null;
+      const isUserDesktop = data.setup === 'local';
+      const desktopModePayload = isUserDesktop ? (data.operatingSystem as DesktopMode) : null;
       const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({
         role,
         msg: content,
@@ -803,7 +799,8 @@ export function useAssistantHireForm(
         null,
         null,
         null,
-        userLocalDesktopPayload,
+        isUserDesktop,
+        desktopModePayload,
         formattedPreHireChat
       );
       if ('assistant' in assistantCreationResult && assistantCreationResult.assistant) {

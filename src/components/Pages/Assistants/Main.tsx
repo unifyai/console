@@ -402,8 +402,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
       handleShowProfile(newAssistant.agentId);
       refreshHiringProfile();
-      if (formData.setup === 'local' && formData.operating_system) {
-        setSetupInstructions({ os: formData.operating_system, isOpen: true });
+      if (formData.setup === 'local' && formData.operatingSystem) {
+        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
       }
     },
     [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]
@@ -414,9 +414,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       refreshAssistants(false);
       setAssistantToEdit(null);
       setContactManagerAssistant(null);
-      if (updatedPayload?.userLocalDesktop) {
-        setSetupInstructions({ os: updatedPayload.userLocalDesktop, isOpen: true });
-      }
+      // Note: desktopMode is set at creation time only and cannot be updated,
+      // so we no longer show setup instructions on update
     },
     [refreshAssistants]
   );
