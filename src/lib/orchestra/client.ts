@@ -26,9 +26,15 @@ import path from 'path';
  * Check if API logging is enabled via environment variable.
  * Set LOG_API_CALLS=true to enable logging of all Orchestra API calls.
  * Set LOG_API_CALLS=verbose to also include stack traces showing call origin.
+ * Logging is disabled in production by default. Set LOG_API_CALLS_PRODUCTION=true to enable.
  */
-const isLoggingEnabled = () =>
-  process.env.LOG_API_CALLS === 'true' || process.env.LOG_API_CALLS === 'verbose';
+const isLoggingEnabled = () => {
+  const enabled = process.env.LOG_API_CALLS === 'true' || process.env.LOG_API_CALLS === 'verbose';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const productionOverride = process.env.LOG_API_CALLS_PRODUCTION === 'true';
+
+  return enabled && (!isProduction || productionOverride);
+};
 const isVerboseLogging = () => process.env.LOG_API_CALLS === 'verbose';
 
 /**

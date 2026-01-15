@@ -27,9 +27,17 @@ import path from 'path';
 
 /**
  * Check if API logging is enabled via environment variable.
+ * Logging is disabled in production by default for performance and disk space.
+ * To enable in production, set LOG_API_CALLS_PRODUCTION=true in addition to LOG_API_CALLS.
  */
-const isLoggingEnabled = () =>
-  process.env.LOG_API_CALLS === 'true' || process.env.LOG_API_CALLS === 'verbose';
+const isLoggingEnabled = () => {
+  const enabled = process.env.LOG_API_CALLS === 'true' || process.env.LOG_API_CALLS === 'verbose';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const productionOverride = process.env.LOG_API_CALLS_PRODUCTION === 'true';
+
+  // In production, require explicit opt-in
+  return enabled && (!isProduction || productionOverride);
+};
 const isVerboseLogging = () => process.env.LOG_API_CALLS === 'verbose';
 
 /**
@@ -300,4 +308,59 @@ export function wrapRequestWithLogging(serviceName: string) {
       throw error;
     }
   };
+}
+
+/**
+ * Log an incoming API request for debugging.
+ * Use this to trace what's being sent to your API routes.
+ *
+ * @param request - The NextRequest object
+ * @param method - HTTP method
+ * @param route - The route path (e.g., '/api/assistant/message')
+ * @param status - Response status code (null if just logging the request)
+ * @param error - Error message if returning an error
+ * @param body - Request body (for logging incoming data)
+ * @returns NextResponse if status is provided, void otherwise
+ *
+ * @example
+ * // Log an error response
+ * return logIncomingRequest(request, 'POST', '/api/example', 400, 'Missing field');
+ *
+ * // Just log the incoming request body
+ * await logIncomingRequest(request, 'POST', '/api/example', null, null, requestBody);
+ */
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function logIncomingRequest(
+  request: NextRequest,
+  method: string,
+  route: string,
+  status: number | null,
+  error: string | null,
+  body?: unknown
+): Promise<NextResponse | void> {
+  if (!isLoggingEnabled()) {
+    if (status !== null) {
+      return NextResponse.json({ detail: error || 'Error' }, { status });
+    }
+    return;
+  }
+
+  const callerLocation = isVerboseLogging() ? getCallerLocation() : '';
+
+  if (body !== undefined) {
+    // Log the incoming request with body
+    writeLog(`[INCOMING] ${method} ${route}\n  body: ${formatForLog(body)}`);
+    if (callerLocation) {
+      writeLog(`  └─ from: ${callerLocation}`);
+    }
+  }
+
+  if (status !== null) {
+    // Log the error response
+    const logLevel = status >= 400 ? 'warn' : 'info';
+    writeLog(`[INCOMING] ${method} ${route} ← ${status} ${error || ''}`, logLevel);
+    return NextResponse.json({ detail: error || 'Error' }, { status });
+  }
 }
