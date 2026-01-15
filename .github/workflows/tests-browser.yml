@@ -24,28 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: System Info
-        run: |
-          echo "═══════════════════════════════════════════════════════════"
-          echo "                    SYSTEM DIAGNOSTICS"
-          echo "═══════════════════════════════════════════════════════════"
-          echo ""
-          echo "📊 CPU Info:"
-          nproc
-          cat /proc/cpuinfo | grep "model name" | head -1
-          echo ""
-          echo "💾 Memory:"
-          free -h
-          echo ""
-          echo "💿 Disk Space:"
-          df -h /
-          echo ""
-          echo "🔧 Runner Info:"
-          echo "   Hostname: $(hostname)"
-          echo "   Kernel: $(uname -r)"
-          echo "   Date: $(date -Iseconds)"
-          echo ""
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,103 +31,108 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          echo "📦 Installing npm dependencies..."
-          START_TIME=$(date +%s)
-          npm ci --legacy-peer-deps
-          END_TIME=$(date +%s)
-          echo ""
-          echo "✅ npm install completed in $((END_TIME - START_TIME))s"
-          echo ""
-          echo "💾 Memory after npm install:"
-          free -h
+        run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: |
-          echo "🎭 Installing Playwright..."
-          START_TIME=$(date +%s)
-          npx playwright install --with-deps chromium
-          END_TIME=$(date +%s)
-          echo ""
-          echo "✅ Playwright installed in $((END_TIME - START_TIME))s"
-          echo ""
-          echo "💾 Memory after Playwright install:"
-          free -h
-          echo ""
-          echo "💿 Disk after installs:"
-          df -h /
+        run: npx playwright install --with-deps chromium
 
       - name: Run Browser Tests (group ${{ matrix.group }}/4, 4 shards each)
         run: |
+          set -x  # Enable command tracing for debugging
+
           echo "═══════════════════════════════════════════════════════════"
           echo "              BROWSER TESTS - GROUP ${{ matrix.group }}"
           echo "═══════════════════════════════════════════════════════════"
-          echo ""
 
-          # Each workflow job handles 1/4 of the tests
-          # Within each job, we run 4 vitest shards for parallelism
-          # Total: 4 jobs × 4 shards = 16 total shards
+          # Configuration
           GROUP=${{ matrix.group }}
           NUM_GROUPS=4
           SHARDS_PER_GROUP=4
-
-          # Calculate which vitest shards this group handles
-          # Group 1: shards 1-4, Group 2: shards 5-8, etc.
           START_SHARD=$(( (GROUP - 1) * SHARDS_PER_GROUP + 1 ))
           END_SHARD=$(( GROUP * SHARDS_PER_GROUP ))
           TOTAL_SHARDS=$(( NUM_GROUPS * SHARDS_PER_GROUP ))
 
+          echo ""
+          echo "📋 CONFIGURATION:"
+          echo "   GROUP=$GROUP"
+          echo "   NUM_GROUPS=$NUM_GROUPS"
+          echo "   SHARDS_PER_GROUP=$SHARDS_PER_GROUP"
+          echo "   START_SHARD=$START_SHARD"
+          echo "   END_SHARD=$END_SHARD"
+          echo "   TOTAL_SHARDS=$TOTAL_SHARDS"
+          echo ""
+
+          # Verify arithmetic is correct
+          if [ "$TOTAL_SHARDS" != "16" ]; then
+            echo "❌ ERROR: TOTAL_SHARDS should be 16, got $TOTAL_SHARDS"
+            echo "   This indicates a variable collision or arithmetic error"
+            exit 1
+          fi
+
           LOG_DIR=$(mktemp -d)
-          EXIT_CODE=0
+          echo "📁 Log directory: $LOG_DIR"
+          echo ""
+
+          # Show the exact command we'll run
+          echo "🔧 COMMAND TEMPLATE:"
+          echo "   npm run test:browser -- --run --shard=N/$TOTAL_SHARDS \\"
+          echo "     --exclude='**/generated/**' \\"
+          echo "     --exclude='**/*.matrix.browser.test.*'"
+          echo ""
+
+          # First, do a dry run to see what tests would be discovered
+          echo "🔍 TEST DISCOVERY (checking what tests exist):"
+          npm run test:browser -- --run --shard=1/$TOTAL_SHARDS \
+            --exclude='**/generated/**' \
+            --exclude='**/*.matrix.browser.test.*' \
+            --reporter=verbose 2>&1 | head -50 || true
+          echo ""
+          echo "(above is first 50 lines of shard 1 output for discovery check)"
+          echo ""
+
+          # Now run all shards
+          echo "═══════════════════════════════════════════════════════════"
+          echo "🚀 LAUNCHING SHARDS $START_SHARD to $END_SHARD"
+          echo "═══════════════════════════════════════════════════════════"
+
           PIDS=()
-          declare -A SHARD_START_TIMES
-
-          echo "📋 Configuration:"
-          echo "   Group: $GROUP of $NUM_GROUPS"
-          echo "   Shards: $START_SHARD-$END_SHARD of $TOTAL_SHARDS"
-          echo "   Log dir: $LOG_DIR"
-          echo ""
-          echo "💾 Memory before tests:"
-          free -h
-          echo ""
-          echo "🔄 Running processes:"
-          ps aux | head -5
-          echo "   ... ($(ps aux | wc -l) total processes)"
-          echo ""
-
-          OVERALL_START=$(date +%s)
-
-          echo "🚀 Launching shards..."
-          echo ""
           for i in $(seq $START_SHARD $END_SHARD); do
-            SHARD_START_TIMES[$i]=$(date +%s)
-            echo "   [$(date +%H:%M:%S)] Starting shard $i/$TOTAL_SHARDS (PID will follow)"
-            npm run test:browser -- --run --shard=$i/$TOTAL_SHARDS \
-              --exclude='**/generated/**' \
-              --exclude='**/*.matrix.browser.test.*' > "$LOG_DIR/shard-$i.log" 2>&1 &
+            CMD="npm run test:browser -- --run --shard=$i/$TOTAL_SHARDS --exclude='**/generated/**' --exclude='**/*.matrix.browser.test.*'"
+            echo ""
+            echo "[SHARD $i] Command: $CMD"
+            echo "[SHARD $i] Log file: $LOG_DIR/shard-$i.log"
+            echo "[SHARD $i] Starting..."
+            
+            # Run with tee to both log and show some output
+            $CMD > "$LOG_DIR/shard-$i.log" 2>&1 &
             PID=$!
             PIDS+=($PID)
-            echo "   [$(date +%H:%M:%S)] Shard $i started with PID $PID"
+            echo "[SHARD $i] Started with PID $PID"
           done
 
           echo ""
           echo "📊 All shards launched. PIDs: ${PIDS[*]}"
           echo ""
-          echo "💾 Memory after launching shards:"
-          free -h
-          echo ""
-          echo "🔄 Browser processes:"
-          ps aux | grep -E "chromium|playwright" | grep -v grep || echo "   (none yet)"
+
+          # Wait a few seconds then show initial log content
+          sleep 10
+          echo "═══════════════════════════════════════════════════════════"
+          echo "📋 INITIAL LOG CHECK (10s after launch)"
+          echo "═══════════════════════════════════════════════════════════"
+          for i in $(seq $START_SHARD $END_SHARD); do
+            echo ""
+            echo "--- SHARD $i (first 30 lines) ---"
+            head -30 "$LOG_DIR/shard-$i.log" 2>/dev/null || echo "(no output yet)"
+            echo "--- end shard $i ---"
+          done
+
+          # Monitor and wait
           echo ""
           echo "⏳ Waiting for shards to complete..."
           echo ""
 
-          # Monitor progress every 30 seconds
-          monitor_interval=30
-          last_monitor=0
-
+          OVERALL_START=$(date +%s)
           while true; do
-            # Check if any PIDs are still running
             running=0
             for pid in "${PIDS[@]}"; do
               if kill -0 $pid 2>/dev/null; then
@@ -161,129 +144,72 @@ jobs:
               break
             fi
             
-            # Periodic status update
-            now=$(date +%s)
-            if [ $((now - last_monitor)) -ge $monitor_interval ]; then
-              elapsed=$((now - OVERALL_START))
-              echo "   [$(date +%H:%M:%S)] Still running: $running shards (${elapsed}s elapsed)"
-              echo "   Memory: $(free -h | grep Mem | awk '{print $3 "/" $2}')"
-              
-              # Show log file sizes
-              echo -n "   Log sizes: "
+            elapsed=$(( $(date +%s) - OVERALL_START ))
+            echo "[$(date +%H:%M:%S)] Still running: $running shards (${elapsed}s elapsed)"
+            
+            # Every 60 seconds, show log tails
+            if [ $((elapsed % 60)) -lt 10 ] && [ $elapsed -gt 30 ]; then
+              echo "--- Log tails ---"
               for i in $(seq $START_SHARD $END_SHARD); do
-                if [ -f "$LOG_DIR/shard-$i.log" ]; then
-                  size=$(du -h "$LOG_DIR/shard-$i.log" | cut -f1)
-                  echo -n "[$i:$size] "
-                fi
+                lines=$(wc -l < "$LOG_DIR/shard-$i.log" 2>/dev/null || echo 0)
+                last=$(tail -1 "$LOG_DIR/shard-$i.log" 2>/dev/null || echo "(empty)")
+                echo "  Shard $i: $lines lines, last: ${last:0:80}"
               done
-              echo ""
-              
-              last_monitor=$now
             fi
             
-            sleep 5
+            sleep 10
           done
 
           OVERALL_END=$(date +%s)
-          OVERALL_DURATION=$((OVERALL_END - OVERALL_START))
-
           echo ""
           echo "═══════════════════════════════════════════════════════════"
-          echo "                       RESULTS"
+          echo "                    RESULTS"
           echo "═══════════════════════════════════════════════════════════"
-          echo ""
-          echo "⏱️  Total duration: ${OVERALL_DURATION}s"
+          echo "⏱️  Total duration: $((OVERALL_END - OVERALL_START))s"
           echo ""
 
-          # Collect exit codes and show detailed results
+          # Collect results
+          EXIT_CODE=0
           FAILED_SHARDS=()
-          PASSED_SHARDS=()
 
           for i in $(seq $START_SHARD $END_SHARD); do
-            # Find the PID index
             PID_IDX=$((i - START_SHARD))
-            PID=${PIDS[$PID_IDX]}
-            
-            # Wait for specific PID and get exit code
-            wait $PID
+            wait ${PIDS[$PID_IDX]}
             SHARD_EXIT=$?
             
-            SHARD_END=$(date +%s)
-            SHARD_DURATION=$((SHARD_END - ${SHARD_START_TIMES[$i]}))
-            
             LOG_FILE="$LOG_DIR/shard-$i.log"
-            LOG_SIZE=$(du -h "$LOG_FILE" | cut -f1)
-            
-            # Extract test summary
-            SUMMARY=$(grep -E "Tests.*passed|Tests.*failed" "$LOG_FILE" | tail -1 || echo "")
-            TEST_COUNT=$(echo "$SUMMARY" | grep -oE "[0-9]+ (passed|failed)" | head -1 || echo "unknown")
-            
-            # Check for common failure patterns
-            HAS_OOM=$(grep -l "out of memory\|ENOMEM\|JavaScript heap" "$LOG_FILE" 2>/dev/null && echo "yes" || echo "no")
-            HAS_TIMEOUT=$(grep -l "Timeout\|ETIMEDOUT" "$LOG_FILE" 2>/dev/null && echo "yes" || echo "no")
-            HAS_PORT_ERROR=$(grep -l "EADDRINUSE\|port.*in use" "$LOG_FILE" 2>/dev/null && echo "yes" || echo "no")
+            LOG_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
             
             if [ $SHARD_EXIT -eq 0 ]; then
-              PASSED_SHARDS+=($i)
-              echo "✅ Shard $i: PASSED (${SHARD_DURATION}s, $TEST_COUNT, log: $LOG_SIZE)"
+              SUMMARY=$(grep -E "Tests.*passed" "$LOG_FILE" | tail -1 || echo "passed")
+              echo "✅ SHARD $i: PASSED (exit=0, $LOG_LINES lines)"
+              echo "   Summary: $SUMMARY"
             else
               FAILED_SHARDS+=($i)
               EXIT_CODE=1
-              echo "❌ Shard $i: FAILED (exit=$SHARD_EXIT, ${SHARD_DURATION}s, log: $LOG_SIZE)"
-              echo "   Summary: ${SUMMARY:-'no summary found'}"
+              echo "❌ SHARD $i: FAILED (exit=$SHARD_EXIT, $LOG_LINES lines)"
               
-              # Show failure indicators
-              if [ "$HAS_OOM" = "yes" ]; then
-                echo "   ⚠️  DETECTED: Out of memory error"
-              fi
-              if [ "$HAS_TIMEOUT" = "yes" ]; then
-                echo "   ⚠️  DETECTED: Timeout error"
-              fi
-              if [ "$HAS_PORT_ERROR" = "yes" ]; then
-                echo "   ⚠️  DETECTED: Port conflict"
-              fi
-              
-              # Show last 20 lines of failed shard log
+              # Show full log for failed shard
               echo ""
-              echo "   📋 Last 20 lines of shard $i log:"
-              echo "   ────────────────────────────────────"
-              tail -20 "$LOG_FILE" | sed 's/^/   /'
-              echo "   ────────────────────────────────────"
+              echo "═══════════════════════════════════════════════════════════"
+              echo "📋 FULL LOG FOR FAILED SHARD $i"
+              echo "═══════════════════════════════════════════════════════════"
+              cat "$LOG_FILE"
+              echo "═══════════════════════════════════════════════════════════"
+              echo "END OF SHARD $i LOG"
+              echo "═══════════════════════════════════════════════════════════"
               echo ""
             fi
           done
 
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📊 Summary: ${#PASSED_SHARDS[@]} passed, ${#FAILED_SHARDS[@]} failed"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-
-          echo "💾 Final memory state:"
-          free -h
-          echo ""
-          echo "💿 Final disk state:"
-          df -h /
-          echo ""
-
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "❌ GROUP $GROUP FAILED"
-            echo ""
-            echo "Full logs available at: $LOG_DIR"
-            for i in "${FAILED_SHARDS[@]}"; do
-              echo "   cat $LOG_DIR/shard-$i.log"
-            done
-            echo ""
-            
-            # Upload logs as artifact would go here in a real setup
-            # For now, dump more context
-            echo "🔍 Orphan processes check:"
-            ps aux | grep -E "chromium|playwright|node" | grep -v grep || echo "   (none)"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ GROUP $GROUP: ALL SHARDS PASSED"
           else
-            echo "✅ GROUP $GROUP PASSED"
-            # Clean up logs on success
-            rm -rf "$LOG_DIR"
+            echo "❌ GROUP $GROUP: FAILED SHARDS: ${FAILED_SHARDS[*]}"
           fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           exit $EXIT_CODE
         env:
