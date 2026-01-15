@@ -30,6 +30,7 @@ interface AssistantCommunicationMinimizedProps {
   onToggleSpeaker: () => void;
   isConnecting: boolean;
   isWaitingForAssistant: boolean;
+  waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
   isCallConnected: boolean;
@@ -77,6 +78,7 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
   onToggleSpeaker,
   isConnecting,
   isWaitingForAssistant,
+  waitingMessage,
   connectionError,
   onRetry,
   isCallConnected,
@@ -89,7 +91,9 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const showLoadingState = isConnecting || isWaitingForAssistant;
-  const loadingMessage = isConnecting ? 'Connecting...' : `Waiting for ${assistant.firstName}...`;
+  const loadingMessage = isConnecting
+    ? 'Connecting...'
+    : waitingMessage || `Waiting for ${assistant.firstName}...`;
 
   if (connectionError) {
     return (

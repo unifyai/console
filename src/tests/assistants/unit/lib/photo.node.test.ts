@@ -128,6 +128,35 @@ describe('photo.ts', () => {
         expect(result).toHaveProperty('detail', 'File too large');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'UploadPhoto-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/photo/upload`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('file', new Blob(['data']), 'photo.jpg');
+
+        // Act
+        const uploadFn = await uploadPhoto(TEST_API_KEY);
+        const result = await uploadFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('uploadVideo', () => {
@@ -188,6 +217,65 @@ describe('photo.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Invalid video format');
+      }
+    );
+
+    it(
+      'returns error when GCS URL not in response',
+      {
+        meta: {
+          alias: 'UploadVideo-NoGcsUrl',
+          scenario: 'API returns success but no GCS URL',
+          behavior: 'Returns error about missing URL',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/video/upload`, () => {
+            return HttpResponse.json({ info: { something: 'else' } });
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('file', new Blob(['data']), 'video.mp4');
+
+        // Act
+        const uploadFn = await uploadVideo(TEST_API_KEY);
+        const result = await uploadFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+        expect((result as any).detail).toContain('GCS URL');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'UploadVideo-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/video/upload`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('file', new Blob(['data']), 'video.mp4');
+
+        // Act
+        const uploadFn = await uploadVideo(TEST_API_KEY);
+        const result = await uploadFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });
@@ -306,6 +394,32 @@ describe('photo.ts', () => {
         expect(result).toHaveProperty('detail', 'Content policy violation');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GeneratePhoto-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/photo/generate`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const generateFn = await generatePhoto(TEST_API_KEY);
+        const result = await generateFn({ prompt: 'test' });
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('editPhoto', () => {
@@ -367,6 +481,35 @@ describe('photo.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Invalid image format');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'EditPhoto-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/photo/edit`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('image', new Blob(['data']), 'photo.jpg');
+
+        // Act
+        const editFn = await editPhoto(TEST_API_KEY);
+        const result = await editFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });
@@ -433,6 +576,35 @@ describe('photo.ts', () => {
         expect(result).toHaveProperty('status', 422);
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'AnimatePhoto-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/photo/animate`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        const formData = new FormData();
+        formData.append('image', new Blob(['data']), 'photo.jpg');
+
+        // Act
+        const animateFn = await animatePhoto(TEST_API_KEY);
+        const result = await animateFn(formData);
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('getAnimationPrediction', () => {
@@ -495,6 +667,32 @@ describe('photo.ts', () => {
         expect(result).toHaveProperty('detail', 'Prediction not found');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'GetPrediction-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/assistant/photo/animate/:id`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const getPredFn = await getAnimationPrediction(TEST_API_KEY);
+        const result = await getPredFn('pred-123');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('cancelAnimationPrediction', () => {
@@ -550,6 +748,32 @@ describe('photo.ts', () => {
         // Act
         const cancelFn = await cancelAnimationPrediction(TEST_API_KEY);
         const result = await cancelFn('completed-pred');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'CancelPrediction-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/photo/animate/:id/cancel`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const cancelFn = await cancelAnimationPrediction(TEST_API_KEY);
+        const result = await cancelFn('pred-123');
 
         // Assert
         expect(result).toHaveProperty('detail');

@@ -44,6 +44,13 @@ export function useAssistantProfileChat(
   const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
   const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
 
+  // SSE reconnection state
+  const [sseReconnectTrigger, setSseReconnectTrigger] = React.useState(0);
+  const sseReconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sseReconnectAttemptsRef = React.useRef(0);
+  const SSE_MAX_RECONNECT_ATTEMPTS = 5;
+  const SSE_RECONNECT_BASE_DELAY = 1000; // 1 second, will use exponential backoff
+
   // Contact ID caching and chat permission state
   const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
   const [canChat, setCanChat] = React.useState<boolean>(true);
@@ -449,6 +456,8 @@ export function useAssistantProfileChat(
 
     eventSource.onopen = () => {
       setConnectionStatus('connected');
+      // Reset reconnect attempts on successful connection
+      sseReconnectAttemptsRef.current = 0;
     };
 
     eventSource.onmessage = (event) => {
@@ -535,15 +544,42 @@ export function useAssistantProfileChat(
       }
     };
 
-    eventSource.onerror = (error) => {
-      setConnectionStatus((prev) =>
-        eventSource.readyState === EventSource.CLOSED ? 'reconnecting' : 'reconnecting'
-      );
+    eventSource.onerror = () => {
+      // Close the failed connection
+      eventSource.close();
+
+      // Check if we should attempt reconnection
+      if (sseReconnectAttemptsRef.current < SSE_MAX_RECONNECT_ATTEMPTS) {
+        setConnectionStatus('reconnecting');
+
+        // Calculate delay with exponential backoff
+        const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, sseReconnectAttemptsRef.current);
+        sseReconnectAttemptsRef.current += 1;
+
+        // Clear any existing reconnect timeout
+        if (sseReconnectTimeoutRef.current) {
+          clearTimeout(sseReconnectTimeoutRef.current);
+        }
+
+        // Schedule reconnection
+        sseReconnectTimeoutRef.current = setTimeout(() => {
+          setSseReconnectTrigger((prev) => prev + 1);
+        }, delay);
+      } else {
+        // Max attempts reached
+        setConnectionStatus('error');
+        sseReconnectAttemptsRef.current = 0;
+      }
     };
 
     return () => {
       stopReplying();
       eventSource.close();
+      // Clear reconnect timeout on cleanup
+      if (sseReconnectTimeoutRef.current) {
+        clearTimeout(sseReconnectTimeoutRef.current);
+        sseReconnectTimeoutRef.current = null;
+      }
     };
   }, [
     assistantId,
@@ -552,6 +588,7 @@ export function useAssistantProfileChat(
     historyLoadedForAssistantId,
     canChat,
     contactIdCache,
+    sseReconnectTrigger, // Re-run effect when reconnect is triggered
   ]);
 
   // Acknowledge displayed messages and cleanup __ackId from acknowledged messages

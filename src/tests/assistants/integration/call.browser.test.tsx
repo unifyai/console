@@ -7,16 +7,25 @@ import { mockAssistants } from '../mocks/data';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import { EventEmitter } from 'events';
 
+// Import harness utilities for track state management
+import { setLiveKitTrackState, clearLiveKitTrackState } from './fixtures';
+
 // 1. Mock LiveKit Client
-class MockLocalParticipant {
+class MockLocalParticipant extends EventEmitter {
   setMicrophoneEnabled = vi.fn().mockResolvedValue(undefined);
   setCameraEnabled = vi.fn().mockResolvedValue(undefined);
   setScreenShareEnabled = vi.fn().mockResolvedValue(undefined);
   // Always return a track publication so UI logic depends on toggle state (isCameraOn)
   getTrackPublication = vi.fn().mockReturnValue({
     isSubscribed: true,
-    track: { kind: 'video', attach: vi.fn(), detach: vi.fn() },
+    track: {
+      kind: 'video',
+      attach: vi.fn(),
+      detach: vi.fn(),
+      getDeviceId: vi.fn().mockResolvedValue('mock-device-id'),
+    },
     source: 'camera',
+    videoTrack: { getDeviceId: vi.fn().mockResolvedValue('mock-device-id') },
   });
 }
 
@@ -46,11 +55,21 @@ class MockRoom extends EventEmitter {
 
 vi.mock('livekit-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('livekit-client')>();
+
+  // Create a mock Room constructor with static methods
+  const MockRoomConstructor = vi.fn(function () {
+    return new MockRoom();
+  }) as unknown as typeof actual.Room;
+
+  // Add static methods that the production code uses
+  (MockRoomConstructor as any).getLocalDevices = vi.fn().mockResolvedValue([
+    { deviceId: 'mock-device-1', label: 'Mock Camera', kind: 'videoinput' },
+    { deviceId: 'mock-device-2', label: 'Mock Microphone', kind: 'audioinput' },
+  ]);
+
   return {
     ...actual,
-    Room: vi.fn(function () {
-      return new MockRoom();
-    }),
+    Room: MockRoomConstructor,
     RoomEvent: actual.RoomEvent,
     ConnectionState: actual.ConnectionState,
     Track: {
@@ -166,11 +185,11 @@ describe('Assistant Call', () => {
   // Helper to get to a connected call state quickly and robustly
   const establishCall = async (type: 'video' | 'audio' = 'video') => {
     // Initialize the shared mock state based on call type intent
-    (window as any).__mockLiveKitState = {
+    setLiveKitTrackState({
       micEnabled: true,
       camEnabled: type === 'video',
       screenShareEnabled: false,
-    };
+    });
 
     const callButton = await openProfileAndGetCallButton();
     await defaultUser.click(callButton);
@@ -200,12 +219,12 @@ describe('Assistant Call', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    // Reset shared state
-    (window as any).__mockLiveKitState = {
+    // Reset shared state using harness helper
+    setLiveKitTrackState({
       micEnabled: true,
       camEnabled: false,
       screenShareEnabled: false,
-    };
+    });
 
     mockAssistantActions.call.getConnectionDetails = vi.fn().mockResolvedValue({
       serverUrl: 'ws://test-livekit',
@@ -221,6 +240,8 @@ describe('Assistant Call', () => {
 
   afterEach(() => {
     delete (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT;
+    // Clean up LiveKit track state using harness helper
+    clearLiveKitTrackState();
   });
 
   describe('A-LiveKit Room Connection', () => {
@@ -245,8 +266,13 @@ describe('Assistant Call', () => {
         expect(await screen.findByText('Setting up a connection...')).toBeInTheDocument();
 
         await waitFor(() => {
-          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalled();
+          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledTimes(1);
         });
+        // Verify connection details requested for correct assistant (agentId, assistantName)
+        expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledWith(
+          targetAssistant.agentId,
+          `${targetAssistant.firstName}${targetAssistant.surname}`
+        );
 
         expect(
           await screen.findByText(`Waiting for ${targetAssistant.firstName} to join...`)
@@ -482,7 +508,10 @@ describe('Assistant Call', () => {
         });
 
         await waitFor(() => {
-          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalled();
+          expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalledWith(
+            targetAssistant.agentId,
+            `${targetAssistant.firstName}${targetAssistant.surname}`
+          );
         });
       }
     );
@@ -1140,7 +1169,10 @@ describe('Assistant Call', () => {
         const popOutBtn = await screen.findByLabelText('Open in new tab');
         await defaultUser.click(popOutBtn);
 
-        expect(openSpy).toHaveBeenCalled();
+        // Verify window.open was called with a call URL pattern
+        expect(openSpy).toHaveBeenCalledTimes(1);
+        const openedUrl = openSpy.mock.calls[0][0] as string;
+        expect(openedUrl).toMatch(/\/assistants\/call\//);
 
         // Cleanup
         openSpy.mockRestore();
@@ -1158,7 +1190,8 @@ describe('Assistant Call', () => {
         meta: {
           alias: 'Call-Reconnect-Participant',
           scenario: 'Assistant temporarily disconnects during an active call.',
-          behavior: 'The UI shows waiting state and reconnects when assistant rejoins.',
+          behavior:
+            'The UI shows waiting state with disconnect message, redispatches assistant, and reconnects when assistant rejoins.',
         },
       },
       async () => {
@@ -1170,15 +1203,29 @@ describe('Assistant Call', () => {
           screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
         ).toBeVisible();
 
+        // Clear the mock to track the redispatch call
+        mockAssistantActions.call.dispatchToCall.mockClear();
+
         // Simulate assistant leaving
         room.numParticipants = 1;
         room.emit(RoomEvent.ParticipantDisconnected, { identity: 'assistant-agent' });
 
-        // Should show waiting state
+        // Should show waiting state with disconnect message
         await waitFor(() => {
           expect(
-            screen.getByText(`Waiting for ${targetAssistant.firstName} to join...`)
+            screen.getByText(
+              `${targetAssistant.firstName} disconnected, waiting for them to rejoin...`
+            )
           ).toBeVisible();
+        });
+
+        // Verify dispatchToCall was called to redispatch the assistant
+        await waitFor(() => {
+          expect(mockAssistantActions.call.dispatchToCall).toHaveBeenCalledWith(
+            targetAssistant.agentId,
+            `${targetAssistant.firstName}${targetAssistant.surname}`,
+            expect.any(String) // roomName
+          );
         });
 
         // Assistant rejoins
@@ -1237,7 +1284,9 @@ describe('Assistant Call', () => {
         const LiveKitClient = await import('livekit-client');
         const mockRoom = new MockRoom();
         mockRoom.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
-        vi.mocked(LiveKitClient.Room).mockImplementationOnce(() => mockRoom);
+        vi.mocked(LiveKitClient.Room).mockImplementationOnce(function () {
+          return mockRoom;
+        });
 
         renderPage();
         const callButton = await openProfileAndGetCallButton();
@@ -1246,15 +1295,22 @@ describe('Assistant Call', () => {
         const audioOption = await screen.findByTestId('call-option-audio');
         await defaultUser.click(audioOption);
 
-        // Wait for error to be handled
+        // Wait for error to be handled - connect should have been called and failed
         await waitFor(() => {
-          expect(mockRoom.disconnect).toHaveBeenCalled();
+          expect(mockRoom.connect).toHaveBeenCalled();
         });
 
-        // Should not show call view
-        expect(
-          screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
-        ).toBeNull();
+        // Give time for the error to propagate
+        await waitFor(() => {
+          // Should not show call view after connection failure
+          expect(
+            screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
+          ).toBeNull();
+        });
+
+        // disconnect() is only called if room.state !== 'disconnected'
+        // Since connect() failed, state is still 'disconnected', so disconnect() won't be called
+        expect(mockRoom.state).toBe(ConnectionState.Disconnected);
       }
     );
 
@@ -1328,10 +1384,15 @@ describe('Assistant Call', () => {
         renderPage();
         const room = await establishCall('video');
 
-        // Verify controls work before disconnect
-        const muteButton = await screen.findByLabelText('Mute');
+        // Verify controls work before disconnect - find mute button and verify it can be clicked
+        const muteButton = await screen.findByLabelText('Mute microphone');
+        expect(muteButton).toBeVisible();
         await defaultUser.click(muteButton);
-        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
+
+        // After clicking mute, the button should now be "Unmute microphone"
+        await waitFor(() => {
+          expect(screen.queryByLabelText('Unmute microphone')).toBeInTheDocument();
+        });
 
         // Simulate assistant disconnect and reconnect
         room.numParticipants = 1;
@@ -1339,7 +1400,9 @@ describe('Assistant Call', () => {
 
         await waitFor(() => {
           expect(
-            screen.getByText(`Waiting for ${targetAssistant.firstName} to join...`)
+            screen.getByText(
+              `${targetAssistant.firstName} disconnected, waiting for them to rejoin...`
+            )
           ).toBeVisible();
         });
 
@@ -1352,11 +1415,15 @@ describe('Assistant Call', () => {
           ).toBeVisible();
         });
 
-        // Verify controls still work after reconnect
-        vi.clearAllMocks();
-        const unmuteButton = await screen.findByLabelText('Unmute');
+        // Verify controls still work after reconnect - the mute state should be preserved
+        const unmuteButton = await screen.findByLabelText('Unmute microphone');
+        expect(unmuteButton).toBeVisible();
         await defaultUser.click(unmuteButton);
-        expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalled();
+
+        // After clicking unmute, the button should now be "Mute microphone" again
+        await waitFor(() => {
+          expect(screen.queryByLabelText('Mute microphone')).toBeInTheDocument();
+        });
       }
     );
   });

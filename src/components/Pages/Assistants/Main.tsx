@@ -262,6 +262,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     isSpeakerMuted,
     toggleSpeakerMute,
     isWaitingForAssistant,
+    waitingMessage,
     connectionError,
     retryConnection,
     isRemoteControlActive,
@@ -843,6 +844,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             userEmail={userMeta.email}
             userImage={userMeta.image}
             isWaitingForAssistant={isWaitingForAssistant}
+            waitingMessage={waitingMessage}
             isCallConnected={isCallConnected}
             connectionError={connectionError}
             onRetry={retryConnection}
@@ -866,6 +868,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
               isConnecting={isConnectingCall}
               isCallConnected={isCallConnected}
               isWaitingForAssistant={isWaitingForAssistant}
+              waitingMessage={waitingMessage}
               connectionError={connectionError}
               onRetry={retryConnection}
               callType={callType}

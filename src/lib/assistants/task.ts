@@ -1,5 +1,5 @@
 import { ResponseProps } from '@/types/common';
-import { GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from '@/types/interfaces/logs';
+import { LogItemProps, LogsResponseProps } from '@/types/interfaces/logs';
 
 export const getTasks = async (apiKey: string, userContext: string) => {
   return async (
@@ -47,77 +47,6 @@ export const getTasks = async (apiKey: string, userContext: string) => {
       return data as LogsResponseProps;
     } catch (error) {
       console.error(`[task.ts getTasks] Error fetching tasks:`, error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
-      return { detail: errorMessage };
-    }
-  };
-};
-
-export const getUniqueFieldValues = async (apiKey: string, userContext: string) => {
-  return async (
-    assistantContext: string,
-    groupByField: string
-  ): Promise<string[] | ResponseProps> => {
-    'use server';
-
-    try {
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${userContext}/${assistantContext}/Tasks`;
-      url += `&groupBy=${encodeURIComponent(groupByField)}`;
-      url += `&groupDepth=0`;
-
-      const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
-
-      let data: LogsResponseProps | ResponseProps;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[task.ts getTaskGroups] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
-        console.error(`[task.ts getTaskGroups] Failed to parse JSON response: ${parseError}`);
-        return { detail: 'Received an invalid response from the server.' };
-      }
-
-      if (!response.ok) {
-        const errorMessage =
-          (data as ResponseProps).detail ||
-          `Failed to get task groups for ${groupByField}: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      const groupData = (
-        ((data as LogsResponseProps).logs as GroupedLogPropsRaw)?.[groupByField] as {
-          group: { key: string; value: number }[];
-          groupCount: number;
-          count: number;
-        }
-      )?.group;
-
-      if (groupData && Array.isArray(groupData)) {
-        // Filter out null/undefined keys and ensure uniqueness
-        const uniqueKeys = Array.from(
-          new Set(groupData.flatMap((item) => item.key).filter((key) => key != null))
-        );
-        return uniqueKeys;
-      } else {
-        console.warn(
-          `[task.ts getTaskGroups] Response format unexpected or missing group data for field '${groupByField}'. Data:`,
-          data
-        );
-        // Return empty array if structure is not as expected but response was OK
-        return [];
-      }
-    } catch (error) {
-      console.error(
-        `[task.ts getTaskGroups] Error fetching task groups for ${groupByField}:`,
-        error
-      );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown server error occurred.';
       return { detail: errorMessage };

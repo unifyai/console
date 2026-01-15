@@ -115,6 +115,32 @@ describe('contact.ts', () => {
         expect(result).toHaveProperty('detail', 'Unauthorized');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'ListEmails-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/contact/email`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const listFn = await listAllAssistantEmails(TEST_API_KEY);
+        const result = await listFn();
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('listAvailablePhoneCountries', () => {
@@ -291,6 +317,32 @@ describe('contact.ts', () => {
         expect(result).toHaveProperty('detail', 'Service unavailable');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'ListPlatforms-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/contact/social/available-platforms`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const listFn = await listAvailableSocialPlatforms(TEST_API_KEY);
+        const result = await listFn();
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('verifySocialAccount', () => {
@@ -407,6 +459,32 @@ describe('contact.ts', () => {
         expect(result).toHaveProperty('detail');
       }
     );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'VerifySocial-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/contact/social/verify`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const verifyFn = await verifySocialAccount(TEST_API_KEY);
+        const result = await verifyFn('twitter', '@user');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
   });
 
   describe('deleteAssistantContact', () => {
@@ -491,6 +569,32 @@ describe('contact.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Contact not found');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'DeleteContact-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.delete(`${MOCK_BASE_URL}/api/assistant/:id/contact`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const deleteFn = await deleteAssistantContact(TEST_API_KEY);
+        const result = await deleteFn('a1', 'phone');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
       }
     );
   });

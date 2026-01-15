@@ -112,9 +112,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
 
     it('should show edit button when canWrite=true', async () => {
       render(<AssistantProfilePanel {...defaultProfileProps} canWrite={true} canDelete={true} />);
-      // Edit button is in the Profile accordion header
-      const editButton = screen.getByRole('button', { name: '' }); // PenLine icon button
-      // Use a more specific query - look for button with PenLine icon
+      // Edit button is in the Profile accordion header - look for button with PenLine icon
       const editButtons = screen
         .getAllByRole('button')
         .filter((btn) => btn.querySelector('.lucide-pen-line'));
@@ -206,7 +204,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
       await waitFor(() => {
         const deleteButtons = screen
           .getAllByRole('button')
-          .filter((btn) => btn.querySelector('.lucide-trash-2'));
+          .filter((btn) => btn.querySelector('.lucide-trash2'));
         expect(deleteButtons.length).toBeGreaterThan(0);
       });
     });
@@ -218,7 +216,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
       });
       const deleteButtons = screen
         .queryAllByRole('button')
-        .filter((btn) => btn.querySelector('.lucide-trash-2'));
+        .filter((btn) => btn.querySelector('.lucide-trash2'));
       expect(deleteButtons.length).toBe(0);
     });
 

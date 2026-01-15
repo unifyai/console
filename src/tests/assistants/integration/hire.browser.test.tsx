@@ -53,8 +53,8 @@ const HireFlowTestWrapper = ({
     if (onHireSuccess) onHireSuccess(assistant, formData);
     if (onClose) onClose();
 
-    if (formData.setup === 'local' && formData.operating_system) {
-      setSetupInstructions({ os: formData.operating_system, isOpen: true });
+    if (formData.setup === 'local' && formData.operatingSystem) {
+      setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
     }
   };
 
@@ -232,13 +232,10 @@ const waitForFormReady = async () => {
 
 describe('Assistant Hire Flow', () => {
   beforeAll(() => {
-    Object.defineProperty(window, 'URL', {
-      writable: true,
-      value: {
-        createObjectURL: vi.fn(() => 'blob:mock-url'),
-        revokeObjectURL: vi.fn(),
-      },
-    });
+    // Mock URL methods while preserving the URL constructor (needed by MSW)
+    const originalURL = window.URL;
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
     Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
       configurable: true,
       value: vi.fn(),
@@ -477,7 +474,8 @@ describe('Assistant Hire Flow', () => {
         render(<HireFlowTestWrapper userApprovalStatus={null} />);
         const requestBtn = await screen.findByRole('button', { name: /request access/i });
         await user.click(requestBtn);
-        expect(mockAssistantActions.approval.requestAccess).toHaveBeenCalled();
+        // requestAccess takes no parameters - verify it was called once
+        expect(mockAssistantActions.approval.requestAccess).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Request Pending')).toBeInTheDocument();
       }
     );
@@ -596,10 +594,14 @@ describe('Assistant Hire Flow', () => {
       const modalHireBtn = screen.getByRole('button', { name: 'Hire Assistant' });
       await user.click(modalHireBtn);
       await waitFor(() => {
-        expect(registerSpy).toHaveBeenCalled();
+        // Verify voice registration was called with the expected voice ID
+        expect(registerSpy).toHaveBeenCalledTimes(1);
+        const [registeredVoiceId] = registerSpy.mock.calls[0] as [string];
+        expect(registeredVoiceId).toBeDefined();
       });
       await waitFor(() => {
-        expect(createSpy).toHaveBeenCalled();
+        // Verify assistant creation was called
+        expect(createSpy).toHaveBeenCalledTimes(1);
       });
       const registerOrder = registerSpy.mock.invocationCallOrder[0];
       const createOrder = createSpy.mock.invocationCallOrder[0];
@@ -808,7 +810,11 @@ describe('Assistant Hire Flow', () => {
         const presetName = await screen.findByText(/Sarah/i);
         await user.click(presetName);
         await waitFor(() => {
-          expect(downloadSpy).toHaveBeenCalled();
+          // Verify downloadPresetVideo was called with a preset agent ID
+          expect(downloadSpy).toHaveBeenCalledTimes(1);
+          const [calledPresetId] = downloadSpy.mock.calls[0] as [string];
+          expect(calledPresetId).toBeDefined();
+          expect(typeof calledPresetId).toBe('string');
         });
         try {
           await waitFor(
@@ -939,7 +945,11 @@ describe('Assistant Hire Flow', () => {
         await user.type(promptInput, 'Make it cyberpunk');
         const editBtn = await screen.findByRole('button', { name: /edit photo/i });
         await user.click(editBtn);
-        expect(mockAssistantActions.photo.edit).toHaveBeenCalled();
+        expect(mockAssistantActions.photo.edit).toHaveBeenCalledTimes(1);
+        // Verify FormData was passed with the edit prompt
+        const editCall = mockAssistantActions.photo.edit.mock.calls[0][0] as FormData;
+        expect(editCall).toBeInstanceOf(FormData);
+        expect(editCall.get('prompt')).toBe('Make it cyberpunk');
         expect(await screen.findByText('Photo edited successfully!')).toBeInTheDocument();
       }
     );
@@ -1063,7 +1073,9 @@ describe('Assistant Hire Flow', () => {
         const cancelBtn = await screen.findByLabelText(/cancel animation/i);
         await user.click(cancelBtn);
 
-        expect(mockAssistantActions.photo.cancelAnimation).toHaveBeenCalled();
+        // Verify cancelAnimation was called with the prediction ID from animate response
+        expect(mockAssistantActions.photo.cancelAnimation).toHaveBeenCalledTimes(1);
+        expect(mockAssistantActions.photo.cancelAnimation).toHaveBeenCalledWith('pred_123');
         vi.useRealTimers();
       }
     );
@@ -1147,7 +1159,14 @@ describe('Assistant Hire Flow', () => {
           .spyOn(window.HTMLMediaElement.prototype, 'play')
           .mockImplementation(() => Promise.resolve());
         await user.click(previewBtn);
-        expect(mockAssistantActions.voice.generate).toHaveBeenCalled();
+        // Verify generate was called with correct voice parameters
+        expect(mockAssistantActions.voice.generate).toHaveBeenCalledTimes(1);
+        const generatePayload = mockAssistantActions.voice.generate.mock.calls[0][0];
+        expect(generatePayload).toMatchObject({
+          voiceId: expect.any(String),
+          text: expect.any(String),
+          provider: expect.stringMatching(/cartesia|elevenlabs|openai/),
+        });
         playSpy.mockRestore();
       }
     );
@@ -1180,8 +1199,13 @@ describe('Assistant Hire Flow', () => {
         await waitFor(() => expect(btnElement).toBeEnabled());
         fireEvent.click(btnElement!);
         await waitFor(() => {
-          expect(mockAssistantActions.voice.clone).toHaveBeenCalled();
+          expect(mockAssistantActions.voice.clone).toHaveBeenCalledTimes(1);
         });
+        // Verify FormData was passed with voice name and file
+        const cloneFormData = mockAssistantActions.voice.clone.mock.calls[0][0] as FormData;
+        expect(cloneFormData).toBeInstanceOf(FormData);
+        expect(cloneFormData.get('name')).toBe('My Clone');
+        expect(cloneFormData.get('file')).toBeInstanceOf(File);
       }
     );
 
@@ -1310,7 +1334,14 @@ describe('Assistant Hire Flow', () => {
         const createBtnEl = createBtn.closest('button');
         await user.click(createBtnEl!);
         await waitFor(() => {
-          expect(mockAssistantActions.voice.design).toHaveBeenCalled();
+          expect(mockAssistantActions.voice.design).toHaveBeenCalledTimes(1);
+        });
+        // Verify design was called with correct payload
+        const designPayload = mockAssistantActions.voice.design.mock.calls[0][0];
+        expect(designPayload).toMatchObject({
+          generatedVoiceId: expect.any(String),
+          voiceName: expect.any(String),
+          voiceDescription: expect.any(String),
         });
       }
     );
@@ -1509,8 +1540,18 @@ describe('Assistant Hire Flow', () => {
         const user = userEvent.setup();
         render(<EditFlowTestWrapper assistant={mockAssistants[0]} />);
 
-        const firstNameInput = screen.getByLabelText(/first name/i);
-        await user.clear(firstNameInput);
+        // Wait for form to be populated with assistant data
+        const firstNameInput = (await screen.findByLabelText(/first name/i)) as HTMLInputElement;
+        await waitFor(() => {
+          expect(firstNameInput).toHaveValue(mockAssistants[0].firstName);
+        });
+
+        // Clear the controlled input using fireEvent
+        fireEvent.change(firstNameInput, { target: { value: '' } });
+        fireEvent.blur(firstNameInput);
+
+        // Verify input is empty
+        expect(firstNameInput).toHaveValue('');
 
         const updateBtn = screen.getByRole('button', { name: /update assistant/i });
         await user.click(updateBtn);
@@ -1564,7 +1605,13 @@ describe('Assistant Hire Flow', () => {
         await user.click(updateBtn);
 
         await waitFor(() => {
-          expect(mockAssistantActions.assistant.update).toHaveBeenCalled();
+          expect(mockAssistantActions.assistant.update).toHaveBeenCalledTimes(1);
+        });
+        // Verify update was called with correct assistant ID and payload
+        const [assistantId, updatePayload] = mockAssistantActions.assistant.update.mock.calls[0];
+        expect(assistantId).toBe(validAssistant.agentId);
+        expect(updatePayload).toMatchObject({
+          about: 'This update will fail',
         });
       }
     );

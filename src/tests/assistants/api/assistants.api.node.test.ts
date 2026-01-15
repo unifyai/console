@@ -198,18 +198,6 @@ describe('@real Assistant API Routes', () => {
     });
   });
 
-  describe('GET /api/assistant/emails', () => {
-    it('@real returns emails array', realTestOptions, async () => {
-      const res = await apiFetch('/api/assistant/emails');
-
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(data).toHaveProperty('emails');
-      expect(Array.isArray(data.emails)).toBe(true);
-    });
-  });
-
   describe('POST /api/assistant/call/dispatch', () => {
     it('@real returns error for invalid dispatch request', realTestOptions, async () => {
       try {

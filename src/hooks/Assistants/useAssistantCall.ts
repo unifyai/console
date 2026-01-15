@@ -5,6 +5,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
+const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
@@ -17,9 +18,12 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [callType, setCallType] = React.useState<'video' | 'audio' | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = React.useState(false);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
+  const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = React.useRef(false);
+  const isRedispatchingRef = React.useRef(false);
 
   // --- Remote Control State ---
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
@@ -36,6 +40,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       clearTimeout(assistantJoinTimeoutRef.current);
       assistantJoinTimeoutRef.current = null;
     }
+    if (assistantRejoinTimeoutRef.current) {
+      clearTimeout(assistantRejoinTimeoutRef.current);
+      assistantRejoinTimeoutRef.current = null;
+    }
   }, []);
 
   const stopRemoteControl = React.useCallback(() => {
@@ -48,11 +56,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
+    setWaitingMessage(null);
     setConnectionError(null);
     setConnectionDetails(null);
     setActiveCallAssistant(null);
     setCallType(null);
     setIsSpeakerMuted(false);
+    isRedispatchingRef.current = false;
     stopRemoteControl(); // Clean up remote control state
     clearAssistantJoinTimeout();
   }, [clearAssistantJoinTimeout, stopRemoteControl]);
@@ -273,20 +283,108 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     assistantActions.desktop,
   ]);
 
+  // Helper function to redispatch assistant to the room
+  const redispatchAssistant = React.useCallback(async () => {
+    if (!activeCallAssistant || !connectionDetails || isRedispatchingRef.current) return;
+
+    isRedispatchingRef.current = true;
+    const assistantName = `${activeCallAssistant.firstName}${activeCallAssistant.surname}`;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      if (isCancelledRef.current || !isRedispatchingRef.current) return;
+
+      try {
+        const dispatchResult = await assistantActions.call.dispatchToCall(
+          activeCallAssistant.agentId,
+          assistantName,
+          connectionDetails.roomName
+        );
+
+        if (dispatchResult.detail) {
+          throw new Error(dispatchResult.detail);
+        }
+
+        // Dispatch succeeded, now wait for assistant to rejoin
+        return;
+      } catch (err) {
+        if (attempt === MAX_RETRIES) {
+          // All retries failed
+          isRedispatchingRef.current = false;
+          toast.error(
+            `${activeCallAssistant.firstName} had trouble rejoining. Please try calling again.`
+          );
+          room.disconnect();
+          return;
+        }
+
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }, [activeCallAssistant, connectionDetails, assistantActions.call, room]);
+
+  // Store refs to current state for event handlers to avoid stale closures
+  const isConnectedRef = React.useRef(isConnected);
+  const activeCallAssistantRef = React.useRef(activeCallAssistant);
+
+  React.useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  React.useEffect(() => {
+    activeCallAssistantRef.current = activeCallAssistant;
+  }, [activeCallAssistant]);
+
   React.useEffect(() => {
     const onParticipantConnected = () => {
       setIsWaitingForAssistant(false);
+      setWaitingMessage(null);
+      isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
     };
 
+    const onParticipantDisconnected = () => {
+      // Only handle if we're in an active call and the disconnected participant is the assistant
+      if (!isConnectedRef.current || !activeCallAssistantRef.current) return;
+
+      // Check if the room now has fewer than 2 participants (user alone)
+      if (room.numParticipants < 2) {
+        const firstName = activeCallAssistantRef.current.firstName;
+        setWaitingMessage(`${firstName} disconnected, waiting for them to rejoin...`);
+        setIsWaitingForAssistant(true);
+
+        // Try to redispatch the assistant
+        redispatchAssistant();
+
+        // Set a timeout for the assistant to rejoin
+        const timeoutDuration =
+          (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_REJOIN_TIMEOUT) ||
+          ASSISTANT_REJOIN_TIMEOUT;
+
+        assistantRejoinTimeoutRef.current = setTimeout(() => {
+          if (isCancelledRef.current) return;
+          if (isRedispatchingRef.current || room.numParticipants < 2) {
+            // Assistant still hasn't rejoined
+            isRedispatchingRef.current = false;
+            toast.error(
+              `${firstName} couldn't rejoin the call. Please try calling again if needed.`
+            );
+            room.disconnect();
+          }
+        }, timeoutDuration);
+      }
+    };
+
     room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearAssistantJoinTimeout();
     };
-  }, [room, onDisconnected, clearAssistantJoinTimeout]);
+  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant]);
 
   // Ensure proper cleanup on component unmount
   React.useEffect(() => {
@@ -310,6 +408,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     connect,
     disconnect,
     isWaitingForAssistant,
+    waitingMessage,
     connectionError,
     retryConnection,
     // Remote control exports
