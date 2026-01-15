@@ -37,6 +37,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Cache Vite dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            vite-${{ runner.os }}-
+
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
@@ -97,6 +105,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Cache Vite dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            vite-${{ runner.os }}-
+
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
@@ -153,6 +169,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Cache Vite dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            vite-${{ runner.os }}-
+
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
@@ -206,6 +230,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: Cache Vite dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            vite-${{ runner.os }}-
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
@@ -261,6 +293,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: Cache Vite dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            vite-${{ runner.os }}-
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
