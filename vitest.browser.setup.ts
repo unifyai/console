@@ -1,6 +1,9 @@
 import { setupWorker } from 'msw/browser';
 import { handlers } from '@/tests/handlers';
 import { beforeAll, beforeEach, afterEach, vi } from 'vitest';
+// ⚠️ DO NOT CHANGE THIS IMPORT TO 'vitest/browser' ⚠️
+// The new import path breaks CI - see commit 5719e842 which reverted it.
+// The deprecation warning is harmless; the import itself causes test failures.
 import { page } from '@vitest/browser/context';
 import { UserEvent } from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
@@ -108,6 +111,20 @@ beforeEach(async (context) => {
   }
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Wait for pending network requests to complete before teardown.
+  // This prevents the race condition where MSW tries to call route.fulfill()
+  // after Playwright has garbage collected the route object.
+  // See: https://github.com/vitest-dev/vitest/issues/7290
+  if (page) {
+    try {
+      // Small delay to allow pending MSW handlers to complete their route.fulfill() calls
+      // before the page context is torn down. 100ms provides sufficient margin under
+      // CPU contention in CI while keeping overhead reasonable (~3 min per shard).
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } catch {
+      // Ignore errors if page is already closed
+    }
+  }
   worker.resetHandlers();
 });

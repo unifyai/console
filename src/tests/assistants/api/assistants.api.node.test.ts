@@ -107,9 +107,11 @@ describe('@real Assistant API Routes', () => {
 
       // Orchestra's status endpoint doesn't validate assistant existence -
       // it just checks for running jobs and returns 200 with running=false
+      // Response may be wrapped in { info: { running: ... } } by Orchestra
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data).toHaveProperty('running');
+      const statusData = data.info ?? data;
+      expect(statusData).toHaveProperty('running');
     });
   });
 

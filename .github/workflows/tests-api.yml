@@ -132,8 +132,17 @@ jobs:
 
           -- Update team sequence
           SELECT setval('team_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM team), false);
+
+          -- Seed 'Assistants' project for logs/secrets functionality
+          -- Required by secret.ts which stores secrets as logs in this project
+          INSERT INTO project (id, user_id, name, description, icon)
+          VALUES (1, 'test-user-001', 'Assistants', 'Project for assistant secrets', 'folder')
+          ON CONFLICT (user_id, name) DO NOTHING;
+
+          -- Update project sequence
+          SELECT setval('project_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM project), false);
           "
-          echo "✓ Orchestra test data seeded (users, voices, assistants, organization, team)"
+          echo "✓ Orchestra test data seeded (users, voices, assistants, organization, team, project)"
 
       - name: Start Orchestra API
         run: |
@@ -163,6 +172,7 @@ jobs:
           UNITY_COMMS_URL: ${{ secrets.UNITY_COMMS_URL }}
           UNITY_ADAPTERS_URL: ${{ secrets.UNITY_ADAPTERS_URL }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ORCHESTRA_ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
           ORCHESTRA_REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
 
