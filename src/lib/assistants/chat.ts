@@ -139,15 +139,15 @@ export const getTranscripts = async (apiKey: string) => {
           if (
             !entries ||
             typeof entries.content !== 'string' ||
-            typeof entries.sender_id === 'undefined'
+            typeof entries.senderId === 'undefined'
           ) {
             console.warn('[getTranscripts] Skipping invalid log entry:', log);
             return null;
           }
           return {
             id: String(id),
-            // sender_id=0 is assistant, anything else is a human user
-            role: entries.sender_id === 0 ? 'assistant' : 'user',
+            // senderId=0 is assistant, anything else is a human user
+            role: entries.senderId === 0 ? 'assistant' : 'user',
             content: entries.content,
             timestamp: new Date(timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
