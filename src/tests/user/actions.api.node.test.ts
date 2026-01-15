@@ -24,8 +24,12 @@ import { OrganizationPermission } from '@/types/organization';
 const API_KEY = process.env.VITE_TEST_API_KEY;
 
 // Helper to check for error responses
-const isError = (res: any): res is { detail: string } => {
-  return res && typeof res === 'object' && 'detail' in res && typeof res.detail === 'string';
+// Returns true only if res is an object with a 'detail' property (error response)
+// Returns false for undefined (successful void operations) or success objects
+const isError = (res: unknown): res is { detail: string } => {
+  if (res === undefined || res === null) return false;
+  if (typeof res !== 'object') return false;
+  return 'detail' in res && typeof (res as Record<string, unknown>).detail === 'string';
 };
 
 // Global state to share ID between steps

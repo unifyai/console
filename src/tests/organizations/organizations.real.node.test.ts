@@ -15,6 +15,9 @@ import {
   ApiError,
 } from '../assistants/api/fixtures/api-actions';
 
+// Test organization ID seeded in CI (see tests-api.yml)
+const TEST_ORG_ID = '1';
+
 describe('@real Organizations API', () => {
   beforeAll(async () => {
     await skipIfServerNotReachable();
@@ -22,47 +25,44 @@ describe('@real Organizations API', () => {
 
   describe('Teams', () => {
     it('@real lists teams for organization', realTestOptions, async () => {
-      // Using 'default' as a test org ID - adjust if needed
-      try {
-        const result = await organizationsApi.listTeams('default');
+      const result = await organizationsApi.listTeams(TEST_ORG_ID);
 
-        expect(result).toBeDefined();
-        expect(Array.isArray(result)).toBe(true);
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+      // CI seeds a test team, so we should have at least one
+      expect(result.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('@real rejects teams request with invalid org ID format', realTestOptions, async () => {
+      try {
+        await organizationsApi.listTeams('not-a-number');
+        expect.fail('Should have thrown an error');
       } catch (e) {
-        // 404/403/422 is acceptable if org doesn't exist or is invalid
-        if (e instanceof ApiError) {
-          expect([404, 403, 422]).toContain(e.status);
-        } else {
-          throw e;
-        }
+        expect(e).toBeInstanceOf(ApiError);
+        // Console returns 400 for invalid ID format
+        expect((e as ApiError).status).toBe(400);
       }
     });
 
-    it('@real rejects teams request with invalid org ID', realTestOptions, async () => {
+    it('@real rejects teams request with non-existent org ID', realTestOptions, async () => {
       try {
-        await organizationsApi.listTeams('non-existent-org-12345');
-        // If it doesn't throw, the response should still be valid
+        await organizationsApi.listTeams('999999');
+        expect.fail('Should have thrown an error');
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);
-        expect([403, 404, 422]).toContain((e as ApiError).status);
+        // Orchestra returns 404 for non-existent org, or 403 if user not member
+        expect([403, 404]).toContain((e as ApiError).status);
       }
     });
 
     it('@real returns camelCase response for teams', realTestOptions, async () => {
-      try {
-        const result = await organizationsApi.listTeams('default');
+      const result = await organizationsApi.listTeams(TEST_ORG_ID);
 
-        if (result.length > 0) {
-          const team = result[0];
-          const keys = Object.keys(team);
-          for (const key of keys) {
-            expect(key).not.toMatch(/^[a-z]+_[a-z]+/); // No snake_case
-          }
-        }
-      } catch (e) {
-        // 404/403 is acceptable if org doesn't exist
-        if (!(e instanceof ApiError)) {
-          throw e;
+      if (result.length > 0) {
+        const team = result[0];
+        const keys = Object.keys(team);
+        for (const key of keys) {
+          expect(key).not.toMatch(/^[a-z]+_[a-z]+/); // No snake_case
         }
       }
     });
@@ -70,46 +70,44 @@ describe('@real Organizations API', () => {
 
   describe('Members', () => {
     it('@real lists members for organization', realTestOptions, async () => {
-      try {
-        const result = await organizationsApi.listMembers('default');
+      const result = await organizationsApi.listMembers(TEST_ORG_ID);
 
-        expect(result).toBeDefined();
-        expect(Array.isArray(result)).toBe(true);
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+      // CI seeds the test user as owner, so we should have at least one member
+      expect(result.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('@real rejects members request with invalid org ID format', realTestOptions, async () => {
+      try {
+        await organizationsApi.listMembers('not-a-number');
+        expect.fail('Should have thrown an error');
       } catch (e) {
-        // 404/403/422 is acceptable if org doesn't exist or is invalid
-        if (e instanceof ApiError) {
-          expect([404, 403, 422]).toContain(e.status);
-        } else {
-          throw e;
-        }
+        expect(e).toBeInstanceOf(ApiError);
+        // Console returns 400 for invalid ID format
+        expect((e as ApiError).status).toBe(400);
       }
     });
 
-    it('@real rejects members request with invalid org ID', realTestOptions, async () => {
+    it('@real rejects members request with non-existent org ID', realTestOptions, async () => {
       try {
-        await organizationsApi.listMembers('non-existent-org-12345');
-        // If it doesn't throw, the response should still be valid
+        await organizationsApi.listMembers('999999');
+        expect.fail('Should have thrown an error');
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);
-        expect([403, 404, 422]).toContain((e as ApiError).status);
+        // Orchestra returns 404 for non-existent org, or 403 if user not member
+        expect([403, 404]).toContain((e as ApiError).status);
       }
     });
 
     it('@real returns camelCase response for members', realTestOptions, async () => {
-      try {
-        const result = await organizationsApi.listMembers('default');
+      const result = await organizationsApi.listMembers(TEST_ORG_ID);
 
-        if (result.length > 0) {
-          const member = result[0];
-          const keys = Object.keys(member);
-          for (const key of keys) {
-            expect(key).not.toMatch(/^[a-z]+_[a-z]+/); // No snake_case
-          }
-        }
-      } catch (e) {
-        // 404/403 is acceptable if org doesn't exist
-        if (!(e instanceof ApiError)) {
-          throw e;
+      if (result.length > 0) {
+        const member = result[0];
+        const keys = Object.keys(member);
+        for (const key of keys) {
+          expect(key).not.toMatch(/^[a-z]+_[a-z]+/); // No snake_case
         }
       }
     });

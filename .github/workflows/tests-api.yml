@@ -108,8 +108,32 @@ jobs:
 
           -- Update sequence to avoid conflicts when creating new assistants
           SELECT setval('assistants_agent_id_seq', (SELECT COALESCE(MAX(agent_id), 0) + 1 FROM assistants), false);
+
+          -- Seed test organization (id=1) owned by test-user-001
+          INSERT INTO organization (id, owner_id, name, credits, autorecharge, account_status)
+          VALUES (1, 'test-user-001', 'Test Organization', 10000, false, 'ACTIVE')
+          ON CONFLICT (id) DO NOTHING;
+
+          -- Update organization sequence
+          SELECT setval('organization_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM organization), false);
+
+          -- Add test user as Owner member of the organization
+          -- First get the Owner role ID (system role with organization_id IS NULL)
+          INSERT INTO organization_member (organization_id, user_id, role_id)
+          SELECT 1, 'test-user-001', r.id
+          FROM role r
+          WHERE r.name = 'Owner' AND r.organization_id IS NULL AND r.is_system_role = true
+          ON CONFLICT DO NOTHING;
+
+          -- Seed a test team in the organization
+          INSERT INTO team (id, name, description, organization_id)
+          VALUES (1, 'Engineering', 'Test engineering team', 1)
+          ON CONFLICT (id) DO NOTHING;
+
+          -- Update team sequence
+          SELECT setval('team_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM team), false);
           "
-          echo "✓ Orchestra test data seeded (users, voices, assistants)"
+          echo "✓ Orchestra test data seeded (users, voices, assistants, organization, team)"
 
       - name: Start Orchestra API
         run: |
@@ -133,12 +157,14 @@ jobs:
           ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME: ${{ vars.GCP_BUCKET_ASSISTANT_IMAGES }}
           ORCHESTRA_GCP_ASSISTANT_RECORDINGS_BUCKET_NAME: ${{ vars.GCP_BUCKET_RECORDINGS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ORCHESTRA_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
           UNITY_COMMS_URL: ${{ secrets.UNITY_COMMS_URL }}
           UNITY_ADAPTERS_URL: ${{ secrets.UNITY_ADAPTERS_URL }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+          ORCHESTRA_REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -9,6 +9,15 @@ export async function GET(
 ) {
   const { orgId } = await params;
 
+  // Validate org ID is a valid integer
+  const organizationId = parseInt(orgId, 10);
+  if (isNaN(organizationId)) {
+    return NextResponse.json(
+      { detail: 'Invalid organization ID format. Must be an integer.' },
+      { status: 400 }
+    );
+  }
+
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -21,7 +30,7 @@ export async function GET(
       '/v0/organizations/{organization_id}/members',
       {
         params: {
-          path: { organization_id: parseInt(orgId, 10) },
+          path: { organization_id: organizationId },
         },
       }
     );

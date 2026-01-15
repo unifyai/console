@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Validate Content-Type - this endpoint requires multipart/form-data
+    const contentType = request.headers.get('content-type') || '';
+    if (!contentType.includes('multipart/form-data')) {
+      return NextResponse.json(
+        { detail: 'Content-Type must be multipart/form-data with file upload' },
+        { status: 400 }
+      );
+    }
+
     const formData = await request.formData();
 
     const response = await fetch(`${ORCHESTRA_BASE_URL}/assistant/photo/animate`, {

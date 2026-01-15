@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error, { status: response.status });
     }
 
-    return NextResponse.json(data, { status: response.status });
+    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API
+    const responseData = data && typeof data === 'object' && 'info' in data ? data.info : data;
+    return NextResponse.json(responseData, { status: response.status });
   } catch (e: unknown) {
     console.error('[API /api/assistant GET] Error:', e instanceof Error ? e.message : e);
     return NextResponse.json({ detail: 'Failed to connect to backend API' }, { status: 500 });
