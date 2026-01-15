@@ -1,36 +1,49 @@
 /**
- * Logged fetch wrapper for third-party API calls.
+ * Centralized API call logging for all services.
  *
- * This wrapper logs all fetch requests to the same log file as the Orchestra
- * client middleware, making it easy to trace API calls across all services.
+ * This module provides:
+ * - Shared logging utilities (writeLog, formatForLog, etc.)
+ * - Factory functions for openapi-fetch middleware and Axios interceptors
+ * - Generic fetch wrapper for third-party API calls
+ * - Incoming request logging for API routes
  *
  * Usage:
+ *   // For openapi-fetch clients
+ *   import { createOpenapiLoggingMiddleware } from '@/lib/logging/fetch';
+ *   client.use(createOpenapiLoggingMiddleware('ORCHESTRA'));
+ *
+ *   // For Axios clients
+ *   import { addAxiosLoggingInterceptors } from '@/lib/logging/fetch';
+ *   addAxiosLoggingInterceptors(axiosClient, 'ORCHESTRA');
+ *
+ *   // For direct fetch calls
  *   import { loggedFetch } from '@/lib/logging/fetch';
- *
- *   // Basic usage (auto-detects service name from URL)
  *   const response = await loggedFetch('https://api.example.com/endpoint');
- *
- *   // With custom service name
- *   const response = await loggedFetch('https://api.example.com/endpoint', {
- *     method: 'POST',
- *     body: JSON.stringify({ data: 'value' }),
- *   }, 'MY_SERVICE');
  *
  * Environment variables:
  *   LOG_API_CALLS=true        Enable logging
  *   LOG_API_CALLS=verbose     Enable logging with caller stack traces
  *   LOG_API_CALLS_FILE        Custom log file path (default: api-calls.log)
+ *   LOG_API_CALLS_PRODUCTION  Enable logging in production (default: false)
  */
 
 import fs from 'fs';
 import path from 'path';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import type { Middleware } from 'openapi-fetch';
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+
+// =============================================================================
+// Shared Logging Utilities
+// =============================================================================
 
 /**
  * Check if API logging is enabled via environment variable.
  * Logging is disabled in production by default for performance and disk space.
  * To enable in production, set LOG_API_CALLS_PRODUCTION=true in addition to LOG_API_CALLS.
  */
-const isLoggingEnabled = () => {
+export const isLoggingEnabled = () => {
   const enabled = process.env.LOG_API_CALLS === 'true' || process.env.LOG_API_CALLS === 'verbose';
   const isProduction = process.env.NODE_ENV === 'production';
   const productionOverride = process.env.LOG_API_CALLS_PRODUCTION === 'true';
@@ -38,12 +51,18 @@ const isLoggingEnabled = () => {
   // In production, require explicit opt-in
   return enabled && (!isProduction || productionOverride);
 };
-const isVerboseLogging = () => process.env.LOG_API_CALLS === 'verbose';
 
 /**
- * Log file path for API call logging.
+ * Check if verbose logging (with stack traces) is enabled.
  */
-const getLogFilePath = () => {
+export const isVerboseLogging = () => process.env.LOG_API_CALLS === 'verbose';
+
+/**
+ * Get the log file path.
+ * Defaults to 'api-calls.log' in the project root.
+ * Can be customized via LOG_API_CALLS_FILE environment variable.
+ */
+export const getLogFilePath = () => {
   const customPath = process.env.LOG_API_CALLS_FILE;
   if (customPath) return customPath;
   return path.join(process.cwd(), 'api-calls.log');
@@ -51,8 +70,9 @@ const getLogFilePath = () => {
 
 /**
  * Write a log entry to the log file.
+ * Includes timestamp for each entry.
  */
-function writeLog(message: string, level: 'info' | 'warn' | 'error' = 'info') {
+export function writeLog(message: string, level: 'info' | 'warn' | 'error' = 'info') {
   try {
     const timestamp = new Date().toISOString();
     const prefix = level === 'info' ? '' : `[${level.toUpperCase()}] `;
@@ -60,7 +80,7 @@ function writeLog(message: string, level: 'info' | 'warn' | 'error' = 'info') {
     fs.appendFileSync(getLogFilePath(), logLine);
   } catch (err) {
     // Fallback to console if file write fails
-    console.error('[FETCH] Failed to write to log file:', err);
+    console.error('[LOG] Failed to write to log file:', err);
     console.log(message);
   }
 }
@@ -68,7 +88,7 @@ function writeLog(message: string, level: 'info' | 'warn' | 'error' = 'info') {
 /**
  * Format data for logging, truncating large payloads.
  */
-function formatForLog(data: unknown, maxLength = 10000): string {
+export function formatForLog(data: unknown, maxLength = 10000): string {
   try {
     const json = JSON.stringify(data, null, 2);
     if (json.length > maxLength) {
@@ -82,15 +102,19 @@ function formatForLog(data: unknown, maxLength = 10000): string {
 
 /**
  * Extract a meaningful caller location from the stack trace.
+ * Filters out internal middleware/library frames to show the actual origin.
+ *
+ * @param extraIgnoredPatterns - Additional patterns to ignore (e.g., client-specific paths)
  */
-function getCallerLocation(): string {
+export function getCallerLocation(extraIgnoredPatterns: string[] = []): string {
   const stack = new Error().stack;
   if (!stack) return '';
 
   const lines = stack.split('\n');
 
-  // Skip frames from this file and node internals
-  const ignoredPatterns = ['/lib/logging/fetch.ts', 'node:internal', 'processTicksAndRejections'];
+  // Default patterns to ignore
+  const defaultIgnored = ['/lib/logging/fetch.ts', 'node:internal', 'processTicksAndRejections'];
+  const ignoredPatterns = [...defaultIgnored, ...extraIgnoredPatterns];
 
   for (const line of lines.slice(1)) {
     if (ignoredPatterns.some((pattern) => line.includes(pattern))) {
@@ -110,6 +134,201 @@ function getCallerLocation(): string {
 
   return '';
 }
+
+// =============================================================================
+// openapi-fetch Middleware Factory
+// =============================================================================
+
+/**
+ * Create logging middleware for openapi-fetch clients.
+ *
+ * @param serviceName - The service name to use in log entries (e.g., 'ORCHESTRA')
+ * @returns Middleware that can be added to an openapi-fetch client
+ *
+ * @example
+ * import { createOpenapiLoggingMiddleware } from '@/lib/logging/fetch';
+ *
+ * const client = createClient<paths>({ baseUrl: '...' });
+ * client.use(createOpenapiLoggingMiddleware('ORCHESTRA'));
+ */
+export function createOpenapiLoggingMiddleware(serviceName = 'ORCHESTRA'): Middleware {
+  const ignoredPatterns = ['/orchestra/client.ts', '/node_modules/openapi-fetch/'];
+
+  return {
+    async onRequest({ request }) {
+      if (!isLoggingEnabled()) return request;
+
+      const url = new URL(request.url);
+      const method = request.method;
+      // Show full URL for verbose mode, path only for basic mode
+      const displayUrl = isVerboseLogging() ? request.url : url.pathname + url.search;
+
+      // Capture caller location before any async operations
+      const callerLocation = isVerboseLogging() ? getCallerLocation(ignoredPatterns) : '';
+
+      // Clone and read body if present
+      let bodyLog = '';
+      if (request.body) {
+        try {
+          const cloned = request.clone();
+          const bodyText = await cloned.text();
+          if (bodyText) {
+            bodyLog = `\n  body: ${formatForLog(JSON.parse(bodyText))}`;
+          }
+        } catch {
+          bodyLog = '\n  body: [present but unreadable]';
+        }
+      }
+
+      // Store start time for duration calculation
+      (request as any).__logStartTime = Date.now();
+      (request as any).__logPath = displayUrl;
+      (request as any).__logMethod = method;
+      (request as any).__logCaller = callerLocation;
+
+      writeLog(`[${serviceName}] ${method} ${displayUrl}${bodyLog}`);
+      if (callerLocation) {
+        writeLog(`  └─ from: ${callerLocation}`);
+      }
+      return request;
+    },
+
+    async onResponse({ request, response }) {
+      if (!isLoggingEnabled()) return response;
+
+      const startTime = (request as any).__logStartTime;
+      const duration = startTime ? `${Date.now() - startTime}ms` : '?ms';
+      const displayUrl = (request as any).__logPath || request.url;
+
+      // Clone to read body without consuming it
+      const cloned = response.clone();
+      let bodyLog = '';
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const data = await cloned.json();
+          bodyLog = `\n  response: ${formatForLog(data)}`;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+
+      const statusText = response.statusText || (response.ok ? 'OK' : 'Error');
+      const logLevel = response.ok ? 'info' : 'warn';
+      writeLog(
+        `[${serviceName}] ← ${response.status} ${statusText} (${duration}) ${displayUrl}${bodyLog}`,
+        logLevel
+      );
+
+      return response;
+    },
+  };
+}
+
+// =============================================================================
+// Axios Interceptors Factory
+// =============================================================================
+
+/**
+ * Add logging interceptors to an Axios client.
+ *
+ * @param client - The Axios instance to add interceptors to
+ * @param serviceName - The service name to use in log entries (e.g., 'ORCHESTRA')
+ * @returns The same Axios instance (for chaining)
+ *
+ * @example
+ * import { addAxiosLoggingInterceptors } from '@/lib/logging/fetch';
+ *
+ * const client = axios.create({ baseURL: '...' });
+ * addAxiosLoggingInterceptors(client, 'ORCHESTRA');
+ */
+export function addAxiosLoggingInterceptors(
+  client: AxiosInstance,
+  serviceName = 'ORCHESTRA'
+): AxiosInstance {
+  const ignoredPatterns = ['/orchestra/orchestra-client.ts', '/node_modules/axios/'];
+
+  // Request logging
+  client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    if (!isLoggingEnabled()) return config;
+
+    const method = config.method?.toUpperCase() || 'UNKNOWN';
+    const url = config.url || '';
+    const baseURL = config.baseURL || '';
+    const fullPath = url.startsWith('http') ? url : `${baseURL}${url}`;
+
+    // Include query params if present
+    const queryString = config.params ? '?' + new URLSearchParams(config.params).toString() : '';
+    const displayUrl = fullPath + queryString;
+
+    // Capture caller location
+    const callerLocation = isVerboseLogging() ? getCallerLocation(ignoredPatterns) : '';
+
+    let bodyLog = '';
+    if (config.data) {
+      bodyLog = `\n  body: ${formatForLog(config.data)}`;
+    }
+
+    // Store start time and caller for duration calculation
+    (config as any).__logStartTime = Date.now();
+    (config as any).__logCaller = callerLocation;
+    (config as any).__logDisplayUrl = displayUrl;
+
+    writeLog(`[${serviceName}] ${method} ${displayUrl}${bodyLog}`);
+    if (callerLocation) {
+      writeLog(`  └─ from: ${callerLocation}`);
+    }
+    return config;
+  });
+
+  // Response logging
+  client.interceptors.response.use(
+    (response: AxiosResponse) => {
+      if (!isLoggingEnabled()) return response;
+
+      const config = response.config;
+      const startTime = (config as any).__logStartTime;
+      const duration = startTime ? `${Date.now() - startTime}ms` : '?ms';
+      const displayUrl = (config as any).__logDisplayUrl || config.url || '';
+
+      let bodyLog = '';
+      if (response.data) {
+        bodyLog = `\n  response: ${formatForLog(response.data)}`;
+      }
+
+      writeLog(`[${serviceName}] ← ${response.status} OK (${duration}) ${displayUrl}${bodyLog}`);
+      return response;
+    },
+    (error) => {
+      if (isLoggingEnabled() && error.config) {
+        const config = error.config;
+        const startTime = (config as any).__logStartTime;
+        const duration = startTime ? `${Date.now() - startTime}ms` : '?ms';
+        const displayUrl = (config as any).__logDisplayUrl || config.url || '';
+
+        const status = error.response?.status || 'ERR';
+        const statusText = error.response?.statusText || error.message || 'Error';
+
+        let bodyLog = '';
+        if (error.response?.data) {
+          bodyLog = `\n  error: ${formatForLog(error.response.data)}`;
+        }
+
+        writeLog(
+          `[${serviceName}] ← ${status} ${statusText} (${duration}) ${displayUrl}${bodyLog}`,
+          'warn'
+        );
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
+}
+
+// =============================================================================
+// Generic Fetch Wrapper
+// =============================================================================
 
 /**
  * Extract a service name from a URL.
@@ -148,6 +367,18 @@ function getServiceName(url: string): string {
  * @param options - Standard fetch options
  * @param serviceName - Optional custom service name for logging (auto-detected if not provided)
  * @returns The fetch Response
+ *
+ * @example
+ * import { loggedFetch } from '@/lib/logging/fetch';
+ *
+ * // Basic usage (auto-detects service name from URL)
+ * const response = await loggedFetch('https://api.example.com/endpoint');
+ *
+ * // With custom service name
+ * const response = await loggedFetch('https://api.example.com/endpoint', {
+ *   method: 'POST',
+ *   body: JSON.stringify({ data: 'value' }),
+ * }, 'MY_SERVICE');
  */
 export async function loggedFetch(
   url: string | URL,
@@ -238,6 +469,10 @@ export function createLoggedFetch(serviceName: string) {
   };
 }
 
+// =============================================================================
+// Request Wrapper for Non-Fetch Clients (e.g., Google Auth)
+// =============================================================================
+
 /**
  * Wrap an existing request function (like Google Auth client's request) with logging.
  *
@@ -310,6 +545,10 @@ export function wrapRequestWithLogging(serviceName: string) {
   };
 }
 
+// =============================================================================
+// Incoming Request Logging for API Routes
+// =============================================================================
+
 /**
  * Log an incoming API request for debugging.
  * Use this to trace what's being sent to your API routes.
@@ -329,9 +568,6 @@ export function wrapRequestWithLogging(serviceName: string) {
  * // Just log the incoming request body
  * await logIncomingRequest(request, 'POST', '/api/example', null, null, requestBody);
  */
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
 export async function logIncomingRequest(
   request: NextRequest,
   method: string,
