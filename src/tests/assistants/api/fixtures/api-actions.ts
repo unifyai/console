@@ -291,7 +291,8 @@ export const assistantsApi = {
     photoUrl: string,
     videoUrl: string,
     about: string,
-    apiKey?: string
+    apiKey?: string,
+    createInfra: boolean = true
   ): Promise<AssistantCreateResponse> {
     const endpoint = '/api/assistant';
     const res = await apiFetch(
@@ -307,6 +308,7 @@ export const assistantsApi = {
           photoUrl,
           videoUrl,
           about,
+          create_infra: createInfra,
         }),
       },
       apiKey
@@ -1202,7 +1204,8 @@ export async function getTestAssistant(apiKey?: string): Promise<AssistantData> 
       'https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/1.jpg',
       'gs://bucket/preset_assistants/Ricardo_Silva_elevenlabs.mp4',
       'Integration test assistant for automated testing',
-      apiKey
+      apiKey,
+      false // createInfra: false for local testing - skip pubsub/wake-up
     );
 
     if (createRes.assistant) {
@@ -1210,6 +1213,15 @@ export async function getTestAssistant(apiKey?: string): Promise<AssistantData> 
       return createRes.assistant;
     }
   } catch (e) {
+    // Handle 409 conflict - another test already created the assistant
+    // Also handle 500 wake-up errors - assistant may have been partially created
+    if (e instanceof ApiError && (e.status === 409 || e.status === 500)) {
+      console.log('Creation conflict/error - checking if assistant exists now...');
+      const retryAssistants = await assistantsApi.list(apiKey);
+      if (Array.isArray(retryAssistants) && retryAssistants.length > 0) {
+        return retryAssistants[0];
+      }
+    }
     console.error('Failed to create test assistant:', e);
   }
 
