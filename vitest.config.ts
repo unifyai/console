@@ -161,6 +161,7 @@ export default defineConfig({
         },
         test: {
           name: 'browser',
+          globalSetup: ['./vitest.browser.globalSetup.ts'],
           setupFiles: ['./vitest.browser.setup.ts'],
           include: ['src/**/*.browser.test.ts?(x)'],
           exclude: [
@@ -196,6 +197,7 @@ export default defineConfig({
         },
         test: {
           name: 'browser-matrix',
+          globalSetup: ['./vitest.browser.globalSetup.ts'],
           setupFiles: ['./vitest.browser.setup.ts'],
           include: ['src/**/*.matrix.browser.test.ts?(x)'],
           exclude: ['src/**/*.node.test.ts?(x)'],
@@ -221,6 +223,7 @@ export default defineConfig({
         },
         test: {
           name: 'browser-benchmarks',
+          globalSetup: ['./vitest.browser.globalSetup.ts'],
           setupFiles: ['./vitest.browser.setup.ts'],
           include: ['src/**/benchmarks/**/*.browser.test.ts?(x)'],
           exclude: ['src/**/*.node.test.ts?(x)'],
