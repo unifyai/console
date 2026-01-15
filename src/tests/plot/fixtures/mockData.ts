@@ -582,6 +582,21 @@ export function createAggregatedMockData(
 }
 
 function getNestedValue(obj: unknown, path: string): unknown {
+  if (obj == null || typeof obj !== 'object') return undefined;
+  const record = obj as Record<string, unknown>;
+
+  // First, check if path exists as a literal key (handles dot-containing keys)
+  if (path in record) {
+    return record[path];
+  }
+
+  // Check inside 'table1.entries' if it exists (common mock data structure)
+  const entries = record['table1.entries'];
+  if (entries && typeof entries === 'object' && path in (entries as Record<string, unknown>)) {
+    return (entries as Record<string, unknown>)[path];
+  }
+
+  // Fallback: try nested access by splitting on dots
   const parts = path.split('.');
   let current: unknown = obj;
 

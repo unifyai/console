@@ -26,15 +26,14 @@ vi.mock('@/lib/user/user', () => ({
 
 // Mock environment variables
 const MOCK_BASE_URL = 'http://localhost:3000';
-vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
-vi.stubEnv('ORCHESTRA_URL', 'https://orchestra.example.com');
-vi.stubEnv('ORCHESTRA_ADMIN_KEY', 'admin-key-123');
 
 describe('chat.ts', () => {
   const TEST_API_KEY = 'test-api-key';
 
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
+    vi.stubEnv('ORCHESTRA_URL', 'https://orchestra.example.com');
+    vi.stubEnv('ORCHESTRA_ADMIN_KEY', 'admin-key-123');
   });
 
   afterEach(() => {
@@ -179,12 +178,12 @@ describe('chat.ts', () => {
                 {
                   id: '100',
                   timestamp: '2024-01-01T12:00:00Z',
-                  entries: { sender_id: 1, content: 'Hello!' },
+                  entries: { senderId: 1, content: 'Hello!' },
                 },
                 {
                   id: '101',
                   timestamp: '2024-01-01T12:01:00Z',
-                  entries: { sender_id: 0, content: 'Hi there!' },
+                  entries: { senderId: 0, content: 'Hi there!' },
                 },
               ],
             });
@@ -222,7 +221,7 @@ describe('chat.ts', () => {
                 {
                   id: '1',
                   timestamp: '2024-01-01T12:00:00Z',
-                  entries: { sender_id: 0, content: 'I am the assistant' },
+                  entries: { senderId: 0, content: 'I am the assistant' },
                 },
               ],
             });
@@ -256,7 +255,7 @@ describe('chat.ts', () => {
                 {
                   id: '1',
                   timestamp: '2024-01-01T12:00:00Z',
-                  entries: { sender_id: 5, content: 'I am a user' },
+                  entries: { senderId: 5, content: 'I am a user' },
                 },
               ],
             });

@@ -81,10 +81,11 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['./vitest.node.setup.ts'],
           include: ['src/**/*.node.test.ts?(x)'],
-          // Exclude browser tests, real tests, and matrix tests (separate projects)
+          // Exclude browser tests, real/api tests, and matrix tests (separate projects)
           exclude: [
             'src/**/*.browser.test.ts?(x)',
             'src/**/*.real.node.test.ts?(x)',
+            'src/**/*.api.node.test.ts?(x)',
             'src/**/*.matrix.node.test.ts?(x)',
           ],
           maxConcurrency: 30,
@@ -115,7 +116,7 @@ export default defineConfig({
           name: 'real',
           environment: 'jsdom',
           setupFiles: ['./vitest.node.setup.ts'],
-          include: ['src/**/*.real.node.test.ts?(x)'],
+          include: ['src/**/*.real.node.test.ts?(x)', 'src/**/*.api.node.test.ts?(x)'],
           exclude: ['src/**/*.browser.test.ts?(x)'],
           maxConcurrency: 10,
           env: TEST_ENV,
