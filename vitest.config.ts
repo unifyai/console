@@ -80,6 +80,7 @@ export default defineConfig({
         },
       },
 
+      // Regular browser tests (excludes matrix and benchmark tests)
       {
         extends: true,
         css: {
@@ -89,7 +90,11 @@ export default defineConfig({
           name: 'browser',
           setupFiles: ['./vitest.browser.setup.ts'],
           include: ['src/**/*.browser.test.ts?(x)'],
-          exclude: ['src/**/*.node.test.ts?(x)'],
+          exclude: [
+            'src/**/*.node.test.ts?(x)',
+            'src/**/*.matrix.browser.test.ts?(x)', // Matrix tests have dedicated workflow
+            'src/**/benchmarks/**', // Benchmark tests run on staging only
+          ],
           env: TEST_ENV,
           testTimeout: 10000,
           hookTimeout: 10000,
@@ -102,6 +107,56 @@ export default defineConfig({
             // Use sharding (--shard) to distribute tests across multiple processes
             instances: [{ browser: 'chromium' }],
             // Disable screenshots to allow concurrent test execution
+            screenshotFailures: false,
+          },
+        },
+      },
+
+      // Matrix browser tests (separate project for dedicated CI workflow)
+      {
+        extends: true,
+        css: {
+          postcss: './postcss.config.js',
+        },
+        test: {
+          name: 'browser-matrix',
+          setupFiles: ['./vitest.browser.setup.ts'],
+          include: ['src/**/*.matrix.browser.test.ts?(x)'],
+          exclude: ['src/**/*.node.test.ts?(x)'],
+          env: TEST_ENV,
+          testTimeout: 30000, // Matrix tests can be slower
+          hookTimeout: 10000,
+          fileParallelism: true,
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+            screenshotFailures: false,
+          },
+        },
+      },
+
+      // Benchmark browser tests (staging only)
+      {
+        extends: true,
+        css: {
+          postcss: './postcss.config.js',
+        },
+        test: {
+          name: 'browser-benchmarks',
+          setupFiles: ['./vitest.browser.setup.ts'],
+          include: ['src/**/benchmarks/**/*.browser.test.ts?(x)'],
+          exclude: ['src/**/*.node.test.ts?(x)'],
+          env: TEST_ENV,
+          testTimeout: 60000, // Benchmarks need more time
+          hookTimeout: 10000,
+          fileParallelism: true,
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: 'chromium' }],
             screenshotFailures: false,
           },
         },
