@@ -252,14 +252,25 @@ export function createLoggedFetch(serviceName: string) {
  *   data: { ... }
  * });
  */
+type HttpMethod =
+  | 'GET'
+  | 'DELETE'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'POST'
+  | 'PUT'
+  | 'PATCH'
+  | 'CONNECT'
+  | 'TRACE';
+
 export function wrapRequestWithLogging(serviceName: string) {
   return async <T>(
     requestFn: (config: {
       url: string;
-      method: string;
+      method: HttpMethod;
       data?: unknown;
     }) => Promise<{ status: number; data: T }>,
-    config: { url: string; method: string; data?: unknown }
+    config: { url: string; method: HttpMethod; data?: unknown }
   ): Promise<{ status: number; data: T }> => {
     if (!isLoggingEnabled()) {
       return requestFn(config);

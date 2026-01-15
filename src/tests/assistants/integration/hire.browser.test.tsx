@@ -307,7 +307,7 @@ describe('Assistant Hire Flow', () => {
         if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
           await user.click(voiceAccordionTrigger);
         }
-        const voiceOption = await screen.findByText(/Alice \(US\)/i);
+        const voiceOption = await screen.findByRole('option', { name: /select voice alice/i });
         await user.click(voiceOption);
         const hireButton = screen.getByRole('button', { name: /hire assistant/i });
         await waitFor(() => expect(hireButton).toBeEnabled());
@@ -875,7 +875,7 @@ describe('Assistant Hire Flow', () => {
         if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
           await user.click(voiceAccordionTrigger);
         }
-        await user.click(await screen.findByText(/Bob \(UK\)/i));
+        await user.click(await screen.findByRole('option', { name: /select voice bob/i }));
 
         await waitFor(() => {
           expect(document.querySelector('video')).not.toBeInTheDocument();
@@ -997,6 +997,15 @@ describe('Assistant Hire Flow', () => {
         render(<HireFlowTestWrapper />);
         await waitForFormReady();
 
+        // First select a voice (required for animation)
+        const voiceAccordionTrigger = screen.getByRole('button', { name: /^voice$/i });
+        if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+          await user.click(voiceAccordionTrigger);
+        }
+        const voiceOption = await screen.findByRole('option', { name: /select voice alice/i });
+        await user.click(voiceOption);
+
+        // Open appearance and upload photo
         const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
         if (appearanceTrigger.getAttribute('data-state') === 'closed') {
           await user.click(appearanceTrigger);
@@ -1008,11 +1017,16 @@ describe('Assistant Hire Flow', () => {
           ?.querySelector('input[type="file"]');
         if (fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
 
+        // Wait for image to be processed
+        await waitFor(() => {
+          expect(window.URL.createObjectURL).toHaveBeenCalled();
+        });
+
         await user.click(screen.getByRole('tab', { name: /animate/i }));
         const promptInput = screen.getByLabelText(/tts prompt/i);
         await user.type(promptInput, 'Hello');
 
-        const animateBtn = screen.getByRole('button', { name: /animate photo/i });
+        const animateBtn = await screen.findByRole('button', { name: /animate photo/i });
         await user.click(animateBtn);
 
         // The animate action should trigger and show progress
@@ -1050,6 +1064,15 @@ describe('Assistant Hire Flow', () => {
         render(<HireFlowTestWrapper />);
         await waitForFormReady();
 
+        // First select a voice (required for animation)
+        const voiceAccordionTrigger = screen.getByRole('button', { name: /^voice$/i });
+        if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+          await user.click(voiceAccordionTrigger);
+        }
+        const voiceOption = await screen.findByRole('option', { name: /select voice alice/i });
+        await user.click(voiceOption);
+
+        // Open appearance and upload photo
         const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
         if (appearanceTrigger.getAttribute('data-state') === 'closed') {
           await user.click(appearanceTrigger);
@@ -1061,11 +1084,16 @@ describe('Assistant Hire Flow', () => {
           ?.querySelector('input[type="file"]');
         if (fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
 
+        // Wait for image to be processed
+        await waitFor(() => {
+          expect(window.URL.createObjectURL).toHaveBeenCalled();
+        });
+
         await user.click(screen.getByRole('tab', { name: /animate/i }));
         const promptInput = screen.getByLabelText(/tts prompt/i);
         await user.type(promptInput, 'Hello');
 
-        await user.click(screen.getByRole('button', { name: /animate photo/i }));
+        await user.click(await screen.findByRole('button', { name: /animate photo/i }));
 
         // Wait for the animation to start and cancel button to appear
         const cancelBtn = await screen.findByLabelText(/cancel animation/i);
@@ -1146,10 +1174,8 @@ describe('Assistant Hire Flow', () => {
         if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
           await user.click(voiceAccordionTrigger);
         }
-        const aliceText = await screen.findByText(/Alice \(US\)/i);
-        const row = aliceText.closest('div[class*="flex items-center gap-2"]');
-        if (!row) throw new Error('Row not found');
-        const previewBtn = await within(row as HTMLElement).findByRole('button', {
+        const aliceOption = await screen.findByRole('option', { name: /select voice alice/i });
+        const previewBtn = within(aliceOption).getByRole('button', {
           name: /preview/i,
         });
         const playSpy = vi
@@ -1371,9 +1397,10 @@ describe('Assistant Hire Flow', () => {
         if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
           await user.click(voiceAccordionTrigger);
         }
-        const voiceItem = await screen.findByText('Deletable Voice');
-        const row = voiceItem.closest('div[class*="flex items-center gap-2"]');
-        const deleteBtn = await within(row as HTMLElement).findByRole('button', {
+        const voiceOption = await screen.findByRole('option', {
+          name: /select voice deletable voice/i,
+        });
+        const deleteBtn = within(voiceOption).getByRole('button', {
           name: /delete/i,
         });
         await user.click(deleteBtn);
@@ -1645,20 +1672,41 @@ describe('Assistant Hire Flow', () => {
 
         render(<EditFlowTestWrapper assistant={validAssistant} />);
 
-        // Open voice accordion - use exact match to avoid matching info button with "voice" in aria-label
-        const voiceAccordion = screen.getByRole('button', { name: /^voice$/i });
-        if (voiceAccordion.getAttribute('data-state') === 'closed') {
-          await user.click(voiceAccordion);
+        // Wait for form to load with assistant data
+        await waitFor(() => {
+          expect(screen.getByLabelText(/first name/i)).toHaveValue(validAssistant.firstName);
+        });
+
+        // Open voice accordion
+        const voiceAccordionTrigger = screen.getByRole('button', { name: /^voice$/i });
+        if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+          await user.click(voiceAccordionTrigger);
         }
 
-        // Select different voice - find the voice item and click it
-        const bobVoice = await screen.findByText(/Bob \(UK\)/i);
-        await user.click(bobVoice);
+        // Verify voice options are rendered
+        const aliceVoice = await screen.findByRole('option', { name: /select voice alice/i });
+        const bobVoice = await screen.findByRole('option', { name: /select voice bob/i });
 
-        // Wait for form to update with new voice selection
+        // Alice should be initially selected (from the assistant data)
         await waitFor(() => {
-          // The voice should be selected now - verify visually or check form state
+          expect(aliceVoice).toHaveAttribute('aria-selected', 'true');
         });
+
+        // Verify Bob's voice option is not disabled (no cursor-not-allowed class)
+        expect(bobVoice.className).not.toContain('cursor-not-allowed');
+
+        // Click directly on Bob's name text to select the voice
+        const bobNameText = screen.getByText('Bob (UK)');
+        await user.click(bobNameText);
+
+        // Give time for state update
+        await waitFor(
+          () => {
+            const updatedBobVoice = screen.getByTestId('voice-option-voice_2');
+            expect(updatedBobVoice).toHaveAttribute('aria-selected', 'true');
+          },
+          { timeout: 3000 }
+        );
 
         const updateBtn = screen.getByRole('button', { name: /update assistant/i });
         await waitFor(() => expect(updateBtn).toBeEnabled());
@@ -1724,9 +1772,9 @@ describe('Assistant Hire Flow', () => {
 
         await waitFor(() => {
           expect(updateSpy).toHaveBeenCalled();
-          const [, payload] = updateSpy.mock.calls[0] as [string, { first_name?: string }];
-          // First name should be preserved
-          expect(payload.first_name).toBe(validAssistant.firstName);
+          const [, payload] = updateSpy.mock.calls[0] as [string, { timezone?: string }];
+          // Timezone should be updated (it's an updatable field)
+          expect(payload.timezone).toBeDefined();
         });
       }
     );

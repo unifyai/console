@@ -281,6 +281,10 @@ export function VoiceCustomization({
     const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
     return (
       <div
+        role="option"
+        aria-selected={isSelected}
+        aria-label={`Select voice ${voice.name}`}
+        data-testid={`voice-option-${voice.voiceId}`}
         className={cn(
           'flex cursor-pointer items-center gap-2 rounded-md border p-2',
           isSelected
