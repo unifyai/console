@@ -25,7 +25,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
         return { detail: 'Server configuration error: Application URL not found.' };
       }
 
-      const filterExpr = `userId == '${userId}' and assistantId == '${assistantId}' and running == 'true'`;
+      const filterExpr = `user_id == '${userId}' and assistant_id == '${assistantId}' and running == 'true'`;
 
       const url = new URL(`${nextAuthUrl}/api/logs`);
       url.searchParams.append('projectName', 'AssistantJobs');

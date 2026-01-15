@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
+import { wrapRequestWithLogging } from '@/lib/logging/fetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -26,11 +27,14 @@ async function getAuthClient() {
   const auth = new GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/pubsub'],
-    projectId: credentials.projectId,
+    projectId: credentials.project_id,
   });
 
-  return { client: await auth.getClient(), projectId: credentials.projectId };
+  return { client: await auth.getClient(), projectId: credentials.project_id };
 }
+
+// Create a logged request wrapper for Pub/Sub calls
+const loggedPubSubRequest = wrapRequestWithLogging('PUBSUB');
 
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
@@ -85,14 +89,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       while (!request.signal.aborted) {
         try {
           // 2. HTTP PULL Request
-          const res = await authClient.request({
+          const res = await loggedPubSubRequest(authClient.request.bind(authClient), {
             url: `${subscriptionUrl}:pull`,
             method: 'POST',
             data: {
               maxMessages: 1,
               returnImmediately: false,
             },
-            validateStatus: () => true,
           });
 
           if (res.status !== 200) {
@@ -105,7 +108,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             continue;
           }
 
-          const receivedMessages = res.data.receivedMessages || [];
+          const responseData = res.data as {
+            receivedMessages?: Array<{
+              ackId: string;
+              message?: { data: string; messageId: string; publishTime: string };
+            }>;
+          };
+          const receivedMessages = responseData.receivedMessages || [];
 
           for (const item of receivedMessages) {
             const { ackId, message } = item;
@@ -115,13 +124,11 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             if (request.signal.aborted) {
               console.log('[SSE] Client aborted. NACKing message via modifyAckDeadline.');
               // Explicit NACK (REST)
-              await authClient
-                .request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-                })
-                .catch(() => {});
+              await loggedPubSubRequest(authClient.request.bind(authClient), {
+                url: `${subscriptionUrl}:modifyAckDeadline`,
+                method: 'POST',
+                data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+              }).catch(() => {});
               break;
             }
 
@@ -149,7 +156,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
               // extend ack deadline to give client time (safety)
               try {
-                await authClient.request({
+                await loggedPubSubRequest(authClient.request.bind(authClient), {
                   url: `${subscriptionUrl}:modifyAckDeadline`,
                   method: 'POST',
                   data: { ackIds: [ackId], ackDeadlineSeconds: 5 },
@@ -163,13 +170,11 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             } catch (err) {
               console.error('[SSE] Error processing, NACKing:', err);
               // NACK on error
-              await authClient
-                .request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-                })
-                .catch(() => {});
+              await loggedPubSubRequest(authClient.request.bind(authClient), {
+                url: `${subscriptionUrl}:modifyAckDeadline`,
+                method: 'POST',
+                data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+              }).catch(() => {});
             }
           }
         } catch (error: any) {

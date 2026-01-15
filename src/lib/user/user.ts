@@ -19,7 +19,7 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
  */
 export async function getUserByID(userId: string) {
   const response = (await OrchestraAdminClient.get('/auth-user/by-user-id', {
-    params: { userId: userId },
+    params: { user_id: userId },
   })) as { data: unknown };
   return snakeToCamelObject<User>(response.data as Record<string, unknown>);
 }
@@ -57,7 +57,7 @@ export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> 
  */
 export async function deleteUser(userID: string) {
   const response = (await OrchestraAdminClient.delete('/auth-user', {
-    params: { userId: userID },
+    params: { user_id: userID },
   })) as { data: string };
   return response.data;
 }

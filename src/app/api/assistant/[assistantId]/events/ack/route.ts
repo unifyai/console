@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { badRequest, internalError } from '../../../../_utils/auth';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
+import { wrapRequestWithLogging } from '@/lib/logging/fetch';
 
 async function getAuthClient() {
   const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
@@ -17,11 +18,14 @@ async function getAuthClient() {
   const auth = new GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/pubsub'],
-    projectId: credentials.projectId,
+    projectId: credentials.project_id,
   });
 
-  return { client: await auth.getClient(), projectId: credentials.projectId };
+  return { client: await auth.getClient(), projectId: credentials.project_id };
 }
+
+// Create a logged request wrapper for Pub/Sub calls
+const loggedPubSubRequest = wrapRequestWithLogging('PUBSUB');
 
 export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-outbound-sub`;
     const subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${projectId}/subscriptions/${subscriptionName}`;
 
-    await client.request({
+    await loggedPubSubRequest(client.request.bind(client), {
       url: `${subscriptionUrl}:acknowledge`,
       method: 'POST',
       data: { ackIds: [ackId] },

@@ -31,7 +31,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
     try {
       const project = 'Assistants';
       const context = `${ownerContext}/${assistantContext}/Contacts`;
-      const filterExpr = `emailAddress == "${userEmail}"`;
+      const filterExpr = `email_address == "${userEmail}"`;
       const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
       const response = await fetch(url, {

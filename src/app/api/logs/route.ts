@@ -17,10 +17,32 @@ export async function GET(request: NextRequest) {
   const client = createOrchestraClient(apiKey);
 
   // Extract query params for the logs endpoint
-  const project = searchParams.get('project');
-  const tags = searchParams.get('tags');
-  const startTime = searchParams.get('startTime');
-  const endTime = searchParams.get('endTime');
+  // Support both camelCase (frontend) and snake_case (legacy) param names
+  const projectName = searchParams.get('projectName') || searchParams.get('project') || '';
+  const context = searchParams.get('context') || undefined;
+  const columnContext =
+    searchParams.get('columnContext') || searchParams.get('column_context') || undefined;
+  const filterExpr = searchParams.get('filterExpr') || searchParams.get('filter_expr') || undefined;
+  const sorting = searchParams.get('sorting') || undefined;
+  const groupBy = searchParams.getAll('groupBy'); // Can have multiple values
+  const groupSorting =
+    searchParams.get('groupSorting') || searchParams.get('group_sorting') || undefined;
+  const fromIds = searchParams.get('fromIds') || searchParams.get('from_ids') || undefined;
+  const fromFields = searchParams.get('fromFields') || searchParams.get('from_fields') || undefined;
+  const excludeFields =
+    searchParams.get('excludeFields') || searchParams.get('exclude_fields') || undefined;
+  const limit = searchParams.get('limit') || undefined;
+  const offset = searchParams.get('offset') || undefined;
+  const groupLimit = searchParams.get('groupLimit') || searchParams.get('group_limit') || undefined;
+  const groupOffset =
+    searchParams.get('groupOffset') || searchParams.get('group_offset') || undefined;
+  const groupDepth = searchParams.get('groupDepth') || searchParams.get('group_depth') || undefined;
+  const returnIdsOnly =
+    searchParams.get('returnIdsOnly') || searchParams.get('return_ids_only') || undefined;
+  const randomize = searchParams.get('randomize') || undefined;
+  const tags = searchParams.get('tags') || undefined;
+  const startTime = searchParams.get('startTime') || searchParams.get('start_time') || undefined;
+  const endTime = searchParams.get('endTime') || searchParams.get('end_time') || undefined;
 
   try {
     const startedAt = Date.now();
@@ -29,10 +51,26 @@ export async function GET(request: NextRequest) {
     const { data, error, response } = await client.GET('/v0/logs', {
       params: {
         query: {
-          project_name: project || '',
-          tags: tags || undefined,
-          start_time: startTime || undefined,
-          end_time: endTime || undefined,
+          project_name: projectName,
+          context: context,
+          column_context: columnContext,
+          filter_expr: filterExpr,
+          sorting: sorting,
+          group_by: groupBy.length > 0 ? groupBy : undefined,
+          group_sorting: groupSorting,
+          from_ids: fromIds,
+          from_fields: fromFields,
+          exclude_fields: excludeFields,
+          limit: limit ? parseInt(limit, 10) : undefined,
+          offset: offset ? parseInt(offset, 10) : undefined,
+          group_limit: groupLimit ? parseInt(groupLimit, 10) : undefined,
+          group_offset: groupOffset ? parseInt(groupOffset, 10) : undefined,
+          group_depth: groupDepth ? parseInt(groupDepth, 10) : undefined,
+          return_ids_only: returnIdsOnly === 'true' ? true : undefined,
+          randomize: randomize === 'true' ? true : undefined,
+          tags: tags,
+          start_time: startTime,
+          end_time: endTime,
         },
       },
     });
