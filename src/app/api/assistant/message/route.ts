@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('[API /api/assistant/message] Error calling webhook:', error.message);
-    return internalError(`Connection error: ${error.message}`);
+    // Return 502 Bad Gateway for upstream connection failures (not 500 Internal Server Error)
+    return NextResponse.json(
+      { detail: `Webhook connection error: ${error.message}` },
+      { status: 502 }
+    );
   }
 }

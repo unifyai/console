@@ -11,6 +11,29 @@ import '@/styles/globals.css';
 
 export const worker = setupWorker(...handlers);
 
+// ════════════════════════════════════════════════════════════════════════════════
+// GLOBAL ERROR HANDLER FOR PLAYWRIGHT ROUTE RACE CONDITION
+// ════════════════════════════════════════════════════════════════════════════════
+// This suppresses the "route.fulfill: The object has been collected" error that
+// occurs when MSW tries to fulfill a route after Playwright has garbage collected
+// the route object during test teardown. This is a known issue:
+// https://github.com/vitest-dev/vitest/issues/7290
+//
+// The error is harmless - it just means a network response wasn't delivered to a
+// page that was already being destroyed. Suppressing it prevents CI failures.
+// ════════════════════════════════════════════════════════════════════════════════
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (
+      event.reason?.message?.includes('The object has been collected') ||
+      event.reason?.message?.includes('route.fulfill')
+    ) {
+      event.preventDefault();
+      // Silently suppress - this is expected during test teardown
+    }
+  });
+}
+
 // === Event-based screenshot logic ===
 let currentTestName = '';
 let actionCounter = 0;
@@ -118,10 +141,11 @@ afterEach(async () => {
   // See: https://github.com/vitest-dev/vitest/issues/7290
   if (page) {
     try {
-      // Small delay to allow pending MSW handlers to complete their route.fulfill() calls
-      // before the page context is torn down. 100ms provides sufficient margin under
-      // CPU contention in CI while keeping overhead reasonable (~3 min per shard).
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Delay to allow pending MSW handlers to complete their route.fulfill() calls
+      // before the page context is torn down. 250ms provides sufficient margin under
+      // heavy CPU contention in CI sharded runs. Combined with the global unhandled
+      // rejection handler above, this should prevent all route.fulfill race conditions.
+      await new Promise((resolve) => setTimeout(resolve, 250));
     } catch {
       // Ignore errors if page is already closed
     }
