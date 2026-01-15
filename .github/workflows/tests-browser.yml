@@ -174,8 +174,9 @@ jobs:
 
           for i in $(seq $START_SHARD $END_SHARD); do
             PID_IDX=$((i - START_SHARD))
-            wait ${PIDS[$PID_IDX]}
-            SHARD_EXIT=$?
+            # Capture exit code without triggering errexit
+            SHARD_EXIT=0
+            wait ${PIDS[$PID_IDX]} || SHARD_EXIT=$?
             
             LOG_FILE="$LOG_DIR/shard-$i.log"
             LOG_LINES=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
