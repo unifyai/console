@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildCacheControl } from '../_utils/cacheResponse';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
-import { loggedFetch } from '@/lib/logging/fetch';
 
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
@@ -129,25 +128,21 @@ export async function DELETE(request: NextRequest) {
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 
     // Use direct fetch for DELETE because openapi-fetch doesn't properly send body for DELETE requests
-    const response = await loggedFetch(
-      `${orchestraUrl}/v0/logs`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          project_name: projectName,
-          context: context,
-          ids_and_fields: idsAndFields,
-          source_type: sourceType,
-          delete_empty_logs: deleteEmptyLogs,
-          delete_empty_fields: deleteEmptyFields,
-        }),
+    const response = await fetch(`${orchestraUrl}/v0/logs`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
-      'ORCHESTRA'
-    );
+      body: JSON.stringify({
+        project_name: projectName,
+        context: context,
+        ids_and_fields: idsAndFields,
+        source_type: sourceType,
+        delete_empty_logs: deleteEmptyLogs,
+        delete_empty_fields: deleteEmptyFields,
+      }),
+    });
 
     const data = await response.json().catch(() => null);
 

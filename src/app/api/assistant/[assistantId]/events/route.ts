@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
-import { wrapRequestWithLogging } from '@/lib/logging/fetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -32,9 +31,6 @@ async function getAuthClient() {
 
   return { client: await auth.getClient(), projectId: credentials.project_id };
 }
-
-// Create a logged request wrapper for Pub/Sub calls
-const loggedPubSubRequest = wrapRequestWithLogging('PUBSUB');
 
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
@@ -89,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       while (!request.signal.aborted) {
         try {
           // 2. HTTP PULL Request
-          const res = await loggedPubSubRequest(authClient.request.bind(authClient), {
+          const res = await authClient.request({
             url: `${subscriptionUrl}:pull`,
             method: 'POST',
             data: {
@@ -124,11 +120,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             if (request.signal.aborted) {
               console.log('[SSE] Client aborted. NACKing message via modifyAckDeadline.');
               // Explicit NACK (REST)
-              await loggedPubSubRequest(authClient.request.bind(authClient), {
-                url: `${subscriptionUrl}:modifyAckDeadline`,
-                method: 'POST',
-                data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-              }).catch(() => {});
+              await authClient
+                .request({
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
+                  method: 'POST',
+                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+                })
+                .catch(() => {});
               break;
             }
 
@@ -156,7 +154,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
               // extend ack deadline to give client time (safety)
               try {
-                await loggedPubSubRequest(authClient.request.bind(authClient), {
+                await authClient.request({
                   url: `${subscriptionUrl}:modifyAckDeadline`,
                   method: 'POST',
                   data: { ackIds: [ackId], ackDeadlineSeconds: 5 },
@@ -170,11 +168,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             } catch (err) {
               console.error('[SSE] Error processing, NACKing:', err);
               // NACK on error
-              await loggedPubSubRequest(authClient.request.bind(authClient), {
-                url: `${subscriptionUrl}:modifyAckDeadline`,
-                method: 'POST',
-                data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-              }).catch(() => {});
+              await authClient
+                .request({
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
+                  method: 'POST',
+                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+                })
+                .catch(() => {});
             }
           }
         } catch (error: any) {
