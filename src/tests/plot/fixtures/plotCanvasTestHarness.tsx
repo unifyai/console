@@ -444,9 +444,10 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
 
         // For scatter plots, accept either SVG points or WebGL canvas
         const currentProps = propsRef.current?.getProps() ?? options;
-        const isScatter =
-          currentProps.plotType === 'Scatter Plot' ||
-          mapPlotType(currentProps.plotConfig?.type) === 'Scatter Plot';
+        // Use plotType if set, otherwise fall back to mapped plotConfig.type
+        const effectivePlotType =
+          currentProps.plotType ?? mapPlotType(currentProps.plotConfig?.type);
+        const isScatter = effectivePlotType === 'Scatter Plot';
 
         if (isScatter) {
           const hasWebGL = webglCanvas !== null && webglCanvas.style.display !== 'none';
