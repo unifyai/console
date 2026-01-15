@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Laptop, KeyRound, Check, Contact } from 'lucide-react';
-import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { Laptop, KeyRound, Check, Contact, Download } from 'lucide-react';
+import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -8,6 +8,7 @@ interface AssistantResourcesManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenSetupInstructions?: (os: DesktopMode) => void;
   /** Whether the current user can edit this assistant's resources */
   canWrite?: boolean;
 }
@@ -71,6 +72,7 @@ export function AssistantResourcesManager({
   assistant,
   assistantActions,
   onOpenContactManager,
+  onOpenSetupInstructions,
   canWrite = true,
 }: AssistantResourcesManagerProps) {
   const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
@@ -79,9 +81,17 @@ export function AssistantResourcesManager({
   return (
     <>
       <div className="w-full space-y-2">
+        {assistant.isUserDesktop && assistant.desktopMode && onOpenSetupInstructions && (
+          <ContactItem
+            value="Local Setup Instructions"
+            tooltip="View setup instructions and download installer"
+            icon={<Download className="h-4 w-4 flex-shrink-0" />}
+            handleClick={() => onOpenSetupInstructions(assistant.desktopMode!)}
+          />
+        )}
         {assistant.desktopUrl && (
           <ContactItem
-            value="Copy local workspace link"
+            value="Local Workspace Link"
             copyValue={assistant.desktopUrl}
             tooltip={'Copy the URL of your local desktop configuration'}
             icon={<Laptop className="h-4 w-4 flex-shrink-0" />}

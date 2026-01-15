@@ -12,7 +12,7 @@ import {
   Phone,
   Video,
 } from 'lucide-react';
-import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -50,6 +50,7 @@ interface AssistantProfilePanelProps {
   onDeleteAssistant: (assistant: Assistant) => Promise<void>;
   onEdit: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenSetupInstructions?: (os: DesktopMode) => void;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   userEmail: string | null | undefined;
@@ -107,6 +108,7 @@ export function AssistantProfilePanel({
   onDeleteAssistant,
   onEdit,
   onOpenContactManager,
+  onOpenSetupInstructions,
   chatHistories,
   setChatHistories,
   userEmail,
@@ -226,6 +228,7 @@ export function AssistantProfilePanel({
                   assistant={assistant}
                   assistantActions={assistantActions}
                   onOpenContactManager={onOpenContactManager}
+                  onOpenSetupInstructions={onOpenSetupInstructions}
                   canWrite={canWrite}
                 />
               </AccordionContent>

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
-import { Laptop, WifiOff } from 'lucide-react';
+import { Download, Laptop, WifiOff } from 'lucide-react';
 import { Skeleton } from '@/components/UI/skeleton';
 import Markdown from 'react-markdown';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -29,6 +29,13 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+// Map OS to display name for the download button
+const OS_DISPLAY_NAMES: Record<string, string> = {
+  ubuntu: 'Ubuntu (.deb)',
+  windows: 'Windows (.nupkg)',
+  macos: 'macOS (.dmg)',
+};
+
 export function AssistantHireLocalSetupInstructionsDialog({
   isOpen,
   onClose,
@@ -37,8 +44,6 @@ export function AssistantHireLocalSetupInstructionsDialog({
   const [content, setContent] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-
-  const branch = os === 'windows' ? 'win' : os;
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -50,20 +55,25 @@ export function AssistantHireLocalSetupInstructionsDialog({
       setError(null);
       setContent(null);
 
-      // Construct the URL for the raw README.md file
-      const readmeUrl = `https://raw.githubusercontent.com/unifyai/unify-desktop-assistant/${branch}/README.md`;
-
       try {
-        const response = await fetch(readmeUrl);
+        // Fetch instructions from our API route (proxies to GitHub)
+        const response = await fetch(`/api/assistant/local/install?os=${os}`);
+
         if (!response.ok) {
-          throw new Error(`Failed to fetch instructions (status: ${response.status})`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.detail || `Failed to fetch instructions (status: ${response.status})`
+          );
         }
-        const textContent = await response.text();
-        setContent(textContent);
+
+        const data = await response.json();
+        setContent(data.content);
       } catch (err) {
         console.error('Failed to fetch setup instructions:', err);
         setError(
-          `Could not load setup instructions for ${os}. Please check the repository or try again later.`
+          err instanceof Error
+            ? err.message
+            : `Could not load setup instructions for ${os}. Please try again later.`
         );
       } finally {
         setIsLoading(false);
@@ -71,7 +81,12 @@ export function AssistantHireLocalSetupInstructionsDialog({
     };
 
     fetchInstructions();
-  }, [isOpen, os, branch]);
+  }, [isOpen, os]);
+
+  const handleDownload = () => {
+    // Trigger download via the API route
+    window.open(`/api/assistant/local/download?os=${os}`, '_blank');
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -114,8 +129,19 @@ export function AssistantHireLocalSetupInstructionsDialog({
 
         <ScrollArea className="my-4 max-h-[60vh] pr-4">{renderContent()}</ScrollArea>
 
-        <DialogFooter>
-          <Button onClick={onClose}>Done</Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            disabled={isLoading || !!error}
+            className="w-full sm:w-auto"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download {OS_DISPLAY_NAMES[os] || os}
+          </Button>
+          <Button onClick={onClose} className="w-full sm:w-auto">
+            Done
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

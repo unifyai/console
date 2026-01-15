@@ -101,6 +101,82 @@ export const postMessageHandler = http.post('/api/assistant/message', async () =
   return HttpResponse.json({ info: 'Message sent to assistant for processing.' }, { status: 202 });
 });
 
+// --- Local Desktop Setup Handlers ---
+
+const MOCK_README_UBUNTU = `# Unify Desktop Assistant - Ubuntu
+
+## Installation
+
+1. Download the .deb package
+2. Run: sudo dpkg -i unify-desktop-assistant.deb
+3. Follow the setup wizard
+`;
+
+const MOCK_README_WINDOWS = `# Unify Desktop Assistant - Windows
+
+## Installation
+
+1. Download the .nupkg package
+2. Run the installer
+3. Follow the setup wizard
+`;
+
+const MOCK_README_MACOS = `# Unify Desktop Assistant - macOS
+
+## Installation
+
+1. Download the .dmg file
+2. Open and drag to Applications
+3. Follow the setup wizard
+`;
+
+export const getLocalInstallHandler = http.get('/api/assistant/local/install', ({ request }) => {
+  const url = new URL(request.url);
+  const os = url.searchParams.get('os');
+
+  if (!os || !['ubuntu', 'windows', 'macos'].includes(os)) {
+    return HttpResponse.json(
+      { detail: "Invalid or missing 'os' parameter. Must be one of: ubuntu, windows, macos" },
+      { status: 400 }
+    );
+  }
+
+  const readmeMap: Record<string, string> = {
+    ubuntu: MOCK_README_UBUNTU,
+    windows: MOCK_README_WINDOWS,
+    macos: MOCK_README_MACOS,
+  };
+
+  return HttpResponse.json({ content: readmeMap[os] });
+});
+
+export const getLocalDownloadHandler = http.get('/api/assistant/local/download', ({ request }) => {
+  const url = new URL(request.url);
+  const os = url.searchParams.get('os');
+
+  if (!os || !['ubuntu', 'windows', 'macos'].includes(os)) {
+    return HttpResponse.json(
+      { detail: "Invalid or missing 'os' parameter. Must be one of: ubuntu, windows, macos" },
+      { status: 400 }
+    );
+  }
+
+  const filenameMap: Record<string, string> = {
+    ubuntu: 'unify-desktop-assistant.deb',
+    windows: 'unify-desktop-assistant.nupkg',
+    macos: 'unify-desktop-assistant.dmg',
+  };
+
+  // Return mock binary data
+  const mockBinary = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+  return new HttpResponse(mockBinary, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${filenameMap[os]}"`,
+    },
+  });
+});
+
 export const assistantHandlers = [
   getAssistantsSuccess,
   getTranscriptsHandler,
@@ -110,4 +186,6 @@ export const assistantHandlers = [
   getCountriesHandler,
   getSocialPlatformsHandler,
   listAssistantEmailsHandler,
+  getLocalInstallHandler,
+  getLocalDownloadHandler,
 ];
