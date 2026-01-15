@@ -33,6 +33,7 @@ yarn-error.log*
 
 # API call logs
 api-calls.log
+.log-filter
 
 # local env files
 .env
