@@ -95,6 +95,37 @@ export interface PlotCanvasTestOptions {
    * Will be reset after the test via resetConfig().
    */
   scatterConfigOverrides?: Partial<ScatterConfig>;
+
+  // === Axis Customization ===
+  /** Whether to show X axis label (default: true) */
+  showXAxisLabel?: boolean;
+  /** Whether to show Y axis label (default: true) */
+  showYAxisLabel?: boolean;
+  /** Custom label for X axis */
+  xAxisLabel?: string;
+  /** Custom label for Y axis */
+  yAxisLabel?: string;
+  /** Function to format X axis tick values */
+  xTickFormatter?: (value: unknown) => string;
+  /** Function to format Y axis tick values */
+  yTickFormatter?: (value: unknown) => string;
+  /** Custom label for group by field */
+  groupByLabel?: string;
+  /** Custom label for aggregate field */
+  aggregateLabel?: string;
+
+  // === Drawer Integration ===
+  /** Callback when groups are computed */
+  onGroupsChange?: (groups: Array<{ key: string; color: string }>) => void;
+  /** Callback when a datapoint is clicked/pinned */
+  onDatapointPin?: (datapoint: {
+    id: string;
+    x: { label: string; value: string | number };
+    y: { label: string; value: string | number };
+    group?: { label: string; value: string };
+  }) => void;
+  /** Highlight target for bidirectional hover highlighting */
+  highlightTarget?: import('@/types/interfaces/plot').HighlightTarget;
 }
 
 export interface PlotCanvasTestResult extends RenderResult {
@@ -145,6 +176,27 @@ export interface PlotCanvasTestResult extends RenderResult {
   resetScatterConfig: () => void;
   /** Get current scatter config */
   getScatterConfig: () => ScatterConfig;
+
+  // === Drawer & Highlight Support ===
+
+  /** Get bar opacities for highlight testing */
+  getBarOpacities: () => number[];
+  /** Get scatter point opacities for highlight testing */
+  getScatterPointOpacities: () => number[];
+  /** Get histogram bin opacities for highlight testing */
+  getHistogramBinOpacities: () => number[];
+  /** Get unique groups from grouped bars */
+  getBarGroups: () => string[];
+  /** Get bars filtered by group key */
+  getBarsByGroup: (groupKey: string) => SVGRectElement[];
+  /** Simulate group highlight by updating props with highlightTarget */
+  simulateGroupHighlight: (groupKey: string) => void;
+  /** Simulate datapoint highlight by updating props with highlightTarget */
+  simulateDatapointHighlight: (datapointId: string) => void;
+  /** Clear any active highlight */
+  clearHighlight: () => void;
+  /** Wait for highlight transition to complete (200ms + buffer) */
+  waitForHighlightTransition: () => Promise<void>;
 }
 
 // =============================================================================
@@ -277,6 +329,19 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
         svgRef={svgRef as React.RefObject<SVGSVGElement>}
         containerRef={containerRef as React.RefObject<HTMLDivElement>}
         settingsRef={settingsRef as React.RefObject<HTMLDivElement>}
+        // Axis customization props
+        showXAxisLabel={options.showXAxisLabel}
+        showYAxisLabel={options.showYAxisLabel}
+        xAxisLabel={options.xAxisLabel}
+        yAxisLabel={options.yAxisLabel}
+        xTickFormatter={options.xTickFormatter}
+        yTickFormatter={options.yTickFormatter}
+        groupByLabel={options.groupByLabel}
+        aggregateLabel={options.aggregateLabel}
+        // Drawer integration props
+        onGroupsChange={options.onGroupsChange}
+        onDatapointPin={options.onDatapointPin}
+        highlightTarget={options.highlightTarget}
       />
     </div>
   );
@@ -473,6 +538,94 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     await new Promise((resolve) => setTimeout(resolve, 600));
   };
 
+  // === Drawer & Highlight Support ===
+
+  /**
+   * Get bar opacities for highlight testing
+   */
+  const getBarOpacities = (): number[] => {
+    const bars = getBars();
+    return bars.map((bar) => parseFloat(bar.style.opacity || '1'));
+  };
+
+  /**
+   * Get scatter point opacities for highlight testing
+   */
+  const getScatterPointOpacities = (): number[] => {
+    const points = getScatterPoints();
+    return points.map((point) => parseFloat(point.style.opacity || '1'));
+  };
+
+  /**
+   * Get histogram bin opacities for highlight testing
+   */
+  const getHistogramBinOpacities = (): number[] => {
+    const bins = getHistogramBins();
+    return bins.map((bin) => parseFloat(bin.style.opacity || '1'));
+  };
+
+  /**
+   * Get unique groups from grouped bars
+   */
+  const getBarGroups = (): string[] => {
+    const bars = getBars();
+    const groups = new Set<string>();
+
+    bars.forEach((bar) => {
+      const barData = (bar as any).__data__;
+      if (barData && barData[0]) {
+        groups.add(barData[0]);
+      }
+    });
+
+    return Array.from(groups);
+  };
+
+  /**
+   * Get bars filtered by group key
+   */
+  const getBarsByGroup = (groupKey: string): SVGRectElement[] => {
+    const bars = getBars();
+    return bars.filter((bar) => {
+      const barData = (bar as any).__data__;
+      return barData && barData[0] === groupKey;
+    });
+  };
+
+  /**
+   * Simulate group highlight by updating highlightTarget
+   */
+  const simulateGroupHighlight = (groupKey: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'group', groupKey },
+    } as any);
+  };
+
+  /**
+   * Simulate datapoint highlight by updating highlightTarget
+   */
+  const simulateDatapointHighlight = (datapointId: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'datapoint', datapointId },
+    } as any);
+  };
+
+  /**
+   * Clear any active highlight
+   */
+  const clearHighlight = (): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'none' },
+    } as any);
+  };
+
+  /**
+   * Wait for highlight transition to complete (200ms transition + 50ms buffer)
+   */
+  const waitForHighlightTransition = async (): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  };
+
   return {
     ...renderResult,
     getSvg,
@@ -498,6 +651,16 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     getExpectedRenderMode,
     resetScatterConfig: resetConfig,
     getScatterConfig: getConfig,
+    // Drawer & highlight support
+    getBarOpacities,
+    getScatterPointOpacities,
+    getHistogramBinOpacities,
+    getBarGroups,
+    getBarsByGroup,
+    simulateGroupHighlight,
+    simulateDatapointHighlight,
+    clearHighlight,
+    waitForHighlightTransition,
   };
 }
 

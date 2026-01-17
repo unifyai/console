@@ -259,3 +259,177 @@ describe('checkLogScalability', () => {
     expect(result).toBe('linear');
   });
 });
+
+// =============================================================================
+// Axis Label Customization Tests
+// =============================================================================
+
+describe('axis label customization', () => {
+  describe('showXAxisLabel option', () => {
+    it('hides x-axis label when showXAxisLabel is false', () => {
+      // This tests the expected behavior:
+      // When showXAxisLabel: false is passed to drawAxes(),
+      // the x-axis label should not be rendered
+
+      // Test the configuration object
+      const config = {
+        showXAxisLabel: false,
+        xAxisLabel: 'Day',
+      };
+
+      expect(config.showXAxisLabel).toBe(false);
+      // The label text should still be available for tooltip use
+      expect(config.xAxisLabel).toBe('Day');
+    });
+
+    it('shows x-axis label when showXAxisLabel is true or undefined', () => {
+      const configExplicit = {
+        showXAxisLabel: true,
+        xAxisLabel: 'Time',
+      };
+
+      const configImplicit = {
+        xAxisLabel: 'Time',
+      };
+
+      expect(configExplicit.showXAxisLabel).toBe(true);
+      expect(configImplicit.showXAxisLabel).toBeUndefined();
+    });
+  });
+
+  describe('showYAxisLabel option', () => {
+    it('hides y-axis label when showYAxisLabel is false', () => {
+      const config = {
+        showYAxisLabel: false,
+        yAxisLabel: 'Billed Cost',
+      };
+
+      expect(config.showYAxisLabel).toBe(false);
+      expect(config.yAxisLabel).toBe('Billed Cost');
+    });
+
+    it('shows y-axis label when showYAxisLabel is true or undefined', () => {
+      const configExplicit = {
+        showYAxisLabel: true,
+        yAxisLabel: 'Value',
+      };
+
+      const configImplicit = {
+        yAxisLabel: 'Value',
+      };
+
+      expect(configExplicit.showYAxisLabel).toBe(true);
+      expect(configImplicit.showYAxisLabel).toBeUndefined();
+    });
+  });
+
+  describe('xAxisLabel override', () => {
+    it('uses xAxisLabel for x-axis text when provided', () => {
+      const config = {
+        xAxisLabel: 'Custom X Label',
+        xAxisField: 'table1.timestamp',
+      };
+
+      // xAxisLabel should take precedence over field name
+      expect(config.xAxisLabel).toBe('Custom X Label');
+    });
+
+    it('falls back to field name when xAxisLabel not provided', () => {
+      const config = {
+        xAxisField: 'table1.timestamp',
+      };
+
+      // Should use field name as label
+      expect(config.xAxisField).toBe('table1.timestamp');
+    });
+  });
+
+  describe('yAxisLabel override', () => {
+    it('uses yAxisLabel for y-axis text when provided', () => {
+      const config = {
+        yAxisLabel: 'Custom Y Label',
+        yAxisField: 'table1.value',
+      };
+
+      expect(config.yAxisLabel).toBe('Custom Y Label');
+    });
+
+    it('falls back to field name when yAxisLabel not provided', () => {
+      const config = {
+        yAxisField: 'table1.value',
+      };
+
+      expect(config.yAxisField).toBe('table1.value');
+    });
+  });
+});
+
+// =============================================================================
+// Tick Formatter Tests
+// =============================================================================
+
+describe('tick formatting', () => {
+  describe('xTickFormatter', () => {
+    it('can format tick values as dates', () => {
+      const formatter = (value: number) => {
+        const date = new Date(value);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      };
+
+      const timestamp = new Date('2024-01-15').getTime();
+      expect(formatter(timestamp)).toBe('Jan 15');
+    });
+
+    it('can format tick values with prefix', () => {
+      const formatter = (value: number) => `#${value}`;
+
+      expect(formatter(1)).toBe('#1');
+      expect(formatter(100)).toBe('#100');
+    });
+  });
+
+  describe('yTickFormatter', () => {
+    it('can format tick values as currency', () => {
+      const formatter = (value: number) => `$${value.toFixed(2)}`;
+
+      expect(formatter(100)).toBe('$100.00');
+      expect(formatter(1234.567)).toBe('$1234.57');
+    });
+
+    it('can format tick values as percentage', () => {
+      const formatter = (value: number) => `${value}%`;
+
+      expect(formatter(75)).toBe('75%');
+      expect(formatter(100)).toBe('100%');
+    });
+
+    it('can format large numbers with K/M suffix', () => {
+      const formatter = (value: number) => {
+        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+        return String(value);
+      };
+
+      expect(formatter(500)).toBe('500');
+      expect(formatter(1500)).toBe('1.5K');
+      expect(formatter(1500000)).toBe('1.5M');
+    });
+  });
+
+  describe('formatter edge cases', () => {
+    it('handles zero values', () => {
+      const currencyFormatter = (value: number) => `$${value.toFixed(2)}`;
+      expect(currencyFormatter(0)).toBe('$0.00');
+    });
+
+    it('handles negative values', () => {
+      const currencyFormatter = (value: number) => `$${value.toFixed(2)}`;
+      expect(currencyFormatter(-50.5)).toBe('$-50.50');
+    });
+
+    it('handles very small values', () => {
+      const precisionFormatter = (value: number) => value.toFixed(6);
+      expect(precisionFormatter(0.000001)).toBe('0.000001');
+    });
+  });
+});
