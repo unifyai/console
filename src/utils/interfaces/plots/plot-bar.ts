@@ -155,7 +155,36 @@ function onClick(
     aggregate,
     axisCustomization
   );
-  showFixedTooltip(event, tooltipData, settings);
+
+  // Call external drawer callback if provided
+  if (axisCustomization?.onDatapointPin) {
+    const xLabel = axisCustomization.xAxisLabel || xAxisProperty || 'X';
+    const yLabel = axisCustomization.yAxisLabel || yAxisProperty || 'Y';
+    const groupLabel = axisCustomization.groupByLabel || groupBy || 'Group';
+
+    if (groupBy) {
+      const group = (d as GroupedDataLabel)[0];
+      const xValue = (d as GroupedDataLabel)[1][0];
+      const yValue = (d as GroupedDataLabel)[1][1];
+      axisCustomization.onDatapointPin({
+        id: `${group}-${xValue}-${yValue}`,
+        x: { label: xLabel, value: xValue },
+        y: { label: `${yLabel} (${metric})`, value: yValue },
+        group: { label: groupLabel, value: String(group) },
+      });
+    } else {
+      const xValue = (d as DataLabel)[0];
+      const yValue = (d as DataLabel)[1];
+      axisCustomization.onDatapointPin({
+        id: `${xValue}-${yValue}`,
+        x: { label: xLabel, value: xValue },
+        y: { label: `${yLabel} (${metric})`, value: yValue },
+      });
+    }
+  } else {
+    // Fallback to old fixed tooltip behavior
+    showFixedTooltip(event, tooltipData, settings);
+  }
 }
 
 export const drawBarChart = (
@@ -441,9 +470,13 @@ export const drawBarChart = (
       color: colorScale(groupKey),
     }));
     renderGroupingKey(settings, colors);
+    // Notify parent about groups (for external drawer)
+    axisCustomization?.onGroupsChange?.(colors);
   } else {
     const primary = getPrimaryColorFromNode(svg.node());
     renderGroupingKey(settings, null);
+    // Clear groups in parent (no grouping)
+    axisCustomization?.onGroupsChange?.([]);
     g.selectAll<SVGRectElement, DataLabel>('rect.bar-item')
       .data(data as DataLabel[], (d) => d[0])
       .join(
@@ -513,4 +546,7 @@ export const drawBarChart = (
         axisCustomization
       )
     );
+
+  // Note: External highlight from drawer is handled by PlotCanvas useEffect
+  // to avoid full redraws on highlight changes
 };

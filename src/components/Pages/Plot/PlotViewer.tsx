@@ -9,10 +9,11 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { PlotCanvas } from '@/components/Common/Plot/PlotCanvas';
 import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
+import { PlotFooter, PlotDetailsDrawer, usePlotDetails } from '@/components/Common/Plot/PlotFooter';
 
 /**
  * Plot configuration from the API
@@ -159,8 +160,52 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
     };
   }, [config.yTickFormat]);
 
+  // Plot details state (for footer and drawer)
+  const plotDetails = usePlotDetails({
+    xAxis: config.xAxis,
+    xLabel: config.xLabel,
+    xScale: scaleX,
+    yAxis: config.yAxis,
+    yLabel: config.yLabel,
+    yScale: scaleY,
+    metric: config.metric,
+    groupBy: config.groupBy,
+    groupByLabel: config.groupByLabel,
+  });
+
+  // Container ref for drawer positioning
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Destructure stable callbacks from plotDetails to satisfy ESLint
+  const { setGroups, addPinnedDatapoint, openDrawer, isDrawerOpen } = plotDetails;
+
+  // Groups are now set directly via the onGroupsChange callback from PlotCanvas/D3
+  // Memoize callbacks to prevent infinite re-render loops
+  const handleGroupsChange = useCallback(
+    (groups: Array<{ key: string; color: string }>) => {
+      setGroups(groups.map((g) => ({ key: g.key, color: g.color })));
+    },
+    [setGroups]
+  );
+
+  const handleDatapointPin = useCallback(
+    (datapoint: {
+      id: string;
+      x: { label: string; value: string | number };
+      y: { label: string; value: string | number };
+      group?: { label: string; value: string };
+    }) => {
+      addPinnedDatapoint(datapoint);
+      // Open drawer if not already open when pinning a datapoint
+      if (!isDrawerOpen) {
+        openDrawer();
+      }
+    },
+    [addPinnedDatapoint, openDrawer, isDrawerOpen]
+  );
+
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div ref={containerRef} className="relative flex h-screen flex-col bg-background">
       {/* Header - compact styling */}
       <header className="flex-shrink-0 border-b border-border px-3 py-1.5">
         <h1 className="text-sm font-medium text-foreground">{displayTitle}</h1>
@@ -203,19 +248,33 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
           // Group by and aggregate labels
           groupByLabel={config.groupByLabel}
           aggregateLabel={config.aggregateLabel}
+          // Hide settings overlay - using drawer instead
+          hideSettingsOverlay={true}
+          // Callbacks for external drawer (memoized to prevent re-render loops)
+          onGroupsChange={handleGroupsChange}
+          onDatapointPin={handleDatapointPin}
+          // Highlight target for bidirectional hover highlighting
+          highlightTarget={plotDetails.highlightTarget}
         />
       </div>
 
-      {/* Footer */}
-      <footer className="flex flex-shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
-        <span>Generated plot • View only</span>
-        <button
-          onClick={() => setZoomEnabled(!zoomEnabled)}
-          className="text-xs transition-colors hover:text-foreground"
-        >
-          {zoomEnabled ? '🔍 Zoom enabled' : '🔍 Zoom disabled'}
-        </button>
-      </footer>
+      {/* Footer - compact with counts, toggles drawer */}
+      <PlotFooter
+        groupCount={plotDetails.groupCount}
+        pinnedCount={plotDetails.pinnedCount}
+        isOpen={plotDetails.isDrawerOpen}
+        onToggle={plotDetails.toggleDrawer}
+      />
+
+      {/* Details Drawer - slides up from footer */}
+      <PlotDetailsDrawer
+        isOpen={plotDetails.isDrawerOpen}
+        groups={plotDetails.groups}
+        pinnedDatapoints={plotDetails.pinnedDatapoints}
+        axesInfo={plotDetails.axesInfo}
+        onUnpinDatapoint={plotDetails.removePinnedDatapoint}
+        onHighlight={plotDetails.setHighlightTarget}
+      />
     </div>
   );
 }

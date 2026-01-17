@@ -278,6 +278,8 @@ export const drawLineChart = (
     const color = d3.scaleOrdinal().domain(domain).range(colorRange);
     const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
     renderGroupingKey(settings, colors);
+    // Notify parent about groups (for external drawer)
+    axisCustomization?.onGroupsChange?.(colors);
     g.selectAll('path.line-item')
       .data(
         data as GroupedDataPoint[],
@@ -295,6 +297,8 @@ export const drawLineChart = (
   } else {
     const primary = getPrimaryColorFromNode(svg.node());
     renderGroupingKey(settings, null);
+    // Clear groups in parent (no grouping)
+    axisCustomization?.onGroupsChange?.([]);
     g.selectAll('path.line-item')
       .data(
         [data as DataPoint[]],

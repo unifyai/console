@@ -419,8 +419,12 @@ export function drawScatterPlot(
       color: colorContext.colorScale(key) as string,
     }));
     renderGroupingKey(settings, colors);
+    // Notify parent about groups (for external drawer)
+    axisCustomization?.onGroupsChange?.(colors);
   } else {
     renderGroupingKey(settings, null);
+    // Clear groups in parent (no grouping)
+    axisCustomization?.onGroupsChange?.([]);
   }
 
   // Update placeholder

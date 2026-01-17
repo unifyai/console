@@ -2,6 +2,7 @@
 
 import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { AxisCustomization } from '@/types/interfaces/plot';
 
 /**
  * Render mode for scatter plots based on data size
@@ -99,16 +100,7 @@ export interface ScatterPlotOptions {
   zoomRef: React.MutableRefObject<d3.ZoomTransform>;
 
   // Axis customization
-  axisCustomization?: {
-    showXAxisLabel?: boolean;
-    showYAxisLabel?: boolean;
-    xAxisLabel?: string;
-    yAxisLabel?: string;
-    xTickFormatter?: (value: unknown) => string;
-    yTickFormatter?: (value: unknown) => string;
-    groupByLabel?: string;
-    aggregateLabel?: string;
-  };
+  axisCustomization?: AxisCustomization;
 }
 
 /**

@@ -24,7 +24,7 @@ import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { drawPlot } from '@/utils/interfaces/plots/main';
 import { clearFixedTooltip } from '@/utils/interfaces/plots/tooltip';
-import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
+import { DataLabel, GroupedDataLabel, HighlightTarget } from '@/types/interfaces/plot';
 
 /**
  * Props for the PlotCanvas component
@@ -95,6 +95,23 @@ export interface PlotCanvasProps {
   // Group by and aggregate labels
   groupByLabel?: string; // Custom label for group by field in tooltip/legend
   aggregateLabel?: string; // Custom label for aggregate field in tooltip
+
+  // Hide settings overlay (for when using external drawer instead)
+  hideSettingsOverlay?: boolean;
+
+  // Callback when groups are computed (for external drawer)
+  onGroupsChange?: (groups: Array<{ key: string; color: string }>) => void;
+
+  // Callback when a datapoint is clicked/pinned (for external drawer)
+  onDatapointPin?: (datapoint: {
+    id: string;
+    x: { label: string; value: string | number };
+    y: { label: string; value: string | number };
+    group?: { label: string; value: string };
+  }) => void;
+
+  // Highlight target for bidirectional hover highlighting from drawer
+  highlightTarget?: HighlightTarget;
 }
 
 /**
@@ -152,6 +169,13 @@ export function PlotCanvas({
   // Group by and aggregate labels
   groupByLabel,
   aggregateLabel,
+  // Hide settings overlay (for external drawer)
+  hideSettingsOverlay = false,
+  // Callbacks for external drawer
+  onGroupsChange,
+  onDatapointPin,
+  // Highlight target for bidirectional hover highlighting
+  highlightTarget,
 }: PlotCanvasProps) {
   // Internal refs (used when external refs not provided)
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -292,7 +316,7 @@ export function PlotCanvas({
         plotTileActions as any,
         effectivePlotTileState,
         preAggregatedBarData,
-        // Axis label customization
+        // Axis label customization and callbacks
         {
           showXAxisLabel,
           showYAxisLabel,
@@ -302,11 +326,17 @@ export function PlotCanvas({
           yTickFormatter,
           groupByLabel,
           aggregateLabel,
+          onGroupsChange,
+          onDatapointPin,
+          highlightTarget,
         }
       );
     } catch (err) {
       console.error('[PlotCanvas] drawPlot error:', err);
     }
+    // Note: highlightTarget is intentionally NOT in this dependency array
+    // Highlighting is handled by a separate effect below to avoid full redraws
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     logs,
     fields,
@@ -344,7 +374,64 @@ export function PlotCanvas({
     yTickFormatter,
     groupByLabel,
     aggregateLabel,
+    // Callbacks
+    onGroupsChange,
+    onDatapointPin,
   ]);
+
+  // Separate effect for highlight changes - avoids full redraw
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    const g = svg.select('.plotData');
+
+    // Determine initial opacity based on whether we have groupBy
+    const hasGroupBy = !!groupBy;
+    const initialOpacity = hasGroupBy ? 0.7 : 1.0;
+
+    // Apply highlight without redrawing the entire plot
+    if (!highlightTarget || highlightTarget.type === 'none') {
+      // Reset all bars to initial opacity
+      g.selectAll('rect.bar-item')
+        .interrupt('highlight') // Cancel any pending highlight transitions
+        .transition('highlight')
+        .duration(200)
+        .style('opacity', initialOpacity);
+    } else if (highlightTarget.type === 'group' && hasGroupBy) {
+      // Highlight all bars belonging to this group
+      const targetGroup = highlightTarget.groupKey;
+      g.selectAll('rect.bar-item')
+        .interrupt('highlight')
+        .transition('highlight')
+        .duration(200)
+        .style('opacity', (d: any) => {
+          const group = d[0];
+          return group === targetGroup ? 1 : 0;
+        });
+    } else if (highlightTarget.type === 'datapoint') {
+      // Highlight the specific datapoint
+      const targetId = highlightTarget.datapointId;
+      g.selectAll('rect.bar-item')
+        .interrupt('highlight')
+        .transition('highlight')
+        .duration(200)
+        .style('opacity', (d: any) => {
+          // Generate the same ID that was used when pinning
+          let barId: string;
+          if (hasGroupBy) {
+            const group = d[0];
+            const xValue = d[1][0];
+            const yValue = d[1][1];
+            barId = `${group}-${xValue}-${yValue}`;
+          } else {
+            const xValue = d[0];
+            const yValue = d[1];
+            barId = `${xValue}-${yValue}`;
+          }
+          return barId === targetId ? 1 : 0.2;
+        });
+    }
+  }, [highlightTarget, groupBy, svgRef]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-background">
@@ -408,7 +495,11 @@ export function PlotCanvas({
       />
 
       {/* Settings anchor point (used by drawPlot for grouping key) */}
-      <div ref={settingsRef} className="absolute bottom-4 left-4" />
+      {/* Hidden when using external drawer via hideSettingsOverlay prop */}
+      <div
+        ref={settingsRef}
+        className={`absolute bottom-4 left-4 ${hideSettingsOverlay ? 'hidden' : ''}`}
+      />
     </div>
   );
 }

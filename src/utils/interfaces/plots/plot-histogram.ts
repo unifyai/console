@@ -135,6 +135,7 @@ function onClick(
   minX: number,
   maxX: number,
   settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  xAxisProperty: string | undefined,
   axisCustomization?: AxisCustomization
 ) {
   const tooltipData = getTooltipData(
@@ -147,7 +148,32 @@ function onClick(
     maxX,
     axisCustomization
   );
-  showFixedTooltip(event, tooltipData, settings);
+
+  // Call external drawer callback if provided
+  if (axisCustomization?.onDatapointPin) {
+    const xLabel = axisCustomization.xAxisLabel || xAxisProperty || 'X';
+    const groupLabel = axisCustomization.groupByLabel || groupBy || 'Group';
+    const binRange = `${formatNumber(bin.x0!)} - ${formatNumber(bin.x1!)}`;
+
+    if (groupBy) {
+      const group = (bin as GroupedBin).group;
+      axisCustomization.onDatapointPin({
+        id: `${group}-${bin.x0}-${bin.x1}`,
+        x: { label: xLabel, value: binRange },
+        y: { label: 'Count', value: bin.length },
+        group: { label: groupLabel, value: String(group) },
+      });
+    } else {
+      axisCustomization.onDatapointPin({
+        id: `${bin.x0}-${bin.x1}`,
+        x: { label: xLabel, value: binRange },
+        y: { label: 'Count', value: bin.length },
+      });
+    }
+  } else {
+    // Fallback to old fixed tooltip behavior
+    showFixedTooltip(event, tooltipData, settings);
+  }
 }
 
 export const drawHistogram = (
@@ -347,7 +373,19 @@ export const drawHistogram = (
       .on('mousemove', (event, _) => onMouseMove(event, tooltip, container))
       .on('mouseout', (_) => onMouseOut(initialOpacity, g, tooltip))
       .on('click', (event, d) =>
-        onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings, axisCustomization)
+        onClick(
+          event,
+          data,
+          d,
+          groupBy,
+          aggregate,
+          xType,
+          minX,
+          maxX,
+          settings,
+          xAxisProperty,
+          axisCustomization
+        )
       );
     enteringBars
       .merge(bars as any)
@@ -367,9 +405,13 @@ export const drawHistogram = (
       color: colorScale(groupKey),
     }));
     renderGroupingKey(settings, colors);
+    // Notify parent about groups (for external drawer)
+    axisCustomization?.onGroupsChange?.(colors);
   } else {
     const primary = getPrimaryColorFromNode(svg.node());
     renderGroupingKey(settings, null);
+    // Clear groups in parent (no grouping)
+    axisCustomization?.onGroupsChange?.([]);
     const bars = g
       .selectAll('rect.hist-item')
       .data(buckets as d3.Bin<number, number>[], (d: any) => `${d.x0}-${d.x1}`); // Use bin boundaries as key
@@ -414,6 +456,7 @@ export const drawHistogram = (
               minX,
               maxX,
               settings,
+              xAxisProperty,
               axisCustomization
             )
           )
