@@ -22,7 +22,13 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
     return user.apiKey;
   }
 
-  // Fall back to header-based auth (for tests and backwards compatibility)
+  // Try standard Authorization: Bearer header
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7); // Remove 'Bearer ' prefix
+  }
+
+  // Fall back to custom apiKey header (for tests and backwards compatibility)
   const headerApiKey = request.headers.get('apiKey');
   if (headerApiKey) {
     return headerApiKey;

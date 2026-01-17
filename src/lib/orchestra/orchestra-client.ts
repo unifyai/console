@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import { snakeToCamelObject, camelToSnakeObject, camelToSnake } from '@/utils/casing';
 import { addAxiosLoggingInterceptors } from '@/lib/logging/fetch';
 
 // Admin client timeout in milliseconds.
@@ -7,15 +7,34 @@ import { addAxiosLoggingInterceptors } from '@/lib/logging/fetch';
 const ADMIN_TIMEOUT_MS = 60_000;
 
 /**
+ * Transform URL query params object keys from camelCase to snake_case.
+ * Only transforms top-level keys, values are left as-is (they may be JSON strings).
+ */
+function transformParamsToSnakeCase(params: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    result[camelToSnake(key)] = value;
+  }
+  return result;
+}
+
+/**
  * Add interceptors to transform request/response casing.
  * - Requests: camelCase → snake_case (for Orchestra API)
+ *   - Transforms request body (config.data)
+ *   - Transforms query params (config.params)
  * - Responses: snake_case → camelCase (for frontend)
  */
 function addCasingInterceptors(client: AxiosInstance): AxiosInstance {
-  // Transform request data from camelCase to snake_case
+  // Transform request data and params from camelCase to snake_case
   client.interceptors.request.use((config) => {
+    // Transform request body
     if (config.data && typeof config.data === 'object') {
       config.data = camelToSnakeObject(config.data);
+    }
+    // Transform query params keys
+    if (config.params && typeof config.params === 'object') {
+      config.params = transformParamsToSnakeCase(config.params);
     }
     return config;
   });
