@@ -8,6 +8,7 @@ import {
   GroupedBin,
   GroupingColors,
   InfoCardData,
+  AxisCustomization,
 } from '@/types/interfaces/plot';
 import { formatTimeTypeValue } from '../format';
 import { getValue, hasProperty, inferDisplayType } from './data';
@@ -24,7 +25,8 @@ const getTooltipData = (
   aggregate: string | undefined,
   xType: string | undefined,
   minX: number,
-  maxX: number
+  maxX: number,
+  axisCustomization?: AxisCustomization
 ) => {
   const [localMinX, localMaxX] = groupBy // Compute group boundaries if group by is set
     ? d3.extent(
@@ -33,13 +35,18 @@ const getTooltipData = (
           .flatMap((d) => d[1]) as DataRange
       )
     : [minX, maxX];
+
+  // Use custom labels if provided
+  const groupLabel = axisCustomization?.groupByLabel || 'Group';
+  const aggLabel = axisCustomization?.aggregateLabel || aggregate;
+
   const hoverData: InfoCardData = {
     group: {
       name: 'Data Range',
       value:
         xType === 'timestamp' || xType === 'timedelta' || xType === 'time' || xType === 'date'
-          ? `${groupBy ? 'Group: ' + (bin as GroupedBin).group + ', ' : ''}Min: ${formatTimeTypeValue(localMinX as number, xType)}, Max: ${formatTimeTypeValue(localMaxX as number, xType)}`
-          : `${groupBy ? 'Group: ' + (bin as GroupedBin).group + ', ' : ''}Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`,
+          ? `${groupBy ? groupLabel + ': ' + (bin as GroupedBin).group + ', ' : ''}Min: ${formatTimeTypeValue(localMinX as number, xType)}, Max: ${formatTimeTypeValue(localMaxX as number, xType)}`
+          : `${groupBy ? groupLabel + ': ' + (bin as GroupedBin).group + ', ' : ''}Min: ${formatNumber(minX)}, Max: ${formatNumber(maxX)}`,
     },
     x: {
       name: 'Bar Range',
@@ -53,9 +60,9 @@ const getTooltipData = (
       value: bin.length,
     },
   };
-  if (aggregate) {
+  if (aggregate && aggLabel) {
     hoverData.aggregate = {
-      name: `Aggregate: ${aggregate}`,
+      name: aggLabel,
     };
   }
   return hoverData;
@@ -72,9 +79,19 @@ function onMouseOver(
   maxX: number,
   g: d3.Selection<d3.BaseType, unknown, null, undefined>,
   tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
-  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  axisCustomization?: AxisCustomization
 ) {
-  const tooltipData = getTooltipData(data, bin, groupBy, aggregate, xType, minX, maxX);
+  const tooltipData = getTooltipData(
+    data,
+    bin,
+    groupBy,
+    aggregate,
+    xType,
+    minX,
+    maxX,
+    axisCustomization
+  );
   const template = tooltipTemplate(tooltipData);
   tooltip.html(template).transition('opacity').style('opacity', 1);
   positionTooltipRelativeToPointer(event, tooltip, container);
@@ -117,9 +134,19 @@ function onClick(
   xType: string | undefined,
   minX: number,
   maxX: number,
-  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  axisCustomization?: AxisCustomization
 ) {
-  const tooltipData = getTooltipData(data, bin, groupBy, aggregate, xType, minX, maxX);
+  const tooltipData = getTooltipData(
+    data,
+    bin,
+    groupBy,
+    aggregate,
+    xType,
+    minX,
+    maxX,
+    axisCustomization
+  );
   showFixedTooltip(event, tooltipData, settings);
 }
 
@@ -142,7 +169,8 @@ export const drawHistogram = (
   table: string,
   logs: LogProps[],
   fields: LogFieldsResponseProps,
-  groupByColors: string = 'schemeCategory10'
+  groupByColors: string = 'schemeCategory10',
+  axisCustomization?: AxisCustomization
 ) => {
   // Remove drawings from previous plots
   const g = svg.select('.plotData');
@@ -244,11 +272,17 @@ export const drawHistogram = (
   const [minY, maxY] = [0, d3.max(buckets, (d) => d.length) ?? 0];
   const y = yScale().domain([minY, maxY]).range(yRange);
 
-  // Draw axes
+  // Draw axes with optional custom labels
   const [xTicks, yTicks] = [
     generateTicks(minX, maxX, 10, scaleX === 'log'),
     generateTicks(minY, maxY, 10, scaleY === 'log'),
   ];
+
+  const showXLabel = axisCustomization?.showXAxisLabel !== false;
+  const showYLabel = axisCustomization?.showYAxisLabel !== false;
+  const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
+  const yLabel = showYLabel ? axisCustomization?.yAxisLabel || 'Count' : undefined;
+
   drawAxes(
     'Histogram',
     svg,
@@ -260,9 +294,12 @@ export const drawHistogram = (
     yTicks,
     false,
     false,
-    xAxisProperty,
+    xLabel,
+    yLabel,
+    xType,
     undefined,
-    xType
+    axisCustomization?.xTickFormatter,
+    axisCustomization?.yTickFormatter
   );
 
   // Tooltip and grouping key
@@ -292,12 +329,25 @@ export const drawHistogram = (
       .style('opacity', initialOpacity)
       .style('cursor', 'pointer')
       .on('mouseover', (event, d) =>
-        onMouseOver(event, data, d, groupBy, aggregate, xType, minX, maxX, g, tooltip, container)
+        onMouseOver(
+          event,
+          data,
+          d,
+          groupBy,
+          aggregate,
+          xType,
+          minX,
+          maxX,
+          g,
+          tooltip,
+          container,
+          axisCustomization
+        )
       )
       .on('mousemove', (event, _) => onMouseMove(event, tooltip, container))
       .on('mouseout', (_) => onMouseOut(initialOpacity, g, tooltip))
       .on('click', (event, d) =>
-        onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings)
+        onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings, axisCustomization)
       );
     enteringBars
       .merge(bars as any)
@@ -347,13 +397,25 @@ export const drawHistogram = (
               maxX,
               g,
               tooltip,
-              container
+              container,
+              axisCustomization
             )
           )
           .on('mousemove', (event, _) => onMouseMove(event, tooltip, container))
           .on('mouseout', (_) => onMouseOut(initialOpacity, g, tooltip))
           .on('click', (event, d) =>
-            onClick(event, data, d, groupBy, aggregate, xType, minX, maxX, settings)
+            onClick(
+              event,
+              data,
+              d,
+              groupBy,
+              aggregate,
+              xType,
+              minX,
+              maxX,
+              settings,
+              axisCustomization
+            )
           )
           .call((enter) =>
             enter

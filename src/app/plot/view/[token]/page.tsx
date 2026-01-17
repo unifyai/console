@@ -32,6 +32,11 @@ interface PlotDataResponse {
     title?: string;
     xLabel?: string;
     yLabel?: string;
+    // Axis customization - xLabel/yLabel apply to both axis and tooltip
+    showXLabel?: boolean;
+    showYLabel?: boolean;
+    xTickFormat?: string;
+    yTickFormat?: string;
   };
   data: LogProps[];
   fields: LogFieldsResponseProps;

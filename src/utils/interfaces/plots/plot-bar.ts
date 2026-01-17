@@ -2,8 +2,14 @@
 
 import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
-import { GroupedDataLabel, DataLabel, GroupingColors, InfoCardData } from '@/types/interfaces/plot';
-import { getValue, hasProperty } from './data';
+import {
+  GroupedDataLabel,
+  DataLabel,
+  GroupingColors,
+  InfoCardData,
+  AxisCustomization,
+} from '@/types/interfaces/plot';
+import { getValue, getRawValue, hasProperty } from './data';
 import { drawAxes, generateTicks } from './axes';
 import { getPrimaryColorFromNode } from './common';
 import { renderGroupingKey } from './key';
@@ -16,29 +22,36 @@ const getTooltipData = (
   yAxisProperty: string | undefined,
   metric: string,
   groupBy: string | undefined,
-  aggregate: string | undefined
+  aggregate: string | undefined,
+  axisCustomization?: AxisCustomization
 ) => {
+  // Use custom labels for tooltip if provided, otherwise use field names
+  const xLabel = axisCustomization?.xAxisLabel || xAxisProperty || 'X';
+  const yLabel = axisCustomization?.yAxisLabel || yAxisProperty || 'Y';
+  const groupLabel = axisCustomization?.groupByLabel || groupBy || 'Group';
+  const aggLabel = axisCustomization?.aggregateLabel || aggregate;
+
   if (groupBy) {
     const group = (d as GroupedDataLabel)[0];
     const xValue = (d as GroupedDataLabel)[1][0];
     const yValue = (d as GroupedDataLabel)[1][1];
     const data: InfoCardData = {
       group: {
-        name: `Group: ${groupBy}`,
+        name: groupLabel,
         value: group,
       },
       x: {
-        name: `X: ${xAxisProperty!}`,
+        name: xLabel!,
         value: xValue,
       },
       y: {
-        name: `Y: ${yAxisProperty}(${metric})`,
+        name: `${yLabel} (${metric})`,
         value: yValue,
       },
     };
-    if (aggregate) {
+    if (aggregate && aggLabel) {
       data.aggregate = {
-        name: `Aggregate: ${aggregate}`,
+        name: aggLabel,
       };
     }
     return data;
@@ -47,17 +60,17 @@ const getTooltipData = (
     const yValue = (d as DataLabel)[1];
     const data: InfoCardData = {
       x: {
-        name: `X: ${xAxisProperty!}`,
+        name: xLabel,
         value: xValue,
       },
       y: {
-        name: `Y: ${yAxisProperty}(${metric})`,
+        name: `${yLabel} (${metric})`,
         value: yValue,
       },
     };
-    if (aggregate) {
+    if (aggregate && aggLabel) {
       data.aggregate = {
-        name: `Aggregate: ${aggregate}`,
+        name: aggLabel,
       };
     }
     return data;
@@ -74,19 +87,30 @@ function onMouseOver(
   aggregate: string | undefined,
   g: d3.Selection<d3.BaseType, unknown, null, undefined>,
   tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
-  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+  container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  axisCustomization?: AxisCustomization
 ) {
-  const tooltipData = getTooltipData(d, xAxisProperty, yAxisProperty, metric, groupBy, aggregate);
+  const tooltipData = getTooltipData(
+    d,
+    xAxisProperty,
+    yAxisProperty,
+    metric,
+    groupBy,
+    aggregate,
+    axisCustomization
+  );
   const template = tooltipTemplate(tooltipData);
   tooltip.html(template).transition('opacity').style('opacity', 1);
   positionTooltipRelativeToPointer(event, tooltip, container);
   if (groupBy) {
+    // For grouped bar charts, completely hide other groups (opacity 0)
     const group = (d as GroupedDataLabel)[0];
     g.selectAll('rect.bar-item')
       .transition('opacity')
       .duration(200)
-      .style('opacity', (barData) => ((barData as GroupedDataLabel)[0] === group ? 1 : 0.3));
+      .style('opacity', (barData) => ((barData as GroupedDataLabel)[0] === group ? 1 : 0));
   } else {
+    // For ungrouped bar charts, dim other bars (opacity 0.3)
     const xValue = (d as DataLabel)[0];
     g.selectAll('rect.bar-item')
       .transition('opacity')
@@ -119,9 +143,18 @@ function onClick(
   metric: string,
   groupBy: string | undefined,
   aggregate: string | undefined,
-  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+  settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+  axisCustomization?: AxisCustomization
 ) {
-  const tooltipData = getTooltipData(d, xAxisProperty, yAxisProperty, metric, groupBy, aggregate);
+  const tooltipData = getTooltipData(
+    d,
+    xAxisProperty,
+    yAxisProperty,
+    metric,
+    groupBy,
+    aggregate,
+    axisCustomization
+  );
   showFixedTooltip(event, tooltipData, settings);
 }
 
@@ -147,7 +180,8 @@ export const drawBarChart = (
   zoomRef: any,
   groupByColors: string = 'schemeCategory10',
   interactive: boolean = true,
-  preAggregatedData?: DataLabel[] | GroupedDataLabel[]
+  preAggregatedData?: DataLabel[] | GroupedDataLabel[],
+  axisCustomization?: AxisCustomization
 ) => {
   // Clear previous elements
   const g = svg.select('.plotData');
@@ -191,9 +225,18 @@ export const drawBarChart = (
     } else {
       // Sort by x-axis value (category)
       if (groupBy) {
-        (data as GroupedDataLabel[]).every((item) => !isNaN(Number(item[1][0])))
-          ? (data as GroupedDataLabel[]).sort((a, b) => Number(a[1][0]) - Number(b[1][0]))
-          : (data as GroupedDataLabel[]).sort((a, b) => a[1][0].localeCompare(b[1][0]));
+        // For grouped data: sort by x-axis first, then by y-value descending
+        // This ensures taller bars are drawn first (underneath) and shorter bars last (on top)
+        const isNumericX = (data as GroupedDataLabel[]).every((item) => !isNaN(Number(item[1][0])));
+        (data as GroupedDataLabel[]).sort((a, b) => {
+          // Primary sort: by x-axis value
+          const xCompare = isNumericX
+            ? Number(a[1][0]) - Number(b[1][0])
+            : a[1][0].localeCompare(b[1][0]);
+          if (xCompare !== 0) return xCompare;
+          // Secondary sort: by y-value descending (taller bars first, shorter last)
+          return b[1][1] - a[1][1];
+        });
       } else {
         (data as DataLabel[]).every((item) => !isNaN(Number(item[0])))
           ? (data as DataLabel[]).sort((a, b) => Number(a[0]) - Number(b[0]))
@@ -210,7 +253,8 @@ export const drawBarChart = (
     });
     const statistic = (vals: number[]) => parseFloat(computeStatistic(metric, vals));
     if (groupBy) {
-      const groupsMap = d3.groups(filteredData, (d) => getValue(fields, groupBy, d, xTable));
+      // Use getRawValue for groupBy to keep string values (e.g., model names)
+      const groupsMap = d3.groups(filteredData, (d) => getRawValue(fields, groupBy, d, xTable));
       for (const [groupKey, groupLogs] of groupsMap) {
         const subGroups = d3.rollup(
           groupLogs,
@@ -218,7 +262,8 @@ export const drawBarChart = (
             statistic(
               v.map((log) => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))
             ),
-          (d) => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
+          // Use getRawValue for x-axis to keep date strings as-is (not converted to timestamps)
+          (d) => String(getRawValue(fields, xAxisProperty, d, xTable) ?? '')
         );
         for (const subGroup of Array.from(subGroups)) {
           (data as GroupedDataLabel[]).push([String(groupKey), subGroup]);
@@ -231,7 +276,8 @@ export const drawBarChart = (
           statistic(
             v.map((log) => toComputableValue(getValue(fields, yAxisProperty, log, yTable)))
           ),
-        (d) => JSON.stringify(getValue(fields, xAxisProperty, d, xTable))
+        // Use getRawValue for x-axis to keep date strings as-is (not converted to timestamps)
+        (d) => String(getRawValue(fields, xAxisProperty, d, xTable) ?? '')
       );
       data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
     }
@@ -249,13 +295,24 @@ export const drawBarChart = (
         }
       });
     } else {
-      groupBy
-        ? (data as GroupedDataLabel[]).every((item) => Number(item[1][0]))
-          ? (data as GroupedDataLabel[]).sort((a, b) => Number(a[1][0]) - Number(b[1][0]))
-          : (data as GroupedDataLabel[]).sort((a, b) => a[1][0].localeCompare(b[1][0]))
-        : (data as GroupedDataLabel[]).every((item) => Number(item[0]))
+      if (groupBy) {
+        // For grouped data: sort by x-axis first, then by y-value descending
+        // This ensures taller bars are drawn first (underneath) and shorter bars last (on top)
+        const isNumericX = (data as GroupedDataLabel[]).every((item) => !isNaN(Number(item[1][0])));
+        (data as GroupedDataLabel[]).sort((a, b) => {
+          // Primary sort: by x-axis value
+          const xCompare = isNumericX
+            ? Number(a[1][0]) - Number(b[1][0])
+            : a[1][0].localeCompare(b[1][0]);
+          if (xCompare !== 0) return xCompare;
+          // Secondary sort: by y-value descending (taller bars first, shorter last)
+          return b[1][1] - a[1][1];
+        });
+      } else {
+        (data as DataLabel[]).every((item) => !isNaN(Number(item[0])))
           ? (data as DataLabel[]).sort((a, b) => Number(a[0]) - Number(b[0]))
           : (data as DataLabel[]).sort((a, b) => a[0].localeCompare(b[0]));
+      }
     }
   }
 
@@ -290,11 +347,20 @@ export const drawBarChart = (
     .domain(yDomain)
     .range(yRange);
 
-  // Draw axes
+  // Draw axes with optional custom labels
   const [xTicks, yTicks] = [
     generateTicks(0, 0, 10, scaleX === 'log'),
     generateTicks(minY, maxY, 10, scaleY === 'log'),
   ];
+
+  // Determine axis labels - use custom labels if provided, otherwise use field names
+  const showXLabel = axisCustomization?.showXAxisLabel !== false;
+  const showYLabel = axisCustomization?.showYAxisLabel !== false;
+  const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
+  const yLabel = showYLabel
+    ? axisCustomization?.yAxisLabel || (yAxisProperty ? `${yAxisProperty} (${metric})` : undefined)
+    : undefined;
+
   drawAxes(
     'Bar Chart',
     svg,
@@ -306,8 +372,12 @@ export const drawBarChart = (
     yTicks,
     undefined,
     undefined,
-    xAxisProperty,
-    yAxisProperty ? `${yAxisProperty} (${metric})` : undefined
+    xLabel,
+    yLabel,
+    undefined, // xType
+    undefined, // yType
+    axisCustomization?.xTickFormatter,
+    axisCustomization?.yTickFormatter
   );
 
   // Tooltip and grouping key
@@ -424,7 +494,8 @@ export const drawBarChart = (
         aggregate,
         g,
         tooltip,
-        container
+        container,
+        axisCustomization
       )
     )
     .on('mousemove', (e, _) => onMouseMove(e, tooltip, container))
@@ -438,7 +509,8 @@ export const drawBarChart = (
         metric,
         groupBy,
         aggregate,
-        settings
+        settings,
+        axisCustomization
       )
     );
 };

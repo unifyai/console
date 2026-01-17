@@ -2,7 +2,7 @@
 
 import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
-import { DataPoint, GroupedDataPoint } from '@/types/interfaces/plot';
+import { DataPoint, GroupedDataPoint, AxisCustomization } from '@/types/interfaces/plot';
 import { getValue, hasProperty, inferDisplayType } from './data';
 import { drawAxes, generateTicks, reverseOrKeepDomain } from './axes';
 import { getPrimaryColorFromNode } from './common';
@@ -85,7 +85,7 @@ function onZoom(
     xAxisProperty,
     yAxisProperty,
     xType
-  );
+  ); // Note: zoom handler doesn't have access to axisCustomization currently
 
   // Update line paths
   if (groupBy) {
@@ -119,7 +119,8 @@ export const drawLineChart = (
   zoomRef: any,
   groupByColors: string = 'schemeCategory10',
   interactive: boolean = true,
-  zoomEnabled: boolean = false
+  zoomEnabled: boolean = false,
+  axisCustomization?: AxisCustomization
 ) => {
   // Remove drawings from previous plots
   const g = svg.select('.plotData');
@@ -226,11 +227,17 @@ export const drawLineChart = (
     yAxisScale().domain(yDomain).range(yRange),
   ];
 
-  // Draw axes
+  // Draw axes with optional custom labels
   const [xTicks, yTicks] = [
     generateTicks(minX, maxX, 10, scaleX === 'log'),
     generateTicks(minY, maxY, 10, scaleY === 'log'),
   ];
+
+  const showXLabel = axisCustomization?.showXAxisLabel !== false;
+  const showYLabel = axisCustomization?.showYAxisLabel !== false;
+  const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
+  const yLabel = showYLabel ? axisCustomization?.yAxisLabel || yAxisProperty : undefined;
+
   drawAxes(
     'Line Chart',
     svg,
@@ -242,9 +249,12 @@ export const drawLineChart = (
     yTicks,
     reverseX,
     reverseY,
-    xAxisProperty,
-    yAxisProperty,
-    xType
+    xLabel,
+    yLabel,
+    xType,
+    undefined,
+    axisCustomization?.xTickFormatter,
+    axisCustomization?.yTickFormatter
   );
 
   // Plot lines.

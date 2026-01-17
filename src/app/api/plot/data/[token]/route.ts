@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { badRequest, internalError } from '../../../_utils/auth';
-import { snakeToCamelObject } from '@/utils/casing';
+import { snakeToCamelObject, snakeToCamel } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -38,6 +38,12 @@ interface OrchestraPlotConfig {
   title?: string;
   xLabel?: string;
   yLabel?: string;
+  showXLabel?: boolean;
+  showYLabel?: boolean;
+  xTickFormat?: string;
+  yTickFormat?: string;
+  groupByLabel?: string;
+  aggregateLabel?: string;
   colors?: Record<string, string>;
 }
 
@@ -58,6 +64,12 @@ interface FrontendPlotConfig {
   title?: string;
   xLabel?: string;
   yLabel?: string;
+  showXLabel?: boolean;
+  showYLabel?: boolean;
+  xTickFormat?: string;
+  yTickFormat?: string;
+  groupByLabel?: string;
+  aggregateLabel?: string;
   colors?: Record<string, string>;
 }
 
@@ -113,12 +125,20 @@ type GroupedDataLabel = [string, DataLabel];
 // ============================================================================
 
 /**
- * Add table1. prefix to axis value if not already prefixed.
+ * Add table1. prefix to axis value and convert to camelCase.
+ * Orchestra stores field names in snake_case but frontend uses camelCase.
  */
 function prefixAxis(axis: string | undefined | null): string | undefined {
   if (!axis) return undefined;
-  if (axis.includes('.')) return axis;
-  return `table1.${axis}`;
+
+  // If already has table prefix, just convert the field part to camelCase
+  if (axis.includes('.')) {
+    const [prefix, field] = axis.split('.', 2);
+    return `${prefix}.${snakeToCamel(field)}`;
+  }
+
+  // Add prefix and convert to camelCase
+  return `table1.${snakeToCamel(axis)}`;
 }
 
 /**
@@ -183,13 +203,17 @@ interface MetricsValue {
  * Convert backend metrics response to DataLabel[] for non-grouped bar charts.
  */
 function convertMetricsToDataLabels(
-  metricsResponse: Record<string, Record<string, MetricsValue>>,
+  metricsResponse: Record<string, Record<string, MetricsValue> | MetricsValue>,
   yAxisField: string,
   metric: string
 ): DataLabel[] {
-  const fieldMetrics = metricsResponse[yAxisField] || {};
+  // Orchestra returns data directly: { "2026-01-11": { sum: 0.51 }, ... }
+  // Or wrapped in field name: { "billed_cost": { "2026-01-11": { sum: 0.51 }, ... } }
+  const fieldMetrics = metricsResponse[yAxisField] || metricsResponse;
   return Object.entries(fieldMetrics).map(([category, values]) => {
-    const value = values.sharedValue ?? values[metric] ?? 0;
+    // Handle both { sum: value } and direct value formats
+    const valuesObj = values as MetricsValue;
+    const value = valuesObj.sharedValue ?? valuesObj[metric] ?? valuesObj.shared_value ?? 0;
     return [category, typeof value === 'number' ? value : 0] as DataLabel;
   });
 }
@@ -217,6 +241,18 @@ function convertMetricsToGroupedDataLabels(
 /**
  * Fetch pre-aggregated bar chart data from backend metrics endpoint.
  */
+/**
+ * Strip prefixes from field names for Orchestra metrics endpoint.
+ * Orchestra expects plain field names (e.g., "billed_cost", not "entries/billed_cost" or "table1.billed_cost").
+ */
+function toOrchestraField(field: string): string {
+  // Strip table1. prefix if present (from frontend format)
+  let cleanField = field.replace(/^table1\./, '');
+  // Strip entries/ or derived_entries/ prefix if present
+  cleanField = cleanField.replace(/^(entries|derived_entries)\//, '');
+  return cleanField;
+}
+
 async function fetchBarChartMetrics(
   userApiKey: string,
   projectName: string,
@@ -229,15 +265,18 @@ async function fetchBarChartMetrics(
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean } | null> {
   try {
     const params = new URLSearchParams();
-    params.set('projectName', projectName);
+    params.set('project_name', projectName); // Orchestra uses snake_case
     if (context) params.set('context', context);
-    params.set('key', JSON.stringify([yAxis]));
+    params.set('key', toOrchestraField(yAxis));
 
     // Build groupBy: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
-    const groupByFields = groupBy ? [groupBy, xAxis] : [xAxis];
-    params.set('groupBy', JSON.stringify(groupByFields));
+    // Strip prefixes for Orchestra metrics endpoint
+    const groupByFields = groupBy
+      ? [toOrchestraField(groupBy), toOrchestraField(xAxis)]
+      : [toOrchestraField(xAxis)];
+    params.set('group_by', JSON.stringify(groupByFields)); // Orchestra uses snake_case
 
-    if (filterExpr) params.set('filterExpr', filterExpr);
+    if (filterExpr) params.set('filter_expr', filterExpr); // Orchestra uses snake_case
 
     const metricsUrl = `${ORCHESTRA_URL}/v0/logs/metric/${metric}?${params.toString()}`;
     const response = await fetch(metricsUrl, {
@@ -292,6 +331,12 @@ function normalizeConfigForFrontend(config: OrchestraPlotConfig): FrontendPlotCo
     title: config.title,
     xLabel: config.xLabel,
     yLabel: config.yLabel,
+    showXLabel: config.showXLabel,
+    showYLabel: config.showYLabel,
+    xTickFormat: config.xTickFormat,
+    yTickFormat: config.yTickFormat,
+    groupByLabel: config.groupByLabel,
+    aggregateLabel: config.aggregateLabel,
     colors: config.colors,
   };
 }

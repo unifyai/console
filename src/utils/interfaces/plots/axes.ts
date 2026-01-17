@@ -381,7 +381,9 @@ export const drawAxes = (
   xAxisLabel?: string,
   yAxisLabel?: string,
   xType?: string,
-  yType?: string
+  yType?: string,
+  customXTickFormatter?: (value: unknown) => string,
+  customYTickFormatter?: (value: unknown) => string
 ) => {
   /* Initialize variables */
   let xAxis: d3.Selection<d3.BaseType, unknown, null, undefined>;
@@ -401,6 +403,8 @@ export const drawAxes = (
       .axisBottom(x as d3.ScaleBand<string>)
       .tickSizeOuter(0)
       .tickFormat((d) => {
+        // Use custom formatter if provided
+        if (customXTickFormatter) return customXTickFormatter(d);
         if (typeof d === 'number') return reverseX ? formatNumber(-d) : formatNumber(d);
         return d.toString().slice(0, 10);
       }) as any;
@@ -436,6 +440,8 @@ export const drawAxes = (
         : (yTicks as number[])
     )
     .tickFormat((d, i) => {
+      // Use custom formatter if provided
+      if (customYTickFormatter) return customYTickFormatter(d);
       const prevTick = i > 0 ? yTicks[i - 1] : undefined;
       if (yType === 'timestamp' || yType === 'timedelta' || yType === 'time' || yType === 'date')
         return formatTimeTypeTick(d as number, prevTick, yType);

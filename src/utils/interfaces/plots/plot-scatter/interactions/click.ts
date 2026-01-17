@@ -30,6 +30,7 @@ export function setupSVGClickInteraction(
     settings,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   const onClick = (event: MouseEvent, clickedDatum: LogProps) => {
@@ -57,7 +58,8 @@ export function setupSVGClickInteraction(
           xAxisProperty,
           yAxisProperty,
           xType,
-          yType
+          yType,
+          axisCustomization
         )
       );
     } else {
@@ -71,7 +73,8 @@ export function setupSVGClickInteraction(
         xAxisProperty,
         yAxisProperty,
         xType,
-        yType
+        yType,
+        axisCustomization
       );
     }
 
@@ -102,6 +105,7 @@ export function setupWebGLClickInteraction(
     settings,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   const canvas = renderer.getCanvas();
@@ -136,7 +140,8 @@ export function setupWebGLClickInteraction(
             xAxisProperty,
             yAxisProperty,
             xType,
-            yType
+            yType,
+            axisCustomization
           )
         );
       } else {
@@ -150,7 +155,8 @@ export function setupWebGLClickInteraction(
           xAxisProperty,
           yAxisProperty,
           xType,
-          yType
+          yType,
+          axisCustomization
         );
       }
 

@@ -97,6 +97,18 @@ export interface ScatterPlotOptions {
   // Refs
   containerRef: React.MutableRefObject<HTMLDivElement | null>;
   zoomRef: React.MutableRefObject<d3.ZoomTransform>;
+
+  // Axis customization
+  axisCustomization?: {
+    showXAxisLabel?: boolean;
+    showYAxisLabel?: boolean;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    xTickFormatter?: (value: unknown) => string;
+    yTickFormatter?: (value: unknown) => string;
+    groupByLabel?: string;
+    aggregateLabel?: string;
+  };
 }
 
 /**

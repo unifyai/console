@@ -32,6 +32,18 @@ interface PlotViewerConfig {
   margins?: { top: number; right: number; bottom: number; left: number };
   primaryColor?: string;
   colors?: Record<string, string>;
+  // Bar chart sorting
+  sortOrder?: string; // 'asc', 'desc', or undefined
+  // Axis customization - xLabel/yLabel apply to both axis and tooltip
+  xLabel?: string;
+  yLabel?: string;
+  showXLabel?: boolean;
+  showYLabel?: boolean;
+  xTickFormat?: string;
+  yTickFormat?: string;
+  // Group by and aggregate labels
+  groupByLabel?: string;
+  aggregateLabel?: string;
 }
 
 /**
@@ -126,6 +138,27 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
   // Use provided title or generate one from config
   const displayTitle = useMemo(() => title || generateTitle(config), [title, config]);
 
+  // Create tick formatter functions from format strings
+  const xTickFormatter = useMemo(() => {
+    if (!config.xTickFormat) return undefined;
+    const format = config.xTickFormat;
+    return (value: unknown) => {
+      if (format === '$') return `$${Number(value).toLocaleString()}`;
+      if (format === '%') return `${Number(value)}%`;
+      return `${format}${value}`;
+    };
+  }, [config.xTickFormat]);
+
+  const yTickFormatter = useMemo(() => {
+    if (!config.yTickFormat) return undefined;
+    const format = config.yTickFormat;
+    return (value: unknown) => {
+      if (format === '$') return `$${Number(value).toLocaleString()}`;
+      if (format === '%') return `${Number(value)}%`;
+      return `${format}${value}`;
+    };
+  }, [config.yTickFormat]);
+
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Header - compact styling */}
@@ -158,6 +191,18 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
           onLogScaleYEnabledChange={setLogScaleYEnabled}
           margins={config.margins || { top: 0, right: 15, bottom: 45, left: 55 }}
           preAggregatedBarData={preAggregatedBarData}
+          // Bar chart sorting
+          sortBars={config.sortOrder}
+          // Axis customization - xLabel/yLabel apply to both axis and tooltip
+          showXAxisLabel={config.showXLabel}
+          showYAxisLabel={config.showYLabel}
+          xAxisLabel={config.xLabel}
+          yAxisLabel={config.yLabel}
+          xTickFormatter={xTickFormatter}
+          yTickFormatter={yTickFormatter}
+          // Group by and aggregate labels
+          groupByLabel={config.groupByLabel}
+          aggregateLabel={config.aggregateLabel}
         />
       </div>
 

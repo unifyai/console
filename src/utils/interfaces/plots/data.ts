@@ -76,6 +76,31 @@ export const getValue = (
 };
 
 /**
+ * Retrieves the raw value of a property without type conversions.
+ * Useful for bar charts where categorical x-axis values (like dates) should remain as strings.
+ *
+ * @param {LogFieldsResponseProps} fields - Metadata describing the fields.
+ * @param {string} axisProperty - The name of the property to retrieve.
+ * @param {LogProps} log - The log object containing the data.
+ * @param {string} table - The table name associated with the logs.
+ * @returns {any} The raw value without type conversion.
+ */
+export const getRawValue = (
+  fields: LogFieldsResponseProps,
+  axisProperty: string,
+  log: LogProps,
+  table: string
+) => {
+  if (!hasProperty(fields, axisProperty, log, table)) return undefined;
+  const fieldType = fields[axisProperty] ? fields[axisProperty].fieldType : 'entry';
+  const value =
+    fieldType === 'derived_entry'
+      ? (log[`${table}.derivedEntries`] as LogItemProps)[axisProperty]
+      : (log[`${table}.entries`] as LogItemProps)[axisProperty];
+  return value;
+};
+
+/**
  * Infers the display type for "Any" type fields based on actual data values.
  * Used to determine proper axis formatting when the field type is "Any".
  *

@@ -24,3 +24,22 @@ export type InfoCardData = {
 };
 
 export type InfoCardPosition = { x: number; y: number };
+
+/**
+ * Axis customization options for plots.
+ * Allows customizing labels and tick formatters.
+ */
+export interface AxisCustomization {
+  // Whether to show axis labels
+  showXAxisLabel?: boolean;
+  showYAxisLabel?: boolean;
+  // Custom labels for axis AND tooltip (overrides field name)
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  // Custom tick formatters
+  xTickFormatter?: (value: unknown) => string;
+  yTickFormatter?: (value: unknown) => string;
+  // Custom labels for group by and aggregate
+  groupByLabel?: string;
+  aggregateLabel?: string;
+}

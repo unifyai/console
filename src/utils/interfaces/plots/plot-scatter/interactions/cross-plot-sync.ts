@@ -37,6 +37,7 @@ export function setupCrossPlotSync(
     zoomRef,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   const { x, y, initialX, initialY, xRange, yRange, reverseX, reverseY } = scaleContext;
@@ -95,7 +96,8 @@ export function setupCrossPlotSync(
     xAxisProperty,
     yAxisProperty,
     xType,
-    yType
+    yType,
+    axisCustomization
   );
   const template = tooltipTemplate(tooltipData);
   tooltip.html(template).style('opacity', 1);

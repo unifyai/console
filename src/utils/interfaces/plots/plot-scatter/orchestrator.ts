@@ -14,6 +14,7 @@ import {
   ColorContext,
   PreparedScatterData,
 } from './types';
+import { AxisCustomization } from '@/types/interfaces/plot';
 import { getConfig } from './config';
 import { buildQuadtree, cullToViewport, getViewportFromScales, stratifiedSample } from './data';
 import { SVGScatterRenderer } from './renderers/svg-renderer';
@@ -271,7 +272,8 @@ export function drawScatterPlot(
   zoomRef: React.MutableRefObject<d3.ZoomTransform>,
   groupByColors: string = 'schemeCategory10',
   interactive: boolean = true,
-  zoomEnabled: boolean = false
+  zoomEnabled: boolean = false,
+  axisCustomization?: AxisCustomization
 ): void {
   const g = svg.select('.plotData');
   const zoomContainer = svg.select('.zoom-layer');
@@ -378,11 +380,16 @@ export function drawScatterPlot(
   // Prepare colors
   const colorContext = prepareColors(svg, data, fields, xTable, groupBy, groupByColors);
 
-  // Draw axes
+  // Draw axes with optional custom labels
   const [xTicks, yTicks] = [
     generateTicks(scaleContext.x.domain()[0], scaleContext.x.domain()[1], 10, scaleX === 'log'),
     generateTicks(scaleContext.y.domain()[0], scaleContext.y.domain()[1], 10, scaleY === 'log'),
   ];
+
+  const showXLabel = axisCustomization?.showXAxisLabel !== false;
+  const showYLabel = axisCustomization?.showYAxisLabel !== false;
+  const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
+  const yLabel = showYLabel ? axisCustomization?.yAxisLabel || yAxisProperty : undefined;
 
   drawAxes(
     'Scatter Plot',
@@ -395,10 +402,12 @@ export function drawScatterPlot(
     yTicks,
     scaleContext.reverseX,
     scaleContext.reverseY,
-    xAxisProperty,
-    yAxisProperty,
+    xLabel,
+    yLabel,
     xType,
-    yType
+    yType,
+    axisCustomization?.xTickFormatter,
+    axisCustomization?.yTickFormatter
   );
 
   // Render grouping key legend
@@ -443,6 +452,7 @@ export function drawScatterPlot(
     zoomEnabled,
     containerRef,
     zoomRef,
+    axisCustomization,
   };
 
   // Render based on mode

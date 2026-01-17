@@ -81,6 +81,20 @@ export interface PlotCanvasProps {
   // Optional pre-aggregated bar chart data from backend metrics endpoint
   // When provided, bar chart skips client-side aggregation for better performance
   preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
+
+  // Axis label customization
+  showXAxisLabel?: boolean; // Whether to show X axis label (default: true)
+  showYAxisLabel?: boolean; // Whether to show Y axis label (default: true)
+  xAxisLabel?: string; // Custom label for X axis AND tooltip (overrides field name)
+  yAxisLabel?: string; // Custom label for Y axis AND tooltip (overrides field name)
+
+  // Tick formatters - functions that format tick values for display
+  xTickFormatter?: (value: unknown) => string;
+  yTickFormatter?: (value: unknown) => string;
+
+  // Group by and aggregate labels
+  groupByLabel?: string; // Custom label for group by field in tooltip/legend
+  aggregateLabel?: string; // Custom label for aggregate field in tooltip
 }
 
 /**
@@ -127,6 +141,17 @@ export function PlotCanvas({
   containerRef: externalContainerRef,
   settingsRef: externalSettingsRef,
   preAggregatedBarData,
+  // Axis label customization
+  showXAxisLabel = true,
+  showYAxisLabel = true,
+  xAxisLabel,
+  yAxisLabel,
+  // Tick formatters
+  xTickFormatter,
+  yTickFormatter,
+  // Group by and aggregate labels
+  groupByLabel,
+  aggregateLabel,
 }: PlotCanvasProps) {
   // Internal refs (used when external refs not provided)
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -266,7 +291,18 @@ export function PlotCanvas({
         onLogScaleYEnabledChange ?? (() => {}),
         plotTileActions as any,
         effectivePlotTileState,
-        preAggregatedBarData
+        preAggregatedBarData,
+        // Axis label customization
+        {
+          showXAxisLabel,
+          showYAxisLabel,
+          xAxisLabel,
+          yAxisLabel,
+          xTickFormatter,
+          yTickFormatter,
+          groupByLabel,
+          aggregateLabel,
+        }
       );
     } catch (err) {
       console.error('[PlotCanvas] drawPlot error:', err);
@@ -299,6 +335,15 @@ export function PlotCanvas({
     containerRef,
     settingsRef,
     svgRef,
+    // Axis customization
+    showXAxisLabel,
+    showYAxisLabel,
+    xAxisLabel,
+    yAxisLabel,
+    xTickFormatter,
+    yTickFormatter,
+    groupByLabel,
+    aggregateLabel,
   ]);
 
   return (
