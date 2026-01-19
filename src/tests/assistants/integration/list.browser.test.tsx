@@ -169,22 +169,18 @@ describe('Component Tests', () => {
   describe('User Interactions', () => {
     const user = userEvent.setup();
 
-    it('should disable the "New" button and show a tooltip if assistant limit is reached', async () => {
+    it('should enable the "New" button when there is no error', async () => {
       render(<AssistantList {...defaultListProps} assistants={mockAssistants} />);
       const newButton = screen.getByRole('button', { name: 'New' });
-      expect(newButton).toBeDisabled();
-
-      await user.hover(newButton.closest('span')!);
-      const tooltip = await screen.findByRole('tooltip', {
-        name: /More assistant hires available soon/i,
-      });
-      expect(tooltip).toBeInTheDocument();
+      expect(newButton).toBeEnabled();
     });
 
-    it('should enable the "New" button when below the assistant limit', async () => {
-      render(<AssistantList {...defaultListProps} assistants={[mockAssistants[0]]} />);
+    it('should disable the "New" button when there is an assistant error', async () => {
+      render(
+        <AssistantList {...defaultListProps} assistants={mockAssistants} assistantError="Error" />
+      );
       const newButton = screen.getByRole('button', { name: 'New' });
-      expect(newButton).toBeEnabled();
+      expect(newButton).toBeDisabled();
     });
 
     it('should toggle list folding when clicking on fold button', async () => {

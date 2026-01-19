@@ -57,7 +57,7 @@ export function AssistantList({
     );
   }, [assistants, searchTerm]);
 
-  const canHireNewAssistant = !assistantError && assistants.length < 2;
+  const canHireNewAssistant = !assistantError;
   // Hide hire button if user doesn't have permission (org members who aren't Owner)
   const showHireButton = canHire;
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
@@ -104,33 +104,17 @@ export function AssistantList({
               />
             </div>
             {showHireButton && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip open={!canHireNewAssistant && !isLoading ? undefined : false}>
-                  {' '}
-                  {/* Conditionally control open state for tooltip */}
-                  <TooltipTrigger asChild>
-                    {/* The button itself needs to be wrapped or be a direct child for TooltipTrigger to work correctly when disabled */}
-                    <span tabIndex={isHireButtonDisabled ? 0 : -1}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 items-center"
-                        onClick={onOpenHireDialog}
-                        disabled={isHireButtonDisabled}
-                        aria-disabled={isHireButtonDisabled}
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        New
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  {!canHireNewAssistant && !isLoading && (
-                    <TooltipContent side="bottom" align="end">
-                      <p>More assistant hires available soon</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 items-center"
+                onClick={onOpenHireDialog}
+                disabled={isHireButtonDisabled}
+                aria-disabled={isHireButtonDisabled}
+              >
+                <UserPlus className="h-4 w-4" />
+                New
+              </Button>
             )}
           </div>
         )}
