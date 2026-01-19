@@ -1,9 +1,8 @@
-"use server";
+'use server';
 
-import { stripe } from "@/lib/user/billing/stripe/stripe-instance";
-import { OrchestraAdminClient } from "@/lib/orchestra/orchestra-client";
+import { stripe } from '@/lib/user/billing/stripe/stripe-instance';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import type Stripe from 'stripe';
-
 
 /**
  * Fetches user data required for enriched metadata.
@@ -24,20 +23,22 @@ async function getUserData(userID: string) {
     return {
       createdAt: userResponse.data?.created_at, // e.g., '2023-01-01T12:00:00Z'
       totalSpending: (spendingResponse.data?.total_spending ?? 0) as number,
-      accountType: (
-        userResponse.data?.business_classification?.account_type ??
+      accountType: (userResponse.data?.business_classification?.account_type ??
         userResponse.data?.account_type ??
-        "individual"
-      ) as "individual" | "business",
+        'individual') as 'individual' | 'business',
       email: userResponse.data?.email as string | undefined,
       name: userResponse.data?.name as string | undefined,
       taxId: userResponse.data?.tax_id as string | undefined,
-      taxIdType: (userResponse.data?.tax_id_type || "eu_vat") as string | undefined,
+      taxIdType: (userResponse.data?.tax_id_type || 'eu_vat') as string | undefined,
     };
   } catch (error) {
-    console.error("Failed to fetch user data for Stripe metadata:", error);
+    console.error('Failed to fetch user data for Stripe metadata:', error);
     // Return defaults so we don't block the payment flow
-    return { createdAt: null, totalSpending: 0, accountType: "individual" as "individual" | "business" };
+    return {
+      createdAt: null,
+      totalSpending: 0,
+      accountType: 'individual' as 'individual' | 'business',
+    };
   }
 }
 
@@ -48,7 +49,7 @@ async function getUserData(userID: string) {
  * @returns The response from Orchestra.
  */
 export async function updateStripeCustomerID(userID: string, stripeCustomerID: string) {
-  const response = await OrchestraAdminClient.put("/stripe_customer_id", null, {
+  const response = await OrchestraAdminClient.put('/stripe_customer_id', null, {
     params: { id: userID, stripe_customer_id: stripeCustomerID },
   });
   return response;
@@ -66,7 +67,7 @@ export async function createCustomerPortalSession(customerID: string) {
   const stripeClient = stripe as NonNullable<typeof stripe>;
   const billingPortalSession = await stripeClient.billingPortal.sessions.create({
     customer: customerID,
-    return_url: process.env.NEXTAUTH_URL + "/billing",
+    return_url: process.env.NEXTAUTH_URL + '/billing',
   });
 
   return billingPortalSession.url;
@@ -84,10 +85,9 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
   const stripeClient = stripe as NonNullable<typeof stripe>;
   const customer = await stripeClient.customers.retrieve(customerID);
 
-  if ("deleted" in customer && customer.deleted) {
+  if ('deleted' in customer && customer.deleted) {
     return null;
   }
-
 
   if (!customer.invoice_settings?.default_payment_method) {
     return null;
@@ -95,10 +95,8 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
 
   const paymentMethodId = customer.invoice_settings.default_payment_method as string;
 
-
   return paymentMethodId;
 }
-
 
 /**
  * Creates a new Stripe checkout session for the given customer ID and returns the session URL.
@@ -112,7 +110,8 @@ export async function createCheckoutSession(userID: string, customerID: string):
   const stripeClient = stripe as NonNullable<typeof stripe>;
 
   // 1. Fetch user data from Orchestra
-  const { createdAt, totalSpending, accountType, email, name, taxId, taxIdType } = await getUserData(userID);
+  const { createdAt, totalSpending, accountType, email, name, taxId, taxIdType } =
+    await getUserData(userID);
 
   // 2. Calculate enriched metadata fields
   let accountAgeDays = 0;
@@ -124,25 +123,25 @@ export async function createCheckoutSession(userID: string, customerID: string):
 
   const isRepeatCustomer = totalSpending > 0;
 
-  console.log("[Checkout] user", userID, "accountType", accountType);
+  console.log('[Checkout] user', userID, 'accountType', accountType);
 
   let rawPriceOrProductId =
-    accountType === "business"
+    accountType === 'business'
       ? process.env.STRIPE_PRICE_ID_BUSINESS
       : process.env.STRIPE_PRICE_ID_PERSONAL;
 
-  console.log("[Checkout] raw price/product env value:", rawPriceOrProductId);
+  console.log('[Checkout] raw price/product env value:', rawPriceOrProductId);
 
   if (!rawPriceOrProductId) {
     throw new Error(
       `Missing Stripe price/product ID environment variable for ${accountType} account. Ensure STRIPE_PRICE_ID_${
-        accountType === "business" ? "BUSINESS" : "PERSONAL"
+        accountType === 'business' ? 'BUSINESS' : 'PERSONAL'
       } is set.`
     );
   }
 
   let priceId: string;
-  if (rawPriceOrProductId.startsWith("prod_")) {
+  if (rawPriceOrProductId.startsWith('prod_')) {
     // Convert product ID to its first active price ID
     const pricesForProduct = await stripeClient.prices.list({ product: rawPriceOrProductId });
     const activePrice = pricesForProduct.data.find((p) => p.active);
@@ -161,8 +160,8 @@ export async function createCheckoutSession(userID: string, customerID: string):
 
   async function buildSession(custId?: string) {
     return await stripeClient.checkout.sessions.create({
-      mode: "payment",
-      submit_type: "pay",
+      mode: 'payment',
+      submit_type: 'pay',
       line_items: [
         {
           price: priceId,
@@ -173,18 +172,18 @@ export async function createCheckoutSession(userID: string, customerID: string):
         enabled: true,
       },
       customer_update: {
-        address: "auto",
-        ...(accountType === "business" && { name: "auto" }),
+        address: 'auto',
+        ...(accountType === 'business' && { name: 'auto' }),
       },
       customer: custId,
       client_reference_id: userID,
       success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
-      billing_address_collection: "required",
-      tax_id_collection: accountType === "business" ? { enabled: true } : undefined,
+      billing_address_collection: 'required',
+      tax_id_collection: accountType === 'business' ? { enabled: true } : undefined,
       payment_method_options: {
         card: {
-          request_three_d_secure: "any",
+          request_three_d_secure: 'any',
         },
       },
       payment_intent_data: {
@@ -203,18 +202,18 @@ export async function createCheckoutSession(userID: string, customerID: string):
 
   let checkoutSession;
   async function ensureTaxId(custId: string) {
-    if (accountType === "business" && taxId) {
+    if (accountType === 'business' && taxId) {
       // Check existing tax IDs first to avoid duplicates
       const existing = await stripeClient.customers.listTaxIds(custId);
       const alreadyExists = existing.data.some((t: any) => t.value === taxId);
       if (!alreadyExists) {
         try {
           await stripeClient.customers.createTaxId(custId, {
-            type: (taxIdType || "eu_vat") as any,
+            type: (taxIdType || 'eu_vat') as any,
             value: taxId,
           });
         } catch (e) {
-          console.warn("Failed to create tax ID for customer", e);
+          console.warn('Failed to create tax ID for customer', e);
         }
       }
     }
@@ -228,17 +227,18 @@ export async function createCheckoutSession(userID: string, customerID: string):
   } catch (err: any) {
     // If the provided customerID is invalid/missing in Stripe, create new customer and retry once
     if (
-      err?.code === "resource_missing" &&
-      err?.param === "customer" &&
-      (err?.message?.includes("No such customer") || err?.raw?.message?.includes("No such customer"))
+      err?.code === 'resource_missing' &&
+      err?.param === 'customer' &&
+      (err?.message?.includes('No such customer') ||
+        err?.raw?.message?.includes('No such customer'))
     ) {
       const newCustomerId = await ensureStripeCustomer({
         userId: userID,
-        email: email || "",
-        name: name || email || "User",
+        email: email || '',
+        name: name || email || 'User',
         // provide tax info if business
-        taxId: accountType === "business" ? taxId : undefined,
-        taxIdType: accountType === "business" ? taxIdType : undefined,
+        taxId: accountType === 'business' ? taxId : undefined,
+        taxIdType: accountType === 'business' ? taxIdType : undefined,
       });
       checkoutSession = await buildSession(newCustomerId);
     } else {
@@ -253,15 +253,14 @@ export async function createCheckoutSession(userID: string, customerID: string):
   return checkoutSession.url;
 }
 
-
-  /**
-   * Retrieves the list of card fingerprints associated with a given Stripe customer ID.
-   * @param customerID - The Stripe customer ID of the user.
-   * @returns An array of card fingerprints associated with the user's customer ID.
-   * The response will have a status of 401 if the user is not authenticated,
-   * 404 if the user does not have a Stripe customer ID, or 500 if there was
-   * an error retrieving the user's payment methods.
-   */
+/**
+ * Retrieves the list of card fingerprints associated with a given Stripe customer ID.
+ * @param customerID - The Stripe customer ID of the user.
+ * @returns An array of card fingerprints associated with the user's customer ID.
+ * The response will have a status of 401 if the user is not authenticated,
+ * 404 if the user does not have a Stripe customer ID, or 500 if there was
+ * an error retrieving the user's payment methods.
+ */
 export async function getStripeFingerprints(customerID: string) {
   if (!stripe) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
@@ -305,13 +304,15 @@ export async function ensureStripeCustomer(params: {
   const { userId, email, name, address, taxId, taxIdType, clearTaxInfo, taxExempt } = params;
 
   if (!stripe) {
-    throw new Error("Stripe is not initialized. Check your environment variables.");
+    throw new Error('Stripe is not initialized. Check your environment variables.');
   }
   const stripeClient = stripe as NonNullable<typeof stripe>;
 
   // 1. Check Orchestra for existing stripe_customer_id
-  const billingDetails = await (await import("@/lib/user/billing/billing")).getUserBillingDetails(userId);
-  let customerId = billingDetails[0]?.stripe_customer_id;
+  const billingDetails = await (
+    await import('@/lib/user/billing/billing')
+  ).getUserBillingDetails(userId);
+  let customerId = billingDetails[0]?.stripeCustomerId;
 
   // 2. Create if missing
   if (!customerId) {
@@ -342,7 +343,7 @@ export async function ensureStripeCustomer(params: {
       console.log('[Stripe] Updating customer', customerId, 'with', updatePayload);
       await stripeClient.customers.update(customerId, updatePayload);
     } catch (e) {
-      console.warn("Failed to update Stripe customer", customerId, e);
+      console.warn('Failed to update Stripe customer', customerId, e);
     }
   }
 
@@ -350,7 +351,10 @@ export async function ensureStripeCustomer(params: {
   if (clearTaxInfo) {
     try {
       const existing = await stripeClient.customers.listTaxIds(customerId);
-      console.log('[Stripe] Existing tax IDs to clear:', existing.data.map(t => ({ id: t.id, value: t.value, type: t.type })));
+      console.log(
+        '[Stripe] Existing tax IDs to clear:',
+        existing.data.map((t) => ({ id: t.id, value: t.value, type: t.type }))
+      );
       for (const tid of existing.data) {
         await stripeClient.customers.deleteTaxId(customerId, tid.id);
       }
@@ -363,12 +367,12 @@ export async function ensureStripeCustomer(params: {
       const alreadyExists = existing.data.some((t: any) => t.value === taxId);
       if (!alreadyExists) {
         await stripeClient.customers.createTaxId(customerId, {
-          type: (taxIdType || "eu_vat") as any,
+          type: (taxIdType || 'eu_vat') as any,
           value: taxId,
         });
       }
     } catch (e) {
-      console.warn("Failed to ensure tax ID for customer", e);
+      console.warn('Failed to ensure tax ID for customer', e);
     }
   }
 

@@ -1,32 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+export async function DELETE(request: NextRequest, { params }: { params: { voiceId: string } }) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { voiceId: string } }
-) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const provider = request.nextUrl.searchParams.get('provider');
+  if (!provider) {
+    return badRequest("Missing 'provider' query parameter.");
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/assistant/voice/{voice_id}', {
+      params: {
+        path: { voice_id: params.voiceId },
+        query: { provider },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    const provider = request.nextUrl.searchParams.get("provider");
-    if (!provider) {
-        return NextResponse.json({ detail: "Missing 'provider' query parameter." }, { status: 400 });
-    }
 
-    return await fetch(
-        `${baseUrl}/assistant/voice/${params.voiceId}?provider=${provider}`, 
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-            },
-        }
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/voice/[voiceId] DELETE] Error:',
+      e instanceof Error ? e.message : e
     );
+    return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
+  }
 }

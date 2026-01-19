@@ -1,20 +1,30 @@
-"use client";
+'use client';
 
-import React, { useEffect, useMemo, Suspense, lazy } from "react";
-import { WidthProvider, Responsive, Layout } from "react-grid-layout";
+import React, { useEffect, useMemo, Suspense, lazy } from 'react';
+import { WidthProvider, Responsive, Layout } from 'react-grid-layout';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions } from "@/types/interfaces/grid";
-import { Loader2, Plus, LayoutGrid } from "lucide-react";
-import { Button } from "@/components/UI/button";
-import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import {
+  FieldsActions,
+  LogsActions,
+  DerivedEntryActions,
+  TileProps,
+  ContextActions,
+  GranularTileActions,
+  GranularTabActions,
+  TileLayout,
+  ProjectsActions,
+} from '@/types/interfaces/grid';
+import { Loader2, Plus, LayoutGrid } from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { getAnyTileLoading } from '@/contexts/utils/sliceUtils';
 import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
-import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
-import { Tile } from "@/contexts/slices/selectors/tile";
+import { useTabSync } from '@/contexts/hooks/tab/sync/useTabSync';
+import { Tile } from '@/contexts/slices/selectors/tile';
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 // Import the new dependency management system
-import { useDependencyAwareSortedTilesForTab } from "@/utils/interfaces/tileDependencies/dependencyManager";
+import { useDependencyAwareSortedTilesForTab } from '@/utils/interfaces/tileDependencies/dependencyManager';
 import { useUpdateTilesPositionsQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
@@ -54,14 +64,16 @@ const Tab = ({
   const heightFactor = 105;
 
   const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
-  const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
+  const tabLog = (...args: any[]) => {
+    if (DEBUG_TABS) console.log(...args);
+  };
 
   // Use granular hooks instead of a general hook
-  const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
+  const anyTileLoading = useStoreContext((state) => getAnyTileLoading(state));
 
   const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
-  
+
   // Get global UI mode settings
   const { isEditMode } = useGlobalUIMode();
 
@@ -78,21 +90,17 @@ const Tab = ({
   }, [tabDataState?.tileIds]);
 
   // Tab only needs sorted tiles
-  const { sortedTiles } = useDependencyAwareSortedTilesForTab(
-    tabId,
-    {
-      logDependencyChanges: true,
-      enableCircularDependencyDetection: true,
-      maxDependencyDepth: 10
-    }
-  );
-
+  const { sortedTiles } = useDependencyAwareSortedTilesForTab(tabId, {
+    logDependencyChanges: true,
+    enableCircularDependencyDetection: true,
+    maxDependencyDepth: 10,
+  });
 
   // Get the unregisterTileRefs function from Zustand
-  const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
+  const unregisterTileRefs = useStoreContext((state) => state.unregisterTileRefs);
 
   // End success green after 3 seconds
-  useEffect(() => { 
+  useEffect(() => {
     const timer = setTimeout(() => tabUIActions?.setSaveSuccess(undefined), 3000);
     return () => clearTimeout(timer);
   }, [tabUIState?.saveSuccess, tabUIActions]);
@@ -121,13 +129,19 @@ const Tab = ({
           y: Math.round(newLayout.y / heightFactor),
           w: Math.round(newLayout.w / widthFactor),
           h: Math.round(newLayout.h / heightFactor),
-          minW: typeof newLayout.minW === 'number' ? Math.round(newLayout.minW / widthFactor) : undefined,
-          minH: typeof newLayout.minH === 'number' ? Math.round(newLayout.minH / heightFactor) : undefined,
+          minW:
+            typeof newLayout.minW === 'number'
+              ? Math.round(newLayout.minW / widthFactor)
+              : undefined,
+          minH:
+            typeof newLayout.minH === 'number'
+              ? Math.round(newLayout.minH / heightFactor)
+              : undefined,
           moved: newLayout.moved,
           static: newLayout.static,
         };
-        
-        syncedTabDataActions.updateTileLayout(originalTile?.id ?? "", tileLayout);
+
+        syncedTabDataActions.updateTileLayout(originalTile?.id ?? '', tileLayout);
       });
     } else {
       tabUIActions?.setPending(false);
@@ -140,16 +154,16 @@ const Tab = ({
     const supportsBatch = (tileActions as any)?.updateTilesPositions;
     if (!supportsBatch || !tabId) return;
     try {
-      const tiles = layouts.map(l => ({
+      const tiles = layouts.map((l) => ({
         id: l.i,
         position: {
           x: Math.round(l.x / widthFactor),
           y: Math.round(l.y / heightFactor),
           width: Math.round(l.w / widthFactor),
           height: Math.round(l.h / heightFactor),
-        }
+        },
       }));
-      updateTilesPositionsMutation.mutate({ tab_id: tabId, tiles, actions: tileActions as any });
+      updateTilesPositionsMutation.mutate({ tabId: tabId, tiles, actions: tileActions as any });
     } catch {}
   };
 
@@ -165,7 +179,7 @@ const Tab = ({
           <Suspense
             key={tile.id}
             fallback={
-              <div className="w-full h-full flex items-center justify-center border p-4">
+              <div className="flex h-full w-full items-center justify-center border p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             }
@@ -187,14 +201,17 @@ const Tab = ({
         ),
       };
     });
-    
-    return renderTiles.filter((renderTile): renderTile is NonNullable<typeof renderTile> => renderTile !== null);
+
+    return renderTiles.filter(
+      (renderTile): renderTile is NonNullable<typeof renderTile> => renderTile !== null
+    );
   }, [
     sortedTiles,
     tabId,
     interfaceId,
     projectId,
     tileActions,
+    tabActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,
@@ -206,12 +223,14 @@ const Tab = ({
   // Compute tab-level colour override (if any)
   // ------------------------------------------------------------------
   const tabColor = tabUIState?.color ?? null;
-  const tabStyle = tabColor ? ({ '--primary': tabColor, '--accent': tabColor } as React.CSSProperties) : undefined;
+  const tabStyle = tabColor
+    ? ({ '--primary': tabColor, '--accent': tabColor } as React.CSSProperties)
+    : undefined;
 
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -222,10 +241,10 @@ const Tab = ({
   // 2. Tab has tileIds but sortedTiles haven't loaded into store yet
   const hasTileIds = tileIds.length > 0;
   const tilesNotYetHydrated = hasTileIds && sortedTiles.length === 0;
-  
+
   if (isLoadingTiles || tilesNotYetHydrated) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Loading tiles...</p>
       </div>
@@ -235,29 +254,37 @@ const Tab = ({
   // Show empty state when there are no tiles
   if (sortedTiles.length === 0 && !isLoadingTiles) {
     return (
-      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-4 p-8">
-        <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4 p-8">
+        <div className="bg-muted/50 flex h-16 w-16 items-center justify-center rounded-full">
           <LayoutGrid className="h-8 w-8 text-muted-foreground" />
         </div>
-        <div className="text-center max-w-md">
-          <h3 className="text-lg font-medium mb-2">No tiles yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {isEditMode 
+        <div className="max-w-md text-center">
+          <h3 className="mb-2 text-lg font-medium">No tiles yet</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {isEditMode
               ? "Click the 'Add tile' button below to create your first tile."
-              : "Enable Edit Mode to add tiles to this tab."}
+              : 'Enable Edit Mode to add tiles to this tab.'}
           </p>
         </div>
         {isEditMode && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Plus className="h-4 w-4" />
-            <span>Use the <strong>Add tile</strong> button in the bottom left</span>
+            <span>
+              Use the <strong>Add tile</strong> button in the bottom left
+            </span>
           </div>
         )}
       </div>
     );
   }
 
-  const newCols = { lg: 12 * widthFactor, md: 12 * widthFactor, sm: 12 * widthFactor, xs: 12 * widthFactor, xxs: 12 * widthFactor };
+  const newCols = {
+    lg: 12 * widthFactor,
+    md: 12 * widthFactor,
+    sm: 12 * widthFactor,
+    xs: 12 * widthFactor,
+    xxs: 12 * widthFactor,
+  };
 
   return (
     <div style={tabStyle} data-tab-color>
@@ -265,7 +292,7 @@ const Tab = ({
         onLayoutChange={onLayoutChange}
         onDragStop={persistBatchPositions}
         onResizeStop={persistBatchPositions}
-        className="layout interactive-grid flex-1 mx-1 w-full"
+        className="layout interactive-grid mx-1 w-full flex-1"
         style={{ width: '100%', minWidth: 0 }}
         cols={newCols}
         rowHeight={105 / heightFactor}
@@ -274,7 +301,7 @@ const Tab = ({
         isDraggable={isEditMode && !dragResizeDisabled}
         isResizable={isEditMode && !dragResizeDisabled}
         draggableHandle=".drag"
-        resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
+        resizeHandles={['e', 'w', 's', 'n', 'se', 'sw', 'ne', 'nw']}
         compactType={null}
         preventCollision={true}
       >
@@ -296,12 +323,11 @@ const Tab = ({
                 moved: tile.moved,
                 static: tile.static,
               }}
-              className="relative group"
+              className="group relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Dependency-aware tile renderer */}
               {element}
-
             </div>
           );
         })}

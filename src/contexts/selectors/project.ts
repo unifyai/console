@@ -18,5 +18,5 @@ export const selectProjectById = (state: IStoreState, id: string) => {
  * Select a project by its name
  */
 export const selectProjectByName = (state: IStoreState, name: string) => {
-  return Object.values(state.projectsById || {}).find(project => project.name === name) || null;
+  return Object.values(state.projectsById || {}).find((project) => project.name === name) || null;
 };

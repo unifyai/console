@@ -26,9 +26,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
@@ -112,7 +118,7 @@ describe('OnboardingGuard', () => {
     );
 
     // Wait a bit for any potential API calls
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Should NOT have called API - used cache
     expect(mockFetch).not.toHaveBeenCalled();
@@ -124,7 +130,7 @@ describe('OnboardingGuard', () => {
       'onboarding-status',
       JSON.stringify({
         data: { onboarded: true },
-        timestamp: Date.now() - (6 * 60 * 1000), // 6 minutes ago
+        timestamp: Date.now() - 6 * 60 * 1000, // 6 minutes ago
       })
     );
 
@@ -165,7 +171,7 @@ describe('OnboardingGuard', () => {
     );
 
     // Wait a bit
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Should NOT call API for allowed paths
     expect(mockFetch).not.toHaveBeenCalled();
@@ -184,10 +190,9 @@ describe('OnboardingGuard', () => {
     );
 
     // Wait a bit
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Should NOT call API when not logged in
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });
-

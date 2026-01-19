@@ -41,8 +41,8 @@ fi
 
 # Apply defaults
 SHARD_COUNT="${SHARD_COUNT:-${SHARDS:-4}}"
-# Default to matrix tests only (*.matrix.node.test.ts)
-TEST_PATH="${TEST_PATH:-src/tests/}"
+# Default to matrix tests only - use glob pattern for *.matrix.node.test.ts files
+TEST_PATH="${TEST_PATH:-src/tests/**/*.matrix.node.test.ts}"
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║           Node Matrix Tests - Parallel Execution               ║"

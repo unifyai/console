@@ -1,8 +1,8 @@
-export default {
-    gif: "quick_start",
-    link: "basics/quickstart",
-    description: "Run your first eval ⬇️, and then check out the logs in your first interface 📊",
-    code: `import unify
+const mathsAssistant = {
+  gif: 'quick_start',
+  link: 'basics/quickstart',
+  description: 'Run your first eval ⬇️, and then check out the logs in your first interface 📊',
+  code: `import unify
 from random import randint, choice
 
 # initialize project
@@ -53,45 +53,47 @@ def evaluate(q: str):
 with unify.Experiment():
     unify.map(evaluate, qs)
 `,
-    // Granular interface structure
-    interface: {
-        project_id: "Maths Assistant",
-        name: "interface1"
+  // Granular interface structure
+  interface: {
+    projectId: 'Maths Assistant',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 7.0,
+        height: 8.0,
+      },
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'View',
+      type: 'View',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 5.0,
+        height: 8.0,
+      },
+      table: 'Table',
+      viewTile: {},
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 7.0,
-                height: 8.0
-            },
-            table_tile: {
-                table_type: "Data Table"
-            }
-        },
-        {
-            name: "View",
-            type: "View",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 5.0,
-                height: 8.0
-            },
-            table: "Table",
-            view_tile: {}
-        }
-    ],
-    new_counter: 2
-}
+  ],
+  newCounter: 2,
+};
+
+export default mathsAssistant;

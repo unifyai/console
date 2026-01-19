@@ -7,12 +7,8 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import {
-  renderPlotCanvas,
-} from '../fixtures/plotCanvasTestHarness';
-import {
-  assertBarsHaveValidDimensions,
-} from './_bar-test-helpers';
+import { renderPlotCanvas } from '../fixtures/plotCanvasTestHarness';
+import { assertBarsHaveValidDimensions } from './_bar-test-helpers';
 
 // =============================================================================
 // Setup
@@ -69,8 +65,16 @@ describe('Bar Chart - Edge Cases', () => {
 
   it('handles zero values', async () => {
     const zeroValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A', 'table1.value': 1 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B', 'table1.value': 100 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'A', 'table1.value': 1 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'B', 'table1.value': 100 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -89,15 +93,27 @@ describe('Bar Chart - Edge Cases', () => {
     assertBarsHaveValidDimensions(bars);
 
     // Bar heights should be valid
-    const barHeights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
+    const barHeights = bars.map((bar) => parseFloat(bar.getAttribute('height') || '0'));
     expect(Math.min(...barHeights)).toBeGreaterThanOrEqual(0);
   });
 
   it('handles negative values', async () => {
     const negativeValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A', 'table1.value': -50 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B', 'table1.value': 50 } },
-      { id: 'log_2', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'C', 'table1.value': 1 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'A', 'table1.value': -50 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'B', 'table1.value': 50 },
+      },
+      {
+        id: 'log_2',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'C', 'table1.value': 1 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -118,8 +134,16 @@ describe('Bar Chart - Edge Cases', () => {
 
   it('handles very long category names', async () => {
     const longNameLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A'.repeat(50), 'table1.value': 100 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B'.repeat(50), 'table1.value': 200 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'A'.repeat(50), 'table1.value': 100 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.category': 'B'.repeat(50), 'table1.value': 200 },
+      },
     ];
 
     const result = renderPlotCanvas({

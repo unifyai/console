@@ -1,14 +1,20 @@
-"use client";
+'use client';
 
-import { useMemo, useRef, useEffect } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
-import { useTableTile, TableActions } from "../useTableTile";
-import { useTileUI } from "../useTileUI";
-import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { showErrorToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { usePatchSpecializedTileQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
+import {
+  ContextActions,
+  FieldsActions,
+  LogsActions,
+  ProjectsActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
+import { useTableTile, TableActions } from '../useTableTile';
+import { useTileUI } from '../useTileUI';
+import { useTileMeta } from '@/contexts/hooks/tile/useTileMeta';
+import { usePatchSpecializedTileQueryOptimistic } from '@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { showErrorToast, withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for state syncing logging
@@ -28,16 +34,17 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the TableTile that will be synced with the server
  */
-export type SyncedTableProperties = 'table_type' | 
-'page_number' | 
-'column_order' |
-'hidden_columns' |
-'default_hidden_columns' |
-'sorting' | 
-'group_sorting' | 
-'columns_pin_left' | 
-'columns_pin_right' | 
-'selected';
+export type SyncedTableProperties =
+  | 'tableType'
+  | 'pageNumber'
+  | 'columnOrder'
+  | 'hiddenColumns'
+  | 'defaultHiddenColumns'
+  | 'sorting'
+  | 'groupSorting'
+  | 'columnsPinLeft'
+  | 'columnsPinRight'
+  | 'selected';
 
 /**
  * Loading states for each property
@@ -127,405 +134,487 @@ export function useTableTileSync(
   }, []);
 
   // Create individual mutation hooks for each property
-  const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const sortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const groupSortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const columnOrderMutation = usePatchSpecializedTileQuery<"Table">();
-  const hiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
-  const columnsPinLeftMutation = usePatchSpecializedTileQuery<"Table">();
-  const columnsPinRightMutation = usePatchSpecializedTileQuery<"Table">();
-  const selectedMutation = usePatchSpecializedTileQuery<"Table">();
-  const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-  const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
+  const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const sortingMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const groupSortingMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const columnOrderMutation = usePatchSpecializedTileQuery<'Table'>();
+  const hiddenColumnsMutation = usePatchSpecializedTileQuery<'Table'>();
+  const columnsPinLeftMutation = usePatchSpecializedTileQuery<'Table'>();
+  const columnsPinRightMutation = usePatchSpecializedTileQuery<'Table'>();
+  const selectedMutation = usePatchSpecializedTileQuery<'Table'>();
+  const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<'Table'>();
+  const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<'Table'>();
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
-    table_type: tableTypeMutation,
+    tableType: tableTypeMutation,
     sorting: sortingMutation,
-    group_sorting: groupSortingMutation,
-    column_order: columnOrderMutation,
-    hidden_columns: hiddenColumnsMutation,
-    default_hidden_columns: defaultHiddenColumnsMutation,
-    columns_pin_left: columnsPinLeftMutation,
-    columns_pin_right: columnsPinRightMutation,
+    groupSorting: groupSortingMutation,
+    columnOrder: columnOrderMutation,
+    hiddenColumns: hiddenColumnsMutation,
+    defaultHiddenColumns: defaultHiddenColumnsMutation,
+    columnsPinLeft: columnsPinLeftMutation,
+    columnsPinRight: columnsPinRightMutation,
     selected: selectedMutation,
-    page_number: pageNumberMutation,
+    pageNumber: pageNumberMutation,
   };
 
   // Individual wrapper functions for each property
-  const wrapTableType = async (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
+  const wrapTableType = useCallback(
+    async (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
 
-    // Set UI states immediately before any operations
-    if (uiActions) {
-      uiActions.setLoading(true);
-      uiActions.setPending(true);
-    }
-    
-    // 1) Update local state immediately
-    tableTileActions.setTableType(value);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // Set UI states immediately before any operations
+      if (uiActions) {
+        uiActions.setLoading(true);
+        uiActions.setPending(true);
+      }
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
+      // 1) Update local state immediately
+      tableTileActions.setTableType(value);
 
-    // 2) Optimistic server update
-    try {
-      await withLoadingToastFn(
-        () => tableTypeMutation.mutateAsync({
-          tab_id: tabId,
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // Get fresh data from Zustand using the pure selectors
+      const state = storeApi.getState();
+
+      // 2) Optimistic server update
+      try {
+        await withLoadingToastFn(
+          () =>
+            tableTypeMutation.mutateAsync({
+              tabId: tabId,
+              name: tileName,
+              projectId: state.activeProjectId || '',
+              tileType: 'Table',
+              updateData: { tableType: value ?? null },
+              refetchProjects: true,
+              refetchContexts: true,
+              refetchFields: true,
+              rebuildTableData: true,
+              rebuildPlotData: true,
+              actions: granularTileActions,
+              projectsActions: projectsActions as ProjectsActions,
+              contextActions: contextActions as ContextActions,
+              logsActions: logsActions as LogsActions,
+              fieldsActions: fieldsActions as FieldsActions,
+            }),
+          {
+            loadingMessage: 'Updating table type...',
+            successMessage: 'Table type updated!',
+            errorMessage: `Failed to set table type for ${tileName}`,
+          }
+        );
+      } catch (error) {
+        // Error is already handled by withLoadingToast, just re-throwing
+        throw error;
+      } finally {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapTableType] onSettled:', value);
+        uiActions?.setLoading(false);
+        uiActions?.setPending(false);
+      }
+    },
+    [
+      tableTileActions,
+      granularTileActions,
+      uiActions,
+      tileName,
+      tabId,
+      storeApi,
+      tableTypeMutation,
+      projectsActions,
+      contextActions,
+      logsActions,
+      fieldsActions,
+    ]
+  );
+
+  const wrapSorting = useCallback(
+    async (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // Set UI states immediately before any operations
+      if (uiActions) {
+        uiActions.setLoading(true);
+      }
+
+      // 1) Update local state immediately
+      tableTileActions.setSorting(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // Get fresh data from Zustand using the pure selectors
+      const state = storeApi.getState();
+
+      // 2) Optimistic server update
+      try {
+        await withLoadingToastFn(
+          () =>
+            sortingMutation.mutateAsync({
+              tabId: tabId,
+              name: tileName,
+              projectId: state.activeProjectId || '',
+              tileType: 'Table',
+              updateData: { sorting: value ?? null },
+              refetchProjects: false,
+              refetchContexts: false,
+              refetchFields: true,
+              rebuildTableData: true,
+              rebuildPlotData: false,
+              actions: granularTileActions,
+              projectsActions: projectsActions as ProjectsActions,
+              contextActions: contextActions as ContextActions,
+              logsActions: logsActions as LogsActions,
+              fieldsActions: fieldsActions as FieldsActions,
+            }),
+          {
+            loadingMessage: 'Applying sorting...',
+            successMessage: 'Sorting applied!',
+            errorMessage: `Failed to set sorting for ${tileName}`,
+          }
+        );
+      } catch (error) {
+        // Error is already handled by withLoadingToast, just re-throwing
+        throw error;
+      } finally {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapSorting] onSettled:', value);
+        uiActions?.setLoading(false);
+      }
+    },
+    [
+      tableTileActions,
+      granularTileActions,
+      uiActions,
+      tileName,
+      tabId,
+      storeApi,
+      sortingMutation,
+      projectsActions,
+      contextActions,
+      logsActions,
+      fieldsActions,
+    ]
+  );
+
+  const wrapGroupSorting = useCallback(
+    async (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // Set UI states immediately before any operations
+      if (uiActions) {
+        uiActions.setLoading(true);
+      }
+
+      // 1) Update local state immediately
+      tableTileActions.setGroupSorting(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // Get fresh data from Zustand using the pure selectors
+      const state = storeApi.getState();
+
+      // 2) Optimistic server update
+      try {
+        await withLoadingToastFn(
+          () =>
+            groupSortingMutation.mutateAsync({
+              tabId: tabId,
+              name: tileName,
+              projectId: state.activeProjectId || '',
+              tileType: 'Table',
+              updateData: { groupSorting: value ?? null },
+              refetchProjects: false,
+              refetchContexts: false,
+              refetchFields: true,
+              rebuildTableData: true,
+              rebuildPlotData: false,
+              actions: granularTileActions,
+              projectsActions: projectsActions as ProjectsActions,
+              contextActions: contextActions as ContextActions,
+              logsActions: logsActions as LogsActions,
+              fieldsActions: fieldsActions as FieldsActions,
+            }),
+          {
+            loadingMessage: 'Applying grouping...',
+            successMessage: 'Grouping applied successfully!',
+            errorMessage: `Failed to apply grouping for ${tileName}.`,
+          }
+        );
+      } catch (error) {
+        // Error is already handled by withLoadingToast, just re-throwing
+        throw error;
+      } finally {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapGroupSorting] onSettled:', value);
+        uiActions?.setLoading(false);
+      }
+    },
+    [
+      tableTileActions,
+      granularTileActions,
+      uiActions,
+      tileName,
+      tabId,
+      storeApi,
+      groupSortingMutation,
+      projectsActions,
+      contextActions,
+      logsActions,
+      fieldsActions,
+    ]
+  );
+
+  const wrapColumnOrder = useCallback(
+    (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setColumnOrder(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (columnOrderTimeoutRef.current) {
+        clearTimeout(columnOrderTimeoutRef.current);
+      }
+
+      // Set a new timeout for the server mutation
+      columnOrderTimeoutRef.current = setTimeout(() => {
+        columnOrderMutation.mutate({
+          tabId: tabId,
           name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { table_type: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: true,
+          tileType: 'Table',
+          updateData: { columnOrder: value ?? null },
           actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
-        {
-          loadingMessage: "Updating table type...",
-          successMessage: "Table type updated!",
-          errorMessage: `Failed to set table type for ${tileName}`,
-        }
-      );
-    } catch (error) {
-      // Error is already handled by withLoadingToast, just re-throwing
-      throw error;
-    } finally {
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapTableType] onSettled:", value);
-      uiActions?.setLoading(false);
-      uiActions?.setPending(false);
-    }
-  };
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, columnOrderMutation]
+  );
 
-  const wrapSorting = async (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
+  const wrapHiddenColumns = useCallback(
+    (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
 
-    // Set UI states immediately before any operations
-    if (uiActions) {
-      uiActions.setLoading(true);
-    }
-    
-    // 1) Update local state immediately
-    tableTileActions.setSorting(value);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setHiddenColumns(value);
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    try {
-      await withLoadingToastFn(
-        () => sortingMutation.mutateAsync({
-          tab_id: tabId,
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (hiddenColumnsTimeoutRef.current) {
+        clearTimeout(hiddenColumnsTimeoutRef.current);
+      }
+
+      // Set a new timeout for the server mutation
+      hiddenColumnsTimeoutRef.current = setTimeout(() => {
+        hiddenColumnsMutation.mutate({
+          tabId: tabId,
           name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { sorting: value ?? null },
-          refetchProjects: false,
-          refetchContexts: false,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
+          tileType: 'Table',
+          updateData: { hiddenColumns: value ?? null },
           actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
-        {
-          loadingMessage: "Applying sorting...",
-          successMessage: "Sorting applied!",
-          errorMessage: `Failed to set sorting for ${tileName}`,
-        }
-      );
-    } catch (error) {
-      // Error is already handled by withLoadingToast, just re-throwing
-      throw error;
-    } finally {
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapSorting] onSettled:", value);
-      uiActions?.setLoading(false);
-    }
-  };
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, hiddenColumnsMutation]
+  );
 
-  const wrapGroupSorting = async (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
+  const wrapDefaultHiddenColumns = useCallback(
+    (value: boolean | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
 
-    // Set UI states immediately before any operations
-    if (uiActions) {
-      uiActions.setLoading(true);
-    }
-    
-    // 1) Update local state immediately
-    tableTileActions.setGroupSorting(value);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setDefaultHiddenColumns(value);
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    try {
-      await withLoadingToastFn(
-        () => groupSortingMutation.mutateAsync({
-          tab_id: tabId,
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (defaultHiddenColumnsTimeoutRef.current) {
+        clearTimeout(defaultHiddenColumnsTimeoutRef.current);
+      }
+
+      defaultHiddenColumnsTimeoutRef.current = setTimeout(() => {
+        defaultHiddenColumnsMutation.mutate({
+          tabId: tabId,
           name: tileName,
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { group_sorting: value ?? null },
-          refetchProjects: false,
-          refetchContexts: false,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
+          tileType: 'Table',
+          updateData: { defaultHiddenColumns: value ?? true },
           actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
-        {
-          loadingMessage: "Applying grouping...",
-          successMessage: "Grouping applied successfully!",
-          errorMessage: `Failed to apply grouping for ${tileName}.`,
-        }
-      );
-    } catch (error) {
-      // Error is already handled by withLoadingToast, just re-throwing
-      throw error;
-    } finally {
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapGroupSorting] onSettled:", value);
-      uiActions?.setLoading(false);
-    }
-  };
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, defaultHiddenColumnsMutation]
+  );
 
-  const wrapColumnOrder = (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setColumnOrder(value);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+  const wrapColumnsPinLeft = useCallback(
+    (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
 
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (columnOrderTimeoutRef.current) {
-      clearTimeout(columnOrderTimeoutRef.current);
-    }
-    
-    // Set a new timeout for the server mutation
-    columnOrderTimeoutRef.current = setTimeout(() => {
-      columnOrderMutation.mutate({
-        tab_id: tabId,
-        name: tileName,
-        tileType: "Table",
-        updateData: { column_order: value ?? null },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setColumnsPinLeft(value);
 
-  const wrapHiddenColumns = (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setHiddenColumns(value);   
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
 
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (hiddenColumnsTimeoutRef.current) {
-      clearTimeout(hiddenColumnsTimeoutRef.current);
-    }
-    
-    // Set a new timeout for the server mutation
-    hiddenColumnsTimeoutRef.current = setTimeout(() => {
-      hiddenColumnsMutation.mutate({
-        tab_id: tabId,    
-        name: tileName,
-        tileType: "Table",
-        updateData: { hidden_columns: value ?? null },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };    
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (columnsPinLeftTimeoutRef.current) {
+        clearTimeout(columnsPinLeftTimeoutRef.current);
+      }
 
-  const wrapDefaultHiddenColumns = (value: boolean | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setDefaultHiddenColumns(value);
-
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (defaultHiddenColumnsTimeoutRef.current) {
-      clearTimeout(defaultHiddenColumnsTimeoutRef.current);
-    }
-
-    defaultHiddenColumnsTimeoutRef.current = setTimeout(() => {
-      defaultHiddenColumnsMutation.mutate({
-        tab_id: tabId,
-        name: tileName,
-        tileType: "Table",
-        updateData: { default_hidden_columns: value ?? true },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };
-
-  const wrapColumnsPinLeft = (value: string | undefined) => {
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setColumnsPinLeft(value);
-    
-    // Don't attempt server update if we don't have required info
-    if (!tileName || !tabId) return;
-
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (columnsPinLeftTimeoutRef.current) {
-      clearTimeout(columnsPinLeftTimeoutRef.current);
-    }
-    
-    // Set a new timeout for the server mutation
-    columnsPinLeftTimeoutRef.current = setTimeout(() => {
-      columnsPinLeftMutation.mutate({
-        tab_id: tabId,
-        name: tileName,   
-        tileType: "Table",
-        updateData: { columns_pin_left: value ?? null },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };
-
-  const wrapColumnsPinRight = (value: string | undefined) => {  
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setColumnsPinRight(value);
-    
-    // Don't attempt server update if we don't have required info   
-    if (!tileName || !tabId) return;
-
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (columnsPinRightTimeoutRef.current) {
-      clearTimeout(columnsPinRightTimeoutRef.current);
-    }
-    
-    // Set a new timeout for the server mutation
-    columnsPinRightTimeoutRef.current = setTimeout(() => {
-      columnsPinRightMutation.mutate({
-        tab_id: tabId,
-        name: tileName,   
-        tileType: "Table",
-        updateData: { columns_pin_right: value ?? null },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };
-
-  const wrapSelected = (value: string | undefined) => { 
-    if (!tableTileActions || !granularTileActions) return;
-    
-    // 1) Update local state immediately (no debouncing for UI responsiveness)
-    tableTileActions.setSelected(value);
-    
-    // Don't attempt server update if we don't have required info   
-    if (!tileName || !tabId) return;
-
-    // 2) Debounce the server mutation
-    // Clear any existing timeout
-    if (selectedTimeoutRef.current) {
-      clearTimeout(selectedTimeoutRef.current);
-    }
-    
-    // Set a new timeout for the server mutation
-    selectedTimeoutRef.current = setTimeout(() => {
-      selectedMutation.mutate({
-        tab_id: tabId,
-        name: tileName,   
-        tileType: "Table",
-        updateData: { selected: value ?? null },
-        actions: granularTileActions
-      });
-    }, 500); // 500ms debounce delay
-  };
-
-  const wrapPageNumber = async (value: string | undefined) => {   
-    if (!tableTileActions || !granularTileActions) return;
-
-    // Set UI states immediately before any operations
-    if (uiActions) {
-      uiActions.setLoading(true);
-    }
-    
-    // 1) Update local state immediately
-    tableTileActions.setPageNumber(value);
-    
-    // Don't attempt server update if we don't have required info   
-    if (!tileName || !tabId) return;
-
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
-
-    // 2) Optimistic server update
-    try {
-      await withLoadingToastFn(
-        () => pageNumberMutation.mutateAsync({
-          tab_id: tabId,
-          name: tileName,   
-          projectId: state.activeProjectId || "",
-          tileType: "Table",
-          updateData: { page_number: value ?? null },
-          refetchProjects: true,
-          refetchContexts: true,
-          refetchFields: true,
-          rebuildTableData: true,
-          rebuildPlotData: false,
+      // Set a new timeout for the server mutation
+      columnsPinLeftTimeoutRef.current = setTimeout(() => {
+        columnsPinLeftMutation.mutate({
+          tabId: tabId,
+          name: tileName,
+          tileType: 'Table',
+          updateData: { columnsPinLeft: value ?? null },
           actions: granularTileActions,
-          projectsActions: projectsActions as ProjectsActions,
-          contextActions: contextActions as ContextActions,
-          logsActions: logsActions as LogsActions,
-          fieldsActions: fieldsActions as FieldsActions,
-        }),
-        {
-          loadingMessage: "Changing page...",
-          successMessage: "Page changed!",
-          errorMessage: `Failed to set page number for ${tileName}`,
-        }
-      );
-    } catch (error) {
-      // Error is already handled by withLoadingToast, just re-throwing
-      throw error;
-    } finally {
-      // 3. Refresh the router and set the loading state
-      debugLog("[wrapPageNumber] onSettled:", value);
-      uiActions?.setLoading(false);
-    }
-  };
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, columnsPinLeftMutation]
+  );
+
+  const wrapColumnsPinRight = useCallback(
+    (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setColumnsPinRight(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (columnsPinRightTimeoutRef.current) {
+        clearTimeout(columnsPinRightTimeoutRef.current);
+      }
+
+      // Set a new timeout for the server mutation
+      columnsPinRightTimeoutRef.current = setTimeout(() => {
+        columnsPinRightMutation.mutate({
+          tabId: tabId,
+          name: tileName,
+          tileType: 'Table',
+          updateData: { columnsPinRight: value ?? null },
+          actions: granularTileActions,
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, columnsPinRightMutation]
+  );
+
+  const wrapSelected = useCallback(
+    (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // 1) Update local state immediately (no debouncing for UI responsiveness)
+      tableTileActions.setSelected(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // 2) Debounce the server mutation
+      // Clear any existing timeout
+      if (selectedTimeoutRef.current) {
+        clearTimeout(selectedTimeoutRef.current);
+      }
+
+      // Set a new timeout for the server mutation
+      selectedTimeoutRef.current = setTimeout(() => {
+        selectedMutation.mutate({
+          tabId: tabId,
+          name: tileName,
+          tileType: 'Table',
+          updateData: { selected: value ?? null },
+          actions: granularTileActions,
+        });
+      }, 500); // 500ms debounce delay
+    },
+    [tableTileActions, granularTileActions, tileName, tabId, selectedMutation]
+  );
+
+  const wrapPageNumber = useCallback(
+    async (value: string | undefined) => {
+      if (!tableTileActions || !granularTileActions) return;
+
+      // Set UI states immediately before any operations
+      if (uiActions) {
+        uiActions.setLoading(true);
+      }
+
+      // 1) Update local state immediately
+      tableTileActions.setPageNumber(value);
+
+      // Don't attempt server update if we don't have required info
+      if (!tileName || !tabId) return;
+
+      // Get fresh data from Zustand using the pure selectors
+      const state = storeApi.getState();
+
+      // 2) Optimistic server update
+      try {
+        await withLoadingToastFn(
+          () =>
+            pageNumberMutation.mutateAsync({
+              tabId: tabId,
+              name: tileName,
+              projectId: state.activeProjectId || '',
+              tileType: 'Table',
+              updateData: { pageNumber: value ?? null },
+              refetchProjects: true,
+              refetchContexts: true,
+              refetchFields: true,
+              rebuildTableData: true,
+              rebuildPlotData: false,
+              actions: granularTileActions,
+              projectsActions: projectsActions as ProjectsActions,
+              contextActions: contextActions as ContextActions,
+              logsActions: logsActions as LogsActions,
+              fieldsActions: fieldsActions as FieldsActions,
+            }),
+          {
+            loadingMessage: 'Changing page...',
+            successMessage: 'Page changed!',
+            errorMessage: `Failed to set page number for ${tileName}`,
+          }
+        );
+      } catch (error) {
+        // Error is already handled by withLoadingToast, just re-throwing
+        throw error;
+      } finally {
+        // 3. Refresh the router and set the loading state
+        debugLog('[wrapPageNumber] onSettled:', value);
+        uiActions?.setLoading(false);
+      }
+    },
+    [
+      tableTileActions,
+      granularTileActions,
+      uiActions,
+      tileName,
+      tabId,
+      storeApi,
+      pageNumberMutation,
+      projectsActions,
+      contextActions,
+      logsActions,
+      fieldsActions,
+    ]
+  );
 
   // Create the enhanced actions object
   const syncedActions = useMemo(() => {
@@ -547,10 +636,16 @@ export function useTableTileSync(
     } as TableActions;
   }, [
     tableTileActions,
-    tabId,
-    tileId,
-    granularTileActions,
-    uiActions
+    wrapColumnOrder,
+    wrapColumnsPinLeft,
+    wrapColumnsPinRight,
+    wrapDefaultHiddenColumns,
+    wrapGroupSorting,
+    wrapHiddenColumns,
+    wrapPageNumber,
+    wrapSelected,
+    wrapSorting,
+    wrapTableType,
   ]);
 
   if (!tableTileActions || !granularTileActions) {
@@ -558,76 +653,76 @@ export function useTableTileSync(
       tableTile,
       tableTileActions: null,
       loading: {
-        table_type: false,
-        column_order: false,
-        hidden_columns: false,
-        default_hidden_columns: true,
+        tableType: false,
+        columnOrder: false,
+        hiddenColumns: false,
+        defaultHiddenColumns: true,
         sorting: false,
-        group_sorting: false,
-        columns_pin_left: false,
-        columns_pin_right: false,
+        groupSorting: false,
+        columnsPinLeft: false,
+        columnsPinRight: false,
         selected: false,
-        page_number: false,
-        any: false
+        pageNumber: false,
+        any: false,
       },
       error: {
-        table_type: null,
+        tableType: null,
         sorting: null,
-        group_sorting: null,
-        column_order: null,
-        hidden_columns: null,
-        default_hidden_columns: null,
-        columns_pin_left: null,
-        columns_pin_right: null,
+        groupSorting: null,
+        columnOrder: null,
+        hiddenColumns: null,
+        defaultHiddenColumns: null,
+        columnsPinLeft: null,
+        columnsPinRight: null,
         selected: null,
-        page_number: null,
-        any: false
+        pageNumber: null,
+        any: false,
       },
-      exists: false
+      exists: false,
     };
   }
 
   // Prepare loading states
   const loading: TableLoadingStates = {
-    table_type: mutations.table_type.isPending,
+    tableType: mutations.tableType.isPending,
     sorting: mutations.sorting.isPending,
-    group_sorting: mutations.group_sorting.isPending,
-    column_order: mutations.column_order.isPending,
-    hidden_columns: mutations.hidden_columns.isPending,
-    default_hidden_columns: mutations.default_hidden_columns.isPending,
-    columns_pin_left: mutations.columns_pin_left.isPending,
-    columns_pin_right: mutations.columns_pin_right.isPending,
+    groupSorting: mutations.groupSorting.isPending,
+    columnOrder: mutations.columnOrder.isPending,
+    hiddenColumns: mutations.hiddenColumns.isPending,
+    defaultHiddenColumns: mutations.defaultHiddenColumns.isPending,
+    columnsPinLeft: mutations.columnsPinLeft.isPending,
+    columnsPinRight: mutations.columnsPinRight.isPending,
     selected: mutations.selected.isPending,
-    page_number: mutations.page_number.isPending,
-    any: false
+    pageNumber: mutations.pageNumber.isPending,
+    any: false,
   };
-  
+
   // Check if any property is loading
-  loading.any = Object.values(mutations).some(m => m.isPending);
+  loading.any = Object.values(mutations).some((m) => m.isPending);
 
   // Prepare error states
   const error: TableErrorStates = {
-    table_type: mutations.table_type.error,
+    tableType: mutations.tableType.error,
     sorting: mutations.sorting.error,
-    group_sorting: mutations.group_sorting.error,
-    column_order: mutations.column_order.error,
-    hidden_columns: mutations.hidden_columns.error,
-    default_hidden_columns: mutations.default_hidden_columns.error,
-    columns_pin_left: mutations.columns_pin_left.error,
-    columns_pin_right: mutations.columns_pin_right.error,
+    groupSorting: mutations.groupSorting.error,
+    columnOrder: mutations.columnOrder.error,
+    hiddenColumns: mutations.hiddenColumns.error,
+    defaultHiddenColumns: mutations.defaultHiddenColumns.error,
+    columnsPinLeft: mutations.columnsPinLeft.error,
+    columnsPinRight: mutations.columnsPinRight.error,
     selected: mutations.selected.error,
-    page_number: mutations.page_number.error,
-    any: false
+    pageNumber: mutations.pageNumber.error,
+    any: false,
   };
-  
+
   // Check if any property has error
-  error.any = Object.values(mutations).some(m => !!m.error);
+  error.any = Object.values(mutations).some((m) => !!m.error);
 
   return {
     tableTile,
     tableTileActions: syncedActions,
     loading,
     error,
-    exists
+    exists,
   };
-} 
+}

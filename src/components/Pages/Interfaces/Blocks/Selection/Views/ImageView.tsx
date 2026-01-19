@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import React, { Suspense, useState, useCallback} from "react";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import React, { Suspense, useState, useCallback } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 
-import { LogComparisonProps } from "./types";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import RowBadge from "./RowBadge";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
-import { ImageDisplay } from "@/utils/interfaces/selection/selection";
+import { LogComparisonProps } from './types';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import RowBadge from './RowBadge';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
+import { ImageDisplay } from '@/utils/interfaces/selection/selection';
 
 /**
  * Evaluate if the provided string is a non-empty image reference.
@@ -16,7 +16,7 @@ import { ImageDisplay } from "@/utils/interfaces/selection/selection";
  * and rely on <ImageDisplay> to handle errors or fallback states.
  */
 function isNonEmptyImage(value: string) {
-  return typeof value === "string" && value.trim() !== "";
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 /**
@@ -49,16 +49,16 @@ function gatherPresenceDiffs(
   baseIdx: number,
   compIdxs: number[]
 ) {
-  const baseHas = baseSrc !== "";
+  const baseHas = baseSrc !== '';
   const redSet = new Set<number>();
   const greenSet = new Set<number>();
 
   compSrcs.forEach((val, i) => {
     const row = compIdxs[i];
-    if (baseHas && val === "") {
+    if (baseHas && val === '') {
       // base has image, comp is empty => "delete" in comp
       redSet.add(row);
-    } else if (!baseHas && val !== "") {
+    } else if (!baseHas && val !== '') {
       // base is empty, comp has image => "insert" in comp
       greenSet.add(row);
     }
@@ -87,7 +87,7 @@ function groupVersionsForRows(
       map.get(baseVer)!.push(r);
     } else {
       const idxInComp = compLogIndexes.indexOf(r);
-      const verStr = idxInComp >= 0 ? compVers[idxInComp] : "";
+      const verStr = idxInComp >= 0 ? compVers[idxInComp] : '';
       map.has(verStr) || map.set(verStr, []);
       map.get(verStr)!.push(r);
     }
@@ -118,43 +118,39 @@ const lightboxConfig = {
     swipe: 300, // Animation duration for swipe gestures
   },
   controller: {
-    touchAction: "pan-y", // Allow vertical scrolling on mobile
+    touchAction: 'pan-y', // Allow vertical scrolling on mobile
   },
   // Hide navigation arrows since we only have one slide
-  navigation: false
+  navigation: false,
 };
 
 // New component to handle image display with lightbox
-function LightboxWrapper({ 
+function LightboxWrapper({
   onOpenLightbox,
   children,
-  className = "",
-  sourceValue
-}: { 
+  className = '',
+  sourceValue,
+}: {
   onOpenLightbox: () => void;
   children: React.ReactNode;
   className?: string;
   sourceValue: string;
 }) {
   // Check if it's a base64 image
-  const isBase64 = typeof sourceValue === 'string' && (
-    sourceValue.startsWith('data:image/') || 
-    /^[A-Za-z0-9+/]+={0,2}$/.test(sourceValue)
-  );
+  const isBase64 =
+    typeof sourceValue === 'string' &&
+    (sourceValue.startsWith('data:image/') || /^[A-Za-z0-9+/]+={0,2}$/.test(sourceValue));
 
   return (
-    <div className={`relative group ${className}`}>
-      <button
-        className="w-full text-left"
-        onClick={onOpenLightbox}
-      >
+    <div className={`group relative ${className}`}>
+      <button className="w-full text-left" onClick={onOpenLightbox}>
         {children}
       </button>
       <CopyButton
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        className="absolute right-1 top-1 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
         content={sourceValue}
-        copyMessage={isBase64 ? "Copied base64 data!" : "Copied image URL!"}
-        tooltipContent={isBase64 ? "Copy base64 data" : "Copy image URL"}
+        copyMessage={isBase64 ? 'Copied base64 data!' : 'Copied image URL!'}
+        tooltipContent={isBase64 ? 'Copy base64 data' : 'Copy image URL'}
       />
     </div>
   );
@@ -165,17 +161,17 @@ export default function ImageView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
+  version = '',
   comparableVersions = [],
 }: LogComparisonProps) {
   // Convert the base and comparables to strings for uniform handling
-  const baseSrc = String(value ?? "");
-  const compSrcs = (comparables ?? []).map((c) => String(c ?? ""));
+  const baseSrc = String(value ?? '');
+  const compSrcs = (comparables ?? []).map((c) => String(c ?? ''));
 
   const singleMode = !comparables || comparables.length === 0;
-  const baseVer = version || "";
+  const baseVer = version || '';
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVer && compVers.every((v) => !v);
 
@@ -194,7 +190,7 @@ export default function ImageView({
       const parsedUrl = new URL(url);
       return parsedUrl.hostname === 'storage.googleapis.com';
     } catch (e) {
-      console.error("Error parsing URL:", url, e);
+      console.error('Error parsing URL:', url, e);
       return false;
     }
   }, []);
@@ -203,63 +199,66 @@ export default function ImageView({
   const getSignedUrl = useCallback(async (gcsUrl: string): Promise<string> => {
     try {
       const parsedUrl = new URL(gcsUrl);
-      const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+      const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
       const bucket = pathParts[0];
-      const path = pathParts.slice(1).join("/");
-      
+      const path = pathParts.slice(1).join('/');
+
       const queryParams = new URLSearchParams({
         bucket: bucket,
-        path: path
+        path: path,
       });
-      
+
       const res = await fetch(`/api/media/get?${queryParams}`);
-      
+
       if (!res.ok) {
         throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
       }
-      
+
       const data = await res.json();
       return data.url;
     } catch (err) {
-      console.error("Error fetching signed URL:", err);
+      console.error('Error fetching signed URL:', err);
       throw err;
     }
   }, []);
 
   /**
    * Open the lightbox with the given image source
-   * 
+   *
    * For Google Cloud Storage URLs, we need to fetch a signed URL first
    * to provide temporary access to the image. This ensures the lightbox
    * can properly display the image.
    */
-  const openLightbox = useCallback(async (src: string) => {
-    try {
-      setLightboxLoading(true);
-      setLightboxError(null);
-      
-      let finalSrc = src;
-      // If this is a GCS URL, get a signed URL
-      if (isGCSUrl(src)) {
-        try {
-          finalSrc = await getSignedUrl(src);
-        } catch (error) {
-          setLightboxError("Failed to get signed URL for image");
-          setLightboxLoading(false);
-          return;
+  const openLightbox = useCallback(
+    async (src: string) => {
+      try {
+        setLightboxLoading(true);
+        setLightboxError(null);
+
+        let finalSrc = src;
+        // If this is a GCS URL, get a signed URL
+        if (isGCSUrl(src)) {
+          try {
+            finalSrc = await getSignedUrl(src);
+          } catch (error) {
+            setLightboxError('Failed to get signed URL for image');
+            setLightboxLoading(false);
+            return;
+          }
         }
+
+        setLightboxSrc(finalSrc);
+        setLightboxOpen(true);
+        setLightboxLoading(false);
+      } catch (error) {
+        console.error('Error in openLightbox:', error);
+        setLightboxError('Error opening lightbox');
+        setLightboxLoading(false);
       }
-      
-      setLightboxSrc(finalSrc);
-      setLightboxOpen(true);
-      setLightboxLoading(false);
-    } catch (error) {
-      console.error("Error in openLightbox:", error);
-      setLightboxError("Error opening lightbox");
-      setLightboxLoading(false);
-    }
-  }, [isGCSUrl, getSignedUrl]);
-  
+    },
+    [isGCSUrl, getSignedUrl]
+  );
+
   /*───────────────────────────────────────────────────────────────────────────
     SINGLE MODE: Just show the one image, optional version
   ───────────────────────────────────────────────────────────────────────────*/
@@ -272,17 +271,17 @@ export default function ImageView({
           <div className="space-y-2">
             <p className="text-title">Version</p>
             {baseVer ? (
-              <div className="border rounded p-2 relative group">
+              <div className="group relative rounded border p-2">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
@@ -292,8 +291,8 @@ export default function ImageView({
           {!hasImage ? (
             <p className="text-body italic text-muted-foreground">No image</p>
           ) : (
-            <LightboxWrapper 
-              className="border rounded p-2 bg-background"
+            <LightboxWrapper
+              className="rounded border bg-background p-2"
               onOpenLightbox={() => openLightbox(baseSrc)}
               sourceValue={baseSrc}
             >
@@ -303,12 +302,14 @@ export default function ImageView({
             </LightboxWrapper>
           )}
         </div>
-        
+
         {/* Render the lightbox */}
         {lightboxOpen && lightboxSrc && (
           <>
             {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
-            {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+            {lightboxError && (
+              <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+            )}
             {!lightboxLoading && !lightboxError && (
               <Lightbox
                 open={lightboxOpen}
@@ -321,10 +322,10 @@ export default function ImageView({
                 zoom={zoomConfig}
                 carousel={{ finite: true }}
                 animation={{ swipe: 300 }}
-                controller={{ touchAction: "pan-y" as const }}
+                controller={{ touchAction: 'pan-y' as const }}
                 render={{
                   buttonPrev: () => null,
-                  buttonNext: () => null
+                  buttonNext: () => null,
                 }}
               />
             )}
@@ -339,13 +340,13 @@ export default function ImageView({
   ───────────────────────────────────────────────────────────────────────────*/
 
   // (A) "No diff" => group identical raw strings so one image is shown for all rows that share it
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     const allSources = [baseSrc, ...compSrcs];
     const allRows = [baseLogIndex, ...comparisonLogsIndex];
     const groups = groupImagesByValue(allSources, allRows);
 
     // Filter out groups with empty images
-    const filteredGroups = groups.filter(group => isNonEmptyImage(group.src));
+    const filteredGroups = groups.filter((group) => isNonEmptyImage(group.src));
 
     return (
       <div className="space-y-4">
@@ -360,26 +361,21 @@ export default function ImageView({
           );
 
           return (
-            <div key={i} className="border rounded p-3 space-y-4">
+            <div key={i} className="space-y-4 rounded border p-3">
               {/* Param Versions */}
               {!versionEmpty && (
                 <>
                   <p className="text-title">Version</p>
                   <div className="space-y-2">
                     {versionGroups.map((vg, j) => (
-                      <div
-                        key={j}
-                        className="border rounded p-2 relative group"
-                      >
+                      <div key={j} className="group relative rounded border p-2">
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         {vg.text ? (
                           <div className="pt-2">
                             <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                           </div>
                         ) : (
-                          <p className="italic text-body text-muted-foreground">
-                            No version
-                          </p>
+                          <p className="text-body italic text-muted-foreground">No version</p>
                         )}
                       </div>
                     ))}
@@ -390,10 +386,10 @@ export default function ImageView({
               {/* The actual image */}
               <div className="space-y-2">
                 {!versionEmpty && <p className="text-title">Image</p>}
-                <div className="border rounded p-2 bg-background relative">
+                <div className="relative rounded border bg-background p-2">
                   <RowBadge rowNumbers={rows} mode="none" />
                   {isNonEmptyImage(src) ? (
-                    <LightboxWrapper 
+                    <LightboxWrapper
                       onOpenLightbox={() => openLightbox(src)}
                       sourceValue={src}
                       className=""
@@ -403,21 +399,21 @@ export default function ImageView({
                       </Suspense>
                     </LightboxWrapper>
                   ) : (
-                    <p className="text-body italic text-muted-foreground">
-                      No image
-                    </p>
+                    <p className="text-body italic text-muted-foreground">No image</p>
                   )}
                 </div>
               </div>
             </div>
           );
         })}
-        
+
         {/* Render the lightbox */}
         {lightboxOpen && lightboxSrc && (
           <>
             {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
-            {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+            {lightboxError && (
+              <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+            )}
             {!lightboxLoading && !lightboxError && (
               <Lightbox
                 open={lightboxOpen}
@@ -430,10 +426,10 @@ export default function ImageView({
                 zoom={zoomConfig}
                 carousel={{ finite: true }}
                 animation={{ swipe: 300 }}
-                controller={{ touchAction: "pan-y" as const }}
+                controller={{ touchAction: 'pan-y' as const }}
                 render={{
                   buttonPrev: () => null,
-                  buttonNext: () => null
+                  buttonNext: () => null,
                 }}
               />
             )}
@@ -476,11 +472,11 @@ export default function ImageView({
 
         // If base === comp => no highlight
         const changed = compSrc !== baseSrc;
-        const baseBadgeMode = changed ? "delete" : "none";
-        const compBadgeMode = changed ? "insert" : "none";
+        const baseBadgeMode = changed ? 'delete' : 'none';
+        const compBadgeMode = changed ? 'insert' : 'none';
 
         return (
-          <div key={i} className="border rounded p-3 space-y-4">
+          <div key={i} className="space-y-4 rounded border p-3">
             {!versionEmpty && (
               <>
                 <p className="text-title">Version</p>
@@ -489,36 +485,23 @@ export default function ImageView({
                     const rowSet = vg.rows;
                     const hasBase = rowSet.includes(baseLogIndex);
                     // Show base row with "delete" if changed, otherwise "none"
-                    const baseMode = hasBase && changed ? "delete" : "none";
+                    const baseMode = hasBase && changed ? 'delete' : 'none';
 
                     // For the other rows in rowSet, "insert" if changed
                     const otherRows = rowSet.filter((r) => r !== baseLogIndex);
 
                     return (
-                      <div
-                        key={j}
-                        className="border rounded p-2 relative group"
-                      >
-                        <div className="flex items-center gap-2 text-caption mb-2">
-                          {hasBase && (
-                            <RowBadge
-                              rowNumbers={[baseLogIndex]}
-                              mode={baseMode}
-                            />
-                          )}
+                      <div key={j} className="group relative rounded border p-2">
+                        <div className="text-caption mb-2 flex items-center gap-2">
+                          {hasBase && <RowBadge rowNumbers={[baseLogIndex]} mode={baseMode} />}
                           {otherRows.length > 0 && (
-                            <RowBadge
-                              rowNumbers={otherRows}
-                              mode={changed ? "insert" : "none"}
-                            />
+                            <RowBadge rowNumbers={otherRows} mode={changed ? 'insert' : 'none'} />
                           )}
                         </div>
                         {vg.text ? (
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         ) : (
-                          <p className="italic text-body text-muted-foreground">
-                            No version
-                          </p>
+                          <p className="text-body italic text-muted-foreground">No version</p>
                         )}
                       </div>
                     );
@@ -532,12 +515,12 @@ export default function ImageView({
 
               <div className="flex flex-col gap-4">
                 {/* (1) Base block */}
-                <div className="border rounded p-2 bg-background relative">
+                <div className="relative rounded border bg-background p-2">
                   <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                   {isNonEmptyImage(baseSrc) ? (
                     <Suspense fallback={<div>Loading image...</div>}>
                       <div className="pt-2">
-                        <LightboxWrapper 
+                        <LightboxWrapper
                           onOpenLightbox={() => openLightbox(baseSrc)}
                           sourceValue={baseSrc}
                           className=""
@@ -547,19 +530,17 @@ export default function ImageView({
                       </div>
                     </Suspense>
                   ) : (
-                    <p className="text-body italic text-muted-foreground">
-                      No image
-                    </p>
+                    <p className="text-body italic text-muted-foreground">No image</p>
                   )}
                 </div>
 
                 {/* (2) Comparable block */}
-                <div className="border rounded p-2 bg-background relative">
+                <div className="relative rounded border bg-background p-2">
                   <RowBadge rowNumbers={rowNums} mode={compBadgeMode} />
                   {isNonEmptyImage(compSrc) ? (
                     <Suspense fallback={<div>Loading image...</div>}>
                       <div className="pt-2">
-                        <LightboxWrapper 
+                        <LightboxWrapper
                           onOpenLightbox={() => openLightbox(compSrc)}
                           sourceValue={compSrc}
                           className=""
@@ -569,9 +550,7 @@ export default function ImageView({
                       </div>
                     </Suspense>
                   ) : (
-                    <p className="text-body italic text-muted-foreground">
-                      No image
-                    </p>
+                    <p className="text-body italic text-muted-foreground">No image</p>
                   )}
                 </div>
               </div>
@@ -579,12 +558,14 @@ export default function ImageView({
           </div>
         );
       })}
-      
+
       {/* Render the lightbox */}
       {lightboxOpen && lightboxSrc && (
         <>
           {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
-          {lightboxError && <div className="p-4 text-center text-red-500 font-medium">Error: {lightboxError}</div>}
+          {lightboxError && (
+            <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+          )}
           {!lightboxLoading && !lightboxError && (
             <Lightbox
               open={lightboxOpen}
@@ -597,10 +578,10 @@ export default function ImageView({
               zoom={zoomConfig}
               carousel={{ finite: true }}
               animation={{ swipe: 300 }}
-              controller={{ touchAction: "pan-y" as const }}
+              controller={{ touchAction: 'pan-y' as const }}
               render={{
                 buttonPrev: () => null,
-                buttonNext: () => null
+                buttonNext: () => null,
               }}
             />
           )}

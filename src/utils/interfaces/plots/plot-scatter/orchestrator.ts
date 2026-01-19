@@ -14,6 +14,7 @@ import {
   ColorContext,
   PreparedScatterData,
 } from './types';
+import { AxisCustomization } from '@/types/interfaces/plot';
 import { getConfig } from './config';
 import { buildQuadtree, cullToViewport, getViewportFromScales, stratifiedSample } from './data';
 import { SVGScatterRenderer } from './renderers/svg-renderer';
@@ -38,10 +39,10 @@ const webglRendererCache = new WeakMap<HTMLElement, WebGLScatterRenderer>();
 export function determineRenderMode(dataLength: number): RenderMode {
   const config = getConfig();
 
-  if (dataLength <= config.SVG_MAX) {
+  if (dataLength <= config.svgMax) {
     return 'svg';
   }
-  if (dataLength <= config.WEBGL_MAX) {
+  if (dataLength <= config.webglMax) {
     return 'webgl';
   }
   return 'webgl-sampled';
@@ -91,7 +92,7 @@ function processData(
   if (mode === 'webgl-sampled') {
     const result = stratifiedSample(
       data,
-      config.SAMPLE_TARGET,
+      config.sampleTarget,
       fields,
       xAxisProperty,
       yAxisProperty,
@@ -103,7 +104,7 @@ function processData(
   }
 
   // Step 3: Viewport culling (if enabled)
-  if (config.VIEWPORT_CULLING && data.length > 0) {
+  if (config.viewportCulling && data.length > 0) {
     const quadtree = buildQuadtree(data, fields, xAxisProperty, yAxisProperty, xTable, yTable);
     const viewport = getViewportFromScales(xScale, yScale);
     const culledData = cullToViewport(quadtree, viewport);
@@ -271,7 +272,8 @@ export function drawScatterPlot(
   zoomRef: React.MutableRefObject<d3.ZoomTransform>,
   groupByColors: string = 'schemeCategory10',
   interactive: boolean = true,
-  zoomEnabled: boolean = false
+  zoomEnabled: boolean = false,
+  axisCustomization?: AxisCustomization
 ): void {
   const g = svg.select('.plotData');
   const zoomContainer = svg.select('.zoom-layer');
@@ -288,9 +290,9 @@ export function drawScatterPlot(
   }
 
   // Get valid properties
-  const properties = Object.entries(fields)
+  const properties = Object.entries(fields || {})
     .filter(
-      ([, { data_type: dataType }]) =>
+      ([, { dataType }]) =>
         dataType === 'float' ||
         dataType === 'int' ||
         dataType === 'timestamp' ||
@@ -378,11 +380,16 @@ export function drawScatterPlot(
   // Prepare colors
   const colorContext = prepareColors(svg, data, fields, xTable, groupBy, groupByColors);
 
-  // Draw axes
+  // Draw axes with optional custom labels
   const [xTicks, yTicks] = [
     generateTicks(scaleContext.x.domain()[0], scaleContext.x.domain()[1], 10, scaleX === 'log'),
     generateTicks(scaleContext.y.domain()[0], scaleContext.y.domain()[1], 10, scaleY === 'log'),
   ];
+
+  const showXLabel = axisCustomization?.showXAxisLabel !== false;
+  const showYLabel = axisCustomization?.showYAxisLabel !== false;
+  const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
+  const yLabel = showYLabel ? axisCustomization?.yAxisLabel || yAxisProperty : undefined;
 
   drawAxes(
     'Scatter Plot',
@@ -395,10 +402,12 @@ export function drawScatterPlot(
     yTicks,
     scaleContext.reverseX,
     scaleContext.reverseY,
-    xAxisProperty,
-    yAxisProperty,
+    xLabel,
+    yLabel,
     xType,
-    yType
+    yType,
+    axisCustomization?.xTickFormatter,
+    axisCustomization?.yTickFormatter
   );
 
   // Render grouping key legend
@@ -410,8 +419,12 @@ export function drawScatterPlot(
       color: colorContext.colorScale(key) as string,
     }));
     renderGroupingKey(settings, colors);
+    // Notify parent about groups (for external drawer)
+    axisCustomization?.onGroupsChange?.(colors);
   } else {
     renderGroupingKey(settings, null);
+    // Clear groups in parent (no grouping)
+    axisCustomization?.onGroupsChange?.([]);
   }
 
   // Update placeholder
@@ -443,6 +456,7 @@ export function drawScatterPlot(
     zoomEnabled,
     containerRef,
     zoomRef,
+    axisCustomization,
   };
 
   // Render based on mode

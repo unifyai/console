@@ -1,24 +1,24 @@
-"use client";
+'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { 
-  InterfaceData, 
-  TabData, 
-  TileData, 
-  GranularInterfaceActions, 
-  GranularTabActions, 
+import {
+  InterfaceData,
+  TabData,
+  TileData,
+  GranularInterfaceActions,
+  GranularTabActions,
   GranularTileActions,
 } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * Input interface for the project creation process
  */
 export interface ProjectCreationInput {
-  interface: Omit<InterfaceData, 'id' | 'created_at' | 'updated_at'> & {
-    project_id: string; // Make project_id required for creation
+  interface: Omit<InterfaceData, 'id' | 'createdAt' | 'updatedAt'> & {
+    projectId: string; // Make projectId required for creation
   };
-  tab: Omit<TabData, 'id' | 'interface_id' | 'created_at' | 'updated_at'>;
+  tab: Omit<TabData, 'id' | 'interfaceId' | 'createdAt' | 'updatedAt'>;
   tiles?: TileData[];
   actions: {
     interfaceActions: GranularInterfaceActions;
@@ -41,149 +41,155 @@ export interface ProjectCreationResult {
  */
 export function useCreateProjectQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (input: ProjectCreationInput): Promise<ProjectCreationResult> => {
-      const { 
-        interface: projectInterface, 
-        tab: projectTab, 
+      const {
+        interface: projectInterface,
+        tab: projectTab,
         tiles = [], // Default to empty array if not provided
-        actions
+        actions,
       } = input;
-      
+
       try {
         // Step 1: Create interface
-        if (!projectInterface.project_id) {
-          throw new Error("Interface must have project_id defined");
+        if (!projectInterface.projectId) {
+          throw new Error('Interface must have projectId defined');
         }
-        
-        if (!projectInterface.name && projectInterface.name !== "") {
-          throw new Error("Interface must have name defined");
+
+        if (!projectInterface.name && projectInterface.name !== '') {
+          throw new Error('Interface must have name defined');
         }
-        
-        const { project_id, name, ...interfaceProps } = projectInterface;
-        
+
+        const { projectId, name, ...interfaceProps } = projectInterface;
+
         // Create the interface
         const createdInterface = await actions.interfaceActions.create(
-          project_id, 
-          name, 
+          projectId,
+          name,
           interfaceProps.color
         );
-        
+
         // Step 2: Create tab under the interface
         if (!projectTab.name) {
-          throw new Error("Tab must have name defined");
+          throw new Error('Tab must have name defined');
         }
-        
+
         const { name: tabName, ...tabProps } = projectTab;
-        
+
         // Create the tab
         const createdTab = await actions.tabActions.create(
-          createdInterface.id || "", 
-          tabName, 
+          createdInterface.id || '',
+          tabName,
           tabProps
         );
-        
+
         // Step 3: Create tiles if any are provided
         const createdTiles = await Promise.all(
-          tiles.map(tile => {
+          tiles.map((tile) => {
             if (!tile.name || !tile.type || !tile.position) {
-              throw new Error("Tile must have name, type, and position defined");
+              throw new Error('Tile must have name, type, and position defined');
             }
-            
+
             const { name: tileName, type, position, ...tileProps } = tile;
-            
+
             // Handle specialized tile data
             const specializedData: {
-              table_tile?: typeof tile.table_tile;
-              plot_tile?: typeof tile.plot_tile;
-              view_tile?: typeof tile.view_tile;
+              tableTile?: typeof tile.tableTile;
+              plotTile?: typeof tile.plotTile;
+              viewTile?: typeof tile.viewTile;
             } = {};
-            
-            if (tile.table_tile) specializedData.table_tile = tile.table_tile;
-            if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
-            if (tile.view_tile) specializedData.view_tile = tile.view_tile;
-            
+
+            if (tile.tableTile) specializedData.tableTile = tile.tableTile;
+            if (tile.plotTile) specializedData.plotTile = tile.plotTile;
+            if (tile.viewTile) specializedData.viewTile = tile.viewTile;
+
             // Remove specialized data and server-generated props from tileProps to avoid duplication
-            const { 
-              table_tile, plot_tile, view_tile,
-              id, tab_id, created_at, updated_at, ...restTileProps 
+            const {
+              tableTile,
+              plotTile,
+              viewTile,
+              id,
+              tabId,
+              createdAt,
+              updatedAt,
+              ...restTileProps
             } = tileProps;
-            
+
             // Prepare tile data with all available properties
             const tileData = {
               ...restTileProps,
-              ...specializedData
+              ...specializedData,
             };
-            
+
             return actions.tileActions.create(
-              createdTab.id || "", 
-              tileName, 
-              position, 
+              createdTab.id || '',
+              tileName,
+              position,
               tileData,
               undefined,
-              type, 
+              type
             );
           })
         );
-        
+
         // Return the created resources
         return {
           interface: createdInterface,
           tab: createdTab,
-          tiles: createdTiles
+          tiles: createdTiles,
         };
       } catch (error) {
         // If anything fails, try to clean up by deleting the interface
         // This will cascade delete tabs and tiles
         try {
-          if (projectInterface.project_id) {
+          if (projectInterface.projectId) {
             // This is a simplification - ideally you'd use proper deletion
             // through the interface actions
-            console.error("Error creating project, attempting cleanup:", error);
+            console.error('Error creating project, attempting cleanup:', error);
           }
         } catch (cleanupError) {
-          console.error("Error during cleanup:", cleanupError);
+          console.error('Error during cleanup:', cleanupError);
         }
-        
+
         throw error;
       }
     },
-    
+
     onSuccess: (result) => {
       // Invalidate queries related to the created resources
-      if (result.interface.project_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', result.interface.project_id] 
+      if (result.interface.projectId) {
+        queryClient.invalidateQueries({
+          queryKey: ['interfaces', result.interface.projectId],
         });
       }
-      
+
       if (result.interface.id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-by-id', result.interface.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-by-id', result.interface.id],
         });
       }
-      
-      if (result.tab.interface_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tabs', result.tab.interface_id] 
+
+      if (result.tab.interfaceId) {
+        queryClient.invalidateQueries({
+          queryKey: ['tabs', result.tab.interfaceId],
         });
-        
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', result.tab.interface_id] 
+
+        queryClient.invalidateQueries({
+          queryKey: ['interface-with-tabs', result.tab.interfaceId],
         });
       }
-      
+
       // Invalidate tile queries
       if (result.tab.id) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['tiles', result.tab.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['tiles', result.tab.id],
         });
-        
-        queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', result.tab.id] 
+
+        queryClient.invalidateQueries({
+          queryKey: ['tab-with-tiles-by-id', result.tab.id],
         });
       }
-    }
+    },
   });
-} 
+}

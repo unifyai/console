@@ -245,7 +245,7 @@ describe('Scatter Plot - SVG Interactions', () => {
 describe('Scatter Plot - WebGL Interactions', () => {
   beforeEach(() => {
     // Lower threshold so small datasets trigger WebGL for testing
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
   });
 
   it('shows tooltip element in WebGL mode', async () => {
@@ -372,7 +372,7 @@ describe('Scatter Plot - WebGL Rendering', () => {
   });
 
   it('creates WebGL canvas with correct structure', async () => {
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
 
     const logs = Array.from({ length: 100 }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
@@ -393,7 +393,7 @@ describe('Scatter Plot - WebGL Rendering', () => {
   });
 
   it('WebGL canvas has correct positioning', async () => {
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
 
     const logs = Array.from({ length: 100 }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
@@ -414,7 +414,7 @@ describe('Scatter Plot - WebGL Rendering', () => {
   });
 
   it('removes SVG points when using WebGL mode', async () => {
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
 
     const logs = Array.from({ length: 100 }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
@@ -434,7 +434,7 @@ describe('Scatter Plot - WebGL Rendering', () => {
   });
 
   it('axes remain as SVG in WebGL mode', async () => {
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
 
     const logs = Array.from({ length: 100 }, (_, i) => createLog(`log_${i}`, i, i * 2));
 
@@ -457,7 +457,7 @@ describe('Scatter Plot - WebGL Rendering', () => {
   });
 
   it('handles grouped data in WebGL mode', async () => {
-    updateConfig({ SVG_MAX: 50 });
+    updateConfig({ svgMax: 50 });
 
     const logs = Array.from({ length: 100 }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100, `group_${i % 3}`)
@@ -487,9 +487,9 @@ describe('Scatter Plot - Tiered Rendering', () => {
     resetConfig();
   });
 
-  it('uses SVG renderer for data below SVG_MAX threshold', async () => {
+  it('uses SVG renderer for data below svgMax threshold', async () => {
     const config = getConfig();
-    const dataCount = Math.min(config.SVG_MAX - 100, 500); // Cap for test speed
+    const dataCount = Math.min(config.svgMax - 100, 500); // Cap for test speed
 
     const logs = Array.from({ length: dataCount }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
@@ -509,8 +509,8 @@ describe('Scatter Plot - Tiered Rendering', () => {
     expect(result.getWebGLCanvas()).toBeNull();
   });
 
-  it('switches to WebGL renderer for data above SVG_MAX threshold', async () => {
-    updateConfig({ SVG_MAX: 100 });
+  it('switches to WebGL renderer for data above svgMax threshold', async () => {
+    updateConfig({ svgMax: 100 });
 
     const logs = Array.from({ length: 150 }, (_, i) =>
       createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
@@ -563,9 +563,9 @@ describe('Scatter Plot - Tiered Rendering', () => {
 
   it('applies stratified sampling for very large datasets', async () => {
     updateConfig({
-      SVG_MAX: 50,
-      WEBGL_MAX: 100,
-      SAMPLE_TARGET: 75,
+      svgMax: 50,
+      webglMax: 100,
+      sampleTarget: 75,
     });
 
     const logs = Array.from({ length: 150 }, (_, i) =>
@@ -599,13 +599,13 @@ describe('Scatter Plot - Viewport Culling', () => {
 
   it('enables viewport culling by default', () => {
     const config = getConfig();
-    expect(config.VIEWPORT_CULLING).toBe(true);
+    expect(config.viewportCulling).toBe(true);
   });
 
   it('can disable viewport culling via config', () => {
-    updateConfig({ VIEWPORT_CULLING: false });
+    updateConfig({ viewportCulling: false });
     const config = getConfig();
-    expect(config.VIEWPORT_CULLING).toBe(false);
+    expect(config.viewportCulling).toBe(false);
   });
 });
 
@@ -621,23 +621,23 @@ describe('Scatter Plot - Configuration', () => {
   it('has sensible default thresholds', () => {
     resetConfig();
     const config = getConfig();
-    expect(config.SVG_MAX).toBe(2000);
-    expect(config.WEBGL_MAX).toBe(1_000_000);
-    expect(config.SAMPLE_TARGET).toBe(500_000);
+    expect(config.svgMax).toBe(2000);
+    expect(config.webglMax).toBe(1_000_000);
+    expect(config.sampleTarget).toBe(500_000);
   });
 
   it('allows updating configuration', () => {
-    updateConfig({ SVG_MAX: 5000 });
+    updateConfig({ svgMax: 5000 });
     const config = getConfig();
-    expect(config.SVG_MAX).toBe(5000);
-    expect(config.WEBGL_MAX).toBe(1_000_000);
+    expect(config.svgMax).toBe(5000);
+    expect(config.webglMax).toBe(1_000_000);
   });
 
   it('resets to defaults correctly', () => {
-    updateConfig({ SVG_MAX: 999, WEBGL_MAX: 999 });
+    updateConfig({ svgMax: 999, webglMax: 999 });
     resetConfig();
     const config = getConfig();
-    expect(config.SVG_MAX).toBe(2000);
-    expect(config.WEBGL_MAX).toBe(1_000_000);
+    expect(config.svgMax).toBe(2000);
+    expect(config.webglMax).toBe(1_000_000);
   });
 });

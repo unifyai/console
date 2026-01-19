@@ -44,12 +44,12 @@ export interface TileActions {
   initTile: (initialState?: Partial<Tile>) => void;
   updateTile: (updates: Partial<Tile>) => void;
   removeTile: () => void;
-  
+
   // Categorized actions
   meta: TileMetaActions;
   data: TileDataActions;
   ui: TileUIActions;
-  
+
   // Type-specific actions
   tableTileActions?: TableActions;
   plotTileActions?: PlotActions;
@@ -62,65 +62,49 @@ export interface TileActions {
  * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing all tile state, actions, and existence flag
  */
-export function useTile(
-  tileIdOrName: string | null,
-  tabIdOrName?: string | null
-) {
+export function useTile(tileIdOrName: string | null, tabIdOrName?: string | null) {
   // Use specialized hooks for base tile data
-  const {
-    meta,
-    metaActions,
-    tileId,
-    tileExists
-  } = useTileMeta(tileIdOrName, tabIdOrName || null);
-  
-  const {
-    data,
-    dataActions,
-  } = useTileData(tileIdOrName, tabIdOrName || null);
-  
-  const {
-    ui,
-    uiActions
-  } = useTileUI(tileIdOrName, tabIdOrName || null);
-  
+  const { meta, metaActions, tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
+
+  const { data, dataActions } = useTileData(tileIdOrName, tabIdOrName || null);
+
+  const { ui, uiActions } = useTileUI(tileIdOrName, tabIdOrName || null);
+
   // Get the item actions
-  const {
-    itemActions
-  } = useTileItem(tileIdOrName, tabIdOrName || null);
+  const { itemActions } = useTileItem(tileIdOrName, tabIdOrName || null);
 
   // Use type-specific hooks based on the tile type
   const {
     tableTile,
     tableTileActions,
-    exists: tableExists
+    exists: tableExists,
   } = useTableTile(tileIdOrName, tabIdOrName || null);
-  
+
   const {
     plotTile,
     plotTileActions,
-    exists: plotExists
+    exists: plotExists,
   } = usePlotTile(tileIdOrName, tabIdOrName || null);
-  
+
   const {
     viewTile,
     viewTileActions,
-    exists: viewExists
+    exists: viewExists,
   } = useViewTile(tileIdOrName, tabIdOrName || null);
 
   // Get active IDs from the store context
-  const activeProjectId = useStoreContext(state => state.activeProjectId);
-  const activeInterfaceId = useStoreContext(state => state.activeInterfaceId);
-  const activeTabId = useStoreContext(state => state.activeTabId);
+  const activeProjectId = useStoreContext((state) => state.activeProjectId);
+  const activeInterfaceId = useStoreContext((state) => state.activeInterfaceId);
+  const activeTabId = useStoreContext((state) => state.activeTabId);
 
   // Get store actions for core tile management
-  const storeInitTile = useStoreContext(state => state.initTile);
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  const storeRemoveTile = useStoreContext(state => state.removeTile);
-  
+  const storeInitTile = useStoreContext((state) => state.initTile);
+  const storeUpdateTile = useStoreContext((state) => state.updateTile);
+  const storeRemoveTile = useStoreContext((state) => state.removeTile);
+
   // Get the tile type from the store
   const tileType = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!tileId) return null;
       return state.tilesById[tileId]?.type;
     })
@@ -132,39 +116,35 @@ export function useTile(
       // Basic tile management
       initTile: (initialState?: Partial<Tile>) => {
         if (activeTabId && tileId) {
-          storeInitTile(
-            activeTabId,
-            tileId,
-            {
-              id: tileId,
-              tabId: activeTabId,
-              ...initialState
-            }
-          );
+          storeInitTile(activeTabId, tileId, {
+            id: tileId,
+            tabId: activeTabId,
+            ...initialState,
+          });
         }
       },
-      
+
       updateTile: (updates: Partial<Tile>) => {
         if (tileId) {
           storeUpdateTile(tileId, updates);
         }
       },
-      
+
       removeTile: () => {
         if (activeTabId && tileId) {
           storeRemoveTile(activeTabId, tileId);
         }
       },
-      
+
       // Categorized actions
       meta: metaActions,
       data: dataActions,
       ui: uiActions,
       tableTileActions: tableTileActions as TableActions | undefined,
       plotTileActions: plotTileActions as PlotActions | undefined,
-      viewTileActions: viewTileActions as ViewActions | undefined
+      viewTileActions: viewTileActions as ViewActions | undefined,
     };
-    
+
     return baseActions;
   }, [
     tileId,
@@ -175,19 +155,15 @@ export function useTile(
     storeInitTile,
     storeUpdateTile,
     storeRemoveTile,
-    tileType,
-    tableExists,
     tableTileActions,
-    plotExists,
     plotTileActions,
-    viewExists,
-    viewTileActions
+    viewTileActions,
   ]);
-  
+
   // Build a final 'tile' object from the separate meta, data, and UI objects
   const combinedTile = useMemo(() => {
     if (!meta || !data || !ui) return null;
-    
+
     // Create a base tile
     const baseTile = {
       ...meta,
@@ -195,9 +171,9 @@ export function useTile(
       ...ui,
       tableTile,
       plotTile,
-      viewTile
+      viewTile,
     } as Tile;
-    
+
     return baseTile;
   }, [meta, data, ui, tableTile, plotTile, viewTile]);
 
@@ -218,7 +194,7 @@ export function useTile(
     actions,
     exists: tileExists,
     tileId,
-    
+
     // Include type-specific properties and actions for direct access
     tableTile: tableExists ? tableTile : null,
     plotTile: plotExists ? plotTile : null,

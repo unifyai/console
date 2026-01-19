@@ -14,14 +14,11 @@
  * - Mocks React Query hooks to provide test data without API calls
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { render, screen, within, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from 'next-themes';
-import { NextUIProvider } from '@nextui-org/react';
-import { SidebarProvider } from '@/components/UI/sidebar';
 import { StoreProvider, useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { useStore } from 'zustand';
 import { StoreState } from '@/contexts/slices/slice';
@@ -148,7 +145,7 @@ function createInitialStoreState(options: ContextSelectorTestOptions): Partial<S
 
   // Build tabsById
   const tabsById: Record<string, any> = {};
-  tabs.forEach(tab => {
+  tabs.forEach((tab) => {
     tabsById[tab.id] = {
       id: tab.id,
       name: tab.name,
@@ -179,7 +176,7 @@ function createInitialStoreState(options: ContextSelectorTestOptions): Partial<S
 
   // Build tilesById
   const tilesById: Record<string, any> = {};
-  tiles.forEach(tile => {
+  tiles.forEach((tile) => {
     tilesById[tile.id] = {
       id: tile.id,
       name: tile.name,
@@ -191,12 +188,12 @@ function createInitialStoreState(options: ContextSelectorTestOptions): Partial<S
 
   // Build context maps
   const tabContexts: Record<string, string | null> = {};
-  tabs.forEach(tab => {
+  tabs.forEach((tab) => {
     tabContexts[tab.id] = tab.context;
   });
 
   const tileContexts: Record<string, string | null> = {};
-  tiles.forEach(tile => {
+  tiles.forEach((tile) => {
     tileContexts[tile.id] = tile.context;
   });
 
@@ -220,8 +217,8 @@ function createInitialStoreState(options: ContextSelectorTestOptions): Partial<S
       [interfaceId]: {
         id: interfaceId,
         name: 'Test Interface',
-        tabIds: tabs.map(t => t.id),
-        tabNames: tabs.map(t => t.name),
+        tabIds: tabs.map((t) => t.id),
+        tabNames: tabs.map((t) => t.name),
         projectId,
         activeTabId: tabs[0]?.id || null,
       },
@@ -289,19 +286,25 @@ interface ContextSelectorInnerProps {
   contexts: string[];
 }
 
-function ContextSelectorInner({ 
-  stateContainerRef, 
-  projectId, 
+function ContextSelectorInner({
+  stateContainerRef,
+  projectId,
   interfaceId,
   contexts: initialContexts,
 }: ContextSelectorInnerProps) {
   const storeApi = useStoreApiContext();
   const store = useStore(storeApi);
-  const [activeSelector, setActiveSelector] = useState<{ scope: 'interface' | 'tab' | 'tile'; targetId: string } | null>(null);
+  const [activeSelector, setActiveSelector] = useState<{
+    scope: 'interface' | 'tab' | 'tile';
+    targetId: string;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Get state from REAL store
-  const contexts = store.projectContexts[projectId] || [];
+  const contexts = useMemo(
+    () => store.projectContexts[projectId] || [],
+    [store.projectContexts, projectId]
+  );
   const interfaceContext = store.interfaceContexts[interfaceId] || null;
   const tabsById = store.tabsById || {};
   const tilesById = store.tilesById || {};
@@ -310,12 +313,13 @@ function ContextSelectorInner({
 
   // Filter contexts by search
   const filteredContexts = searchQuery
-    ? contexts.filter(c => c.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? contexts.filter((c) => c.toLowerCase().includes(searchQuery.toLowerCase()))
     : contexts;
 
   // Configure the mock hook to return our contexts
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const mockContexts = contexts.map(name => ({ name }));
+    const mockContexts = contexts.map((name) => ({ name }));
     (useListContextsQuery as any).mockReturnValue({
       data: mockContexts,
       isLoading: false,
@@ -361,6 +365,8 @@ function ContextSelectorInner({
         store.renameProjectContext(projectId, from, to);
       },
     };
+    // stateContainerRef is stable and doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, projectId, interfaceId]);
 
   // Get tabs and tiles for rendering
@@ -380,7 +386,9 @@ function ContextSelectorInner({
         {interfaceContext && (
           <button
             data-testid="interface-context-clear"
-            onClick={() => store.setContextOptimistic('interface', interfaceId, '', { projectId, interfaceId })}
+            onClick={() =>
+              store.setContextOptimistic('interface', interfaceId, '', { projectId, interfaceId })
+            }
           >
             Clear
           </button>
@@ -402,7 +410,13 @@ function ContextSelectorInner({
             {tabContexts[tab.id] && (
               <button
                 data-testid={`tab-context-clear-${tab.id}`}
-                onClick={() => store.setContextOptimistic('tab', tab.id, '', { projectId, interfaceId, tabId: tab.id })}
+                onClick={() =>
+                  store.setContextOptimistic('tab', tab.id, '', {
+                    projectId,
+                    interfaceId,
+                    tabId: tab.id,
+                  })
+                }
               >
                 Clear
               </button>
@@ -431,13 +445,16 @@ function ContextSelectorInner({
               {tileContexts[tile.id] && (
                 <button
                   data-testid={`tile-context-clear-${tile.id}`}
-                  onClick={() => store.setContextOptimistic('tile', tile.id, '', { projectId, interfaceId })}
+                  onClick={() =>
+                    store.setContextOptimistic('tile', tile.id, '', { projectId, interfaceId })
+                  }
                 >
                   Clear
                 </button>
               )}
               <span data-testid={`tile-effective-${tile.id}`}>
-                Effective: {store.getEffectiveContext(tile.id, parentTab?.id || null, interfaceId) || 'none'}
+                Effective:{' '}
+                {store.getEffectiveContext(tile.id, parentTab?.id || null, interfaceId) || 'none'}
               </span>
             </div>
           );
@@ -463,13 +480,24 @@ function ContextSelectorInner({
               key={ctx}
               data-testid={`context-option-${ctx}`}
               role="option"
+              aria-selected={false}
               onClick={() => {
                 if (activeSelector.scope === 'interface') {
-                  store.setContextOptimistic('interface', interfaceId, ctx, { projectId, interfaceId });
+                  store.setContextOptimistic('interface', interfaceId, ctx, {
+                    projectId,
+                    interfaceId,
+                  });
                 } else if (activeSelector.scope === 'tab') {
-                  store.setContextOptimistic('tab', activeSelector.targetId, ctx, { projectId, interfaceId, tabId: activeSelector.targetId });
+                  store.setContextOptimistic('tab', activeSelector.targetId, ctx, {
+                    projectId,
+                    interfaceId,
+                    tabId: activeSelector.targetId,
+                  });
                 } else if (activeSelector.scope === 'tile') {
-                  store.setContextOptimistic('tile', activeSelector.targetId, ctx, { projectId, interfaceId });
+                  store.setContextOptimistic('tile', activeSelector.targetId, ctx, {
+                    projectId,
+                    interfaceId,
+                  });
                 }
                 setActiveSelector(null);
                 setSearchQuery('');
@@ -551,18 +579,13 @@ interface TestProvidersProps {
 }
 
 function TestProviders({ children, initialState, queryClient }: TestProvidersProps) {
+  // Note: We intentionally avoid heavy providers like ThemeProvider, NextUIProvider,
+  // and SidebarProvider here as they can cause Vitest browser runner crashes.
+  // The ContextSelectorInner component renders its own mock UI and doesn't need them.
   return (
-    <ThemeProvider attribute="class" defaultTheme="light">
-      <QueryClientProvider client={queryClient}>
-        <NextUIProvider>
-          <SidebarProvider>
-            <StoreProvider initialState={initialState}>
-              {children}
-            </StoreProvider>
-          </SidebarProvider>
-        </NextUIProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <StoreProvider initialState={initialState}>{children}</StoreProvider>
+    </QueryClientProvider>
   );
 }
 

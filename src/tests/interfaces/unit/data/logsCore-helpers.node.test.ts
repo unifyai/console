@@ -22,7 +22,7 @@ describe('logsCore helper utilities', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 10,
+      groupLimit: 10,
     };
 
     const key1 = buildLogQueryKey('infinite', baseParams);
@@ -43,15 +43,15 @@ describe('logsCore helper utilities', () => {
       groupingExpression: 'Entries/level',
       groupSortingExpression: 'Entries/count@desc',
       limit: 20,
-      group_limit: 10,
+      groupLimit: 10,
     };
 
     const groupParams1 = {
       groupId: 'Entries/level:info',
       dataTypes: { 'Entries/level': 'string', 'Entries/message': 'string' },
       fields: {
-        'Entries/level': { data_type: 'string' } as any,
-        'Entries/message': { data_type: 'string' } as any,
+        'Entries/level': { dataType: 'string' } as any,
+        'Entries/message': { dataType: 'string' } as any,
       },
     };
 
@@ -60,8 +60,8 @@ describe('logsCore helper utilities', () => {
       groupId: 'Entries/level:info',
       dataTypes: { 'Entries/message': 'string', 'Entries/level': 'string' },
       fields: {
-        'Entries/message': { data_type: 'string' } as any,
-        'Entries/level': { data_type: 'string' } as any,
+        'Entries/message': { dataType: 'string' } as any,
+        'Entries/level': { dataType: 'string' } as any,
       },
     };
 
@@ -91,8 +91,8 @@ describe('logsCore helper utilities', () => {
       ts: '2025-01-01T00:00:00Z',
       params: {},
       entries: { message: 'x' },
-      derived_entries: {},
-      clipped_fields: {},
+      derivedEntries: {},
+      clippedFields: {},
     });
 
     const ungroupedLogs: LogProps[] = [makeLog('1'), makeLog('2'), makeLog('3')];
@@ -104,7 +104,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 10,
         effectiveOffset: 0,
         effectiveLimit: 3,
-      }),
+      })
     ).toBe(true);
 
     expect(
@@ -113,7 +113,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 3,
         effectiveOffset: 0,
         effectiveLimit: 3,
-      }),
+      })
     ).toBe(false);
 
     const groupedLogs: GroupedLogProps[] = [
@@ -135,7 +135,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 10,
         effectiveOffset: 0,
         effectiveLimit: 1,
-      }),
+      })
     ).toBe(true);
 
     expect(
@@ -144,9 +144,7 @@ describe('logsCore helper utilities', () => {
         totalCount: 1,
         effectiveOffset: 0,
         effectiveLimit: 1,
-      }),
+      })
     ).toBe(false);
   });
 });
-
-

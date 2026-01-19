@@ -1,173 +1,259 @@
-import { NextRequest, NextResponse } from "next/server";
-import { withCacheHeaders } from "../_utils/cacheResponse";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { buildCacheControl } from '../_utils/cacheResponse';
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Check if we're getting a tile by ID, by parent+name, or listing tiles
-    const hasId = searchParams.has('tile_id');
-    const hasTabId = searchParams.has('tab_id');
-    const hasName = searchParams.has('name');
-    
-    // Determine endpoint based on parameters
-    let endpoint = "/tile/";
-    
-    // If we have a tab_id but no id or name, we're listing tiles
-    if (hasTabId && !hasId && !hasName) {
-        endpoint = "/tile/list";
-    }
-    
-    // Let the backend handle the routing based on the query parameters
-    const upstreamResponse = await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-            },
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
+
+  try {
+    // Determine which endpoint to call based on parameters
+    if (tabId && !tileId && !name) {
+      // List tiles for a tab
+      const { data, error, response } = await client.GET('/v0/tile/list', {
+        params: {
+          query: { tab_id: tabId },
         },
-    );
-    
-    // Cache tile data for 60 seconds
-    return withCacheHeaders(upstreamResponse, 'MEDIUM');
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
+    } else {
+      // Get specific tile by ID or by tab + name
+      const { data, error, response } = await client.GET('/v0/tile/', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+          },
+        },
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Check if this is a template operation
-    const isExportTemplate = searchParams.has('export_template');
-    const isImportTemplate = searchParams.has('import_template');
-    
-    let endpoint = "/tile/";
-    
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  // Check if this is a template operation
+  const isExportTemplate = searchParams.has('export_template');
+  const isImportTemplate = searchParams.has('import_template');
+
+  try {
     if (isExportTemplate) {
-        endpoint = "/tile/export_template";
+      const { data, error, response } = await client.POST('/v0/tile/export_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     } else if (isImportTemplate) {
-        endpoint = "/tile/import_template";
+      const { data, error, response } = await client.POST('/v0/tile/import_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular tile creation
+      const { data, error, response } = await client.POST('/v0/tile/', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     }
-    
-    const body = await request.json();
-    // For POST, we always create a new resource, so the endpoint is fixed
-    return await fetch(
-        `${baseUrl}${endpoint}`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
-        },
-    );
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
-    const body = await request.json();
-    const url = new URL(request.url);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Pass all query parameters to allow both ID and parent+name updates
-    return await fetch(
-        `${baseUrl}/tile/${url.search}`,
-        {
-            method: "PUT",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
+  const body = await request.json();
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
+
+  try {
+    const { data, error, response } = await client.PUT('/v0/tile/', {
+      params: {
+        query: {
+          tile_id: tileId || undefined,
+          tab_id: tabId || undefined,
+          name: name || undefined,
         },
-    );
+      },
+      body: body,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-    const url = new URL(request.url);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Pass all query parameters to allow both ID and parent+name deletion
-    return await fetch(
-        `${baseUrl}/tile/${url.search}`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-            }
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/tile/', {
+      params: {
+        query: {
+          tile_id: tileId || undefined,
+          tab_id: tabId || undefined,
+          name: name || undefined,
         },
-    );
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
-    const body = await request.json();
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
+  const body = await request.json();
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
 
-    // Check if this is a specialized patch
-    const hasTileType = searchParams.has('tile_type');
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-    // Determine endpoint based on parameters
-    let endpoint = "/tile/";
-    
-    // If we have a tileType, we're patching a specialized tile
-    if (hasTileType) {
-        endpoint = "/tile/specialized";
-    }
+  const client = createOrchestraClient(apiKey);
 
-    // Pass all query parameters to allow both ID and parent+name updates
-    return await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
-        {
-            method: "PATCH",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
+  const tileId = searchParams.get('tileId');
+  const tabId = searchParams.get('tabId');
+  const name = searchParams.get('name');
+  const tileType = searchParams.get('tile_type');
+
+  try {
+    if (tileType) {
+      // Specialized tile patch
+      const { data, error, response } = await client.PATCH('/v0/tile/specialized', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+            tile_type: tileType,
+          },
         },
-    );
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular tile update - use PUT since there's no PATCH without tile_type
+      const { data, error, response } = await client.PUT('/v0/tile/', {
+        params: {
+          query: {
+            tile_id: tileId || undefined,
+            tab_id: tabId || undefined,
+            name: name || undefined,
+          },
+        },
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }

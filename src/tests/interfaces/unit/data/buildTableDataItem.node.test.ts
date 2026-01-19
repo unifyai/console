@@ -10,12 +10,7 @@ import {
   getSortingObject,
   getGroupSortingObject,
 } from '@/utils/data/buildTableDataItem';
-import {
-  TileData,
-  TilePosition,
-  TableTileData,
-  LogsActions,
-} from '@/types/interfaces/grid';
+import { TileData, TilePosition, TableTileData, LogsActions } from '@/types/interfaces/grid';
 import {
   LogsResponseProps,
   LogProps,
@@ -29,29 +24,22 @@ const makePosition = (): TilePosition => ({ x: 0, y: 0, width: 4, height: 4 });
 
 const baseFields: LogFieldsResponseProps = {
   'entries/message': {
-    data_type: 'string',
-    field_type: 'entry',
+    dataType: 'string',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '2025-01-01T00:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
   },
-  'params/level': {
-    data_type: 'string',
-    field_type: 'param',
-    artifacts: '',
-    mutable: 'false',
-    created_at: '2025-01-01T00:00:00Z',
-  },
+  // params/level field removed - params support no longer available
 };
 
 const makeUngroupedLog = (id: string, level: string, message: string): LogProps => ({
   type: 'ungrouped',
   id,
   ts: '2025-01-01T00:00:00Z',
-  params: { level },
-  entries: { message },
-  derived_entries: {},
-  clipped_fields: {},
+  entries: { message, level },
+  derivedEntries: {},
+  clippedFields: {},
 });
 
 // Dummy logsActions (not used by fetchAndBuildTableDataItem but required by type)
@@ -72,15 +60,15 @@ describe('buildTableDataItem helpers', () => {
       name: 'Table Tile',
       position: makePosition(),
       type: 'Table',
-      tab_id: 'tab-1',
+      tabId: 'tab-1',
       table: 'logs',
       visible: true,
       locked: false,
-      table_tile: {
+      tableTile: {
         limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
       } as TableTileData,
     };
 
@@ -90,7 +78,6 @@ describe('buildTableDataItem helpers', () => {
     ];
 
     const logsResponse: LogsResponseProps = {
-      params: {},
       logs: logsArray,
       count: logsArray.length,
       groups: {},
@@ -107,19 +94,17 @@ describe('buildTableDataItem helpers', () => {
       tile,
       baseFields,
       'project-1',
-      dummyLogsActions,
+      dummyLogsActions
     );
 
     // Total count should come from the response
     expect(tableDataItem.totalCount).toBe(logsArray.length);
     // Fields and column contexts should be wired through
     expect(tableDataItem.fields).toBe(baseFields);
-    // entriesProperties / paramsProperties should be partitioned by field_type
+    // entriesProperties should contain all fields (params support removed)
     expect(tableDataItem.entriesProperties).toEqual(['entries/message']);
-    expect(tableDataItem.paramsProperties).toEqual(['params/level']);
-    // Logs and params are derived from the response
+    // Logs are derived from the response
     expect(tableDataItem.logs).toHaveLength(2);
-    expect(tableDataItem.params).toEqual({});
     // No previous logs provided → no newCells
     expect(tableDataItem.newCells).toEqual([]);
     // No error detail on the response
@@ -130,7 +115,6 @@ describe('buildTableDataItem helpers', () => {
 
   it('getTotalCountFromLogsResponse returns count for ungrouped logs', () => {
     const response: LogsResponseProps = {
-      params: {},
       logs: [makeUngroupedLog('log-1', 'info', 'Msg')],
       count: 42,
       groups: {},
@@ -139,23 +123,22 @@ describe('buildTableDataItem helpers', () => {
     expect(getTotalCountFromLogsResponse(response)).toBe(42);
   });
 
-  it('getTotalCountFromLogsResponse prefers group_count for grouped logs', () => {
+  it('getTotalCountFromLogsResponse prefers groupCount for grouped logs', () => {
     const groupedRaw: GroupedLogPropsRaw = {
       'Entries/i': {
         group: [
           { key: '0', value: 3 },
           { key: '1', value: 2 },
         ],
-        group_count: 5,
+        groupCount: 5,
         count: 5,
       },
       count: 5,
     };
 
     const response: LogsResponseProps = {
-      params: {},
       logs: groupedRaw,
-      count: 123, // should be ignored in favour of group_count
+      count: 123, // should be ignored in favour of groupCount
       groups: {},
     };
 
@@ -169,16 +152,16 @@ describe('buildTableDataItem helpers', () => {
       name: 'Grouped Table Tile',
       position: makePosition(),
       type: 'Table',
-      tab_id: 'tab-1',
+      tabId: 'tab-1',
       table: 'logs',
       visible: true,
       locked: false,
       grouping: 'entries/group',
-      table_tile: {
+      tableTile: {
         limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
       } as TableTileData,
     };
 
@@ -188,14 +171,13 @@ describe('buildTableDataItem helpers', () => {
           { key: 'A', value: 3 },
           { key: 'B', value: 2 },
         ],
-        group_count: 2,
+        groupCount: 2,
         count: 5,
       },
       count: 5,
     };
 
     const logsResponse: LogsResponseProps = {
-      params: {},
       logs: groupedRaw,
       count: 5,
       groups: {},
@@ -212,10 +194,10 @@ describe('buildTableDataItem helpers', () => {
       tile,
       baseFields,
       'project-1',
-      dummyLogsActions,
+      dummyLogsActions
     );
 
-    // Total count should come from group_count via getTotalCountFromLogsResponse
+    // Total count should come from groupCount via getTotalCountFromLogsResponse
     expect(tableDataItem.totalCount).toBe(2);
     // Fields carried through
     expect(tableDataItem.fields).toBe(baseFields);
@@ -224,9 +206,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('getNewCells returns cells for new rows and changed values', () => {
-    const previousLogs: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const previousLogs: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
 
     const newLogs: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-updated'),
@@ -243,9 +223,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('filterNewLogsById returns only logs whose ids are not yet present', () => {
-    const existing: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const existing: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
     const incoming: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-duplicate'),
       makeUngroupedLog('log-2', 'error', 'Second'),
@@ -257,9 +235,7 @@ describe('buildTableDataItem helpers', () => {
   });
 
   it('filterNewSubRowsById delegates to filterNewLogsById', () => {
-    const existing: LogProps[] = [
-      makeUngroupedLog('log-1', 'info', 'First'),
-    ];
+    const existing: LogProps[] = [makeUngroupedLog('log-1', 'info', 'First')];
     const incoming: LogProps[] = [
       makeUngroupedLog('log-1', 'info', 'First-duplicate'),
       makeUngroupedLog('log-2', 'error', 'Second'),
@@ -270,25 +246,25 @@ describe('buildTableDataItem helpers', () => {
     expect(result[0].id).toBe('log-2');
   });
 
-  it('getSortingObject builds a sorting map from tile.table_tile.sorting', () => {
+  it('getSortingObject builds a sorting map from tile.tableTile.sorting', () => {
     const tile: TileData = {
       id: 'tile-sort',
       name: 'Tile with sorting',
       position: makePosition(),
       type: 'Table',
-      table_tile: {
-        sorting: 'entries/message@true,params/level@false',
+      tableTile: {
+        sorting: 'entries/message@true,entries/level@false',
       } as TableTileData,
     };
 
     const sorting = getSortingObject(tile);
     expect(sorting).toEqual({
       'entries/message': 'descending',
-      'params/level': 'ascending',
+      'entries/level': 'ascending',
     });
   });
 
-  it('getGroupSortingObject builds group sorting config from tile.table_tile.group_sorting and grouping', () => {
+  it('getGroupSortingObject builds group sorting config from tile.tableTile.groupSorting and grouping', () => {
     const tile: TileData = {
       id: 'tile-group-sort',
       name: 'Tile with group sorting',
@@ -296,8 +272,8 @@ describe('buildTableDataItem helpers', () => {
       type: 'Table',
       grouping: 'entries/i',
       metric: 'sum',
-      table_tile: {
-        group_sorting: 'entries/value@true',
+      tableTile: {
+        groupSorting: 'entries/value@true',
       } as TableTileData,
     };
 

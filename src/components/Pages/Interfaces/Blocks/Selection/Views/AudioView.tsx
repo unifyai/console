@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import React from "react";
-import { LogComparisonProps } from "./types";
-import RowBadge from "./RowBadge";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import { AudioPlayer } from "@/utils/interfaces/selection/selection";
-import { ExternalLink } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
+import React from 'react';
+import { LogComparisonProps } from './types';
+import RowBadge from './RowBadge';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import { AudioPlayer } from '@/utils/interfaces/selection/selection';
+import { ExternalLink } from 'lucide-react';
+import ActionButton from '@/components/Common/Buttons/Action';
 
 /**
  * Determine if the string represents a valid audio URL or path
  */
 function isNonEmptyAudio(value: string) {
-  return typeof value === "string" && value.trim() !== "";
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 /**
@@ -45,10 +45,7 @@ function groupVersionsForRows(
 ) {
   const map = new Map<string, number[]>();
   rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    const verStr = r === baseLogIndex ? baseVer : (compVers[compLogIndexes.indexOf(r)] ?? '');
     if (!map.has(verStr)) {
       map.set(verStr, []);
     }
@@ -68,14 +65,14 @@ export default function AudioView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
-  version = "",
+  diffMode = 'none',
+  version = '',
   comparableVersions = [],
 }: LogComparisonProps) {
   const singleMode = !comparables || comparables.length === 0;
-  const baseUrl = String(value ?? "");
-  const compUrls = (comparables ?? []).map((c) => String(c ?? ""));
-  const baseVersion = version || "";
+  const baseUrl = String(value ?? '');
+  const compUrls = (comparables ?? []).map((c) => String(c ?? ''));
+  const baseVersion = version || '';
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVersion && compVers.every((v) => !v);
 
@@ -89,17 +86,17 @@ export default function AudioView({
           <div className="space-y-2">
             <p className="text-title">Version</p>
             {baseVersion ? (
-              <div className="border rounded p-2 relative group">
+              <div className="group relative rounded border p-2">
                 <MarkdownRenderer>{baseVersion}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVersion}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
@@ -109,28 +106,24 @@ export default function AudioView({
           {!hasAudio ? (
             <p className="text-body italic text-muted-foreground">No audio</p>
           ) : (
-            <div className="border rounded p-2 bg-background relative group">
-                <div className="pr-16 flex-grow mb-2">
-                    <p className="text-body break-all">{baseUrl}</p>
-                </div>
-                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ActionButton
-                        variant="ghost"
-                        tooltip="Open in new tab"
-                        aria-label="Open in new tab"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(baseUrl, '_blank');
-                        }}
-                        icon={<ExternalLink className="h-4 w-4" />}
-                    />
-                    <CopyButton 
-                      content={baseUrl} 
-                      copyMessage="Copied URL!" 
-                      tooltipContent="Copy URL"
-                    />
-                 </div>
-                <AudioPlayer value={baseUrl} />
+            <div className="group relative rounded border bg-background p-2">
+              <div className="mb-2 flex-grow pr-16">
+                <p className="text-body break-all">{baseUrl}</p>
+              </div>
+              <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <ActionButton
+                  variant="ghost"
+                  tooltip="Open in new tab"
+                  aria-label="Open in new tab"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(baseUrl, '_blank');
+                  }}
+                  icon={<ExternalLink className="h-4 w-4" />}
+                />
+                <CopyButton content={baseUrl} copyMessage="Copied URL!" tooltipContent="Copy URL" />
+              </div>
+              <AudioPlayer value={baseUrl} />
             </div>
           )}
         </div>
@@ -149,23 +142,29 @@ export default function AudioView({
     <div className="space-y-4">
       {filtered.map((group, idx) => {
         const { audioUrl, rows } = group;
-        const verGroups = groupVersionsForRows(rows, baseLogIndex, baseVersion, comparisonLogsIndex, compVers);
+        const verGroups = groupVersionsForRows(
+          rows,
+          baseLogIndex,
+          baseVersion,
+          comparisonLogsIndex,
+          compVers
+        );
 
         return (
-          <div key={idx} className="border rounded p-3 space-y-4">
+          <div key={idx} className="space-y-4 rounded border p-3">
             {!versionEmpty && (
               <>
                 <p className="text-title">Version</p>
                 <div className="space-y-2">
                   {verGroups.map((vg, j) => (
-                    <div key={j} className="border rounded p-2 relative group">
+                    <div key={j} className="group relative rounded border p-2">
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       {vg.versionText ? (
                         <div className="pt-4">
                           <MarkdownRenderer>{vg.versionText}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-body text-muted-foreground pt-2">No version</p>
+                        <p className="text-body pt-2 italic text-muted-foreground">No version</p>
                       )}
                     </div>
                   ))}
@@ -175,25 +174,25 @@ export default function AudioView({
 
             <div className="space-y-2">
               {!versionEmpty && <p className="text-title">Audio</p>}
-              <div className="border rounded p-2 relative group">
+              <div className="group relative rounded border p-2">
                 <RowBadge rowNumbers={rows} mode="none" />
-                <div className="pr-16 mt-3 mb-2">
-                    <p className="text-body break-all">{audioUrl}</p>
+                <div className="mb-2 mt-3 pr-16">
+                  <p className="text-body break-all">{audioUrl}</p>
                 </div>
-                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ActionButton
-                        variant="ghost"
-                        tooltip="Open in new tab"
-                        aria-label="Open in new tab"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(audioUrl, '_blank');
-                        }}
-                        icon={<ExternalLink className="h-4 w-4" />}
-                    />
-                  <CopyButton 
-                    content={audioUrl} 
-                    copyMessage="Copied URL!" 
+                <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <ActionButton
+                    variant="ghost"
+                    tooltip="Open in new tab"
+                    aria-label="Open in new tab"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(audioUrl, '_blank');
+                    }}
+                    icon={<ExternalLink className="h-4 w-4" />}
+                  />
+                  <CopyButton
+                    content={audioUrl}
+                    copyMessage="Copied URL!"
                     tooltipContent="Copy URL"
                   />
                 </div>

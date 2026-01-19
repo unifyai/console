@@ -449,8 +449,17 @@ import {
  */
 function createLog(id: string, xValue: number, yValue: number, category: string = 'test') {
   return {
+    type: 'ungrouped',
     id,
-    timestamp: new Date().toISOString(),
+    ts: new Date().toISOString(),
+    params: {},
+    entries: {
+      'table1.x_value': xValue,
+      'table1.y_value': yValue,
+      'table1.category': category,
+    },
+    derivedEntries: {},
+    clippedFields: {},
     'table1.id': id,
     'table1.entries': {
       'table1.x_value': xValue,
@@ -460,7 +469,7 @@ function createLog(id: string, xValue: number, yValue: number, category: string 
   };
 }
 
-function createDataset(count: number): any[] {
+function createDataset(count: number) {
   return Array.from({ length: count }, (_, i) =>
     createLog(`log_${i}`, Math.random() * 100, Math.random() * 100)
   );
@@ -477,7 +486,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
 
   describe('Automatic Mode Switching', () => {
     it('switches from SVG to WebGL when data size increases', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
 
       // First render with small data (SVG mode)
       const smallData = createDataset(50);
@@ -507,7 +516,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
     });
 
     it('switches from WebGL to SVG when data size decreases', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
 
       // First render with large data (WebGL mode)
       const largeData = createDataset(150);
@@ -534,7 +543,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
     });
 
     it('hides WebGL canvas when switching to SVG mode', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
 
       // First render with WebGL
       const largeData = createDataset(150);
@@ -568,7 +577,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
 
   describe('Canvas Lifecycle', () => {
     it('WebGL canvas is properly initialized with correct class', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
       const logs = createDataset(150);
 
       const result = renderPlotCanvas({
@@ -585,7 +594,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
     });
 
     it('SVG and WebGL can coexist (axes remain SVG in WebGL mode)', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
       const logs = createDataset(150);
 
       const result = renderPlotCanvas({
@@ -607,7 +616,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
     });
 
     it('regression lines remain SVG when using WebGL renderer', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
       const logs = Array.from({ length: 150 }, (_, i) =>
         createLog(`log_${i}`, i, i * 2 + Math.random() * 5)
       );
@@ -629,7 +638,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
 
   describe('Forced Mode Transitions', () => {
     it('forceRenderMode overrides automatic mode selection', async () => {
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
       const logs = createDataset(150);
 
       // Force SVG mode despite large data
@@ -686,11 +695,11 @@ describe('Scatter Plot - Render Mode Transitions', () => {
   });
 
   describe('Threshold Changes', () => {
-    it('responds to SVG_MAX threshold changes', async () => {
+    it('responds to svgMax threshold changes', async () => {
       const logs = createDataset(150);
 
       // High threshold → SVG mode
-      updateConfig({ SVG_MAX: 200 });
+      updateConfig({ svgMax: 200 });
 
       const result1 = renderPlotCanvas({
         plotType: 'Scatter Plot',
@@ -704,7 +713,7 @@ describe('Scatter Plot - Render Mode Transitions', () => {
       resetConfig();
 
       // Low threshold → WebGL mode
-      updateConfig({ SVG_MAX: 100 });
+      updateConfig({ svgMax: 100 });
 
       const result2 = renderPlotCanvas({
         plotType: 'Scatter Plot',

@@ -1,25 +1,17 @@
-import React, { Suspense } from "react";
-import type { Metadata } from "next";
-import BaseLayout from "@/components/Pages/Providers/Base";
-import Scaffold from "@/components/Layout/LandingNav/Scaffold";
+import React, { Suspense } from 'react';
+import type { Metadata } from 'next';
+import BaseLayout from '@/components/Pages/Providers/Base';
+import Scaffold from '@/components/Layout/LandingNav/Scaffold';
 
 export const metadata: Metadata = {
-  title: "Login",
+  title: 'Login',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Scaffold
-      footer={false}
-    >
+    <Scaffold footer={false}>
       <BaseLayout>
-        <Suspense>
-          {children}
-        </Suspense>
+        <Suspense>{children}</Suspense>
       </BaseLayout>
     </Scaffold>
   );

@@ -5,11 +5,15 @@
   "rules": {
     "react/no-unescaped-entities": "off",
     "@typescript-eslint/naming-convention": [
-      "warn",
+      "error",
       {
         "selector": "variable",
         "format": ["camelCase", "PascalCase", "UPPER_CASE"],
-        "leadingUnderscore": "allow"
+        "leadingUnderscore": "allow",
+        "filter": {
+          "regex": "^__[a-zA-Z]+__$",
+          "match": false
+        }
       },
       {
         "selector": "function",
@@ -17,22 +21,81 @@
       },
       {
         "selector": "parameter",
-        "format": ["camelCase"],
+        "format": ["camelCase", "PascalCase"],
         "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "property",
+        "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+        "leadingUnderscore": "allowDouble",
+        "filter": {
+          "regex": "^(Content-Type|Content-Encoding|Cache-Control|Authorization|Accept|[Xx]-[A-Za-z-]+|Access-Control-[A-Za-z-]+|--[a-z-]+|&::[a-z]+|day_[a-z_]+|[0-9a-f]+|.*[ /].*|[a-z]+/[a-z+-]+|[a-z-]+\\.[a-z_]+|[a-z0-9]+\\.[a-zA-Z]+|[a-z-]+-[a-z-]+|\\.[a-z]+|[+\\- ])$",
+          "match": false
+        }
       },
       {
         "selector": "typeLike",
         "format": ["PascalCase"]
       },
       {
+        "selector": "typeProperty",
+        "format": ["camelCase", "PascalCase"],
+        "leadingUnderscore": "allowDouble",
+        "filter": {
+          "regex": "^(Content-Type|Authorization|Accept)$",
+          "match": false
+        }
+      },
+      {
         "selector": "enumMember",
-        "format": ["PascalCase", "UPPER_CASE"]
+        "format": ["PascalCase", "UPPER_CASE", "camelCase"]
       }
     ]
   },
   "overrides": [
     {
-      "files": ["src/types/**/*.ts"],
+      "files": [
+        "src/lib/orchestra/**/*.ts",
+        "src/app/api/**/*.ts",
+        "src/lib/user/**/*.ts",
+        "src/lib/endpoints/**/*.ts",
+        "src/lib/interfaces/**/*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
+      "files": ["src/tests/**/*.ts", "src/tests/**/*.tsx"],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
+      "files": [
+        "src/lib/user/billing/stripe/*.ts",
+        "src/app/api/user/account-type/route.ts",
+        "src/app/api/user/business-info/route.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
+      "files": [
+        "src/**/Themes/**/*.ts",
+        "src/**/Themes/**/*.js",
+        "src/constants/**/*.ts",
+        "src/components/UI/**/*.tsx",
+        "src/utils/stripe/**/*.ts",
+        "src/utils/interfaces/common.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    {
+      "files": ["vite-env.d.ts", "tailwind.config.ts"],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
       }

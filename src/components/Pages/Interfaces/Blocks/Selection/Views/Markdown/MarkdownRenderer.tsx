@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import React, { ReactNode, ComponentPropsWithoutRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { useTheme } from "next-themes";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import oneLight from "./Themes/one-light";
-import oneDark from "./Themes/one-dark";
-import { preserveLeadingSpaces } from "@/plugins/preserveLeadingSpaces";
-import { preprocessMarkdown } from "@/utils/interfaces/selection/markdownPreprocessor";
+import React, { ReactNode, ComponentPropsWithoutRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { useTheme } from 'next-themes';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import oneLight from './Themes/one-light';
+import oneDark from './Themes/one-dark';
+import { preserveLeadingSpaces } from '@/plugins/preserveLeadingSpaces';
+import { preprocessMarkdown } from '@/utils/interfaces/selection/markdownPreprocessor';
 
 // Updated CodeBlock Component with Discord-like styling for inline code
 function CodeBlock({
@@ -27,41 +27,41 @@ function CodeBlock({
   className?: string;
   children: React.ReactNode;
 }) {
-  const codeString = String(children).replace(/\n$/, "");
-  
+  const codeString = String(children).replace(/\n$/, '');
+
   const isInline =
-    providedInline !== undefined ? providedInline : (!codeString.includes("\n") && !className);
+    providedInline !== undefined ? providedInline : !codeString.includes('\n') && !className;
   const { theme } = useTheme();
-  const style = theme === "dark" ? oneDark : oneLight;
-  const match = /language-(\w+)/.exec(className || "");
+  const style = theme === 'dark' ? oneDark : oneLight;
+  const match = /language-(\w+)/.exec(className || '');
 
   if (!isInline) {
     return (
       <div
         style={{
-          position: "relative",
-          margin: "0.5em 0", 
-          overflow: "hidden",
-          borderRadius: "var(--radius)",
-          maxWidth: "100%",
+          position: 'relative',
+          margin: '0.5em 0',
+          overflow: 'hidden',
+          borderRadius: 'var(--radius)',
+          maxWidth: '100%',
         }}
         className="group"
       >
         <SyntaxHighlighter
           style={style as Record<string, React.CSSProperties>}
-          language={match ? match[1] : "text"}
+          language={match ? match[1] : 'text'}
           PreTag="div"
           wrapLongLines={true}
           customStyle={{
             margin: 0,
-            padding: "0.75em",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            overflow: "auto",
-            maxWidth: "100%",
-            borderRadius: "var(--radius)",
-            border: "1px solid var(--border)",
-            backgroundColor: "var(--code-block-bg, var(--card))",
+            padding: '0.75em',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflow: 'auto',
+            maxWidth: '100%',
+            borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--code-block-bg, var(--card))',
           }}
           {...props}
         >
@@ -71,26 +71,26 @@ function CodeBlock({
           content={codeString}
           copyMessage="Copied code!"
           tooltipContent="Copy code"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
         />
       </div>
     );
   }
-  
+
   // Use app color scheme for inline code
-  const isDark = theme === "dark";
+  const isDark = theme === 'dark';
   return (
     <code
-      className={(className ? className + " " : "") + "font-mono"}
+      className={(className ? className + ' ' : '') + 'font-mono'}
       style={{
-        display: "inline",
-        backgroundColor: isDark ? "rgba(47, 49, 54, 0.6)" : "rgba(240, 240, 240, 0.7)",
-        color: "var(--primary)",
-        padding: "0.2em 0.4em",
-        borderRadius: "3px",
-        fontSize: "85%",
-        whiteSpace: "pre-wrap",
-        border: isDark ? "1px solid var(--border)" : "none",
+        display: 'inline',
+        backgroundColor: isDark ? 'rgba(47, 49, 54, 0.6)' : 'rgba(240, 240, 240, 0.7)',
+        color: 'var(--primary)',
+        padding: '0.2em 0.4em',
+        borderRadius: '3px',
+        fontSize: '85%',
+        whiteSpace: 'pre-wrap',
+        border: isDark ? '1px solid var(--border)' : 'none',
       }}
       {...props}
     >
@@ -118,11 +118,13 @@ class MarkdownErrorBoundary extends React.Component<
     return { hasError: true };
   }
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("Error rendering markdown:", error, errorInfo);
+    console.error('Error rendering markdown:', error, errorInfo);
   }
   render() {
     if (this.state.hasError) {
-      return <div className="text-destructive">There was an error rendering the markdown content.</div>;
+      return (
+        <div className="text-destructive">There was an error rendering the markdown content.</div>
+      );
     }
     return this.props.children;
   }
@@ -361,24 +363,22 @@ export default function MarkdownRenderer({
   remarkPlugins = [remarkGfm, remarkBreaks, preserveLeadingSpaces],
   rehypePlugins,
   components = { code: CodeBlock },
-  className = "",
+  className = '',
   preventIndentedCodeBlocks = true, // Default to preprocessing
 }: MarkdownRendererProps) {
   // Apply preprocessing only if the option is enabled
   const content = preventIndentedCodeBlocks ? preprocessMarkdown(children) : children;
-  
+
   // remarkGfm enables URL auto-linking, tables, strikethrough, and task lists
   // If allowRawHtml is true, users can embed videos, iframes and other media via HTML
-  const defaultRehypePlugins = allowRawHtml
-    ? [rehypeRaw, rehypeSanitize]
-    : [rehypeSanitize];
+  const defaultRehypePlugins = allowRawHtml ? [rehypeRaw, rehypeSanitize] : [rehypeSanitize];
   const finalRehypePlugins = rehypePlugins
     ? [...defaultRehypePlugins, ...rehypePlugins]
     : defaultRehypePlugins;
 
   // Get the current theme for any component-level styling
   const { theme } = useTheme();
-  
+
   // Generate the markdown styles using CSS variables
   const markdownStyles = getMarkdownStyles();
 
@@ -386,7 +386,7 @@ export default function MarkdownRenderer({
     <MarkdownErrorBoundary>
       {/* Add the styles needed for proper markdown rendering */}
       <style dangerouslySetInnerHTML={{ __html: markdownStyles }} />
-      
+
       <div className="markdown-wrapper max-w-full overflow-hidden">
         <ReactMarkdown
           className={`react-markdown-content ${className}`}

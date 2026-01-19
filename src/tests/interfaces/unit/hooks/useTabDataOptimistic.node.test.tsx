@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@/tests/interfaces/utils/render-with-providers';
 import { useQueryClient } from '@tanstack/react-query';
 import type { IStoreState } from '@/contexts/store';
-import { useTabDataOptimistic, type CompleteTabData } from '@/hooks/Interfaces/Query/useTabDataOptimistic';
+import {
+  useTabDataOptimistic,
+  type CompleteTabData,
+} from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 import type {
   GranularTabActions,
   GranularTileActions,
@@ -15,22 +18,10 @@ import type {
   TableTileData,
 } from '@/types/interfaces/grid';
 import { LogFieldsResponseProps, LogItemProps } from '@/types/interfaces/logs';
-import {
-  mockProjectId,
-  mockProject,
-} from '@/tests/interfaces/mocks/fixtures/projects';
-import {
-  mockInterfaceId,
-  mockInterface,
-} from '@/tests/interfaces/mocks/fixtures/interfaces';
-import {
-  mockTabId,
-  mockTab,
-} from '@/tests/interfaces/mocks/fixtures/tabs';
-import {
-  mockTileId,
-  mockTile,
-} from '@/tests/interfaces/mocks/fixtures/tiles';
+import { mockProjectId, mockProject } from '@/tests/interfaces/mocks/fixtures/projects';
+import { mockInterfaceId, mockInterface } from '@/tests/interfaces/mocks/fixtures/interfaces';
+import { mockTabId, mockTab } from '@/tests/interfaces/mocks/fixtures/tabs';
+import { mockTileId, mockTile } from '@/tests/interfaces/mocks/fixtures/tiles';
 import * as optimisticModule from '@/utils/data/buildServerDataOptimistic';
 
 // Mock fetch for tests - implementation uses direct fetch to /api/tile
@@ -48,11 +39,11 @@ type TabDataActions = {
 const baseFieldsArray: LogFieldsResponseProps[] = [
   {
     'entries/message': {
-      data_type: 'string',
-      field_type: 'entry',
+      dataType: 'string',
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: '2025-01-01T00:00:00Z',
+      createdAt: '2025-01-01T00:00:00Z',
     },
   },
 ];
@@ -68,25 +59,26 @@ const makeInitialState = (): Partial<IStoreState> => ({
   tilesById: { [mockTileId]: mockTile },
 });
 
-const makeTableTileData = (): TileData => ({
-  id: mockTileId,
-  name: mockTile.name,
-  position: mockTile.position,
-  type: 'Table',
-  tab_id: mockTabId,
-  visible: true,
-  locked: false,
-  table: mockTile.table,
-  context: mockTile.context,
-  column_context: mockTile.column_context,
-  grouping: mockTile.grouping,
-  table_tile: {
-    limit: 20,
-    offset: 0,
-    group_limit: 20,
-    group_offset: 0,
-  } as TableTileData,
-} as TileData);
+const makeTableTileData = (): TileData =>
+  ({
+    id: mockTileId,
+    name: mockTile.name,
+    position: mockTile.position,
+    type: 'Table',
+    tabId: mockTabId,
+    visible: true,
+    locked: false,
+    table: mockTile.table,
+    context: mockTile.context,
+    columnContext: mockTile.columnContext,
+    grouping: mockTile.grouping,
+    tableTile: {
+      limit: 20,
+      offset: 0,
+      groupLimit: 20,
+      groupOffset: 0,
+    } as TableTileData,
+  }) as TileData;
 
 function TestComponent({
   onResult,
@@ -107,7 +99,7 @@ function TestComponent({
         mockTab.name!,
         mockProjectId,
         actions,
-        options ?? {},
+        options ?? {}
       );
       onResult(result);
     })();
@@ -164,35 +156,31 @@ describe('useTabDataOptimistic', () => {
     // Spy on heavy helpers to ensure they are not called in lightweight mode
     const fetchProjectsContextsFieldsSpy = vi.spyOn(
       optimisticModule,
-      'fetchProjectsContextsFields',
+      'fetchProjectsContextsFields'
     );
-    const updateTabArgumentsSpy = vi.spyOn(
-      optimisticModule,
-      'updateTabArguments',
-    );
+    const updateTabArgumentsSpy = vi.spyOn(optimisticModule, 'updateTabArguments');
     const buildOptimisticTableDataItemSpy = vi.spyOn(
       optimisticModule,
-      'buildOptimisticTableDataItem',
+      'buildOptimisticTableDataItem'
     );
     const buildOptimisticPlotDataItemSpy = vi.spyOn(
       optimisticModule,
-      'buildOptimisticPlotDataItem',
+      'buildOptimisticPlotDataItem'
     );
 
     const onResult = vi.fn();
 
     render(
-      <TestComponent
-        onResult={onResult}
-        actions={actions}
-        options={{ skipTileData: true }}
-      />,
-      { initialState: makeInitialState() },
+      <TestComponent onResult={onResult} actions={actions} options={{ skipTileData: true }} />,
+      { initialState: makeInitialState() }
     );
 
-    await waitFor(() => {
-      expect(onResult).toHaveBeenCalledTimes(1);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(onResult).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 5000 }
+    );
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 
@@ -277,9 +265,7 @@ describe('useTabDataOptimistic', () => {
         fields: baseFieldsArray[0],
         totalCount: 0,
         entriesProperties: [],
-        paramsProperties: [],
         logs: [],
-        params: {} as LogItemProps,
         isLoading: false,
         error: undefined,
       });
@@ -294,17 +280,16 @@ describe('useTabDataOptimistic', () => {
     const onResult = vi.fn();
 
     render(
-      <TestComponent
-        onResult={onResult}
-        actions={actions}
-        options={{ skipTileData: false }}
-      />,
-      { initialState: makeInitialState() },
+      <TestComponent onResult={onResult} actions={actions} options={{ skipTileData: false }} />,
+      { initialState: makeInitialState() }
     );
 
-    await waitFor(() => {
-      expect(onResult).toHaveBeenCalledTimes(1);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(onResult).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 5000 }
+    );
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 
@@ -369,7 +354,7 @@ describe('useTabDataOptimistic', () => {
             mockTab.name!,
             mockProjectId,
             actions,
-            { skipTileData: true },
+            { skipTileData: true }
           );
           onResult(result);
         })();
@@ -384,9 +369,12 @@ describe('useTabDataOptimistic', () => {
       initialState: makeInitialState(),
     });
 
-    await waitFor(() => {
-      expect(onResult).toHaveBeenCalledTimes(1);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(onResult).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 5000 }
+    );
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 

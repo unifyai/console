@@ -1,12 +1,12 @@
 /**
  * Test Providers
- * 
+ *
  * Shared provider wrapper for test harnesses. Provides consistent
  * setup for Zustand store and React Query across all behavior tests.
- * 
+ *
  * Usage:
  *   import { TestProviders } from '../utils/testProviders';
- *   
+ *
  *   render(
  *     <TestProviders initialState={{ ... }}>
  *       <YourComponent />
@@ -53,9 +53,7 @@ const defaultQueryClientConfig: QueryClientConfig = {
  * Creates a new QueryClient with test-friendly defaults.
  * Disables retries and garbage collection for predictable test behavior.
  */
-export function createTestQueryClient(
-  options?: Partial<QueryClientConfig>
-): QueryClient {
+export function createTestQueryClient(options?: Partial<QueryClientConfig>): QueryClient {
   return new QueryClient({
     ...defaultQueryClientConfig,
     ...options,
@@ -80,11 +78,11 @@ export function createTestQueryClient(
 
 /**
  * Wraps components with all required providers for testing.
- * 
+ *
  * Provides:
  * - QueryClientProvider with test-friendly defaults
  * - StoreProvider with optional initial state
- * 
+ *
  * @example
  * ```tsx
  * const { getByText } = render(
@@ -111,9 +109,7 @@ export function TestProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <StoreProvider initialState={initialState}>
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </StoreProvider>
     </QueryClientProvider>
   );
@@ -124,4 +120,3 @@ export function TestProviders({
 // =============================================================================
 
 export { defaultQueryClientConfig };
-

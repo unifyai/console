@@ -24,11 +24,23 @@ export function getTooltipData(
   selectedXAxisProperty: string | undefined,
   selectedYAxisProperty: string | undefined,
   xType: string | undefined,
-  yType: string | undefined
+  yType: string | undefined,
+  axisCustomization?: {
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    groupByLabel?: string;
+    aggregateLabel?: string;
+  }
 ): InfoCardData {
+  // Use custom labels if provided
+  const xLabel = axisCustomization?.xAxisLabel || selectedXAxisProperty;
+  const yLabel = axisCustomization?.yAxisLabel || selectedYAxisProperty;
+  const groupLabel = axisCustomization?.groupByLabel || groupBy;
+  const aggLabel = axisCustomization?.aggregateLabel || aggregate;
+
   const hoverData: InfoCardData = {
     x: {
-      name: `X: ${selectedXAxisProperty as string}`,
+      name: xLabel as string,
       value:
         xType === 'timestamp' || xType === 'timedelta' || xType === 'time' || xType === 'date'
           ? formatTimeTypeValue(
@@ -38,7 +50,7 @@ export function getTooltipData(
           : getValue(fields, selectedXAxisProperty as string, data, xTable),
     },
     y: {
-      name: `Y: ${selectedYAxisProperty as string}`,
+      name: yLabel as string,
       value:
         yType === 'timestamp' || yType === 'timedelta' || yType === 'time' || yType === 'date'
           ? formatTimeTypeValue(
@@ -51,14 +63,14 @@ export function getTooltipData(
 
   if (groupBy) {
     hoverData['group'] = {
-      name: `Group: ${groupBy}`,
+      name: groupLabel as string,
       value: getValue(fields, groupBy as string, data, xTable),
     };
   }
 
-  if (aggregate) {
+  if (aggregate && aggLabel) {
     hoverData['aggregate'] = {
-      name: `Aggregate: ${aggregate}`,
+      name: aggLabel,
     };
   }
 
@@ -87,6 +99,7 @@ export function setupSVGHoverInteraction(
     container,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   const onMouseOver = (event: MouseEvent, datum: LogProps) => {
@@ -101,7 +114,8 @@ export function setupSVGHoverInteraction(
       xAxisProperty,
       yAxisProperty,
       xType,
-      yType
+      yType,
+      axisCustomization
     );
 
     const template = tooltipTemplate(tooltipData);
@@ -192,6 +206,7 @@ export function setupWebGLHoverInteraction(
     container,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   let hoveredIndex = -1;
@@ -226,7 +241,8 @@ export function setupWebGLHoverInteraction(
           xAxisProperty,
           yAxisProperty,
           xType,
-          yType
+          yType,
+          axisCustomization
         );
         tooltip.html(tooltipTemplate(tooltipData)).style('opacity', 1);
         positionTooltipRelativeToPointer(event as any, tooltip, container);

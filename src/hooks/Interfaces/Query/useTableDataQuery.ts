@@ -1,17 +1,22 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { TableBoundaries, TableDataItem, TableMetrics, TableGroupedMetrics } from "@/types/interfaces/grid";
-import { useQueryClient } from "@tanstack/react-query";
-import { useTileData, useTileMeta } from "@/contexts/hooks/tile";
-import { LogFieldsResponseProps, TableArguments, LogsResponseProps } from "@/types/interfaces/logs";
-import { useTabMeta } from "@/contexts/hooks/tab";
-import { useMemo, useEffect, useCallback } from "react";
-import { setDeep } from "@/utils/objectPath";
-import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
-import { getColumnMetrics, getGroupedMetrics } from "@/utils/interfaces/common";
-import { getNewCells, getTotalCountFromLogsResponse } from "@/utils/data/buildTableDataItem";
-import { 
-  maybeConvertRawToGroupedLogs, 
-  updateGroupedSubRows, 
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  TableBoundaries,
+  TableDataItem,
+  TableMetrics,
+  TableGroupedMetrics,
+} from '@/types/interfaces/grid';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTileData, useTileMeta } from '@/contexts/hooks/tile';
+import { LogFieldsResponseProps, TableArguments, LogsResponseProps } from '@/types/interfaces/logs';
+import { useTabMeta } from '@/contexts/hooks/tab';
+import { useMemo, useEffect, useCallback } from 'react';
+import { setDeep } from '@/utils/objectPath';
+import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
+import { getColumnMetrics, getGroupedMetrics } from '@/utils/interfaces/common';
+import { getNewCells, getTotalCountFromLogsResponse } from '@/utils/data/buildTableDataItem';
+import {
+  maybeConvertRawToGroupedLogs,
+  updateGroupedSubRows,
   appendLogsWithWindowing,
   appendGroupedLogsWithWindowing,
   appendGroupSubRowsWithWindowing,
@@ -19,10 +24,10 @@ import {
   prependGroupedLogsWithWindowing,
   prependGroupSubRowsWithWindowing,
   isGroupedLogs,
-  isUngroupedLogs
-} from "@/utils/interfaces/table/grouping";
-import { LogsActions } from "@/types/interfaces/grid";
-import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
+  isUngroupedLogs,
+} from '@/utils/interfaces/table/grouping';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogProps, GroupedLogProps } from '@/types/interfaces/logs';
 
 /**
  * Debug flag for performance logging
@@ -45,32 +50,27 @@ export const EMPTY_TABLEDATAITEM: TableDataItem = {
   totalCount: 0,
   error: undefined,
   entriesProperties: [],
-  paramsProperties: [],
   logs: [],
-  params: [],
-  isLoading: true
+  isLoading: true,
 };
 
 /**
  * Hook for accessing table data cached by the server component
  * @param tileId ID of the tile to get data for
  */
-export function useTableDataQuery(
-  tileIdOrName: string | null,
-  tabIdOrName: string | null,
-) {
+export function useTableDataQuery(tileIdOrName: string | null, tabIdOrName: string | null) {
   // Get tile meta information using the useTileMeta hook
   const { tileId } = useTileMeta(tileIdOrName, tabIdOrName || null);
 
   const queryClient = useQueryClient();
-  
+
   return useQuery<TableDataItem>({
-    queryKey: ["tableDataItem", tileId],
+    queryKey: ['tableDataItem', tileId],
     queryFn: () => {
       // Return cached data if available, otherwise placeholder
       // This queryFn is needed to prevent "No queryFn" errors when React Query
       // attempts to refetch but data was prefetched without a queryFn
-      const cached = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
+      const cached = queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]);
       return cached ?? EMPTY_TABLEDATAITEM;
     },
     placeholderData: EMPTY_TABLEDATAITEM,
@@ -78,7 +78,7 @@ export function useTableDataQuery(
     // Configure staleness to allow re-renders while preventing unnecessary refetches:
     staleTime: 0, // Always consider stale (allows updates)
     gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes (was 0 - caused data loss!)
-    enabled: !!(tileId),
+    enabled: !!tileId,
   });
 }
 
@@ -90,107 +90,114 @@ export function useTableDataQuery(
  */
 export function useTableDataQueryWithTracking(
   tileIdOrName: string | null,
-  tabIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Get tile meta information using the useTileMeta hook
   const { tileId } = useTileMeta(tileIdOrName, tabIdOrName || null);
 
   // Base React Query hook
-  const { 
+  const {
     data: tableDataItem = EMPTY_TABLEDATAITEM,
     isLoading,
     isError,
-    error
+    error,
   } = useTableDataQuery(tileIdOrName, tabIdOrName);
 
   // Use the update mutation hook
-  const { mutate: updateTableDataItem } = useUpdateTableDataItem(tileId || "");
+  const { mutate: updateTableDataItem } = useUpdateTableDataItem(tileId || '');
 
   // Function for field-by-field merging (more efficient)
-  const mergeUpdatesIntoTableDataItem = useCallback((
-    partialUpdates: Partial<TableDataItem>
-  ) => {
-    // Use the reactive data which should be fresh with staleTime: 0
-    const result: any = { ...tableDataItem };
+  const mergeUpdatesIntoTableDataItem = useCallback(
+    (partialUpdates: Partial<TableDataItem>) => {
+      // Use the reactive data which should be fresh with staleTime: 0
+      const result: any = { ...tableDataItem };
 
-    // Use the field-by-field merge approach from the original code
-    Object.keys(partialUpdates).forEach(key => {
-      const updateKey = key as keyof TableDataItem;
-      const updateValue = (partialUpdates as any)[updateKey];
-      const currentValue = (tableDataItem as any)[updateKey];
-      
-      // If both values exist and are objects, merge them
-      if (
-        updateValue && 
-        currentValue && 
-        typeof updateValue === 'object' && 
-        typeof currentValue === 'object' &&
-        !Array.isArray(updateValue)
-      ) {
-        result[updateKey] = { ...currentValue, ...updateValue };
-      } else {
-        result[updateKey] = updateValue;
-      }
-    });
-    
-    updateTableDataItem(result as TableDataItem);
-  }, [updateTableDataItem, tableDataItem]);
+      // Use the field-by-field merge approach from the original code
+      Object.keys(partialUpdates).forEach((key) => {
+        const updateKey = key as keyof TableDataItem;
+        const updateValue = (partialUpdates as any)[updateKey];
+        const currentValue = (tableDataItem as any)[updateKey];
+
+        // If both values exist and are objects, merge them
+        if (
+          updateValue &&
+          currentValue &&
+          typeof updateValue === 'object' &&
+          typeof currentValue === 'object' &&
+          !Array.isArray(updateValue)
+        ) {
+          result[updateKey] = { ...currentValue, ...updateValue };
+        } else {
+          result[updateKey] = updateValue;
+        }
+      });
+
+      updateTableDataItem(result as TableDataItem);
+    },
+    [updateTableDataItem, tableDataItem]
+  );
 
   // Function for deep updating specific logs by row IDs
-  const updateLogsByRowIds = useCallback((
-    rowIds: string[], 
-    desc: { 
-      source: "entries" | "params"; 
-      path: (string | number)[]; 
-      newValue: any 
-    }
-  ) => {
-    if (!tileId || rowIds.length === 0) {
-      return;
-    }
+  const updateLogsByRowIds = useCallback(
+    (
+      rowIds: string[],
+      desc: {
+        source: 'entries' | 'params';
+        path: (string | number)[];
+        newValue: any;
+      }
+    ) => {
+      if (!tileId || rowIds.length === 0) {
+        return;
+      }
 
-    // Use the reactive data which should be fresh with staleTime: 0
-    const currentLogs = tableDataItem.logs;
+      // Use the reactive data which should be fresh with staleTime: 0
+      const currentLogs = tableDataItem.logs;
 
-    if (!currentLogs) {
-      return; // safety guard
-    }
+      if (!currentLogs) {
+        return; // safety guard
+      }
 
-    const idSet = new Set(rowIds.map(String));
+      const idSet = new Set(rowIds.map(String));
 
-    let changed = false;
-    const nextLogs = currentLogs.map((l: any) => {
-      if (!idSet.has(String(l.id))) return l;
+      let changed = false;
+      const nextLogs = currentLogs.map((l: any) => {
+        if (!idSet.has(String(l.id))) return l;
 
-      const container = desc.source === "params" ? l.params ?? {} : l.entries ?? {};
-      const updated = setDeep(container, desc.path, desc.newValue);
+        const container = l.entries ?? {};
+        const updated = setDeep(container, desc.path, desc.newValue);
 
-      if (updated === container) return l; // no real change
+        if (updated === container) return l; // no real change
 
-      changed = true;
+        changed = true;
 
-      return {
-        ...l,
-        ...(desc.source === "params" ? { params: updated } : { entries: updated }),
-      };
-    });
+        return {
+          ...l,
+          entries: updated,
+        };
+      });
 
-    if (!changed) {
-      return; // nothing mutated
-    }
+      if (!changed) {
+        return; // nothing mutated
+      }
 
-    // Guard: avoid clobbering entire container if path is empty
-    if (desc.path.length === 0) {
-      console.warn("[DEBUG] updateLogsByRowIds – empty path, skipping to avoid overwriting container", { desc });
-      return;
-    }
+      // Guard: avoid clobbering entire container if path is empty
+      if (desc.path.length === 0) {
+        console.warn(
+          '[DEBUG] updateLogsByRowIds – empty path, skipping to avoid overwriting container',
+          { desc }
+        );
+        return;
+      }
 
-    // Update the entire logs array using our existing updateTableDataItem function
-    updateTableDataItem({
-      ...tableDataItem,
-      logs: nextLogs,
-    });
-  }, [tileId, updateTableDataItem, tableDataItem]);
+      // Update the entire logs array using our existing updateTableDataItem function
+      updateTableDataItem({
+        ...tableDataItem,
+        logs: nextLogs,
+      });
+    },
+    [tileId, updateTableDataItem, tableDataItem]
+  );
 
   // Function for updating logs from logsActions.get response
   // Supports both top-level and targeted group updates with replace/append/prepend modes:
@@ -198,271 +205,285 @@ export function useTableDataQueryWithTracking(
   // - When no targeting provided, handles simple top-level replace/append/prepend scenarios
   // - Uses updateGroupedSubRows for targeted replace, appendToGroupSubRows for targeted append/prepend
   // - Supports sliding window management for bidirectional infinite loading
-  const updateLogs = useCallback((
-    logsData: LogsResponseProps,
-    mode: "replace" | "append" | "prepend" = "replace",
-    targetGroupId?: string | null, // For grouped Load More scenarios
-    targetGroupFilters?: [string, string][], // For targeting specific subrows
-    preConvertedLogs?: GroupedLogProps[] | LogProps[], // Optional pre-converted logs to avoid double conversion
-    windowConfig?: {
-      maxPagesInMemory: number;
-      pageSize: number;
-      currentPageCount: number; // Current number of pages in memory
-    },
-    currentOffsets?: { globalOffset: number; groupOffset: number } // Previous offsets to build upon
-  ): { globalOffset: number; groupOffset: number } => {
-    if (!tileId) {
-      return { globalOffset: 0, groupOffset: 0 };
-    }
+  const updateLogs = useCallback(
+    (
+      logsData: LogsResponseProps,
+      mode: 'replace' | 'append' | 'prepend' = 'replace',
+      targetGroupId?: string | null, // For grouped Load More scenarios
+      targetGroupFilters?: [string, string][], // For targeting specific subrows
+      preConvertedLogs?: GroupedLogProps[] | LogProps[], // Optional pre-converted logs to avoid double conversion
+      windowConfig?: {
+        maxPagesInMemory: number;
+        pageSize: number;
+        currentPageCount: number; // Current number of pages in memory
+      },
+      currentOffsets?: { globalOffset: number; groupOffset: number } // Previous offsets to build upon
+    ): { globalOffset: number; groupOffset: number } => {
+      if (!tileId) {
+        return { globalOffset: 0, groupOffset: 0 };
+      }
 
-    // Initialize offsets - use previous offsets if provided, otherwise start at 0
-    let globalOffset = currentOffsets?.globalOffset || 0;
-    let groupOffset = currentOffsets?.groupOffset || 0;
+      // Initialize offsets - use previous offsets if provided, otherwise start at 0
+      let globalOffset = currentOffsets?.globalOffset || 0;
+      let groupOffset = currentOffsets?.groupOffset || 0;
 
-    // Use the reactive data which should be fresh with staleTime: 0
-    const currentTableDataItem = tableDataItem;
+      // Use the reactive data which should be fresh with staleTime: 0
+      const currentTableDataItem = tableDataItem;
 
-    // Convert raw logs using the same logic as onGroupExpand
-    const newLogs = preConvertedLogs || maybeConvertRawToGroupedLogs(logsData.params, logsData.logs, targetGroupId);
+      // Convert raw logs using the same logic as onGroupExpand
+      const newLogs =
+        preConvertedLogs || maybeConvertRawToGroupedLogs(undefined, logsData.logs, targetGroupId);
 
-    // Calculate new cells by comparing with existing logs
-    const previousLogs = currentTableDataItem.logs;
-    const newCells = getNewCells(previousLogs, newLogs);
+      // Calculate new cells by comparing with existing logs
+      const previousLogs = currentTableDataItem.logs;
+      const newCells = getNewCells(previousLogs, newLogs);
 
-    // Extract error from logsData
-    const error = "detail" in logsData ? logsData["detail"] : undefined;
+      // Extract error from logsData
+      const error = 'detail' in logsData ? logsData['detail'] : undefined;
 
-    // Check log types once at the beginning to avoid redundancy
-    const currentLogs = currentTableDataItem.logs;
-    const isCurrentGrouped = isGroupedLogs(currentLogs);
-    const isCurrentUngrouped = isUngroupedLogs(currentLogs);
-    const isNewGrouped = isGroupedLogs(newLogs);
-    const isNewUngrouped = isUngroupedLogs(newLogs);
+      // Check log types once at the beginning to avoid redundancy
+      const currentLogs = currentTableDataItem.logs;
+      const isCurrentGrouped = isGroupedLogs(currentLogs);
+      const isCurrentUngrouped = isUngroupedLogs(currentLogs);
+      const isNewGrouped = isGroupedLogs(newLogs);
+      const isNewUngrouped = isUngroupedLogs(newLogs);
 
-    // Determine final logs based on mode and scenario
-    let finalLogs: LogProps[] | GroupedLogProps[] = newLogs; // Default to newLogs
-    
-    // Branch 1: If we have targeting information (targetGroupId and groupFilters)
-    if (targetGroupId && targetGroupFilters && targetGroupFilters.length > 0) {
-      // Targeting only makes sense with grouped logs
-      if (isCurrentGrouped) {
-        if (mode === "replace") {
-          // Replace mode with targeting - replace at specific location using updateGroupedSubRows
-          // Pass pre-converted logs to avoid double conversion
-          finalLogs = updateGroupedSubRows(
-            currentLogs as GroupedLogProps[],
-            logsData, // Pass the original LogsResponseProps for totalChildren calculation
-            targetGroupFilters,
-            targetGroupId,
-            newLogs // Pass pre-converted logs to avoid double conversion
-          );
-        } else if (mode === "append") {
-          // Append mode with targeting - use consolidated append utility
-          const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-          const result = appendGroupSubRowsWithWindowing(
-            currentLogs as GroupedLogProps[],
-            newLogs as GroupedLogProps[] | LogProps[],
-            targetGroupFilters,
-            windowConfig,
-            groupOffset,
-            totalCount
-          );
-          finalLogs = result.logs;
-          groupOffset = result.groupOffset;
-        } else if (mode === "prepend") {
-          // Prepend mode with targeting - prepend at specific location using prependToGroupedSubRows
-          // Use consolidated prepend utility that handles everything in one go
-          const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-          const result = prependGroupSubRowsWithWindowing(
-            currentLogs as GroupedLogProps[],
-            newLogs as GroupedLogProps[] | LogProps[],
-            targetGroupFilters,
-            windowConfig,
-            groupOffset,
-            totalCount
-          );
-          finalLogs = result.logs;
-          groupOffset = result.groupOffset;
-        } else {
-          // Unknown mode fallback
-          finalLogs = newLogs;
-        }
-      } else {
-        // Targeting requested but logs are ungrouped - warn and fallback
-        console.warn("[DEBUG] updateLogs: targeting requested but existing logs are ungrouped, falling back to simple operation");
-        if (mode === "replace") {
-          finalLogs = newLogs;
-        } else if (mode === "append") {
-          // For ungrouped logs, use consolidated append utility
-          if (isCurrentUngrouped && isNewUngrouped) {
+      // Determine final logs based on mode and scenario
+      let finalLogs: LogProps[] | GroupedLogProps[] = newLogs; // Default to newLogs
+
+      // Branch 1: If we have targeting information (targetGroupId and groupFilters)
+      if (targetGroupId && targetGroupFilters && targetGroupFilters.length > 0) {
+        // Targeting only makes sense with grouped logs
+        if (isCurrentGrouped) {
+          if (mode === 'replace') {
+            // Replace mode with targeting - replace at specific location using updateGroupedSubRows
+            // Pass pre-converted logs to avoid double conversion
+            finalLogs = updateGroupedSubRows(
+              currentLogs as GroupedLogProps[],
+              logsData, // Pass the original LogsResponseProps for totalChildren calculation
+              targetGroupFilters,
+              targetGroupId,
+              newLogs // Pass pre-converted logs to avoid double conversion
+            );
+          } else if (mode === 'append') {
+            // Append mode with targeting - use consolidated append utility
             const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = appendLogsWithWindowing(
-              currentLogs as LogProps[],
-              newLogs as LogProps[],
+            const result = appendGroupSubRowsWithWindowing(
+              currentLogs as GroupedLogProps[],
+              newLogs as GroupedLogProps[] | LogProps[],
+              targetGroupFilters,
               windowConfig,
-              globalOffset,
+              groupOffset,
               totalCount
             );
             finalLogs = result.logs;
-            globalOffset = result.offset;
-          } else {
-            finalLogs = newLogs; // If new logs are grouped, replace instead
-          }
-        } else if (mode === "prepend") {
-          // For ungrouped logs, just prepend if both are ungrouped
-          if (isNewUngrouped) {
+            groupOffset = result.groupOffset;
+          } else if (mode === 'prepend') {
+            // Prepend mode with targeting - prepend at specific location using prependToGroupedSubRows
             // Use consolidated prepend utility that handles everything in one go
             const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = prependLogsWithWindowing(
-              currentLogs as LogProps[],
-              newLogs as LogProps[],
+            const result = prependGroupSubRowsWithWindowing(
+              currentLogs as GroupedLogProps[],
+              newLogs as GroupedLogProps[] | LogProps[],
+              targetGroupFilters,
               windowConfig,
-              globalOffset,
+              groupOffset,
               totalCount
             );
             finalLogs = result.logs;
-            globalOffset = result.offset;
+            groupOffset = result.groupOffset;
           } else {
-            finalLogs = newLogs; // If new logs are grouped, replace instead
+            // Unknown mode fallback
+            finalLogs = newLogs;
           }
         } else {
-          // Unknown mode fallback
-          finalLogs = newLogs;
+          // Targeting requested but logs are ungrouped - warn and fallback
+          console.warn(
+            '[DEBUG] updateLogs: targeting requested but existing logs are ungrouped, falling back to simple operation'
+          );
+          if (mode === 'replace') {
+            finalLogs = newLogs;
+          } else if (mode === 'append') {
+            // For ungrouped logs, use consolidated append utility
+            if (isCurrentUngrouped && isNewUngrouped) {
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = appendLogsWithWindowing(
+                currentLogs as LogProps[],
+                newLogs as LogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              finalLogs = newLogs; // If new logs are grouped, replace instead
+            }
+          } else if (mode === 'prepend') {
+            // For ungrouped logs, just prepend if both are ungrouped
+            if (isNewUngrouped) {
+              // Use consolidated prepend utility that handles everything in one go
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = prependLogsWithWindowing(
+                currentLogs as LogProps[],
+                newLogs as LogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              finalLogs = newLogs; // If new logs are grouped, replace instead
+            }
+          } else {
+            // Unknown mode fallback
+            finalLogs = newLogs;
+          }
         }
       }
-    } 
-    // Branch 2: No targeting - handle simple scenarios
-    else {
-      // Handle ungrouped current logs
-      if (isCurrentUngrouped) {
-        if (mode === "replace") {
-          // Replace mode: simply use new logs
-          finalLogs = newLogs;
-        } else if (mode === "append") {
-          // Append mode: use consolidated append utility if new logs are also ungrouped
-          if (isNewUngrouped) {
-            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = appendLogsWithWindowing(
-              currentLogs as LogProps[],
-              newLogs as LogProps[],
-              windowConfig,
-              globalOffset,
-              totalCount
-            );
-            finalLogs = result.logs;
-            globalOffset = result.offset;
-          } else {
-            finalLogs = newLogs; // If new logs are grouped, replace instead
-          }
-        } else if (mode === "prepend") {
-          // Prepend mode: prepend if new logs are also ungrouped
-          if (isNewUngrouped) {
-            // Use consolidated prepend utility that handles everything in one go
-            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = prependLogsWithWindowing(
-              currentLogs as LogProps[],
-              newLogs as LogProps[],
-              windowConfig,
-              globalOffset,
-              totalCount
-            );
-            finalLogs = result.logs;
-            globalOffset = result.offset;
-          } else {
-            finalLogs = newLogs; // If new logs are grouped, replace instead
-          }
-        } else {
-          // Unknown mode fallback
-          finalLogs = newLogs;
-        }
-      }
-      // Handle grouped current logs
-      else if (isCurrentGrouped) {
-        if (mode === "replace") {
-          // Replace mode: simply use new logs
-          finalLogs = newLogs;
-        } else if (mode === "append") {
-          // Append mode: merge at top level if new logs are also grouped
-          if (isNewGrouped) {
-            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = appendGroupedLogsWithWindowing(
-              currentLogs as GroupedLogProps[],
-              newLogs as GroupedLogProps[],
-              windowConfig,
-              globalOffset,
-              totalCount
-            );
-            finalLogs = result.logs;
-            globalOffset = result.offset;
-          } else {
-            // If new logs are ungrouped but current are grouped, can't meaningfully append
-            console.warn("[DEBUG] updateLogs: append mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs");
-            finalLogs = currentLogs;
-          }
-        } else if (mode === "prepend") {
-          // Prepend mode: for grouped logs, prepend at top level if new logs are also grouped
-          if (isNewGrouped) {
-            // For prepend, we reverse the order compared to append
-            // Use consolidated prepend utility that handles everything in one go
-            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
-            const result = prependGroupedLogsWithWindowing(
-              currentLogs as GroupedLogProps[],
-              newLogs as GroupedLogProps[],
-              windowConfig,
-              globalOffset,
-              totalCount
-            );
-            finalLogs = result.logs;
-            globalOffset = result.offset;
-          } else {
-            // If new logs are ungrouped but current are grouped, can't meaningfully prepend
-            console.warn("[DEBUG] updateLogs: prepend mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs");
-            finalLogs = currentLogs;
-          }
-        } else {
-          // Unknown mode fallback
-          finalLogs = newLogs;
-        }
-      } 
-      // Fallback for edge cases (neither grouped nor ungrouped)
+      // Branch 2: No targeting - handle simple scenarios
       else {
-        console.error("[DEBUG] updateLogs: currentLogs are neither grouped nor ungrouped, using newLogs as fallback");
-        finalLogs = newLogs;
+        // Handle ungrouped current logs
+        if (isCurrentUngrouped) {
+          if (mode === 'replace') {
+            // Replace mode: simply use new logs
+            finalLogs = newLogs;
+          } else if (mode === 'append') {
+            // Append mode: use consolidated append utility if new logs are also ungrouped
+            if (isNewUngrouped) {
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = appendLogsWithWindowing(
+                currentLogs as LogProps[],
+                newLogs as LogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              finalLogs = newLogs; // If new logs are grouped, replace instead
+            }
+          } else if (mode === 'prepend') {
+            // Prepend mode: prepend if new logs are also ungrouped
+            if (isNewUngrouped) {
+              // Use consolidated prepend utility that handles everything in one go
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = prependLogsWithWindowing(
+                currentLogs as LogProps[],
+                newLogs as LogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              finalLogs = newLogs; // If new logs are grouped, replace instead
+            }
+          } else {
+            // Unknown mode fallback
+            finalLogs = newLogs;
+          }
+        }
+        // Handle grouped current logs
+        else if (isCurrentGrouped) {
+          if (mode === 'replace') {
+            // Replace mode: simply use new logs
+            finalLogs = newLogs;
+          } else if (mode === 'append') {
+            // Append mode: merge at top level if new logs are also grouped
+            if (isNewGrouped) {
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = appendGroupedLogsWithWindowing(
+                currentLogs as GroupedLogProps[],
+                newLogs as GroupedLogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              // If new logs are ungrouped but current are grouped, can't meaningfully append
+              console.warn(
+                '[DEBUG] updateLogs: append mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs'
+              );
+              finalLogs = currentLogs;
+            }
+          } else if (mode === 'prepend') {
+            // Prepend mode: for grouped logs, prepend at top level if new logs are also grouped
+            if (isNewGrouped) {
+              // For prepend, we reverse the order compared to append
+              // Use consolidated prepend utility that handles everything in one go
+              const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+              const result = prependGroupedLogsWithWindowing(
+                currentLogs as GroupedLogProps[],
+                newLogs as GroupedLogProps[],
+                windowConfig,
+                globalOffset,
+                totalCount
+              );
+              finalLogs = result.logs;
+              globalOffset = result.offset;
+            } else {
+              // If new logs are ungrouped but current are grouped, can't meaningfully prepend
+              console.warn(
+                '[DEBUG] updateLogs: prepend mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs'
+              );
+              finalLogs = currentLogs;
+            }
+          } else {
+            // Unknown mode fallback
+            finalLogs = newLogs;
+          }
+        }
+        // Fallback for edge cases (neither grouped nor ungrouped)
+        else {
+          console.error(
+            '[DEBUG] updateLogs: currentLogs are neither grouped nor ungrouped, using newLogs as fallback'
+          );
+          finalLogs = newLogs;
+        }
       }
-    }
 
-    // Update the table data item
-    updateTableDataItem({
-      ...currentTableDataItem,
-      logs: finalLogs,
-      params: logsData.params,
-      newCells,
-      error
-    });
+      // Update the table data item
+      updateTableDataItem({
+        ...currentTableDataItem,
+        logs: finalLogs,
+        newCells,
+        error,
+      });
 
-    // Return the calculated offsets (boundary guards are applied within utility functions)
-    return { globalOffset, groupOffset };
-  }, [tileId, updateTableDataItem, tableDataItem]);
+      // Return the calculated offsets (boundary guards are applied within utility functions)
+      return { globalOffset, groupOffset };
+    },
+    [tileId, updateTableDataItem, tableDataItem]
+  );
 
   // Adapter that accepts an updater function as well as partial updates
-  const updateTableDataItemWithUpdater = useCallback((
-    updater?: (prev: TableDataItem) => TableDataItem,
-    partialUpdates?: Partial<TableDataItem>,
-    merge?: boolean
-  ) => {
-    const deferringFn = merge ? mergeUpdatesIntoTableDataItem : updateTableDataItem;
+  const updateTableDataItemWithUpdater = useCallback(
+    (
+      updater?: (prev: TableDataItem) => TableDataItem,
+      partialUpdates?: Partial<TableDataItem>,
+      merge?: boolean
+    ) => {
+      const deferringFn = merge ? mergeUpdatesIntoTableDataItem : updateTableDataItem;
 
-    if (updater) {
-      if (partialUpdates) {
+      if (updater) {
+        if (partialUpdates) {
+          deferringFn(partialUpdates as TableDataItem);
+        } else {
+          // Use the reactive data which should be fresh with staleTime: 0
+          deferringFn(updater(tableDataItem));
+        }
+      } else if (partialUpdates) {
         deferringFn(partialUpdates as TableDataItem);
-      } else {
-        // Use the reactive data which should be fresh with staleTime: 0
-        deferringFn(updater(tableDataItem));
       }
-    } else if (partialUpdates) {
-      deferringFn(partialUpdates as TableDataItem);
-    }
-  }, [mergeUpdatesIntoTableDataItem, updateTableDataItem, tableDataItem]);
+    },
+    [mergeUpdatesIntoTableDataItem, updateTableDataItem, tableDataItem]
+  );
 
   // Return the actual query data for reactivity
   return {
@@ -485,19 +506,19 @@ export function useTableDataQueryWithTracking(
  */
 export function useTableArgumentsQuery(
   tabIdOrName: string | null,
-  interfaceIdOrName?: string | null,
+  interfaceIdOrName?: string | null
 ) {
   // Get tab meta information using the useTabMeta hook
   const { tabId } = useTabMeta(tabIdOrName, interfaceIdOrName || null);
   const queryClient = useQueryClient();
 
   return useQuery<TableArguments>({
-    queryKey: ["tableArguments", tabId],
+    queryKey: ['tableArguments', tabId],
     queryFn: () => {
       // Return cached data if available, otherwise empty object
       // This queryFn is needed to prevent "No queryFn" errors when React Query
       // attempts to refetch but data was prefetched without a queryFn
-      const cached = queryClient.getQueryData<TableArguments>(["tableArguments", tabId]);
+      const cached = queryClient.getQueryData<TableArguments>(['tableArguments', tabId]);
       return cached ?? ({} as TableArguments);
     },
     // No stale time or gc time for table arguments
@@ -516,97 +537,104 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
   tileIdOrName: string | null,
   tabIdOrName: string | null,
   entriesProperties: string[],
-  paramsProperties: string[],
   fields: LogFieldsResponseProps,
-  interfaceIdOrName?: string | null,
+  interfaceIdOrName?: string | null
 ) {
   const queryClient = useQueryClient();
 
   // Get tab meta information using the useTabMeta hook
-  const { tabId }   = useTabMeta(tabIdOrName, interfaceIdOrName || null);
+  const { tabId } = useTabMeta(tabIdOrName, interfaceIdOrName || null);
   const { meta: tileMetaState } = useTileMeta(tileIdOrName, tabIdOrName || null);
   const { data: tileDataState } = useTileData(tileIdOrName, tabIdOrName || null);
 
-  const availableFields = useMemo(() => buildAvailableFieldsForTile(
-    tileDataState?.column_context ?? "",
-    fields,
-    entriesProperties,
-    paramsProperties
-  ), [tileDataState?.column_context, fields, entriesProperties, paramsProperties]);
+  const availableFields = useMemo(
+    () =>
+      buildAvailableFieldsForTile(tileDataState?.columnContext ?? '', fields, entriesProperties),
+    [tileDataState?.columnContext, fields, entriesProperties]
+  );
 
   const tileName = tileMetaState?.name;
-  
+
   useEffect(() => {
     if (!tabId || !tileName) return;
 
     queryClient.setQueryData<TableArguments>(
-      ["tableArguments", tabId],
+      ['tableArguments', tabId],
       (prev = {} as TableArguments) => ({
         ...prev,
         [tileName]: {
           ...prev[tileName],
-          available_fields: availableFields,
+          availableFields: availableFields,
         },
-      }),
+      })
     );
-  }, [availableFields, tabId, tileName]);
+  }, [availableFields, tabId, tileName, queryClient]);
 }
 
 /**
  * Hook for updating table data with optimistic updates
  * This encapsulates the mutation logic for updating table data
- * 
+ *
  * @param tileId ID of the tile to update data for
  * @returns A mutation object that can be used to update table data
  */
 export function useUpdateTableDataItem(tileId: string) {
   const queryClient = useQueryClient();
-  
-  return useMutation<TableDataItem, Error, Partial<TableDataItem>, { previousData?: TableDataItem }>({
+
+  return useMutation<
+    TableDataItem,
+    Error,
+    Partial<TableDataItem>,
+    { previousData?: TableDataItem }
+  >({
     mutationFn: async (newData) => {
       // Simulating API response - in real app this would make an API call
       return {
-        ...(queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]) || {}),
-        ...newData
+        ...(queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]) || {}),
+        ...newData,
       } as TableDataItem;
     },
-    
+
     // When mutate is called:
     onMutate: async (newData) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ["tableDataItem", tileId] });
-      
+      await queryClient.cancelQueries({ queryKey: ['tableDataItem', tileId] });
+
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
-      
+      const previousData = queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]);
+
       // Optimistically update to the new value
-      queryClient.setQueryData<TableDataItem>(["tableDataItem", tileId], (old) => ({
-        ...(old || {}),
-        ...newData
-      } as TableDataItem));
-      
+      queryClient.setQueryData<TableDataItem>(
+        ['tableDataItem', tileId],
+        (old) =>
+          ({
+            ...(old || {}),
+            ...newData,
+          }) as TableDataItem
+      );
+
       // Return a context object with the snapshotted value
       return { previousData };
     },
-    
+
     // If mutation fails, use the context returned from onMutate to roll back
     onError: (err, newData, context) => {
-      console.error("Error updating table data:", err);
-      queryClient.setQueryData(["tableDataItem", tileId], context?.previousData);
+      console.error('Error updating table data:', err);
+      queryClient.setQueryData(['tableDataItem', tileId], context?.previousData);
     },
-    
+
     // Always invalidate to ensure cache consistency and trigger re-renders
     onSettled: () => {
       // Invalidate the main query to ensure it's marked as stale
-      queryClient.invalidateQueries({ 
-        queryKey: ["tableDataItem", tileId], 
-        refetchType: 'none' // Don't refetch, just mark as stale
+      queryClient.invalidateQueries({
+        queryKey: ['tableDataItem', tileId],
+        refetchType: 'none', // Don't refetch, just mark as stale
       });
-      
+
       // Also invalidate the auto-update query if it exists
-      queryClient.invalidateQueries({ 
-        queryKey: ["tableDataItem", "autoUpdate", tileId], 
-        refetchType: 'none' 
+      queryClient.invalidateQueries({
+        queryKey: ['tableDataItem', 'autoUpdate', tileId],
+        refetchType: 'none',
       });
     },
   });
@@ -639,39 +667,41 @@ export function useTableMetricsQuery(
   metric?: string,
   caller?: string
 ) {
-  const callerInfo = caller || "unknown";
+  const callerInfo = caller || 'unknown';
   const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length);
 
   return useQuery<TableMetrics>({
     queryKey: [
-      "tableMetrics", 
-      tileId, 
-      tabId, 
-      projectId, 
-      context, 
-      columnContext, 
-      columns, 
-      filterExpression, 
-      metric
+      'tableMetrics',
+      tileId,
+      tabId,
+      projectId,
+      context,
+      columnContext,
+      columns,
+      filterExpression,
+      metric,
     ],
     queryFn: async () => {
       if (!logsActions || !projectId || !columns || columns.length === 0) {
-        throw new Error("Missing required parameters for metrics query");
+        throw new Error('Missing required parameters for metrics query');
       }
 
       const tStart = performance.now();
-      const result = await getColumnMetrics(
+      const result = (await getColumnMetrics(
         projectId,
         context || null,
         columnContext || null,
         columns,
         filterExpression || null,
         null,
-        metric || "mean",
+        metric || 'mean',
         logsActions
-      ) as TableMetrics;
+      )) as TableMetrics;
       const tEnd = performance.now();
-      perfLog(`[pref] getColumnMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
+      perfLog(
+        `[pref] getColumnMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`
+      );
       return result;
     },
     enabled: isEnabled,
@@ -706,22 +736,14 @@ export function useTableBoundariesQuery(
   columns?: string[],
   caller?: string
 ) {
-  const callerInfo = caller || "unknown";
+  const callerInfo = caller || 'unknown';
   const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length);
 
   return useQuery<TableBoundaries>({
-    queryKey: [
-      "tableBoundaries", 
-      tileId, 
-      tabId, 
-      projectId, 
-      context, 
-      columnContext, 
-      columns
-    ],
+    queryKey: ['tableBoundaries', tileId, tabId, projectId, context, columnContext, columns],
     queryFn: async () => {
       if (!logsActions || !projectId || !columns || columns.length === 0) {
-        throw new Error("Missing required parameters for boundaries query");
+        throw new Error('Missing required parameters for boundaries query');
       }
 
       const tStart = performance.now();
@@ -733,7 +755,7 @@ export function useTableBoundariesQuery(
           columns,
           null,
           null,
-          "min",
+          'min',
           logsActions
         ) as Promise<TableMetrics>,
         getColumnMetrics(
@@ -743,13 +765,13 @@ export function useTableBoundariesQuery(
           columns,
           null,
           null,
-          "max",
+          'max',
           logsActions
-        ) as Promise<TableMetrics>
+        ) as Promise<TableMetrics>,
       ]);
       const tEnd = performance.now();
       perfLog(`[perf] getColumnMetrics(boundaries) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
-      
+
       return { minimums, maximums } as TableBoundaries;
     },
     enabled: isEnabled,
@@ -792,41 +814,59 @@ export function useTableGroupedMetricsQuery(
   fields?: LogFieldsResponseProps,
   caller?: string
 ) {
-  const callerInfo = caller || "unknown";
-  const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length && groupingExpression && fields);
+  const callerInfo = caller || 'unknown';
+  const isEnabled = !!(
+    tileId &&
+    tabId &&
+    enabled &&
+    logsActions &&
+    projectId &&
+    columns?.length &&
+    groupingExpression &&
+    fields
+  );
 
   return useQuery<TableGroupedMetrics>({
     queryKey: [
-      "tableGroupedMetrics", 
-      tileId, 
-      tabId, 
-      projectId, 
-      context, 
-      columnContext, 
-      columns, 
-      filterExpression, 
+      'tableGroupedMetrics',
+      tileId,
+      tabId,
+      projectId,
+      context,
+      columnContext,
+      columns,
+      filterExpression,
       groupingExpression,
-      metric
+      metric,
     ],
     queryFn: async () => {
-      if (!logsActions || !projectId || !columns || columns.length === 0 || !groupingExpression || !fields) {
-        throw new Error("Missing required parameters for grouped metrics query");
+      if (
+        !logsActions ||
+        !projectId ||
+        !columns ||
+        columns.length === 0 ||
+        !groupingExpression ||
+        !fields
+      ) {
+        throw new Error('Missing required parameters for grouped metrics query');
       }
 
       const tStart = performance.now();
-      const result = await getGroupedMetrics(
+      const result = (await getGroupedMetrics(
         projectId,
         context || null,
         columnContext || null,
         columns,
         filterExpression || null,
         groupingExpression,
-        metric || "mean",
+        metric || 'mean',
         fields,
         logsActions
-      ) as TableGroupedMetrics;
+      )) as TableGroupedMetrics;
       const tEnd = performance.now();
-      perfLog(`[perf] getGroupedMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
+      perfLog(
+        `[perf] getGroupedMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`
+      );
       return result;
     },
     enabled: isEnabled,
@@ -866,20 +906,30 @@ export function useInvalidateTableMetrics(
       // Invalidate the exact query using the same queryKey structure
       queryClient.invalidateQueries({
         queryKey: [
-          "tableMetrics", 
-          tileId, 
-          tabId, 
-          projectId, 
-          context, 
-          columnContext, 
-          columns, 
-          filterExpression, 
-          metric
+          'tableMetrics',
+          tileId,
+          tabId,
+          projectId,
+          context,
+          columnContext,
+          columns,
+          filterExpression,
+          metric,
         ],
-        refetchType: 'active'
+        refetchType: 'active',
       });
     }
-  }, [queryClient, tileId, tabId, projectId, context, columnContext, columns, filterExpression, metric]);
+  }, [
+    queryClient,
+    tileId,
+    tabId,
+    projectId,
+    context,
+    columnContext,
+    columns,
+    filterExpression,
+    metric,
+  ]);
 
   return { resetMetrics };
 }
@@ -907,16 +957,8 @@ export function useInvalidateTableBoundaries(
     if (tileId && tabId) {
       // Invalidate the exact query using the same queryKey structure
       queryClient.invalidateQueries({
-        queryKey: [
-          "tableBoundaries", 
-          tileId, 
-          tabId, 
-          projectId, 
-          context, 
-          columnContext, 
-          columns
-        ],
-        refetchType: 'active'
+        queryKey: ['tableBoundaries', tileId, tabId, projectId, context, columnContext, columns],
+        refetchType: 'active',
       });
     }
   }, [queryClient, tileId, tabId, projectId, context, columnContext, columns]);
@@ -954,26 +996,37 @@ export function useInvalidateTableGroupedMetrics(
       // Invalidate both top-level and sub-group metrics
       queryClient.invalidateQueries({
         queryKey: [
-          "tableGroupedMetrics", 
-          tileId, 
-          tabId, 
-          projectId, 
-          context, 
-          columnContext, 
-          columns, 
-          filterExpression, 
+          'tableGroupedMetrics',
+          tileId,
+          tabId,
+          projectId,
+          context,
+          columnContext,
+          columns,
+          filterExpression,
           groupingExpression,
-          metric
+          metric,
         ],
-        refetchType: 'active'
+        refetchType: 'active',
       });
-      
+
       queryClient.invalidateQueries({
-        queryKey: ["tableSubGroupMetrics", tileId, tabId],
-        refetchType: 'active'
+        queryKey: ['tableSubGroupMetrics', tileId, tabId],
+        refetchType: 'active',
       });
     }
-  }, [queryClient, tileId, tabId, projectId, context, columnContext, columns, filterExpression, groupingExpression, metric]);
+  }, [
+    queryClient,
+    tileId,
+    tabId,
+    projectId,
+    context,
+    columnContext,
+    columns,
+    filterExpression,
+    groupingExpression,
+    metric,
+  ]);
 
   return { resetGroupedMetrics };
 }

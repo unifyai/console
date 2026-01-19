@@ -19,7 +19,7 @@ export const DEFAULT_USE_TAB_RETURN = {
   actions: null,
   exists: false,
   operations: {},
-  tabId: null
+  tabId: null,
 };
 
 /**
@@ -30,7 +30,7 @@ export interface TabActions {
   initTab: (initialState?: Partial<Tab>) => void;
   updateTab: (updates: Partial<Tab>) => void;
   removeTab: () => void;
-  
+
   // Categorized actions
   meta: TabMetaActions;
   data: TabDataActions;
@@ -43,33 +43,21 @@ export interface TabActions {
  * @param interfaceIdOrName The ID or name of the interface containing the tab
  * @returns Object containing all tab state, actions, and existence flag
  */
-export function useTab(
-  tabIdOrName: string | null,
-  interfaceIdOrName?: string | null
-) {
+export function useTab(tabIdOrName: string | null, interfaceIdOrName?: string | null) {
   // Use specialized hooks
-  const {
-    meta,
-    metaActions,
-    tabId,
-    tabExists,
-    activeInterfaceId
-  } = useTabMeta(tabIdOrName, interfaceIdOrName);
-  
-  const {
-    data,
-    dataActions
-  } = useTabData(tabIdOrName, interfaceIdOrName);
-  
-  const {
-    ui,
-    uiActions
-  } = useTabUI(tabIdOrName, interfaceIdOrName);
-  
+  const { meta, metaActions, tabId, tabExists, activeInterfaceId } = useTabMeta(
+    tabIdOrName,
+    interfaceIdOrName
+  );
+
+  const { data, dataActions } = useTabData(tabIdOrName, interfaceIdOrName);
+
+  const { ui, uiActions } = useTabUI(tabIdOrName, interfaceIdOrName);
+
   // Get store actions for core tab management
-  const storeInitTab = useStoreContext(state => state.initTab);
-  const storeUpdateTab = useStoreContext(state => state.updateTab);
-  const storeRemoveTab = useStoreContext(state => state.removeTab);
+  const storeInitTab = useStoreContext((state) => state.initTab);
+  const storeUpdateTab = useStoreContext((state) => state.updateTab);
+  const storeRemoveTab = useStoreContext((state) => state.removeTab);
 
   // Memoize all actions to prevent unnecessary re-renders
   const actions = useMemo<TabActions>(() => {
@@ -80,27 +68,27 @@ export function useTab(
           storeInitTab(activeInterfaceId, tabId, {
             id: tabId,
             interfaceId: activeInterfaceId,
-            ...initialState
+            ...initialState,
           });
         }
       },
-      
+
       updateTab: (updates) => {
         if (tabId) {
           storeUpdateTab(tabId, updates);
         }
       },
-      
+
       removeTab: () => {
         if (tabId && activeInterfaceId) {
           storeRemoveTab(activeInterfaceId, tabId);
         }
       },
-      
+
       // Categorized actions
       meta: metaActions,
       data: dataActions,
-      ui: uiActions
+      ui: uiActions,
     };
   }, [
     tabId,
@@ -110,17 +98,17 @@ export function useTab(
     uiActions,
     storeInitTab,
     storeUpdateTab,
-    storeRemoveTab
+    storeRemoveTab,
   ]);
-  
+
   // Build a final 'tab' object from the separate meta, data, and UI objects
   const tab = useMemo<Partial<Tab> | null>(() => {
     if (!meta || !data || !ui) return null;
-    
+
     return {
       ...meta,
       ...data,
-      ...ui
+      ...ui,
     };
   }, [meta, data, ui]);
 
@@ -139,6 +127,6 @@ export function useTab(
     uiActions,
     actions,
     exists: tabExists,
-    tabId
+    tabId,
   };
-} 
+}

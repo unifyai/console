@@ -1,7 +1,7 @@
-import { motion } from "framer-motion";
-import React, { useRef } from "react";
-import { useMeasure } from "@/utils/landingNav/useMeasure";
-import styled from "styled-components";
+import { motion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { useMeasure } from '@/utils/landingNav/useMeasure';
+import styled from 'styled-components';
 
 const Container = styled(motion.div)`
   overflow: hidden;
@@ -21,13 +21,13 @@ interface AnimateHeightProps {
 
 export function AnimateHeight({
   duration,
-  ease = "easeOut",
+  ease = 'easeOut',
   variants = {
     open: {
       opacity: 1,
-      height: "auto"
+      height: 'auto',
     },
-    collapsed: { opacity: 0, height: 0 }
+    collapsed: { opacity: 0, height: 0 },
   },
   isVisible,
   children,
@@ -38,24 +38,20 @@ export function AnimateHeight({
 
   return (
     <Container
-      initial={isVisible ? "open" : "collapsed"}
-      animate={isVisible ? "open" : "collapsed"}
+      initial={isVisible ? 'open' : 'collapsed'}
+      animate={isVisible ? 'open' : 'collapsed'}
       inherit={false}
       variants={{
-        open: { ...variants.open, height: bounds?.height ?? "auto" },
-        collapsed: { ...variants.collapsed, height: 0 }
+        open: { ...variants.open, height: bounds?.height ?? 'auto' },
+        collapsed: { ...variants.collapsed, height: 0 },
       }}
       transition={{
         ease,
-        duration
+        duration,
       }}
       {...other}
     >
-      {typeof children === "function" ? (
-        children(ref)
-      ) : (
-        <div ref={ref}>{children}</div>
-      )}
+      {typeof children === 'function' ? children(ref) : <div ref={ref}>{children}</div>}
     </Container>
   );
 }

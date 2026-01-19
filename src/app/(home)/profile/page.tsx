@@ -1,11 +1,11 @@
-import { Suspense } from "react";
+import { Suspense } from 'react';
 
-import { getCurrentUser } from "@/lib/user/user";
+import { getCurrentUser } from '@/lib/user/user';
 
-import Main from "@/components/Pages/Profile/Main";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import { signOut } from "next-auth/react";
-import { redirect } from "next/navigation";
+import Main from '@/components/Pages/Profile/Main';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import { signOut } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 /**
  * ProfilePage is a Next.js page component that renders the user profile page.
@@ -26,7 +26,7 @@ const ProfilePage = async () => {
   }
 
   return (
-    <div className="w-full h-full p-1 overflow-auto">
+    <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
         <Main user={user} onPrem={onPrem} />
       </Suspense>

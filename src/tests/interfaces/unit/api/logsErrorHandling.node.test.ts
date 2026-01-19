@@ -1,6 +1,6 @@
 /**
  * Tests for error handling in logs API functions
- * 
+ *
  * Covers:
  * - 404 handling for missing/deleted contexts
  * - Network error handling
@@ -11,11 +11,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('Logs API Error Handling', () => {
   const originalFetch = global.fetch;
-  
+
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', 'http://localhost:3000');
   });
-  
+
   afterEach(() => {
     global.fetch = originalFetch;
     vi.unstubAllEnvs();
@@ -64,8 +64,8 @@ describe('Logs API Error Handling', () => {
 
     it('should return fields on successful response', async () => {
       const mockFields = {
-        'field1': { data_type: 'str', field_type: 'entry' },
-        'field2': { data_type: 'int', field_type: 'param' },
+        field1: { dataType: 'str', fieldType: 'entry' },
+        field2: { dataType: 'int', fieldType: 'entry' },
       };
 
       global.fetch = vi.fn().mockResolvedValue({
@@ -95,12 +95,25 @@ describe('Logs API Error Handling', () => {
       const result = await getLogsFunc(
         'test-project',
         'deleted-context',
-        null, null, null, null, null, null, null, null,
-        20, 0, null, null, null, null, null, null
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        20,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       );
 
       expect(result).toEqual({
-        params: {},
         logs: [],
         count: 0,
         groups: [],
@@ -116,12 +129,25 @@ describe('Logs API Error Handling', () => {
       const result = await getLogsFunc(
         'test-project',
         'any-context',
-        null, null, null, null, null, null, null, null,
-        20, 0, null, null, null, null, null, null
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        20,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       );
 
       expect(result).toEqual({
-        params: {},
         logs: [],
         count: 0,
         groups: [],
@@ -147,12 +173,25 @@ describe('Logs API Error Handling', () => {
       const result = await getLogsFunc(
         'test-project',
         'valid-context',
-        null, null, null, null, null, null, null, null,
-        20, 0, null, null, null, null, null, null
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        20,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       );
 
       expect(result).toEqual(mockLogs);
     });
   });
 });
-

@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import LoadingScreen from "@/components/Layout/LoadingScreen";
+import LoadingScreen from '@/components/Layout/LoadingScreen';
 
 export default function ThemeLoader({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);

@@ -7,12 +7,13 @@
  * Used by: /plot/view/[token] page
  */
 
-"use client";
+'use client';
 
-import { useState, useMemo } from "react";
-import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { PlotCanvas } from "@/components/Common/Plot/PlotCanvas";
-import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { PlotCanvas } from '@/components/Common/Plot/PlotCanvas';
+import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
+import { PlotFooter, PlotDetailsDrawer, usePlotDetails } from '@/components/Common/Plot/PlotFooter';
 
 /**
  * Plot configuration from the API
@@ -32,6 +33,18 @@ interface PlotViewerConfig {
   margins?: { top: number; right: number; bottom: number; left: number };
   primaryColor?: string;
   colors?: Record<string, string>;
+  // Bar chart sorting
+  sortOrder?: string; // 'asc', 'desc', or undefined
+  // Axis customization - xLabel/yLabel apply to both axis and tooltip
+  xLabel?: string;
+  yLabel?: string;
+  showXLabel?: boolean;
+  showYLabel?: boolean;
+  xTickFormat?: string;
+  yTickFormat?: string;
+  // Group by and aggregate labels
+  groupByLabel?: string;
+  aggregateLabel?: string;
 }
 
 /**
@@ -50,19 +63,19 @@ interface PlotViewerProps {
  * Map short type to full plot type name expected by drawPlot
  */
 const PLOT_TYPE_MAP: Record<string, string> = {
-  scatter: "Scatter Plot",
-  bar: "Bar Chart",
-  histogram: "Histogram",
-  line: "Line Chart",
+  scatter: 'Scatter Plot',
+  bar: 'Bar Chart',
+  histogram: 'Histogram',
+  line: 'Line Chart',
 };
 
 /**
  * Strip table prefix from field name for display (e.g., "table1.latency_ms" -> "latency_ms")
  */
 function formatFieldName(field?: string): string {
-  if (!field) return "";
+  if (!field) return '';
   // Remove "table1." or any "tableN." prefix
-  return field.replace(/^table\d+\./, "");
+  return field.replace(/^table\d+\./, '');
 }
 
 /**
@@ -74,32 +87,24 @@ function generateTitle(config: PlotViewerConfig): string {
   const groupBy = formatFieldName(config.groupBy);
 
   switch (config.type) {
-    case "scatter":
+    case 'scatter':
       if (yAxis && xAxis) {
-        return groupBy 
-          ? `${yAxis} vs ${xAxis} (by ${groupBy})`
-          : `${yAxis} vs ${xAxis}`;
+        return groupBy ? `${yAxis} vs ${xAxis} (by ${groupBy})` : `${yAxis} vs ${xAxis}`;
       }
       return `Scatter Plot: ${xAxis}`;
 
-    case "bar":
+    case 'bar':
       if (yAxis && xAxis) {
-        return groupBy
-          ? `${yAxis} by ${xAxis} (grouped by ${groupBy})`
-          : `${yAxis} by ${xAxis}`;
+        return groupBy ? `${yAxis} by ${xAxis} (grouped by ${groupBy})` : `${yAxis} by ${xAxis}`;
       }
       return `Bar Chart: ${xAxis}`;
 
-    case "histogram":
-      return groupBy
-        ? `Distribution of ${xAxis} (by ${groupBy})`
-        : `Distribution of ${xAxis}`;
+    case 'histogram':
+      return groupBy ? `Distribution of ${xAxis} (by ${groupBy})` : `Distribution of ${xAxis}`;
 
-    case "line":
+    case 'line':
       if (yAxis && xAxis) {
-        return groupBy
-          ? `${yAxis} over ${xAxis} (by ${groupBy})`
-          : `${yAxis} over ${xAxis}`;
+        return groupBy ? `${yAxis} over ${xAxis} (by ${groupBy})` : `${yAxis} over ${xAxis}`;
       }
       return `Line Chart: ${xAxis}`;
 
@@ -116,8 +121,8 @@ function generateTitle(config: PlotViewerConfig): string {
  */
 export function PlotViewer({ config, data, fields, title, preAggregatedBarData }: PlotViewerProps) {
   // State for user-adjustable plot settings
-  const [scaleX, setScaleX] = useState(config.scaleX || "linear");
-  const [scaleY, setScaleY] = useState(config.scaleY || "linear");
+  const [scaleX, setScaleX] = useState(config.scaleX || 'linear');
+  const [scaleY, setScaleY] = useState(config.scaleY || 'linear');
   const [binCount, setBinCount] = useState(config.binCount || 10);
   const [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
   const [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
@@ -126,26 +131,88 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
   const [zoomEnabled, setZoomEnabled] = useState(true);
 
   // Map short type to full name
-  const plotType = PLOT_TYPE_MAP[config.type] || "Scatter Plot";
+  const plotType = PLOT_TYPE_MAP[config.type] || 'Scatter Plot';
 
   // Serialize colors for PlotCanvas
   const colorsJson = config.colors ? JSON.stringify(config.colors) : null;
 
   // Use provided title or generate one from config
-  const displayTitle = useMemo(
-    () => title || generateTitle(config),
-    [title, config]
+  const displayTitle = useMemo(() => title || generateTitle(config), [title, config]);
+
+  // Create tick formatter functions from format strings
+  const xTickFormatter = useMemo(() => {
+    if (!config.xTickFormat) return undefined;
+    const format = config.xTickFormat;
+    return (value: unknown) => {
+      if (format === '$') return `$${Number(value).toLocaleString()}`;
+      if (format === '%') return `${Number(value)}%`;
+      return `${format}${value}`;
+    };
+  }, [config.xTickFormat]);
+
+  const yTickFormatter = useMemo(() => {
+    if (!config.yTickFormat) return undefined;
+    const format = config.yTickFormat;
+    return (value: unknown) => {
+      if (format === '$') return `$${Number(value).toLocaleString()}`;
+      if (format === '%') return `${Number(value)}%`;
+      return `${format}${value}`;
+    };
+  }, [config.yTickFormat]);
+
+  // Plot details state (for footer and drawer)
+  const plotDetails = usePlotDetails({
+    xAxis: config.xAxis,
+    xLabel: config.xLabel,
+    xScale: scaleX,
+    yAxis: config.yAxis,
+    yLabel: config.yLabel,
+    yScale: scaleY,
+    metric: config.metric,
+    groupBy: config.groupBy,
+    groupByLabel: config.groupByLabel,
+  });
+
+  // Container ref for drawer positioning
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Destructure stable callbacks from plotDetails to satisfy ESLint
+  const { setGroups, addPinnedDatapoint, openDrawer, isDrawerOpen } = plotDetails;
+
+  // Groups are now set directly via the onGroupsChange callback from PlotCanvas/D3
+  // Memoize callbacks to prevent infinite re-render loops
+  const handleGroupsChange = useCallback(
+    (groups: Array<{ key: string; color: string }>) => {
+      setGroups(groups.map((g) => ({ key: g.key, color: g.color })));
+    },
+    [setGroups]
+  );
+
+  const handleDatapointPin = useCallback(
+    (datapoint: {
+      id: string;
+      x: { label: string; value: string | number };
+      y: { label: string; value: string | number };
+      group?: { label: string; value: string };
+    }) => {
+      addPinnedDatapoint(datapoint);
+      // Open drawer if not already open when pinning a datapoint
+      if (!isDrawerOpen) {
+        openDrawer();
+      }
+    },
+    [addPinnedDatapoint, openDrawer, isDrawerOpen]
   );
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div ref={containerRef} className="relative flex h-screen flex-col bg-background">
       {/* Header - compact styling */}
-      <header className="px-3 py-1.5 border-b border-border flex-shrink-0">
+      <header className="flex-shrink-0 border-b border-border px-3 py-1.5">
         <h1 className="text-sm font-medium text-foreground">{displayTitle}</h1>
       </header>
 
       {/* Plot Container */}
-      <div className="flex-1 min-h-[400px] overflow-hidden">
+      <div className="min-h-[400px] flex-1 overflow-hidden">
         <PlotCanvas
           logs={data}
           fields={fields}
@@ -156,9 +223,9 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
           aggregate={config.aggregate}
           scaleX={scaleX}
           scaleY={scaleY}
-          metric={config.metric || "mean"}
+          metric={config.metric || 'mean'}
           binCount={binCount}
-          showRegression={config.showRegression ? "true" : "false"}
+          showRegression={config.showRegression ? 'true' : 'false'}
           colors={colorsJson}
           interactive={true}
           zoomEnabled={zoomEnabled}
@@ -169,19 +236,45 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
           onLogScaleYEnabledChange={setLogScaleYEnabled}
           margins={config.margins || { top: 0, right: 15, bottom: 45, left: 55 }}
           preAggregatedBarData={preAggregatedBarData}
+          // Bar chart sorting
+          sortBars={config.sortOrder}
+          // Axis customization - xLabel/yLabel apply to both axis and tooltip
+          showXAxisLabel={config.showXLabel}
+          showYAxisLabel={config.showYLabel}
+          xAxisLabel={config.xLabel}
+          yAxisLabel={config.yLabel}
+          xTickFormatter={xTickFormatter}
+          yTickFormatter={yTickFormatter}
+          // Group by and aggregate labels
+          groupByLabel={config.groupByLabel}
+          aggregateLabel={config.aggregateLabel}
+          // Hide settings overlay - using drawer instead
+          hideSettingsOverlay={true}
+          // Callbacks for external drawer (memoized to prevent re-render loops)
+          onGroupsChange={handleGroupsChange}
+          onDatapointPin={handleDatapointPin}
+          // Highlight target for bidirectional hover highlighting
+          highlightTarget={plotDetails.highlightTarget}
         />
       </div>
 
-      {/* Footer */}
-      <footer className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex-shrink-0 flex justify-between items-center">
-        <span>Generated plot • View only</span>
-        <button
-          onClick={() => setZoomEnabled(!zoomEnabled)}
-          className="text-xs hover:text-foreground transition-colors"
-        >
-          {zoomEnabled ? "🔍 Zoom enabled" : "🔍 Zoom disabled"}
-        </button>
-      </footer>
+      {/* Footer - compact with counts, toggles drawer */}
+      <PlotFooter
+        groupCount={plotDetails.groupCount}
+        pinnedCount={plotDetails.pinnedCount}
+        isOpen={plotDetails.isDrawerOpen}
+        onToggle={plotDetails.toggleDrawer}
+      />
+
+      {/* Details Drawer - slides up from footer */}
+      <PlotDetailsDrawer
+        isOpen={plotDetails.isDrawerOpen}
+        groups={plotDetails.groups}
+        pinnedDatapoints={plotDetails.pinnedDatapoints}
+        axesInfo={plotDetails.axesInfo}
+        onUnpinDatapoint={plotDetails.removePinnedDatapoint}
+        onHighlight={plotDetails.setHighlightTarget}
+      />
     </div>
   );
 }

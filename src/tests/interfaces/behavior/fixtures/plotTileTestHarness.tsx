@@ -1,9 +1,9 @@
 /**
  * Plot Tile Test Harness
- * 
+ *
  * A reusable wrapper for testing plot/chart visualization behaviors
  * including axis selection, plot type changes, and settings.
- * 
+ *
  * IMPROVED: Uses REAL Zustand store and hooks (`usePlotTile`).
  */
 import React, { useState, useCallback, useEffect } from 'react';
@@ -11,7 +11,11 @@ import { render, RenderResult } from '@testing-library/react';
 import { Settings, Maximize2, X } from 'lucide-react';
 
 // Real Store Imports
-import { StoreProvider, useStoreApiContext, useStoreContext } from '../../../../contexts/providers/StoreProvider';
+import {
+  StoreProvider,
+  useStoreApiContext,
+  useStoreContext,
+} from '../../../../contexts/providers/StoreProvider';
 import { usePlotTile } from '../../../../contexts/hooks/tile/usePlotTile';
 import { initTile, Tile } from '../../../../contexts/slices/selectors/tile';
 import { initPlotTile, PlotTile } from '../../../../contexts/slices/selectors/plotTile';
@@ -198,8 +202,8 @@ function PlotTileInner({
 }: PlotTileInnerProps) {
   // Access store via hooks
   const { plotTile, plotTileActions, exists } = usePlotTile(TILE_ID, TAB_ID);
-  const storeUpdateTile = useStoreContext(state => state.updateTile);
-  
+  const storeUpdateTile = useStoreContext((state) => state.updateTile);
+
   // Local state for UI things not yet in store (or mocked for this test)
   const [data] = useState<DataPoint[]>(initialData ?? createMockPlotData());
   const [settingsOpen, setSettingsOpen] = useState(initialSettingsOpen);
@@ -216,25 +220,37 @@ function PlotTileInner({
   // Handlers
   // ==========================================================================
 
-  const handleSetXAxis = useCallback((column: string) => {
-    plotTileActions?.setXAxis(column);
-    callbacks.onXAxisChange?.(column);
-  }, [plotTileActions, callbacks]);
+  const handleSetXAxis = useCallback(
+    (column: string) => {
+      plotTileActions?.setXAxis(column);
+      callbacks.onXAxisChange?.(column);
+    },
+    [plotTileActions, callbacks]
+  );
 
-  const handleSetYAxis = useCallback((column: string) => {
-    plotTileActions?.setYAxis(column);
-    callbacks.onYAxisChange?.(column);
-  }, [plotTileActions, callbacks]);
+  const handleSetYAxis = useCallback(
+    (column: string) => {
+      plotTileActions?.setYAxis(column);
+      callbacks.onYAxisChange?.(column);
+    },
+    [plotTileActions, callbacks]
+  );
 
-  const handleSetPlotType = useCallback((type: PlotType) => {
-    plotTileActions?.setPlotType(type);
-    callbacks.onPlotTypeChange?.(type);
-  }, [plotTileActions, callbacks]);
+  const handleSetPlotType = useCallback(
+    (type: PlotType) => {
+      plotTileActions?.setPlotType(type);
+      callbacks.onPlotTypeChange?.(type);
+    },
+    [plotTileActions, callbacks]
+  );
 
-  const handleSetColorBy = useCallback((column: string | null) => {
-    plotTileActions?.setPlotGroupBy(column ?? undefined);
-    callbacks.onColorByChange?.(column);
-  }, [plotTileActions, callbacks]);
+  const handleSetColorBy = useCallback(
+    (column: string | null) => {
+      plotTileActions?.setPlotGroupBy(column ?? undefined);
+      callbacks.onColorByChange?.(column);
+    },
+    [plotTileActions, callbacks]
+  );
 
   const handleToggleSettings = useCallback(() => {
     setSettingsOpen((prev) => {
@@ -252,15 +268,21 @@ function PlotTileInner({
     });
   }, [callbacks]);
 
-  const handleSetScaleX = useCallback((scale: ScaleType) => {
-    setScaleX(scale);
-    callbacks.onScaleXChange?.(scale);
-  }, [callbacks]);
+  const handleSetScaleX = useCallback(
+    (scale: ScaleType) => {
+      setScaleX(scale);
+      callbacks.onScaleXChange?.(scale);
+    },
+    [callbacks]
+  );
 
-  const handleSetScaleY = useCallback((scale: ScaleType) => {
-    setScaleY(scale);
-    callbacks.onScaleYChange?.(scale);
-  }, [callbacks]);
+  const handleSetScaleY = useCallback(
+    (scale: ScaleType) => {
+      setScaleY(scale);
+      callbacks.onScaleYChange?.(scale);
+    },
+    [callbacks]
+  );
 
   const handleToggleZoom = useCallback(() => {
     setZoomEnabled((prev) => {
@@ -282,10 +304,13 @@ function PlotTileInner({
     });
   }, [callbacks]);
 
-  const handleSetBinCount = useCallback((count: number) => {
-    setBinCount(count);
-    callbacks.onBinCountChange?.(count);
-  }, [callbacks]);
+  const handleSetBinCount = useCallback(
+    (count: number) => {
+      setBinCount(count);
+      callbacks.onBinCountChange?.(count);
+    },
+    [callbacks]
+  );
 
   // ==========================================================================
   // Expose state to test via ref
@@ -293,10 +318,10 @@ function PlotTileInner({
 
   useEffect(() => {
     stateContainerRef.current = {
-      getXAxis: () => plotTile?.x_axis || '',
-      getYAxis: () => plotTile?.y_axis || '',
-      getPlotType: () => (plotTile?.plot_type as PlotType) || 'scatter',
-      getColorBy: () => plotTile?.plot_group_by || null,
+      getXAxis: () => plotTile?.xAxis || '',
+      getYAxis: () => plotTile?.yAxis || '',
+      getPlotType: () => (plotTile?.plotType as PlotType) || 'scatter',
+      getColorBy: () => plotTile?.plotGroupBy || null,
       isSettingsOpen: () => settingsOpen,
       isFocusMode: () => focusMode,
       setXAxis: handleSetXAxis,
@@ -356,7 +381,7 @@ function PlotTileInner({
   // ==========================================================================
 
   const getPointColor = (point: DataPoint) => {
-    if (!plotTile.plot_group_by) return '#3b82f6';
+    if (!plotTile.plotGroupBy) return '#3b82f6';
     const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b'];
     const index = point.category ? ['A', 'B', 'C', 'D'].indexOf(point.category) : 0;
     return colors[index % colors.length];
@@ -369,15 +394,15 @@ function PlotTileInner({
   const plotContent = (
     <div
       data-testid="plot-tile-container"
-      className={`bg-white border rounded-lg ${focusMode ? 'fixed inset-4 z-50' : ''}`}
+      className={`rounded-lg border bg-white ${focusMode ? 'fixed inset-4 z-50' : ''}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b">
+      <div className="flex items-center justify-between border-b p-3">
         <h3 className="font-semibold">Plot</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={handleToggleSettings}
-            className={`p-1 rounded ${settingsOpen ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}`}
+            className={`rounded p-1 ${settingsOpen ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}`}
             data-testid="settings-button"
             aria-pressed={settingsOpen}
           >
@@ -385,7 +410,7 @@ function PlotTileInner({
           </button>
           <button
             onClick={handleToggleFocusMode}
-            className="p-1 rounded hover:bg-gray-100"
+            className="rounded p-1 hover:bg-gray-100"
             data-testid="focus-mode-button"
           >
             {focusMode ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -398,16 +423,16 @@ function PlotTileInner({
         <div className="flex-1 p-4">
           {/* Simulated chart */}
           <div
-            className="relative w-full h-64 bg-gray-50 border rounded"
+            className="relative h-64 w-full rounded border bg-gray-50"
             data-testid="plot-canvas"
-            data-plot-type={plotTile.plot_type || 'scatter'}
+            data-plot-type={plotTile.plotType || 'scatter'}
           >
             {/* Y axis label */}
             <div
               className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-gray-500"
               data-testid="y-axis-label"
             >
-              {plotTile.y_axis}
+              {plotTile.yAxis}
             </div>
 
             {/* X axis label */}
@@ -415,41 +440,42 @@ function PlotTileInner({
               className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-gray-500"
               data-testid="x-axis-label"
             >
-              {plotTile.x_axis}
+              {plotTile.xAxis}
             </div>
 
             {/* Data points */}
-            <svg 
-              className="w-full h-full" 
+            <svg
+              className="h-full w-full"
               data-testid="plot-svg"
               data-zoom-enabled={zoomEnabled}
               data-scale-x={scaleX}
               data-scale-y={scaleY}
             >
               {/* Zoom container */}
-              <g 
+              <g
                 data-testid="zoom-container"
                 transform={`translate(${zoomTransform.x},${zoomTransform.y}) scale(${zoomTransform.k})`}
               >
                 {/* Scatter plot points */}
-                {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && data.map((point, i) => (
-                  <circle
-                    key={i}
-                    cx={`${(point.x / 200) * 100}%`}
-                    cy={`${100 - (point.y / 100) * 100}%`}
-                    r={hoveredPoint === point ? 8 : 6}
-                    fill={getPointColor(point)}
-                    opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
-                    className="cursor-pointer transition-all"
-                    data-testid={`data-point-${i}`}
-                    data-point-label={point.label}
-                    onMouseEnter={() => setHoveredPoint(point)}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  />
-                ))}
-                
+                {(plotTile.plotType === 'scatter' || !plotTile.plotType) &&
+                  data.map((point, i) => (
+                    <circle
+                      key={i}
+                      cx={`${(point.x / 200) * 100}%`}
+                      cy={`${100 - (point.y / 100) * 100}%`}
+                      r={hoveredPoint === point ? 8 : 6}
+                      fill={getPointColor(point)}
+                      opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
+                      className="cursor-pointer transition-all"
+                      data-testid={`data-point-${i}`}
+                      data-point-label={point.label}
+                      onMouseEnter={() => setHoveredPoint(point)}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                    />
+                  ))}
+
                 {/* Regression line (for scatter) */}
-                {showRegression && (plotTile.plot_type === 'scatter' || !plotTile.plot_type) && (
+                {showRegression && (plotTile.plotType === 'scatter' || !plotTile.plotType) && (
                   <g data-testid="regression-group">
                     <line
                       x1="10%"
@@ -472,61 +498,67 @@ function PlotTileInner({
                     </text>
                   </g>
                 )}
-                
+
                 {/* Line chart */}
-                {plotTile.plot_type === 'line' && (
+                {plotTile.plotType === 'line' && (
                   <polyline
-                    points={data.map((p) => 
-                      `${(p.x / 200) * 100}%,${100 - (p.y / 100) * 100}%`
-                    ).join(' ')}
+                    points={data
+                      .map((p) => `${(p.x / 200) * 100}%,${100 - (p.y / 100) * 100}%`)
+                      .join(' ')}
                     fill="none"
                     stroke="#3b82f6"
                     strokeWidth={2}
                     data-testid="line-path"
                   />
                 )}
-                
+
                 {/* Bar chart */}
-                {plotTile.plot_type === 'bar' && data.slice(0, 10).map((point, i) => (
-                  <rect
-                    key={i}
-                    x={`${i * 10}%`}
-                    y={`${100 - point.y}%`}
-                    width="8%"
-                    height={`${point.y}%`}
-                    fill={getPointColor(point)}
-                    opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
-                    data-testid={`bar-${i}`}
-                    onMouseEnter={() => setHoveredPoint(point)}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  />
-                ))}
-                
+                {plotTile.plotType === 'bar' &&
+                  data
+                    .slice(0, 10)
+                    .map((point, i) => (
+                      <rect
+                        key={i}
+                        x={`${i * 10}%`}
+                        y={`${100 - point.y}%`}
+                        width="8%"
+                        height={`${point.y}%`}
+                        fill={getPointColor(point)}
+                        opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
+                        data-testid={`bar-${i}`}
+                        onMouseEnter={() => setHoveredPoint(point)}
+                        onMouseLeave={() => setHoveredPoint(null)}
+                      />
+                    ))}
+
                 {/* Histogram */}
-                {plotTile.plot_type === 'histogram' && Array.from({ length: binCount }, (_, i) => {
-                  const binHeight = Math.random() * 80 + 10;
-                  return (
-                    <rect
-                      key={i}
-                      x={`${(i / binCount) * 100}%`}
-                      y={`${100 - binHeight}%`}
-                      width={`${90 / binCount}%`}
-                      height={`${binHeight}%`}
-                      fill="#3b82f6"
-                      opacity={0.8}
-                      data-testid={`histogram-bin-${i}`}
-                      onMouseEnter={() => setHoveredPoint({ x: i, y: binHeight, label: `Bin ${i + 1}` })}
-                      onMouseLeave={() => setHoveredPoint(null)}
-                    />
-                  );
-                })}
+                {plotTile.plotType === 'histogram' &&
+                  Array.from({ length: binCount }, (_, i) => {
+                    const binHeight = Math.random() * 80 + 10;
+                    return (
+                      <rect
+                        key={i}
+                        x={`${(i / binCount) * 100}%`}
+                        y={`${100 - binHeight}%`}
+                        width={`${90 / binCount}%`}
+                        height={`${binHeight}%`}
+                        fill="#3b82f6"
+                        opacity={0.8}
+                        data-testid={`histogram-bin-${i}`}
+                        onMouseEnter={() =>
+                          setHoveredPoint({ x: i, y: binHeight, label: `Bin ${i + 1}` })
+                        }
+                        onMouseLeave={() => setHoveredPoint(null)}
+                      />
+                    );
+                  })}
               </g>
             </svg>
 
             {/* Tooltip */}
             {hoveredPoint && (
               <div
-                className="absolute bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none"
+                className="pointer-events-none absolute rounded bg-gray-900 px-2 py-1 text-xs text-white"
                 style={{ left: '50%', top: '10px' }}
                 data-testid="tooltip"
               >
@@ -535,16 +567,16 @@ function PlotTileInner({
             )}
 
             {/* Legend (when color by is set) */}
-            {plotTile.plot_group_by && (
+            {plotTile.plotGroupBy && (
               <div
-                className="absolute top-2 right-2 bg-white border rounded p-2 text-xs"
+                className="absolute right-2 top-2 rounded border bg-white p-2 text-xs"
                 data-testid="legend"
               >
-                <div className="font-semibold mb-1">{plotTile.plot_group_by}</div>
+                <div className="mb-1 font-semibold">{plotTile.plotGroupBy}</div>
                 {['A', 'B', 'C'].map((cat, i) => (
                   <div key={cat} className="flex items-center gap-1">
                     <span
-                      className="w-3 h-3 rounded-full"
+                      className="h-3 w-3 rounded-full"
                       style={{ backgroundColor: ['#ef4444', '#22c55e', '#3b82f6'][i] }}
                     />
                     {cat}
@@ -557,49 +589,50 @@ function PlotTileInner({
 
         {/* Settings panel */}
         {settingsOpen && (
-          <div
-            className="w-64 border-l p-4"
-            data-testid="settings-panel"
-          >
-            <h4 className="font-semibold mb-4">Settings</h4>
+          <div className="w-64 border-l p-4" data-testid="settings-panel">
+            <h4 className="mb-4 font-semibold">Settings</h4>
 
             {/* X Axis */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">X Axis</label>
+              <label className="mb-1 block text-sm font-medium">X Axis</label>
               <select
-                value={plotTile.x_axis || ''}
+                value={plotTile.xAxis || ''}
                 onChange={(e) => handleSetXAxis(e.target.value)}
-                className="w-full border rounded px-2 py-1"
+                className="w-full rounded border px-2 py-1"
                 data-testid="x-axis-select"
               >
                 {columns.map((col) => (
-                  <option key={col} value={col}>{col}</option>
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Y Axis */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Y Axis</label>
+              <label className="mb-1 block text-sm font-medium">Y Axis</label>
               <select
-                value={plotTile.y_axis || ''}
+                value={plotTile.yAxis || ''}
                 onChange={(e) => handleSetYAxis(e.target.value)}
-                className="w-full border rounded px-2 py-1"
+                className="w-full rounded border px-2 py-1"
                 data-testid="y-axis-select"
               >
                 {columns.map((col) => (
-                  <option key={col} value={col}>{col}</option>
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Plot Type */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Plot Type</label>
+              <label className="mb-1 block text-sm font-medium">Plot Type</label>
               <select
-                value={plotTile.plot_type || 'scatter'}
+                value={plotTile.plotType || 'scatter'}
                 onChange={(e) => handleSetPlotType(e.target.value as PlotType)}
-                className="w-full border rounded px-2 py-1"
+                className="w-full rounded border px-2 py-1"
                 data-testid="plot-type-select"
               >
                 <option value="scatter">Scatter</option>
@@ -611,28 +644,32 @@ function PlotTileInner({
 
             {/* Color By */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Color By</label>
+              <label className="mb-1 block text-sm font-medium">Color By</label>
               <select
-                value={plotTile.plot_group_by || ''}
+                value={plotTile.plotGroupBy || ''}
                 onChange={(e) => handleSetColorBy(e.target.value || null)}
-                className="w-full border rounded px-2 py-1"
+                className="w-full rounded border px-2 py-1"
                 data-testid="color-by-select"
               >
                 <option value="">None</option>
                 {columns.map((col) => (
-                  <option key={col} value={col}>{col}</option>
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* X Scale (for scatter/line) */}
-            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+            {(plotTile.plotType === 'scatter' ||
+              plotTile.plotType === 'line' ||
+              !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">X Scale</label>
+                <label className="mb-1 block text-sm font-medium">X Scale</label>
                 <select
                   value={scaleX}
                   onChange={(e) => handleSetScaleX(e.target.value as ScaleType)}
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full rounded border px-2 py-1"
                   data-testid="scale-x-select"
                 >
                   <option value="linear">Linear</option>
@@ -642,13 +679,15 @@ function PlotTileInner({
             )}
 
             {/* Y Scale (for scatter/line) */}
-            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+            {(plotTile.plotType === 'scatter' ||
+              plotTile.plotType === 'line' ||
+              !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Y Scale</label>
+                <label className="mb-1 block text-sm font-medium">Y Scale</label>
                 <select
                   value={scaleY}
                   onChange={(e) => handleSetScaleY(e.target.value as ScaleType)}
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full rounded border px-2 py-1"
                   data-testid="scale-y-select"
                 >
                   <option value="linear">Linear</option>
@@ -658,9 +697,11 @@ function PlotTileInner({
             )}
 
             {/* Zoom Toggle (for scatter/line) */}
-            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+            {(plotTile.plotType === 'scatter' ||
+              plotTile.plotType === 'line' ||
+              !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
                     checked={zoomEnabled}
@@ -674,9 +715,9 @@ function PlotTileInner({
             )}
 
             {/* Regression Toggle (for scatter) */}
-            {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && (
+            {(plotTile.plotType === 'scatter' || !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
                     checked={showRegression}
@@ -690,9 +731,9 @@ function PlotTileInner({
             )}
 
             {/* Bin Count (for histogram) */}
-            {plotTile.plot_type === 'histogram' && (
+            {plotTile.plotType === 'histogram' && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label className="mb-1 block text-sm font-medium">
                   Bin Count: <span data-testid="bin-count-value">{binCount}</span>
                 </label>
                 <input
@@ -716,7 +757,7 @@ function PlotTileInner({
   if (focusMode) {
     return (
       <>
-        <div className="fixed inset-0 bg-black/50 z-40" data-testid="focus-overlay" />
+        <div className="fixed inset-0 z-40 bg-black/50" data-testid="focus-overlay" />
         {plotContent}
       </>
     );
@@ -741,29 +782,29 @@ function createInitialStoreState(options: PlotTileTestOptions): Partial<IStoreSt
   } = options;
 
   const tab = initTab(TAB_ID, { name: 'Test Tab', tileIds: [TILE_ID] });
-  
+
   const plotTileData: Partial<PlotTile> = {
-    x_axis: initialXAxis,
-    y_axis: initialYAxis,
-    plot_type: initialPlotType,
-    plot_group_by: initialColorBy,
+    xAxis: initialXAxis,
+    yAxis: initialYAxis,
+    plotType: initialPlotType,
+    plotGroupBy: initialColorBy,
   };
 
   const tile = initTile(TILE_ID, {
     type: 'Plot',
     tabId: TAB_ID,
     visible: true,
-    plotTile: initPlotTile(plotTileData)
+    plotTile: initPlotTile(plotTileData),
   });
 
   return {
     activeTabId: TAB_ID,
     tabsById: {
-      [TAB_ID]: tab
+      [TAB_ID]: tab,
     },
     tilesById: {
-      [TILE_ID]: tile
-    }
+      [TILE_ID]: tile,
+    },
   };
 }
 

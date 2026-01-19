@@ -1,13 +1,7 @@
-"use client";
+'use client';
 
-import React, {
-  useState,
-  useCallback,
-  ReactNode,
-  useEffect,
-  useMemo
-} from "react";
-import { createContext, useContextSelector } from "use-context-selector";
+import React, { useState, useCallback, ReactNode, useEffect, useMemo } from 'react';
+import { createContext, useContextSelector } from 'use-context-selector';
 
 /**
  * The shape of our ExpandContext's value. We store:
@@ -32,7 +26,7 @@ type ExpandContextType = {
 /**
  * The actual React Context object, with a placeholder.
  * We'll throw an error if used outside of a provider.
- * 
+ *
  * We're using use-context-selector to optimize re-renders.
  * Components will only re-render when the specific parts of the context they use change.
  */
@@ -43,7 +37,7 @@ const ExpandContext = createContext<ExpandContextType>({
   forceCollapseAll: false,
   toggleKey: () => {},
   expandAll: () => {},
-  collapseAll: () => {}
+  collapseAll: () => {},
 });
 
 // Export ExpandContext to allow direct access when needed
@@ -59,10 +53,7 @@ interface ExpandProviderProps {
  *  - Wrap your <Selection> or root component with <ExpandProvider>.
  *  - Manages global expand/collapse for DictionaryView, ListView, etc.
  */
-export function ExpandProvider({ 
-  children, 
-  defaultOpenKeys = new Set() 
-}: ExpandProviderProps) {
+export function ExpandProvider({ children, defaultOpenKeys = new Set() }: ExpandProviderProps) {
   // A set of open "paths" representing which nodes are individually expanded.
   const [openKeys, setOpenKeys] = useState<Set<string>>(defaultOpenKeys);
 
@@ -113,7 +104,7 @@ export function ExpandProvider({
 
   /**
    * collapseAll: sets "forceCollapseAll = true" and "forceExpandAll = false"
-   * so that everything is considered closed. 
+   * so that everything is considered closed.
    * We'll also clear openKeys since forcibly collapsed items won't appear open.
    */
   const collapseAll = useCallback(() => {
@@ -132,19 +123,15 @@ export function ExpandProvider({
     collapseAll,
   };
 
-  return (
-    <ExpandContext.Provider value={value}>
-      {children}
-    </ExpandContext.Provider>
-  );
+  return <ExpandContext.Provider value={value}>{children}</ExpandContext.Provider>;
 }
 
 /**
  * useExpandContextSelector: selective context consumer hook
- * 
+ *
  * This hook lets components subscribe to only the specific parts of the context they need,
  * reducing unnecessary re-renders when other parts of the context change.
- * 
+ *
  * @param selector A function that extracts the needed value from the context
  * @returns The selected value from the context
  */
@@ -154,10 +141,10 @@ export function useExpandContextSelector<T>(selector: (ctx: ExpandContextType) =
 
 /**
  * useExpandContext: consumer hook for backward compatibility
- * 
+ *
  * This hook returns the entire context and should be used sparingly.
  * Prefer useExpandContextSelector when possible to minimize re-renders.
  */
 export function useExpandContext() {
-  return useContextSelector(ExpandContext, ctx => ctx);
+  return useContextSelector(ExpandContext, (ctx) => ctx);
 }

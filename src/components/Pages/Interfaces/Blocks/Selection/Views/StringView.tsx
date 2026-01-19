@@ -1,21 +1,21 @@
-"use client";
+'use client';
 
-import React from "react";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
-import { useEditablePrimitive } from "@/hooks/Interfaces/useEditablePrimitive";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
-import { LogComparisonProps } from "./types";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
-import RowBadge from "./RowBadge";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import Tooltip from "@/components/Common/Misc/Tooltip";
+import React from 'react';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
+import { useEditablePrimitive } from '@/hooks/Interfaces/useEditablePrimitive';
+import DiffViewer from '@/components/Common/Misc/DiffViewer';
+import { LogComparisonProps } from './types';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
+import RowBadge from './RowBadge';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 
 /**
  * Convert unknown value => string.
  */
 function toStringSafe(val: unknown): string {
-  if (typeof val === "string") return val;
-  if (val == null) return "";
+  if (typeof val === 'string') return val;
+  if (val == null) return '';
   return String(val);
 }
 
@@ -29,23 +29,23 @@ function gatherPresenceDiffs(
   baseIdx: number,
   compIdxs: number[]
 ) {
-  const baseHasContent = baseStr !== "";
+  const baseHasContent = baseStr !== '';
   const redSet = new Set<number>();
   const greenSet = new Set<number>();
 
   compStrs.forEach((val, i) => {
-    if (baseHasContent && val === "") {
+    if (baseHasContent && val === '') {
       redSet.add(compIdxs[i]);
-    } else if (!baseHasContent && val !== "") {
+    } else if (!baseHasContent && val !== '') {
       greenSet.add(compIdxs[i]);
     }
   });
 
-  let labelColor = "";
+  let labelColor = '';
   if (baseHasContent && redSet.size > 0) {
-    labelColor = "text-red-600";
+    labelColor = 'text-red-600';
   } else if (!baseHasContent && greenSet.size > 0) {
-    labelColor = "text-green-600";
+    labelColor = 'text-green-600';
   }
 
   return {
@@ -115,10 +115,7 @@ function groupVersionsForRows(
   const map = new Map<string, number[]>();
 
   rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    const verStr = r === baseLogIndex ? baseVer : (compVers[compLogIndexes.indexOf(r)] ?? '');
     if (!map.has(verStr)) {
       map.set(verStr, []);
     }
@@ -138,83 +135,81 @@ const EditableStringField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
-  isImmutable
+  isImmutable,
 }: {
   initialValue: string;
   logIndices: number[]; // Indices sharing this value
   path: (string | number)[];
   onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
-  isImmutable?: boolean
+  isImmutable?: boolean;
 }) => {
-  const { draft, inputProps } = useEditablePrimitive<string>(
-    initialValue,
-    (newValue) => {
-      // Call the group save handler with all associated indices
-      onGroupSave({ logIndices, path, newValue });
-    }
-  );
+  const { draft, inputProps } = useEditablePrimitive<string>(initialValue, (newValue) => {
+    // Call the group save handler with all associated indices
+    onGroupSave({ logIndices, path, newValue });
+  });
 
   const isMultiLine = draft.length > 80;
 
-  return (isImmutable
-    ? <Tooltip content="Immutable field cannot be edited">
-        <div>
-          {isMultiLine ? (
-            <textarea 
-              className="w-full border rounded p-1 text-body font-mono"
-              rows={4}
-              disabled
-              {...inputProps}
-            />
-          ) : (
-            <input 
-              style={{
-                backgroundImage: "repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)"
-              }}
-              className="w-full border rounded p-1 text-body font-mono"
-              type="text"
-              disabled 
-              {...inputProps}
-            />
-          )}
-        </div>
-      </Tooltip>
-    :  <div>
+  return isImmutable ? (
+    <Tooltip content="Immutable field cannot be edited">
+      <div>
         {isMultiLine ? (
-          <textarea 
-            rows={4} 
-            className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
+          <textarea
+            className="text-body w-full rounded border p-1 font-mono"
+            rows={4}
+            disabled
             {...inputProps}
           />
         ) : (
-          <input 
+          <input
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)',
+            }}
+            className="text-body w-full rounded border p-1 font-mono"
             type="text"
-              className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
+            disabled
             {...inputProps}
           />
         )}
       </div>
+    </Tooltip>
+  ) : (
+    <div>
+      {isMultiLine ? (
+        <textarea
+          rows={4}
+          className="text-body w-full rounded border bg-input p-1 font-mono text-foreground"
+          {...inputProps}
+        />
+      ) : (
+        <input
+          type="text"
+          className="text-body w-full rounded border bg-input p-1 font-mono text-foreground"
+          {...inputProps}
+        />
+      )}
+    </div>
   );
 };
-
 
 export default function StringView({
   value,
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
-  comparableVersions = [""],
-  displayMode = "markdown",
+  version = '',
+  comparableVersions = [''],
+  displayMode = 'markdown',
   cellEditMode = false,
   onSaveEdit, // Expects { logIndex: number, path: ..., newValue: ... }
   onGroupSaveEdit, // Expects { logIndices: number[], path: ..., newValue: ... }
   path = [],
   nested = false,
-  isImmutable
-}: LogComparisonProps  & { nested?: boolean, isImmutable?: boolean }) {
+  isImmutable,
+}: LogComparisonProps & { nested?: boolean; isImmutable?: boolean }) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
 
@@ -223,49 +218,55 @@ export default function StringView({
     const baseStr = toStringSafe(value);
 
     // Group values by string content
-    const valueGroups = groupAllByValue(
-      baseStr,
-      comparables,
-      baseLogIndex,
-      comparisonLogsIndex
-    );
+    const valueGroups = groupAllByValue(baseStr, comparables, baseLogIndex, comparisonLogsIndex);
 
-     // Define the handler that will be called by EditableStringField's onSave
-    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
-        if (onGroupSaveEdit) {
-            // Call the group save handler directly with all indices
-            onGroupSaveEdit({ logIndices, path, newValue });
-        } else if (onSaveEdit && logIndices.length > 0) {
-            // Fallback: Call single save for the first index if group save handler is not provided
-            // This might happen if the parent component doesn't implement onGroupSaveEdit yet
-            console.warn("Using single onSaveEdit for grouped field. Consider implementing onGroupSaveEdit.");
-            onSaveEdit({ logIndex: logIndices[0], path, newValue });
-        }
+    // Define the handler that will be called by EditableStringField's onSave
+    const handleGroupSave = ({
+      logIndices,
+      path,
+      newValue,
+    }: {
+      logIndices: number[];
+      path: (string | number)[];
+      newValue: any;
+    }) => {
+      if (onGroupSaveEdit) {
+        // Call the group save handler directly with all indices
+        onGroupSaveEdit({ logIndices, path, newValue });
+      } else if (onSaveEdit && logIndices.length > 0) {
+        // Fallback: Call single save for the first index if group save handler is not provided
+        // This might happen if the parent component doesn't implement onGroupSaveEdit yet
+        console.warn(
+          'Using single onSaveEdit for grouped field. Consider implementing onGroupSaveEdit.'
+        );
+        onSaveEdit({ logIndex: logIndices[0], path, newValue });
+      }
     };
 
     return (
-        <div className="space-y-3">
-            {valueGroups.map((group, index) => (
-                <div key={index}>
-                    {/* Display RowBadges for the logs sharing this value */}
-                    {!nested &&
-                    <div className="flex items-center gap-1 mb-1">
-                        <RowBadge rowNumbers={group.rows} mode="none" />
-                        <span className="text-caption text-muted-foreground">
-                            {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
-                        </span>
-                    </div>}
-                    {/* Render a single editable field for this group */}
-                    <EditableStringField
-                        initialValue={group.text}
-                        logIndices={group.rows}
-                        path={path}
-                        onGroupSave={handleGroupSave}
-                        isImmutable={isImmutable}
-                    />
-                </div>
-            ))}
-        </div>
+      <div className="space-y-3">
+        {valueGroups.map((group, index) => (
+          <div key={index}>
+            {/* Display RowBadges for the logs sharing this value */}
+            {!nested && (
+              <div className="mb-1 flex items-center gap-1">
+                <RowBadge rowNumbers={group.rows} mode="none" />
+                <span className="text-caption text-muted-foreground">
+                  {group.rows.length > 1 ? `(${group.rows.length} logs)` : ''}
+                </span>
+              </div>
+            )}
+            {/* Render a single editable field for this group */}
+            <EditableStringField
+              initialValue={group.text}
+              logIndices={group.rows}
+              path={path}
+              onGroupSave={handleGroupSave}
+              isImmutable={isImmutable}
+            />
+          </div>
+        ))}
+      </div>
     );
   }
 
@@ -278,8 +279,7 @@ export default function StringView({
   const compVerStrs = (comparableVersions ?? []).map(toStringSafe);
 
   // Check if *all* versions are empty
-  const versionEmpty =
-    baseVerStr === "" && compVerStrs.every((s) => s === "");
+  const versionEmpty = baseVerStr === '' && compVerStrs.every((s) => s === '');
 
   // SINGLE MODE => No comparables
   if (singleMode) {
@@ -289,42 +289,40 @@ export default function StringView({
           <div className="space-y-2">
             <p className="text-title">Version</p>
             {baseVerStr ? (
-              <div className="flex border rounded p-2 relative group">
-                <div className="mt-1 mb-1">
-                  {displayMode === "markdown" ? (
+              <div className="group relative flex rounded border p-2">
+                <div className="mb-1 mt-1">
+                  {displayMode === 'markdown' ? (
                     <MarkdownRenderer>{baseVerStr}</MarkdownRenderer>
                   ) : (
                     <div className="whitespace-pre-wrap">{baseVerStr}</div>
                   )}
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVerStr}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         {baseStr ? (
           <div className="space-y-2">
-            {!versionEmpty && (
-              <p className="text-title">Value</p>
-            )}
-            <div className="flex border rounded p-2 relative group max-w-full overflow-hidden">
-              <div className="mt-1 mb-1 w-full overflow-x-auto">
-                {displayMode === "markdown" ? (
+            {!versionEmpty && <p className="text-title">Value</p>}
+            <div className="group relative flex max-w-full overflow-hidden rounded border p-2">
+              <div className="mb-1 mt-1 w-full overflow-x-auto">
+                {displayMode === 'markdown' ? (
                   <MarkdownRenderer>{baseStr}</MarkdownRenderer>
                 ) : (
                   <div className="whitespace-pre-wrap">{baseStr}</div>
                 )}
               </div>
               <CopyButton
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 content={baseStr}
                 copyMessage="Copied string!"
                 tooltipContent="Copy string"
@@ -332,7 +330,7 @@ export default function StringView({
             </div>
           </div>
         ) : (
-          <p className="italic text-body text-muted-foreground">No value</p>
+          <p className="text-body italic text-muted-foreground">No value</p>
         )}
       </div>
     );
@@ -341,16 +339,11 @@ export default function StringView({
   // MULTI-MODE => We have baseStr + compStrs
 
   // If diffMode === "none", group everything by main string
-  if (diffMode === "none") {
-    const stringGroups = groupAllByValue(
-      baseStr,
-      compStrs,
-      baseLogIndex,
-      comparisonLogsIndex
-    );
+  if (diffMode === 'none') {
+    const stringGroups = groupAllByValue(baseStr, compStrs, baseLogIndex, comparisonLogsIndex);
 
     // Filter out groups where all values are empty strings
-    const filteredGroups = stringGroups.filter(group => group.text.trim() !== "");
+    const filteredGroups = stringGroups.filter((group) => group.text.trim() !== '');
 
     return (
       <div className="space-y-4">
@@ -369,7 +362,7 @@ export default function StringView({
           );
 
           return (
-            <div key={i} className="p-3 space-y-4">
+            <div key={i} className="space-y-4 p-3">
               {!versionEmpty && (
                 <div className="space-y-2">
                   <p className="text-title">Version</p>
@@ -378,25 +371,25 @@ export default function StringView({
                     return (
                       <div
                         key={j}
-                        className="space-y-2 border rounded p-2 relative group max-w-full overflow-hidden"
+                        className="group relative max-w-full space-y-2 overflow-hidden rounded border p-2"
                       >
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                           content={verText}
                           copyMessage="Copied version!"
                           tooltipContent="Copy version"
                         />
                         {verText ? (
-                          <div className="pt-2 w-full overflow-x-auto">
-                            {displayMode === "markdown" ? (
+                          <div className="w-full overflow-x-auto pt-2">
+                            {displayMode === 'markdown' ? (
                               <MarkdownRenderer>{verText}</MarkdownRenderer>
                             ) : (
                               <div className="whitespace-pre-wrap">{verText}</div>
                             )}
                           </div>
                         ) : (
-                          <p className="italic text-body text-muted-foreground border rounded">
+                          <p className="text-body rounded border italic text-muted-foreground">
                             No version
                           </p>
                         )}
@@ -407,29 +400,25 @@ export default function StringView({
               )}
 
               <div className="space-y-2">
-                {!versionEmpty && (
-                  <p className="text-title">Value</p>
-                )}
-                <div className="border rounded p-2 relative group max-w-full overflow-hidden">
+                {!versionEmpty && <p className="text-title">Value</p>}
+                <div className="group relative max-w-full overflow-hidden rounded border p-2">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={textValue}
                     copyMessage="Copied string!"
                     tooltipContent="Copy string"
                   />
                   {textValue ? (
-                    <div className="pt-2 w-full overflow-x-auto">
-                      {displayMode === "markdown" ? (
+                    <div className="w-full overflow-x-auto pt-2">
+                      {displayMode === 'markdown' ? (
                         <MarkdownRenderer>{textValue}</MarkdownRenderer>
                       ) : (
                         <div className="whitespace-pre-wrap">{textValue}</div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-body italic text-muted-foreground">
-                      No data
-                    </p>
+                    <p className="text-body italic text-muted-foreground">No data</p>
                   )}
                 </div>
               </div>
@@ -455,9 +444,9 @@ export default function StringView({
       {stringGroups.map((block, i) => {
         const compStr = block.text;
         const rowNums = block.rows;
-        let baseBadgeMode: "none" | "delete" = "none";
+        let baseBadgeMode: 'none' | 'delete' = 'none';
         if (baseStrSafe !== compStr) {
-          baseBadgeMode = "delete";
+          baseBadgeMode = 'delete';
         }
 
         const versionGroups = groupVersionsForRows(
@@ -477,24 +466,24 @@ export default function StringView({
                   const verText = vg.text;
                   let oldVal = baseVerStr;
                   let newVal = verText;
-                  let oldMode: "none" | "delete" = "none";
-                  let newMode: "none" | "insert" = "none";
+                  let oldMode: 'none' | 'delete' = 'none';
+                  let newMode: 'none' | 'insert' = 'none';
                   if (oldVal !== newVal) {
-                    oldMode = "delete";
-                    newMode = "insert";
+                    oldMode = 'delete';
+                    newMode = 'insert';
                   }
 
                   return (
                     <div key={j} className="space-y-2">
-                      <div className="border rounded p-2">
-                        <div className="flex items-center gap-2 text-caption">
+                      <div className="rounded border p-2">
+                        <div className="text-caption flex items-center gap-2">
                           <RowBadge
                             rowNumbers={[baseLogIndex]}
-                            mode={oldVal !== newVal ? "delete" : "none"}
+                            mode={oldVal !== newVal ? 'delete' : 'none'}
                           />
                           <RowBadge
                             rowNumbers={vg.rows}
-                            mode={oldVal !== newVal ? "insert" : "none"}
+                            mode={oldVal !== newVal ? 'insert' : 'none'}
                           />
                         </div>
                         <div>
@@ -520,33 +509,31 @@ export default function StringView({
             )}
 
             <div className="space-y-2">
-              {!versionEmpty && (
-                <p className="text-title">String Diff</p>
-              )}
-            <div className="border rounded p-2 max-w-full overflow-hidden">
-              <div className="flex items-center gap-2 text-caption">
-                <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
-                <RowBadge
-                  rowNumbers={rowNums}
-                  mode={baseStrSafe !== compStr ? "insert" : "none"}
-                />
+              {!versionEmpty && <p className="text-title">String Diff</p>}
+              <div className="max-w-full overflow-hidden rounded border p-2">
+                <div className="text-caption flex items-center gap-2">
+                  <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
+                  <RowBadge
+                    rowNumbers={rowNums}
+                    mode={baseStrSafe !== compStr ? 'insert' : 'none'}
+                  />
+                </div>
+                <div className="w-full overflow-x-auto">
+                  {(() => {
+                    const singleLineDiff = !baseStrSafe.includes('\n') && !compStr.includes('\n');
+                    return (
+                      <DiffViewer
+                        oldValue={baseStrSafe}
+                        newValue={compStr}
+                        splitView={splitView}
+                        hideLineNumbers={singleLineDiff}
+                        hideMarkers
+                        mode={diffMode}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
-              <div className="w-full overflow-x-auto">
-                {(() => {
-                  const singleLineDiff = !baseStrSafe.includes('\n') && !compStr.includes('\n');
-                  return (
-                    <DiffViewer
-                      oldValue={baseStrSafe}
-                      newValue={compStr}
-                      splitView={splitView}
-                      hideLineNumbers={singleLineDiff}
-                      hideMarkers
-                      mode={diffMode}
-                    />
-                  );
-                })()}
-              </div>
-            </div>
             </div>
           </div>
         );

@@ -37,7 +37,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'Tile 1', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'Tile 1',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
       });
@@ -49,9 +54,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       await result.clickSaveButton();
 
       // Wait for save to complete
-      await waitFor(() => {
-        expect(result.getCheckpoint()).not.toBeNull();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getCheckpoint()).not.toBeNull();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('checkpoint captures current tile state', async () => {
@@ -60,7 +68,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'Original',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
       });
@@ -69,12 +82,15 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       await result.saveCheckpoint('Test save');
 
       // Verify checkpoint contains current state
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint).not.toBeNull();
-        expect(checkpoint?.tabState.tiles).toHaveLength(1);
-        expect(checkpoint?.tabState.tiles[0].name).toBe('Original');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint).not.toBeNull();
+          expect(checkpoint?.tabState.tiles).toHaveLength(1);
+          expect(checkpoint?.tabState.tiles[0].name).toBe('Original');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('checkpoint includes description', async () => {
@@ -82,10 +98,13 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
       await result.saveCheckpoint('My custom description');
 
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint?.description).toBe('My custom description');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint?.description).toBe('My custom description');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('checkpoint includes timestamp', async () => {
@@ -94,11 +113,14 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       const beforeSave = Date.now();
       await result.saveCheckpoint();
 
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint).not.toBeNull();
-        expect(checkpoint?.timestamp).toBeGreaterThanOrEqual(beforeSave);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint).not.toBeNull();
+          expect(checkpoint?.timestamp).toBeGreaterThanOrEqual(beforeSave);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows saving status during save', async () => {
@@ -122,9 +144,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
       await result.clickSaveButton();
 
-      await waitFor(() => {
-        expect(screen.getByTestId('save-success-message')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('save-success-message')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('new checkpoint overwrites previous checkpoint', async () => {
@@ -133,36 +158,47 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'First', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'First',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
       });
 
       // Save first checkpoint
       await result.saveCheckpoint('First save');
-      
+
       let firstTimestamp: number | undefined;
-      await waitFor(() => {
-        firstTimestamp = result.getCheckpoint()?.timestamp;
-        expect(firstTimestamp).toBeDefined();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          firstTimestamp = result.getCheckpoint()?.timestamp;
+          expect(firstTimestamp).toBeDefined();
+        },
+        { timeout: 2000 }
+      );
 
       // Modify state
       await result.renameTile('tile-1', 'Modified');
 
       // Wait a bit to ensure different timestamp
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
 
       // Save second checkpoint
       await result.saveCheckpoint('Second save');
 
       // Should have new checkpoint
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint?.description).toBe('Second save');
-        expect(checkpoint?.timestamp).toBeGreaterThan(firstTimestamp!);
-        expect(checkpoint?.tabState.tiles[0].name).toBe('Modified');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint?.description).toBe('Second save');
+          expect(checkpoint?.timestamp).toBeGreaterThan(firstTimestamp!);
+          expect(checkpoint?.tabState.tiles[0].name).toBe('Modified');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('clears unsaved changes indicator after save', async () => {
@@ -173,7 +209,14 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           tabState: {
             id: 'tab-1',
             name: 'Test Tab',
-            tiles: [{ id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' }],
+            tiles: [
+              {
+                id: 'tile-1',
+                name: 'Original',
+                position: { x: 0, y: 0, width: 4, height: 4 },
+                type: 'table',
+              },
+            ],
           },
         },
       });
@@ -200,7 +243,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
   describe('J2: Restore checkpoint', () => {
     it('can restore from checkpoint via button', async () => {
       const initialTiles = [
-        { id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+        {
+          id: 'tile-1',
+          name: 'Original',
+          position: { x: 0, y: 0, width: 4, height: 4 },
+          type: 'table',
+        },
       ];
 
       result = renderCheckpoint({
@@ -232,10 +280,13 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       await result.confirmReset();
 
       // Should restore to checkpoint
-      await waitFor(() => {
-        const restoredState = result.getCurrentTabState();
-        expect(restoredState.tiles[0].position.x).toBe(0);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const restoredState = result.getCurrentTabState();
+          expect(restoredState.tiles[0].position.x).toBe(0);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('reset button is disabled without checkpoint', async () => {
@@ -264,7 +315,7 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
     it('can cancel reset', async () => {
       const initialPosition = { x: 0, y: 0, width: 4, height: 4 };
-      
+
       result = renderCheckpoint({
         initialTab: {
           id: 'tab-1',
@@ -307,7 +358,7 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       });
 
       await result.clickResetButton();
-      
+
       // INTENTIONAL: Don't await here - we want to check the intermediate "restoring" state
       const resetPromise = result.confirmReset();
 
@@ -332,14 +383,17 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
       await result.clickResetButton();
       await result.confirmReset();
 
-      await waitFor(() => {
-        expect(screen.getByTestId('reset-success-message')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('reset-success-message')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('restores tile positions from checkpoint', async () => {
       const savedPosition = { x: 2, y: 3, width: 5, height: 6 };
-      
+
       result = renderCheckpoint({
         initialTab: {
           id: 'tab-1',
@@ -377,8 +431,18 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'Tile 1', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
-            { id: 'tile-2', name: 'Tile 2', position: { x: 4, y: 0, width: 4, height: 4 }, type: 'plot' },
+            {
+              id: 'tile-1',
+              name: 'Tile 1',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
+            {
+              id: 'tile-2',
+              name: 'Tile 2',
+              position: { x: 4, y: 0, width: 4, height: 4 },
+              type: 'plot',
+            },
           ],
         },
         initialCheckpoint: {
@@ -388,8 +452,18 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
             id: 'tab-1',
             name: 'Test Tab',
             tiles: [
-              { id: 'tile-1', name: 'Tile 1', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
-              { id: 'tile-2', name: 'Tile 2', position: { x: 4, y: 0, width: 4, height: 4 }, type: 'plot' },
+              {
+                id: 'tile-1',
+                name: 'Tile 1',
+                position: { x: 0, y: 0, width: 4, height: 4 },
+                type: 'table',
+              },
+              {
+                id: 'tile-2',
+                name: 'Tile 2',
+                position: { x: 4, y: 0, width: 4, height: 4 },
+                type: 'plot',
+              },
             ],
           },
         },
@@ -414,7 +488,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'Original',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
         initialCheckpoint: {
@@ -424,7 +503,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
             id: 'tab-1',
             name: 'Test Tab',
             tiles: [
-              { id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+              {
+                id: 'tile-1',
+                name: 'Original',
+                position: { x: 0, y: 0, width: 4, height: 4 },
+                type: 'table',
+              },
             ],
           },
         },
@@ -458,9 +542,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
       // Auto-save queue should have been triggered
       // (In real app, this would call updateTileMutation)
-      await waitFor(() => {
-        expect(screen.getByTestId('auto-save-queue').textContent).toContain('idle');
-      }, { timeout: 500 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('auto-save-queue').textContent).toContain('idle');
+        },
+        { timeout: 500 }
+      );
     });
 
     it('resizing a tile triggers auto-save', async () => {
@@ -495,7 +582,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'To Remove', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'To Remove',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
       });
@@ -512,7 +604,12 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           id: 'tab-1',
           name: 'Test Tab',
           tiles: [
-            { id: 'tile-1', name: 'Old Name', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+            {
+              id: 'tile-1',
+              name: 'Old Name',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
           ],
         },
       });
@@ -543,13 +640,20 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
         initialTab: {
           id: 'tab-1',
           name: 'Test Tab',
-          tiles: [{ id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' }],
+          tiles: [
+            {
+              id: 'tile-1',
+              name: 'Original',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
+          ],
         },
       });
 
       // Save initial state as checkpoint
       await result.saveCheckpoint('Initial save');
-      
+
       await waitFor(() => {
         expect(result.hasUnsavedChanges()).toBe(false);
       });
@@ -582,7 +686,14 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
           tabState: {
             id: 'tab-1',
             name: 'Test Tab',
-            tiles: [{ id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' }],
+            tiles: [
+              {
+                id: 'tile-1',
+                name: 'Original',
+                position: { x: 0, y: 0, width: 4, height: 4 },
+                type: 'table',
+              },
+            ],
           },
         },
       });
@@ -597,16 +708,26 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
         initialTab: {
           id: 'tab-1',
           name: 'Test Tab',
-          tiles: [{ id: 'tile-1', name: 'Original', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' }],
+          tiles: [
+            {
+              id: 'tile-1',
+              name: 'Original',
+              position: { x: 0, y: 0, width: 4, height: 4 },
+              type: 'table',
+            },
+          ],
         },
       });
 
       // Save to create a checkpoint matching current state
       await result.saveCheckpoint();
 
-      await waitFor(() => {
-        expect(screen.getByTestId('unsaved-indicator').textContent).toContain('All saved');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('unsaved-indicator').textContent).toContain('All saved');
+        },
+        { timeout: 2000 }
+      );
     });
   });
 
@@ -625,20 +746,48 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
       await result.saveCheckpoint();
 
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint).not.toBeNull();
-        expect(checkpoint?.tabState.tiles).toHaveLength(0);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint).not.toBeNull();
+          expect(checkpoint?.tabState.tiles).toHaveLength(0);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('handles multiple tiles', async () => {
       const tiles = [
-        { id: 'tile-1', name: 'Tile 1', position: { x: 0, y: 0, width: 3, height: 3 }, type: 'table' },
-        { id: 'tile-2', name: 'Tile 2', position: { x: 3, y: 0, width: 3, height: 3 }, type: 'plot' },
-        { id: 'tile-3', name: 'Tile 3', position: { x: 6, y: 0, width: 3, height: 3 }, type: 'table' },
-        { id: 'tile-4', name: 'Tile 4', position: { x: 0, y: 3, width: 3, height: 3 }, type: 'plot' },
-        { id: 'tile-5', name: 'Tile 5', position: { x: 3, y: 3, width: 3, height: 3 }, type: 'table' },
+        {
+          id: 'tile-1',
+          name: 'Tile 1',
+          position: { x: 0, y: 0, width: 3, height: 3 },
+          type: 'table',
+        },
+        {
+          id: 'tile-2',
+          name: 'Tile 2',
+          position: { x: 3, y: 0, width: 3, height: 3 },
+          type: 'plot',
+        },
+        {
+          id: 'tile-3',
+          name: 'Tile 3',
+          position: { x: 6, y: 0, width: 3, height: 3 },
+          type: 'table',
+        },
+        {
+          id: 'tile-4',
+          name: 'Tile 4',
+          position: { x: 0, y: 3, width: 3, height: 3 },
+          type: 'plot',
+        },
+        {
+          id: 'tile-5',
+          name: 'Tile 5',
+          position: { x: 3, y: 3, width: 3, height: 3 },
+          type: 'table',
+        },
       ];
 
       result = renderCheckpoint({
@@ -651,11 +800,14 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
 
       await result.saveCheckpoint();
 
-      await waitFor(() => {
-        const checkpoint = result.getCheckpoint();
-        expect(checkpoint).not.toBeNull();
-        expect(checkpoint?.tabState.tiles).toHaveLength(5);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const checkpoint = result.getCheckpoint();
+          expect(checkpoint).not.toBeNull();
+          expect(checkpoint?.tabState.tiles).toHaveLength(5);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('checkpoint info is displayed', async () => {
@@ -680,4 +832,3 @@ describe('P3-J: Checkpoints & Auto-Save', () => {
     });
   });
 });
-

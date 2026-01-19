@@ -12,7 +12,7 @@
  */
 
 import React, { useRef, useState, useCallback } from 'react';
-import { render, RenderResult, screen, waitFor } from '@testing-library/react';
+import { render, RenderResult, waitFor } from '@/tests/render';
 import { PlotCanvas, PlotCanvasProps } from '../../../components/Common/Plot/PlotCanvas';
 import type { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import type { DataTypeConfig, PlotConfig } from './configs';
@@ -95,6 +95,37 @@ export interface PlotCanvasTestOptions {
    * Will be reset after the test via resetConfig().
    */
   scatterConfigOverrides?: Partial<ScatterConfig>;
+
+  // === Axis Customization ===
+  /** Whether to show X axis label (default: true) */
+  showXAxisLabel?: boolean;
+  /** Whether to show Y axis label (default: true) */
+  showYAxisLabel?: boolean;
+  /** Custom label for X axis */
+  xAxisLabel?: string;
+  /** Custom label for Y axis */
+  yAxisLabel?: string;
+  /** Function to format X axis tick values */
+  xTickFormatter?: (value: unknown) => string;
+  /** Function to format Y axis tick values */
+  yTickFormatter?: (value: unknown) => string;
+  /** Custom label for group by field */
+  groupByLabel?: string;
+  /** Custom label for aggregate field */
+  aggregateLabel?: string;
+
+  // === Drawer Integration ===
+  /** Callback when groups are computed */
+  onGroupsChange?: (groups: Array<{ key: string; color: string }>) => void;
+  /** Callback when a datapoint is clicked/pinned */
+  onDatapointPin?: (datapoint: {
+    id: string;
+    x: { label: string; value: string | number };
+    y: { label: string; value: string | number };
+    group?: { label: string; value: string };
+  }) => void;
+  /** Highlight target for bidirectional hover highlighting */
+  highlightTarget?: import('@/types/interfaces/plot').HighlightTarget;
 }
 
 export interface PlotCanvasTestResult extends RenderResult {
@@ -145,6 +176,27 @@ export interface PlotCanvasTestResult extends RenderResult {
   resetScatterConfig: () => void;
   /** Get current scatter config */
   getScatterConfig: () => ScatterConfig;
+
+  // === Drawer & Highlight Support ===
+
+  /** Get bar opacities for highlight testing */
+  getBarOpacities: () => number[];
+  /** Get scatter point opacities for highlight testing */
+  getScatterPointOpacities: () => number[];
+  /** Get histogram bin opacities for highlight testing */
+  getHistogramBinOpacities: () => number[];
+  /** Get unique groups from grouped bars */
+  getBarGroups: () => string[];
+  /** Get bars filtered by group key */
+  getBarsByGroup: (groupKey: string) => SVGRectElement[];
+  /** Simulate group highlight by updating props with highlightTarget */
+  simulateGroupHighlight: (groupKey: string) => void;
+  /** Simulate datapoint highlight by updating props with highlightTarget */
+  simulateDatapointHighlight: (datapointId: string) => void;
+  /** Clear any active highlight */
+  clearHighlight: () => void;
+  /** Wait for highlight transition to complete (200ms + buffer) */
+  waitForHighlightTransition: () => Promise<void>;
 }
 
 // =============================================================================
@@ -202,16 +254,16 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
 
       switch (options.forceRenderMode) {
         case 'svg':
-          // Set SVG_MAX above the data count
-          updateConfig({ SVG_MAX: dataCount + 1000 });
+          // Set svgMax above the data count
+          updateConfig({ svgMax: dataCount + 1000 });
           break;
         case 'webgl':
-          // Set SVG_MAX below data count, WEBGL_MAX above
-          updateConfig({ SVG_MAX: Math.max(1, dataCount - 1), WEBGL_MAX: dataCount + 1000000 });
+          // Set svgMax below data count, webglMax above
+          updateConfig({ svgMax: Math.max(1, dataCount - 1), webglMax: dataCount + 1000000 });
           break;
         case 'webgl-sampled':
           // Set both thresholds below data count
-          updateConfig({ SVG_MAX: 1, WEBGL_MAX: Math.max(1, dataCount - 1) });
+          updateConfig({ svgMax: 1, webglMax: Math.max(1, dataCount - 1) });
           break;
       }
     }
@@ -232,9 +284,9 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
 
   // Generate mock data if not provided
   const dataTypeConfigToUse = options.dataTypeConfig ?? {
-    x_axis_type: 'float',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'float',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
   const scaleToUse = options.scale ?? { name: 'small', count: 100, skip: false, timeout: 5000 };
 
@@ -259,18 +311,16 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
         logs={logs}
         fields={fields}
         plotType={options.plotType ?? mapPlotType(options.plotConfig?.type ?? 'scatter')}
-        xAxis={options.xAxis ?? options.plotConfig?.x_axis ?? 'table1.x_value'}
-        yAxis={options.yAxis ?? options.plotConfig?.y_axis ?? 'table1.y_value'}
-        groupBy={options.groupBy ?? options.plotConfig?.group_by}
+        xAxis={options.xAxis ?? options.plotConfig?.xAxis ?? 'table1.x_value'}
+        yAxis={options.yAxis ?? options.plotConfig?.yAxis ?? 'table1.y_value'}
+        groupBy={options.groupBy ?? options.plotConfig?.groupBy}
         aggregate={options.aggregate ?? options.plotConfig?.aggregate}
-        scaleX={options.scaleX ?? options.plotConfig?.scale_x ?? 'linear'}
-        scaleY={options.scaleY ?? options.plotConfig?.scale_y ?? 'linear'}
+        scaleX={options.scaleX ?? options.plotConfig?.scaleX ?? 'linear'}
+        scaleY={options.scaleY ?? options.plotConfig?.scaleY ?? 'linear'}
         metric={options.metric ?? 'sum'}
-        binCount={options.binCount ?? options.plotConfig?.bin_count ?? 10}
+        binCount={options.binCount ?? options.plotConfig?.binCount ?? 10}
         showRegression={
-          (options.showRegression ?? options.plotConfig?.show_regression ?? false)
-            ? 'true'
-            : 'false'
+          (options.showRegression ?? options.plotConfig?.showRegression ?? false) ? 'true' : 'false'
         }
         colors={options.colors ?? null}
         interactive={options.interactive ?? true}
@@ -279,6 +329,19 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
         svgRef={svgRef as React.RefObject<SVGSVGElement>}
         containerRef={containerRef as React.RefObject<HTMLDivElement>}
         settingsRef={settingsRef as React.RefObject<HTMLDivElement>}
+        // Axis customization props
+        showXAxisLabel={options.showXAxisLabel}
+        showYAxisLabel={options.showYAxisLabel}
+        xAxisLabel={options.xAxisLabel}
+        yAxisLabel={options.yAxisLabel}
+        xTickFormatter={options.xTickFormatter}
+        yTickFormatter={options.yTickFormatter}
+        groupByLabel={options.groupByLabel}
+        aggregateLabel={options.aggregateLabel}
+        // Drawer integration props
+        onGroupsChange={options.onGroupsChange}
+        onDatapointPin={options.onDatapointPin}
+        highlightTarget={options.highlightTarget}
       />
     </div>
   );
@@ -411,7 +474,7 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     if (isWebGLMode()) {
       const config = getConfig();
       const dataCount = currentProps.logs?.length ?? currentProps.scale?.count ?? 100;
-      return dataCount > config.WEBGL_MAX ? 'webgl-sampled' : 'webgl';
+      return dataCount > config.webglMax ? 'webgl-sampled' : 'webgl';
     }
     return 'svg';
   };
@@ -446,9 +509,10 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
 
         // For scatter plots, accept either SVG points or WebGL canvas
         const currentProps = propsRef.current?.getProps() ?? options;
-        const isScatter =
-          currentProps.plotType === 'Scatter Plot' ||
-          mapPlotType(currentProps.plotConfig?.type) === 'Scatter Plot';
+        // Use plotType if set, otherwise fall back to mapped plotConfig.type
+        const effectivePlotType =
+          currentProps.plotType ?? mapPlotType(currentProps.plotConfig?.type);
+        const isScatter = effectivePlotType === 'Scatter Plot';
 
         if (isScatter) {
           const hasWebGL = webglCanvas !== null && webglCanvas.style.display !== 'none';
@@ -472,6 +536,94 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     // Wait for D3 transitions to complete (histograms animate height over 500ms)
     // Add buffer time for transition completion
     await new Promise((resolve) => setTimeout(resolve, 600));
+  };
+
+  // === Drawer & Highlight Support ===
+
+  /**
+   * Get bar opacities for highlight testing
+   */
+  const getBarOpacities = (): number[] => {
+    const bars = getBars();
+    return bars.map((bar) => parseFloat(bar.style.opacity || '1'));
+  };
+
+  /**
+   * Get scatter point opacities for highlight testing
+   */
+  const getScatterPointOpacities = (): number[] => {
+    const points = getScatterPoints();
+    return points.map((point) => parseFloat(point.style.opacity || '1'));
+  };
+
+  /**
+   * Get histogram bin opacities for highlight testing
+   */
+  const getHistogramBinOpacities = (): number[] => {
+    const bins = getHistogramBins();
+    return bins.map((bin) => parseFloat(bin.style.opacity || '1'));
+  };
+
+  /**
+   * Get unique groups from grouped bars
+   */
+  const getBarGroups = (): string[] => {
+    const bars = getBars();
+    const groups = new Set<string>();
+
+    bars.forEach((bar) => {
+      const barData = (bar as any).__data__;
+      if (barData && barData[0]) {
+        groups.add(barData[0]);
+      }
+    });
+
+    return Array.from(groups);
+  };
+
+  /**
+   * Get bars filtered by group key
+   */
+  const getBarsByGroup = (groupKey: string): SVGRectElement[] => {
+    const bars = getBars();
+    return bars.filter((bar) => {
+      const barData = (bar as any).__data__;
+      return barData && barData[0] === groupKey;
+    });
+  };
+
+  /**
+   * Simulate group highlight by updating highlightTarget
+   */
+  const simulateGroupHighlight = (groupKey: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'group', groupKey },
+    } as any);
+  };
+
+  /**
+   * Simulate datapoint highlight by updating highlightTarget
+   */
+  const simulateDatapointHighlight = (datapointId: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'datapoint', datapointId },
+    } as any);
+  };
+
+  /**
+   * Clear any active highlight
+   */
+  const clearHighlight = (): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'none' },
+    } as any);
+  };
+
+  /**
+   * Wait for highlight transition to complete (200ms transition + 50ms buffer)
+   */
+  const waitForHighlightTransition = async (): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
   };
 
   return {
@@ -499,6 +651,16 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     getExpectedRenderMode,
     resetScatterConfig: resetConfig,
     getScatterConfig: getConfig,
+    // Drawer & highlight support
+    getBarOpacities,
+    getScatterPointOpacities,
+    getHistogramBinOpacities,
+    getBarGroups,
+    getBarsByGroup,
+    simulateGroupHighlight,
+    simulateDatapointHighlight,
+    clearHighlight,
+    waitForHighlightTransition,
   };
 }
 
@@ -529,15 +691,15 @@ export function createPlotTestSetup(
     dataTypeConfig,
     scale,
     plotType: mapPlotType(plotConfig.type),
-    xAxis: plotConfig.x_axis,
-    yAxis: plotConfig.y_axis,
-    groupBy: plotConfig.group_by,
+    xAxis: plotConfig.xAxis,
+    yAxis: plotConfig.yAxis,
+    groupBy: plotConfig.groupBy,
     aggregate: plotConfig.aggregate,
-    scaleX: plotConfig.scale_x as ScaleType,
-    scaleY: plotConfig.scale_y as ScaleType,
-    binCount: plotConfig.bin_count,
-    showRegression: plotConfig.show_regression,
-    sortBars: plotConfig.sort_order ?? 'asc',
+    scaleX: plotConfig.scaleX as ScaleType,
+    scaleY: plotConfig.scaleY as ScaleType,
+    binCount: plotConfig.binCount,
+    showRegression: plotConfig.showRegression,
+    sortBars: plotConfig.sortOrder ?? 'asc',
     deterministic: options.deterministic ?? false,
   };
 }

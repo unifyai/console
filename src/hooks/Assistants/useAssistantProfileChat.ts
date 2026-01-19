@@ -15,7 +15,7 @@ export function useAssistantProfileChat(
   preHireChat?: ChatMessage[],
   onFirstViewCompleted?: () => void
 ) {
-  const assistantId = assistant?.agent_id || null;
+  const assistantId = assistant?.agentId || null;
 
   const messages = React.useMemo(() => {
     const raw = assistantId ? chatHistories[assistantId] || [] : [];
@@ -43,6 +43,13 @@ export function useAssistantProfileChat(
   const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
   const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
+
+  // SSE reconnection state
+  const [sseReconnectTrigger, setSseReconnectTrigger] = React.useState(0);
+  const sseReconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sseReconnectAttemptsRef = React.useRef(0);
+  const SSE_MAX_RECONNECT_ATTEMPTS = 5;
+  const SSE_RECONNECT_BASE_DELAY = 1000; // 1 second, will use exponential backoff
 
   // Contact ID caching and chat permission state
   const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
@@ -117,32 +124,32 @@ export function useAssistantProfileChat(
 
   /**
    * Resolves the owner context string from an assistant.
-   * Uses user_first_name/user_last_name if available.
+   * Uses userFirstName/userLastName if available.
    * Falls back to fetching user details via getAssistantOwnerById if names are missing.
    * Caches results to avoid repeated lookups.
    */
   const resolveOwnerContext = React.useCallback(
     async (currentAssistant: Assistant): Promise<string | null> => {
       // Check cache first
-      const cached = ownerContextCacheRef.current.get(currentAssistant.agent_id);
+      const cached = ownerContextCacheRef.current.get(currentAssistant.agentId);
       if (cached) return cached;
 
       // Try direct names from assistant object
-      if (currentAssistant.user_first_name && currentAssistant.user_last_name) {
-        const context = `${currentAssistant.user_first_name}${currentAssistant.user_last_name}`;
-        ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+      if (currentAssistant.userFirstName && currentAssistant.userLastName) {
+        const context = `${currentAssistant.userFirstName}${currentAssistant.userLastName}`;
+        ownerContextCacheRef.current.set(currentAssistant.agentId, context);
         return context;
       }
 
       // Fallback: fetch user details via server action
-      if (currentAssistant.user_id) {
+      if (currentAssistant.userId) {
         try {
           const userDetails = await assistantActions.chat.getAssistantOwnerById(
-            currentAssistant.user_id
+            currentAssistant.userId
           );
-          if (userDetails && userDetails.first_name) {
-            const context = `${userDetails.first_name}${userDetails.last_name || ''}`;
-            ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+          if (userDetails && userDetails.firstName) {
+            const context = `${userDetails.firstName}${userDetails.lastName || ''}`;
+            ownerContextCacheRef.current.set(currentAssistant.agentId, context);
             return context;
           }
         } catch (error) {
@@ -157,7 +164,7 @@ export function useAssistantProfileChat(
 
   /**
    * Initializes chat for an assistant:
-   * 1. Resolves owner context (uses user_first_name/user_last_name from assistant, or falls back to getAssistantOwnerById)
+   * 1. Resolves owner context (uses userFirstName/userLastName from assistant, or falls back to getAssistantOwnerById)
    * 2. Looks up user's contact_id
    * 3. Fetches transcripts if contact_id found
    * 4. Sets canChat=false if contact_id not found
@@ -179,7 +186,7 @@ export function useAssistantProfileChat(
         return;
       }
 
-      const assistantContext = `${currentAssistant.first_name}${currentAssistant.surname}`;
+      const assistantContext = `${currentAssistant.firstName}${currentAssistant.surname}`;
 
       try {
         let contactId: number;
@@ -293,7 +300,7 @@ export function useAssistantProfileChat(
             setCanChat(false);
             return;
           }
-          const assistantContext = `${assistant.first_name}${assistant.surname}`;
+          const assistantContext = `${assistant.firstName}${assistant.surname}`;
           const contactId = await assistantActions.chat.getContactId(
             ownerContext,
             assistantContext,
@@ -350,7 +357,7 @@ export function useAssistantProfileChat(
     }
 
     const oldestMessage = messages[0];
-    if (!oldestMessage || oldestMessage.message_id === undefined) {
+    if (!oldestMessage || oldestMessage.messageId === undefined) {
       setHasMoreMessages(false);
       return;
     }
@@ -364,13 +371,13 @@ export function useAssistantProfileChat(
 
     setLoadMoreError(false);
     setIsLoadingMore(true);
-    const assistantContext = `${assistant.first_name}${assistant.surname}`;
+    const assistantContext = `${assistant.firstName}${assistant.surname}`;
     try {
       const result = await assistantActions.chat.getTranscripts(
         ownerContext,
         assistantContext,
         contactId,
-        oldestMessage.message_id
+        oldestMessage.messageId
       );
       setHasFetchedHistory(true);
       if ('detail' in result) {
@@ -449,6 +456,8 @@ export function useAssistantProfileChat(
 
     eventSource.onopen = () => {
       setConnectionStatus('connected');
+      // Reset reconnect attempts on successful connection
+      sseReconnectAttemptsRef.current = 0;
     };
 
     eventSource.onmessage = (event) => {
@@ -458,7 +467,7 @@ export function useAssistantProfileChat(
         const ackId = messagePayload.__ackId;
 
         // Filter by contact_id: only display and ACK messages for this user
-        const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
+        const messageContactId = messagePayload.event?.contactId ?? messagePayload.contactId;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
           // Message is not for this user - don't ACK, let it be redelivered
           return;
@@ -481,7 +490,7 @@ export function useAssistantProfileChat(
             messagePayload.event?.content ??
             messagePayload.event?.body ??
             messagePayload.content ??
-            messagePayload.raw_content ??
+            messagePayload.rawContent ??
             '';
           const incomingId = messagePayload.id;
           const serverMsgId = incomingId || uuidv4();
@@ -535,15 +544,42 @@ export function useAssistantProfileChat(
       }
     };
 
-    eventSource.onerror = (error) => {
-      setConnectionStatus((prev) =>
-        eventSource.readyState === EventSource.CLOSED ? 'reconnecting' : 'reconnecting'
-      );
+    eventSource.onerror = () => {
+      // Close the failed connection
+      eventSource.close();
+
+      // Check if we should attempt reconnection
+      if (sseReconnectAttemptsRef.current < SSE_MAX_RECONNECT_ATTEMPTS) {
+        setConnectionStatus('reconnecting');
+
+        // Calculate delay with exponential backoff
+        const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, sseReconnectAttemptsRef.current);
+        sseReconnectAttemptsRef.current += 1;
+
+        // Clear any existing reconnect timeout
+        if (sseReconnectTimeoutRef.current) {
+          clearTimeout(sseReconnectTimeoutRef.current);
+        }
+
+        // Schedule reconnection
+        sseReconnectTimeoutRef.current = setTimeout(() => {
+          setSseReconnectTrigger((prev) => prev + 1);
+        }, delay);
+      } else {
+        // Max attempts reached
+        setConnectionStatus('error');
+        sseReconnectAttemptsRef.current = 0;
+      }
     };
 
     return () => {
       stopReplying();
       eventSource.close();
+      // Clear reconnect timeout on cleanup
+      if (sseReconnectTimeoutRef.current) {
+        clearTimeout(sseReconnectTimeoutRef.current);
+        sseReconnectTimeoutRef.current = null;
+      }
     };
   }, [
     assistantId,
@@ -552,6 +588,7 @@ export function useAssistantProfileChat(
     historyLoadedForAssistantId,
     canChat,
     contactIdCache,
+    sseReconnectTrigger, // Re-run effect when reconnect is triggered
   ]);
 
   // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
@@ -635,8 +672,8 @@ export function useAssistantProfileChat(
     // 3. Send to Backend with contact_id
     assistantActions.chat
       .message({
-        assistant_id: parseInt(assistant.agent_id),
-        contact_id: contactId,
+        assistantId: parseInt(assistant.agentId),
+        contactId: contactId,
         message: messageToSend,
       })
       .then((response) => {

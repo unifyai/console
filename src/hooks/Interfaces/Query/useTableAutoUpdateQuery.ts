@@ -1,16 +1,22 @@
-"use client";
+'use client';
 
-import { useQuery, useQueryClient, CancelledError } from "@tanstack/react-query";
-import { TableDataItem, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
-import { LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { fetchAndBuildTableDataItem } from "@/utils/data/buildTableDataItem";
-import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { selectTileById } from "@/contexts/selectors/tile";
-import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
-import { useTileData } from "@/contexts/hooks/tile/useTileData";
-import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData";
-import { selectProjectById } from "@/contexts/selectors/project";
-import { useCallback, useState } from "react";
+import { useQuery, useQueryClient, CancelledError } from '@tanstack/react-query';
+import {
+  TableDataItem,
+  LogsActions,
+  FieldsActions,
+  ProjectsActions,
+  ContextActions,
+} from '@/types/interfaces/grid';
+import { LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { fetchAndBuildTableDataItem } from '@/utils/data/buildTableDataItem';
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { selectTileById } from '@/contexts/selectors/tile';
+import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
+import { useTileData } from '@/contexts/hooks/tile/useTileData';
+import { fetchOrBuildProjectsContextsFields } from '@/utils/data/buildServerData';
+import { selectProjectById } from '@/contexts/selectors/project';
+import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Debug flag for performance logging
@@ -29,7 +35,7 @@ const perfLog = (...args: any[]) => {
 
 /**
  * Auto-updating table data query hook that:
- * • Automatically polls every 5s when auto_update === "true"
+ * • Automatically polls every 5s when autoUpdate === "true"
  * • Uses a separate query key to avoid conflicts with manual cache updates
  * • Syncs data with the main tableDataItem cache
  * • Exposes a manualRefresh() helper for manual refresh buttons
@@ -44,31 +50,31 @@ export function useTableAutoUpdateQuery(
   logsActions: LogsActions,
   projectsActions: ProjectsActions,
   contextActions: ContextActions,
-  fieldsActions: FieldsActions,
+  fieldsActions: FieldsActions
 ) {
   const storeApi = useStoreApiContext();
   const queryClient = useQueryClient();
   const [isManualRefresh, setIsManualRefresh] = useState(false);
-  
-  // Get reactive access to tile item for auto_update flag
+
+  // Get reactive access to tile item for autoUpdate flag
   const { data: tileDataState } = useTileData(tileId, tabId);
-  const autoUpdate = tileDataState?.auto_update === "true";
-  
+  const autoUpdate = tileDataState?.autoUpdate === 'true';
+
   // Use a separate query key to avoid conflicts with manual cache updates
-  const autoUpdateQueryKey = ["tableDataItem", "autoUpdate", tileId];
+  const autoUpdateQueryKey = useMemo(() => ['tableDataItem', 'autoUpdate', tileId], [tileId]);
   // Main cache key for syncing
-  const mainQueryKey = ["tableDataItem", tileId];
+  const mainQueryKey = useMemo(() => ['tableDataItem', tileId], [tileId]);
 
   const queryFn = async ({ signal }: { signal?: AbortSignal }): Promise<TableDataItem> => {
-    if (!tileId) throw new Error("Tile ID is required");
-    
+    if (!tileId) throw new Error('Tile ID is required');
+
     // Get current tile data from store (uses latest filters, context, etc.)
     const state = storeApi.getState();
     const projectData = selectProjectById(state, projectId);
     const tile = selectTileById(state, tileId);
     const tileData = tile ? convertTileToTileData(tile) : null;
-    
-    if (!tileData) throw new Error("Tile not found");
+
+    if (!tileData) throw new Error('Tile not found');
 
     // Build or fetch projects, contexts and fields
     const tProjectsAndContexts = performance.now();
@@ -86,18 +92,18 @@ export function useTableAutoUpdateQuery(
       ).toFixed(2)} ms`
     );
 
-    const fields = fieldsArray.length ? fieldsArray[0] : {} as LogFieldsResponseProps;
+    const fields = fieldsArray.length ? fieldsArray[0] : ({} as LogFieldsResponseProps);
 
     // Update the contexts in the store
     storeApi.setState({
-        ...state,
-        projectsById: {
-            ...state.projectsById,
-            [projectId]: {
-                ...projectData,
-                contexts: contexts
-            }
-        }
+      ...state,
+      projectsById: {
+        ...state.projectsById,
+        [projectId]: {
+          ...projectData,
+          contexts: contexts,
+        },
+      },
     });
 
     // Get previous data from the main cache, not the auto-update cache
@@ -105,9 +111,7 @@ export function useTableAutoUpdateQuery(
     const prevTableDataItem = queryClient.getQueryData<TableDataItem>(mainQueryKey);
     const prevLogs = prevTableDataItem?.logs ?? [];
     perfLog(
-      `[perf] useTableAutoUpdateQuery – getLogs: ${(
-        performance.now() - tLogs
-      ).toFixed(2)} ms`
+      `[perf] useTableAutoUpdateQuery – getLogs: ${(performance.now() - tLogs).toFixed(2)} ms`
     );
 
     // Get infinite query keys from the current tile
@@ -123,26 +127,30 @@ export function useTableAutoUpdateQuery(
         queryClient,
         infiniteQueryKeys,
         prevLogs,
-        signal as AbortSignal,
+        signal as AbortSignal
       );
 
       // Update BOTH the auto-update cache AND the main cache to keep them in sync
       queryClient.setQueryData(autoUpdateQueryKey, tableDataItem);
       queryClient.setQueryData(mainQueryKey, tableDataItem);
       // Invalidate internal data query so dependency manager re-checks render readiness
-      queryClient.refetchQueries({ queryKey: ["internalData", tileId], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['internalData', tileId], type: 'active' });
 
       return tableDataItem;
     } catch (e: any) {
       const msg = String(e?.message || e);
-      if ((signal as AbortSignal | undefined)?.aborted || e?.name === 'AbortError' || /Abort|aborted|Connection closed/i.test(msg)) {
+      if (
+        (signal as AbortSignal | undefined)?.aborted ||
+        e?.name === 'AbortError' ||
+        /Abort|aborted|Connection closed/i.test(msg)
+      ) {
         // Treat as benign cancellation so React Query doesn't surface an error
         throw new CancelledError();
       }
       throw e;
     }
   };
-  
+
   const query = useQuery<TableDataItem>({
     queryKey: autoUpdateQueryKey,
     queryFn,
@@ -154,7 +162,7 @@ export function useTableAutoUpdateQuery(
     refetchOnMount: false,
     staleTime: 0, // Always fetch fresh data when auto-update is enabled
   });
-  
+
   // Manual refresh function
   const manualRefresh = useCallback(async () => {
     // Mark that this is a manual refresh
@@ -165,7 +173,7 @@ export function useTableAutoUpdateQuery(
       setIsManualRefresh(false);
     }
   }, [query]);
-  
+
   const stop = useCallback(() => {
     // Disable auto-refresh by updating query defaults
     queryClient.setQueryDefaults(autoUpdateQueryKey, {

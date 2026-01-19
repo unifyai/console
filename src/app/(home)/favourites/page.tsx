@@ -1,23 +1,23 @@
-import { redirect } from "next/navigation";
-import { signOut } from "next-auth/react";
-import { getCurrentUser } from "@/lib/user/user";
-import { getProjects } from "@/lib/interfaces/projects";
-import { getFavourites } from "@/lib/interfaces/favourites";
-import FavouritesClient from "@/components/Pages/Favourites/FavouritesClient";
-import { Metadata } from "next";
+import { redirect } from 'next/navigation';
+import { signOut } from 'next-auth/react';
+import { getCurrentUser } from '@/lib/user/user';
+import { getProjects } from '@/lib/interfaces/projects';
+import { getFavourites } from '@/lib/interfaces/favourites';
+import FavouritesClient from '@/components/Pages/Favourites/FavouritesClient';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Favourites",
+  title: 'Favourites',
 };
 
 export default async function FavouritesPage() {
   const user = await getCurrentUser();
   if (!user) {
     signOut();
-    redirect("/login");
+    redirect('/login');
   }
 
-  const apiKey = user!.api_key;
+  const apiKey = user!.apiKey;
 
   try {
     const fetchProjects = await getProjects(apiKey);
@@ -25,7 +25,7 @@ export default async function FavouritesPage() {
     const favourites = await getFavourites(apiKey);
 
     return (
-      <div className="w-full h-full overflow-auto pb-6">
+      <div className="h-full w-full overflow-auto pb-6">
         <FavouritesClient
           initialProjects={projects}
           initialFavourites={favourites}
@@ -37,4 +37,4 @@ export default async function FavouritesPage() {
     // Propagate to Next.js error boundary
     throw error;
   }
-} 
+}

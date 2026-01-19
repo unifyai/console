@@ -1,53 +1,74 @@
-import { CallsDataProps, TokensDataProps, LatencyDataProps, ThroughputDataProps } from "@/types/usage";
-import { getQueryMetrics, MetricItem } from "@/lib/unify-api/logging/metric";
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import {
+  CallsDataProps,
+  TokensDataProps,
+  LatencyDataProps,
+  ThroughputDataProps,
+} from '@/types/usage';
+import { getQueryMetrics, MetricItem } from '@/lib/unify-api/logging/metric';
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-    const user = await getCurrentUser();
+  const apiKey = await getApiKeyFromRequest(req);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-    if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const apiKey = user.api_key;
-
+  try {
     const url = new URL(req.url);
-    const start_time = url.searchParams.get("start_time") || undefined;
-    const end_time = url.searchParams.get("end_time") || undefined;
-    const models = url.searchParams.get("models") || undefined;
-    const providers = url.searchParams.get("providers") || undefined;
-    const interval = url.searchParams.get("interval") || "300";
-    const secondary_user_id = url.searchParams.get("secondary_user_id") || undefined;
+    const startTime = url.searchParams.get('startTime') || undefined;
+    const endTime = url.searchParams.get('endTime') || undefined;
+    const models = url.searchParams.get('models') || undefined;
+    const providers = url.searchParams.get('providers') || undefined;
+    const interval = url.searchParams.get('interval') || '300';
+    const secondaryUserId = url.searchParams.get('secondaryUserId') || undefined;
 
-    const metrics = await getQueryMetrics(apiKey, start_time, end_time, models, providers, interval, secondary_user_id);
+    const metrics = await getQueryMetrics(
+      apiKey,
+      startTime,
+      endTime,
+      models,
+      providers,
+      interval,
+      secondaryUserId
+    );
 
     const formattedMetrics = metrics.map((item: MetricItem) => ({
-        tokenData: {
-            ts: item.time_bin,
-            total_completion_tokens: item.total_completion_tokens,
-            total_prompt_tokens: item.total_prompt_tokens
-        } as TokensDataProps,
-        callsData: {
-            ts: item.time_bin,
-            request_count: item.request_count
-        } as CallsDataProps,
-        latencyData: {
-            ts: item.time_bin,
-            generation_time_p50: item.generation_time_p50,
-            generation_time_p95: item.generation_time_p95
-        } as LatencyDataProps,
-        throughputData: {
-            ts: item.time_bin,
-            tokens_per_sec_p50: item.tokens_per_sec_p50,
-            tokens_per_sec_p95: item.tokens_per_sec_p95
-        } as ThroughputDataProps
+      tokenData: {
+        ts: item.timeBin,
+        totalCompletionTokens: item.totalCompletionTokens,
+        totalPromptTokens: item.totalPromptTokens,
+      } as TokensDataProps,
+      callsData: {
+        ts: item.timeBin,
+        requestCount: item.requestCount,
+      } as CallsDataProps,
+      latencyData: {
+        ts: item.timeBin,
+        generationTimeP50: item.generationTimeP50,
+        generationTimeP95: item.generationTimeP95,
+      } as LatencyDataProps,
+      throughputData: {
+        ts: item.timeBin,
+        tokensPerSecP50: item.tokensPerSecP50,
+        tokensPerSecP95: item.tokensPerSecP95,
+      } as ThroughputDataProps,
     }));
 
-    const calls = formattedMetrics.map(item => item.callsData);
-    const tokens = formattedMetrics.map(item => item.tokenData);
-    const latency = formattedMetrics.map(item => item.latencyData);
-    const throughput = formattedMetrics.map(item => item.throughputData);
+    const calls = formattedMetrics.map((item) => item.callsData);
+    const tokens = formattedMetrics.map((item) => item.tokenData);
+    const latency = formattedMetrics.map((item) => item.latencyData);
+    const throughput = formattedMetrics.map((item) => item.throughputData);
 
     return NextResponse.json({ calls, tokens, latency, throughput });
+  } catch (error) {
+    console.error('Error fetching metrics:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch metrics',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }

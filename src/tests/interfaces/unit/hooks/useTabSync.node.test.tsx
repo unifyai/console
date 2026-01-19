@@ -1,11 +1,8 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@/tests/interfaces/utils/render-with-providers';
 import { useTabSync } from '@/contexts/hooks/tab/sync';
-import type {
-  GranularTabActions,
-  GranularTileActions,
-} from '@/types/interfaces/grid';
+import type { GranularTabActions, GranularTileActions } from '@/types/interfaces/grid';
 
 // Mocks for useTab to provide tab data/actions
 const initTileMock = vi.fn();
@@ -99,13 +96,7 @@ describe('useTabSync', () => {
     const tileActions = {} as GranularTileActions;
     const onReady = vi.fn();
 
-    render(
-      <TabSyncTest
-        onReady={onReady}
-        tabActions={tabActions}
-        tileActions={tileActions}
-      />,
-    );
+    render(<TabSyncTest onReady={onReady} tabActions={tabActions} tileActions={tileActions} />);
 
     let actions: NonNullable<ReturnType<typeof useTabSync>['actions']>;
 
@@ -126,11 +117,9 @@ describe('useTabSync', () => {
 
     // Server create tile called with same id
     expect(createTileMutateAsync).toHaveBeenCalledTimes(1);
-    const payload = createTileMutateAsync.mock.calls[0][0];
-    expect(payload.tile_id).toBe(initialState.id);
-    expect(payload.tab_id).toBe('tab-1');
-    expect(payload.actions).toBe(tileActions);
+    const payload = (createTileMutateAsync.mock.calls[0] as any)?.[0];
+    expect(payload?.tileId).toBe(initialState.id);
+    expect(payload?.tabId).toBe('tab-1');
+    expect(payload?.actions).toBe(tileActions);
   });
 });
-
-

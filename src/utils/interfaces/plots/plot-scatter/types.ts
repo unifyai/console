@@ -2,12 +2,13 @@
 
 import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { AxisCustomization } from '@/types/interfaces/plot';
 
 /**
  * Render mode for scatter plots based on data size
- * - 'svg': D3.js SVG rendering for ≤ SVG_MAX points
- * - 'webgl': Three.js WebGL rendering for > SVG_MAX and ≤ WEBGL_MAX points
- * - 'webgl-sampled': Three.js WebGL with stratified sampling for > WEBGL_MAX points
+ * - 'svg': D3.js SVG rendering for ≤ svgMax points
+ * - 'webgl': Three.js WebGL rendering for > svgMax and ≤ webglMax points
+ * - 'webgl-sampled': Three.js WebGL with stratified sampling for > webglMax points
  */
 export type RenderMode = 'svg' | 'webgl' | 'webgl-sampled';
 
@@ -97,6 +98,9 @@ export interface ScatterPlotOptions {
   // Refs
   containerRef: React.MutableRefObject<HTMLDivElement | null>;
   zoomRef: React.MutableRefObject<d3.ZoomTransform>;
+
+  // Axis customization
+  axisCustomization?: AxisCustomization;
 }
 
 /**

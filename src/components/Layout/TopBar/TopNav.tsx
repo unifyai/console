@@ -113,7 +113,7 @@ export default function TopNav() {
       : null;
 
   const canManageBilling =
-    !currentOrg || ['owner', 'admin'].includes(currentOrg.role_name?.toLowerCase() ?? '');
+    !currentOrg || ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
 
   return (
     <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">

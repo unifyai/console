@@ -22,12 +22,12 @@ import { vi } from 'vitest';
 // Types
 // ============================================================================
 
-export type ErrorType = 
-  | 'api-logs'      // P1: API failure when fetching logs
-  | 'api-save'      // P2: API failure when saving
-  | 'timeout'       // P4: Loading timeout
+export type ErrorType =
+  | 'api-logs' // P1: API failure when fetching logs
+  | 'api-save' // P2: API failure when saving
+  | 'timeout' // P4: Loading timeout
   | 'network-offline' // P6: Network offline
-  | 'none';         // No error (for empty state P3)
+  | 'none'; // No error (for empty state P3)
 
 export interface CellData {
   id: string;
@@ -161,7 +161,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
   // Initialize cells from data
   useEffect(() => {
     const newCells: Record<string, CellData> = {};
-    data.forEach(log => {
+    data.forEach((log) => {
       Object.entries(log.entries).forEach(([key, value]) => {
         const cellId = `${log.id}-${key}`;
         newCells[cellId] = {
@@ -199,7 +199,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
 
   // Add toast helper
   const addToast = useCallback((type: 'error' | 'success', message: string) => {
-    setToasts(prev => [...prev, { type, message }]);
+    setToasts((prev) => [...prev, { type, message }]);
   }, []);
 
   // Expose state container
@@ -213,14 +213,14 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
       isTimedOut: () => isTimedOut,
 
       triggerRetry: async () => {
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         setIsLoading(true);
         setHasError(false);
         setCurrentErrorMessage(null);
         setIsTimedOut(false);
 
         // Simulate retry
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 100));
 
         // If error type is still set, fail again
         if (errorType === 'api-logs') {
@@ -238,7 +238,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
 
       triggerSave: async () => {
         // Simulate save operation
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 100));
 
         if (saveShouldFail || errorType === 'api-save') {
           addToast('error', 'Failed to save changes');
@@ -257,8 +257,8 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
         // Process queued changes
         if (queuedChanges.length > 0) {
           // Simulate syncing queued changes
-          queuedChanges.forEach(change => {
-            setCells(prev => ({
+          queuedChanges.forEach((change) => {
+            setCells((prev) => ({
               ...prev,
               [change.cellId]: {
                 ...prev[change.cellId],
@@ -279,7 +279,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
         const originalValue = currentCell.value;
 
         // Optimistic update
-        setCells(prev => ({
+        setCells((prev) => ({
           ...prev,
           [cellId]: {
             ...prev[cellId],
@@ -291,17 +291,17 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
 
         // If offline, queue the change
         if (isOffline) {
-          setQueuedChanges(prev => [...prev, { cellId, value }]);
+          setQueuedChanges((prev) => [...prev, { cellId, value }]);
           return;
         }
 
         // Simulate API call
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 100));
 
         // Check if save should fail (for optimistic rollback testing)
         if (saveShouldFail || errorType === 'api-save') {
           // Rollback
-          setCells(prev => ({
+          setCells((prev) => ({
             ...prev,
             [cellId]: {
               ...prev[cellId],
@@ -313,7 +313,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
           addToast('error', 'Failed to save changes. Reverted to previous value.');
         } else {
           // Success
-          setCells(prev => ({
+          setCells((prev) => ({
             ...prev,
             [cellId]: {
               ...prev[cellId],
@@ -333,10 +333,22 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
       getData: () => data,
       getQueuedChanges: () => queuedChanges,
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    hasError, currentErrorMessage, isLoading, isOffline, isTimedOut,
-    data, cells, toasts, queuedChanges, errorType, errorMessage,
-    saveShouldFail, isEmpty, addToast,
+    hasError,
+    currentErrorMessage,
+    isLoading,
+    isOffline,
+    isTimedOut,
+    data,
+    cells,
+    toasts,
+    queuedChanges,
+    errorType,
+    errorMessage,
+    saveShouldFail,
+    isEmpty,
+    addToast,
   ]);
 
   // Render UI based on state
@@ -345,7 +357,9 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
       {/* Loading State */}
       {isLoading && !isTimedOut && (
         <div data-testid="loading-state">
-          <div data-testid="loading-spinner" className="animate-spin">Loading...</div>
+          <div data-testid="loading-spinner" className="animate-spin">
+            Loading...
+          </div>
         </div>
       )}
 
@@ -389,9 +403,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
         <div data-testid="offline-indicator">
           <span>You are offline</span>
           {queuedChanges.length > 0 && (
-            <span data-testid="queued-changes-count">
-              {queuedChanges.length} changes queued
-            </span>
+            <span data-testid="queued-changes-count">{queuedChanges.length} changes queued</span>
           )}
         </div>
       )}
@@ -408,7 +420,7 @@ function ErrorHandlingInner({ stateContainerRef, options }: ErrorHandlingInnerPr
               </tr>
             </thead>
             <tbody>
-              {data.map(log => (
+              {data.map((log) => (
                 <tr key={log.id} data-testid={`row-${log.id}`}>
                   <td>{log.id}</td>
                   {Object.entries(log.entries).map(([key, value]) => {
@@ -471,10 +483,7 @@ export function renderErrorHandling(
   };
 
   const { container, unmount } = render(
-    <ErrorHandlingInner
-      stateContainerRef={stateContainerRef}
-      options={effectiveOptions}
-    />
+    <ErrorHandlingInner stateContainerRef={stateContainerRef} options={effectiveOptions} />
   );
 
   return {
@@ -513,7 +522,7 @@ export function renderErrorHandling(
     editCell: async (cellId: string, value: string) => {
       const promise = stateContainerRef.current?.editCell(cellId, value);
       // Wait a tick for React to process the optimistic update
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
       // Now await the full completion
       await promise;
     },
@@ -537,4 +546,3 @@ export function renderErrorHandling(
 }
 
 // Types are already exported above via `export interface`
-

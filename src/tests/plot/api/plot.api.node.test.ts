@@ -61,8 +61,8 @@ describe('Plot API - Authentication', () => {
 
     const response = await createPlotRequest(
       {
-        project_config: { project_name: TEST_PROJECT },
-        plot_config: { x_axis: 'x', y_axis: 'y' },
+        projectConfig: { projectName: TEST_PROJECT },
+        plotConfig: { xAxis: 'x', yAxis: 'y' },
       },
       { apiKey: null }
     );
@@ -78,8 +78,8 @@ describe('Plot API - Authentication', () => {
 
     const response = await createPlotRequest(
       {
-        project_config: { project_name: TEST_PROJECT },
-        plot_config: { x_axis: 'x', y_axis: 'y' },
+        projectConfig: { projectName: TEST_PROJECT },
+        plotConfig: { xAxis: 'x', yAxis: 'y' },
       },
       { apiKey: '' }
     );
@@ -93,8 +93,8 @@ describe('Plot API - Authentication', () => {
     }
 
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(201);
@@ -108,38 +108,38 @@ describe('Plot API - Authentication', () => {
 // =============================================================================
 
 describe('Plot API - Input Validation', () => {
-  it('rejects requests without project_config', async () => {
+  it('rejects requests without projectConfig', async () => {
     const response = await createPlotRequest({
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('project_config');
+    expect(response.data.error).toContain('projectConfig');
   });
 
-  it('rejects requests without project_name', async () => {
+  it('rejects requests without projectName', async () => {
     const response = await createPlotRequest({
-      project_config: {},
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      projectConfig: {},
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('project_name');
+    expect(response.data.error).toContain('projectName');
   });
 
-  it('rejects requests without plot_config or description', async () => {
+  it('rejects requests without plotConfig or description', async () => {
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
+      projectConfig: { projectName: TEST_PROJECT },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('plot_config');
+    expect(response.data.error).toContain('plotConfig');
   });
 
   it.skipIf(PLOT_TEST_API_REAL)('accepts requests with description (LLM mode)', async () => {
     // Skip for real API - requires LLM credits
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
+      projectConfig: { projectName: TEST_PROJECT },
       description: 'Show me a scatter plot of accuracy vs loss',
     });
 
@@ -186,6 +186,244 @@ describe('Plot API - Error Scenarios', () => {
     } else {
       // Can't reliably trigger server errors with real API
       expect(true).toBe(true);
+    }
+  });
+});
+
+// =============================================================================
+// Axis Customization Tests
+// =============================================================================
+
+describe('Plot API - Axis Customization', () => {
+  it('stores x_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        xLabel: 'Day of Month',
+      },
+    });
+
+    expect(response.status).toBe(201);
+    // The plot config should include the custom label
+    // Actual storage verification would require getting the plot back
+  });
+
+  it('stores y_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        yLabel: 'Billed Cost ($)',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores show_x_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        showXLabel: false,
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores show_y_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        showYLabel: false,
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores y_tick_format in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        yTickFormat: '$',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores group_by_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        groupBy: 'model',
+        groupByLabel: 'Model Type',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores aggregate_label in plot config', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        aggregateLabel: 'Total Cost',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('stores all customization options together', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        type: 'bar',
+        xAxis: 'time_day',
+        yAxis: 'billed_cost',
+        groupBy: 'model',
+        // All customization options
+        xLabel: 'Day',
+        yLabel: 'Cost',
+        showXLabel: false,
+        showYLabel: false,
+        yTickFormat: 'd3.format("$.2f")',
+        groupByLabel: 'Model',
+        aggregateLabel: 'Sum',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it.skipIf(!PLOT_TEST_API_REAL)('returns custom labels in plot data response', async () => {
+    // This test only works with real API
+    const createResponse = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        xAxis: 'x',
+        yAxis: 'y',
+        xLabel: 'Custom X',
+        yLabel: 'Custom Y',
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+
+    const dataResponse = await getPlotDataRequest(createResponse.data.token);
+
+    expect(dataResponse.status).toBe(200);
+    expect(dataResponse.data.config.xLabel).toBe('Custom X');
+    expect(dataResponse.data.config.yLabel).toBe('Custom Y');
+  });
+});
+
+// =============================================================================
+// Drawer-Related API Tests
+// =============================================================================
+
+describe('Plot API - Drawer Support', () => {
+  it('accepts groupBy parameter for grouped plots', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        type: 'bar',
+        xAxis: 'category',
+        yAxis: 'value',
+        groupBy: 'model',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('accepts sortOrder parameter', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const response = await createPlotRequest({
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: {
+        type: 'bar',
+        xAxis: 'category',
+        yAxis: 'value',
+        sortOrder: 'unsorted',
+      },
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('accepts all plot types', async () => {
+    if (!PLOT_TEST_API_REAL) {
+      server.use(...createTestScenario('success'));
+    }
+
+    const plotTypes = ['scatter', 'bar', 'line', 'histogram'];
+
+    for (const type of plotTypes) {
+      const response = await createPlotRequest({
+        projectConfig: { projectName: TEST_PROJECT },
+        plotConfig: {
+          type,
+          xAxis: 'x',
+          yAxis: 'y',
+        },
+      });
+
+      expect(response.status).toBe(201);
     }
   });
 });

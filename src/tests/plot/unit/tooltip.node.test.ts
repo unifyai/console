@@ -22,7 +22,7 @@ describe('tooltipTemplate', () => {
     it('generates HTML with x and y values', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
       };
 
       const html = tooltipTemplate(data);
@@ -36,7 +36,7 @@ describe('tooltipTemplate', () => {
     it('wraps values in bold tags', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -48,7 +48,7 @@ describe('tooltipTemplate', () => {
     it('includes separator divider', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -59,7 +59,7 @@ describe('tooltipTemplate', () => {
     it('includes pin instruction', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -72,7 +72,7 @@ describe('tooltipTemplate', () => {
     it('includes group information when present', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
       };
 
@@ -85,7 +85,7 @@ describe('tooltipTemplate', () => {
     it('places group before x and y', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
       };
 
@@ -102,8 +102,8 @@ describe('tooltipTemplate', () => {
     it('includes aggregate information when present', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
-        aggregate: { name: 'Mean', value: '' },
+        y: { name: 'Y Axis', value: 20 },
+        aggregate: { name: 'Mean' },
       };
 
       const html = tooltipTemplate(data);
@@ -114,8 +114,8 @@ describe('tooltipTemplate', () => {
     it('places aggregate at the top', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
-        aggregate: { name: 'Sum', value: '' },
+        y: { name: 'Y Axis', value: 20 },
+        aggregate: { name: 'Sum' },
       };
 
       const html = tooltipTemplate(data);
@@ -131,9 +131,9 @@ describe('tooltipTemplate', () => {
     it('includes all fields in correct order', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
-        aggregate: { name: 'Mean', value: '' },
+        aggregate: { name: 'Mean' },
       };
 
       const html = tooltipTemplate(data);
@@ -154,7 +154,7 @@ describe('tooltipTemplate', () => {
     it('handles numeric values as strings', () => {
       const data: InfoCardData = {
         x: { name: 'Score', value: '99.5' },
-        y: { name: 'Count', value: '1000' },
+        y: { name: 'Count', value: 1000 },
       };
 
       const html = tooltipTemplate(data);
@@ -166,7 +166,7 @@ describe('tooltipTemplate', () => {
     it('handles special characters in values', () => {
       const data: InfoCardData = {
         x: { name: 'Label', value: 'Test <script>alert(1)</script>' },
-        y: { name: 'Value', value: '100' },
+        y: { name: 'Value', value: 100 },
       };
 
       const html = tooltipTemplate(data);
@@ -178,7 +178,7 @@ describe('tooltipTemplate', () => {
     it('handles empty string values', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '' },
-        y: { name: 'Y', value: '' },
+        y: { name: 'Y', value: 0 },
       };
 
       const html = tooltipTemplate(data);
@@ -191,7 +191,7 @@ describe('tooltipTemplate', () => {
       const longValue = 'A'.repeat(1000);
       const data: InfoCardData = {
         x: { name: 'X', value: longValue },
-        y: { name: 'Y', value: '100' },
+        y: { name: 'Y', value: 100 },
       };
 
       const html = tooltipTemplate(data);
@@ -199,6 +199,131 @@ describe('tooltipTemplate', () => {
       expect(html).toContain(longValue);
     });
   });
+
+  // ===========================================================================
+  // Custom Label Tests (for AxisCustomization integration)
+  // ===========================================================================
+
+  describe('custom labels', () => {
+    it('displays custom x label when provided', () => {
+      const data: InfoCardData = {
+        x: { name: 'Custom Day Label', value: '2024-01-15' },
+        y: { name: 'Y Axis', value: 100 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('Custom Day Label');
+      expect(html).toContain('2024-01-15');
+    });
+
+    it('displays custom y label when provided', () => {
+      const data: InfoCardData = {
+        x: { name: 'X Axis', value: 10 },
+        y: { name: 'Billed Cost', value: 99.99 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('Billed Cost');
+      expect(html).toContain('99.99');
+    });
+
+    it('displays custom group label when provided', () => {
+      const data: InfoCardData = {
+        x: { name: 'X Axis', value: 10 },
+        y: { name: 'Y Axis', value: 20 },
+        group: { name: 'Model Type', value: 'gpt-4o' },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('Model Type');
+      expect(html).toContain('gpt-4o');
+    });
+
+    it('displays custom aggregate label when provided', () => {
+      const data: InfoCardData = {
+        x: { name: 'X Axis', value: 10 },
+        y: { name: 'Y Axis', value: 20 },
+        aggregate: { name: 'Total Revenue' },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('Total Revenue');
+    });
+
+    it('falls back to field names when custom labels not provided', () => {
+      const data: InfoCardData = {
+        x: { name: 'table1.timestamp', value: 1705320000000 },
+        y: { name: 'table1.value', value: 100 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('table1.timestamp');
+      expect(html).toContain('table1.value');
+    });
+
+    it('handles all custom labels together', () => {
+      const data: InfoCardData = {
+        x: { name: 'Day', value: '2024-01-15' },
+        y: { name: 'Billed Cost', value: 150.75 },
+        group: { name: 'Model', value: 'claude-3-opus' },
+        aggregate: { name: 'Sum of Costs' },
+      };
+
+      const html = tooltipTemplate(data);
+
+      // All custom labels should be present
+      expect(html).toContain('Day');
+      expect(html).toContain('2024-01-15');
+      expect(html).toContain('Billed Cost');
+      expect(html).toContain('150.75');
+      expect(html).toContain('Model');
+      expect(html).toContain('claude-3-opus');
+      expect(html).toContain('Sum of Costs');
+    });
+  });
+
+  // ===========================================================================
+  // Formatted Values (for tick formatters passed through)
+  // ===========================================================================
+
+  describe('formatted values', () => {
+    it('displays pre-formatted currency values', () => {
+      // When tick formatters are used, values come pre-formatted
+      const data: InfoCardData = {
+        x: { name: 'Day', value: '2024-01-15' },
+        y: { name: 'Cost', value: 1234.56 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('1234.56');
+    });
+
+    it('displays pre-formatted percentage values', () => {
+      const data: InfoCardData = {
+        x: { name: 'Category', value: 'A' },
+        y: { name: 'Rate', value: 75 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('75');
+    });
+
+    it('displays pre-formatted date strings', () => {
+      const data: InfoCardData = {
+        x: { name: 'Time', value: 'Jan 15, 2024' },
+        y: { name: 'Count', value: 42 },
+      };
+
+      const html = tooltipTemplate(data);
+
+      expect(html).toContain('Jan 15, 2024');
+    });
+  });
 });
-
-

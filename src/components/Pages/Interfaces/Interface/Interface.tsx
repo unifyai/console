@@ -1,20 +1,35 @@
-"use client";
+'use client';
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
-import { Loader2, Search, Plus, RefreshCw } from "lucide-react";
-import { showSuccessToast, showErrorToast, showLoadingToast } from '@/components/Common/Toasts/notifications';
-import { useRouter } from "next/navigation";
+import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showLoadingToast,
+} from '@/components/Common/Toasts/notifications';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tabs, TabsContent } from "../../../UI/tabs";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
-import ActionButton from "../../../Common/Buttons/Action";
-import { Button } from "../../../UI/button";
-import { Icon } from "../../../UI/icon-picker";
+import { Tabs, TabsContent } from '../../../UI/tabs';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../../UI/dialog';
+import ActionButton from '../../../Common/Buttons/Action';
+import { Button } from '../../../UI/button';
+import { Icon } from '../../../UI/icon-picker';
 // InterfaceButtons is loaded lazily to reduce initial JS
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
-import ProjectButtons from "./Buttons/ProjectButtons";
-import { useQueryState } from "nuqs";
-import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
+import ProjectButtons from './Buttons/ProjectButtons';
+import { useQueryState } from 'nuqs';
+import {
+  ProjectsActions,
+  LogsActions,
+  FieldsActions,
+  DerivedEntryActions,
+  ContextActions,
+  GranularInterfaceActions,
+  GranularTabActions,
+  GranularTileActions,
+  Favourite,
+  FavouritesActions,
+} from '@/types/interfaces/grid';
 import { ResourcesActions } from '@/types/resource';
 import { User } from '@/types/user';
 import { debounce } from 'lodash';
@@ -39,17 +54,17 @@ import SaveResetOverlay from './SaveResetOverlay';
 import { useSidebar } from '@/components/UI/sidebar';
 import { ScrollArea } from '../../../UI/scroll-area';
 import InterfaceNav from './InterfaceNav';
-import { withLoadingToastFn } from '@/components/Common/Toasts/notifications'
+import { withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
 import { cn } from '@/lib/utils';
-import { useListInterfacesQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery'
+import { useListInterfacesQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery';
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery';
-import { 
+import {
   createInterfaceUrl,
   createCompleteDefaultInterface,
   ensureInterfaceLoadable,
-} from "@/utils/interfaces/interfaceSelector"
+} from '@/utils/interfaces/interfaceSelector';
 
 function getUniqueDefaultInterfaceName(baseProject: string, actions: GranularInterfaceActions) {
   // This is a small wrapper to keep call sites consistent if we later centralize naming
@@ -62,9 +77,17 @@ export const PageScrollContext = React.createContext<React.RefObject<HTMLDivElem
 export const InterfaceNavContext = React.createContext<{
   isNavigating: boolean;
   beginNavigation: () => number;
-  setProject: (project: string | null, options?: { openProjectSelection?: boolean; openInterfaceSelection?: boolean }) => void;
+  setProject: (
+    project: string | null,
+    options?: { openProjectSelection?: boolean; openInterfaceSelection?: boolean }
+  ) => void;
   setInterface: (projectId: string, interfaceName: string) => Promise<void>;
-}>({ isNavigating: false, beginNavigation: () => 0, setProject: () => {}, setInterface: async () => {} });
+}>({
+  isNavigating: false,
+  beginNavigation: () => 0,
+  setProject: () => {},
+  setInterface: async () => {},
+});
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
@@ -72,7 +95,7 @@ const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
 const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
 const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
-const Toaster = dynamic(() => import('sonner').then(m => m.Toaster), { ssr: false });
+const Toaster = dynamic(() => import('sonner').then((m) => m.Toaster), { ssr: false });
 
 /**
  * Debug flag for tab prefetching indicators
@@ -93,11 +116,11 @@ interface InterfaceComponentProps {
   favouritesActions: FavouritesActions;
   resourcesActions: ResourcesActions;
   initialFavourites: Favourite[];
-  userMeta: Pick<User, "organizations" | "id">;
+  userMeta: Pick<User, 'organizations' | 'id'>;
 }
 
-const Interface = ({ 
-  interfaceId, 
+const Interface = ({
+  interfaceId,
   projectsActions,
   interfaceActions,
   tabActions,
@@ -111,15 +134,20 @@ const Interface = ({
   initialFavourites,
   userMeta,
 }: InterfaceComponentProps) => {
-
   const router = useRouter();
   // Query params - project/interface use deep routing (trigger server)
-  const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
-  const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
-  const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
-  const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
-  const [noticeParam, setNoticeParam] = useQueryState("notice", { shallow: false });
-  const [missingParam, setMissingParam] = useQueryState("missing", { shallow: false });
+  const [projectQueryParam, setProjectQueryParam] = useQueryState('project', { shallow: false });
+  const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState('interface', {
+    shallow: false,
+  });
+  const [selectProjectParam, setSelectProjectParam] = useQueryState('selectProject', {
+    shallow: false,
+  });
+  const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState('selectInterface', {
+    shallow: false,
+  });
+  const [noticeParam, setNoticeParam] = useQueryState('notice', { shallow: false });
+  const [missingParam, setMissingParam] = useQueryState('missing', { shallow: false });
 
   // History helpers for tab (pure client; no Next navigation)
   const shallowSetTabInUrl = useCallback((tabName: string | null) => {
@@ -144,7 +172,10 @@ const Interface = ({
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const lastNoticeKeyRef = useRef<string | null>(null);
   const navTokenRef = useRef(0);
-  const beginNavigation = useCallback(() => { navTokenRef.current += 1; return navTokenRef.current; }, []);
+  const beginNavigation = useCallback(() => {
+    navTokenRef.current += 1;
+    return navTokenRef.current;
+  }, []);
   const navToastIdRef = useRef<string | number | null>(null);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
   const queryClient = useQueryClient();
@@ -159,7 +190,10 @@ const Interface = ({
     if (!activeProjectId) return;
     if (contextsQuery.data && Array.isArray(contextsQuery.data)) {
       const s = storeApi.getState() as any;
-      s.setProjectContexts?.(activeProjectId, contextsQuery.data.map((c: any) => c.name));
+      s.setProjectContexts?.(
+        activeProjectId,
+        contextsQuery.data.map((c: any) => c.name)
+      );
       if (s.projectDefaultContext?.[activeProjectId] === undefined) {
         s.setProjectDefaultContext?.(activeProjectId, null);
       }
@@ -169,7 +203,11 @@ const Interface = ({
   // Show error notification for context failures (non-blocking) - only once per project
   const contextsErrorShownRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (contextsQuery.isError && activeProjectId && !contextsErrorShownRef.current.has(activeProjectId)) {
+    if (
+      contextsQuery.isError &&
+      activeProjectId &&
+      !contextsErrorShownRef.current.has(activeProjectId)
+    ) {
       contextsErrorShownRef.current.add(activeProjectId);
       showErrorToast(
         'Failed to load contexts',
@@ -177,45 +215,65 @@ const Interface = ({
       );
     }
   }, [contextsQuery.isError, activeProjectId]);
-  
+
   // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
-  const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
+  const renderIcon = (
+    iconStr: string | undefined | null,
+    className: string,
+    defaultIcon: string = 'folder'
+  ) => {
     let icon = iconStr;
-    if (!icon || typeof icon !== 'string' || icon.trim() === '' || 
-        icon === 'null' || icon === 'undefined' || icon === 'none') {
+    if (
+      !icon ||
+      typeof icon !== 'string' ||
+      icon.trim() === '' ||
+      icon === 'null' ||
+      icon === 'undefined' ||
+      icon === 'none'
+    ) {
       icon = defaultIcon;
     } else {
       icon = icon.trim();
     }
-    
+
     // Check if it's an emoji or special character
     if (/[^a-zA-Z0-9_-]/.test(icon)) {
-      return <span className={cn(className, "inline-flex items-center justify-center")}>{icon}</span>;
+      return (
+        <span className={cn(className, 'inline-flex items-center justify-center')}>{icon}</span>
+      );
     }
-    
+
     return <Icon name={icon as any} className={className} />;
   };
-  
+
   // Auto-select interface when none is specified
-  const shouldAutoSelectInterface = !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
-  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces, isError: isErrorInterfaces, error: interfacesError, refetch: refetchInterfaces } = useListInterfacesQuery(
+  const shouldAutoSelectInterface =
+    !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
+  const {
+    data: projectInterfaces = [],
+    isLoading: isLoadingInterfaces,
+    isError: isErrorInterfaces,
+    error: interfacesError,
+    refetch: refetchInterfaces,
+  } = useListInterfacesQuery(
     shouldAutoSelectInterface ? projectQueryParam : null,
     interfaceActions
   );
-  
+
   // Add a flag to track if we're deliberately showing selection screen
   const [preventAutoSelect, setPreventAutoSelect] = useState(false);
-  
+
   // Track which interface is being loaded
   const [loadingInterfaceId, setLoadingInterfaceId] = useState<string | null>(null);
-  
+
   // Track which project is being loaded
   const [loadingProjectName, setLoadingProjectName] = useState<string | null>(null);
-  
+
   // Show project/interface selection when user deliberately deselected
   const showProjectSelection = selectProjectParam === 'true';
-  const showInterfaceSelection = selectInterfaceParam === 'true' && projectQueryParam && !interfaceId;
-  
+  const showInterfaceSelection =
+    selectInterfaceParam === 'true' && projectQueryParam && !interfaceId;
+
   // Set preventAutoSelect when showing selection screens
   useEffect(() => {
     if (showInterfaceSelection || showProjectSelection) {
@@ -224,27 +282,33 @@ const Interface = ({
       setPreventAutoSelect(false);
     }
   }, [showInterfaceSelection, showProjectSelection]);
-  
+
   // Get projects from store to check if Assistants project exists
-  const projects = useStoreContext(useShallow(state => state.projects));
-  const hasAssistantsProject = projects?.includes("Assistants");
-  
+  const projects = useStoreContext(useShallow((state) => state.projects));
+  const hasAssistantsProject = projects?.includes('Assistants');
+
   // Determine if we should auto-open the project selection screen when no projects exist
-  const shouldAutoShowProjectSelection = !projectQueryParam && !interfaceQueryParam && !hasAssistantsProject;
-  
+  const shouldAutoShowProjectSelection =
+    !projectQueryParam && !interfaceQueryParam && !hasAssistantsProject;
+
   // Effective flag to render the project selection screen
   const effectiveShowProjectSelection = showProjectSelection || shouldAutoShowProjectSelection;
-  
+
   // Ensure the URL reflects the selection screen state when auto-showing
   useEffect(() => {
     if (shouldAutoShowProjectSelection && selectProjectParam !== 'true') {
       setSelectProjectParam('true');
     }
   }, [shouldAutoShowProjectSelection, selectProjectParam, setSelectProjectParam]);
-  
+
   // Bootstrap batch for project change
-  const { data: bootstrapData, isError: isBootstrapError, error: bootstrapErrorObj, refetch: refetchBootstrap } = useQuery({
-    queryKey: ['bootstrap', projectQueryParam],  // Removed bootstrapRetryToken to prevent unnecessary refetches
+  const {
+    data: bootstrapData,
+    isError: isBootstrapError,
+    error: bootstrapErrorObj,
+    refetch: refetchBootstrap,
+  } = useQuery({
+    queryKey: ['bootstrap', projectQueryParam], // Removed bootstrapRetryToken to prevent unnecessary refetches
     queryFn: async () => {
       if (!projectQueryParam) return null;
       const res = await fetch(`/api/bootstrap?project=${encodeURIComponent(projectQueryParam)}`);
@@ -255,11 +319,11 @@ const Interface = ({
       return res.json();
     },
     enabled: !!projectQueryParam,
-    staleTime: 5 * 60 * 1000,  // 5 minutes - bootstrap data doesn't change often
-    gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache longer
-    refetchOnMount: false,       // Don't refetch if we have cached data
+    staleTime: 5 * 60 * 1000, // 5 minutes - bootstrap data doesn't change often
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer
+    refetchOnMount: false, // Don't refetch if we have cached data
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    retry: 2,                    // Retry twice on failure
+    retry: 2, // Retry twice on failure
   });
 
   // Warm caches after bootstrap
@@ -277,25 +341,42 @@ const Interface = ({
         queryClient.setQueryData(['contexts', projectQueryParam], data.contexts);
         // Seed store contexts if not already present
         const s = storeApi.getState() as any;
-        s.setProjectContexts?.(projectQueryParam, data.contexts.map((c: any) => c.name));
+        s.setProjectContexts?.(
+          projectQueryParam,
+          data.contexts.map((c: any) => c.name)
+        );
         if (s.projectDefaultContext?.[projectQueryParam] === undefined) {
           s.setProjectDefaultContext?.(projectQueryParam, null);
         }
       }
     } catch {}
-  }, [bootstrapData, projectQueryParam, queryClient]);
+  }, [bootstrapData, projectQueryParam, queryClient, storeApi]);
 
   // Fetch project tree with icons
-  const { data: projectTree = [], isLoading: isLoadingProjectTree, isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
-    Array<{project_name:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
+  const {
+    data: projectTree = [],
+    isLoading: isLoadingProjectTree,
+    isError: isProjectTreeError,
+    error: projectTreeErrorObj,
+    refetch: refetchProjectTree,
+  } = useQuery<
+    Array<{
+      projectName: string;
+      icon: string;
+      interfaces: Array<{ id: string; name: string; icon?: string; updatedAt?: string }>;
+      favorite: boolean;
+      position: number | null;
+    }>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {
-      const res = await fetch('/api/projects/tree')
-      if (!res.ok) throw new Error('Failed to fetch project tree')
-      return res.json()
+      const res = await fetch('/api/projects/tree');
+      if (!res.ok) throw new Error('Failed to fetch project tree');
+      return res.json();
     },
-    initialData: Array.isArray((bootstrapData as any)?.projectsTree) ? (bootstrapData as any)?.projectsTree : undefined,
+    initialData: Array.isArray((bootstrapData as any)?.projectsTree)
+      ? (bootstrapData as any)?.projectsTree
+      : undefined,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
@@ -303,17 +384,17 @@ const Interface = ({
     refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
     retry: 2, // Retry twice on failure
   });
-  
+
   // Get interfaces from projectTree for selection screen (faster than separate API call)
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
-  const currentProjectData = safeProjectTree.find(p => p.project_name === projectQueryParam);
+  const currentProjectData = safeProjectTree.find((p) => p.projectName === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
   // Show loading if: projectTree is loading, OR no tree data yet, OR tree exists but current project has no interfaces yet (still fetching)
-  const isLoadingInterfacesForSelection = showInterfaceSelection && (
-    isLoadingProjectTree || 
-    safeProjectTree.length === 0 ||
-    (projectQueryParam && !currentProjectData)
-  );
+  const isLoadingInterfacesForSelection =
+    showInterfaceSelection &&
+    (isLoadingProjectTree ||
+      safeProjectTree.length === 0 ||
+      (projectQueryParam && !currentProjectData));
 
   // Show toast notification for project tree errors (non-blocking, for dropdowns)
   const projectTreeErrorShownRef = useRef(false);
@@ -321,7 +402,7 @@ const Interface = ({
     if (isProjectTreeError && !projectTreeErrorShownRef.current) {
       projectTreeErrorShownRef.current = true;
       const errorMsg = (projectTreeErrorObj as any)?.message || '';
-      
+
       if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
         showErrorToast(
           'Project tree timed out',
@@ -334,7 +415,7 @@ const Interface = ({
         );
       }
     }
-    
+
     // Reset on success
     if (!isProjectTreeError && projectTreeErrorShownRef.current) {
       projectTreeErrorShownRef.current = false;
@@ -346,14 +427,16 @@ const Interface = ({
     setIsSwitchingInterface(false);
     setLoadingMessage('Loading...');
     setLoadingProjectName(null);
-    setLoadingInterfaceId(null);    
+    setLoadingInterfaceId(null);
   }, [interfaceQueryParam]);
 
   // Toast-driven feedback for navigation/refresh (replaces frosted overlay)
   useEffect(() => {
     const active = isSwitchingInterface || isRefreshingInterface;
     if (active && navToastIdRef.current == null) {
-      const msg = isRefreshingInterface ? 'Refreshing interface...' : (loadingMessage || 'Loading interface...');
+      const msg = isRefreshingInterface
+        ? 'Refreshing interface...'
+        : loadingMessage || 'Loading interface...';
       navToastIdRef.current = showLoadingToast(msg);
     } else if (!active && navToastIdRef.current != null) {
       toast.dismiss(navToastIdRef.current);
@@ -364,7 +447,7 @@ const Interface = ({
   useEffect(() => {
     // Reset failure count when the project changes
     setInterfaceLoadFailures(0);
-   }, [projectQueryParam]);  
+  }, [projectQueryParam]);
 
   // Show toast notification for interface list errors (timeout-aware)
   const interfacesErrorShownRef = useRef<string | null>(null);
@@ -372,23 +455,20 @@ const Interface = ({
     if (isErrorInterfaces && projectQueryParam) {
       const errorKey = `${projectQueryParam}-interfaces`;
       if (interfacesErrorShownRef.current === errorKey) return;
-      
+
       interfacesErrorShownRef.current = errorKey;
       const errorMsg = (interfacesError as any)?.message || '';
-      
+
       if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
         showErrorToast(
           'Interface list timed out',
           'The service is taking longer than usual to respond. Retrying automatically...'
         );
       } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
-        showErrorToast(
-          'Failed to load interfaces',
-          errorMsg || 'Unable to fetch interface list.'
-        );
+        showErrorToast('Failed to load interfaces', errorMsg || 'Unable to fetch interface list.');
       }
     }
-    
+
     // Reset on project change or success
     if (!isErrorInterfaces || !projectQueryParam) {
       interfacesErrorShownRef.current = null;
@@ -427,27 +507,40 @@ const Interface = ({
   const pageScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, projectQueryParam, interfaceActions, tabActions);
+  const { actions: syncedInterfaceActions } = useInterfaceSync(
+    interfaceId,
+    projectQueryParam,
+    interfaceActions,
+    tabActions
+  );
   const syncedInterfaceDataActions = syncedInterfaceActions?.data ?? null;
   const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
-  
+
   // Get current active tab name using selector - this is our source of truth
   const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
-  const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
+  const tabLog = useCallback(
+    (...args: any[]) => {
+      if (DEBUG_TABS) console.log(...args);
+    },
+    [DEBUG_TABS]
+  );
   const state = useStoreApiContext().getState();
   const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
   const activeTabName = activeTab?.name || null;
   tabLog('[Interface] Active tab from store', { interfaceId, activeTabId, activeTabName });
-  
+
   // Wrapper that updates both Zustand store AND URL (pure client)
-  const setTabQueryParamFromSync = useCallback((tabName: string | null) => {
-    tabLog('[Interface] setTabQueryParamFromSync', { tabName });
-    if (tabName && syncedInterfaceUIActions?.setActiveTab) {
-      syncedInterfaceUIActions.setActiveTab(tabName);
-    }
-    shallowSetTabInUrl(tabName); // Pure client URL update
-  }, [syncedInterfaceUIActions, shallowSetTabInUrl]);
+  const setTabQueryParamFromSync = useCallback(
+    (tabName: string | null) => {
+      tabLog('[Interface] setTabQueryParamFromSync', { tabName });
+      if (tabName && syncedInterfaceUIActions?.setActiveTab) {
+        syncedInterfaceUIActions.setActiveTab(tabName);
+      }
+      shallowSetTabInUrl(tabName); // Pure client URL update
+    },
+    [syncedInterfaceUIActions, shallowSetTabInUrl, tabLog]
+  );
 
   // On mount, adopt ?tab= from URL (no navigation)
   useEffect(() => {
@@ -475,7 +568,7 @@ const Interface = ({
       tabLog('[Interface] Mirroring active tab to URL', { activeTabName });
       shallowSetTabInUrl(activeTabName);
     }
-  }, [activeTabName, shallowSetTabInUrl]);
+  }, [activeTabName, shallowSetTabInUrl, tabLog]);
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -488,12 +581,12 @@ const Interface = ({
   const fileUploadOpen = useStoreContext((state) => state.fileUploadOpen);
   const globalContextOpen = useStoreContext((state) => state.globalContextOpen);
   const setGlobalContextOpen = useStoreContext((state) => state.setGlobalContextOpen);
-  
+
   const setDeleteProjectOpen = useStoreContext((state) => state.setDeleteProjectOpen);
   const setCreateProjectOpen = useStoreContext((state) => state.setCreateProjectOpen);
   const setSelectProjectsOpen = useStoreContext((state) => state.setSelectProjectsOpen);
   const setFileUploadOpen = useStoreContext((state) => state.setFileUploadOpen);
-  
+
   // Global UI modes
   const { isEditMode, isDashboardMode, setEditMode, setDashboardMode } = useGlobalUIMode();
 
@@ -503,7 +596,7 @@ const Interface = ({
   // Initialize React Query mutations for tab operations
   const createTabMutation = useCreateTabQuery();
   const updateTabMutation = useUpdateTabQuery();
-  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, "Manual save");
+  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, 'Manual save');
 
   // Use granular interface and tab hooks for better performance
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
@@ -511,7 +604,12 @@ const Interface = ({
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(activeTabId, interfaceId);
 
   // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTabActions } = useTabSync(activeTabId, interfaceId, tabActions, tileActions);
+  const { actions: syncedTabActions } = useTabSync(
+    activeTabId,
+    interfaceId,
+    tabActions,
+    tileActions
+  );
   const syncedTabDataActions = syncedTabActions?.data ?? null;
   const syncedTabUIActions = syncedTabActions?.ui ?? null;
 
@@ -530,9 +628,9 @@ const Interface = ({
     },
     {
       enableNonActivePrefetch: !isSwitchingInterface,
-      prefetchMode: 'light',  // Keep background light; avoid contention
+      prefetchMode: 'light', // Keep background light; avoid contention
       deferMs: 1200,
-      concurrency: 1,  // Reduce pressure on slow backend
+      concurrency: 1, // Reduce pressure on slow backend
     }
   );
 
@@ -541,7 +639,7 @@ const Interface = ({
     const switching = !!tabStreamingQuery?.activeTab.isLoading;
     tabLog('[Interface] Switching tab overlay state', { switching });
     setIsSwitchingTab(switching);
-  }, [tabStreamingQuery?.activeTab.isLoading]);
+  }, [tabStreamingQuery?.activeTab.isLoading, tabLog]);
 
   // Sidebar state for proper positioning
   const isMobile = useIsMobile();
@@ -579,7 +677,7 @@ const Interface = ({
     contextActions,
     setOverlayState,
   });
-  const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
+  const resetInterfaceCommand = storeCommands.find((cmd) => cmd.id === 'reset-interface');
 
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
@@ -589,67 +687,88 @@ const Interface = ({
 
   // Auto-select first tab if no active tab is set and tabs are available
   useEffect(() => {
-    if (tabNames.length > 0 && syncedInterfaceUIActions && (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))) {
-      tabLog('[Interface] Auto-selecting fallback tab', { tabNames, previousActive: activeTabName });
+    if (
+      tabNames.length > 0 &&
+      syncedInterfaceUIActions &&
+      (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))
+    ) {
+      tabLog('[Interface] Auto-selecting fallback tab', {
+        tabNames,
+        previousActive: activeTabName,
+      });
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
-  }, [activeTabName, tabNames, syncedInterfaceUIActions]);
+  }, [activeTabName, tabNames, syncedInterfaceUIActions, tabLog]);
 
   // Track pending tab change
   const [pendingTabChange, setPendingTabChange] = useState<string | undefined>(undefined);
 
   // Actual tab switch handler - will be debounced
-  const performTabSwitch = useCallback((value: string | undefined) => {
-    if (!value || !syncedInterfaceUIActions) return;
-    
-    // Clear the pending state
-    setPendingTabChange(undefined);
-    
-    // Check if tab data is already cached
-    const isCached = tabStreamingQuery?.switchTab(value) || false;
-    tabLog('[Interface] performTabSwitch', { target: value, isCached });
-    
-    if (isCached) {
-      // Instant switch - data is already available
-      syncedInterfaceUIActions.setActiveTab(value);
-    } else {
-      // Show loading state while fetching
-      if (tabUIActions) {
-        tabUIActions.setPending(true);
-      }
-      syncedInterfaceUIActions.setActiveTab(value);
-    }
-  }, [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions]);
+  const performTabSwitch = useCallback(
+    (value: string | undefined) => {
+      if (!value || !syncedInterfaceUIActions) return;
 
-  // Create debounced version of tab switch handler
-  const debouncedTabSwitch = useMemo(
-    () => debounce(performTabSwitch, 100),
-    [performTabSwitch]
+      // Clear the pending state
+      setPendingTabChange(undefined);
+
+      // Check if tab data is already cached
+      const isCached = tabStreamingQuery?.switchTab(value) || false;
+      tabLog('[Interface] performTabSwitch', { target: value, isCached });
+
+      if (isCached) {
+        // Instant switch - data is already available
+        syncedInterfaceUIActions.setActiveTab(value);
+      } else {
+        // Show loading state while fetching
+        if (tabUIActions) {
+          tabUIActions.setPending(true);
+        }
+        syncedInterfaceUIActions.setActiveTab(value);
+      }
+    },
+    [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions, tabLog]
   );
 
+  // Create debounced version of tab switch handler
+  const debouncedTabSwitch = useMemo(() => debounce(performTabSwitch, 100), [performTabSwitch]);
+
   // Enhanced tab change handler with debounced switching
-  const handleTabChange = useCallback((value: string | undefined) => {
-    if (!value) return;
-    if (value === activeTabName) return; // No-op if already active
-    
-    // Block tab switching during mutations to prevent state desync
-    if (createTabMutation.isPending || updateTabMutation.isPending || saveTabWithTilesMutation.isPending) {
-      return;
-    }
-    
-    // Set pending tab change immediately for UI feedback
-    setPendingTabChange(value);
-    setIsSwitchingTab(true);
-    
-    // Prefetch only if we don't already have a full cache for instant switch
-    const isCached = tabStreamingQuery.switchTab(value);
-    if (!isCached) {
-      void tabStreamingQuery.prefetchTab(value);
-    }
-    
-    // Debounce the actual tab switch
-    debouncedTabSwitch(value);
-  }, [debouncedTabSwitch, createTabMutation.isPending, updateTabMutation.isPending, saveTabWithTilesMutation.isPending, tabStreamingQuery, activeTabName]);
+  const handleTabChange = useCallback(
+    (value: string | undefined) => {
+      if (!value) return;
+      if (value === activeTabName) return; // No-op if already active
+
+      // Block tab switching during mutations to prevent state desync
+      if (
+        createTabMutation.isPending ||
+        updateTabMutation.isPending ||
+        saveTabWithTilesMutation.isPending
+      ) {
+        return;
+      }
+
+      // Set pending tab change immediately for UI feedback
+      setPendingTabChange(value);
+      setIsSwitchingTab(true);
+
+      // Prefetch only if we don't already have a full cache for instant switch
+      const isCached = tabStreamingQuery.switchTab(value);
+      if (!isCached) {
+        void tabStreamingQuery.prefetchTab(value);
+      }
+
+      // Debounce the actual tab switch
+      debouncedTabSwitch(value);
+    },
+    [
+      debouncedTabSwitch,
+      createTabMutation.isPending,
+      updateTabMutation.isPending,
+      saveTabWithTilesMutation.isPending,
+      tabStreamingQuery,
+      activeTabName,
+    ]
+  );
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -658,12 +777,17 @@ const Interface = ({
     };
   }, [debouncedTabSwitch]);
 
-  
-
   // Auto-select interface when none is specified
   useEffect(() => {
     // Add delay and additional check to prevent race conditions
-    if (!shouldAutoSelectInterface || isLoadingInterfaces || isErrorInterfaces || !projectQueryParam || preventAutoSelect) return;
+    if (
+      !shouldAutoSelectInterface ||
+      isLoadingInterfaces ||
+      isErrorInterfaces ||
+      !projectQueryParam ||
+      preventAutoSelect
+    )
+      return;
 
     // Debounce the auto-selection to ensure URL params have settled
     const timer = setTimeout(() => {
@@ -683,12 +807,12 @@ const Interface = ({
           if (projectInterfaces.length > 0) {
             // If interfaces exist, find the most recently updated one and redirect.
             const sortedInterfaces = [...projectInterfaces].sort((a, b) => {
-              const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-              const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+              const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+              const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
               return dateB - dateA; // Sort descending (newest first)
             });
             const latestInterface = sortedInterfaces[0];
-            
+
             if (latestInterface) {
               // Update message since interfaces are loaded - now loading the interface/tiles
               setLoadingMessage(`Loading ${latestInterface.name}...`);
@@ -698,7 +822,11 @@ const Interface = ({
                 router.push(newUrl);
               }
             }
-          } else if (!isErrorInterfaces && Array.isArray(projectInterfaces) && projectInterfaces.length === 0) {
+          } else if (
+            !isErrorInterfaces &&
+            Array.isArray(projectInterfaces) &&
+            projectInterfaces.length === 0
+          ) {
             // Explicitly empty array and not an error => safe to create a default
             setLoadingMessage('Creating default interface...');
             const newInterface = await interfaceActions.create(
@@ -716,14 +844,17 @@ const Interface = ({
             }
           } else {
             // Error fetching interfaces OR invalid data: do not auto-create; show selection overlay instead
-            console.error('[Interface] Cannot auto-create - error state or invalid data:', { isErrorInterfaces, projectInterfaces });
+            console.error('[Interface] Cannot auto-create - error state or invalid data:', {
+              isErrorInterfaces,
+              projectInterfaces,
+            });
             setIsSwitchingInterface(false);
             setSelectInterfaceParam('true');
           }
         } catch (err) {
-          console.error("Error in interface selection/creation:", err);
+          console.error('Error in interface selection/creation:', err);
           setIsSwitchingInterface(false);
-          setInterfaceLoadFailures(prev => prev + 1);
+          setInterfaceLoadFailures((prev) => prev + 1);
           const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
           showErrorToast('Failed to load interface', errorMsg);
           setLoadingMessage('Loading...');
@@ -734,8 +865,21 @@ const Interface = ({
     }, 500); // 500ms delay to let URL params settle
 
     return () => clearTimeout(timer);
-  }, [shouldAutoSelectInterface, isLoadingInterfaces, isErrorInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
-  
+  }, [
+    shouldAutoSelectInterface,
+    isLoadingInterfaces,
+    isErrorInterfaces,
+    projectInterfaces,
+    projectQueryParam,
+    router,
+    interfaceActions,
+    tabActions,
+    tileActions,
+    queryClient,
+    preventAutoSelect,
+    setSelectInterfaceParam,
+  ]);
+
   // Don't clean up selection params - they should persist until user makes a choice
   // This prevents auto-selection from re-triggering after deselection
 
@@ -743,10 +887,10 @@ const Interface = ({
   // Timeouts are managed at the request level (30-90s in API routes) where they
   // can actually abort the HTTP requests. UI-level timeouts create false failures
   // where the user sees "timeout" but the request completes anyway.
-  // 
+  //
   // Proper error handling is implemented at each data layer:
   // - Bootstrap: shows blocking error screen with retry button
-  // - Interface load: shows blocking error screen with retry button  
+  // - Interface load: shows blocking error screen with retry button
   // - Tab load: shows inline error with retry button
   //
   // This approach ensures users only see real errors, not fake timeouts.
@@ -764,7 +908,7 @@ const Interface = ({
   useEffect(() => {
     gridRef.current?.scrollTo({
       top: gridRef.current?.scrollHeight,
-      behavior: "smooth",
+      behavior: 'smooth',
     });
   }, [tabDataState?.tileIds]);
 
@@ -785,7 +929,7 @@ const Interface = ({
       predicate: (q: any) => {
         const k0 = q?.queryKey?.[0] as string;
         return k0 === 'tabCompleteData' || k0 === 'logs';
-      }
+      },
     });
   }, [isSwitchingInterface, queryClient]);
 
@@ -795,40 +939,46 @@ const Interface = ({
 
     setRefreshStatus('loading');
     setIsRefreshingInterface(true);
-    
+
     // Invalidate relevant React Query caches so subsequent queries hit backend
     try {
-      await queryClient.invalidateQueries({ predicate: (q: any) => {
-        const key0 = q.queryKey?.[0] as string;
-        // Common keys used in hooks
-        return [
-          'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
-          'tabs', 'tiles', 'tab', 'tile'
-        ].includes(key0);
-      }});
-    } catch (err) {
-      
-    }
+      await queryClient.invalidateQueries({
+        predicate: (q: any) => {
+          const key0 = q.queryKey?.[0] as string;
+          // Common keys used in hooks
+          return [
+            'interfaces',
+            'interface',
+            'interface-by-id',
+            'interface-with-tabs',
+            'tabs',
+            'tiles',
+            'tab',
+            'tile',
+          ].includes(key0);
+        },
+      });
+    } catch (err) {}
 
     try {
-        await withLoadingToastFn(
-            async () => {
-                await router.refresh();
-            },
-            {
-                loadingMessage: 'Refreshing interface...',
-                successMessage: 'Interface refreshed!',
-                errorMessage: 'Failed to refresh interface.'
-            }
-        );
-        setRefreshStatus('success');
-        setIsRefreshingInterface(false);
+      await withLoadingToastFn(
+        async () => {
+          await router.refresh();
+        },
+        {
+          loadingMessage: 'Refreshing interface...',
+          successMessage: 'Interface refreshed!',
+          errorMessage: 'Failed to refresh interface.',
+        }
+      );
+      setRefreshStatus('success');
+      setIsRefreshingInterface(false);
     } catch (err) {
       setRefreshStatus('idle');
       setIsRefreshingInterface(false);
       // Error is already handled by withLoadingToast
     } finally {
-        setTimeout(() => setRefreshStatus('idle'), 2000);
+      setTimeout(() => setRefreshStatus('idle'), 2000);
     }
   };
 
@@ -846,21 +996,24 @@ const Interface = ({
   // Add a useEffect to handle repeated interface load failures
   useEffect(() => {
     if (interfaceLoadFailures >= 3) {
-        // Reset counter to prevent loop if user navigates back to the same project
-        setInterfaceLoadFailures(0);
-        
-        // Show a more persistent error message
-        showErrorToast('Failed to load interface after 3 attempts.', 'Returning to project selection.');
-        
-        // Navigate back to project selection screen
-        const newParams = new URLSearchParams(window.location.search);
-        newParams.delete('project');
-        newParams.delete('interface');
-        newParams.set('selectProject', 'true');
-        
-        router.push(`/interfaces?${newParams.toString()}`);
+      // Reset counter to prevent loop if user navigates back to the same project
+      setInterfaceLoadFailures(0);
+
+      // Show a more persistent error message
+      showErrorToast(
+        'Failed to load interface after 3 attempts.',
+        'Returning to project selection.'
+      );
+
+      // Navigate back to project selection screen
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete('project');
+      newParams.delete('interface');
+      newParams.set('selectProject', 'true');
+
+      router.push(`/interfaces?${newParams.toString()}`);
     }
-   }, [activeTabName, createTabMutation, updateTabMutation]);
+  }, [interfaceLoadFailures, router]);
 
   // Track if tab retry is in progress using ref to avoid re-renders
   const isRetryingTabRef = useRef(false);
@@ -880,22 +1033,29 @@ const Interface = ({
       return true;
     }
     return false;
-  }, [tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activationPending, activeTabId, projectQueryParam, interfaceQueryParam]);
+  }, [
+    tabStreamingQuery?.activeTab.isLoading,
+    tabStreamingQuery?.activeTab.data,
+    tabStreamingQuery?.activationPending,
+    activeTabId,
+    projectQueryParam,
+    interfaceQueryParam,
+  ]);
 
   // Render the active tab based on streaming query - memoized to prevent infinite loops
   const renderActiveTab = useCallback(() => {
     if (!activeTabId || !projectQueryParam) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          Please select a tab
-        </div>
-      );
+      return <div className="flex h-full items-center justify-center">Please select a tab</div>;
     }
 
     // Show loading state while tabStreamingQuery initializes or tab is being fetched
-    if (!tabStreamingQuery || tabStreamingQuery.activeTab.isLoading || tabStreamingQuery.activationPending) {
+    if (
+      !tabStreamingQuery ||
+      tabStreamingQuery.activeTab.isLoading ||
+      tabStreamingQuery.activationPending
+    ) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-base text-muted-foreground">Loading tiles...</p>
         </div>
@@ -906,22 +1066,32 @@ const Interface = ({
     if (tabStreamingQuery?.activeTab.isError) {
       const error = tabStreamingQuery.activeTab.error as any;
       const errorMsg = error?.message || '';
-      const isCancellation = 
-        error?.name === 'AbortError' || 
+      const isCancellation =
+        error?.name === 'AbortError' ||
         error?.name === 'CancelledError' ||
         /abort|cancelled|connection closed/i.test(errorMsg);
 
       // Don't show error UI for cancellations (expected when switching tabs)
       if (!isCancellation) {
         return (
-          <div className="flex flex-col items-center justify-center h-full p-6 max-w-md mx-auto text-center">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center p-6 text-center">
+            <div className="bg-destructive/10 mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
+              <svg
+                className="h-6 w-6 text-destructive"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
             </div>
             <h3 className="text-h4 mb-2">Failed to Load Tab</h3>
-            <p className="text-body text-muted-foreground mb-4">
+            <p className="text-body mb-4 text-muted-foreground">
               {errorMsg || 'Unable to load tab data. The server may be unavailable.'}
             </p>
             <Button
@@ -931,7 +1101,9 @@ const Interface = ({
                 // Force an immediate refetch of the active tab
                 void tabStreamingQuery.refetchActiveTab?.();
                 // Reset guard after 2 seconds
-                setTimeout(() => { isRetryingTabRef.current = false; }, 2000);
+                setTimeout(() => {
+                  isRetryingTabRef.current = false;
+                }, 2000);
               }}
               className="w-full max-w-xs"
             >
@@ -945,25 +1117,42 @@ const Interface = ({
 
     // Check if we have tab data - if not, show helpful message
     const tabData = tabStreamingQuery?.activeTab.data;
-    if (!tabData && !tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.isError && !tabStreamingQuery?.activationPending) {
+    if (
+      !tabData &&
+      !tabStreamingQuery?.activeTab.isLoading &&
+      !tabStreamingQuery?.activeTab.isError &&
+      !tabStreamingQuery?.activationPending
+    ) {
       return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <svg className="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <svg
+              className="h-6 w-6 text-muted-foreground"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
           </div>
           <div>
             <h3 className="text-h4 mb-2">No Tab Data</h3>
-            <p className="text-body text-muted-foreground max-w-md">
+            <p className="text-body max-w-md text-muted-foreground">
               This tab exists but has no data loaded. Try refreshing the tab.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => {
-              // Force a refetch of the active tab query
-              void tabStreamingQuery.refetchActiveTab?.();
-            }}>
+            <Button
+              onClick={() => {
+                // Force a refetch of the active tab query
+                void tabStreamingQuery.refetchActiveTab?.();
+              }}
+            >
               Refresh Tab
             </Button>
           </div>
@@ -974,7 +1163,7 @@ const Interface = ({
     // Guard against race condition: ensure tab data matches current active tab
     if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-base text-muted-foreground">Switching tabs...</p>
         </div>
@@ -982,12 +1171,14 @@ const Interface = ({
     }
 
     return (
-      <div className="w-full h-full">
-        <Suspense fallback={
-          <div className="w-full h-full flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        }>
+      <div className="h-full w-full">
+        <Suspense
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          }
+        >
           <Tab
             tabId={activeTabId}
             interfaceId={interfaceId}
@@ -999,20 +1190,35 @@ const Interface = ({
             fieldsActions={fieldsActions}
             derivedEntryActions={derivedEntryActions}
             contextActions={contextActions}
-            isLoadingTiles={tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending}
+            isLoadingTiles={
+              tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending
+            }
           />
         </Suspense>
       </div>
     );
-  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, queryClient, setTabQueryParamFromSync]);
+  }, [
+    activeTabId,
+    projectQueryParam,
+    tabStreamingQuery,
+    activeTabName,
+    interfaceId,
+    projectsActions,
+    tabActions,
+    tileActions,
+    logsActions,
+    fieldsActions,
+    derivedEntryActions,
+    contextActions,
+  ]);
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
     if (!activeTabName || !projectQueryParam || !interfaceQueryParam) {
-      console.error("Missing tab or project or interface");
+      console.error('Missing tab or project or interface');
       return;
     }
-    
+
     // Hide the dialog and show overlay
     setSaveInterfaceOpen(false);
     setOverlayState({
@@ -1020,47 +1226,46 @@ const Interface = ({
       operation: 'saving',
       status: 'loading',
     });
-    
+
     // Show loading state
     if (tabUIActions) {
       tabUIActions.setPending(true);
     }
-    
+
     try {
       // Get the tile IDs for this tab
-      const tileIds = tabDataActions?.getItems().map(item => item.id) || [];
-      
+      const tileIds = tabDataActions?.getItems().map((item) => item.id) || [];
+
       // Perform the save operation
       await saveTabWithTilesMutation.mutateAsync({
-        interface_id: interfaceId,
-        tab_name: activeTabName,
-        tile_ids: tileIds
+        interfaceId: interfaceId,
+        tabName: activeTabName,
+        tileIds: tileIds,
       });
-      
+
       // Show success in overlay
       setOverlayState({
         isVisible: true,
         operation: 'saving',
         status: 'success',
       });
-      
+
       // Show success message in UI state
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(true);
       }
       // Notify user of success
       showSuccessToast('Saved changes');
-      
     } catch (error) {
-      console.error("Failed to save tab:", error);
-      
+      console.error('Failed to save tab:', error);
+
       // Show error in overlay
       setOverlayState({
         isVisible: true,
         operation: 'saving',
         status: 'error',
       });
-      
+
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(false);
       }
@@ -1078,35 +1283,34 @@ const Interface = ({
   const handleCommand = (id: string) => {
     // First try using direct UI toggles for dialogs
     switch (id) {
-      case "select-projects":
+      case 'select-projects':
         setSelectProjectsOpen(!selectProjectsOpen);
         break;
-      case "create-project":
+      case 'create-project':
         setCreateProjectOpen(!createProjectOpen);
         break;
-      case "delete-project":
+      case 'delete-project':
         setDeleteProjectOpen(!deleteProjectOpen);
         break;
-      case "file-upload":
+      case 'file-upload':
         setFileUploadOpen(!fileUploadOpen);
         break;
-      case "focus-pane":
+      case 'focus-pane':
         setFocusPaneOpen(!focusPaneOpen);
         break;
-      case "global-context":
+      case 'global-context':
         setGlobalContextOpen(!globalContextOpen);
         break;
-      case "save-interface":
+      case 'save-interface':
         setSaveInterfaceOpen(!saveInterfaceOpen);
         break;
-      case "reset-interface":
+      case 'reset-interface':
         commandHooks.resetTab();
         break;
-      case "close-project":
+      case 'close-project':
         commandHooks.closeProject();
         break;
       default:
-        
     }
   };
 
@@ -1114,16 +1318,28 @@ const Interface = ({
 
   const handleSidebarAddTile = () => {
     if (!activeTabId || !tabDataActions) return;
-    const items = tabDataActions.getItems() as TileProps[] || [];
+    const items = (tabDataActions.getItems() as TileProps[]) || [];
     let idx = items.length;
-    while (items.some(it => it.name === `Tile_${idx}`)) idx++;
+    while (items.some((it) => it.name === `Tile_${idx}`)) idx++;
     const newTileName = `Tile_${idx}`;
     const position = { x: 0, y: 0, width: 4, height: 4 } as any;
     // Use synced actions to ensure a UUID is generated and server tile is created
     if (syncedTabDataActions?.initTile) {
-      syncedTabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
+      syncedTabDataActions.initTile(newTileName, {
+        position,
+        minW: null,
+        minH: null,
+        type: null,
+        visible: true,
+      });
     } else {
-    tabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
+      tabDataActions.initTile(newTileName, {
+        position,
+        minW: null,
+        minH: null,
+        type: null,
+        visible: true,
+      });
     }
   };
 
@@ -1133,7 +1349,8 @@ const Interface = ({
     let draining = false;
 
     const MAX_ATTEMPTS = 5;
-    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, Math.max(0, attempt - 1)));
+    const backoff = (attempt: number) =>
+      Math.min(30000, 500 * Math.pow(2, Math.max(0, attempt - 1)));
 
     const drain = async () => {
       if (cancelled || draining) return;
@@ -1165,7 +1382,7 @@ const Interface = ({
                 ...job,
                 attempts,
               });
-              await new Promise(r => setTimeout(r, delay));
+              await new Promise((r) => setTimeout(r, delay));
             } else {
               console.warn('[context-sync] Dropping job after max attempts', job);
             }
@@ -1199,563 +1416,637 @@ const Interface = ({
   }, [storeApi, interfaceActions, tabActions, tileActions]);
 
   return (
-  <PageScrollContext.Provider value={pageScrollContainerRef}>
-  <InterfaceNavContext.Provider value={{
-    isNavigating: isSwitchingInterface,
-    beginNavigation,
-    setProject: (project, opts) => {
-      const token = beginNavigation();
-      const newParams = new URLSearchParams(window.location.search);
-      if (!project) {
-        newParams.delete('project');
-        newParams.delete('interface');
-        newParams.delete('tab');
-        if (opts?.openProjectSelection) newParams.set('selectProject', 'true');
-        router.push(`/interfaces?${newParams.toString()}`);
-        return;
-      }
-      newParams.set('project', project);
-      newParams.delete('tab');
-      if (opts?.openInterfaceSelection) {
-        newParams.delete('interface');
-        newParams.set('selectInterface', 'true');
-      }
-      // Route via single source
-      const url = `/interfaces?${newParams.toString()}`;
-      router.push(url);
-    },
-    setInterface: async (projectId, interfaceName) => {
-      const token = beginNavigation();
-      try {
-        const ac = new AbortController();
-        await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
-      } catch (err) {
-        setIsSwitchingInterface(false);
-        setLoadingMessage('Loading...');
-        setSelectInterfaceParam('true'); // Return to interface selection
-        showErrorToast('Failed to load interface');
-        return;
-      }
-      const newParams = new URLSearchParams(window.location.search);
-      newParams.set('project', projectId);
-      newParams.set('interface', interfaceName);
-      newParams.delete('selectInterface');
-      newParams.delete('tab');
-      router.push(`/interfaces?${newParams.toString()}`);
-    }
-  }}>
+    <PageScrollContext.Provider value={pageScrollContainerRef}>
+      <InterfaceNavContext.Provider
+        value={{
+          isNavigating: isSwitchingInterface,
+          beginNavigation,
+          setProject: (project, opts) => {
+            const token = beginNavigation();
+            const newParams = new URLSearchParams(window.location.search);
+            if (!project) {
+              newParams.delete('project');
+              newParams.delete('interface');
+              newParams.delete('tab');
+              if (opts?.openProjectSelection) newParams.set('selectProject', 'true');
+              router.push(`/interfaces?${newParams.toString()}`);
+              return;
+            }
+            newParams.set('project', project);
+            newParams.delete('tab');
+            if (opts?.openInterfaceSelection) {
+              newParams.delete('interface');
+              newParams.set('selectInterface', 'true');
+            }
+            // Route via single source
+            const url = `/interfaces?${newParams.toString()}`;
+            router.push(url);
+          },
+          setInterface: async (projectId, interfaceName) => {
+            const token = beginNavigation();
+            try {
+              const ac = new AbortController();
+              await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
+            } catch (err) {
+              setIsSwitchingInterface(false);
+              setLoadingMessage('Loading...');
+              setSelectInterfaceParam('true'); // Return to interface selection
+              showErrorToast('Failed to load interface');
+              return;
+            }
+            const newParams = new URLSearchParams(window.location.search);
+            newParams.set('project', projectId);
+            newParams.set('interface', interfaceName);
+            newParams.delete('selectInterface');
+            newParams.delete('tab');
+            router.push(`/interfaces?${newParams.toString()}`);
+          },
+        }}
+      >
+        <div className="relative h-full w-full overflow-hidden">
+          {/* New Interface Navigation Sidebar */}
+          <InterfaceNav
+            interfaceId={interfaceId}
+            projectId={projectQueryParam || ''}
+            isEditMode={isEditMode}
+            isCommandMode={isDashboardMode}
+            onEditModeToggle={() => {
+              setEditMode(!isEditMode);
+            }}
+            onCommandModeToggle={() => {
+              setDashboardMode(!isDashboardMode);
+            }}
+            onNavCollapseChange={setIsNavCollapsed}
+            onRefresh={handleInterfaceRefresh}
+            refreshStatus={refreshStatus}
+            projectActions={projectsActions}
+            interfaceActions={interfaceActions}
+            tabActions={tabActions}
+            tileActions={tileActions}
+            logsActions={logsActions}
+            contextActions={contextActions}
+            favouritesActions={favouritesActions}
+            resourcesActions={resourcesActions}
+            userMeta={userMeta}
+            initialFavourites={initialFavourites}
+            setIsSwitchingInterface={setIsSwitchingInterface}
+            setLoadingMessage={setLoadingMessage}
+            onAddTile={handleSidebarAddTile}
+            fieldsActions={fieldsActions}
+            syncedInterfaceUIActions={syncedInterfaceUIActions}
+          />
 
-    <div className="w-full h-full relative overflow-hidden">
-      {/* New Interface Navigation Sidebar */}
-      <InterfaceNav
-        interfaceId={interfaceId}
-        projectId={projectQueryParam || ''}
-        isEditMode={isEditMode}
-        isCommandMode={isDashboardMode}
-        onEditModeToggle={() => {
-          setEditMode(!isEditMode);
-        }}
-        onCommandModeToggle={() => {
-          setDashboardMode(!isDashboardMode);
-        }}
-        onNavCollapseChange={setIsNavCollapsed}
-        onRefresh={handleInterfaceRefresh}
-        refreshStatus={refreshStatus}
-        projectActions={projectsActions}
-        interfaceActions={interfaceActions}
-        tabActions={tabActions}
-        tileActions={tileActions}
-        logsActions={logsActions}
-        contextActions={contextActions}
-        favouritesActions={favouritesActions}
-        resourcesActions={resourcesActions}
-        userMeta={userMeta}
-        initialFavourites={initialFavourites}
-        setIsSwitchingInterface={setIsSwitchingInterface}
-        setLoadingMessage={setLoadingMessage}
-        onAddTile={handleSidebarAddTile}
-        fieldsActions={fieldsActions}
-        syncedInterfaceUIActions={syncedInterfaceUIActions}
-      />
-      
-      {/* Main Content Area */}
-      {isBootstrapError && projectQueryParam ? (
-        /* Bootstrap Error Screen - Critical data failed to load */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-md p-6">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <h1 className="text-h3 mb-2">Failed to Load Project</h1>
-                <p className="text-body text-muted-foreground mb-2">
-                  Unable to load project data for <span className="font-semibold">{projectQueryParam}</span>.
-                </p>
-                <p className="text-caption text-muted-foreground mb-6">
-                  {bootstrapErrorObj instanceof Error ? bootstrapErrorObj.message : 'The server timed out or is unavailable.'}
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    if (isSwitchingInterface) return; // Prevent double-click
-                    setIsSwitchingInterface(true);
-                    setLoadingMessage('Retrying...');
-                    try {
-                      await refetchBootstrap();
-                    } finally {
-                      setIsSwitchingInterface(false);
-                      setLoadingMessage('Loading...');
-                    }
-                  }}
-                  className="w-full"
-                  disabled={isSwitchingInterface}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry Connection
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setProjectQueryParam(null);
-                    setSelectProjectParam('true');
-                  }}
-                  className="w-full"
-                >
-                  Choose Different Project
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
-        /* Interface Error Screen - Show when interface fetch fails */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-md p-6">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <h1 className="text-h3 mb-2">Connection Error</h1>
-                <p className="text-body text-muted-foreground mb-6">
-                  Unable to communicate with the server. The request timed out or the server is unavailable.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    if (isLoadingInterfaces || isSwitchingInterface) return; // Prevent double-click
-                    setIsSwitchingInterface(true);
-                    setLoadingMessage('Retrying...');
-                    try {
-                      await refetchInterfaces();
-                    } finally {
-                      setIsSwitchingInterface(false);
-                      setLoadingMessage('Loading...');
-                    }
-                  }}
-                  className="w-full"
-                  disabled={isLoadingInterfaces || isSwitchingInterface}
-                >
-                  {isLoadingInterfaces || isSwitchingInterface ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Retrying...
-                    </>
-                  ) : (
-                    <>
+          {/* Main Content Area */}
+          {isBootstrapError && projectQueryParam ? (
+            /* Bootstrap Error Screen - Critical data failed to load */
+            <div
+              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              style={{ left: 'var(--interface-nav-width, 256px)' }}
+            >
+              <div className="w-full max-w-md p-6">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="bg-destructive/10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                      <svg
+                        className="h-8 w-8 text-destructive"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                    </div>
+                    <h1 className="text-h3 mb-2">Failed to Load Project</h1>
+                    <p className="text-body mb-2 text-muted-foreground">
+                      Unable to load project data for{' '}
+                      <span className="font-semibold">{projectQueryParam}</span>.
+                    </p>
+                    <p className="text-caption mb-6 text-muted-foreground">
+                      {bootstrapErrorObj instanceof Error
+                        ? bootstrapErrorObj.message
+                        : 'The server timed out or is unavailable.'}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={async () => {
+                        if (isSwitchingInterface) return; // Prevent double-click
+                        setIsSwitchingInterface(true);
+                        setLoadingMessage('Retrying...');
+                        try {
+                          await refetchBootstrap();
+                        } finally {
+                          setIsSwitchingInterface(false);
+                          setLoadingMessage('Loading...');
+                        }
+                      }}
+                      className="w-full"
+                      disabled={isSwitchingInterface}
+                    >
                       <RefreshCw className="mr-2 h-4 w-4" />
                       Retry Connection
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectInterfaceParam('true');
-                  }}
-                  className="w-full"
-                >
-                  Select Interface Manually
-                </Button>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setProjectQueryParam(null);
+                        setSelectProjectParam('true');
+                      }}
+                      className="w-full"
+                    >
+                      Choose Different Project
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      ) : effectiveShowProjectSelection ? (
-        /* Project Selection Screen - Full viewport, left-aligned */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-sm p-4">
-              <div className="text-center mb-6">
+          ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
+            /* Interface Error Screen - Show when interface fetch fails */
+            <div
+              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              style={{ left: 'var(--interface-nav-width, 256px)' }}
+            >
+              <div className="w-full max-w-md p-6">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="bg-destructive/10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                      <svg
+                        className="h-8 w-8 text-destructive"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                    </div>
+                    <h1 className="text-h3 mb-2">Connection Error</h1>
+                    <p className="text-body mb-6 text-muted-foreground">
+                      Unable to communicate with the server. The request timed out or the server is
+                      unavailable.
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={async () => {
+                        if (isLoadingInterfaces || isSwitchingInterface) return; // Prevent double-click
+                        setIsSwitchingInterface(true);
+                        setLoadingMessage('Retrying...');
+                        try {
+                          await refetchInterfaces();
+                        } finally {
+                          setIsSwitchingInterface(false);
+                          setLoadingMessage('Loading...');
+                        }
+                      }}
+                      className="w-full"
+                      disabled={isLoadingInterfaces || isSwitchingInterface}
+                    >
+                      {isLoadingInterfaces || isSwitchingInterface ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Retrying...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Retry Connection
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectInterfaceParam('true');
+                      }}
+                      className="w-full"
+                    >
+                      Select Interface Manually
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : effectiveShowProjectSelection ? (
+            /* Project Selection Screen - Full viewport, left-aligned */
+            <div
+              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              style={{ left: 'var(--interface-nav-width, 256px)' }}
+            >
+              <div className="w-full max-w-sm p-4">
+                <div className="mb-6 text-center">
                   <h1 className="text-h3">Select a project</h1>
                   <p className="text-subtitle">Choose a project from the list below</p>
-              </div>
-              <ScrollArea className="flex-1 pr-4">
-                <div className="space-y-1 pb-6 max-h-[250px]">
-                  {projects?.map((project) => {
-                    const projectData = safeProjectTree.find(p => p.project_name === project);
-                    const icon = projectData?.icon;
-                    const isLoading = loadingProjectName === project;
-                    return (
-                      <button
-                        key={project}
-                        onClick={() => {
-                          setLoadingProjectName(project);
-                          setLoadingMessage(`Loading project...`);
-                          setIsSwitchingInterface(true);
-                          setSelectProjectParam(null);
-                          setProjectQueryParam(project);
-                        }}
-                        disabled={isLoading || loadingProjectName !== null}
-                        className={cn(
-                          "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
-                          isLoading 
-                            ? "cursor-not-allowed opacity-50" 
-                            : "hover:bg-primary hover:text-primary-foreground"
-                        )}
-                      >
+                </div>
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="max-h-[250px] space-y-1 pb-6">
+                    {projects?.map((project) => {
+                      const projectData = safeProjectTree.find((p) => p.projectName === project);
+                      const icon = projectData?.icon;
+                      const isLoading = loadingProjectName === project;
+                      return (
+                        <button
+                          key={project}
+                          onClick={() => {
+                            setLoadingProjectName(project);
+                            setLoadingMessage(`Loading project...`);
+                            setIsSwitchingInterface(true);
+                            setSelectProjectParam(null);
+                            setProjectQueryParam(project);
+                          }}
+                          disabled={isLoading || loadingProjectName !== null}
+                          className={cn(
+                            'group flex w-full items-center gap-2 rounded-md p-2 text-left transition-colors duration-200',
+                            isLoading
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'hover:bg-primary hover:text-primary-foreground'
+                          )}
+                        >
                           {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           ) : (
                             <span className="text-muted-foreground group-hover:text-primary-foreground">
-                              {renderIcon(icon, "h-4 w-4", "folder")}
+                              {renderIcon(icon, 'h-4 w-4', 'folder')}
                             </span>
                           )}
-                          <span className={cn(
-                              "text-body",
-                              isLoading && "text-muted-foreground"
-                          )}>{project}</span>
-                      </button>
-                    );
-                  }) || (
-                    <div className="text-center text-body text-muted-foreground py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                      <p>Loading projects...</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-          </div>
-        </div>
-      ) : showInterfaceSelection ? (
-        /* Interface Selection Screen - Full viewport, left-aligned */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-sm p-4">
-            <div className="text-center mb-6">
-              <h1 className="text-h3">Select an Interface</h1>
-              <p className="text-subtitle">Choose an interface for the selected project.</p>
-            </div>
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-1 pb-6 max-h-[250px]">
-                {isLoadingInterfacesForSelection ? (
-                  <div className="text-center text-body text-muted-foreground py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p>Loading interfaces...</p>
-                  </div>
-                ) : interfacesForSelection.length > 0 ? (
-                  interfacesForSelection.map((iface) => {
-                    // Interface already comes from projectTree, so icon is directly available
-                    const icon = iface.icon;
-                    const rowKey = iface.id || iface.name; // Fallback to name when id is missing
-                    const isLoading = loadingInterfaceId === rowKey;
-                    const isDisabled = loadingInterfaceId !== null;
-                    
-                    return (
-                      <button
-                        key={rowKey}
-                        onClick={async () => {
-                          setLoadingInterfaceId(rowKey);
-                          setLoadingMessage(`Loading interface...`);
-                          setIsSwitchingInterface(true);
-                          try {
-                            const ac = new AbortController();
-                            await ensureInterfaceLoadable(projectQueryParam || '', iface.name, ac.signal);
-                          } catch (err) {
-                            setIsSwitchingInterface(false);
-                            setLoadingMessage('Loading...');
-                            showErrorToast('Failed to load interface');
-                            // Stay on selection screen
-                            return;
-                          }
-                          const newParams = new URLSearchParams(window.location.search);
-                          newParams.set('interface', iface.name);
-                          newParams.delete('selectInterface');
-                          router.push(`/interfaces?${newParams.toString()}`);
-                        }}
-                        disabled={isDisabled}
-                        className={cn(
-                          "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
-                          isDisabled 
-                              ? "cursor-not-allowed opacity-50" 
-                              : "hover:bg-primary hover:text-primary-foreground"
-                        )}
-                      >
-                          {isLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : (
-                              <span className="text-muted-foreground group-hover:text-primary-foreground">
-                                  {renderIcon(icon, "h-4 w-4", "layout-grid")}
-                              </span>
-                          )}
-                          <span className={cn(
-                              "text-body",
-                              isLoading && "text-muted-foreground"
-                          )}>{iface.name}</span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="mb-6">
-                      <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                        <Icon name="layout-grid" className="h-6 w-6 text-muted-foreground" />
+                          <span className={cn('text-body', isLoading && 'text-muted-foreground')}>
+                            {project}
+                          </span>
+                        </button>
+                      );
+                    }) || (
+                      <div className="text-body py-8 text-center text-muted-foreground">
+                        <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin" />
+                        <p>Loading projects...</p>
                       </div>
-                      <p className="text-body text-muted-foreground">No interfaces found for this project.</p>
-                    </div>
-                    <Button
-                      size="default"
-                      onClick={async () => {
-                        setLoadingMessage('Creating default interface...');
-                        setIsSwitchingInterface(true);
-                        try {
-                          const newInterface = await createCompleteDefaultInterface({
-                            queryClient,
-                            project: projectQueryParam || '',
-                            interfaceActions,
-                            tabActions,
-                            tileActions,
-                            baseName: "Default"
-                          });
-                          
-                          if (newInterface && newInterface.name) {
-                            const newParams = new URLSearchParams(window.location.search);
-                            newParams.set('interface', newInterface.name);
-                            newParams.delete('selectInterface');
-                            router.push(`/interfaces?${newParams.toString()}`);
-                          }
-                        } catch (error) {
-                          const errorMsg = error instanceof Error ? error.message : 'Failed to create interface';
-                          showErrorToast('Failed to create interface', errorMsg);
-                          setLoadingMessage('Loading...');
-                        } finally {
-                          setIsSwitchingInterface(false);
-                        }
-                      }}
-                      className="mx-auto"
-                    >
-                      <Plus className="mr-2 h-3 w-3" />
-                      Create Default Interface
-                    </Button>
+                    )}
                   </div>
-                )}
+                </ScrollArea>
               </div>
-            </ScrollArea>
-          </div>
-        </div>
-      ) : (
-        /* Regular Interface Content - With sidebar margin */
-                  <div 
-            className="absolute top-0 right-0 bottom-0 transition-all duration-300"
-            style={{
-              left: 'var(--interface-nav-width, 256px)'
-            }}
-          >
-          <div className="relative flex-1 min-w-0 h-full">
-          <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
-                     <div className="relative bg-background pt-3" ref={gridRef}>
-          <Toaster richColors position="bottom-right" closeButton />
-          {/* ---------------------------------------------------------
+            </div>
+          ) : showInterfaceSelection ? (
+            /* Interface Selection Screen - Full viewport, left-aligned */
+            <div
+              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              style={{ left: 'var(--interface-nav-width, 256px)' }}
+            >
+              <div className="w-full max-w-sm p-4">
+                <div className="mb-6 text-center">
+                  <h1 className="text-h3">Select an Interface</h1>
+                  <p className="text-subtitle">Choose an interface for the selected project.</p>
+                </div>
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="max-h-[250px] space-y-1 pb-6">
+                    {isLoadingInterfacesForSelection ? (
+                      <div className="text-body py-8 text-center text-muted-foreground">
+                        <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin" />
+                        <p>Loading interfaces...</p>
+                      </div>
+                    ) : interfacesForSelection.length > 0 ? (
+                      interfacesForSelection.map((iface) => {
+                        // Interface already comes from projectTree, so icon is directly available
+                        const icon = iface.icon;
+                        const rowKey = iface.id || iface.name; // Fallback to name when id is missing
+                        const isLoading = loadingInterfaceId === rowKey;
+                        const isDisabled = loadingInterfaceId !== null;
+
+                        return (
+                          <button
+                            key={rowKey}
+                            onClick={async () => {
+                              setLoadingInterfaceId(rowKey);
+                              setLoadingMessage(`Loading interface...`);
+                              setIsSwitchingInterface(true);
+                              try {
+                                const ac = new AbortController();
+                                await ensureInterfaceLoadable(
+                                  projectQueryParam || '',
+                                  iface.name,
+                                  ac.signal
+                                );
+                              } catch (err) {
+                                setIsSwitchingInterface(false);
+                                setLoadingMessage('Loading...');
+                                showErrorToast('Failed to load interface');
+                                // Stay on selection screen
+                                return;
+                              }
+                              const newParams = new URLSearchParams(window.location.search);
+                              newParams.set('interface', iface.name);
+                              newParams.delete('selectInterface');
+                              router.push(`/interfaces?${newParams.toString()}`);
+                            }}
+                            disabled={isDisabled}
+                            className={cn(
+                              'group flex w-full items-center gap-2 rounded-md p-2 text-left transition-colors duration-200',
+                              isDisabled
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'hover:bg-primary hover:text-primary-foreground'
+                            )}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <span className="text-muted-foreground group-hover:text-primary-foreground">
+                                {renderIcon(icon, 'h-4 w-4', 'layout-grid')}
+                              </span>
+                            )}
+                            <span className={cn('text-body', isLoading && 'text-muted-foreground')}>
+                              {iface.name}
+                            </span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="py-8 text-center">
+                        <div className="mb-6">
+                          <div className="bg-muted/50 mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full">
+                            <Icon name="layout-grid" className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <p className="text-body text-muted-foreground">
+                            No interfaces found for this project.
+                          </p>
+                        </div>
+                        <Button
+                          size="default"
+                          onClick={async () => {
+                            setLoadingMessage('Creating default interface...');
+                            setIsSwitchingInterface(true);
+                            try {
+                              const newInterface = await createCompleteDefaultInterface({
+                                queryClient,
+                                project: projectQueryParam || '',
+                                interfaceActions,
+                                tabActions,
+                                tileActions,
+                                baseName: 'Default',
+                              });
+
+                              if (newInterface && newInterface.name) {
+                                const newParams = new URLSearchParams(window.location.search);
+                                newParams.set('interface', newInterface.name);
+                                newParams.delete('selectInterface');
+                                router.push(`/interfaces?${newParams.toString()}`);
+                              }
+                            } catch (error) {
+                              const errorMsg =
+                                error instanceof Error
+                                  ? error.message
+                                  : 'Failed to create interface';
+                              showErrorToast('Failed to create interface', errorMsg);
+                              setLoadingMessage('Loading...');
+                            } finally {
+                              setIsSwitchingInterface(false);
+                            }
+                          }}
+                          className="mx-auto"
+                        >
+                          <Plus className="mr-2 h-3 w-3" />
+                          Create Default Interface
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          ) : (
+            /* Regular Interface Content - With sidebar margin */
+            <div
+              className="absolute bottom-0 right-0 top-0 transition-all duration-300"
+              style={{
+                left: 'var(--interface-nav-width, 256px)',
+              }}
+            >
+              <div className="relative h-full min-w-0 flex-1">
+                <ScrollArea ref={pageScrollContainerRef} className="h-full min-w-0 flex-1">
+                  <div className="relative bg-background pt-3" ref={gridRef}>
+                    <Toaster richColors position="bottom-right" closeButton />
+                    {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
               the user sees a Skeleton while the tabs are being loaded
               --------------------------------------------------------- */}
-          <Suspense
-            fallback={
-              <div className="w-full h-full flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            }
-            >
-            <Tabs
-              value={activeTabName || undefined}
-              onValueChange={handleTabChange}
-              className="w-full h-full flex flex-col tutorial-details-panel"
-              >
-              {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
-            <div 
-              className="fixed top-10 z-40 transition-all duration-300 ease-linear pointer-events-none h-0"
-              style={{ 
-                left: 'var(--interface-nav-width, 256px)',
-                right: 0,
-              }}
-              >
-              <div className="flex justify-between gap-5 w-full px-4 py-0 pointer-events-auto command-scrollbar overflow-x-hidden">
-                {/* ProjectButtons removed as per UI simplification */}
-
-                <div className="flex flex-row gap-2 items-center">
-                  {tabUIState?.resetting && (
-                    <div className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
-                      <Loader2 className="animate-spin" />
-                    </div>
-                  )}
-                </div>
-
-                <InterfaceButtons
-                  tabIdOrName={activeTabId}
-                  interfaceId={interfaceId}
-                  interfaceActions={interfaceActions}
-                  tabActions={tabActions}
-                  tileActions={tileActions}
-                  favouritesActions={favouritesActions}
-                  initialFavourites={initialFavourites}
-                  disabled={saveTabWithTilesMutation.isPending}
-                  setOverlayState={setOverlayState}
-                  setIsSwitchingInterface={setIsSwitchingInterface}
-                />
-              </div>
-            </div>
-
-            {/* Content area with deadspace for floating menus */}
-            <div 
-              className="transition-all duration-200 ease-linear"
-              style={{ 
-                paddingTop: 0,
-                paddingLeft: '1rem',
-                paddingRight: '1rem',
-                height: '100%',
-              }}
-              >
-              {tabNames.length === 0 ? (
-                (projectQueryParam && interfaceQueryParam && !tabUIState?.pending) ? (
-                  // Show empty state when interface has no tabs
-                  <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
-                      <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium mb-1">No Tabs Yet</h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        Create a tab to start building your interface. Tabs help you organize your data views and dashboards.
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use the <span className="font-medium">+</span> button in the sidebar to create your first tab
-                    </p>
-                  </div>
-                ) : (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
-                  null
-                ) : !projectQueryParam && !interfaceQueryParam ? (
-                  hasAssistantsProject ? (
-                    <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
-                      <DefaultProject
-                        projectActions={projectsActions}
-                        interfaceActions={interfaceActions}
-                        tabActions={tabActions}
-                        tileActions={tileActions}
-                        logsActions={logsActions}
-                        derivedEntryActions={derivedEntryActions}
-                        setTabQueryParam={setTabQueryParamFromSync}
-                        setInterfaceQueryParam={setInterfaceQueryParam}
-                        setProjectQueryParam={setProjectQueryParam}
-                      />
-                    </Suspense>
-                  ) : null
-                ) : null
-              ) : (
-                tabNames.map((tabName: string, idx: number) => (
-                  <TabsContent
-                  key={idx}
-                    value={tabName}
-                    className="mb-auto tutorial-selection-pane relative w-full h-full"
-                  >
-                    {/* Check if we're in loading states */}
-                    {(tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending) ? (
-                      <div className="flex justify-center">
-                        <Loader2 className="animate-spin my-36" />
-                      </div>
-                    ) : activeTabName !== tabName ? (
-                      <div className="flex justify-center">
-                        {/* Show different indicator for pending tab switch */}
-                        {pendingTabChange === tabName ? (
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Loader2 className="animate-spin my-36" />
-                            <div className="text-body text-muted-foreground">Switching tab...</div>
-                          </div>
-                        ) : (
-                          <Loader2 className="animate-spin my-36" />
-                        )}
-                      </div>
-                    ) : (
-                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
-                        <div className="w-full h-full relative">
-                          {/* Use renderActiveTab instead of direct Tab component render */}
-                          {renderActiveTab()}
-                          
-                          {/* Show streaming indicators */}
-                          {DEBUG_TAB_PREFETCHING && tabStreamingQuery.prefetchProgress.total > 0 && (
-                            <div className="fixed bottom-16 right-4 text-caption text-muted-foreground bg-background/80 p-2 rounded border">
-                              <div className="flex items-center gap-2">
-                                {(() => {
-                                  // Get actual tabs from the store using selector
-                                  const inactiveTabsCount = selectTotalInactiveTabsForInterface(state, interfaceId);
-                                  
-                                  // Calculate total prefetchable tabs (excluding active tab)
-                                  const prefetchableTabsCount = inactiveTabsCount;
-                                  
-                                  // Get current prefetch progress with safe fallbacks
-                                  const { completed } = tabStreamingQuery.prefetchProgress;
-                                  const totalPrefetched = Math.min(completed, prefetchableTabsCount);
-                                  
-                                  // Only show if there are tabs to prefetch
-                                  const shouldShow = prefetchableTabsCount > 0;
-                                  const isComplete = totalPrefetched === prefetchableTabsCount;
-                                  
-                                  if (!shouldShow) return null;
-                                  
-                                  return (
-                                    <>
-                                      <div className={`w-2 h-2 bg-green-500 rounded-full ${isComplete ? '' : 'animate-pulse'}`}></div>
-                                      <span>
-                                        Prefetched: {totalPrefetched}/{prefetchableTabsCount} tabs
-                                      </span>
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                          )}
+                    <Suspense
+                      fallback={
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                      </Suspense>
-                    )}
-                  </TabsContent>
-                ))
-              )}
-              
-              {/* Bottom spacer to allow dragging tiles downward without touching screen bottom */}
-              <div className="w-full h-40" />
-            </div>
+                      }
+                    >
+                      <Tabs
+                        value={activeTabName || undefined}
+                        onValueChange={handleTabChange}
+                        className="tutorial-details-panel flex h-full w-full flex-col"
+                      >
+                        {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
+                        <div
+                          className="pointer-events-none fixed top-10 z-40 h-0 transition-all duration-300 ease-linear"
+                          style={{
+                            left: 'var(--interface-nav-width, 256px)',
+                            right: 0,
+                          }}
+                        >
+                          <div className="command-scrollbar pointer-events-auto flex w-full justify-between gap-5 overflow-x-hidden px-4 py-0">
+                            {/* ProjectButtons removed as per UI simplification */}
 
-            {/* Floating Bottom Tab Bar - HIDDEN: Using sidebar navigation for tabs instead */}
-            {/* {projectQueryParam && interfaceQueryParam && (
+                            <div className="flex flex-row items-center gap-2">
+                              {tabUIState?.resetting && (
+                                <div className="bg-background/90 border-border/50 rounded-lg border p-2 shadow-md backdrop-blur-sm">
+                                  <Loader2 className="animate-spin" />
+                                </div>
+                              )}
+                            </div>
+
+                            <InterfaceButtons
+                              tabIdOrName={activeTabId}
+                              interfaceId={interfaceId}
+                              interfaceActions={interfaceActions}
+                              tabActions={tabActions}
+                              tileActions={tileActions}
+                              favouritesActions={favouritesActions}
+                              initialFavourites={initialFavourites}
+                              disabled={saveTabWithTilesMutation.isPending}
+                              setOverlayState={setOverlayState}
+                              setIsSwitchingInterface={setIsSwitchingInterface}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Content area with deadspace for floating menus */}
+                        <div
+                          className="transition-all duration-200 ease-linear"
+                          style={{
+                            paddingTop: 0,
+                            paddingLeft: '1rem',
+                            paddingRight: '1rem',
+                            height: '100%',
+                          }}
+                        >
+                          {tabNames.length === 0 ? (
+                            projectQueryParam && interfaceQueryParam && !tabUIState?.pending ? (
+                              // Show empty state when interface has no tabs
+                              <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+                                <div className="bg-muted/50 flex h-16 w-16 items-center justify-center rounded-full">
+                                  <svg
+                                    className="h-8 w-8 text-muted-foreground"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={1.5}
+                                      d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+                                    />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <h3 className="mb-1 text-lg font-medium">No Tabs Yet</h3>
+                                  <p className="max-w-md text-sm text-muted-foreground">
+                                    Create a tab to start building your interface. Tabs help you
+                                    organize your data views and dashboards.
+                                  </p>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Use the <span className="font-medium">+</span> button in the
+                                  sidebar to create your first tab
+                                </p>
+                              </div>
+                            ) : projectQueryParam &&
+                              (!interfaceQueryParam ||
+                                tabUIState?.pending) ? null : !projectQueryParam &&
+                              !interfaceQueryParam ? (
+                              hasAssistantsProject ? (
+                                <Suspense
+                                  fallback={
+                                    <div className="flex justify-center">
+                                      <Loader2 className="my-36 animate-spin" />
+                                    </div>
+                                  }
+                                >
+                                  <DefaultProject
+                                    projectActions={projectsActions}
+                                    interfaceActions={interfaceActions}
+                                    tabActions={tabActions}
+                                    tileActions={tileActions}
+                                    logsActions={logsActions}
+                                    derivedEntryActions={derivedEntryActions}
+                                    setTabQueryParam={setTabQueryParamFromSync}
+                                    setInterfaceQueryParam={setInterfaceQueryParam}
+                                    setProjectQueryParam={setProjectQueryParam}
+                                  />
+                                </Suspense>
+                              ) : null
+                            ) : null
+                          ) : (
+                            tabNames.map((tabName: string, idx: number) => (
+                              <TabsContent
+                                key={idx}
+                                value={tabName}
+                                className="tutorial-selection-pane relative mb-auto h-full w-full"
+                              >
+                                {/* Check if we're in loading states */}
+                                {tabUIState?.pending ||
+                                createTabMutation.isPending ||
+                                updateTabMutation.isPending ? (
+                                  <div className="flex justify-center">
+                                    <Loader2 className="my-36 animate-spin" />
+                                  </div>
+                                ) : activeTabName !== tabName ? (
+                                  <div className="flex justify-center">
+                                    {/* Show different indicator for pending tab switch */}
+                                    {pendingTabChange === tabName ? (
+                                      <div className="flex flex-col items-center justify-center gap-2">
+                                        <Loader2 className="my-36 animate-spin" />
+                                        <div className="text-body text-muted-foreground">
+                                          Switching tab...
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <Loader2 className="my-36 animate-spin" />
+                                    )}
+                                  </div>
+                                ) : (
+                                  <Suspense
+                                    fallback={
+                                      <div className="flex h-full w-full items-center justify-center">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                      </div>
+                                    }
+                                  >
+                                    <div className="relative h-full w-full">
+                                      {/* Use renderActiveTab instead of direct Tab component render */}
+                                      {renderActiveTab()}
+
+                                      {/* Show streaming indicators */}
+                                      {DEBUG_TAB_PREFETCHING &&
+                                        tabStreamingQuery.prefetchProgress.total > 0 && (
+                                          <div className="text-caption bg-background/80 fixed bottom-16 right-4 rounded border p-2 text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                              {(() => {
+                                                // Get actual tabs from the store using selector
+                                                const inactiveTabsCount =
+                                                  selectTotalInactiveTabsForInterface(
+                                                    state,
+                                                    interfaceId
+                                                  );
+
+                                                // Calculate total prefetchable tabs (excluding active tab)
+                                                const prefetchableTabsCount = inactiveTabsCount;
+
+                                                // Get current prefetch progress with safe fallbacks
+                                                const { completed } =
+                                                  tabStreamingQuery.prefetchProgress;
+                                                const totalPrefetched = Math.min(
+                                                  completed,
+                                                  prefetchableTabsCount
+                                                );
+
+                                                // Only show if there are tabs to prefetch
+                                                const shouldShow = prefetchableTabsCount > 0;
+                                                const isComplete =
+                                                  totalPrefetched === prefetchableTabsCount;
+
+                                                if (!shouldShow) return null;
+
+                                                return (
+                                                  <>
+                                                    <div
+                                                      className={`h-2 w-2 rounded-full bg-green-500 ${isComplete ? '' : 'animate-pulse'}`}
+                                                    ></div>
+                                                    <span>
+                                                      Prefetched: {totalPrefetched}/
+                                                      {prefetchableTabsCount} tabs
+                                                    </span>
+                                                  </>
+                                                );
+                                              })()}
+                                            </div>
+                                          </div>
+                                        )}
+                                    </div>
+                                  </Suspense>
+                                )}
+                              </TabsContent>
+                            ))
+                          )}
+
+                          {/* Bottom spacer to allow dragging tiles downward without touching screen bottom */}
+                          <div className="h-40 w-full" />
+                        </div>
+
+                        {/* Floating Bottom Tab Bar - HIDDEN: Using sidebar navigation for tabs instead */}
+                        {/* {projectQueryParam && interfaceQueryParam && (
               <div 
                 className={cn(
                   "fixed bottom-0 z-40 pointer-events-none transform transition-all duration-500 ease-out",
@@ -1787,121 +2078,140 @@ const Interface = ({
                 </div>
               </div>
             )} */}
-          </Tabs>
-          
-          {/* Save/Reset Overlay */}
-          <SaveResetOverlay
-            isVisible={overlayState.isVisible}
-            operation={overlayState.operation}
-            status={overlayState.status}
-            onComplete={hideOverlay}
-          />
+                      </Tabs>
 
-          
-          
-        </Suspense>
+                      {/* Save/Reset Overlay */}
+                      <SaveResetOverlay
+                        isVisible={overlayState.isVisible}
+                        operation={overlayState.operation}
+                        status={overlayState.status}
+                        onComplete={hideOverlay}
+                      />
+                    </Suspense>
 
-        {/* Bootstrap/global fetch error overlay */}
-        {isProjectTreeError && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-            <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-destructive">⚠️</div>
-                <div className="flex-1">
-                  <div className="font-medium mb-1">Failed to load projects</div>
-                  <div className="text-sm text-muted-foreground mb-3 break-words">
-                    {projectTreeErrorObj instanceof Error ? projectTreeErrorObj.message : 'Please check your connection and try again.'}
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => window.location.reload()}>Reload</Button>
-                    <Button onClick={() => refetchProjectTree()}>Retry</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+                    {/* Bootstrap/global fetch error overlay */}
+                    {isProjectTreeError && (
+                      <div className="bg-background/80 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm">
+                        <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 text-destructive">⚠️</div>
+                            <div className="flex-1">
+                              <div className="mb-1 font-medium">Failed to load projects</div>
+                              <div className="mb-3 break-words text-sm text-muted-foreground">
+                                {projectTreeErrorObj instanceof Error
+                                  ? projectTreeErrorObj.message
+                                  : 'Please check your connection and try again.'}
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => window.location.reload()}>
+                                  Reload
+                                </Button>
+                                <Button onClick={() => refetchProjectTree()}>Retry</Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-        {/* Focus Dialog */}
-        {focusPaneOpen && (
-          <Dialog open={true} onOpenChange={() => {
-            setFocusPaneOpen(false);
-            tabUIActions?.setFocusedTileNames([undefined, undefined]);
-          }}>
-            <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
-              <DialogTitle className="sr-only">Focus Mode</DialogTitle>
-              <DialogDescription className="sr-only">View and interact with multiple tiles in focus mode</DialogDescription>
-              <Suspense fallback={<div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
-                <FocusDialog
-                  tabIdOrName={activeTabId || ""}
-                  interfaceId={interfaceId}
-                  projectId={projectQueryParam || ""}
-                  tileActions={tileActions}
-                  tabActions={tabActions}
-                  logsActions={logsActions}
-                  fieldsActions={fieldsActions}
-                  derivedEntryActions={derivedEntryActions}
-                  contextActions={contextActions}
-                  projectsActions={projectsActions}
-                  />
-              </Suspense>
-            </DialogContent>
-          </Dialog>
-        )}
+                    {/* Focus Dialog */}
+                    {focusPaneOpen && (
+                      <Dialog
+                        open={true}
+                        onOpenChange={() => {
+                          setFocusPaneOpen(false);
+                          tabUIActions?.setFocusedTileNames([undefined, undefined]);
+                        }}
+                      >
+                        <DialogContent className="!flex !h-[98vh] !w-[98vw] !max-w-[98vw] !flex-col !overflow-hidden !p-0">
+                          <DialogTitle className="sr-only">Focus Mode</DialogTitle>
+                          <DialogDescription className="sr-only">
+                            View and interact with multiple tiles in focus mode
+                          </DialogDescription>
+                          <Suspense
+                            fallback={
+                              <div className="flex items-center justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                              </div>
+                            }
+                          >
+                            <FocusDialog
+                              tabIdOrName={activeTabId || ''}
+                              interfaceId={interfaceId}
+                              projectId={projectQueryParam || ''}
+                              tileActions={tileActions}
+                              tabActions={tabActions}
+                              logsActions={logsActions}
+                              fieldsActions={fieldsActions}
+                              derivedEntryActions={derivedEntryActions}
+                              contextActions={contextActions}
+                              projectsActions={projectsActions}
+                            />
+                          </Suspense>
+                        </DialogContent>
+                      </Dialog>
+                    )}
 
-        {/* Edit Tile Name Dialog */}
-        {isEditMode && tabUIState?.editTile && (
-          <Suspense fallback={<div className="w-full h-16 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
-            <EditTileName
-              tabIdOrName={activeTabId || ""}
-              interfaceId={interfaceId}
-              tabActions={tabActions}
-              tileActions={tileActions}
-              />
-          </Suspense>
-        )}
+                    {/* Edit Tile Name Dialog */}
+                    {isEditMode && tabUIState?.editTile && (
+                      <Suspense
+                        fallback={
+                          <div className="flex h-16 w-full items-center justify-center">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        }
+                      >
+                        <EditTileName
+                          tabIdOrName={activeTabId || ''}
+                          interfaceId={interfaceId}
+                          tabActions={tabActions}
+                          tileActions={tileActions}
+                        />
+                      </Suspense>
+                    )}
 
-        {/* Save Dialog */}
-        {saveInterfaceOpen && (
-          <Dialog open={true} onOpenChange={() => setSaveInterfaceOpen(false)}>
-            <DialogContent className="w-1/4">
-              <div className="mt-4 flex flex-col gap-4">
-                <div>
-                  Are you sure you want to save the changes to{" "}
-                  <span className="text-strong">{activeTabName}</span>?
-                </div>
-                <div className="flex flex-col gap-2">
-                  {saveTabWithTilesMutation.isPending && (
-                    <div className="text-body text-center">
-                      <Loader2 className="h-4 w-4 inline-block mr-2 animate-spin" />
-                      Saving changes...
-                    </div>
-                  )}
-                  {saveTabWithTilesMutation.isError && (
-                    <div className="text-body text-destructive text-center">
-                      Error saving changes: {saveTabWithTilesMutation.error?.message || "Unknown error"}
-                      <br />
-                      Please try again.
-                    </div>
-                  )}
-                  <div className="flex justify-end pr-2">
-                    <ActionButton
-                      className="w-fit remove cursor-pointer mr-0 justify-self-end"
-                      onClick={handleSaveDialog}
-                      text="Save"
-                      tooltip="Save changes to tab and all tiles"
-                      variant="primary"
-                      disabled={saveTabWithTilesMutation.isPending}
-                    />
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-        
-        {/* Floating Action Search Button */}
-        {/* 
+                    {/* Save Dialog */}
+                    {saveInterfaceOpen && (
+                      <Dialog open={true} onOpenChange={() => setSaveInterfaceOpen(false)}>
+                        <DialogContent className="w-1/4">
+                          <div className="mt-4 flex flex-col gap-4">
+                            <div>
+                              Are you sure you want to save the changes to{' '}
+                              <span className="text-strong">{activeTabName}</span>?
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {saveTabWithTilesMutation.isPending && (
+                                <div className="text-body text-center">
+                                  <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" />
+                                  Saving changes...
+                                </div>
+                              )}
+                              {saveTabWithTilesMutation.isError && (
+                                <div className="text-body text-center text-destructive">
+                                  Error saving changes:{' '}
+                                  {saveTabWithTilesMutation.error?.message || 'Unknown error'}
+                                  <br />
+                                  Please try again.
+                                </div>
+                              )}
+                              <div className="flex justify-end pr-2">
+                                <ActionButton
+                                  className="remove mr-0 w-fit cursor-pointer justify-self-end"
+                                  onClick={handleSaveDialog}
+                                  text="Save"
+                                  tooltip="Save changes to tab and all tiles"
+                                  variant="primary"
+                                  disabled={saveTabWithTilesMutation.isPending}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+
+                    {/* Floating Action Search Button */}
+                    {/* 
         <div className="fixed bottom-5 right-5 z-50">
             <AutoComplete
                 type={"Actions"}
@@ -1920,14 +2230,14 @@ const Interface = ({
                       />
                       </div> 
                       */}
-         </div>
-            </ScrollArea>
-          </div>
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  </InterfaceNavContext.Provider>
-  </PageScrollContext.Provider>
+      </InterfaceNavContext.Provider>
+    </PageScrollContext.Provider>
   );
 };
 

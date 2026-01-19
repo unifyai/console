@@ -1,20 +1,26 @@
-"use client";
+'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
-import { LogComparisonProps } from "./types";
-import RowBadge from "./RowBadge";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/UI/dialog";
-import { AlertCircle, ExternalLink, FileText, Loader2 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/UI/tabs";
-import ActionButton from "@/components/Common/Buttons/Action";
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { LogComparisonProps } from './types';
+import RowBadge from './RowBadge';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/UI/dialog';
+import { AlertCircle, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/UI/tabs';
+import ActionButton from '@/components/Common/Buttons/Action';
 
 /**
  * Determine if the string represents a valid PDF URL or path
  */
 function isNonEmptyPdf(value: string) {
-  return typeof value === "string" && value.trim() !== "";
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 /**
@@ -53,7 +59,7 @@ function groupVersionsForRows(
       map.get(baseVer)!.push(r);
     } else {
       const idx = compLogIndexes.indexOf(r);
-      const ver = idx >= 0 ? compVers[idx] : "";
+      const ver = idx >= 0 ? compVers[idx] : '';
       if (!map.has(ver)) map.set(ver, []);
       map.get(ver)!.push(r);
     }
@@ -71,19 +77,19 @@ function PdfFrame({ url }: { url: string }) {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  
+
   useEffect(() => {
     // Reset error and loading state when URL changes
     setHasError(false);
     setIsLoading(true);
-    
+
     // Setup error detection through window event listener
     const handleIframeError = () => {
       setHasError(true);
     };
-    
+
     window.addEventListener('error', handleIframeError, true);
-    
+
     return () => {
       window.removeEventListener('error', handleIframeError, true);
     };
@@ -91,15 +97,17 @@ function PdfFrame({ url }: { url: string }) {
 
   if (hasError) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <AlertCircle className="w-10 h-10 text-yellow-500 mb-4" />
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="mb-4 h-10 w-10 text-yellow-500" />
         <h3 className="text-title mb-2">Content Security Policy Restriction</h3>
-        <p className="mb-4">This PDF cannot be embedded due to security restrictions set by the website.</p>
-        <a 
-          href={url} 
-          target="_blank" 
+        <p className="mb-4">
+          This PDF cannot be embedded due to security restrictions set by the website.
+        </p>
+        <a
+          href={url}
+          target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          className="hover:bg-primary/90 flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
         >
           Open PDF in New Tab <ExternalLink className="h-4 w-4" />
         </a>
@@ -108,9 +116,9 @@ function PdfFrame({ url }: { url: string }) {
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative h-full w-full">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+        <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-body text-muted-foreground">Loading PDF...</p>
@@ -120,7 +128,7 @@ function PdfFrame({ url }: { url: string }) {
       <iframe
         ref={iframeRef}
         src={url}
-        className="w-full h-full border-none"
+        className="h-full w-full border-none"
         title="PDF Preview"
         onLoad={() => setIsLoading(false)}
         onError={() => {
@@ -141,7 +149,7 @@ interface PdfTab {
 /**
  * Custom button for opening links in new tabs
  */
-function OpenInNewTabButton({ url, className }: { url: string, className?: string }) {
+function OpenInNewTabButton({ url, className }: { url: string; className?: string }) {
   return (
     <ActionButton
       variant="ghost"
@@ -165,22 +173,22 @@ export default function PdfView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
+  version = '',
   comparableVersions = [],
 }: LogComparisonProps) {
   const singleMode = !comparables || comparables.length === 0;
-  const baseUrl = String(value ?? "");
-  const compUrls = (comparables ?? []).map((c) => String(c ?? ""));
-  const baseVersion = version || "";
+  const baseUrl = String(value ?? '');
+  const compUrls = (comparables ?? []).map((c) => String(c ?? ''));
+  const baseVersion = version || '';
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVersion && compVers.every((v) => !v);
 
   // State for PDF dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [activePdf, setActivePdf] = useState<string>("");
-  
+  const [activePdf, setActivePdf] = useState<string>('');
+
   // New state for multi-tab PDF viewer
   const [pdfTabs, setPdfTabs] = useState<PdfTab[]>([]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -205,11 +213,11 @@ export default function PdfView({
   // Handler for opening the multi-tab PDF viewer - moved outside conditional
   const handleView = useCallback(() => {
     // Setup tab info
-    const tab = { url: baseUrl, label: fileName || "PDF" };
+    const tab = { url: baseUrl, label: fileName || 'PDF' };
     setPdfTabs([tab]);
     setActivePdf(baseUrl);
     setActiveTabIndex(0);
-    
+
     // Open dialog
     setDialogOpen(true);
   }, [baseUrl, fileName]);
@@ -225,7 +233,7 @@ export default function PdfView({
   // Function to open multiple PDFs in tabs
   const openMultiplePdfs = useCallback((pdfs: PdfTab[]) => {
     if (pdfs.length === 0) return;
-    
+
     setPdfTabs(pdfs);
     setActivePdf(pdfs[0].url);
     setActiveTabIndex(0);
@@ -237,7 +245,7 @@ export default function PdfView({
     <div className="text-body break-all">
       <a
         onClick={() => openPdf(url, label)}
-        className="text-primary hover:underline cursor-pointer"
+        className="cursor-pointer text-primary hover:underline"
       >
         {url}
       </a>
@@ -245,13 +253,13 @@ export default function PdfView({
   );
 
   // New component: Button to view multiple PDFs
-  const ViewMultiplePdfsButton = ({ pdfs }: { pdfs: { url: string, label: string }[] }) => {
+  const ViewMultiplePdfsButton = ({ pdfs }: { pdfs: { url: string; label: string }[] }) => {
     if (pdfs.length === 0) return null;
-    
+
     return (
       <button
         onClick={() => openMultiplePdfs(pdfs)}
-        className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors text-body group"
+        className="bg-primary/10 hover:bg-primary/20 text-body group mt-4 flex items-center gap-2 rounded-md px-3 py-1.5 text-primary transition-colors"
       >
         <FileText className="h-4 w-4" />
         <span className="group-hover:underline">View all Selected PDFs</span>
@@ -262,12 +270,12 @@ export default function PdfView({
   // SINGLE MODE: Just the base PDF
   if (singleMode) {
     const hasPdf = isNonEmptyPdf(baseUrl);
-    
+
     if (!hasPdf) {
       return (
         <div className="p-3">
-          <div className="border rounded p-2">
-            <p className="italic text-body text-muted-foreground">No PDF</p>
+          <div className="rounded border p-2">
+            <p className="text-body italic text-muted-foreground">No PDF</p>
           </div>
         </div>
       );
@@ -276,27 +284,23 @@ export default function PdfView({
     // For single mode, just set up a direct View button
     return (
       <div className="p-3">
-        <div className="border rounded p-2 relative group">
-          <div className="pr-16 flex-grow">
+        <div className="group relative rounded border p-2">
+          <div className="flex-grow pr-16">
             <PdfUrlDisplay url={baseUrl} />
           </div>
-          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <OpenInNewTabButton url={baseUrl} />
-            <CopyButton 
-              content={baseUrl} 
-              copyMessage="Copied URL!" 
-              tooltipContent="Copy URL"
-            />
+            <CopyButton content={baseUrl} copyMessage="Copied URL!" tooltipContent="Copy URL" />
           </div>
         </div>
 
         {/* PDF Dialog with tabs */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent 
-            className="max-w-full w-full p-0 h-[90vh] flex flex-col"
+          <DialogContent
+            className="flex h-[90vh] w-full max-w-full flex-col p-0"
             aria-describedby="pdf-dialog-description"
           >
-            <DialogHeader className="p-4 border-b shrink-0">
+            <DialogHeader className="shrink-0 border-b p-4">
               <DialogTitle>PDF Preview</DialogTitle>
               <DialogDescription id="pdf-dialog-description" className="sr-only">
                 PDF viewer with interactive tabs for viewing multiple documents
@@ -321,38 +325,42 @@ export default function PdfView({
   const filtered = grouped.filter((g) => isNonEmptyPdf(g.pdfUrl));
 
   // Create a list of all unique PDFs for multi-view
-  const allPdfs = filtered.map(group => ({
+  const allPdfs = filtered.map((group) => ({
     url: group.pdfUrl,
-    label: `PDF (${group.rows.length === 1 ? 'Row' : 'Rows'} ${group.rows.map(r => r + 1).join(', ')})`
+    label: `PDF (${group.rows.length === 1 ? 'Row' : 'Rows'} ${group.rows.map((r) => r + 1).join(', ')})`,
   }));
 
   return (
     <div className="space-y-4">
       {/* Move the "View All PDFs" button to the top */}
-      {filtered.length > 1 && (
-        <ViewMultiplePdfsButton pdfs={allPdfs} />
-      )}
+      {filtered.length > 1 && <ViewMultiplePdfsButton pdfs={allPdfs} />}
 
       {filtered.map((group, idx) => {
         const { pdfUrl, rows } = group;
         // Group by version
-        const verGroups = groupVersionsForRows(rows, baseLogIndex, baseVersion, comparisonLogsIndex, compVers);
+        const verGroups = groupVersionsForRows(
+          rows,
+          baseLogIndex,
+          baseVersion,
+          comparisonLogsIndex,
+          compVers
+        );
 
         return (
-          <div key={idx} className="p-3 space-y-4">
+          <div key={idx} className="space-y-4 p-3">
             {!versionEmpty && (
               <>
                 <p className="text-title">Version</p>
                 <div className="space-y-2">
                   {verGroups.map((vg, j) => (
-                    <div key={j} className="border rounded p-2 relative group">
+                    <div key={j} className="group relative rounded border p-2">
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       {vg.versionText ? (
                         <div className="pt-4">
                           <MarkdownRenderer>{vg.versionText}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-body text-muted-foreground pt-2">No version</p>
+                        <p className="text-body pt-2 italic text-muted-foreground">No version</p>
                       )}
                     </div>
                   ))}
@@ -363,16 +371,16 @@ export default function PdfView({
             {/* The PDF link */}
             <div className="space-y-2">
               {!versionEmpty && <p className="text-title">PDF</p>}
-              <div className="border rounded p-2 relative group">
+              <div className="group relative rounded border p-2">
                 <RowBadge rowNumbers={rows} mode="none" />
-                <div className="pr-16 mt-3">
+                <div className="mt-3 pr-16">
                   <PdfUrlDisplay url={pdfUrl} />
                 </div>
-                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <OpenInNewTabButton url={pdfUrl} />
-                  <CopyButton 
-                    content={pdfUrl} 
-                    copyMessage="Copied URL!" 
+                  <CopyButton
+                    content={pdfUrl}
+                    copyMessage="Copied URL!"
                     tooltipContent="Copy URL"
                   />
                 </div>
@@ -384,32 +392,28 @@ export default function PdfView({
 
       {/* PDF Dialog with tabs */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent 
-          className="max-w-full w-full p-0 h-[90vh] flex flex-col"
+        <DialogContent
+          className="flex h-[90vh] w-full max-w-full flex-col p-0"
           aria-describedby="pdf-dialog-description"
         >
-          <DialogHeader className="p-4 border-b shrink-0">
+          <DialogHeader className="shrink-0 border-b p-4">
             <DialogTitle>PDF Preview</DialogTitle>
             <DialogDescription id="pdf-dialog-description" className="sr-only">
               PDF viewer with interactive tabs for viewing multiple documents
             </DialogDescription>
             {pdfTabs.length > 1 && (
-              <Tabs 
-                defaultValue={pdfTabs[0].url} 
-                value={activePdf} 
+              <Tabs
+                defaultValue={pdfTabs[0].url}
+                value={activePdf}
                 onValueChange={(value) => {
                   setActivePdf(value);
-                  setActiveTabIndex(pdfTabs.findIndex(tab => tab.url === value));
+                  setActiveTabIndex(pdfTabs.findIndex((tab) => tab.url === value));
                 }}
                 className="mt-6"
               >
                 <TabsList className="w-full justify-start overflow-x-auto">
                   {pdfTabs.map((tab, index) => (
-                    <TabsTrigger 
-                      key={index} 
-                      value={tab.url}
-                      className="whitespace-nowrap"
-                    >
+                    <TabsTrigger key={index} value={tab.url} className="whitespace-nowrap">
                       {tab.label}
                     </TabsTrigger>
                   ))}
@@ -424,4 +428,4 @@ export default function PdfView({
       </Dialog>
     </div>
   );
-} 
+}

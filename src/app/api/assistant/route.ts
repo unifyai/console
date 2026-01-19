@@ -1,97 +1,75 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Forward query parameters to Orchestra
-    const url = new URL(`${baseUrl}/assistant`);
-    const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
-    if (listAllOrg) {
-        url.searchParams.set('list_all_org', listAllOrg);
-    }
-    
-    return await fetch(
-        url.toString(),
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-            }
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+  const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
+
+  try {
+    const { data, error, response } = await client.GET('/v0/assistant', {
+      params: {
+        query: {
+          list_all_org: listAllOrg === 'true' ? true : undefined,
         },
-    );
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API
+    const responseData = data && typeof data === 'object' && 'info' in data ? data.info : data;
+    return NextResponse.json(responseData, { status: response.status });
+  } catch (e: unknown) {
+    console.error('[API /api/assistant GET] Error:', e instanceof Error ? e.message : e);
+    return NextResponse.json({ detail: 'Failed to connect to backend API' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+  const requestBody = await request.json();
+
+  try {
+    const { data, error, response } = await client.POST('/v0/assistant', {
+      body: requestBody,
+    });
+
+    if (error) {
+      console.error(
+        `[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Orchestra API Error (${response.status}):`,
+        error
+      );
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    const requestBody = await request.json();
 
-    try {
-        const orchestraResponse = await fetch(
-            `${baseUrl}/assistant`,
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "accept": "application/json"
-                },
-                body: JSON.stringify(requestBody)
-            }
-        );
-
-        
-        const responseText = await orchestraResponse.text();
-        let responseData;
-        if (orchestraResponse.ok && responseText) {
-             // Only try to parse if OK and has content
-            try {
-                responseData = JSON.parse(responseText);
-            } catch (e: any) {
-                console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Failed to parse JSON from Orchestra. Status: ${orchestraResponse.status}. Error: ${e.message}. Raw text: ${responseText}`);
-                // Return an error response immediately if parsing fails on an OK response
-                return NextResponse.json({ error: "Invalid JSON response from backend API", status: orchestraResponse.status, raw: responseText }, { status: 502 }); // Bad Gateway
-            }
-        } else if (!orchestraResponse.ok) {
-             try {
-                // Attempt to parse error detail
-                responseData = JSON.parse(responseText);
-             } catch (e) {
-                // Use raw text if error response isn't JSON
-                responseData = { detail: responseText || "Unknown error from backend API" };
-             }
-             console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Orchestra API Error (${orchestraResponse.status}):`, responseData);
-             return NextResponse.json(responseData, { status: orchestraResponse.status });
-        } else { 
-            // OK response but empty text
-            responseData = { info: "Operation successful, no content from backend." };
-        }
-        
-        console.log(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Successfully proxied. Returning to client action.`);
-        // The original code returned `orchestraResponse` directly, which is a stream.
-        // It should return NextResponse.json(responseData)
-        return NextResponse.json(responseData, { status: orchestraResponse.status });
-
-
-    } catch (error: any) { 
-        // This catch is for fetch failing to connect to Orchestra
-        console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Error fetching Orchestra API:`, error.message, error.stack);
-        return NextResponse.json({ error: "Failed to connect to backend API", details: error.message }, { status: 500 });
-    }
+    console.log(
+      `[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Successfully proxied. Returning to client action.`
+    );
+    return NextResponse.json(data ?? { info: 'Operation successful' }, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      `[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Error fetching Orchestra API:`,
+      e instanceof Error ? e.message : e
+    );
+    return NextResponse.json(
+      {
+        error: 'Failed to connect to backend API',
+        details: e instanceof Error ? e.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }

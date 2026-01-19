@@ -1,101 +1,116 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL || 'http://localhost:8000'}/v0`;
+export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
-) {
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Check if this is a template operation
-    const isExportTemplate = searchParams.has('export_template');
-    const isImportTemplate = searchParams.has('import_template');
-    
-    let endpoint = "/project";
-    let requestBody;
-    
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  // Check if this is a template operation
+  const isExportTemplate = searchParams.has('export_template');
+  const isImportTemplate = searchParams.has('import_template');
+
+  try {
     if (isExportTemplate) {
-        endpoint = "/project/export_template";
-        requestBody = JSON.stringify(await request.json());
+      const body = await request.json();
+      const { data, error, response } = await client.POST('/v0/project/export_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     } else if (isImportTemplate) {
-        endpoint = "/project/import_template";
-        requestBody = JSON.stringify(await request.json());
+      const body = await request.json();
+      const { data, error, response } = await client.POST('/v0/project/import_template', {
+        body: body,
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     } else {
-        // Regular project creation - preserve original behavior
-        requestBody = JSON.stringify({ name: params.projectName });
+      // Regular project creation with name from path
+      const { data, error, response } = await client.POST('/v0/project', {
+        body: { name: params.projectName, is_versioned: false },
+      });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data ?? { success: true }, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}${endpoint}`, 
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            body: requestBody
-        },
-    );
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
+  request: NextRequest,
+  { params }: { params: { projectName: string } }
 ) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/project/${params.projectName}`, 
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-            },
-        }
-    );
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
-) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+export async function PATCH(request: NextRequest, { params }: { params: { projectName: string } }) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+  const body = await request.json();
+
+  try {
+    const { data, error, response } = await client.PATCH('/v0/project/{project_name}', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+      body: body,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    const bodyObj = await request.json();
-    return await fetch(
-        `${baseUrl}/project/${params.projectName}`, 
-        {
-            method: "PATCH",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "accept": "application/json",
-            },
-            body: JSON.stringify(bodyObj)
-        }
-    );
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }

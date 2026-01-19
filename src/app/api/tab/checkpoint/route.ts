@@ -1,94 +1,115 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.api_key || request.headers.get("apiKey");
-  
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    return unauthorized();
   }
 
-  const controller = new AbortController();
-  const ttl = setTimeout(() => controller.abort(), 60000);
-  const startedAt = Date.now();
-  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const client = createOrchestraClient(apiKey);
+
+  const tabId = searchParams.get('tabId');
+  const interfaceId = searchParams.get('interfaceId');
+  const name = searchParams.get('name');
 
   try {
-    const res = await fetch(
-      `${baseUrl}/tab/checkpoint${url.search}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "accept": "application/json",
-          "x-correlation-id": correlationId,
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.GET('/v0/tab/checkpoint', {
+      params: {
+        query: {
+          tab_id: tabId || undefined,
+          interface_id: interfaceId || undefined,
+          name: name || undefined,
         },
-        cache: "no-store",
-        signal: controller.signal,
       },
-    );
-    clearTimeout(ttl);
-    if (!res.ok && DEBUG_API) {
-      console.warn(JSON.stringify({ route: "/api/tab/checkpoint", method: "GET", upstream: `${baseUrl}/tab/checkpoint${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/tab/checkpoint',
+          method: 'GET',
+          endpoint: '/v0/tab/checkpoint',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
-    return res;
-  } catch (e: any) {
-    clearTimeout(ttl);
-    const msg = e?.message || "Request failed";
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-    console.error(JSON.stringify({ route: "/api/tab/checkpoint", method: "GET", upstream: `${baseUrl}/tab/checkpoint${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-    return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
   }
 }
 
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
   const body = await request.json();
-  
-  // Get API key from session (fallback to header for backwards compatibility)
-  const user = await getCurrentUser();
-  const apiKey = user?.api_key || request.headers.get("apiKey");
-  
+
+  const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
-    return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    return unauthorized();
   }
 
-  const controller = new AbortController();
-  const ttl = setTimeout(() => controller.abort(), 60000);
-  const startedAt = Date.now();
-  const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+  const client = createOrchestraClient(apiKey);
+
+  const tabId = searchParams.get('tabId');
+  const interfaceId = searchParams.get('interfaceId');
+  const name = searchParams.get('name');
 
   try {
-    const res = await fetch(
-      `${baseUrl}/tab/checkpoint${url.search}`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "x-correlation-id": correlationId,
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.POST('/v0/tab/checkpoint', {
+      params: {
+        query: {
+          tab_id: tabId || undefined,
+          interface_id: interfaceId || undefined,
+          name: name || undefined,
         },
-        body: JSON.stringify(body),
-        signal: controller.signal,
       },
-    );
-    clearTimeout(ttl);
-    if (!res.ok && DEBUG_API) {
-      console.warn(JSON.stringify({ route: "/api/tab/checkpoint", method: "POST", upstream: `${baseUrl}/tab/checkpoint${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/tab/checkpoint',
+          method: 'POST',
+          endpoint: '/v0/tab/checkpoint',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
-    return res;
-  } catch (e: any) {
-    clearTimeout(ttl);
-    const msg = e?.message || "Request failed";
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-    console.error(JSON.stringify({ route: "/api/tab/checkpoint", method: "POST", upstream: `${baseUrl}/tab/checkpoint${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-    return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
   }
 }

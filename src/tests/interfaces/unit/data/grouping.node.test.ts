@@ -23,22 +23,23 @@ const makeUngroupedLog = (id: string, message: string): LogProps => ({
   type: 'ungrouped',
   id,
   ts: '2025-01-01T00:00:00Z',
-  params: {},
+
   entries: { message },
-  derived_entries: {},
-  clipped_fields: {},
+  derivedEntries: {},
+  clippedFields: {},
 });
 
-const makeGroupedLog = (id: string, col: string, val: string, count = 1): GroupedLogProps => ({
-  type: 'grouped',
-  id,
-  groupingColumnId: col,
-  [col]: val,
-  subRows: [],
-  isPopulated: false,
-  groupCount: count,
-  totalChildren: count,
-} as any);
+const makeGroupedLog = (id: string, col: string, val: string, count = 1): GroupedLogProps =>
+  ({
+    type: 'grouped',
+    id,
+    groupingColumnId: col,
+    [col]: val,
+    subRows: [],
+    isPopulated: false,
+    groupCount: count,
+    totalChildren: count,
+  }) as any;
 
 describe('table grouping utilities', () => {
   describe('maybeConvertRawToGroupedLogs', () => {
@@ -50,7 +51,7 @@ describe('table grouping utilities', () => {
             { key: 'info', value: 10 },
             { key: 'error', value: 5 },
           ],
-          group_count: 2,
+          groupCount: 2,
           count: 15,
         },
         count: 15,
@@ -71,7 +72,7 @@ describe('table grouping utilities', () => {
       const raw: GroupedLogPropsRaw = {
         'Entries/level': {
           group: [{ key: 'info', value: 1 }],
-          group_count: 1,
+          groupCount: 1,
           count: 1,
         },
         count: 1,
@@ -90,7 +91,6 @@ describe('table grouping utilities', () => {
 
       const newLogs: LogProps[] = [makeUngroupedLog('log-1', 'First')];
       const response: LogsResponseProps = {
-        params: {},
         logs: newLogs,
         count: 1,
         groups: {},
@@ -112,7 +112,7 @@ describe('table grouping utilities', () => {
     it('appendLogsWithWindowing appends unique logs', () => {
       const existing = [log1];
       const incoming = [log1, log2]; // log1 is duplicate
-      
+
       const result = appendLogsWithWindowing(existing, incoming);
       expect(result.logs).toHaveLength(2);
       expect(result.logs[0].id).toBe('1');
@@ -121,46 +121,46 @@ describe('table grouping utilities', () => {
     });
 
     it('appendLogsWithWindowing applies window slicing (maxPagesInMemory)', () => {
-        // maxPages=1, pageSize=2 -> max items = 2
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
-        const existing = [log1, log2];
-        const incoming = [log3, log4];
-        
-        const result = appendLogsWithWindowing(existing, incoming, windowConfig, 0, 100);
-        // Should append then slice from start to keep last 2
-        // [1, 2, 3, 4] -> keep [3, 4]
-        expect(result.logs).toHaveLength(2);
-        expect(result.logs[0].id).toBe('3');
-        expect(result.logs[1].id).toBe('4');
-        // Offset should increase by number of dropped items (2)
-        expect(result.offset).toBe(2);
+      // maxPages=1, pageSize=2 -> max items = 2
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
+      const existing = [log1, log2];
+      const incoming = [log3, log4];
+
+      const result = appendLogsWithWindowing(existing, incoming, windowConfig, 0, 100);
+      // Should append then slice from start to keep last 2
+      // [1, 2, 3, 4] -> keep [3, 4]
+      expect(result.logs).toHaveLength(2);
+      expect(result.logs[0].id).toBe('3');
+      expect(result.logs[1].id).toBe('4');
+      // Offset should increase by number of dropped items (2)
+      expect(result.offset).toBe(2);
     });
 
     it('prependLogsWithWindowing prepends unique logs', () => {
-        const existing = [log2];
-        const incoming = [log1, log2]; // log2 is duplicate
-        
-        const result = prependLogsWithWindowing(existing, incoming);
-        expect(result.logs).toHaveLength(2);
-        expect(result.logs[0].id).toBe('1');
-        expect(result.logs[1].id).toBe('2');
-        expect(result.actualPrependedCount).toBe(1);
+      const existing = [log2];
+      const incoming = [log1, log2]; // log2 is duplicate
+
+      const result = prependLogsWithWindowing(existing, incoming);
+      expect(result.logs).toHaveLength(2);
+      expect(result.logs[0].id).toBe('1');
+      expect(result.logs[1].id).toBe('2');
+      expect(result.actualPrependedCount).toBe(1);
     });
 
     it('prependLogsWithWindowing applies window slicing', () => {
-        // maxPages=1, pageSize=2 -> max items = 2
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
-        const existing = [log3, log4];
-        const incoming = [log1, log2];
-        
-        // [1, 2, 3, 4] -> keep [1, 2] (slice(0, 2))
-        const result = prependLogsWithWindowing(existing, incoming, windowConfig, 10, 100);
-        expect(result.logs).toHaveLength(2);
-        expect(result.logs[0].id).toBe('1');
-        expect(result.logs[1].id).toBe('2');
-        // Offset calculation: currentOffset (10) - actualPrepended (2) = 8
-        // Since we kept the start, the offset relative to dataset start is updated simply
-        expect(result.offset).toBe(8);
+      // maxPages=1, pageSize=2 -> max items = 2
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
+      const existing = [log3, log4];
+      const incoming = [log1, log2];
+
+      // [1, 2, 3, 4] -> keep [1, 2] (slice(0, 2))
+      const result = prependLogsWithWindowing(existing, incoming, windowConfig, 10, 100);
+      expect(result.logs).toHaveLength(2);
+      expect(result.logs[0].id).toBe('1');
+      expect(result.logs[1].id).toBe('2');
+      // Offset calculation: currentOffset (10) - actualPrepended (2) = 8
+      // Since we kept the start, the offset relative to dataset start is updated simply
+      expect(result.offset).toBe(8);
     });
   });
 
@@ -170,29 +170,29 @@ describe('table grouping utilities', () => {
     const g3 = makeGroupedLog('g:3', 'g', '3');
 
     it('appendGroupedLogsWithWindowing appends and windows', () => {
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2 groups
-        const existing = [g1];
-        const incoming = [g2, g3];
-        
-        const result = appendGroupedLogsWithWindowing(existing, incoming, windowConfig, 0);
-        // [g1, g2, g3] -> keep [g2, g3]
-        expect(result.logs).toHaveLength(2);
-        expect(result.logs[0].id).toBe('g:2');
-        expect(result.logs[1].id).toBe('g:3');
-        expect(result.offset).toBe(1); // Dropped 1
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2 groups
+      const existing = [g1];
+      const incoming = [g2, g3];
+
+      const result = appendGroupedLogsWithWindowing(existing, incoming, windowConfig, 0);
+      // [g1, g2, g3] -> keep [g2, g3]
+      expect(result.logs).toHaveLength(2);
+      expect(result.logs[0].id).toBe('g:2');
+      expect(result.logs[1].id).toBe('g:3');
+      expect(result.offset).toBe(1); // Dropped 1
     });
 
     it('prependGroupedLogsWithWindowing prepends and windows', () => {
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2
-        const existing = [g3];
-        const incoming = [g1, g2];
-        
-        const result = prependGroupedLogsWithWindowing(existing, incoming, windowConfig, 10);
-        // [g1, g2, g3] -> keep [g1, g2]
-        expect(result.logs).toHaveLength(2);
-        expect(result.logs[0].id).toBe('g:1');
-        expect(result.logs[1].id).toBe('g:2');
-        expect(result.offset).toBe(8); // 10 - 2 prepended
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2
+      const existing = [g3];
+      const incoming = [g1, g2];
+
+      const result = prependGroupedLogsWithWindowing(existing, incoming, windowConfig, 10);
+      // [g1, g2, g3] -> keep [g1, g2]
+      expect(result.logs).toHaveLength(2);
+      expect(result.logs[0].id).toBe('g:1');
+      expect(result.logs[1].id).toBe('g:2');
+      expect(result.offset).toBe(8); // 10 - 2 prepended
     });
   });
 
@@ -206,72 +206,78 @@ describe('table grouping utilities', () => {
     parentGroup.isPopulated = true;
 
     it('appendGroupSubRowsWithWindowing updates target group subrows', () => {
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2
-        const existing = [parentGroup];
-        const incoming = [log2, log3];
-        
-        // Target group 'g', value 'a'
-        const result = appendGroupSubRowsWithWindowing(
-            existing, 
-            incoming, 
-            [['g', 'a']], 
-            windowConfig,
-            0 // current group offset
-        );
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 }; // limit 2
+      const existing = [parentGroup];
+      const incoming = [log2, log3];
 
-        const group = result.logs[0] as GroupedLogProps;
-        // [1, 2, 3] -> keep [2, 3]
-        expect(group.subRows).toHaveLength(2);
-        expect((group.subRows as LogProps[])[0].id).toBe('2');
-        expect(result.groupOffset).toBe(1); // Dropped 1
+      // Target group 'g', value 'a'
+      const result = appendGroupSubRowsWithWindowing(
+        existing,
+        incoming,
+        [['g', 'a']],
+        windowConfig,
+        0 // current group offset
+      );
+
+      const group = result.logs[0] as GroupedLogProps;
+      // [1, 2, 3] -> keep [2, 3]
+      expect(group.subRows).toHaveLength(2);
+      expect((group.subRows as LogProps[])[0].id).toBe('2');
+      expect(result.groupOffset).toBe(1); // Dropped 1
     });
 
     it('prependGroupSubRowsWithWindowing updates target group subrows', () => {
-        // Reset subRows
-        parentGroup.subRows = [log3]; 
-        const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
-        const existing = [parentGroup];
-        const incoming = [log1, log2];
+      // Reset subRows
+      parentGroup.subRows = [log3];
+      const windowConfig = { maxPagesInMemory: 1, pageSize: 2, currentPageCount: 2 };
+      const existing = [parentGroup];
+      const incoming = [log1, log2];
 
-        const result = prependGroupSubRowsWithWindowing(
-            existing,
-            incoming,
-            [['g', 'a']],
-            windowConfig,
-            10
-        );
+      const result = prependGroupSubRowsWithWindowing(
+        existing,
+        incoming,
+        [['g', 'a']],
+        windowConfig,
+        10
+      );
 
-        const group = result.logs[0] as GroupedLogProps;
-        // [1, 2, 3] -> keep [1, 2]
-        expect(group.subRows).toHaveLength(2);
-        expect((group.subRows as LogProps[])[0].id).toBe('1');
-        expect(result.groupOffset).toBe(8);
+      const group = result.logs[0] as GroupedLogProps;
+      // [1, 2, 3] -> keep [1, 2]
+      expect(group.subRows).toHaveLength(2);
+      expect((group.subRows as LogProps[])[0].id).toBe('1');
+      expect(result.groupOffset).toBe(8);
     });
   });
 
   describe('findGroupSubRows', () => {
     it('finds subrows for a nested group', () => {
-        const l1 = makeUngroupedLog('1', 'm1');
-        const l2 = makeUngroupedLog('2', 'm2');
-        
-        const childGroup = makeGroupedLog('g:a>sub:b', 'sub', 'b', 2);
-        childGroup.subRows = [l1, l2];
-        childGroup.isPopulated = true;
+      const l1 = makeUngroupedLog('1', 'm1');
+      const l2 = makeUngroupedLog('2', 'm2');
 
-        const parentGroup = makeGroupedLog('g:a', 'g', 'a', 1);
-        parentGroup.subRows = [childGroup];
-        parentGroup.isPopulated = true;
+      const childGroup = makeGroupedLog('g:a>sub:b', 'sub', 'b', 2);
+      childGroup.subRows = [l1, l2];
+      childGroup.isPopulated = true;
 
-        const result = findGroupSubRows([parentGroup], [['g', 'a'], ['sub', 'b']]);
-        expect(result).not.toBeNull();
-        expect(result?.subRows).toHaveLength(2);
-        expect(result?.totalCount).toBe(2);
+      const parentGroup = makeGroupedLog('g:a', 'g', 'a', 1);
+      parentGroup.subRows = [childGroup];
+      parentGroup.isPopulated = true;
+
+      const result = findGroupSubRows(
+        [parentGroup],
+        [
+          ['g', 'a'],
+          ['sub', 'b'],
+        ]
+      );
+      expect(result).not.toBeNull();
+      expect(result?.subRows).toHaveLength(2);
+      expect(result?.totalCount).toBe(2);
     });
 
     it('returns null if group not found', () => {
-        const parentGroup = makeGroupedLog('g:a', 'g', 'a');
-        const result = findGroupSubRows([parentGroup], [['g', 'z']]);
-        expect(result).toBeNull();
+      const parentGroup = makeGroupedLog('g:a', 'g', 'a');
+      const result = findGroupSubRows([parentGroup], [['g', 'z']]);
+      expect(result).toBeNull();
     });
   });
 });

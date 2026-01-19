@@ -26,25 +26,25 @@ import { determineRenderMode } from '@/utils/interfaces/plots/plot-scatter/orche
 
 const mockFields: LogFieldsResponseProps = {
   'table1.x': {
-    data_type: 'float',
-    field_type: 'entry',
+    dataType: 'float',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
   'table1.y': {
-    data_type: 'float',
-    field_type: 'entry',
+    dataType: 'float',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
   'table1.group': {
-    data_type: 'str',
-    field_type: 'entry',
+    dataType: 'str',
+    fieldType: 'entry',
     artifacts: '',
     mutable: 'false',
-    created_at: '',
+    createdAt: '',
   },
 };
 
@@ -97,7 +97,7 @@ describe('Render Mode Determination', () => {
   });
 
   it('respects custom thresholds', () => {
-    updateConfig({ SVG_MAX: 100, WEBGL_MAX: 1000 });
+    updateConfig({ svgMax: 100, webglMax: 1000 });
 
     expect(determineRenderMode(50)).toBe('svg');
     expect(determineRenderMode(100)).toBe('svg');

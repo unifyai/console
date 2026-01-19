@@ -1,18 +1,22 @@
-import { Adapter, AdapterUser, AdapterAccount, VerificationToken } from "next-auth/adapters";
-import {OrchestraAdminClient} from "./orchestra-client";
+import { Adapter, AdapterUser, AdapterAccount, VerificationToken } from 'next-auth/adapters';
+import { OrchestraAdminClient } from './orchestra-client';
 
 export function OrchestraAdapter(): Adapter {
   return {
-    async createUser(user: Omit<AdapterUser, "id">): Promise<AdapterUser> {
-      const response = await OrchestraAdminClient.post<AdapterUser>("/auth-user", user);
+    async createUser(user: Omit<AdapterUser, 'id'>): Promise<AdapterUser> {
+      const response = await OrchestraAdminClient.post<AdapterUser>('/auth-user', user);
       return response.data;
     },
     async getUser(id: string): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>(`/auth-user`, { params: { user_id: id } });
+      const response = await OrchestraAdminClient.get<AdapterUser>(`/auth-user`, {
+        params: { userId: id },
+      });
       return response.data;
     },
     async getUserByEmail(email: string): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>("/auth-user/by-email", { params: { email: email } });
+      const response = await OrchestraAdminClient.get<AdapterUser>('/auth-user/by-email', {
+        params: { email: email },
+      });
       return response.data;
     },
     async getUserByAccount({
@@ -22,8 +26,8 @@ export function OrchestraAdapter(): Adapter {
       providerAccountId: string;
       provider: string;
     }): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>("/auth-user/by-account", {
-        params: { provider_account_id: providerAccountId, provider: provider },
+      const response = await OrchestraAdminClient.get<AdapterUser>('/auth-user/by-account', {
+        params: { providerAccountId: providerAccountId, provider: provider },
       });
       return response.data;
     },
@@ -32,15 +36,15 @@ export function OrchestraAdapter(): Adapter {
       return response.data;
     },
     async deleteUser(userId: string): Promise<void> {
-      await OrchestraAdminClient.delete("/auth-user", { params: { user_id: userId } });
+      await OrchestraAdminClient.delete('/auth-user', { params: { userId: userId } });
     },
     async linkAccount(account: AdapterAccount): Promise<void> {
       // Transform NextAuth's camelCase fields to orchestra's snake_case
       const { providerAccountId, userId, ...rest } = account;
-      await OrchestraAdminClient.post("/account", {
+      await OrchestraAdminClient.post('/account', {
         ...rest,
-        provider_account_id: providerAccountId,
-        user_id: userId,
+        providerAccountId: providerAccountId,
+        userId: userId,
       });
     },
     async unlinkAccount({
@@ -50,8 +54,8 @@ export function OrchestraAdapter(): Adapter {
       providerAccountId: string;
       provider: string;
     }): Promise<void> {
-      await OrchestraAdminClient.delete("/account", {
-        params: { provider_account_id: providerAccountId, provider },
+      await OrchestraAdminClient.delete('/account', {
+        params: { providerAccountId: providerAccountId, provider },
       });
     },
   };

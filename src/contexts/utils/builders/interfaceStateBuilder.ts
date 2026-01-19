@@ -1,5 +1,10 @@
-import { Interface, InterfaceMeta, InterfaceData as InterfaceSliceData, InterfaceUI } from "@/contexts/slices/selectors/interface";
-import { InterfaceData } from "@/types/interfaces/grid";
+import {
+  Interface,
+  InterfaceMeta,
+  InterfaceData as InterfaceSliceData,
+  InterfaceUI,
+} from '@/contexts/slices/selectors/interface';
+import { InterfaceData } from '@/types/interfaces/grid';
 
 /**
  * Build interface state from API-returned interface data
@@ -12,7 +17,7 @@ export function buildInterfaceState(
   tabNames?: string[]
 ): Interface {
   if (!interfaceData || !interfaceData.id) {
-    throw new Error("Invalid interface data provided");
+    throw new Error('Invalid interface data provided');
   }
 
   // Create interface meta
@@ -21,20 +26,20 @@ export function buildInterfaceState(
     name: interfaceData.name,
     // We no longer need to generate timestamps as they come from the API
   };
-  
+
   // Create interface data - initially empty tab collections
   // These will be populated as tabs are added to the store
   const interfaceSliceData: InterfaceSliceData = {
     tabIds: tabIds || [],
     tabNames: tabNames || [],
   };
-  
+
   // Create interface UI
   const interfaceUI: InterfaceUI = {
-    projectId: interfaceData.project_id || null,
-    activeTabId: activeTabId || interfaceData.active_tab_id || null,
+    projectId: interfaceData.projectId || null,
+    activeTabId: activeTabId || interfaceData.activeTabId || null,
   };
-  
+
   return {
     ...interfaceMeta,
     ...interfaceSliceData,
@@ -46,15 +51,15 @@ export function buildInterfaceState(
  * Add a tab to an interface state
  */
 export function addTabToInterface(
-  interfaceState: Interface, 
-  tabId: string, 
+  interfaceState: Interface,
+  tabId: string,
   tabName: string
 ): Interface {
   // Don't duplicate tab IDs
   if (interfaceState.tabIds.includes(tabId)) {
     return interfaceState;
   }
-  
+
   return {
     ...interfaceState,
     tabIds: [...interfaceState.tabIds, tabId],

@@ -42,17 +42,13 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
           <Button
             id="date"
             variant="outline"
-            className={cn(
-              'w-full justify-start text-left',
-              !date && 'text-muted-foreground'
-            )}
+            className={cn('w-full justify-start text-left', !date && 'text-muted-foreground')}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, 'LLL dd, y')} -{' '}
-                  {format(date.to, 'LLL dd, y')}
+                  {format(date.from, 'LLL dd, y')} - {format(date.to, 'LLL dd, y')}
                 </>
               ) : (
                 format(date.from, 'LLL dd, y')
@@ -62,14 +58,14 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto h-auto p-0" align="end">
-        <Calendar
+        <PopoverContent className="h-auto w-auto p-0" align="end">
+          <Calendar
             mode="range"
             selected={date}
             onSelect={handleDateChange}
             className="rounded-md border"
             classNames={{
-              day_today: "text-primary font-medium",
+              day_today: 'text-primary font-medium',
             }}
             initialFocus
             numberOfMonths={2}

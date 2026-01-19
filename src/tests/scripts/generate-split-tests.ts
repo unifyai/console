@@ -99,27 +99,21 @@ interface MatrixMetadata {
  * Get matrix metadata by running the discover-matrix.ts script.
  * This script mocks vitest and extracts the matrix size from the test file.
  */
-function getMatrixMetadata(
-  sourceFile: string,
-  _exportName: string
-): MatrixMetadata | null {
+function getMatrixMetadata(sourceFile: string, _exportName: string): MatrixMetadata | null {
   const absolutePath = path.resolve(projectRoot, sourceFile);
   const discoveryScript = path.join(__dirname, 'discover-matrix.ts');
 
   try {
-    const result = execSync(
-      `npx tsx "${discoveryScript}" "${absolutePath}"`,
-      {
-        cwd: projectRoot,
-        encoding: 'utf-8',
-        env: {
-          ...process.env,
-          PLOT_TEST_SAMPLE_RATE: process.env.PLOT_TEST_SAMPLE_RATE || '100',
-        },
-        timeout: 60000,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }
-    );
+    const result = execSync(`npx tsx "${discoveryScript}" "${absolutePath}"`, {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PLOT_TEST_SAMPLE_RATE: process.env.PLOT_TEST_SAMPLE_RATE || '100',
+      },
+      timeout: 60000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
 
     const match = result.match(/__MATRIX_METADATA__(.+?)__END__/);
     if (match) {
@@ -161,7 +155,9 @@ function main() {
   console.log(`📁 Found ${matrixFiles.length} matrix test files\n`);
 
   if (matrixFiles.length === 0) {
-    console.log('No matrix test files found. Add "export const matrixTests = defineMatrixTests(...)" to enable splitting.');
+    console.log(
+      'No matrix test files found. Add "export const matrixTests = defineMatrixTests(...)" to enable splitting.'
+    );
     return;
   }
 
@@ -193,11 +189,15 @@ function main() {
 
       if (!metadata) {
         console.error(`     ❌ Failed to get matrix metadata for ${file.fileName}`);
-        console.error(`        Ensure the file exports 'matrixTests' with a valid getMatrix() function`);
+        console.error(
+          `        Ensure the file exports 'matrixTests' with a valid getMatrix() function`
+        );
         process.exit(1);
       }
 
-      console.log(`        Found: ${metadata.totalConfigs} configs, ${metadata.chunkSize} per chunk`);
+      console.log(
+        `        Found: ${metadata.totalConfigs} configs, ${metadata.chunkSize} per chunk`
+      );
 
       const chunks = generateChunks(file, generatedDir, MATRIX_EXPORT_NAME, metadata.numChunks);
       totalChunksGenerated += chunks.length;
@@ -237,7 +237,13 @@ function generateChunks(
     });
 
     fs.writeFileSync(outputPath, content);
-    chunks.push({ sourceFile: file.filePath, baseName, chunkIndex: i, totalChunks: numChunks, outputPath });
+    chunks.push({
+      sourceFile: file.filePath,
+      baseName,
+      chunkIndex: i,
+      totalChunks: numChunks,
+      outputPath,
+    });
   }
 
   return chunks;
@@ -276,4 +282,3 @@ try {
   console.error('Failed to generate split tests:', error);
   process.exit(1);
 }
-

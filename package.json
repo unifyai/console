@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "generate:api": "openapi-typescript https://api.unify.ai/v0/openapi.json -o src/lib/orchestra/schema.d.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -190,6 +191,8 @@
     "micro": "^10.0.1",
     "msw": "^2.12.1",
     "next-logger": "^5.0.1",
+    "openapi-fetch": "^0.15.0",
+    "openapi-typescript": "^7.10.1",
     "pino": "^9.5.0",
     "playwright": "^1.56.1",
     "postcss": "^8.4.47",

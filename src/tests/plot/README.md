@@ -62,47 +62,47 @@ npm run test:node -- src/tests/plot/unit/
 
 ### Total Test Counts (100% sampling)
 
-| Plot Type | Configs | Coverage |
-|-----------|---------|----------|
-| Bar | 11,648 | All x-axis types × plot options × scales |
-| Scatter | 1,568 | Numeric/temporal x-axis × plot options × scales |
-| Line | 784 | Numeric/temporal x-axis × plot options × scales |
-| Histogram | 784 | Numeric/temporal x-axis × plot options × scales |
-| **Total** | **14,784** | |
+| Plot Type | Configs    | Coverage                                        |
+| --------- | ---------- | ----------------------------------------------- |
+| Bar       | 11,648     | All x-axis types × plot options × scales        |
+| Scatter   | 1,568      | Numeric/temporal x-axis × plot options × scales |
+| Line      | 784        | Numeric/temporal x-axis × plot options × scales |
+| Histogram | 784        | Numeric/temporal x-axis × plot options × scales |
+| **Total** | **14,784** |                                                 |
 
 ### Data Type Coverage
 
 Tests now cover **all production-supported data types**:
 
-| Data Type | Bar | Scatter | Line | Histogram | Notes |
-|-----------|-----|---------|------|-----------|-------|
-| float | ✅ | ✅ | ✅ | ✅ | Standard numeric |
-| int | ✅ | ✅ | ✅ | ✅ | Standard numeric |
-| datetime | ✅ | ✅ | ✅ | ✅ | ISO 8601 timestamps |
-| time | ✅ | ✅ | ✅ | ✅ | HH:MM:SS format |
-| timedelta | ✅ | ✅ | ✅ | ✅ | Python timedelta format |
-| date | ✅ | ✅ | ✅ | ✅ | YYYY-MM-DD format |
-| str | ✅ | - | - | - | Categorical (bar only) |
-| bool | ✅ | ✅ | ✅ | ✅ | Boolean → 0/1 |
+| Data Type | Bar | Scatter | Line | Histogram | Notes                   |
+| --------- | --- | ------- | ---- | --------- | ----------------------- |
+| float     | ✅  | ✅      | ✅   | ✅        | Standard numeric        |
+| int       | ✅  | ✅      | ✅   | ✅        | Standard numeric        |
+| datetime  | ✅  | ✅      | ✅   | ✅        | ISO 8601 timestamps     |
+| time      | ✅  | ✅      | ✅   | ✅        | HH:MM:SS format         |
+| timedelta | ✅  | ✅      | ✅   | ✅        | Python timedelta format |
+| date      | ✅  | ✅      | ✅   | ✅        | YYYY-MM-DD format       |
+| str       | ✅  | -       | -    | -         | Categorical (bar only)  |
+| bool      | ✅  | ✅      | ✅   | ✅        | Boolean → 0/1           |
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PLOT_TEST_SCALE` | Which scale(s) to run: `small`, `medium`, `large`, or `all` | `small` |
-| `PLOT_TEST_SAMPLE_RATE` | Percentage of configs to sample (1-100) | `100` |
-| `PLOT_TEST_API_REAL` | Use real API instead of mocked responses | `false` |
-| `VITE_TEST_API_URL` | Backend URL for real API tests | `http://localhost:3000` |
-| `VITE_TEST_API_KEY` | API key for authentication | `test-api-key-12345` |
+| Variable                | Description                                                 | Default                 |
+| ----------------------- | ----------------------------------------------------------- | ----------------------- |
+| `PLOT_TEST_SCALE`       | Which scale(s) to run: `small`, `medium`, `large`, or `all` | `small`                 |
+| `PLOT_TEST_SAMPLE_RATE` | Percentage of configs to sample (1-100)                     | `100`                   |
+| `PLOT_TEST_API_REAL`    | Use real API instead of mocked responses                    | `false`                 |
+| `VITE_TEST_API_URL`     | Backend URL for real API tests                              | `http://localhost:3000` |
+| `VITE_TEST_API_KEY`     | API key for authentication                                  | `test-api-key-12345`    |
 
 ### Scale Options
 
-| Scale | Data Points | Timeout | Use Case |
-|-------|-------------|---------|----------|
-| `small` | ~100 | 5s | Quick iteration, local development (default) |
-| `medium` | ~1,000 | 15s | Standard testing |
-| `large` | ~10,000 | 30s | Full CI, performance validation |
-| `all` | All scales | - | Complete test coverage |
+| Scale    | Data Points | Timeout | Use Case                                     |
+| -------- | ----------- | ------- | -------------------------------------------- |
+| `small`  | ~100        | 5s      | Quick iteration, local development (default) |
+| `medium` | ~1,000      | 15s     | Standard testing                             |
+| `large`  | ~10,000     | 30s     | Full CI, performance validation              |
+| `all`    | All scales  | -       | Complete test coverage                       |
 
 ## Running Tests
 
@@ -125,6 +125,7 @@ PLOT_TEST_SAMPLE_RATE=5 npm run test:browser:matrix 2    # 5% = ~740 tests
 ```
 
 The command handles the entire workflow:
+
 1. **Generate** chunk files (splits matrix tests into parallel-runnable files)
 2. **Run** tests with Vitest sharding
 3. **Cleanup** generated files automatically
@@ -186,9 +187,9 @@ import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
 
 export const matrixTests = defineMatrixTests<MyConfig>({
   name: 'Bar Chart - Matrix Tests',
-  getMatrix: generateBarChartMatrix,  // Returns all config combinations
-  defineTests: defineBarChartTests,    // Test function for each config
-  chunkSize: 25,                        // Configs per generated file
+  getMatrix: generateBarChartMatrix, // Returns all config combinations
+  defineTests: defineBarChartTests, // Test function for each config
+  chunkSize: 25, // Configs per generated file
   getConfigAlias: (config) => `bar-${config.plotConfig.type}-...`,
 });
 ```
@@ -205,7 +206,9 @@ defineNodeMatrixTests<ApiContext>({
   concurrent: true,
   getMatrix: buildApiTestMatrix,
   defineTests: (ctx, { it, expect }) => {
-    it('validates response', async () => { /* ... */ });
+    it('validates response', async () => {
+      /* ... */
+    });
   },
   getConfigAlias: (ctx) => `${ctx.plotType}-${ctx.scale.name}`,
 });
@@ -230,7 +233,7 @@ Each chunk file imports from the source and runs a subset of the matrix:
 import { matrixTests } from '../bar.matrix.browser.test';
 import { runMatrixChunk } from '../../utils/matrixTestRunnerBrowser';
 
-runMatrixChunk(matrixTests, 0);  // Run chunk 0
+runMatrixChunk(matrixTests, 0); // Run chunk 0
 ```
 
 ### Sharding (Vitest)
@@ -283,16 +286,16 @@ export const matrixTests = defineMatrixTests<BarMatrixConfig>({
 
 ### Plot Config Options
 
-| Option | Values | Applicable To |
-|--------|--------|---------------|
-| `scale_x` | linear, log | All |
-| `scale_y` | linear, log | All |
-| `aggregate` | sum, mean, count, min, max | All (requires group_by) |
-| `group_by` | with/without | All |
-| `show_regression` | true/false | Scatter only |
-| `bin_count` | 1, 10, 50, 100 | Histogram only |
-| `sort_by` | x, y, value, name | Bar only |
-| `sort_order` | asc, desc | Bar only |
+| Option            | Values                     | Applicable To           |
+| ----------------- | -------------------------- | ----------------------- |
+| `scale_x`         | linear, log                | All                     |
+| `scale_y`         | linear, log                | All                     |
+| `aggregate`       | sum, mean, count, min, max | All (requires group_by) |
+| `group_by`        | with/without               | All                     |
+| `show_regression` | true/false                 | Scatter only            |
+| `bin_count`       | 1, 10, 50, 100             | Histogram only          |
+| `sort_by`         | x, y, value, name          | Bar only                |
+| `sort_order`      | asc, desc                  | Bar only                |
 
 ### Data Type Options
 
@@ -308,6 +311,7 @@ export const dataTypeOptions = {
 ### Validity Filtering
 
 The `filterValidPlotConfigs()` function prunes invalid combinations:
+
 - Regression: scatter only
 - Non-default bin count: histogram only
 - Sort options: bar only
@@ -320,16 +324,17 @@ The `filterValidPlotConfigs()` function prunes invalid combinations:
 
 Matrix tests verify **exact** values, not just validity:
 
-| Plot Type | Assertions |
-|-----------|------------|
-| **Bar** | Exact bar count (categories × groups), consistent widths, proportional heights |
-| **Scatter** | Exact point count, positions within tolerance, consistent radii |
-| **Line** | Valid path (no NaN/Infinity), within plot bounds, segment count |
-| **Histogram** | Bin count in range, consistent widths, contiguous bins, proportional heights |
+| Plot Type     | Assertions                                                                     |
+| ------------- | ------------------------------------------------------------------------------ |
+| **Bar**       | Exact bar count (categories × groups), consistent widths, proportional heights |
+| **Scatter**   | Exact point count, positions within tolerance, consistent radii                |
+| **Line**      | Valid path (no NaN/Infinity), within plot bounds, segment count                |
+| **Histogram** | Bin count in range, consistent widths, contiguous bins, proportional heights   |
 
 ### API Tests
 
 Matrix tests verify:
+
 - **Config Correctness**: All fields transformed correctly
 - **Data Correctness**: Count, structure, data types, value ranges
 - **Data Preprocessing**: Field prefixing, entry merging, type preservation
@@ -360,13 +365,13 @@ const deterministicData = createDeterministicMockLogs(
 
 Mock data uses the same conversion logic as production's `getValue()`:
 
-| Type | Mock Value | Converted Value |
-|------|------------|-----------------|
-| datetime | `"2024-01-15T12:00:00Z"` | `1705320000000` (ms) |
-| time | `"12:30:45"` | Timestamp for today at 12:30:45 |
-| timedelta | `"3 days, 08:00:00"` | `288000000` (ms) |
-| date | `"2024-01-15"` | `1705276800000` (ms) |
-| bool | `true` / `false` | `1` / `0` |
+| Type      | Mock Value               | Converted Value                 |
+| --------- | ------------------------ | ------------------------------- |
+| datetime  | `"2024-01-15T12:00:00Z"` | `1705320000000` (ms)            |
+| time      | `"12:30:45"`             | Timestamp for today at 12:30:45 |
+| timedelta | `"3 days, 08:00:00"`     | `288000000` (ms)                |
+| date      | `"2024-01-15"`           | `1705276800000` (ms)            |
+| bool      | `true` / `false`         | `1` / `0`                       |
 
 ## Calculation Utilities
 
@@ -376,8 +381,8 @@ Mock data uses the same conversion logic as production's `getValue()`:
 import {
   calculateExpectedPointCount,
   calculateExpectedBarCount,
-  toNumericValue,           // Converts like production getValue()
-  isValidNumericValue,      // Checks if value can be plotted
+  toNumericValue, // Converts like production getValue()
+  isValidNumericValue, // Checks if value can be plotted
   positionsAreClose,
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,

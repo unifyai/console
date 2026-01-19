@@ -37,6 +37,7 @@ export function setupCrossPlotSync(
     zoomRef,
     xType,
     yType,
+    axisCustomization,
   } = options;
 
   const { x, y, initialX, initialY, xRange, yRange, reverseX, reverseY } = scaleContext;
@@ -95,7 +96,8 @@ export function setupCrossPlotSync(
     xAxisProperty,
     yAxisProperty,
     xType,
-    yType
+    yType,
+    axisCustomization
   );
   const template = tooltipTemplate(tooltipData);
   tooltip.html(template).style('opacity', 1);
@@ -105,7 +107,7 @@ export function setupCrossPlotSync(
     .classed('hovered-point', true)
     .transition('emphasize_point')
     .duration(250)
-    .attr('r', config.HOVER_SIZE)
+    .attr('r', config.hoverSize)
     .style('opacity', 1);
 
   // Apply dimming to other points
@@ -119,7 +121,7 @@ export function setupCrossPlotSync(
       )
       .transition('dim_other_groups')
       .duration(200)
-      .style('opacity', config.DIM_OPACITY);
+      .style('opacity', config.dimOpacity);
 
     g.selectAll<SVGCircleElement, LogProps>('circle.data-point:not(.hovered-point)')
       .filter(
@@ -127,7 +129,7 @@ export function setupCrossPlotSync(
       )
       .transition('undim_same_group')
       .duration(200)
-      .style('opacity', config.SAME_GROUP_OPACITY);
+      .style('opacity', config.sameGroupOpacity);
 
     if (showRegression === 'true') {
       updateRegressionHighlight(g, stringifiedHoveredGroup, showRegression);
@@ -136,7 +138,7 @@ export function setupCrossPlotSync(
     g.selectAll<SVGCircleElement, LogProps>('circle.data-point:not(.hovered-point)')
       .transition('dim_others_no_group')
       .duration(200)
-      .style('opacity', config.DIM_OPACITY);
+      .style('opacity', config.dimOpacity);
 
     if (showRegression === 'true') {
       updateRegressionHighlight(g, null, showRegression);

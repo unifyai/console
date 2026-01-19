@@ -6,17 +6,11 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
-    const freeRecharges = await getRecharges(
-        user.id,
-        undefined,
-        undefined,
-        undefined,
-        "free"
-    );
+    const freeRecharges = await getRecharges(user.id, undefined, undefined, undefined, 'free');
 
     const hasFreeCredits = freeRecharges.length > 0;
 

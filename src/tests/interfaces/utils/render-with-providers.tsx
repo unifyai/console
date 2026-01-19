@@ -28,8 +28,10 @@ function createTestQueryClient() {
   });
 }
 
-const InterfacesTestProviders =
-  (initialState?: Partial<IStoreState>, providedClient?: QueryClient) =>
+const InterfacesTestProviders = (
+  initialState?: Partial<IStoreState>,
+  providedClient?: QueryClient
+) =>
   function Providers({ children }: { children: React.ReactNode }) {
     const queryClient = providedClient ?? createTestQueryClient();
 
@@ -60,10 +62,7 @@ const InterfacesTestProviders =
  * - SidebarProvider
  * - StoreProvider (fresh Zustand store per test, optional initialState)
  */
-export function renderWithProviders(
-  ui: ReactElement,
-  options: RenderWithProvidersOptions = {},
-) {
+export function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
   const { initialState, queryClient, ...rest } = options;
 
   return render(ui, {
@@ -83,9 +82,6 @@ export { renderWithProviders as render };
 export const createQueryWrapper = () => {
   const queryClient = createTestQueryClient();
   return function QueryWrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 };
-

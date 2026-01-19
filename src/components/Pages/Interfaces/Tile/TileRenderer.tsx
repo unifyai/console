@@ -1,12 +1,19 @@
-"use client";
+'use client';
 
-import React, { lazy, Suspense, useMemo } from "react";
-import { useEnsureTileDataBeforeRender } from "@/utils/interfaces/tileDependencies";
-import { Loader2 } from "lucide-react";
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, GranularTileActions, ProjectsActions } from "@/types/interfaces/grid";
-import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
+import React, { lazy, Suspense, useMemo } from 'react';
+import { useEnsureTileDataBeforeRender } from '@/utils/interfaces/tileDependencies';
+import { Loader2 } from 'lucide-react';
+import {
+  LogsActions,
+  FieldsActions,
+  DerivedEntryActions,
+  ContextActions,
+  GranularTileActions,
+  ProjectsActions,
+} from '@/types/interfaces/grid';
+import { useTileMeta } from '@/contexts/hooks/tile/useTileMeta';
 
-const Tile = lazy(() => import("@/components/Pages/Interfaces/Tile/Tile"));
+const Tile = lazy(() => import('@/components/Pages/Interfaces/Tile/Tile'));
 
 /**
  * Debug flag for tile dependency logging and display
@@ -38,9 +45,8 @@ const TileRenderer: React.FC<TileRendererProps> = ({
   tabId,
   interfaceId,
   projectId,
-  actions
+  actions,
 }) => {
-
   // Get tile data from Zustand store using the hook
   const { meta, tileExists } = useTileMeta(tileId, tabId);
 
@@ -63,31 +69,37 @@ const TileRenderer: React.FC<TileRendererProps> = ({
   if (!tileExists || !meta) {
     return null;
   }
-        
+
   // Render spinner if data isn't ready
   if (shouldShowSkeleton) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        {DEBUG_TILE_DEPENDENCIES && renderState?.missingDependencies?.length && renderState?.missingDependencies?.length > 0 && (
-          <div className="absolute bottom-2 left-2 text-caption text-muted-foreground">
-            <div>Waiting for:</div>
-            {renderState?.missingDependencies.map((missing, index) => (
-              <div key={index} className="ml-2">• {missing}</div>
-            ))}
-          </div>
-        )}
+        {DEBUG_TILE_DEPENDENCIES &&
+          renderState?.missingDependencies?.length &&
+          renderState?.missingDependencies?.length > 0 && (
+            <div className="text-caption absolute bottom-2 left-2 text-muted-foreground">
+              <div>Waiting for:</div>
+              {renderState?.missingDependencies.map((missing, index) => (
+                <div key={index} className="ml-2">
+                  • {missing}
+                </div>
+              ))}
+            </div>
+          )}
       </div>
     );
   }
 
   // Only render the actual tile content when all data is ready
   return (
-    <Suspense fallback={
-      <div className="w-full h-full flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <Tile
         tileId={tileId}
         tabId={tabId}
@@ -99,4 +111,4 @@ const TileRenderer: React.FC<TileRendererProps> = ({
   );
 };
 
-export default TileRenderer; 
+export default TileRenderer;

@@ -1,7 +1,6 @@
-"use client";
+'use client';
 
-import React, { ReactNode } from "react";
-
+import React, { ReactNode } from 'react';
 
 /**
  * APIKeyTabs component renders children elements that match the current state.
@@ -12,21 +11,14 @@ import React, { ReactNode } from "react";
  *
  * Only the child element with a key that matches the currentState will be displayed.
  */
-const APIKeyTabs = ({
-  children,
-  currentState,
-}: {
-  children: ReactNode;
-  currentState: string;
-}) => {
-
+const APIKeyTabs = ({ children, currentState }: { children: ReactNode; currentState: string }) => {
   return (
     <div className="APIKeyTabs">
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child) && child.key === currentState) {
           return child;
         }
-        return null
+        return null;
       })}
     </div>
   );

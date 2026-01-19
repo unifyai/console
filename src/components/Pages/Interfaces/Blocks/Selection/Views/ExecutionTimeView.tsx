@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import { LogComparisonProps } from "./types";
-import RowBadge from "./RowBadge";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
+import React from 'react';
+import { LogComparisonProps } from './types';
+import RowBadge from './RowBadge';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
 
 /*────────────────────────────────────────────────────────────────────────────
   formatTime & formatTimeNumber
@@ -16,15 +16,15 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 //   • otherwise             → hours (h)
 function formatTime(seconds: number): { value: number; unit: string } {
   if (seconds < 0.001) {
-    return { value: seconds * 1e6, unit: "µs" };
+    return { value: seconds * 1e6, unit: 'µs' };
   } else if (seconds < 1) {
-    return { value: seconds * 1000, unit: "ms" };
+    return { value: seconds * 1000, unit: 'ms' };
   } else if (seconds < 60) {
-    return { value: seconds, unit: "s" };
+    return { value: seconds, unit: 's' };
   } else if (seconds < 3600) {
-    return { value: seconds / 60, unit: "min" };
+    return { value: seconds / 60, unit: 'min' };
   } else {
-    return { value: seconds / 3600, unit: "h" };
+    return { value: seconds / 3600, unit: 'h' };
   }
 }
 
@@ -41,7 +41,7 @@ function formatTimeNumber(seconds: number): string {
 // most appropriate unit.
 function buildTimeDiffString(base: number, comp: number): string {
   const diff = comp - base;
-  const sign = diff >= 0 ? "+" : "-";
+  const sign = diff >= 0 ? '+' : '-';
   const absDiff = Math.abs(diff);
   return `${sign} ${formatTimeNumber(absDiff)}`;
 }
@@ -52,10 +52,7 @@ function buildTimeDiffString(base: number, comp: number): string {
 // Given an array of comparable execution times (in seconds) and their
 // corresponding row indices, group those whose formatted (human‐readable)
 // values match.
-function groupComparablesByFormattedTime(
-  comparables: number[],
-  compIndexes: number[]
-) {
+function groupComparablesByFormattedTime(comparables: number[], compIndexes: number[]) {
   const map = new Map<string, number[]>();
   comparables.forEach((sec, i) => {
     const formatted = formatTimeNumber(sec);
@@ -88,22 +85,19 @@ export default function ExecutionTimeView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
+  version = '',
   comparableVersions = [],
-  displayMode = "markdown",
+  displayMode = 'markdown',
 }: LogComparisonProps) {
   // Convert the base value to a number (assume seconds) with a fallback to 0.
-  const baseTime =
-    typeof value === "number" ? value : parseFloat(value as string) || 0;
+  const baseTime = typeof value === 'number' ? value : parseFloat(value as string) || 0;
 
   // Prepare comparables as numbers (seconds).
   let compTimes: number[] = [];
   if (comparables && comparables.length > 0) {
-    compTimes = comparables.map((v) =>
-      typeof v === "number" ? v : parseFloat(v as string) || 0
-    );
+    compTimes = comparables.map((v) => (typeof v === 'number' ? v : parseFloat(v as string) || 0));
   }
 
   const singleMode = !comparables || comparables.length === 0;
@@ -116,28 +110,26 @@ export default function ExecutionTimeView({
           <div className="space-y-2">
             <p className="text-title">Version</p>
             {version ? (
-              <div className="flex border rounded p-2 relative group">
+              <div className="group relative flex rounded border p-2">
                 <p className="text-body">{version}</p>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={version}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
         <div className="space-y-2">
-          {version && (
-            <p className="text-title">Value</p>
-          )}
-          <div className="flex border rounded p-2 relative group">
+          {version && <p className="text-title">Value</p>}
+          <div className="group relative flex rounded border p-2">
             <p className="text-body">{formatTimeNumber(baseTime)}</p>
             <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               content={baseTime.toString()}
               copyMessage="Copied execution time!"
               tooltipContent="Copy execution time"
@@ -149,7 +141,7 @@ export default function ExecutionTimeView({
   }
 
   // MULTI MODE, diffMode === "none": Group base and comparable times together.
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     // Group by formatted value.
     const allTimes = [formatTimeNumber(baseTime), ...compTimes.map((t) => formatTimeNumber(t))];
     const allRows = [baseLogIndex, ...comparisonLogsIndex];
@@ -173,16 +165,18 @@ export default function ExecutionTimeView({
             <div className="space-y-2">
               {[baseLogIndex, ...comparisonLogsIndex].map((r) => {
                 const isBase = r === baseLogIndex;
-                const verText = isBase ? version : (comparableVersions[comparisonLogsIndex.indexOf(r)] || "");
+                const verText = isBase
+                  ? version
+                  : comparableVersions[comparisonLogsIndex.indexOf(r)] || '';
                 return (
-                  <div key={r} className="border rounded p-2 relative group">
+                  <div key={r} className="group relative rounded border p-2">
                     <RowBadge rowNumbers={[r]} mode="none" />
                     {verText ? (
                       <div className="pt-2">
                         <p className="text-body">{verText}</p>
                       </div>
                     ) : (
-                      <p className="italic text-body text-muted-foreground">No version</p>
+                      <p className="text-body italic text-muted-foreground">No version</p>
                     )}
                   </div>
                 );
@@ -191,16 +185,16 @@ export default function ExecutionTimeView({
           </div>
         )}
         {groups.map((grp, idx) => (
-          <div key={idx} className="p-3 space-y-4">
-            <div className="relative border rounded p-2 group">
+          <div key={idx} className="space-y-4 p-3">
+            <div className="group relative rounded border p-2">
               <RowBadge rowNumbers={grp.rows} mode="none" />
               <CopyButton
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 content={grp.time}
                 copyMessage="Copied execution time!"
                 tooltipContent="Copy execution time"
               />
-              <p className="text-body mt-1 mb-1">{grp.time}</p>
+              <p className="text-body mb-1 mt-1">{grp.time}</p>
             </div>
           </div>
         ))}
@@ -216,20 +210,22 @@ export default function ExecutionTimeView({
     <div className="space-y-4">
       {(version || comparableVersions.some((s) => !!s)) && (
         <div>
-          <p className="font-semibold text-sm mb-4">Version</p>
+          <p className="mb-4 text-sm font-semibold">Version</p>
           <div className="space-y-2">
             {[baseLogIndex, ...comparisonLogsIndex].map((r) => {
               const isBase = r === baseLogIndex;
-              const verText = isBase ? version : (comparableVersions[comparisonLogsIndex.indexOf(r)] || "");
+              const verText = isBase
+                ? version
+                : comparableVersions[comparisonLogsIndex.indexOf(r)] || '';
               return (
-                <div key={r} className="border rounded p-2 relative group">
+                <div key={r} className="group relative rounded border p-2">
                   <RowBadge rowNumbers={[r]} mode="none" />
                   {verText ? (
                     <div className="pt-2">
                       <p className="text-sm">{verText}</p>
                     </div>
                   ) : (
-                    <p className="italic text-sm text-muted-foreground">No version</p>
+                    <p className="text-sm italic text-muted-foreground">No version</p>
                   )}
                 </div>
               );
@@ -244,35 +240,35 @@ export default function ExecutionTimeView({
           return (
             <div key={idx} className="flex items-center gap-2">
               {/* Base block */}
-              <div className="flex-col min-w-24 relative border rounded p-2 group">
+              <div className="group relative min-w-24 flex-col rounded border p-2">
                 <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
                 <p className="text-sm">{formatTimeNumber(baseTime)}</p>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseTime.toString()}
                   copyMessage="Copied base execution time!"
                   tooltipContent="Copy base execution time"
                 />
               </div>
-              <div className="font-bold text-xl mx-2">→</div>
+              <div className="mx-2 text-xl font-bold">→</div>
               {/* Comparable block */}
-              <div className="flex-col min-w-24 relative border rounded p-2 group">
+              <div className="group relative min-w-24 flex-col rounded border p-2">
                 <RowBadge rowNumbers={grp.rows} mode="none" />
                 <p className="text-sm">{grp.formatted}</p>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={grp.formatted}
                   copyMessage="Copied execution time!"
                   tooltipContent="Copy execution time"
                 />
               </div>
-              <div className="font-bold text-xl mx-2">=</div>
+              <div className="mx-2 text-xl font-bold">=</div>
               {/* Diff block */}
-              <div className="flex-col min-w-24 relative border rounded p-2 group">
+              <div className="group relative min-w-24 flex-col rounded border p-2">
                 <p className="text-title">Diff</p>
                 <p className="text-body">{diffStr}</p>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={diffStr}
                   copyMessage="Copied diff!"
                   tooltipContent="Copy diff"

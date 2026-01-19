@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
 import React from 'react';
-import { ColumnDef } from "@tanstack/react-table";
-import { Trash2, FileDown } from "lucide-react";
-import { Button } from "@/components/UI/button";
-import { Badge } from "@/components/UI/badge";
-import { Skeleton } from "@/components/UI/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { ExtendedInterfaceData } from "@/utils/interfaces/interfaceSelector";
+import { ColumnDef } from '@tanstack/react-table';
+import { Trash2, FileDown } from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { Badge } from '@/components/UI/badge';
+import { Skeleton } from '@/components/UI/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { ExtendedInterfaceData } from '@/utils/interfaces/interfaceSelector';
 
 // Skeleton row component for loading state
 export const SkeletonTableRow = () => (
@@ -39,7 +39,7 @@ export const SkeletonTableRow = () => (
 
 // Skeleton table component
 export const SkeletonTable = () => (
-  <div className="border rounded-lg bg-background">
+  <div className="rounded-lg border bg-background">
     <div className="max-h-[500px] overflow-auto">
       <table className="w-full">
         <thead className="border-b">
@@ -91,15 +91,15 @@ export function createInterfaceSelectorColumns({
 }: TableColumnProps): ColumnDef<ExtendedInterfaceData>[] {
   return [
     {
-      accessorKey: "id",
-      header: "ID",
+      accessorKey: 'id',
+      header: 'ID',
       size: 100,
       cell: ({ row }) => {
-        const fullId = row.getValue("id") as string;
+        const fullId = row.getValue('id') as string;
         const truncatedId = fullId ? fullId.substring(0, 8) : '';
         return (
-          <div 
-            className="font-mono text-caption truncate cursor-pointer p-2 rounded transition-colors" 
+          <div
+            className="text-caption cursor-pointer truncate rounded p-2 font-mono transition-colors"
             title={`Full ID: ${fullId}`}
             onClick={() => onInterfaceSelect(row.original.name)}
           >
@@ -109,16 +109,16 @@ export function createInterfaceSelectorColumns({
       },
     },
     {
-      accessorKey: "name",
-      header: "Name",
+      accessorKey: 'name',
+      header: 'Name',
       size: 200,
       cell: ({ row }) => (
-        <div 
-          className="text-strong truncate cursor-pointer p-2 rounded transition-colors" 
-          title={row.getValue("name")}
+        <div
+          className="text-strong cursor-pointer truncate rounded p-2 transition-colors"
+          title={row.getValue('name')}
           onClick={() => onInterfaceSelect(row.original.name)}
         >
-          {row.getValue("name")}
+          {row.getValue('name')}
         </div>
       ),
     },
@@ -130,7 +130,7 @@ export function createInterfaceSelectorColumns({
     //   cell: ({ row }) => {
     //     const tags = row.getValue("tags") as string[];
     //     return (
-    //       <div 
+    //       <div
     //         className="flex gap-1 flex-wrap cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded transition-colors"
     //         onClick={() => onInterfaceSelect(row.original.name)}
     //       >
@@ -149,14 +149,14 @@ export function createInterfaceSelectorColumns({
     //   },
     // },
     {
-      accessorKey: "created_at",
-      header: "Created At",
+      accessorKey: 'createdAt',
+      header: 'Created At',
       size: 120,
       cell: ({ row }) => {
-        const date = row.getValue("created_at") as string;
+        const date = row.getValue('createdAt') as string;
         return date ? (
-          <div 
-            className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"
+          <div
+            className="text-caption cursor-pointer rounded p-2 text-muted-foreground transition-colors"
             onClick={() => onInterfaceSelect(row.original.name)}
           >
             {new Date(date).toLocaleDateString()}
@@ -165,14 +165,14 @@ export function createInterfaceSelectorColumns({
       },
     },
     {
-      accessorKey: "updated_at",
-      header: "Updated At",
+      accessorKey: 'updatedAt',
+      header: 'Updated At',
       size: 120,
       cell: ({ row }) => {
-        const date = row.getValue("updated_at") as string;
+        const date = row.getValue('updatedAt') as string;
         return date ? (
-          <div 
-            className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"
+          <div
+            className="text-caption cursor-pointer rounded p-2 text-muted-foreground transition-colors"
             onClick={() => onInterfaceSelect(row.original.name)}
           >
             {new Date(date).toLocaleDateString()}
@@ -181,12 +181,12 @@ export function createInterfaceSelectorColumns({
       },
     },
     {
-      id: "actions",
-      header: "",
+      id: 'actions',
+      header: '',
       size: 50,
       cell: ({ row }) => {
         const iface = row.original;
-        
+
         return (
           <div className="flex items-center gap-[0.15rem]">
             <TooltipProvider>
@@ -234,4 +234,4 @@ export function createInterfaceSelectorColumns({
       },
     },
   ];
-} 
+}

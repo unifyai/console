@@ -1,8 +1,9 @@
-export default {
-    gif: "histogram_dark",
-    link: "interfaces/plots#histograms",
-    description: "Histograms take a single numeric column, and then bucket this data into n bins on the x-axis, and plot the count of data in each bin on the y-axis.",
-    code: `from datetime import date
+const histogramDemo = {
+  gif: 'histogram_dark',
+  link: 'interfaces/plots#histograms',
+  description:
+    'Histograms take a single numeric column, and then bucket this data into n bins on the x-axis, and plot the count of data in each bin on the y-axis.',
+  code: `from datetime import date
 import random
 import unify
 
@@ -22,48 +23,50 @@ for month in range(1, 13):
         ]
     )
 `,
-    // Granular interface structure
-    interface: {
-        project_id: "histogram-demo",
-        name: "interface1"
+  // Granular interface structure
+  interface: {
+    projectId: 'histogram-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'Plot',
+      type: 'Plot',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      plotTile: {
+        plotType: 'Histogram',
+        xAxis: 'Table.date',
+        binCount: '84',
+      },
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            table_tile: {
-                table_type: "Data Table"
-            }
-        },
-        {
-            name: "Plot",
-            type: "Plot",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            plot_tile: {
-                plot_type: "Histogram",
-                x_axis: "Table.date",
-                bin_count: "84",
-            }
-        }
-    ],
-    new_counter: 2
-}
+  ],
+  newCounter: 2,
+};
+
+export default histogramDemo;

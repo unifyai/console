@@ -1,43 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 // This route handles deleting a specific contact method from an assistant.
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { assistantId: string } }
+  request: NextRequest,
+  { params }: { params: { assistantId: string } }
 ) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  let requestBody;
+  try {
+    requestBody = await request.json();
+  } catch {
+    return badRequest('Invalid JSON body for contact deletion');
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/assistant/{assistant_id}/contact', {
+      params: {
+        path: { assistant_id: parseInt(params.assistantId, 10) },
+      },
+      body: requestBody,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
 
-    let requestBody;
-    try {
-        requestBody = await request.json();
-    } catch (error) {
-        return NextResponse.json({ detail: "Invalid JSON body for contact deletion" }, { status: 400 });
-    }
-
-    // Proxying to the backend. The backend endpoint is assumed to be DELETE /assistant/{id}/contact
-    // This is a DELETE request with a body, which is supported by fetch and HTTP/1.1+.
-    const orchestraResponse = await fetch(
-        `${baseUrl}/assistant/${params.assistantId}/contact`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody)
-        }
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      {
+        detail: 'Failed to connect to backend',
+        error: e instanceof Error ? e.message : 'Unknown error',
+      },
+      { status: 500 }
     );
-
-    const responseData = await orchestraResponse.json().catch(() => ({ detail: "Invalid JSON response from backend" }));
-
-    return NextResponse.json(responseData, { status: orchestraResponse.status });
+  }
 }

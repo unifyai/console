@@ -31,6 +31,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# API call logs
+api-calls.log
+.log-filter
+
 # local env files
 .env
 .env.development
@@ -51,3 +55,4 @@ application_default_credentials.json
 # Local plans and credentials
 plans/
 .credentials/
+.cursorrules

@@ -1,8 +1,9 @@
-export default {
-    gif: "table_filter_str_dark",
-    link: "interfaces/tables#filtering",
-    description: "Filtering enables you to select a subset of the data that you want to view. Each column type has a different set of filter options.",
-    code: `from datetime import datetime, timedelta
+const filteringDemo = {
+  gif: 'table_filter_str_dark',
+  link: 'interfaces/tables#filtering',
+  description:
+    'Filtering enables you to select a subset of the data that you want to view. Each column type has a different set of filter options.',
+  code: `from datetime import datetime, timedelta
 import random
 import unify
 
@@ -56,46 +57,48 @@ for age, catchphrase, last_login, otp in zip(
         will_to_live=random.choice([True, False]),
     )
 `,
-    // Granular interface structure
-    interface: {
-        project_id: "filtering-demo",
-        name: "interface1",
+  // Granular interface structure
+  interface: {
+    projectId: 'filtering-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 7.0,
+        height: 8.0,
+      },
+      filters: 'catchphrase~in~ && "ask"§catchphrase~not in~ && "intern"',
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'View',
+      type: 'View',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 5.0,
+        height: 8.0,
+      },
+      table: 'Table',
+      viewTile: {},
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 7.0,
-                height: 8.0
-            },
-            filters: "catchphrase~in~ && \"ask\"§catchphrase~not in~ && \"intern\"",
-            table_tile: {
-                table_type: "Data Table",
-            }
-        },
-        {
-            name: "View",
-            type: "View",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 5.0,
-                height: 8.0
-            },
-            table: "Table",
-            view_tile: {},
-        }
-    ],
-    new_counter: 2
-}
+  ],
+  newCounter: 2,
+};
+
+export default filteringDemo;

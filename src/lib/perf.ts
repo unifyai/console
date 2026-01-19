@@ -18,5 +18,3 @@ export function perfEnd(token: PerfToken, extra?: Record<string, any>) {
     console.log('[perf]', payload);
   }
 }
-
-

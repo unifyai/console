@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-import { immer } from "zustand/middleware/immer";
-import { createStoreSlice, StoreSlice } from "./slices/slice";
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
+import { createStoreSlice, StoreSlice } from './slices/slice';
 
 // -----------------------------------------------------------------------------
 // 1) Define our combined store state type
@@ -40,25 +40,28 @@ export function createStore(initialState?: Partial<IStoreState>) {
       ...storeSlice,
 
       // Global reset action
-      resetState: (newState: Partial<IStoreState>) => set((state) => ({
-        ...state,
-        ...newState,
-      })),
+      resetState: (newState: Partial<IStoreState>) =>
+        set((state) => ({
+          ...state,
+          ...newState,
+        })),
 
       // Global update action
-      updateState: (updates: Partial<IStoreState>) => set((state) => {
-        return {
-          ...state,
-          ...updates,
-        };
-      }),
+      updateState: (updates: Partial<IStoreState>) =>
+        set((state) => {
+          return {
+            ...state,
+            ...updates,
+          };
+        }),
     };
   });
 
   // Build a new store using `create`, conditionally wrapping with devtools
-  const zustandStore = process.env.NODE_ENV !== "production"
-    ? create<IStoreState>()(devtools(baseCreator, { name: "ConsoleStore" }))
-    : create<IStoreState>()(baseCreator);
+  const zustandStore =
+    process.env.NODE_ENV !== 'production'
+      ? create<IStoreState>()(devtools(baseCreator, { name: 'ConsoleStore' }))
+      : create<IStoreState>()(baseCreator);
 
   // If initial state was provided, set it
   if (initialState) {

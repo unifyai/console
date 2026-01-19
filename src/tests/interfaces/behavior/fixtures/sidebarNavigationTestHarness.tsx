@@ -75,7 +75,7 @@ function createInitialStoreState(options: SidebarNavigationTestOptions): Partial
   ];
 
   const interfacesById: Record<string, any> = {};
-  interfaces.forEach(iface => {
+  interfaces.forEach((iface) => {
     interfacesById[iface.id] = {
       id: iface.id,
       name: iface.name,
@@ -92,7 +92,7 @@ function createInitialStoreState(options: SidebarNavigationTestOptions): Partial
         name: 'Test Project',
         description: '',
         contexts: [],
-        interfaceIds: interfaces.map(i => i.id),
+        interfaceIds: interfaces.map((i) => i.id),
         activeInterfaceId: interfaces[0]?.id || null,
       },
     },
@@ -141,7 +141,7 @@ function SidebarNavigationInner({
 }: SidebarNavigationInnerProps) {
   const storeApi = useStoreApiContext();
   const store = useStore(storeApi);
-  
+
   // Sidebar state
   const [width, setWidth] = useState(initialWidth);
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
@@ -162,7 +162,7 @@ function SidebarNavigationInner({
     stateContainerRef.current = {
       isCollapsed: () => isCollapsed,
       isHidden: () => isHidden,
-      getWidth: () => isHidden ? 0 : (isCollapsed ? COLLAPSED_WIDTH : width),
+      getWidth: () => (isHidden ? 0 : isCollapsed ? COLLAPSED_WIDTH : width),
       collapse: () => setIsCollapsed(true),
       expand: () => {
         setIsCollapsed(false);
@@ -183,15 +183,16 @@ function SidebarNavigationInner({
       },
       getFavorites: () => favorites,
       addFavorite: (item) => {
-        if (!favorites.find(f => f.id === item.id)) {
+        if (!favorites.find((f) => f.id === item.id)) {
           setFavorites([...favorites, item]);
         }
       },
       removeFavorite: (id) => {
-        setFavorites(favorites.filter(f => f.id !== id));
+        setFavorites(favorites.filter((f) => f.id !== id));
       },
-      isFavorite: (id) => favorites.some(f => f.id === id),
+      isFavorite: (id) => favorites.some((f) => f.id === id),
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCollapsed, isHidden, width, favorites]);
 
   const handleCollapse = () => {
@@ -204,15 +205,15 @@ function SidebarNavigationInner({
   };
 
   const handleToggleFavorite = (iface: any) => {
-    const existing = favorites.find(f => f.id === iface.id);
+    const existing = favorites.find((f) => f.id === iface.id);
     if (existing) {
-      setFavorites(favorites.filter(f => f.id !== iface.id));
+      setFavorites(favorites.filter((f) => f.id !== iface.id));
     } else {
       setFavorites([...favorites, { id: iface.id, name: iface.name, type: 'interface' }]);
     }
   };
 
-  const currentWidth = isHidden ? 0 : (isCollapsed ? COLLAPSED_WIDTH : width);
+  const currentWidth = isHidden ? 0 : isCollapsed ? COLLAPSED_WIDTH : width;
 
   return (
     <div data-testid="sidebar-navigation-harness">
@@ -224,10 +225,7 @@ function SidebarNavigationInner({
       >
         {/* Expand button (visible when hidden) */}
         {isHidden && (
-          <button
-            data-testid="sidebar-expand-hidden"
-            onClick={handleExpand}
-          >
+          <button data-testid="sidebar-expand-hidden" onClick={handleExpand}>
             Show Sidebar
           </button>
         )}
@@ -239,18 +237,12 @@ function SidebarNavigationInner({
             <div data-testid="sidebar-header">
               <span>Navigation</span>
               {!isCollapsed && (
-                <button
-                  data-testid="sidebar-collapse-button"
-                  onClick={handleCollapse}
-                >
+                <button data-testid="sidebar-collapse-button" onClick={handleCollapse}>
                   Collapse
                 </button>
               )}
               {isCollapsed && (
-                <button
-                  data-testid="sidebar-expand-button"
-                  onClick={handleExpand}
-                >
+                <button data-testid="sidebar-expand-button" onClick={handleExpand}>
                   Expand
                 </button>
               )}
@@ -261,7 +253,7 @@ function SidebarNavigationInner({
               <div data-testid="favorites-section">
                 <h3>Favorites</h3>
                 <div data-testid="favorites-list">
-                  {favorites.map(fav => (
+                  {favorites.map((fav) => (
                     <div key={fav.id} data-testid={`favorite-item-${fav.id}`}>
                       <span>{fav.name}</span>
                       <button
@@ -282,7 +274,7 @@ function SidebarNavigationInner({
                 <h3>Interfaces</h3>
                 <div data-testid="interfaces-list">
                   {interfaces.map((iface: any) => {
-                    const isFav = favorites.some(f => f.id === iface.id);
+                    const isFav = favorites.some((f) => f.id === iface.id);
                     return (
                       <div key={iface.id} data-testid={`interface-nav-${iface.id}`}>
                         <span>{iface.name}</span>
@@ -300,18 +292,13 @@ function SidebarNavigationInner({
             )}
 
             {/* Resize handle */}
-            <div
-              data-testid="resize-handle"
-              style={{ cursor: 'ew-resize' }}
-            />
+            <div data-testid="resize-handle" style={{ cursor: 'ew-resize' }} />
           </>
         )}
       </div>
 
       {/* Width display for testing */}
-      <div data-testid="sidebar-width-display">
-        Width: {currentWidth}px
-      </div>
+      <div data-testid="sidebar-width-display">Width: {currentWidth}px</div>
 
       {/* State display for testing */}
       <div data-testid="sidebar-state-display">
@@ -409,8 +396,9 @@ export function renderSidebarNavigation(
     clickExpandButton: async () => {
       const user = userEvent.setup();
       // Could be either the normal expand or the hidden expand button
-      const button = screen.queryByTestId('sidebar-expand-button') ||
-                     screen.queryByTestId('sidebar-expand-hidden');
+      const button =
+        screen.queryByTestId('sidebar-expand-button') ||
+        screen.queryByTestId('sidebar-expand-hidden');
       if (button) {
         await user.click(button);
       }
@@ -424,7 +412,7 @@ export function renderSidebarNavigation(
       const section = screen.queryByTestId('favorites-list');
       if (!section) return [];
       const items = within(section).queryAllByTestId(/^favorite-item-/);
-      return items.map(item => item.textContent?.replace('★', '').trim() || '');
+      return items.map((item) => item.textContent?.replace('★', '').trim() || '');
     },
 
     unmount,
@@ -433,4 +421,3 @@ export function renderSidebarNavigation(
 
 // Export types for tests
 export type { SidebarNavigationTestOptions, SidebarNavigationTestResult, Favourite };
-

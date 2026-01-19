@@ -7,19 +7,17 @@ import { useShallow } from 'zustand/react/shallow';
 
 // This component takes a slice of state and merges it into the store
 // It's memoized to avoid unnecessary re-renders
-export const StoreSliceUpdater = memo(function StoreSliceUpdater({ 
-  slice 
-}: { 
-  slice: Partial<IStoreState> 
+export const StoreSliceUpdater = memo(function StoreSliceUpdater({
+  slice,
+}: {
+  slice: Partial<IStoreState>;
 }) {
   // Get the updateState function from the store
-  const updateState = useStoreContext(
-    useShallow(state => state.updateState)
-  );
+  const updateState = useStoreContext(useShallow((state) => state.updateState));
 
   const hasHydrated = useRef(false);
   const lastInterfaceIdRef = useRef<string | null>(null);
-  
+
   // Effect to update the slice on mount or when slice changes
   useEffect(() => {
     if (!slice) return;
@@ -44,7 +42,7 @@ export const StoreSliceUpdater = memo(function StoreSliceUpdater({
       updateState(rest as Partial<IStoreState>);
     }
   }, [slice, updateState]);
-  
+
   // This component doesn't render anything
   return null;
-}); 
+});

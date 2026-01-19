@@ -1,28 +1,24 @@
-"use client";
+'use client';
 
-import { useQueryClient } from "@tanstack/react-query";
-import { 
-  TileData, 
-  TableDataItem, 
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  TileData,
+  TableDataItem,
   PlotDataItem,
-  LogsActions, 
+  LogsActions,
   FieldsActions,
   ProjectsActions,
   ContextActions,
-  Context
-} from "@/types/interfaces/grid";
-import { 
-  LogFieldsResponseProps, 
-  TableArguments, 
-  PlotArguments 
-} from "@/types/interfaces/logs";
+  Context,
+} from '@/types/interfaces/grid';
+import { LogFieldsResponseProps, TableArguments, PlotArguments } from '@/types/interfaces/logs';
 import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 import { fetchAndBuildTableDataItem } from '@/utils/data/buildTableDataItem';
 import { buildPlotDataItem } from '@/utils/data/buildPlotDataItem';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
-import { StoreApi } from "zustand";
-import { IStoreState } from "@/contexts/store";
+import { StoreApi } from 'zustand';
+import { IStoreState } from '@/contexts/store';
 
 /**
  * Common dependencies needed for optimistic updates
@@ -105,18 +101,20 @@ export async function updateTabArguments(
   const { updateCache = true } = options;
 
   // Get existing table and plot arguments from cache
-  const existingTableArgs = queryClient.getQueryData(["tableArguments", tabId]) as TableArguments || {};
-  const existingPlotArgs = queryClient.getQueryData(["plotArguments", tabId]) as PlotArguments || {};
+  const existingTableArgs =
+    (queryClient.getQueryData(['tableArguments', tabId]) as TableArguments) || {};
+  const existingPlotArgs =
+    (queryClient.getQueryData(['plotArguments', tabId]) as PlotArguments) || {};
 
-  const tableTiles = tilesData.filter(tile => tile.type === "Table");
-  const plotTiles = tilesData.filter(tile => tile.type === "Plot");
+  const tableTiles = tilesData.filter((tile) => tile.type === 'Table');
+  const plotTiles = tilesData.filter((tile) => tile.type === 'Plot');
 
   // Build arguments for all tiles
   let tableArguments: TableArguments = existingTableArgs;
   let plotArguments: PlotArguments = existingPlotArgs;
 
   if (tableTiles.length > 0 || plotTiles.length > 0) {
-    const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
+    const { tableArguments: newTableArguments, plotArguments: newPlotArguments } =
       buildTabArguments(tilesData, fieldsArray, existingTableArgs, existingPlotArgs);
 
     tableArguments = newTableArguments;
@@ -124,13 +122,13 @@ export async function updateTabArguments(
 
     // Store the built arguments in the cache
     if (updateCache) {
-      queryClient.setQueryData(["tableArguments", tabId], tableArguments);
-      queryClient.setQueryData(["plotArguments", tabId], plotArguments);
+      queryClient.setQueryData(['tableArguments', tabId], tableArguments);
+      queryClient.setQueryData(['plotArguments', tabId], plotArguments);
     }
   } else if (updateCache) {
     // Initialize empty arguments if no tiles
-    queryClient.setQueryData(["tableArguments", tabId], {});
-    queryClient.setQueryData(["plotArguments", tabId], {});
+    queryClient.setQueryData(['tableArguments', tabId], {});
+    queryClient.setQueryData(['plotArguments', tabId], {});
   }
 
   return { tableArguments, plotArguments };
@@ -151,7 +149,9 @@ export async function buildOptimisticTableDataItem(
   const { updateCache = true } = options;
 
   // Check cache first
-  const cachedTableDataItem = queryClient.getQueryData(["tableDataItem", tileData.id]) as TableDataItem | undefined;
+  const cachedTableDataItem = queryClient.getQueryData(['tableDataItem', tileData.id]) as
+    | TableDataItem
+    | undefined;
   if (cachedTableDataItem && !updateCache) {
     return cachedTableDataItem;
   }
@@ -168,34 +168,35 @@ export async function buildOptimisticTableDataItem(
     queryClient,
     infiniteQueryKeys,
     undefined, // previousLogs
-    signal,
+    signal
   );
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)
   if (tableArguments && tableArguments[tileData.name!]) {
-    tableArguments[tileData.name!].available_fields = buildAvailableFieldsForTile(
-      tileData.column_context ?? "",
+    tableArguments[tileData.name!].availableFields = buildAvailableFieldsForTile(
+      tileData.columnContext ?? '',
       fields,
-      tableDataItem.entriesProperties,
-      tableDataItem.paramsProperties
+      tableDataItem.entriesProperties
     );
 
     // Update the cache with available fields
     if (updateCache) {
-      queryClient.setQueryData(["tableArguments", tabId], tableArguments);
+      queryClient.setQueryData(['tableArguments', tabId], tableArguments);
     }
   }
 
   // Update cache
   if (updateCache) {
-    console.log(`[buildOptimisticTableDataItem] Setting cache for tile ${tileData.name} (${tileData.id}): contextNotFound=${tableDataItem.contextNotFound}, error=${tableDataItem.error}`);
-    queryClient.setQueryData(["tableDataItem", tileData.id], tableDataItem);
+    console.log(
+      `[buildOptimisticTableDataItem] Setting cache for tile ${tileData.name} (${tileData.id}): contextNotFound=${tableDataItem.contextNotFound}, error=${tableDataItem.error}`
+    );
+    queryClient.setQueryData(['tableDataItem', tileData.id], tableDataItem);
     // Force refetch the internal data query so the dependency manager re-checks render readiness
     // Use refetchQueries instead of invalidateQueries for immediate effect
     // Important: queryKey must include tabId to match the actual internalDataQuery key
-    queryClient.refetchQueries({ 
-      queryKey: ["internalData", tileData.id, tabId],
-      type: 'active' 
+    queryClient.refetchQueries({
+      queryKey: ['internalData', tileData.id, tabId],
+      type: 'active',
     });
   }
 
@@ -218,7 +219,9 @@ export async function buildOptimisticPlotDataItem(
   const { updateCache = true } = options;
 
   // Check cache first
-  const cachedPlotDataItem = queryClient.getQueryData(["plotDataItem", tileData.id]) as PlotDataItem | undefined;
+  const cachedPlotDataItem = queryClient.getQueryData(['plotDataItem', tileData.id]) as
+    | PlotDataItem
+    | undefined;
   if (cachedPlotDataItem && !updateCache) {
     return cachedPlotDataItem;
   }
@@ -236,7 +239,7 @@ export async function buildOptimisticPlotDataItem(
 
   // Update cache
   if (updateCache) {
-    queryClient.setQueryData(["plotDataItem", tileData.id], plotDataItem);
+    queryClient.setQueryData(['plotDataItem', tileData.id], plotDataItem);
   }
 
   return plotDataItem;
@@ -271,10 +274,10 @@ export function updateStoreWithFreshData(
       ...state.projectsById,
       [projectId]: {
         ...projectData,
-        contexts: contexts
-      }
+        contexts: contexts,
+      },
     };
   }
 
   storeApi.setState(newState);
-} 
+}

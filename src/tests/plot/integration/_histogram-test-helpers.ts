@@ -72,7 +72,7 @@ export function assertBinCountInRange(
   expectedGroupCount = 5
 ) {
   const { min, max } = calculateExpectedBinCount(requestedBinCount, dataCount);
-  
+
   if (isGrouped) {
     const minTotalBins = min * Math.max(1, expectedGroupCount - 1);
     const maxTotalBins = max * (expectedGroupCount + 1);
@@ -89,7 +89,7 @@ export function assertBinCountInRange(
  */
 export function groupBinsByColor(bins: SVGRectElement[]): Map<string, SVGRectElement[]> {
   const groups = new Map<string, SVGRectElement[]>();
-  
+
   for (const bin of bins) {
     const fill = bin.getAttribute('fill') || 'default';
     if (!groups.has(fill)) {
@@ -97,7 +97,7 @@ export function groupBinsByColor(bins: SVGRectElement[]): Map<string, SVGRectEle
     }
     groups.get(fill)!.push(bin);
   }
-  
+
   return groups;
 }
 
@@ -106,26 +106,27 @@ export function groupBinsByColor(bins: SVGRectElement[]): Map<string, SVGRectEle
  */
 export function assertGroupedBinsValid(bins: SVGRectElement[], expectedGroupCount = 5) {
   if (bins.length === 0) return;
-  
+
   const groups = groupBinsByColor(bins);
-  
+
   expect(groups.size).toBeGreaterThanOrEqual(Math.max(2, expectedGroupCount - 1));
   expect(groups.size).toBeLessThanOrEqual(expectedGroupCount + 1);
-  
+
   groups.forEach((groupBins) => {
     assertBinsHaveValidDimensions(groupBins);
-    
+
     const sortedBins = [...groupBins].sort(
       (a, b) => parseFloat(a.getAttribute('x') || '0') - parseFloat(b.getAttribute('x') || '0')
     );
-    
+
     for (let i = 1; i < sortedBins.length; i++) {
       const prevBin = sortedBins[i - 1];
       const currBin = sortedBins[i];
-      const prevEnd = parseFloat(prevBin.getAttribute('x') || '0') + 
-                      parseFloat(prevBin.getAttribute('width') || '0');
+      const prevEnd =
+        parseFloat(prevBin.getAttribute('x') || '0') +
+        parseFloat(prevBin.getAttribute('width') || '0');
       const currStart = parseFloat(currBin.getAttribute('x') || '0');
-      
+
       expect(currStart).toBeGreaterThanOrEqual(prevEnd - POSITION_TOLERANCE);
     }
   });
@@ -137,7 +138,7 @@ export function assertGroupedBinsValid(bins: SVGRectElement[], expectedGroupCoun
 export function assertConsistentBinWidths(bins: SVGRectElement[]) {
   if (bins.length <= 1) return;
 
-  const widths = bins.map(bin => parseFloat(bin.getAttribute('width') || '0'));
+  const widths = bins.map((bin) => parseFloat(bin.getAttribute('width') || '0'));
   const avgWidth = widths.reduce((a, b) => a + b, 0) / widths.length;
 
   for (const width of widths) {
@@ -173,7 +174,7 @@ export function assertBinsContiguous(bins: SVGRectElement[]) {
 export function assertBinHeightsProportional(bins: SVGRectElement[]) {
   if (bins.length === 0) return;
 
-  const binData = bins.map(bin => ({
+  const binData = bins.map((bin) => ({
     y: parseFloat(bin.getAttribute('y') || '0'),
     height: parseFloat(bin.getAttribute('height') || '0'),
   }));
@@ -182,14 +183,14 @@ export function assertBinHeightsProportional(bins: SVGRectElement[]) {
     expect(bin.height).toBeGreaterThanOrEqual(0);
   }
 
-  const nonZeroHeights = binData.filter(b => b.height > 0);
+  const nonZeroHeights = binData.filter((b) => b.height > 0);
   expect(nonZeroHeights.length).toBeGreaterThan(0);
 
   if (nonZeroHeights.length >= 2) {
     const sortedByHeight = [...nonZeroHeights].sort((a, b) => b.height - a.height);
     const tallestBin = sortedByHeight[0];
     const shortestNonZero = sortedByHeight[sortedByHeight.length - 1];
-    
+
     expect(tallestBin.y).toBeLessThanOrEqual(shortestNonZero.y + POSITION_TOLERANCE);
   }
 }
@@ -209,10 +210,9 @@ export function assertBinsCoverDataRange(bins: SVGRectElement[]) {
 
   const firstBinX = parseFloat(sortedBins[0].getAttribute('x') || '0');
   const lastBin = sortedBins[sortedBins.length - 1];
-  const lastBinEnd = parseFloat(lastBin.getAttribute('x') || '0') +
-                     parseFloat(lastBin.getAttribute('width') || '0');
+  const lastBinEnd =
+    parseFloat(lastBin.getAttribute('x') || '0') + parseFloat(lastBin.getAttribute('width') || '0');
 
   const coverage = lastBinEnd - firstBinX;
   expect(coverage).toBeGreaterThan(plotWidth * 0.5);
 }
-

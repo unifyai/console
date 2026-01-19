@@ -1,15 +1,21 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState, useMemo, Dispatch, SetStateAction } from 'react';
 import { LuPanelLeftOpen, LuPanelRightOpen } from 'react-icons/lu';
 
-import { Button } from "@/components/UI/button";
-import { Accordion } from "@/components/UI/accordion";
-import Tooltip from "@/components/Common/Misc/Tooltip";
+import { Button } from '@/components/UI/button';
+import { Accordion } from '@/components/UI/accordion';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 import { ScrollArea } from '@/components/UI/scroll-area';
 
 import { LogFieldsResponseProps, LogProps } from '@/types/interfaces/logs';
-import { ContextActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions } from '@/types/interfaces/grid';
+import {
+  ContextActions,
+  GranularTileActions,
+  FieldsActions,
+  LogsActions,
+  ProjectsActions,
+} from '@/types/interfaces/grid';
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
@@ -31,7 +37,6 @@ import ActionButton from '@/components/Common/Buttons/Action';
 import { Maximize2 } from 'lucide-react';
 import { ColorSchemePicker } from '@/components/Common/Misc/ColorSchemePicker';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
-
 
 const PlotSettings = ({
   interactive,
@@ -79,12 +84,12 @@ const PlotSettings = ({
   tabUIState,
   tabUIActions,
   setFocusPaneOpen,
-  tileName
+  tileName,
 }: {
   /* Statuses */
   interactive: boolean;
   pending: boolean;
-  
+
   /* Containers */
   svgRef: React.RefObject<SVGSVGElement>;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -93,18 +98,18 @@ const PlotSettings = ({
   /* Data */
   logs: LogProps[] | undefined;
   fields: LogFieldsResponseProps;
-  
+
   /* Main settings */
   plotType: string;
   selectedXAxisProperty: string | undefined;
   selectedYAxisProperty: string | undefined;
-  
+
   /* Axis scales */
-  scaleX: string; 
+  scaleX: string;
   scaleY: string;
   logScaleXEnabled: boolean;
   logScaleYEnabled: boolean;
-  
+
   /* Grouping by */
   groupByProperty: string | undefined;
   metric: string;
@@ -112,13 +117,13 @@ const PlotSettings = ({
   setIsGroupingKeyMinimized: Dispatch<SetStateAction<boolean>>;
 
   /* Aggregating by */
-  groupings: {[k: string]: string[]};
+  groupings: { [k: string]: string[] };
   aggregateProperty: string | undefined;
 
   /* Bar chart sorting */
   sortBars: string;
   setSortBars: (x: string) => void;
-  
+
   /* Histogram bins */
   binCounts: number[];
   binCount: number;
@@ -135,7 +140,7 @@ const PlotSettings = ({
   tabId: string;
   interfaceId: string;
   projectId: string;
-  
+
   /* Fixed tooltip */
   isTooltipMinimized: boolean;
   setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>;
@@ -144,11 +149,11 @@ const PlotSettings = ({
   serverTileActions: GranularTileActions;
   projectsActions: ProjectsActions;
   contextActions: ContextActions;
-  logsActions: LogsActions ;
+  logsActions: LogsActions;
   fieldsActions: FieldsActions;
 
   /* UI state */
-  plotTileState: PlotTile | null
+  plotTileState: PlotTile | null;
 
   /* UI state actions */
   plotTileActions: PlotActions | null;
@@ -157,12 +162,12 @@ const PlotSettings = ({
   showSettings: boolean;
   tabUIState: any;
   tabUIActions: any;
-  setFocusPaneOpen: (open:boolean)=>void;
+  setFocusPaneOpen: (open: boolean) => void;
   tileName: string | undefined;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
-  
+  const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
+
   // Get global UI mode settings
   const { isEditMode } = useGlobalUIMode();
 
@@ -172,10 +177,10 @@ const PlotSettings = ({
 
   // Memoize default open accordion items
   const defaultAccordionValue = useMemo(() => {
-      const values = ['plot-type'];
-      if (selectedXAxisProperty) values.push('axis-x');
-      if (selectedYAxisProperty) values.push('axis-y');
-      return values;
+    const values = ['plot-type'];
+    if (selectedXAxisProperty) values.push('axis-x');
+    if (selectedYAxisProperty) values.push('axis-y');
+    return values;
   }, [selectedXAxisProperty, selectedYAxisProperty]);
 
   // Map actions to setters
@@ -193,31 +198,34 @@ const PlotSettings = ({
   // Attach isOpen state and setter to ref
   useEffect(() => {
     if (settingsRef.current) {
-        const node = settingsRef.current as any;
-        node.__isOpen = isOpen;
-        node.__setIsOpen = setIsOpen;
+      const node = settingsRef.current as any;
+      node.__isOpen = isOpen;
+      node.__setIsOpen = setIsOpen;
     }
-  }, [
-      isOpen, setIsOpen, settingsRef
-  ]);
+  }, [isOpen, setIsOpen, settingsRef]);
 
   // Show fixed tooltip / grouping key
   const showFixedTooltip = true;
-  const showGroupByKey = groupByProperty != undefined && groupByProperty != "None";
+  const showGroupByKey = groupByProperty != undefined && groupByProperty != 'None';
 
   return (
-    <div 
+    <div
       ref={settingsRef}
-      className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${showSettings ? (isOpen ? 'w-64' : 'w-12') : 'w-0 opacity-0 pointer-events-none'}`}
+      className={`relative flex flex-col border-l border-border bg-background transition-all duration-300 ease-in-out ${showSettings ? (isOpen ? 'w-64' : 'w-12') : 'pointer-events-none w-0 opacity-0'}`}
     >
       {/* Settings Content Area */}
-      <div className={`flex-1 flex flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 delay-100`}>
+      <div
+        className={`flex flex-1 flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity delay-100 duration-200`}
+      >
         {isOpen && (
           <ScrollArea>
             {/* Scrollable Accordion Section */}
             <div className="flex-1 px-1">
-              <Accordion type="multiple" defaultValue={defaultAccordionValue} className="w-full px-2">
-
+              <Accordion
+                type="multiple"
+                defaultValue={defaultAccordionValue}
+                className="w-full px-2"
+              >
                 {/* Plot Type Selection */}
                 <PlotType
                   interactive={interactive}
@@ -235,7 +243,8 @@ const PlotSettings = ({
                 />
 
                 {/* X Axis Selection */}
-                {<PlotAxis
+                {
+                  <PlotAxis
                     interactive={interactive}
                     plotType={plotType}
                     fields={fields}
@@ -245,52 +254,53 @@ const PlotSettings = ({
                     logs={logs}
                     metric={metric}
                     setMetric={setMetric}
-                />}
+                  />
+                }
 
                 {/* Y Axis Selection */}
                 <PlotAxis
-                    interactive={interactive}
-                    plotType={plotType}
-                    fields={fields}
-                    axisProperty={selectedYAxisProperty}
-                    setAxisProperty={setYAxis}
-                    axis="Y"
-                    logs={logs}
-                    metric={metric}
-                    setMetric={setMetric}
-                  />
+                  interactive={interactive}
+                  plotType={plotType}
+                  fields={fields}
+                  axisProperty={selectedYAxisProperty}
+                  setAxisProperty={setYAxis}
+                  axis="Y"
+                  logs={logs}
+                  metric={metric}
+                  setMetric={setMetric}
+                />
 
                 {/* Grouping by */}
                 <PlotGroupBy
-                    interactive={interactive}
-                    plotType={plotType}
-                    fields={fields}
-                    groupBy={groupByProperty}
-                    logs={logs}
-                    setGroupBy={setGroupBy}
+                  interactive={interactive}
+                  plotType={plotType}
+                  fields={fields}
+                  groupBy={groupByProperty}
+                  logs={logs}
+                  setGroupBy={setGroupBy}
                 />
 
                 {/* Aggregate by metric */}
                 <PlotAggregate
-                    interactive={interactive}
-                    plotType={plotType}
-                    groupings={groupings}
-                    aggregateProperty={aggregateProperty}
-                    logs={logs}
-                    setAggregateProperty={setAggregateProperty}
+                  interactive={interactive}
+                  plotType={plotType}
+                  groupings={groupings}
+                  aggregateProperty={aggregateProperty}
+                  logs={logs}
+                  setAggregateProperty={setAggregateProperty}
                 />
                 {/* Axis scales */}
-                <PlotScale 
-                    interactive={interactive}
-                    plotType={plotType}
-                    scaleX={scaleX} 
-                    scaleY={scaleY}
-                    logScaleXEnabled={logScaleXEnabled} 
-                    logScaleYEnabled={logScaleYEnabled} 
-                    selectedXAxisProperty={selectedXAxisProperty} 
-                    fields={fields}
-                    setScaleX={setScaleX}
-                    setScaleY={setScaleY} 
+                <PlotScale
+                  interactive={interactive}
+                  plotType={plotType}
+                  scaleX={scaleX}
+                  scaleY={scaleY}
+                  logScaleXEnabled={logScaleXEnabled}
+                  logScaleYEnabled={logScaleYEnabled}
+                  selectedXAxisProperty={selectedXAxisProperty}
+                  fields={fields}
+                  setScaleX={setScaleX}
+                  setScaleY={setScaleY}
                 />
 
                 {/* Bar chart sorting */}
@@ -318,20 +328,18 @@ const PlotSettings = ({
                   showRegression={showRegression}
                   setShowRegression={setShowRegression}
                 />
-
               </Accordion>
             </div>
 
             {/* Divider */}
-            { (showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" /> }
+            {(showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" />}
 
             {/* Fixed Tooltip and Grouping Key */}
             <div className="flex flex-col gap-2 px-3 pb-4">
               {/* Fixed Tooltip Container */}
-              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-caption transition-all duration-200 ease-in-out ${
-                isTooltipMinimized 
-                  ? 'h-10 overflow-hidden px-2 py-1' 
-                  : 'p-3'
+              <div
+                className={`fixedPlotTooltip text-caption relative hidden rounded-md border border-dashed transition-all duration-200 ease-in-out ${
+                  isTooltipMinimized ? 'h-10 overflow-hidden px-2 py-1' : 'p-3'
                 }`}
               >
                 {/* Content is rendered by d3 inside renderFixedTooltipContent */}
@@ -340,76 +348,78 @@ const PlotSettings = ({
               {/* Grouping Key Container */}
               {showGroupByKey && (
                 <div
-                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-muted transition-all duration-200 ease-in-out ${
-                    isGroupingKeyMinimized
-                    ? "h-10 overflow-hidden px-2 py-1"
-                    : "max-h-[150px] p-3"
+                  className={`groupingKey flex w-full flex-col gap-1 rounded-md border border-muted transition-all duration-200 ease-in-out ${
+                    isGroupingKeyMinimized ? 'h-10 overflow-hidden px-2 py-1' : 'max-h-[150px] p-3'
                   }`}
                 >
                   {/* Content is rendered by d3 */}
                 </div>
               )}
             </div>
-
           </ScrollArea>
         )}
       </div>
 
       {/* Folded State Icons */}
       {!isOpen && (
-         <div className="flex flex-col items-center p-2 gap-2">
-            {showGroupByKey && (
-              <ColorSchemePicker
-                placeholder="Select a grouping color scheme"
-                value={plotTileState?.plot_group_by_colors ?? undefined}
-                onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
-                useDialog={true}
-              />
-            )}
-            {!isEditMode && !focusPaneOpen && (
-              <ActionButton
-                tooltip="Open in focus pane"
-                side="left"
-                icon={<Maximize2 className="h-4 w-4" />}
-                variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName) ? "primary" : undefined}
-                disabled={false}
-                onClick={() => {
-                  const focused = tabUIState?.focusedTileNames || [undefined, undefined];
-                  if (tileName && !focused.includes(tileName)) {
-                    tabUIActions?.setFocusedTileNames([
-                      tileName,
-                      focused[0] || focused[1],
-                    ] as [string | undefined, string | undefined]);
-                  }
-                  setFocusPaneOpen(true);
-                }}
-              />
-            )}
-            <PlotZoom
-              interactive={interactive}
-              plotType={plotType}
-              zoomEnabled={zoomEnabled}
-              setZoomEnabled={setZoomEnabled}
+        <div className="flex flex-col items-center gap-2 p-2">
+          {showGroupByKey && (
+            <ColorSchemePicker
+              placeholder="Select a grouping color scheme"
+              value={plotTileState?.plotGroupByColors ?? undefined}
+              onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
+              useDialog={true}
             />
-            <PlotRefresh
-              tileId={tileId}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              pending={pending}
-              tileActions={serverTileActions}
-              logsActions={logsActions}
-              projectsActions={projectsActions}
-              contextActions={contextActions} 
-              fieldsActions={fieldsActions}
+          )}
+          {!isEditMode && !focusPaneOpen && (
+            <ActionButton
+              tooltip="Open in focus pane"
+              side="left"
+              icon={<Maximize2 className="h-4 w-4" />}
+              variant={
+                focusPaneOpen &&
+                (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName)
+                  ? 'primary'
+                  : undefined
+              }
+              disabled={false}
+              onClick={() => {
+                const focused = tabUIState?.focusedTileNames || [undefined, undefined];
+                if (tileName && !focused.includes(tileName)) {
+                  tabUIActions?.setFocusedTileNames([tileName, focused[0] || focused[1]] as [
+                    string | undefined,
+                    string | undefined,
+                  ]);
+                }
+                setFocusPaneOpen(true);
+              }}
             />
-         </div>
+          )}
+          <PlotZoom
+            interactive={interactive}
+            plotType={plotType}
+            zoomEnabled={zoomEnabled}
+            setZoomEnabled={setZoomEnabled}
+          />
+          <PlotRefresh
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            pending={pending}
+            tileActions={serverTileActions}
+            logsActions={logsActions}
+            projectsActions={projectsActions}
+            contextActions={contextActions}
+            fieldsActions={fieldsActions}
+          />
+        </div>
       )}
 
       {/* Toggle Button - moved to bottom */}
-      <div className={`flex ${isOpen ? 'justify-between' : 'justify-center'} px-2 py-1.5 border-t`}>
+      <div className={`flex ${isOpen ? 'justify-between' : 'justify-center'} border-t px-2 py-1.5`}>
         {/* Clear plot button */}
-        {isOpen && 
+        {isOpen && (
           <PlotReset
             settingsRef={settingsRef}
             svgRef={svgRef}
@@ -421,8 +431,8 @@ const PlotSettings = ({
             setIsTooltipMinimized={setIsTooltipMinimized}
             setZoomEnabled={setZoomEnabled}
           />
-        }
-        <Tooltip content={isOpen ? "Hide settings" : "Show settings"} side="left">
+        )}
+        <Tooltip content={isOpen ? 'Hide settings' : 'Show settings'} side="left">
           <Button
             variant="ghost"
             size="icon"

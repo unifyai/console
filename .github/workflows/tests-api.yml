@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, staging, development]
   pull_request:
-    branches: [main, staging]
+    branches: [main, staging, development]
   workflow_dispatch:
 
 concurrency:
@@ -55,7 +55,7 @@ jobs:
           ORCHESTRA_BRANCH=${{ github.ref_name == 'main' && 'main' || 'staging' }}
           git clone --depth 1 --branch $ORCHESTRA_BRANCH https://github.com/unifyai/orchestra.git orchestra
         env:
-          GH_TOKEN: ${{ secrets.ORCHESTRA_CLONE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CLONE_TOKEN }}
 
       - name: Install Orchestra dependencies
         run: |
@@ -94,28 +94,55 @@ jobs:
           VALUES ('test-user-001', 'local-test-api-key')
           ON CONFLICT (key) DO NOTHING;
 
-          INSERT INTO modality (name) VALUES ('text_generation') ON CONFLICT (name) DO NOTHING;
-          INSERT INTO task (name, modality) VALUES ('chat', 'text_generation') ON CONFLICT (name) DO NOTHING;
+          -- Seed test voices (required before assistants due to FK)
+          INSERT INTO voices (voice_id, user_id, provider, name, description, gender, language, is_preset) VALUES
+            ('test-voice-preset-001', 'test-user-001', 'cartesia', 'Test Voice Preset', 'A preset test voice for CI', 'female', 'en', true),
+            ('test-voice-custom-001', 'test-user-001', 'cartesia', 'Test Voice Custom', 'A custom test voice for CI delete tests', 'male', 'en', false)
+          ON CONFLICT (user_id, voice_id, provider) DO NOTHING;
 
-          INSERT INTO provider (id, name, image_url, display_name) VALUES
-            (1, 'openai', '', 'OpenAI'),
-            (12, 'anthropic', '', 'Anthropic'),
-            (36, 'vertex-ai', '', 'Google Vertex AI')
+          -- Seed test assistants (multiple so delete tests don't break other tests)
+          INSERT INTO assistants (agent_id, user_id, first_name, surname, age, nationality, profile_photo, profile_video, about, phone_country, timezone, weekly_limit, voice_id, voice_provider, voice_mode, created_at, updated_at) VALUES
+            (1001, 'test-user-001', 'Test', 'Assistant', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant for CI integration tests', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW()),
+            (1002, 'test-user-001', 'Test', 'Deletable', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant that can be deleted', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW())
+          ON CONFLICT (agent_id) DO NOTHING;
+
+          -- Update sequence to avoid conflicts when creating new assistants
+          SELECT setval('assistants_agent_id_seq', (SELECT COALESCE(MAX(agent_id), 0) + 1 FROM assistants), false);
+
+          -- Seed test organization (id=1) owned by test-user-001
+          INSERT INTO organization (id, owner_id, name, credits, autorecharge, account_status)
+          VALUES (1, 'test-user-001', 'Test Organization', 10000, false, 'ACTIVE')
           ON CONFLICT (id) DO NOTHING;
 
-          INSERT INTO model (id, mdl_code, uploaded_at, task, active) VALUES
-            (101, 'gpt-4o', NOW(), 'chat', true),
-            (104, 'claude-3-5-sonnet', NOW(), 'chat', true),
-            (107, 'gemini-1.5-flash', NOW(), 'chat', true)
+          -- Update organization sequence
+          SELECT setval('organization_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM organization), false);
+
+          -- Add test user as Owner member of the organization
+          -- First get the Owner role ID (system role with organization_id IS NULL)
+          INSERT INTO organization_member (organization_id, user_id, role_id)
+          SELECT 1, 'test-user-001', r.id
+          FROM role r
+          WHERE r.name = 'Owner' AND r.organization_id IS NULL AND r.is_system_role = true
+          ON CONFLICT DO NOTHING;
+
+          -- Seed a test team in the organization
+          INSERT INTO team (id, name, description, organization_id)
+          VALUES (1, 'Engineering', 'Test engineering team', 1)
           ON CONFLICT (id) DO NOTHING;
 
-          INSERT INTO endpoint (id, mdl_id, provider_id, created_at, active) VALUES
-            (101, 101, 1, NOW(), true),
-            (104, 104, 12, NOW(), true),
-            (107, 107, 36, NOW(), true)
-          ON CONFLICT (id) DO NOTHING;
+          -- Update team sequence
+          SELECT setval('team_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM team), false);
+
+          -- Seed 'Assistants' project for logs/secrets functionality
+          -- Required by secret.ts which stores secrets as logs in this project
+          INSERT INTO project (id, user_id, name, description, icon)
+          VALUES (1, 'test-user-001', 'Assistants', 'Project for assistant secrets', 'folder')
+          ON CONFLICT (user_id, name) DO NOTHING;
+
+          -- Update project sequence
+          SELECT setval('project_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM project), false);
           "
-          echo "✓ Orchestra test data seeded"
+          echo "✓ Orchestra test data seeded (users, voices, assistants, organization, team, project)"
 
       - name: Start Orchestra API
         run: |
@@ -139,8 +166,15 @@ jobs:
           ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME: ${{ vars.GCP_BUCKET_ASSISTANT_IMAGES }}
           ORCHESTRA_GCP_ASSISTANT_RECORDINGS_BUCKET_NAME: ${{ vars.GCP_BUCKET_RECORDINGS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ORCHESTRA_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
+          UNITY_COMMS_URL: ${{ secrets.UNITY_COMMS_URL }}
+          UNITY_ADAPTERS_URL: ${{ secrets.UNITY_ADAPTERS_URL }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ORCHESTRA_ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+          ORCHESTRA_REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -157,6 +191,7 @@ jobs:
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           NEXT_PUBLIC_ORCHESTRA_URL: http://localhost:8000
+          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
 
       - name: Start Console
         run: |
@@ -167,6 +202,7 @@ jobs:
           NEXTAUTH_SECRET: ci-secret-placeholder
           NEXTAUTH_URL: http://localhost:3000
           ORCHESTRA_URL: http://localhost:8000
+          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
 
       - name: Run API Tests
         run: npm run test:real -- --run

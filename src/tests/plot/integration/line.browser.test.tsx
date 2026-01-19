@@ -8,10 +8,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { renderPlotCanvas } from '../fixtures/plotCanvasTestHarness';
-import {
-  assertLinePathIsValid,
-  assertLineWithinPlotArea,
-} from './_line-test-helpers';
+import { assertLinePathIsValid, assertLineWithinPlotArea } from './_line-test-helpers';
 
 // =============================================================================
 // Setup
@@ -40,11 +37,13 @@ describe('Line Chart - Edge Cases', () => {
   });
 
   it('handles single data point', async () => {
-    const singleLog = [{
-      id: 'log_0',
-      timestamp: new Date().toISOString(),
-      'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 75 },
-    }];
+    const singleLog = [
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 75 },
+      },
+    ];
 
     const result = renderPlotCanvas({
       plotType: 'Line Chart',
@@ -59,8 +58,16 @@ describe('Line Chart - Edge Cases', () => {
 
   it('handles two data points (minimal line)', async () => {
     const twoPointLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 0, 'table1.y_value': 0 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 100, 'table1.y_value': 100 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 0, 'table1.y_value': 0 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 100, 'table1.y_value': 100 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -79,9 +86,21 @@ describe('Line Chart - Edge Cases', () => {
 
   it('handles gaps (null values in series)', async () => {
     const gappyLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 1, 'table1.y_value': 0 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 2, 'table1.y_value': null } },
-      { id: 'log_2', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 3, 'table1.y_value': 50 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 1, 'table1.y_value': 0 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 2, 'table1.y_value': null },
+      },
+      {
+        id: 'log_2',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 3, 'table1.y_value': 50 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -97,8 +116,16 @@ describe('Line Chart - Edge Cases', () => {
 
   it('handles large values', async () => {
     const largeValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 1, 'table1.y_value': 1e10 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 2, 'table1.y_value': 1e12 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 1, 'table1.y_value': 1e10 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 2, 'table1.y_value': 1e12 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -117,9 +144,21 @@ describe('Line Chart - Edge Cases', () => {
 
   it('handles negative values', async () => {
     const negativeValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': -50, 'table1.y_value': -25 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 0, 'table1.y_value': 0 } },
-      { id: 'log_2', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 25 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': -50, 'table1.y_value': -25 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 0, 'table1.y_value': 0 },
+      },
+      {
+        id: 'log_2',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 25 },
+      },
     ];
 
     const result = renderPlotCanvas({
@@ -139,10 +178,26 @@ describe('Line Chart - Edge Cases', () => {
 
   it('handles non-monotonic x values', async () => {
     const nonMonotonicLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 30, 'table1.y_value': 30 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 10, 'table1.y_value': 10 } },
-      { id: 'log_2', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 50 } },
-      { id: 'log_3', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.x_value': 20, 'table1.y_value': 20 } },
+      {
+        id: 'log_0',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 30, 'table1.y_value': 30 },
+      },
+      {
+        id: 'log_1',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 10, 'table1.y_value': 10 },
+      },
+      {
+        id: 'log_2',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 50, 'table1.y_value': 50 },
+      },
+      {
+        id: 'log_3',
+        timestamp: new Date().toISOString(),
+        'table1.entries': { 'table1.x_value': 20, 'table1.y_value': 20 },
+      },
     ];
 
     const result = renderPlotCanvas({

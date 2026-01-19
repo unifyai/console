@@ -13,7 +13,7 @@ import { clearFixedTooltip } from './tooltip';
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { PlotTile } from '@/contexts/slices/selectors/plotTile';
 import { withLoadingToastFn } from '@/components/Common/Toasts/notifications';
-import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
+import { DataLabel, GroupedDataLabel, AxisCustomization } from '@/types/interfaces/plot';
 
 /**
  * Main function orchestrating the drawing of different plot types (Scatter, Bar, Histogram, Line) within a specified SVG container.
@@ -92,7 +92,8 @@ export const drawPlot = async (
   setLogScaleYEnabled: (enabled: boolean) => void,
   plotTileActions?: PlotActions | null,
   plotTileState?: PlotTile | null,
-  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[]
+  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[],
+  axisCustomization?: AxisCustomization
 ) => {
   try {
     // Update svg dimensions
@@ -115,7 +116,7 @@ export const drawPlot = async (
     const xTable = selectedXAxisProperty?.split('.')[0] || '';
     const yTable = selectedYAxisProperty?.split('.')[0] || '';
 
-    const groupByColors = plotTileState?.plot_group_by_colors ?? undefined;
+    const groupByColors = plotTileState?.plotGroupByColors ?? undefined;
 
     // Draw selected plot type
     if (plotType === 'Line Chart') {
@@ -164,7 +165,8 @@ export const drawPlot = async (
           zoomRef,
           groupByColors,
           interactive,
-          zoomEnabled
+          zoomEnabled,
+          axisCustomization
         );
       } else {
         clearCanvas(svgRef, containerRef);
@@ -203,7 +205,8 @@ export const drawPlot = async (
           zoomRef,
           groupByColors,
           interactive,
-          preAggregatedBarData
+          preAggregatedBarData,
+          axisCustomization
         );
       } else {
         clearCanvas(svgRef, containerRef);
@@ -235,7 +238,8 @@ export const drawPlot = async (
           xTable,
           logs,
           fields,
-          groupByColors
+          groupByColors,
+          axisCustomization
         );
       } else {
         clearCanvas(svgRef, containerRef);
@@ -292,7 +296,8 @@ export const drawPlot = async (
           zoomRef,
           groupByColors,
           interactive,
-          zoomEnabled
+          zoomEnabled,
+          axisCustomization
         );
       } else {
         clearCanvas(svgRef, containerRef);

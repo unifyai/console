@@ -123,7 +123,7 @@
 
 /* Fix for br tags to create proper line breaks without excessive spacing */
 .markdownContainer br {
-  content: "";
+  content: '';
   display: block;
   margin: 0;
   height: 0;
@@ -135,13 +135,13 @@
   .markdownContainer pre {
     background-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .markdownContainer blockquote {
     border-left-color: rgba(255, 255, 255, 0.2);
   }
-  
+
   .markdownContainer th,
   .markdownContainer td {
     border-color: rgba(255, 255, 255, 0.1);
   }
-} 
+}

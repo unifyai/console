@@ -1,5 +1,5 @@
-import { StateCreator } from "zustand";
-import { StoreSlice } from "./slice";
+import { StateCreator } from 'zustand';
+import { StoreSlice } from './slice';
 
 // Helper functions for localStorage persistence
 const GLOBAL_EDIT_MODE_KEY = 'unify:globalEditMode';
@@ -82,7 +82,7 @@ export type GlobalSlice = GlobalState & GlobalActions;
 
 export const createGlobalSlice: StateCreator<
   StoreSlice,
-  [["zustand/immer", never]],
+  [['zustand/immer', never]],
   [],
   GlobalSlice
 > = (set) => ({
@@ -103,54 +103,65 @@ export const createGlobalSlice: StateCreator<
   globalDashboardMode: loadGlobalDashboardMode(),
 
   // Global actions
-  setProjects: (projects: string[]) => set(state => {
-    state.projects = projects;
-  }),
+  setProjects: (projects: string[]) =>
+    set((state) => {
+      state.projects = projects;
+    }),
 
   // Global state reset action
   resetState: (newState) => set({ ...newState }),
 
   // Global state update action
-  updateState: (updates) => set((state) => ({
-    ...state,
-    ...updates,
-  })),
+  updateState: (updates) =>
+    set((state) => ({
+      ...state,
+      ...updates,
+    })),
 
-  setSelectProjectsOpen: (open) => set(state => {
-    state.selectProjectsOpen = open;
-  }),
+  setSelectProjectsOpen: (open) =>
+    set((state) => {
+      state.selectProjectsOpen = open;
+    }),
 
-  setCreateProjectOpen: (open) => set(state => {
-    state.createProjectOpen = open;
-  }),
+  setCreateProjectOpen: (open) =>
+    set((state) => {
+      state.createProjectOpen = open;
+    }),
 
-  setDeleteProjectOpen: (open) => set(state => {
-    state.deleteProjectOpen = open;
-  }),
+  setDeleteProjectOpen: (open) =>
+    set((state) => {
+      state.deleteProjectOpen = open;
+    }),
 
-  setFileUploadOpen: (open) => set(state => {
-    state.fileUploadOpen = open;
-  }),
+  setFileUploadOpen: (open) =>
+    set((state) => {
+      state.fileUploadOpen = open;
+    }),
 
-  setFocusPaneOpen: (open) => set(state => {
-    state.focusPaneOpen = open;
-  }),
+  setFocusPaneOpen: (open) =>
+    set((state) => {
+      state.focusPaneOpen = open;
+    }),
 
-  setGlobalContextOpen: (open) => set(state => {
-    state.globalContextOpen = open;
-  }),
+  setGlobalContextOpen: (open) =>
+    set((state) => {
+      state.globalContextOpen = open;
+    }),
 
-  setSaveInterfaceOpen: (open) => set(state => {
-    state.saveInterfaceOpen = open;
-  }),
+  setSaveInterfaceOpen: (open) =>
+    set((state) => {
+      state.saveInterfaceOpen = open;
+    }),
 
-  setGlobalEditMode: (editMode) => set(state => {
-    state.globalEditMode = editMode;
-    saveGlobalEditMode(editMode);
-  }),
+  setGlobalEditMode: (editMode) =>
+    set((state) => {
+      state.globalEditMode = editMode;
+      saveGlobalEditMode(editMode);
+    }),
 
-  setGlobalDashboardMode: (dashboardMode) => set(state => {
-    state.globalDashboardMode = dashboardMode;
-    saveGlobalDashboardMode(dashboardMode);
-  }),
-}); 
+  setGlobalDashboardMode: (dashboardMode) =>
+    set((state) => {
+      state.globalDashboardMode = dashboardMode;
+      saveGlobalDashboardMode(dashboardMode);
+    }),
+});

@@ -1,50 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function POST(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const requestBody = await request.json();
+  const { token } = requestBody;
+  if (!token) {
+    return badRequest('Missing required field: token');
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.POST(
+      '/v0/user/claim-assistant-hiring-one-time-link',
+      {
+        body: { token },
+      }
+    );
+
+    if (error) {
+      console.error(
+        `Orchestra API Error (claim-assistant-hiring-one-time-link - ${response.status}):`,
+        error
+      );
+      return NextResponse.json(error, { status: response.status });
     }
-    const requestBody = await request.json();
-    const { token } = requestBody;
-    if (!token) {
-        return NextResponse.json({ detail: "Missing required field: token" }, { status: 400 });
-    }
 
-    try {
-        const response = await fetch(
-            `${baseUrl}/user/claim-assistant-hiring-one-time-link`,
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "accept": "application/json"
-                },
-                body: JSON.stringify({ token })
-            }
-        );
-
-        const responseData = await response.json().catch(e => {
-            console.error("Failed to parse JSON response from Orchestra API (claim-assistant-hiring-one-time-link):", e);
-            return { detail: "Invalid JSON response from backend API", status: response.status };
-        });
-
-        if (!response.ok) {
-             console.error(`Orchestra API Error (claim-assistant-hiring-one-time-link - ${response.status}):`, responseData);
-             return NextResponse.json(responseData, { status: response.status });
-        }
-
-        return NextResponse.json(responseData, { status: response.status });
-
-    } catch (error: any) {
-        console.error("Error proxying to Orchestra API (claim-assistant-hiring-one-time-link):", error);
-        return NextResponse.json({ detail: "Failed to connect to backend API", errorDetails: error.message }, { status: 503 });
-    }
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error proxying to Orchestra API (claim-assistant-hiring-one-time-link):', e);
+    return NextResponse.json(
+      {
+        detail: 'Failed to connect to backend API',
+        errorDetails: e instanceof Error ? e.message : 'Unknown error',
+      },
+      { status: 503 }
+    );
+  }
 }

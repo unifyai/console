@@ -20,7 +20,13 @@ vi.mock('@/contexts/hooks/tile/useTableTile', () => ({
 type HookParams = Parameters<typeof useInfiniteLogsQuery>[0];
 type HookResult = ReturnType<typeof useInfiniteLogsQuery>;
 
-function TestComponent({ params, onResult }: { params: HookParams; onResult: (result: HookResult) => void }) {
+function TestComponent({
+  params,
+  onResult,
+}: {
+  params: HookParams;
+  onResult: (result: HookResult) => void;
+}) {
   const result = useInfiniteLogsQuery(params);
 
   useEffect(() => {
@@ -38,35 +44,39 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
   it('fetches the first page of ungrouped logs via getLogs/MSW and calls updateLogs in append mode', async () => {
     // Use a mock getLogs function that returns the expected data
     // This avoids issues with server actions in the test environment
-    const mockGetLogs = vi.fn(async (
-      project: string,
-      context: string | null,
-      columnContext: string | null,
-      filterExpression: string | null,
-      sortingExpression: string | null,
-      groupingExpression: string | null,
-      groupSortingExpression: string | null,
-      from_ids: string | null,
-      from_fields: string | null,
-      exclude_fields: string | null,
-      limit: number | null,
-      offset: number | null,
-      group_limit: number | null,
-      group_offset: number | null,
-      group_depth: number | null
-    ) => {
-      const effectiveLimit = limit ?? 20;
-      const effectiveOffset = offset ?? 0;
-      // Return exactly 20 logs with totalCount of 20 (no more pages)
-      const allLogs = createMockLogs(20, { offset: 0, totalCount: 20 });
-      const paginatedLogs = (allLogs.logs as LogProps[]).slice(effectiveOffset, effectiveOffset + effectiveLimit);
-      return {
-        params: allLogs.params,
-        logs: paginatedLogs,
-        count: 20,
-        groups: allLogs.groups,
-      };
-    });
+    const mockGetLogs = vi.fn(
+      async (
+        project: string,
+        context: string | null,
+        columnContext: string | null,
+        filterExpression: string | null,
+        sortingExpression: string | null,
+        groupingExpression: string | null,
+        groupSortingExpression: string | null,
+        fromIds: string | null,
+        fromFields: string | null,
+        excludeFields: string | null,
+        limit: number | null,
+        offset: number | null,
+        groupLimit: number | null,
+        groupOffset: number | null,
+        groupDepth: number | null
+      ) => {
+        const effectiveLimit = limit ?? 20;
+        const effectiveOffset = offset ?? 0;
+        // Return exactly 20 logs with totalCount of 20 (no more pages)
+        const allLogs = createMockLogs(20, { offset: 0, totalCount: 20 });
+        const paginatedLogs = (allLogs.logs as LogProps[]).slice(
+          effectiveOffset,
+          effectiveOffset + effectiveLimit
+        );
+        return {
+          logs: paginatedLogs,
+          count: 20,
+          groups: allLogs.groups,
+        };
+      }
+    );
 
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
@@ -90,7 +100,7 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions,
       updateLogs,
       enabled: true,
@@ -119,7 +129,7 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
 
     // updateLogs should have been called in append mode
     expect(updateLogs).toHaveBeenCalled();
-    const [, mode] = updateLogs.mock.calls[0] as [unknown, 'append' | 'prepend'];
+    const [, mode] = updateLogs.mock.calls[0] as any;
     expect(mode).toBe('append');
 
     // The hook should not think there are more pages, given the default MSW fixture count
@@ -129,4 +139,3 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
     expect(addInfiniteQueryKey).toHaveBeenCalled();
   });
 });
-

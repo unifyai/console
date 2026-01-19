@@ -1,22 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { User } from "@/types/user";
-import UserInfo from "@/components/Pages/Profile/Info";
-import NewsletterPreferences from "./Newsletter";
-import SecondaryButton from "../../Common/Buttons/Secondary";
-import PrimaryButton from "../../Common/Buttons/Primary";
-import DeleteDialog from "../../Common/Dialogs/Delete";
-import { AlertCircle, CheckCircle } from "lucide-react";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/UI/alert";
-import { useRouter } from "next/navigation";
-import { deleteUser, verifyUserPhone } from "@/lib/user/user";
-import { signOut } from "next-auth/react";
-import { toast } from "sonner";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { User } from '@/types/user';
+import UserInfo from '@/components/Pages/Profile/Info';
+import NewsletterPreferences from './Newsletter';
+import SecondaryButton from '../../Common/Buttons/Secondary';
+import PrimaryButton from '../../Common/Buttons/Primary';
+import DeleteDialog from '../../Common/Dialogs/Delete';
+import { AlertCircle, CheckCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
+import { useRouter } from 'next/navigation';
+import { deleteUser, verifyUserPhone } from '@/lib/user/user';
+import { signOut } from 'next-auth/react';
+import { toast } from 'sonner';
 
 export interface PhoneVerificationState {
   phoneNumber: string;
@@ -30,44 +26,43 @@ export interface PhoneVerificationState {
   cooldown: number;
 }
 
-const ProfileForm = ({user, onPrem}: {
-    user: User,
-    onPrem: string | undefined
-}) => {
-  
+const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
   const router = useRouter();
 
   // Form state
   const [formState, setFormState] = useState({
-    name: user.name || "",
-    last_name: user.last_name || "",
-    job_title: user.job_title || "",
-    bio: user.bio || "",
-    timezone: user.timezone || "",
+    name: user.name || '',
+    lastName: user.lastName || '',
+    jobTitle: user.jobTitle || '',
+    bio: user.bio || '',
+    timezone: user.timezone || '',
   });
   const [initialFormState, setInitialFormState] = useState({ ...formState });
   const [changeMade, setChangeMade] = useState(false);
 
   // Phone verification state
   const [phoneState, setPhoneState] = useState<PhoneVerificationState>({
-    phoneNumber: user.phone_number || "",
-    isPhoneVerified: !!user.phone_number, // Already verified if user has a phone number
+    phoneNumber: user.phoneNumber || '',
+    isPhoneVerified: !!user.phoneNumber, // Already verified if user has a phone number
     isVerifying: false,
     verificationCodeSent: null,
     verificationSentAt: null,
     verificationAttempts: 0,
     verificationError: null,
-    verificationInput: "",
+    verificationInput: '',
     cooldown: 0,
   });
-  const [initialPhoneNumber] = useState(user.phone_number || "");
+  const [initialPhoneNumber] = useState(user.phoneNumber || '');
 
   // State for newsletter subscriptions
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [initialSubscriptions, setInitialSubscriptions] = useState<string[]>([]);
-  
+
   // Alert state
-  const [alert, setAlert] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+  const [alert, setAlert] = useState<{ type: 'success' | 'error' | null; message: string }>({
+    type: null,
+    message: '',
+  });
 
   useEffect(() => {
     const fetchSubscriptions = async () => {
@@ -90,55 +85,57 @@ const ProfileForm = ({user, onPrem}: {
     let interval: NodeJS.Timeout | null = null;
     if (phoneState.cooldown > 0) {
       interval = setInterval(() => {
-        setPhoneState(prev => ({ ...prev, cooldown: Math.max(0, prev.cooldown - 1) }));
+        setPhoneState((prev) => ({ ...prev, cooldown: Math.max(0, prev.cooldown - 1) }));
       }, 1000);
     }
-    return () => { if (interval) clearInterval(interval); };
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [phoneState.cooldown]);
 
   // Automatically set timezone for new users
   useEffect(() => {
     const autoUpdateTimezone = async (tz: string) => {
-        const formData = new FormData();
-        // Append all current user data to avoid blanking it out on update
-        formData.append('name', user.name || '');
-        formData.append('last_name', user.last_name || '');
-        formData.append('job_title', user.job_title || '');
-        formData.append('bio', user.bio || '');
-        formData.append('email', user.email || '');
-        formData.append('timezone', tz);
+      const formData = new FormData();
+      // Append all current user data to avoid blanking it out on update
+      formData.append('name', user.name || '');
+      formData.append('lastName', user.lastName || '');
+      formData.append('jobTitle', user.jobTitle || '');
+      formData.append('bio', user.bio || '');
+      formData.append('email', user.email || '');
+      formData.append('timezone', tz);
 
-        try {
-            const response = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
-                method: "POST",
-                body: formData
-            });
+      try {
+        const response = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
+          method: 'POST',
+          body: formData,
+        });
 
-            if (response.ok) {
-                setFormState(prev => ({...prev, timezone: tz}));
-                setInitialFormState(prev => ({...prev, timezone: tz}));
-                toast.success("Your timezone has been automatically set.");
-            } else {
-                 toast.error("Could not automatically set your timezone.");
-            }
-        } catch (error) {
-            console.error("Failed to auto-update timezone:", error);
-            toast.error("Could not automatically set your timezone.");
+        if (response.ok) {
+          setFormState((prev) => ({ ...prev, timezone: tz }));
+          setInitialFormState((prev) => ({ ...prev, timezone: tz }));
+          toast.success('Your timezone has been automatically set.');
+        } else {
+          toast.error('Could not automatically set your timezone.');
         }
+      } catch (error) {
+        console.error('Failed to auto-update timezone:', error);
+        toast.error('Could not automatically set your timezone.');
+      }
     };
 
     if (!user.timezone) {
-        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (browserTimezone) {
-            autoUpdateTimezone(browserTimezone);
-        }
+      const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (browserTimezone) {
+        autoUpdateTimezone(browserTimezone);
+      }
     }
-  }, [user.id, user.timezone, user.name, user.last_name, user.job_title, user.bio, user.email]);
+  }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.bio, user.email]);
 
   const preferencesChanged = useMemo(() => {
     if (subscriptions.length !== initialSubscriptions.length) return true;
     const initialSubsSet = new Set(initialSubscriptions);
-    return !subscriptions.every(sub => initialSubsSet.has(sub));
+    return !subscriptions.every((sub) => initialSubsSet.has(sub));
   }, [subscriptions, initialSubscriptions]);
 
   useEffect(() => {
@@ -150,7 +147,7 @@ const ProfileForm = ({user, onPrem}: {
       return () => clearTimeout(timer);
     }
   }, [alert]);
-  
+
   // Handle subscription changes
   const handleSubscriptionChange = (value: string[]) => {
     setSubscriptions(value);
@@ -174,7 +171,7 @@ const ProfileForm = ({user, onPrem}: {
 
   // Phone number handlers
   const handlePhoneChange = (value: string) => {
-    setPhoneState(prev => ({
+    setPhoneState((prev) => ({
       ...prev,
       phoneNumber: value,
       // Reset verification if phone number changes
@@ -184,58 +181,61 @@ const ProfileForm = ({user, onPrem}: {
     setChangeMade(true);
   };
 
-  const handleVerifyPhone = useCallback(async (isRetry = false) => {
-    if (isRetry && phoneState.cooldown > 0) {
-      toast.info(`Please wait ${phoneState.cooldown}s before retrying.`);
-      return;
-    }
+  const handleVerifyPhone = useCallback(
+    async (isRetry = false) => {
+      if (isRetry && phoneState.cooldown > 0) {
+        toast.info(`Please wait ${phoneState.cooldown}s before retrying.`);
+        return;
+      }
 
-    // Validate phone number format
-    const phonePattern = /^\+[1-9]\d{7,14}$/;
-    if (!phonePattern.test(phoneState.phoneNumber)) {
-      setPhoneState(prev => ({
+      // Validate phone number format
+      const phonePattern = /^\+[1-9]\d{7,14}$/;
+      if (!phonePattern.test(phoneState.phoneNumber)) {
+        setPhoneState((prev) => ({
+          ...prev,
+          verificationError: 'Please enter a valid international phone number (e.g., +15551234567)',
+        }));
+        return;
+      }
+
+      setPhoneState((prev) => ({
         ...prev,
-        verificationError: "Please enter a valid international phone number (e.g., +15551234567)"
+        isVerifying: true,
+        verificationError: null,
+        ...(isRetry ? { verificationAttempts: 0, verificationInput: '' } : {}),
+        cooldown: 30,
       }));
-      return;
-    }
 
-    setPhoneState(prev => ({
-      ...prev,
-      isVerifying: true,
-      verificationError: null,
-      ...(isRetry ? { verificationAttempts: 0, verificationInput: "" } : {}),
-      cooldown: 30,
-    }));
+      const result = await verifyUserPhone(phoneState.phoneNumber);
 
-    const result = await verifyUserPhone(phoneState.phoneNumber);
-
-    if ('detail' in result) {
-      toast.error("Failed to send verification code.");
-      setPhoneState(prev => ({
-        ...prev,
-        verificationError: result.detail,
-        isVerifying: false,
-      }));
-    } else {
-      toast.success(`Verification code sent to ${phoneState.phoneNumber}`);
-      setPhoneState(prev => ({
-        ...prev,
-        verificationCodeSent: result.verification_code,
-        verificationSentAt: new Date(result.sent_at),
-      }));
-    }
-  }, [phoneState.phoneNumber, phoneState.cooldown]);
+      if ('detail' in result) {
+        toast.error('Failed to send verification code.');
+        setPhoneState((prev) => ({
+          ...prev,
+          verificationError: result.detail,
+          isVerifying: false,
+        }));
+      } else {
+        toast.success(`Verification code sent to ${phoneState.phoneNumber}`);
+        setPhoneState((prev) => ({
+          ...prev,
+          verificationCodeSent: result.verificationCode,
+          verificationSentAt: new Date(result.sentAt),
+        }));
+      }
+    },
+    [phoneState.phoneNumber, phoneState.cooldown]
+  );
 
   const handleCancelVerification = useCallback(() => {
-    setPhoneState(prev => ({
+    setPhoneState((prev) => ({
       ...prev,
       isVerifying: false,
       verificationCodeSent: null,
       verificationSentAt: null,
       verificationError: null,
       verificationAttempts: 0,
-      verificationInput: "",
+      verificationInput: '',
     }));
   }, []);
 
@@ -244,25 +244,25 @@ const ProfileForm = ({user, onPrem}: {
 
     // Check if code has expired (5 minutes)
     if (Date.now() - phoneState.verificationSentAt.getTime() > 5 * 60 * 1000) {
-      setPhoneState(prev => ({
+      setPhoneState((prev) => ({
         ...prev,
-        verificationError: "Code expired. Please request a new code."
+        verificationError: 'Code expired. Please request a new code.',
       }));
       return;
     }
 
     // Check attempt limit
     if (phoneState.verificationAttempts >= 3) {
-      setPhoneState(prev => ({
+      setPhoneState((prev) => ({
         ...prev,
-        verificationError: "Too many attempts. Please request a new code."
+        verificationError: 'Too many attempts. Please request a new code.',
       }));
       return;
     }
 
     if (phoneState.verificationInput === phoneState.verificationCodeSent) {
-      toast.success("Phone number verified successfully!");
-      setPhoneState(prev => ({
+      toast.success('Phone number verified successfully!');
+      setPhoneState((prev) => ({
         ...prev,
         isPhoneVerified: true,
         isVerifying: false,
@@ -270,23 +270,29 @@ const ProfileForm = ({user, onPrem}: {
         verificationSentAt: null,
         verificationError: null,
         verificationAttempts: 0,
-        verificationInput: "",
+        verificationInput: '',
       }));
     } else {
-      setPhoneState(prev => ({
+      setPhoneState((prev) => ({
         ...prev,
         verificationAttempts: prev.verificationAttempts + 1,
-        verificationError: "Incorrect code. Please try again."
+        verificationError: 'Incorrect code. Please try again.',
       }));
     }
-  }, [phoneState.verificationCodeSent, phoneState.verificationSentAt, phoneState.verificationInput, phoneState.verificationAttempts]);
+  }, [
+    phoneState.verificationCodeSent,
+    phoneState.verificationSentAt,
+    phoneState.verificationInput,
+    phoneState.verificationAttempts,
+  ]);
 
   const setVerificationInput = useCallback((value: string) => {
-    setPhoneState(prev => ({ ...prev, verificationInput: value, verificationError: null }));
+    setPhoneState((prev) => ({ ...prev, verificationInput: value, verificationError: null }));
   }, []);
 
   // Check if phone needs verification before save
-  const phoneNeedsVerification = phoneState.phoneNumber.trim() !== "" && !phoneState.isPhoneVerified;
+  const phoneNeedsVerification =
+    phoneState.phoneNumber.trim() !== '' && !phoneState.isPhoneVerified;
   const isVerificationFlowActive = phoneState.isVerifying && phoneState.verificationCodeSent;
 
   // Handle cancel
@@ -304,7 +310,7 @@ const ProfileForm = ({user, onPrem}: {
       verificationSentAt: null,
       verificationAttempts: 0,
       verificationError: null,
-      verificationInput: "",
+      verificationInput: '',
       cooldown: 0,
     });
   };
@@ -314,33 +320,33 @@ const ProfileForm = ({user, onPrem}: {
 
     // Prevent save if phone needs verification
     if (phoneNeedsVerification) {
-      toast.error("Please verify your phone number before saving.");
+      toast.error('Please verify your phone number before saving.');
       return;
     }
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     formData.append('timezone', formState.timezone);
-    
+
     // Include phone number (empty string if cleared, or verified phone number)
-    const phoneToSave = phoneState.phoneNumber.trim() === "" ? "" : phoneState.phoneNumber;
-    formData.append('phone_number', phoneToSave);
+    const phoneToSave = phoneState.phoneNumber.trim() === '' ? '' : phoneState.phoneNumber;
+    formData.append('phoneNumber', phoneToSave);
 
     // Update profile info
     const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {
-      method: "POST",
-      body: formData
+      method: 'POST',
+      body: formData,
     });
 
     // Update newsletter preferences
     const newsletterPromise = fetch('/api/loops/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailingLists: subscriptions })
+      body: JSON.stringify({ mailingLists: subscriptions }),
     });
 
     const [profileResponse, newsletterResponse] = await Promise.all([
       profilePromise,
-      newsletterPromise
+      newsletterPromise,
     ]);
 
     if (profileResponse.ok && newsletterResponse.ok) {
@@ -360,7 +366,7 @@ const ProfileForm = ({user, onPrem}: {
   };
 
   return (
-    <div className="mt-10 sm:mt-0 w-fit">
+    <div className="mt-10 w-fit sm:mt-0">
       <form onSubmit={handleSave}>
         <UserInfo
           formState={formState}
@@ -380,9 +386,9 @@ const ProfileForm = ({user, onPrem}: {
           subscriptions={subscriptions}
           handleSubscriptionChange={handleSubscriptionChange}
         />
-        <div className="flex justify-between items-center gap-5 mt-5">
-        {(changeMade || preferencesChanged) ? 
-            <div className="w-fit flex gap-2">
+        <div className="mt-5 flex items-center justify-between gap-5">
+          {changeMade || preferencesChanged ? (
+            <div className="flex w-fit gap-2">
               <SecondaryButton
                 onClick={handleCancel}
                 disabled={!changeMade && !preferencesChanged}
@@ -391,24 +397,45 @@ const ProfileForm = ({user, onPrem}: {
               <PrimaryButton
                 type="submit"
                 disabled={(!changeMade && !preferencesChanged) || phoneNeedsVerification}
-                label={phoneNeedsVerification ? "Verify Phone First" : "Save"}
+                label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
               />
-            </div> : <div></div>
-          }
-          <div className="w-fit flex gap-2">
-            <SecondaryButton label="Sign Out" onClick={() => {signOut(); router.push('/login')}} />
-            <DeleteDialog args={[user.id]} deletingFunction={deleteUser} onDelete={() => {router.push('/login')}} type="account" text="Delete Account" icon={null} variant="destructive" expectedResponseType={"string"} />
+            </div>
+          ) : (
+            <div></div>
+          )}
+          <div className="flex w-fit gap-2">
+            <SecondaryButton
+              label="Sign Out"
+              onClick={() => {
+                signOut();
+                router.push('/login');
+              }}
+            />
+            <DeleteDialog
+              args={[user.id]}
+              deletingFunction={deleteUser}
+              onDelete={() => {
+                router.push('/login');
+              }}
+              type="account"
+              text="Delete Account"
+              icon={null}
+              variant="destructive"
+              expectedResponseType={'string'}
+            />
           </div>
         </div>
       </form>
       {alert.type && (
-        <Alert variant={alert.type === 'error' ? "destructive" : "default"} className="mt-5">
+        <Alert variant={alert.type === 'error' ? 'destructive' : 'default'} className="mt-5">
           {alert.type === 'error' ? (
             <AlertCircle className="h-4 w-4" />
           ) : (
             <CheckCircle className="h-4 w-4" />
           )}
-          <AlertTitle className="text-title">{alert.type === 'error' ? 'Error' : 'Success'}</AlertTitle>
+          <AlertTitle className="text-title">
+            {alert.type === 'error' ? 'Error' : 'Success'}
+          </AlertTitle>
           <AlertDescription className="text-body">{alert.message}</AlertDescription>
         </Alert>
       )}

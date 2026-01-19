@@ -1,53 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
-import { withCacheHeaders } from "../_utils/cacheResponse";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { buildCacheControl } from '../_utils/cacheResponse';
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    // Note: The /v0/projects endpoint returns unknown in schema, but it's actually string[]
+    const result = (await client.GET('/v0/projects', {})) as {
+      data?: string[];
+      error?: unknown;
+      response: Response;
+    };
+
+    if (result.error) {
+      return NextResponse.json(result.error, { status: result.response.status });
     }
-    
-    const upstreamResponse = await fetch(
-        `${baseUrl}/projects`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-            },
-        },
-    );
-    
+
     // Cache projects list for 5 minutes - rarely changes
-    return withCacheHeaders(upstreamResponse, 'LONG');
+    const cacheControl = buildCacheControl('LONG');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+    return NextResponse.json(result.data, { status: 200, headers });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.POST('/v0/project', {
+      body: body,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/project`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
-        },
-    );
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }

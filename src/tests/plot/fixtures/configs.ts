@@ -32,7 +32,9 @@ const isValidScale = (s: string): s is ValidScale => VALID_SCALES.includes(s as 
 
 // Warn if invalid scale provided
 if (rawScale && !isValidScale(rawScale)) {
-  console.warn(`[Plot Tests] Invalid PLOT_TEST_SCALE="${rawScale}", using "small". Valid options: ${VALID_SCALES.join(', ')}`);
+  console.warn(
+    `[Plot Tests] Invalid PLOT_TEST_SCALE="${rawScale}", using "small". Valid options: ${VALID_SCALES.join(', ')}`
+  );
 }
 
 export const PLOT_TEST_SCALE: ValidScale = isValidScale(rawScale) ? rawScale : 'small';
@@ -50,9 +52,10 @@ const shouldRunScale = (scaleName: string): boolean => {
  * Example:
  *   PLOT_TEST_SAMPLE_RATE=25 npm test  # Test 25% of config combinations
  */
-export const PLOT_TEST_SAMPLE_RATE = Math.max(1, Math.min(100,
-  parseInt(process.env.PLOT_TEST_SAMPLE_RATE ?? '100', 10)
-));
+export const PLOT_TEST_SAMPLE_RATE = Math.max(
+  1,
+  Math.min(100, parseInt(process.env.PLOT_TEST_SAMPLE_RATE ?? '100', 10))
+);
 
 /**
  * Use real API instead of mocked (default: true, requires running backend)
@@ -82,33 +85,30 @@ export const TEST_PROJECT = 'test-plot-api';
 
 export const plotConfigOptions = {
   type: ['scatter', 'bar', 'histogram', 'line'] as const,
-  scale_x: ['linear', 'log'] as const,
-  scale_y: ['linear', 'log'] as const,
+  scaleX: ['linear', 'log'] as const,
+  scaleY: ['linear', 'log'] as const,
   aggregate: [undefined, 'sum', 'mean', 'count', 'min', 'max'] as const,
-  group_by: [undefined, 'category'] as const,
-  show_regression: [false, true] as const,
-  sort_by: [undefined, 'x', 'y', 'value', 'name'] as const,
-  sort_order: [undefined, 'asc', 'desc'] as const,
-  bin_count: [10, 1, 50, 100] as const,
+  groupBy: [undefined, 'category'] as const,
+  showRegression: [false, true] as const,
+  sortBy: [undefined, 'x', 'y', 'value', 'name'] as const,
+  sortOrder: [undefined, 'asc', 'desc'] as const,
+  binCount: [10, 1, 50, 100] as const,
 };
 
 export const projectConfigOptions = {
   limit: [100, 1000, 10000] as const,
-  filter_expr: [undefined, "status == 'success'", 'value > 0'] as const,
-  group_by: [undefined, ['category'], ['category', 'model']] as const,
-  // Sorting format: {"field_name": "ascending" | "descending"}
-  sorting: [
-    undefined,
-    JSON.stringify({ timestamp: 'descending' }),
-  ] as const,
+  filterExpr: [undefined, "status == 'success'", 'value > 0'] as const,
+  groupBy: [undefined, ['category'], ['category', 'model']] as const,
+  // Sorting format: {"fieldName": "ascending" | "descending"}
+  sorting: [undefined, JSON.stringify({ timestamp: 'descending' })] as const,
 };
 
 export const dataTypeOptions = {
   // Match production code data types (excluding 'Any'):
   // All temporal types are converted to numeric by getValue()
-  x_axis_type: ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'str', 'bool'] as const,
-  y_axis_type: ['float', 'int'] as const,
-  group_by_type: ['str', 'bool'] as const,
+  xAxisType: ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'str', 'bool'] as const,
+  yAxisType: ['float', 'int'] as const,
+  groupByType: ['str', 'bool'] as const,
 };
 
 /**
@@ -118,13 +118,13 @@ export const dataTypeOptions = {
 export function getFieldForDataType(baseField: string, dataType: string): string {
   // float is the default, no suffix needed
   if (dataType === 'float') return baseField;
-  
+
   // Other types have suffixed field names
   return `${baseField}_${dataType}`;
 }
 
 /**
- * Get the grouping field for a given group_by type.
+ * Get the grouping field for a given groupBy type.
  */
 export function getGroupByFieldForType(groupByType: string): string {
   if (groupByType === 'bool') return 'table1.bool_category';
@@ -137,9 +137,24 @@ const baseTimeouts = PLOT_TEST_API_REAL
   : { small: 5000, medium: 15000, large: 30000 };
 
 export const scaleOptions = [
-  { name: 'small' as const, count: 100, skip: !shouldRunScale('small'), timeout: baseTimeouts.small },
-  { name: 'medium' as const, count: 1000, skip: !shouldRunScale('medium'), timeout: baseTimeouts.medium },
-  { name: 'large' as const, count: 10000, skip: !shouldRunScale('large'), timeout: baseTimeouts.large },
+  {
+    name: 'small' as const,
+    count: 100,
+    skip: !shouldRunScale('small'),
+    timeout: baseTimeouts.small,
+  },
+  {
+    name: 'medium' as const,
+    count: 1000,
+    skip: !shouldRunScale('medium'),
+    timeout: baseTimeouts.medium,
+  },
+  {
+    name: 'large' as const,
+    count: 10000,
+    skip: !shouldRunScale('large'),
+    timeout: baseTimeouts.large,
+  },
 ];
 
 // =============================================================================
@@ -147,38 +162,38 @@ export const scaleOptions = [
 // =============================================================================
 
 export type PlotType = (typeof plotConfigOptions.type)[number];
-export type ScaleType = (typeof plotConfigOptions.scale_x)[number];
+export type ScaleType = (typeof plotConfigOptions.scaleX)[number];
 export type AggregateType = (typeof plotConfigOptions.aggregate)[number];
-export type SortByType = (typeof plotConfigOptions.sort_by)[number];
-export type SortOrderType = (typeof plotConfigOptions.sort_order)[number];
+export type SortByType = (typeof plotConfigOptions.sortBy)[number];
+export type SortOrderType = (typeof plotConfigOptions.sortOrder)[number];
 
 export type PlotConfig = {
   type: PlotType;
-  x_axis: string;
-  y_axis?: string;
-  scale_x: ScaleType;
-  scale_y: ScaleType;
+  xAxis: string;
+  yAxis?: string;
+  scaleX: ScaleType;
+  scaleY: ScaleType;
   aggregate?: AggregateType;
-  group_by?: string;
-  show_regression: boolean;
-  sort_by?: SortByType;
-  sort_order?: SortOrderType;
-  bin_count: number;
+  groupBy?: string;
+  showRegression: boolean;
+  sortBy?: SortByType;
+  sortOrder?: SortOrderType;
+  binCount: number;
 };
 
 export type ProjectConfig = {
-  project_name: string;
+  projectName: string;
   context?: string;
   limit: number;
-  filter_expr?: string;
-  group_by?: string[];
+  filterExpr?: string;
+  groupBy?: string[];
   sorting?: string;
 };
 
 export type DataTypeConfig = {
-  x_axis_type: (typeof dataTypeOptions.x_axis_type)[number];
-  y_axis_type: (typeof dataTypeOptions.y_axis_type)[number];
-  group_by_type: (typeof dataTypeOptions.group_by_type)[number];
+  xAxisType: (typeof dataTypeOptions.xAxisType)[number];
+  yAxisType: (typeof dataTypeOptions.yAxisType)[number];
+  groupByType: (typeof dataTypeOptions.groupByType)[number];
 };
 
 export type ScaleOption = (typeof scaleOptions)[number];
@@ -212,13 +227,11 @@ export function sampleConfigs<T>(items: T[], overridePercentage?: number): T[] {
   if (percentage >= 100) return items;
   if (percentage <= 0 || items.length === 0) return [];
 
-  const sampleCount = Math.max(1, Math.ceil(items.length * percentage / 100));
+  const sampleCount = Math.max(1, Math.ceil((items.length * percentage) / 100));
 
   // Evenly distributed sampling
   const step = items.length / sampleCount;
-  return Array.from({ length: sampleCount }, (_, i) =>
-    items[Math.floor(i * step)]
-  );
+  return Array.from({ length: sampleCount }, (_, i) => items[Math.floor(i * step)]);
 }
 
 /**
@@ -228,9 +241,7 @@ export function sampleConfigsCount<T>(items: T[], maxCount: number): T[] {
   if (items.length <= maxCount) return items;
 
   const step = items.length / maxCount;
-  return Array.from({ length: maxCount }, (_, i) =>
-    items[Math.floor(i * step)]
-  );
+  return Array.from({ length: maxCount }, (_, i) => items[Math.floor(i * step)]);
 }
 
 // =============================================================================
@@ -244,26 +255,26 @@ export function generateAllPlotConfigs(): PlotConfig[] {
   const configs: PlotConfig[] = [];
 
   for (const type of plotConfigOptions.type) {
-    for (const scale_x of plotConfigOptions.scale_x) {
-      for (const scale_y of plotConfigOptions.scale_y) {
+    for (const scaleX of plotConfigOptions.scaleX) {
+      for (const scaleY of plotConfigOptions.scaleY) {
         for (const aggregate of plotConfigOptions.aggregate) {
-          for (const group_by of plotConfigOptions.group_by) {
-            for (const show_regression of plotConfigOptions.show_regression) {
-              for (const sort_by of plotConfigOptions.sort_by) {
-                for (const sort_order of plotConfigOptions.sort_order) {
-                  for (const bin_count of plotConfigOptions.bin_count) {
+          for (const groupBy of plotConfigOptions.groupBy) {
+            for (const showRegression of plotConfigOptions.showRegression) {
+              for (const sortBy of plotConfigOptions.sortBy) {
+                for (const sortOrder of plotConfigOptions.sortOrder) {
+                  for (const binCount of plotConfigOptions.binCount) {
                     configs.push({
                       type,
-                      x_axis: 'table1.x_value',
-                      y_axis: type === 'histogram' ? undefined : 'table1.y_value',
-                      scale_x,
-                      scale_y,
+                      xAxis: 'table1.x_value',
+                      yAxis: type === 'histogram' ? undefined : 'table1.y_value',
+                      scaleX,
+                      scaleY,
                       aggregate,
-                      group_by: group_by ? 'table1.category' : undefined,
-                      show_regression,
-                      sort_by,
-                      sort_order,
-                      bin_count,
+                      groupBy: groupBy ? 'table1.category' : undefined,
+                      showRegression,
+                      sortBy,
+                      sortOrder,
+                      binCount,
                     });
                   }
                 }
@@ -282,37 +293,36 @@ export function generateAllPlotConfigs(): PlotConfig[] {
  * Filter to valid combinations only
  *
  * Rules:
- * - show_regression: scatter-only
- * - bin_count (non-default): histogram-only
- * - sort_by/sort_order: bar-only
- * - aggregate: requires group_by (valid for ALL plot types)
- * - y_axis: required for non-histogram
+ * - showRegression: scatter-only
+ * - binCount (non-default): histogram-only
+ * - sortBy/sortOrder: bar-only
+ * - aggregate: requires groupBy (valid for ALL plot types)
+ * - yAxis: required for non-histogram
  * - log scales: histograms always use linear (scale params ignored)
  */
 export function filterValidPlotConfigs(configs: PlotConfig[]): PlotConfig[] {
   return configs.filter((config) => {
     // Regression: scatter-only
-    if (config.show_regression && config.type !== 'scatter') return false;
+    if (config.showRegression && config.type !== 'scatter') return false;
 
     // Bin count (non-default): histogram-only
-    if (config.type !== 'histogram' && config.bin_count !== 10) return false;
+    if (config.type !== 'histogram' && config.binCount !== 10) return false;
 
     // Sort: bar-only
-    if (config.type !== 'bar' && (config.sort_by || config.sort_order))
-      return false;
+    if (config.type !== 'bar' && (config.sortBy || config.sortOrder)) return false;
 
-    // If sort_order is set, sort_by must be set
-    if (config.sort_order && !config.sort_by) return false;
+    // If sortOrder is set, sortBy must be set
+    if (config.sortOrder && !config.sortBy) return false;
 
     // Aggregate: requires grouping (valid for ALL plot types)
-    if (config.aggregate && !config.group_by) return false;
+    if (config.aggregate && !config.groupBy) return false;
 
-    // y_axis: required for non-histogram
-    if (config.type !== 'histogram' && !config.y_axis) return false;
+    // yAxis: required for non-histogram
+    if (config.type !== 'histogram' && !config.yAxis) return false;
 
-    // Histograms always use linear scales (component ignores scale_x/scale_y)
+    // Histograms always use linear scales (component ignores scaleX/scaleY)
     // Only test histograms with linear scales to match actual behavior
-    if (config.type === 'histogram' && (config.scale_x === 'log' || config.scale_y === 'log')) {
+    if (config.type === 'histogram' && (config.scaleX === 'log' || config.scaleY === 'log')) {
       return false;
     }
 
@@ -330,9 +340,7 @@ export function generateValidPlotConfigs(): PlotConfig[] {
 /**
  * Generate valid PlotConfig combinations filtered by plot type
  */
-export function generateValidPlotConfigsForType(
-  plotType: PlotType
-): PlotConfig[] {
+export function generateValidPlotConfigsForType(plotType: PlotType): PlotConfig[] {
   return generateValidPlotConfigs().filter((config) => config.type === plotType);
 }
 
@@ -346,14 +354,14 @@ export function generateProjectConfigs(): ProjectConfig[] {
   const configs: ProjectConfig[] = [];
 
   for (const limit of projectConfigOptions.limit) {
-    for (const filter_expr of projectConfigOptions.filter_expr) {
-      for (const group_by of projectConfigOptions.group_by) {
+    for (const filterExpr of projectConfigOptions.filterExpr) {
+      for (const groupBy of projectConfigOptions.groupBy) {
         for (const sorting of projectConfigOptions.sorting) {
           configs.push({
-            project_name: TEST_PROJECT,
+            projectName: TEST_PROJECT,
             limit,
-            filter_expr,
-            group_by: group_by ? [...group_by] : undefined, // Convert readonly to mutable
+            filterExpr,
+            groupBy: groupBy ? [...groupBy] : undefined, // Convert readonly to mutable
             sorting,
           });
         }
@@ -370,10 +378,10 @@ export function generateProjectConfigs(): ProjectConfig[] {
 export function generateDataTypeConfigs(): DataTypeConfig[] {
   const configs: DataTypeConfig[] = [];
 
-  for (const x_axis_type of dataTypeOptions.x_axis_type) {
-    for (const y_axis_type of dataTypeOptions.y_axis_type) {
-      for (const group_by_type of dataTypeOptions.group_by_type) {
-        configs.push({ x_axis_type, y_axis_type, group_by_type });
+  for (const xAxisType of dataTypeOptions.xAxisType) {
+    for (const yAxisType of dataTypeOptions.yAxisType) {
+      for (const groupByType of dataTypeOptions.groupByType) {
+        configs.push({ xAxisType, yAxisType, groupByType });
       }
     }
   }
@@ -390,15 +398,14 @@ export function generateDataTypeConfigs(): DataTypeConfig[] {
  */
 export function plotConfigName(config: PlotConfig): string {
   const parts: string[] = [config.type];
-  if (config.group_by) parts.push('grouped');
+  if (config.groupBy) parts.push('grouped');
   if (config.aggregate) parts.push(config.aggregate);
-  if (config.scale_x === 'log') parts.push('logX');
-  if (config.scale_y === 'log') parts.push('logY');
-  if (config.show_regression) parts.push('regression');
-  if (config.sort_by) parts.push(`sort-${config.sort_by}`);
-  if (config.sort_order) parts.push(config.sort_order);
-  if (config.type === 'histogram' && config.bin_count !== 10)
-    parts.push(`bins-${config.bin_count}`);
+  if (config.scaleX === 'log') parts.push('logX');
+  if (config.scaleY === 'log') parts.push('logY');
+  if (config.showRegression) parts.push('regression');
+  if (config.sortBy) parts.push(`sort-${config.sortBy}`);
+  if (config.sortOrder) parts.push(config.sortOrder);
+  if (config.type === 'histogram' && config.binCount !== 10) parts.push(`bins-${config.binCount}`);
   return parts.join('-');
 }
 
@@ -406,7 +413,7 @@ export function plotConfigName(config: PlotConfig): string {
  * Generate a unique name for a DataTypeConfig
  */
 export function dataTypeConfigName(config: DataTypeConfig): string {
-  return `x-${config.x_axis_type}_y-${config.y_axis_type}_g-${config.group_by_type}`;
+  return `x-${config.xAxisType}_y-${config.yAxisType}_g-${config.groupByType}`;
 }
 
 /**
@@ -414,8 +421,8 @@ export function dataTypeConfigName(config: DataTypeConfig): string {
  */
 export function projectConfigName(config: ProjectConfig): string {
   const parts: string[] = [];
-  if (config.filter_expr) parts.push(`filter:${config.filter_expr.slice(0, 10)}`);
-  if (config.group_by && config.group_by.length > 0) parts.push(`grp:${config.group_by.join(',')}`);
+  if (config.filterExpr) parts.push(`filter:${config.filterExpr.slice(0, 10)}`);
+  if (config.groupBy && config.groupBy.length > 0) parts.push(`grp:${config.groupBy.join(',')}`);
   if (config.sorting) parts.push('sorted');
   return parts.length > 0 ? parts.join('-') : 'default';
 }
@@ -459,9 +466,9 @@ export function generateTestContext(
   scale: ScaleOption
 ): string {
   // Create a short, deterministic identifier for each dimension
-  const plotHash = `${plotConfig.type[0]}${plotConfig.scale_x[0]}${plotConfig.scale_y[0]}${plotConfig.aggregate?.[0] ?? 'n'}${plotConfig.group_by ? 'g' : 'u'}`;
-  const projHash = `${projectConfig.filter_expr ? 'f' : 'n'}${projectConfig.group_by?.length ?? 0}${projectConfig.sorting ? 's' : 'n'}`;
-  const dataHash = `${dataTypes.x_axis_type[0]}${dataTypes.y_axis_type[0]}${dataTypes.group_by_type[0]}`;
+  const plotHash = `${plotConfig.type[0]}${plotConfig.scaleX[0]}${plotConfig.scaleY[0]}${plotConfig.aggregate?.[0] ?? 'n'}${plotConfig.groupBy ? 'g' : 'u'}`;
+  const projHash = `${projectConfig.filterExpr ? 'f' : 'n'}${projectConfig.groupBy?.length ?? 0}${projectConfig.sorting ? 's' : 'n'}`;
+  const dataHash = `${dataTypes.xAxisType[0]}${dataTypes.yAxisType[0]}${dataTypes.groupByType[0]}`;
 
   return `test-${plotHash}-${projHash}-${dataHash}-${scale.name}`;
 }
@@ -482,7 +489,11 @@ if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
   console.log(`[Plot Test Matrix] Plot configs: ${validPlotConfigs.length}`);
   console.log(`[Plot Test Matrix] Data type configs: ${validDataTypeConfigs.length}`);
   console.log(`[Plot Test Matrix] Project configs: ${validProjectConfigs.length}`);
-  console.log(`[Plot Test Matrix] Active scales: ${getActiveScales().map(s => s.name).join(', ') || 'none'}`);
+  console.log(
+    `[Plot Test Matrix] Active scales: ${
+      getActiveScales()
+        .map((s) => s.name)
+        .join(', ') || 'none'
+    }`
+  );
 }
-
-

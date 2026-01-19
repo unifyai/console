@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -12,14 +12,14 @@ interface OnboardingGuardProps {
   allowedPaths?: string[];
 }
 
-const DEFAULT_ALLOWED_PATHS = ["/login", "/onboarding", "/api", "/_next", "/favicon.ico"];
+const DEFAULT_ALLOWED_PATHS = ['/login', '/onboarding', '/api', '/_next', '/favicon.ico'];
 const ONBOARDING_STATUS_CACHE_KEY = 'onboarding-status';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export default function OnboardingGuard({ 
-  children, 
-  redirectTo = "/onboarding",
-  allowedPaths = DEFAULT_ALLOWED_PATHS
+export default function OnboardingGuard({
+  children,
+  redirectTo = '/onboarding',
+  allowedPaths = DEFAULT_ALLOWED_PATHS,
 }: OnboardingGuardProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -32,8 +32,8 @@ export default function OnboardingGuard({
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
-    const isAllowedPath = allowedPaths.some(path => 
-      pathname.startsWith(path) || pathname === path
+    const isAllowedPath = allowedPaths.some(
+      (path) => pathname.startsWith(path) || pathname === path
     );
 
     if (isAllowedPath) {
@@ -48,18 +48,18 @@ export default function OnboardingGuard({
     }
 
     // Only check once per session, not on every session object change
-    if (hasChecked && status === "authenticated") {
+    if (hasChecked && status === 'authenticated') {
       return;
     }
 
     const checkOnboardingStatus = async () => {
-      if (status === "unauthenticated") {
+      if (status === 'unauthenticated') {
         setIsLoading(false);
         setNeedsOnboarding(false);
         return;
       }
 
-      if (status === "loading") {
+      if (status === 'loading') {
         return;
       }
 
@@ -72,7 +72,7 @@ export default function OnboardingGuard({
           const { data, timestamp } = JSON.parse(cached);
           const age = Date.now() - timestamp;
           const isExpired = age > CACHE_DURATION;
-          
+
           if (!isExpired) {
             if (!data.onboarded) {
               setNeedsOnboarding(true);
@@ -93,7 +93,10 @@ export default function OnboardingGuard({
         const response = await fetch('/api/user/onboarding-status');
         if (response.ok) {
           const data: OnboardingStatusResponse = await response.json();
-          localStorage.setItem(ONBOARDING_STATUS_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+          localStorage.setItem(
+            ONBOARDING_STATUS_CACHE_KEY,
+            JSON.stringify({ data, timestamp: Date.now() })
+          );
 
           if (!data.onboarded) {
             setNeedsOnboarding(true);
@@ -115,10 +118,10 @@ export default function OnboardingGuard({
     };
 
     checkOnboardingStatus();
-  // Removed 'session' from deps - only care about status changes, not session object reference
+    // Removed 'session' from deps - only care about status changes, not session object reference
   }, [status, router, redirectTo, allowedPaths, pathname, isRedirecting, hasChecked]);
 
-  if (isLoading || status === "loading") {
+  if (isLoading || status === 'loading') {
     return <LoadingScreen />;
   }
 

@@ -1,11 +1,11 @@
-import { PlotTile } from "./plotTile";
-import { TableTile } from "./tableTile";
-import { ViewTile } from "./viewTile";
-import { tabTypes } from "@/constants/logs";
+import { PlotTile } from './plotTile';
+import { TableTile } from './tableTile';
+import { ViewTile } from './viewTile';
+import { tabTypes } from '@/constants/logs';
 
-import * as tableTileLogic from "./tableTile";
-import * as plotTileLogic from "./plotTile";
-import * as viewTileLogic from "./viewTile";
+import * as tableTileLogic from './tableTile';
+import * as plotTileLogic from './plotTile';
+import * as viewTileLogic from './viewTile';
 
 export interface TilePosition {
   x: number;
@@ -14,7 +14,7 @@ export interface TilePosition {
   height: number;
 }
 
-export type TileType = "Table" | "Plot" | "View";
+export type TileType = 'Table' | 'Plot' | 'View';
 
 // Tile metadata - core identifying information
 export interface TileMeta {
@@ -32,12 +32,12 @@ export interface TileMeta {
 export interface TileData {
   context?: string | null;
   table?: string | null;
-  auto_update?: string | null;
+  autoUpdate?: string | null;
   freeze?: string | null;
   filters?: string | null;
-  common_filter?: string | null;
-  metric?: string | null;         // Current metric being displayed
-  column_context?: string | null;
+  commonFilter?: string | null;
+  metric?: string | null; // Current metric being displayed
+  columnContext?: string | null;
   grouping?: string | null;
 }
 
@@ -66,15 +66,38 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // tileKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a Tile into a TileProps
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
-  "id","name","type","position","minW","minH","context","table","auto_update",
-  "freeze","filters","common_filter","metric","column_context","grouping",
-  "visible","moved","static","color",
+  'id',
+  'name',
+  'type',
+  'position',
+  'minW',
+  'minH',
+  'context',
+  'table',
+  'autoUpdate',
+  'freeze',
+  'filters',
+  'commonFilter',
+  'metric',
+  'columnContext',
+  'grouping',
+  'visible',
+  'moved',
+  'static',
+  'color',
 ];
 
 export const TILE_KEYS: (keyof Tile)[] = [
   ...TILE_PROPS_KEYS_AS_TILE_KEYS,
-  "tabId","locked","pending","loading", "error",
-  "itemsNeedRecompute","tableTile","plotTile","viewTile"
+  'tabId',
+  'locked',
+  'pending',
+  'loading',
+  'error',
+  'itemsNeedRecompute',
+  'tableTile',
+  'plotTile',
+  'viewTile',
 ];
 
 /**
@@ -91,18 +114,18 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     minH: initialState.minH || null,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
-    
+
     // Data
     context: initialState.context !== undefined ? initialState.context : null,
     table: initialState.table !== undefined ? initialState.table : null,
-    auto_update: initialState.auto_update !== undefined ? initialState.auto_update : null,
+    autoUpdate: initialState.autoUpdate !== undefined ? initialState.autoUpdate : null,
     freeze: initialState.freeze !== undefined ? initialState.freeze : null,
     filters: initialState.filters !== undefined ? initialState.filters : null,
-    common_filter: initialState.common_filter !== undefined ? initialState.common_filter : null,
+    commonFilter: initialState.commonFilter !== undefined ? initialState.commonFilter : null,
     metric: initialState.metric !== undefined ? initialState.metric : null,
-    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
+    columnContext: initialState.columnContext !== undefined ? initialState.columnContext : null,
     grouping: initialState.grouping !== undefined ? initialState.grouping : null,
-    
+
     // UI
     tabId: initialState.tabId || null,
     visible: initialState.visible,
@@ -113,12 +136,18 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     moved: initialState.moved,
     static: initialState.static,
     color: initialState.color,
-    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
-    
+    itemsNeedRecompute:
+      initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
+
     // Type-specific data references
-    tableTile: initialState.tableTile !== undefined ? initialState.tableTile : tableTileLogic.initTableTile(),
-    plotTile: initialState.plotTile !== undefined ? initialState.plotTile : plotTileLogic.initPlotTile(),
-    viewTile: initialState.viewTile !== undefined ? initialState.viewTile : viewTileLogic.initViewTile(),
+    tableTile:
+      initialState.tableTile !== undefined
+        ? initialState.tableTile
+        : tableTileLogic.initTableTile(),
+    plotTile:
+      initialState.plotTile !== undefined ? initialState.plotTile : plotTileLogic.initPlotTile(),
+    viewTile:
+      initialState.viewTile !== undefined ? initialState.viewTile : viewTileLogic.initViewTile(),
     ...initialState,
   };
 }
@@ -138,8 +167,8 @@ export function updateTile(tile: Tile, updates: Partial<Tile>): Tile {
  * Set a specific property of a tile
  */
 export function setTileProperty<K extends keyof Tile>(
-  tile: Tile, 
-  property: K, 
+  tile: Tile,
+  property: K,
   value: Tile[K]
 ): Tile {
   return {
@@ -157,7 +186,7 @@ export function updateTilePosition(tile: Tile, position: Partial<TilePosition>):
     ...tile,
     position: {
       ...tile.position,
-      ...position
+      ...position,
     },
     // updatedAt: new Date().toISOString()
   };

@@ -32,5 +32,3 @@ export const mockTab: Tab = {
   dataPending: false,
   pending: false,
 };
-
-

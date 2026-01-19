@@ -1,60 +1,72 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { assistantId: string } }
+  request: NextRequest,
+  { params }: { params: { assistantId: string } }
 ) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/assistant/{assistant_id}', {
+      params: {
+        path: { assistant_id: parseInt(params.assistantId, 10) },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/assistant/${params.assistantId}`, 
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-            },
-        }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/[assistantId] DELETE] Error:',
+      e instanceof Error ? e.message : e
     );
+    return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
+  }
 }
 
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: { assistantId: string } }
-) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+export async function PATCH(request: NextRequest, { params }: { params: { assistantId: string } }) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  let requestBody;
+  try {
+    requestBody = await request.json();
+  } catch {
+    return badRequest('Invalid request body');
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.PATCH('/v0/assistant/{assistant_id}/config', {
+      params: {
+        path: { assistant_id: parseInt(params.assistantId, 10) },
+      },
+      body: requestBody,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    let requestBody;
-    try {
-        requestBody = await request.json();
-    } catch (error) {
-        console.error("Failed to parse JSON body in PATCH /api/assistant/[assistantId]:", error);
-        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
-    return await fetch(
-        `${baseUrl}/assistant/${params.assistantId}/config`,
-        {
-            method: "PATCH",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody)
-        }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/assistant/[assistantId] PATCH] Error:',
+      e instanceof Error ? e.message : e
     );
+    return NextResponse.json({ detail: 'Failed to connect to backend' }, { status: 500 });
+  }
 }

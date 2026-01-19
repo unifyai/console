@@ -1,15 +1,15 @@
-import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { getOnboardingStatus, updateOnboardingStatus } from '@/lib/user/account';
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user || !user.api_key) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const status = await getOnboardingStatus(user.api_key);
+    const status = await getOnboardingStatus(apiKey);
     return NextResponse.json(status);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -17,18 +17,18 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
-  const user = await getCurrentUser();
-  if (!user || !user.api_key) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function PUT(request: NextRequest) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
     const body = await request.json();
-    const result = await updateOnboardingStatus(user.api_key, body);
+    const result = await updateOnboardingStatus(apiKey, body);
     return NextResponse.json(result);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-} 
+}
