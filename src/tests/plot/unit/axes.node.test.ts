@@ -288,7 +288,7 @@ describe('axis label customization', () => {
         xAxisLabel: 'Time',
       };
 
-      const configImplicit = {
+      const configImplicit: { xAxisLabel: string; showXAxisLabel?: boolean } = {
         xAxisLabel: 'Time',
       };
 
@@ -314,7 +314,7 @@ describe('axis label customization', () => {
         yAxisLabel: 'Value',
       };
 
-      const configImplicit = {
+      const configImplicit: { yAxisLabel: string; showYAxisLabel?: boolean } = {
         yAxisLabel: 'Value',
       };
 
