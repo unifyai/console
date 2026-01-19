@@ -13,6 +13,8 @@ interface DateRangeSelectorProps {
   endDate: string | undefined;
   onDateRangeChange: (startDate: string, endDate: string) => void;
   className?: string;
+  /** Additional classes for the button element */
+  buttonClassName?: string;
 }
 
 export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
@@ -20,6 +22,7 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
   endDate,
   onDateRangeChange,
   className,
+  buttonClassName,
 }) => {
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startDate ? parse(startDate, 'yyyy-MM-dd', new Date()) : undefined,
@@ -42,20 +45,20 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
           <Button
             id="date"
             variant="outline"
-            className={cn('w-full justify-start text-left', !date && 'text-muted-foreground')}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, 'LLL dd, y')} - {format(date.to, 'LLL dd, y')}
-                </>
-              ) : (
-                format(date.from, 'LLL dd, y')
-              )
-            ) : (
-              <span>Pick a date</span>
+            className={cn(
+              'w-full justify-start text-left font-normal',
+              !date && 'text-muted-foreground',
+              buttonClassName
             )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate">
+              {date?.from
+                ? date.to
+                  ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}`
+                  : format(date.from, 'LLL dd, y')
+                : 'Pick a date'}
+            </span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="h-auto w-auto p-0" align="end">

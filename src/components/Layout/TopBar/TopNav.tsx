@@ -143,6 +143,18 @@ export default function TopNav() {
             >
               Assistants
             </Link>
+            {/* Usage - Direct Link */}
+            <Link
+              href="/usage"
+              className={cn(
+                'text-label flex items-center gap-1.5 rounded-md px-1 py-1 transition-colors',
+                pathname === '/usage'
+                  ? 'text-[color:var(--primary)]'
+                  : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
+              )}
+            >
+              Usage
+            </Link>
           </nav>
         </div>
 

@@ -59,7 +59,10 @@
         "src/app/api/**/*.ts",
         "src/lib/user/**/*.ts",
         "src/lib/endpoints/**/*.ts",
-        "src/lib/interfaces/**/*.ts"
+        "src/lib/interfaces/**/*.ts",
+        "src/lib/usage/**/*.ts",
+        "src/types/usage/**/*.ts",
+        "src/hooks/Usage/**/*.ts"
       ],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
