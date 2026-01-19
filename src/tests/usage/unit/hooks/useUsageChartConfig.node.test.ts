@@ -91,7 +91,7 @@ describe('useUsageChartConfig', () => {
       const { result } = renderHook(() => useUsageChartConfig({ data, granularity: 'time_day' }));
 
       expect(result.current.config.xAxisLabel).toBe('Day');
-      expect(result.current.config.yAxisLabel).toBe('Cost ($)');
+      expect(result.current.config.yAxisLabel).toBe('Billed Cost ($)');
     });
 
     it('sets correct axis labels for hourly granularity', () => {
