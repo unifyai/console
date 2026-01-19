@@ -9,7 +9,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 import {
   AssistantActions,
   VoiceOption,
@@ -19,6 +18,15 @@ import {
   AssistantFormData,
 } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
+
+// Mock the Server Action module before importing the hook
+vi.mock('@/lib/assistants/preHireChat', () => ({
+  sendPreHireChatMessage: vi.fn(),
+  generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
+}));
+
+// Must import hook after mocking
+import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 
 // Mock sonner toast
 vi.mock('sonner', () => ({

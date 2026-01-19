@@ -1,13 +1,13 @@
 /**
  * Real API tests for src/lib/assistants/chat.ts
  *
- * These tests hit the actual Orchestra API to verify chat functionality works correctly.
+ * These tests hit the actual API to verify chat functionality works correctly.
  * Run with: npm run test:real
  *
  * Requirements:
  *   1. VITE_TEST_API_KEY set in .env.test
  *   2. Dev server running (npm run dev) or NEXT_PUBLIC_BASE_URL pointing to a running instance
- *   3. Orchestra backend running and accessible
+ *   3. ORCHESTRA_OPENAI_API_KEY set in environment for pre-hire chat
  *
  * @group real
  */
@@ -26,7 +26,7 @@ const isError = (res: unknown): res is { detail: string } => {
   return res !== null && typeof res === 'object' && 'detail' in res;
 };
 
-describe('@real chat.ts - Orchestra Integration', () => {
+describe('@real chat.ts - Chat Integration', () => {
   let API_KEY: string;
 
   beforeAll(async () => {

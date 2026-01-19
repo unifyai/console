@@ -2,6 +2,20 @@ import React from 'react';
 import { render, screen, waitFor, within, fireEvent, act, cleanup } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi, afterEach, beforeAll } from 'vitest';
+import { FormProvider } from 'react-hook-form';
+import { http, HttpResponse } from 'msw';
+import { worker } from '../../../../vitest.browser.setup';
+import { Assistant, VoiceOption } from '@/types/assistants/assistant';
+import { ApprovalStatus } from '@/types/user';
+
+// Mock the Server Action module before importing components that use it
+// This prevents loading next-auth dependencies in the browser environment
+vi.mock('@/lib/assistants/preHireChat', () => ({
+  sendPreHireChatMessage: vi.fn().mockResolvedValue({ content: 'Hello there!' }),
+  generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
+}));
+
+// Import components after mocking
 import { AssistantHire } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHire';
 import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { PresetsPanel } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
@@ -11,11 +25,7 @@ import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { mockAssistantActions } from '../mocks/actions';
 import { mockPresets, mockVoices, mockAssistants } from '../mocks/data';
-import { FormProvider } from 'react-hook-form';
-import { http, HttpResponse } from 'msw';
-import { worker } from '../../../../vitest.browser.setup';
-import { Assistant, VoiceOption } from '@/types/assistants/assistant';
-import { ApprovalStatus } from '@/types/user';
+import * as preHireChatModule from '@/lib/assistants/preHireChat';
 
 // Test Wrapper Component to mimic Main.tsx integration
 const HireFlowTestWrapper = ({
@@ -696,40 +706,10 @@ describe('Assistant Hire Flow', () => {
         },
       },
       async () => {
-        // 1. Setup a counter to generate unique responses
+        // Mock the Server Action with unique responses per call
         let responseCounter = 0;
-
-        vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
-          const url = input.toString();
-
-          // A. Handle Chat: Return a stream with UNIQUE text per call
-          if (url.includes('/api/assistant/chat')) {
-            const encoder = new TextEncoder();
-            // Generate unique text: "Response 0", "Response 1", etc.
-            const responseText = `Response ${responseCounter++}`;
-
-            const stream = new ReadableStream({
-              start(controller) {
-                controller.enqueue(encoder.encode(responseText));
-                controller.close();
-              },
-            });
-
-            return new Response(stream, {
-              status: 200,
-              headers: { 'Content-Type': 'text/plain' },
-            });
-          }
-
-          // B. Handle Balance Check
-          if (url.includes('/api/billing/balance')) {
-            return new Response(JSON.stringify({ balance: '100.00', fullBalance: 100.0 }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          }
-
-          return new Response(null, { status: 200 });
+        vi.spyOn(preHireChatModule, 'sendPreHireChatMessage').mockImplementation(async () => {
+          return { content: `Response ${responseCounter++}` };
         });
 
         const user = userEvent.setup();

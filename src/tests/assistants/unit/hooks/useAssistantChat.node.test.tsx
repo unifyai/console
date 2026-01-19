@@ -9,8 +9,17 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
+
+// Mock the Server Action module before importing the hook
+vi.mock('@/lib/assistants/preHireChat', () => ({
+  sendPreHireChatMessage: vi.fn(),
+  generatePostHireGreeting: vi.fn(),
+}));
+
+// Must import after mocking
+import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
+import { sendPreHireChatMessage } from '@/lib/assistants/preHireChat';
 
 // Mock sonner toast
 vi.mock('sonner', () => ({

@@ -347,40 +347,6 @@ describe('@real Assistant Photo Routes', () => {
   });
 });
 
-describe('@real Assistant Chat Routes', () => {
-  beforeAll(async () => {
-    await skipIfServerNotReachable();
-  });
-
-  describe('POST /api/assistant/chat', () => {
-    it('@real returns 400 for missing messages', realTestOptions, async () => {
-      const res = await apiFetch('/api/assistant/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          assistantName: 'Test',
-          type: 'hire',
-        }),
-      });
-
-      // Should return 400 for missing messages
-      expect([400, 422]).toContain(res.status);
-    });
-
-    it('@real accepts valid post-hire-greeting request', realTestOptions, async () => {
-      const res = await apiFetch('/api/assistant/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          assistantName: 'TestAssistant',
-          assistantAge: 25,
-          assistantBio: 'A helpful test assistant',
-          assistantNationality: 'US',
-          type: 'post-hire-greeting',
-        }),
-      });
-
-      // Should succeed (200) or return 402 if credits issue
-      // May also return 404 if route requires session
-      expect([200, 402, 404]).toContain(res.status);
-    });
-  });
-});
+// Note: Pre-hire chat is now a Server Action, not an API route.
+// See src/lib/assistants/preHireChat.ts
+// Server Actions cannot be tested via HTTP calls - they must be tested via component integration tests.

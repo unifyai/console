@@ -2,6 +2,7 @@ import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/types/assistants/chat';
+import { sendPreHireChatMessage } from '@/lib/assistants/preHireChat';
 
 const USER_MESSAGE_LIMIT = 10;
 const HIRE_ME_MESSAGE =
@@ -109,43 +110,25 @@ export function useAssistantChat(
     }));
 
     try {
-      const response = await fetch('/api/assistant/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: currentMessages.map(({ role, content }) => ({ role, content })),
-          assistantName: assistantFirstName,
-          assistantAge: assistantAge,
-          assistantBio: assistantBio,
-          type: 'hire',
-        }),
+      // Use Server Action instead of API route - cannot be called directly via HTTP
+      const result = await sendPreHireChatMessage(
+        currentMessages.map(({ role, content }) => ({ role, content })),
+        assistantFirstName,
+        assistantAge,
+        assistantBio
+      );
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Update the placeholder with the response content
+      setHistories((prev) => {
+        const updatedHistory = prev[configKey].map((msg) =>
+          msg.id === assistantResponseId ? { ...msg, content: result.content || '' } : msg
+        );
+        return { ...prev, [configKey]: updatedHistory };
       });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ detail: 'An unknown error occurred.' }));
-        throw new Error(errorData.detail || `Request failed with status ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Failed to get response reader.');
-      }
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        setHistories((prev) => {
-          const updatedHistory = prev[configKey].map((msg) =>
-            msg.id === assistantResponseId ? { ...msg, content: msg.content + chunk } : msg
-          );
-          return { ...prev, [configKey]: updatedHistory };
-        });
-      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
 

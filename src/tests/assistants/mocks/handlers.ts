@@ -68,33 +68,9 @@ export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
   return HttpResponse.json({ logs: page });
 });
 
-export const postChatHandler = http.post('/api/assistant/chat', async ({ request }) => {
-  let body: any = {};
-  try {
-    body = await request.clone().json();
-  } catch (e) {
-    /* noop */
-  }
-  if (body.type === 'post-hire-greeting') {
-    return HttpResponse.json({ content: 'Hello! I am ready to work.' });
-  }
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(
-        encoder.encode('data: {"choices": [{"delta": {"content": "Hello "}}]}\n\n')
-      );
-      controller.enqueue(
-        encoder.encode('data: {"choices": [{"delta": {"content": "there!"}}]}\n\n')
-      );
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      controller.close();
-    },
-  });
-  return new HttpResponse(stream, {
-    headers: { 'Content-Type': 'text/event-stream' },
-  });
-});
+// Note: Pre-hire chat is now a Server Action, not an API route.
+// See src/lib/assistants/preHireChat.ts
+// Server Actions are mocked differently in tests - see the integration tests.
 
 export const postMessageHandler = http.post('/api/assistant/message', async () => {
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -181,7 +157,6 @@ export const assistantHandlers = [
   getAssistantsSuccess,
   getTranscriptsHandler,
   postMessageHandler,
-  postChatHandler,
   getBalanceSuccess,
   getCountriesHandler,
   getSocialPlatformsHandler,

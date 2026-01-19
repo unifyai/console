@@ -34,6 +34,7 @@
     "*.{json,md,yml,yaml,css,scss}": "prettier --write"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.12",
     "@ai-sdk/provider-utils": "^2.0.0",
     "@cartesia/cartesia-js": "^2.2.3",
     "@codesandbox/sdk": "^0.11.1",
@@ -88,7 +89,7 @@
     "@types/xterm": "^2.0.3",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
-    "ai": "^4.0.0",
+    "ai": "^6.0.41",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

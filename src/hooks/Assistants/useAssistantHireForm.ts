@@ -27,6 +27,7 @@ import {
 } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
+import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 
 export function useAssistantHireForm(
   assistantActions: AssistantActions,
@@ -703,23 +704,25 @@ export function useAssistantHireForm(
       let finalChatHistory = chatHistory;
       if (!chatHistory || chatHistory.length === 0) {
         try {
-          const greetingResponse = await fetch('/api/assistant/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'post-hire-greeting',
-              assistantName: `${data.firstName} ${data.surname}`,
-              assistantAge: data.age,
-              assistantBio: data.about,
-              assistantNationality: data.nationality,
-              preHireChat: [],
-            }),
-          });
-          if (!greetingResponse.ok)
-            throw new Error("Failed to generate assistant's first message.");
-          const { content } = await greetingResponse.json();
-          if (!content) throw new Error('Generated an empty greeting.');
-          finalChatHistory = [{ id: uuidv4(), role: 'assistant', content, timestamp: new Date() }];
+          // Use Server Action instead of API route - cannot be called directly via HTTP
+          const greetingResult = await generatePostHireGreeting(
+            `${data.firstName} ${data.surname}`,
+            data.age,
+            data.about,
+            data.nationality
+          );
+          if (greetingResult.error) {
+            throw new Error(greetingResult.error);
+          }
+          if (!greetingResult.content) throw new Error('Generated an empty greeting.');
+          finalChatHistory = [
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: greetingResult.content,
+              timestamp: new Date(),
+            },
+          ];
         } catch (greetingError) {
           /* no-op */
         }

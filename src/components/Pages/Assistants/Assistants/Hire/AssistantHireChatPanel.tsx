@@ -87,7 +87,7 @@ const ChatMessageBubble = ({
       <div
         className={cn(
           'text-body max-w-[85%] break-words rounded-lg p-3',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
+          isUser ? 'bg-accent' : 'bg-muted'
         )}
       >
         {bubbleContent()}
