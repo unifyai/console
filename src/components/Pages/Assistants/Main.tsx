@@ -402,8 +402,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
       handleShowProfile(newAssistant.agentId);
       refreshHiringProfile();
-      if (formData.setup === 'local' && formData.desktopMode) {
-        setSetupInstructions({ os: formData.desktopMode, isOpen: true });
+      if (formData.setup === 'local' && formData.operatingSystem) {
+        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
       }
     },
     [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]
