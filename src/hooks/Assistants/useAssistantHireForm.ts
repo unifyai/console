@@ -615,7 +615,7 @@ export function useAssistantHireForm(
             }
             
             const is_user_desktop = data.setup === 'local';
-            const desktop_mode_payload = is_user_desktop ? (data.operating_system as DesktopMode) : null;
+            const desktop_mode_payload = data.operating_system as DesktopMode;
             const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({ role, msg: content }));
             const voice_mode = data.fast_mode ? "sts" : "tts";
 

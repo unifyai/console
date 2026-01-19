@@ -62,7 +62,16 @@ export function HireForm({
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
     const fastMode = useWatch({ control, name: 'fast_mode' });
+    const setup = useWatch({ control, name: 'setup' });
+    const operatingSystem = useWatch({ control, name: 'operating_system' });
     const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
+
+    // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
+    React.useEffect(() => {
+        if (setup === 'remote' && operatingSystem === 'macos') {
+            setValue('operating_system', 'ubuntu');
+        }
+    }, [setup, operatingSystem, setValue]);
 
     const photoPreviewUrl = watch("photoPreviewUrl");
     const videoPreviewUrl = watch("videoPreviewUrl");
@@ -462,11 +471,37 @@ export function HireForm({
                                            control={control}
                                            render={({ field }) => (
                                                <div className={cn("space-y-2", isEditMode && "opacity-60 pointer-events-none")}>
-                                                   <div className={cn("flex items-center space-x-2 rounded-md border p-3", !isEditMode && "cursor-pointer", field.value === 'remote' && "border-primary")} onClick={() => !isEditMode && field.onChange('remote')}>
-                                                       <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'remote' && "border-primary")}>
-                                                           {field.value === 'remote' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                   <div className={cn("flex flex-col space-y-3 rounded-md border p-3", !isEditMode && "cursor-pointer", field.value === 'remote' && "border-primary")} onClick={() => !isEditMode && field.onChange('remote')}>
+                                                       <div className="flex items-center space-x-2">
+                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'remote' && "border-primary")}>
+                                                               {field.value === 'remote' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                           </div>
+                                                           <Label htmlFor="setup-remote" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Remote - Use a virtual machine</Label>
                                                        </div>
-                                                       <Label htmlFor="setup-remote" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Remote - Use a virtual machine</Label>
+                                                       {field.value === 'remote' && (
+                                                           <Controller
+                                                               name="operating_system"
+                                                               control={control}
+                                                               render={({ field: osField }) => (
+                                                                   <div className="pl-6 space-y-2">
+                                                                       <div className={cn("flex items-center space-x-2", !isEditMode && "cursor-pointer")} onClick={(e) => { e.stopPropagation(); if (!isEditMode) osField.onChange('ubuntu'); }}>
+                                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'ubuntu' && "border-primary")}>
+                                                                               {osField.value === 'ubuntu' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                                           </div>
+                                                                           <FaUbuntu className="h-4 w-4" />
+                                                                           <Label htmlFor="os-remote-ubuntu" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Ubuntu</Label>
+                                                                       </div>
+                                                                       <div className={cn("flex items-center space-x-2", !isEditMode && "cursor-pointer")} onClick={(e) => { e.stopPropagation(); if (!isEditMode) osField.onChange('windows'); }}>
+                                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'windows' && "border-primary")}>
+                                                                               {osField.value === 'windows' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                                           </div>
+                                                                           <FaWindows className="h-4 w-4" />
+                                                                           <Label htmlFor="os-remote-windows" className={cn("text-label font-normal", !isEditMode && "cursor-pointer")}>Windows</Label>
+                                                                       </div>
+                                                                   </div>
+                                                               )}
+                                                           />
+                                                       )}
                                                    </div>
                                                    <div className={cn("flex flex-col space-y-3 rounded-md border p-3", !isEditMode && "cursor-pointer", field.value === 'local' && "border-primary")} onClick={() => !isEditMode && field.onChange('local')}>
                                                        <div className="flex items-center space-x-2">
