@@ -30,6 +30,7 @@ Console is the web UI and observability dashboard in a multi-repository system:
 **This repo (Console)** is the human interface to the platform. Users manage assistants, view logged data, configure interfaces, and monitor system health. Console reads from and writes to Orchestra's REST API.
 
 Related repositories:
+
 - [Orchestra](https://github.com/unifyai/orchestra) — Backend API that Console communicates with
 - [Unity](https://github.com/unifyai/unity) — AI assistant brain (operations displayed in Console)
 - [Communication](https://github.com/unifyai/communication) — External communication gateway
