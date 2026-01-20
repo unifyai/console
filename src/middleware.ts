@@ -6,8 +6,8 @@ import authOptions from './app/api/auth/[...nextauth]/pages';
 export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // Allow public access to shareable plot view pages (no auth required)
-  if (pathname.startsWith('/plot/view/')) {
+  // Allow public access to shareable view pages (no auth required)
+  if (pathname.startsWith('/plot/view/') || pathname.startsWith('/table/view/')) {
     return NextResponse.next();
   }
 
