@@ -1,0 +1,347 @@
+/**
+ * Table Data API Route
+ *
+ * Fetches table view data for a given token from Orchestra.
+ *
+ * Flow:
+ * 1. Fetch table view config from admin endpoint (includes userId, organizationId)
+ * 2. Fetch user's API key from admin user endpoint
+ * 3. Call /v0/logs with user's credentials to get data
+ * 4. Fetch field metadata
+ * 5. Transform and return data for TableViewer rendering
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { badRequest, internalError } from '../../../_utils/auth';
+import { snakeToCamelObject } from '@/utils/casing';
+import type {
+  TableConfig,
+  FieldMetadata,
+  AdminTableViewResponse,
+  AdminUserResponse,
+  LogEntry,
+  LogsResponse,
+} from '@/types/tableView';
+
+const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
+const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const DEFAULT_PAGE_SIZE = 100; // Increased for virtualized tables
+const MAX_PAGE_SIZE = 500;
+
+/**
+ * Create a fetch with timeout using AbortController
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = REQUEST_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Transform raw logs to a flat structure for table display.
+ */
+function transformLogsForTable(rawLogs: LogEntry[]): Record<string, unknown>[] {
+  return rawLogs.map((log) => {
+    const entries = log.entries || {};
+    const derivedEntries = log.derivedEntries || {};
+
+    return {
+      _id: log.id,
+      _ts: log.ts,
+      ...entries,
+      ...derivedEntries,
+    };
+  });
+}
+
+/**
+ * Determine which columns to show based on config and available fields.
+ */
+function getVisibleColumns(config: TableConfig, allColumns: string[]): string[] {
+  // If explicit visible list, use that
+  if (config.columns?.visible && config.columns.visible.length > 0) {
+    return config.columns.visible.filter((col) => allColumns.includes(col));
+  }
+
+  // If hidden list, show all except hidden
+  if (config.columns?.hidden && config.columns.hidden.length > 0) {
+    return allColumns.filter((col) => !config.columns!.hidden!.includes(col));
+  }
+
+  // Default: show all columns
+  return allColumns;
+}
+
+/**
+ * Get column order, defaulting to visible columns order.
+ */
+function getColumnOrder(config: TableConfig, visibleColumns: string[]): string[] {
+  if (config.columns?.order && config.columns.order.length > 0) {
+    // Use specified order, but only include visible columns
+    const ordered = config.columns.order.filter((col) => visibleColumns.includes(col));
+    // Add any visible columns not in the order list
+    const remaining = visibleColumns.filter((col) => !config.columns!.order!.includes(col));
+    return [...ordered, ...remaining];
+  }
+
+  return visibleColumns;
+}
+
+// ============================================================================
+// Main Handler
+// ============================================================================
+
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+  // Normalize token to lowercase for case-insensitive matching
+  const token = params.token.toLowerCase();
+
+  // Validate token format (12 hex chars)
+  if (!/^[a-f0-9]{12}$/.test(token)) {
+    return badRequest('Invalid token format');
+  }
+
+  // Parse pagination parameters from query string
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, parseInt(searchParams.get('pageSize') || String(DEFAULT_PAGE_SIZE), 10))
+  );
+
+  // Check for admin key
+  if (!ORCHESTRA_ADMIN_KEY) {
+    console.error('[table/data] ORCHESTRA_ADMIN_KEY not configured');
+    return internalError('Server configuration error');
+  }
+
+  try {
+    // ========================================================================
+    // Step 1: Fetch table view config from admin endpoint
+    // ========================================================================
+    const configUrl = `${ORCHESTRA_URL}/v0/admin/logs/table?token=${token}`;
+    const configRes = await fetchWithTimeout(configUrl, {
+      headers: {
+        Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!configRes.ok) {
+      if (configRes.status === 404) {
+        return NextResponse.json(
+          { error: 'Table view not found or expired', expired: true },
+          { status: 404 }
+        );
+      }
+
+      const errorData = await configRes.json().catch(() => ({}));
+      console.error('[table/data] Failed to fetch table view config:', errorData);
+      return NextResponse.json(
+        { error: errorData.detail || 'Failed to fetch table view config' },
+        { status: configRes.status }
+      );
+    }
+
+    const tableViewConfig: AdminTableViewResponse = snakeToCamelObject(await configRes.json());
+
+    // ========================================================================
+    // Step 2: Fetch user data and extract the appropriate API key
+    // ========================================================================
+    const userUrl = `${ORCHESTRA_URL}/v0/admin/auth-user/by-user-id?user_id=${encodeURIComponent(tableViewConfig.userId)}`;
+    const userRes = await fetchWithTimeout(userUrl, {
+      headers: {
+        Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!userRes.ok) {
+      const errorText = await userRes.text();
+      console.error('[table/data] Failed to fetch user:', errorText);
+      return NextResponse.json({ error: 'Failed to retrieve user credentials' }, { status: 500 });
+    }
+
+    const userData: AdminUserResponse = snakeToCamelObject(await userRes.json());
+
+    // Determine the correct API key based on organization context
+    let userApiKey: string | undefined;
+
+    if (tableViewConfig.organizationId) {
+      const targetOrg = userData.organizations?.find(
+        (org) => org.id === tableViewConfig.organizationId
+      );
+      if (targetOrg?.apiKey) {
+        userApiKey = targetOrg.apiKey;
+      } else {
+        console.error(
+          `[table/data] User ${tableViewConfig.userId} has no API key for org ${tableViewConfig.organizationId}`
+        );
+        return NextResponse.json(
+          { error: 'User credentials not available for this organization' },
+          { status: 500 }
+        );
+      }
+    } else {
+      userApiKey = userData.apiKey;
+    }
+
+    if (!userApiKey) {
+      console.error('[table/data] No API key found for user');
+      return NextResponse.json({ error: 'User credentials not available' }, { status: 500 });
+    }
+
+    // ========================================================================
+    // Step 3: Call /v0/logs with user's API key
+    // ========================================================================
+    const projectConfig = tableViewConfig.projectConfig;
+    const logsParams = new URLSearchParams();
+
+    // Required: project name (from metadata, not projectConfig - it's stored via FK)
+    const projectName = tableViewConfig.metadata.projectName;
+    if (!projectName) {
+      console.error('[table/data] Project name not found in table view metadata');
+      return internalError('Invalid table view configuration - missing project name');
+    }
+    logsParams.append('project_name', projectName);
+
+    // Optional parameters from project config
+    if (projectConfig.context) {
+      logsParams.append('context', projectConfig.context as string);
+    }
+    if (projectConfig.filterExpr) {
+      logsParams.append('filter_expr', projectConfig.filterExpr as string);
+    }
+    if (projectConfig.fromFields) {
+      logsParams.append('from_fields', projectConfig.fromFields as string);
+    }
+    if (projectConfig.excludeFields) {
+      logsParams.append('exclude_fields', projectConfig.excludeFields as string);
+    }
+    if (projectConfig.sorting) {
+      logsParams.append('sorting', projectConfig.sorting as string);
+    }
+
+    // Server-side pagination: calculate offset from page number
+    const offset = (page - 1) * pageSize;
+    logsParams.append('limit', String(pageSize));
+    logsParams.append('offset', String(offset));
+
+    const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
+    const logsRes = await fetchWithTimeout(logsUrl, {
+      headers: {
+        Authorization: `Bearer ${userApiKey}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!logsRes.ok) {
+      const errorData = await logsRes.json().catch(() => ({}));
+      console.error('[table/data] Failed to fetch logs:', errorData);
+      return NextResponse.json(
+        { error: errorData.detail || 'Failed to fetch log data' },
+        { status: logsRes.status }
+      );
+    }
+
+    const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
+    const rawLogs = logsData.logs || [];
+
+    // ========================================================================
+    // Step 4: Fetch fields metadata
+    // ========================================================================
+    const fieldsParams = new URLSearchParams();
+    if (projectName) {
+      fieldsParams.append('project_name', projectName);
+    }
+    if (projectConfig.context) {
+      fieldsParams.append('context', projectConfig.context as string);
+    }
+
+    const fieldsUrl = `${ORCHESTRA_URL}/v0/logs/fields?${fieldsParams.toString()}`;
+    const fieldsRes = await fetchWithTimeout(fieldsUrl, {
+      headers: {
+        Authorization: `Bearer ${userApiKey}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    let rawFields: Record<string, FieldMetadata> = {};
+    if (fieldsRes.ok) {
+      rawFields = snakeToCamelObject(await fieldsRes.json());
+    } else {
+      console.warn('[table/data] Failed to fetch fields, continuing without');
+    }
+
+    // ========================================================================
+    // Step 5: Transform data and build response
+    // ========================================================================
+    const transformedData = transformLogsForTable(rawLogs);
+
+    // Get all available column names from data
+    const allColumns = new Set<string>();
+    transformedData.forEach((row) => {
+      Object.keys(row).forEach((key) => allColumns.add(key));
+    });
+    const columnList = Array.from(allColumns);
+
+    // Determine visible columns and order
+    const visibleColumns = getVisibleColumns(tableViewConfig.config, columnList);
+    const columnOrder = getColumnOrder(tableViewConfig.config, visibleColumns);
+
+    const totalCount = logsData.count ?? 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    return NextResponse.json({
+      config: {
+        ...tableViewConfig.config,
+        visibleColumns,
+        columnOrder,
+      },
+      data: transformedData,
+      fields: rawFields,
+      metadata: {
+        ...tableViewConfig.metadata,
+        projectName: projectName || 'Unknown Project',
+      },
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
+  } catch (error) {
+    // Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('[table/data] Request timeout');
+      return NextResponse.json({ error: 'Request timed out. Please try again.' }, { status: 504 });
+    }
+
+    console.error('[table/data] Unexpected error:', error);
+    return internalError('Failed to load table view');
+  }
+}

@@ -269,6 +269,37 @@
   display: none !important;
 }
 
+/* Styled scrollbar for table viewer and other components */
+.styled-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.styled-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+.styled-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Drag and drop styles for tab reordering */
 .cursor-grabbing {
   cursor: grabbing !important;
