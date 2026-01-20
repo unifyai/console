@@ -238,7 +238,7 @@ export const drawBarChart = (
   if (preAggregatedData && preAggregatedData.length > 0) {
     data = preAggregatedData;
     // Apply sorting to pre-aggregated data
-    if (!groupBy && sortBars !== 'unsorted') {
+    if (!groupBy && sortBars && sortBars !== 'unsorted') {
       (data as DataLabel[]).sort((a, b) => {
         const yA = a[1];
         const yB = b[1];
