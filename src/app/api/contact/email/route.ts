@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
-import { snakeToCamelObject } from '@/utils/casing';
+import {
+  createCommunicationClient,
+  getCommunicationErrorDetail,
+  getCommunicationErrorStatus,
+} from '@/lib/communication/client';
 
-const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
-const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 export async function POST(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -30,53 +32,30 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${COMMUNICATION_URL}/email/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ emailAddress: email }),
-    });
+    const client = createCommunicationClient();
+    // Client automatically converts emailAddress → email_address
+    const { data } = await client.post('/email/create', { emailAddress: email });
 
-    const responseData = await response.json().catch((e) => {
-      console.error('Failed to parse JSON response from communication service (email/create):', e);
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (email/create - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        { detail: responseData.detail || 'Failed to create email via communication service' },
-        { status: response.status }
-      );
-    }
-
-    if (responseData.success && responseData.user && responseData.user.primaryEmail) {
-      return NextResponse.json(
-        { email: responseData.user.primaryEmail, user: responseData.user },
-        { status: 201 }
-      );
-    } else if (responseData.email) {
-      return NextResponse.json({ email: responseData.email }, { status: 201 });
+    if (data.success && data.user?.primaryEmail) {
+      return NextResponse.json({ email: data.user.primaryEmail, user: data.user }, { status: 201 });
+    } else if (data.email) {
+      return NextResponse.json({ email: data.email }, { status: 201 });
     } else {
       console.error(
         'Communication service (email/create) did not return expected email data:',
-        responseData
+        data
       );
       return NextResponse.json(
         { detail: 'Failed to create email, unexpected response from service.' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error proxying to communication service (email/create):', error);
-    return internalError('Failed to connect to communication service');
+    return NextResponse.json(
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
+    );
   }
 }
 
@@ -100,45 +79,22 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${COMMUNICATION_URL}/email/delete`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ primaryEmail: primaryEmail }),
-    });
+    const client = createCommunicationClient();
+    // Client automatically converts primaryEmail → primary_email
+    const response = await client.delete('/email/delete', { data: { primaryEmail } });
 
-    // If the response is 204 No Content, there might not be a JSON body
+    // Handle 204 No Content
     if (response.status === 204) {
       return new NextResponse(null, { status: 204 });
     }
 
-    const responseData = await response.json().catch((e) => {
-      console.error('Failed to parse JSON response from communication service (email/delete):', e);
-      // If parsing fails but status is OK-ish, it might be an unexpected success response or an error without JSON
-      if (response.ok)
-        return { success: true, message: 'Operation successful, but response was not JSON.' };
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (email/delete - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        { detail: responseData.detail || 'Failed to delete email via communication service' },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(responseData, { status: response.status });
-  } catch (error: any) {
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error) {
     console.error('Error proxying to communication service (email/delete):', error);
-    return internalError('Failed to connect to communication service');
+    return NextResponse.json(
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
+    );
   }
 }
 

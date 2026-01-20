@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
-
-const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
+import {
+  createCommunicationClient,
+  getCommunicationErrorDetail,
+  getCommunicationErrorStatus,
+} from '@/lib/communication/client';
 
 export async function POST(request: NextRequest) {
   // Get API key from session (fallback to header for backwards compatibility)
@@ -29,64 +32,33 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${COMMUNICATION_URL}/whatsapp/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phoneNumber, firstName, lastName }),
-    });
+    const client = createCommunicationClient();
+    // Client automatically converts phoneNumber → phone_number, firstName → first_name, etc.
+    const { data } = await client.post('/whatsapp/create', { phoneNumber, firstName, lastName });
 
-    const responseData = await response.json().catch((e) => {
-      console.error(
-        'Failed to parse JSON response from communication service (whatsapp/create):',
-        e
-      );
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (whatsapp/create - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        {
-          detail:
-            responseData.detail || 'Failed to create WhatsApp sender via communication service',
-        },
-        { status: response.status }
-      );
-    }
-
-    // Assuming the backend /whatsapp/create returns { "sid": "..." } on success
-    if (responseData.sid) {
-      return NextResponse.json({ sid: responseData.sid }, { status: 201 });
+    // Backend /whatsapp/create returns { "sid": "..." } on success
+    if (data.sid) {
+      return NextResponse.json({ sid: data.sid }, { status: 201 });
     } else {
       console.error(
         "Communication service (whatsapp/create) did not return expected 'sid' data:",
-        responseData
+        data
       );
       return NextResponse.json(
         { detail: 'Failed to create WhatsApp sender, unexpected response from service.' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error proxying to communication service (whatsapp/create):', error);
     return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
     );
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  const apiKey = request.headers.get('apiKey'); // For potential proxy auth
-
   let requestBody;
   try {
     requestBody = await request.json();
@@ -101,55 +73,20 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${COMMUNICATION_URL}/whatsapp/delete`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ sid: sid }),
-    });
+    const client = createCommunicationClient();
+    const response = await client.delete('/whatsapp/delete', { data: { sid } });
 
-    if (
-      response.status === 204 ||
-      (response.status === 200 && response.headers.get('content-length') === '0')
-    ) {
-      // Twilio might return 204 or empty 200
+    // Handle 204 No Content or empty 200
+    if (response.status === 204 || (response.status === 200 && !response.data)) {
       return new NextResponse(null, { status: 204 });
     }
 
-    const responseData = await response.json().catch((e) => {
-      console.error(
-        'Failed to parse JSON response from communication service (whatsapp/delete):',
-        e
-      );
-      if (response.ok)
-        return { success: true, message: 'Operation successful, but response was not JSON.' };
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (whatsapp/delete - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        {
-          detail:
-            responseData.detail || 'Failed to delete WhatsApp sender via communication service',
-        },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(responseData, { status: response.status });
-  } catch (error: any) {
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error) {
     console.error('Error proxying to communication service (whatsapp/delete):', error);
     return NextResponse.json(
-      { detail: 'Failed to connect to communication service', errorDetails: error.message },
-      { status: 503 }
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
     );
   }
 }

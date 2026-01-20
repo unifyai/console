@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
-
-const baseUrl = process.env.COMMUNICATION_URL;
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
+import {
+  createCommunicationClient,
+  getCommunicationErrorDetail,
+  getCommunicationErrorStatus,
+} from '@/lib/communication/client';
 
 export async function POST(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -10,49 +13,27 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/phone/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const client = createCommunicationClient();
+    const { data } = await client.post('/phone/create');
 
-    const responseData = await response.json().catch((e) => {
-      console.error('Failed to parse JSON response from communication service (phone/create):', e);
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (phone/create - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        {
-          detail: responseData.detail || 'Failed to create phone number via communication service',
-        },
-        { status: response.status }
-      );
-    }
-
-    if (responseData.success && responseData.phoneNumber) {
-      return NextResponse.json({ phoneNumber: responseData.phoneNumber }, { status: 201 });
+    if (data.success && data.phoneNumber) {
+      return NextResponse.json({ phoneNumber: data.phoneNumber }, { status: 201 });
     } else {
       console.error(
         'Communication service (phone/create) did not return expected phone data:',
-        responseData
+        data
       );
       return NextResponse.json(
         { detail: 'Failed to create phone number, unexpected response from service.' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error proxying to communication service (phone/create):', error);
-    return internalError('Failed to connect to communication service');
+    return NextResponse.json(
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
+    );
   }
 }
 
@@ -76,47 +57,20 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
-      `${baseUrl}/phone/delete`, // Backend endpoint path
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phoneNumber: phoneNumber }),
-      }
-    );
+    const client = createCommunicationClient();
+    // Client automatically converts phoneNumber → phone_number
+    const response = await client.delete('/phone/delete', { data: { phoneNumber } });
 
     if (response.status === 204) {
       return new NextResponse(null, { status: 204 });
     }
 
-    const responseData = await response.json().catch((e) => {
-      console.error('Failed to parse JSON response from communication service (phone/delete):', e);
-      if (response.ok)
-        return { success: true, message: 'Operation successful, but response was not JSON.' };
-      return {
-        detail: 'Invalid JSON response from communication service',
-        status: response.status,
-      };
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Communication Service Error (phone/delete - ${response.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        {
-          detail: responseData.detail || 'Failed to delete phone number via communication service',
-        },
-        { status: response.status }
-      );
-    }
-
-    return NextResponse.json(responseData, { status: response.status });
-  } catch (error: any) {
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error) {
     console.error('Error proxying to communication service (phone/delete):', error);
-    return internalError('Failed to connect to communication service');
+    return NextResponse.json(
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
+    );
   }
 }
