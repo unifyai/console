@@ -907,6 +907,12 @@ describe('Assistant Hire Flow', () => {
         worker.use(
           http.get('/api/billing/balance', () => {
             return HttpResponse.json({ balance: '100.00', fullBalance: 100.0 });
+          }),
+          // Mock the edited photo URL fetch - the hook fetches this to download the image
+          http.get('https://edited.photo/image.jpg', () => {
+            return new HttpResponse(new ArrayBuffer(100), {
+              headers: { 'Content-Type': 'image/jpeg' },
+            });
           })
         );
         render(<HireFlowTestWrapper />);
