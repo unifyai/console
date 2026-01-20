@@ -29,6 +29,8 @@ const MOCK_BASE_URL = 'http://localhost:3000';
 
 describe('chat.ts', () => {
   const TEST_API_KEY = 'test-api-key';
+  const OWNER_ID = 'owner-user-id-123';
+  const ASSISTANT_ID = 'assistant-id-456';
 
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
@@ -63,10 +65,54 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn('OwnerContext', 'AssistantContext', 'user@example.com');
+        const result = await getContactFn(
+          'OwnerContext',
+          'AssistantContext',
+          'user@example.com',
+          OWNER_ID,
+          ASSISTANT_ID
+        );
 
         // Assert
         expect(result).toBe(5);
+      }
+    );
+
+    it(
+      'includes security filters in request',
+      {
+        meta: {
+          alias: 'GetContactId-SecurityFilters',
+          scenario: 'Verify URL contains _user_id and _assistant_id filters',
+          behavior: 'Filter expression includes security filters',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({
+              logs: [{ entries: { contactId: 5, emailAddress: 'user@example.com' } }],
+            });
+          })
+        );
+
+        // Act
+        const getContactFn = await getContactIdByEmail(TEST_API_KEY);
+        await getContactFn(
+          'OwnerContext',
+          'AssistantContext',
+          'user@example.com',
+          'test-owner-id',
+          'test-assistant-id'
+        );
+
+        // Assert - URL should contain security filters
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain("_user_id == 'test-owner-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
 
@@ -92,7 +138,9 @@ describe('chat.ts', () => {
         const result = await getContactFn(
           'OwnerContext',
           'AssistantContext',
-          'unknown@example.com'
+          'unknown@example.com',
+          OWNER_ID,
+          ASSISTANT_ID
         );
 
         // Assert
@@ -122,7 +170,9 @@ describe('chat.ts', () => {
         const result = await getContactFn(
           'OwnerContext',
           'AssistantContext',
-          'unknown@example.com'
+          'unknown@example.com',
+          OWNER_ID,
+          ASSISTANT_ID
         );
 
         // Assert
@@ -151,7 +201,13 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn('OwnerContext', 'AssistantContext', 'user@example.com');
+        const result = await getContactFn(
+          'OwnerContext',
+          'AssistantContext',
+          'user@example.com',
+          OWNER_ID,
+          ASSISTANT_ID
+        );
 
         // Assert
         expect(result).toBeNull();
@@ -192,7 +248,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -200,6 +256,38 @@ describe('chat.ts', () => {
         expect((result as any[])[0]).toHaveProperty('role', 'user');
         expect((result as any[])[0]).toHaveProperty('content', 'Hello!');
         expect((result as any[])[1]).toHaveProperty('role', 'assistant');
+      }
+    );
+
+    it(
+      'includes security filters in request',
+      {
+        meta: {
+          alias: 'GetTranscripts-SecurityFilters',
+          scenario: 'Verify URL contains _user_id and _assistant_id filters',
+          behavior: 'Filter expression includes security filters',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({
+              logs: [],
+            });
+          })
+        );
+
+        // Act
+        const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
+        await getTranscriptsFn('Owner', 'Assistant', 1, 'test-owner-id', 'test-assistant-id');
+
+        // Assert - URL should contain security filters
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain("_user_id == 'test-owner-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
 
@@ -230,7 +318,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect((result as any[])[0].role).toBe('assistant');
@@ -264,7 +352,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 5);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 5, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect((result as any[])[0].role).toBe('user');
@@ -290,7 +378,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toEqual([]);

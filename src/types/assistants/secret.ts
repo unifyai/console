@@ -14,7 +14,11 @@ export interface SecretPayload {
 }
 
 export interface SecretActions {
-  get: (assistantContext: string) => Promise<Secret[] | ResponseProps>;
-  create: (assistantContext: string, payload: SecretPayload) => Promise<ResponseProps>;
+  get: (assistantContext: string, assistantId: string) => Promise<Secret[] | ResponseProps>;
+  create: (
+    assistantContext: string,
+    assistantId: string,
+    payload: SecretPayload
+  ) => Promise<ResponseProps>;
   delete: (assistantContext: string, logId: number) => Promise<ResponseProps>;
 }

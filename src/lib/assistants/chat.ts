@@ -11,6 +11,11 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { camelToSnakeObject } from '@/utils/casing';
+import {
+  buildUserIdFilter,
+  buildAssistantIdFilter,
+  combineFilters,
+} from '@/utils/assistants/filterExpressions';
 
 /**
  * Looks up a user's contactId from the Contacts table using their email address.
@@ -25,13 +30,21 @@ export const getContactIdByEmail = async (apiKey: string) => {
   return async (
     ownerContext: string,
     assistantContext: string,
-    userEmail: string
+    userEmail: string,
+    ownerId: string,
+    assistantId: string
   ): Promise<number | null> => {
     'use server';
     try {
       const project = 'Assistants';
       const context = `${ownerContext}/${assistantContext}/Contacts`;
-      const filterExpr = `email_address == "${userEmail}"`;
+      // Combine email filter with security filters (_user_id and _assistant_id)
+      const emailFilter = `email_address == "${userEmail}"`;
+      const securityFilter = combineFilters([
+        buildUserIdFilter(ownerId),
+        buildAssistantIdFilter(assistantId),
+      ]);
+      const filterExpr = combineFilters([emailFilter, securityFilter]);
       const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
       const response = await fetch(url, {
@@ -92,6 +105,8 @@ export const getTranscripts = async (apiKey: string) => {
     ownerContext: string,
     assistantContext: string,
     contactId: number,
+    ownerId: string,
+    assistantId: string,
     beforeMessageId?: number
   ): Promise<ChatMessage[] | ResponseProps> => {
     'use server';
@@ -100,10 +115,16 @@ export const getTranscripts = async (apiKey: string) => {
       const context = `${ownerContext}/${assistantContext}/Transcripts`;
       const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
       // Filter: messages sent BY this contact OR assistant responses TO this contact
-      let filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+      let messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
       if (beforeMessageId !== undefined) {
-        filterExpr += ` and message_id < ${beforeMessageId}`;
+        messageFilter += ` and message_id < ${beforeMessageId}`;
       }
+      // Add security filters (_user_id and _assistant_id) to prevent data leaks
+      const securityFilter = combineFilters([
+        buildUserIdFilter(ownerId),
+        buildAssistantIdFilter(assistantId),
+      ]);
+      const filterExpr = combineFilters([messageFilter, securityFilter]);
       let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
       const response = await fetch(url, {

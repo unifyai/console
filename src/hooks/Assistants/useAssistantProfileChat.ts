@@ -212,7 +212,9 @@ export function useAssistantProfileChat(
           const lookedUpContactId = await assistantActions.chat.getContactId(
             ownerContext,
             assistantContext,
-            userEmail
+            userEmail,
+            currentAssistant.userId,
+            currentAssistantId
           );
 
           if (lookedUpContactId === null) {
@@ -240,7 +242,9 @@ export function useAssistantProfileChat(
         const historyResult = await assistantActions.chat.getTranscripts(
           ownerContext,
           assistantContext,
-          contactId
+          contactId,
+          currentAssistant.userId,
+          currentAssistantId
         );
 
         if ('detail' in historyResult) {
@@ -311,7 +315,9 @@ export function useAssistantProfileChat(
           const contactId = await assistantActions.chat.getContactId(
             ownerContext,
             assistantContext,
-            userEmail
+            userEmail,
+            assistant.userId,
+            assistantId
           );
           if (contactId === null) {
             // User not in contacts - trigger contact sync (only once per assistant)
@@ -384,6 +390,8 @@ export function useAssistantProfileChat(
         ownerContext,
         assistantContext,
         contactId,
+        assistant.userId,
+        assistantId,
         oldestMessage.messageId
       );
       setHasFetchedHistory(true);

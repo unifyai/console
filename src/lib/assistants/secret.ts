@@ -1,6 +1,11 @@
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { Secret, SecretPayload } from '@/types/assistants/secret';
+import {
+  buildUserIdFilter,
+  buildAssistantIdFilter,
+  combineFilters,
+} from '@/utils/assistants/filterExpressions';
 
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
@@ -26,12 +31,20 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
   };
 };
 
-export const getSecrets = async (apiKey: string, userContext: string) => {
-  return async (assistantContext: string): Promise<Secret[] | ResponseProps> => {
+export const getSecrets = async (apiKey: string, userContext: string, userId: string) => {
+  return async (
+    assistantContext: string,
+    assistantId: string
+  ): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
       const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}`;
+      // Add _user_id and _assistant_id filters for security (prevents data leaks if two users have same name)
+      const securityFilter = combineFilters([
+        buildUserIdFilter(userId),
+        buildAssistantIdFilter(assistantId),
+      ]);
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey } });
 
@@ -54,12 +67,29 @@ export const getSecrets = async (apiKey: string, userContext: string) => {
   };
 };
 
-export const createSecret = async (apiKey: string, userContext: string) => {
-  return async (assistantContext: string, payload: SecretPayload): Promise<ResponseProps> => {
+export const createSecret = async (apiKey: string, userContext: string, userId: string) => {
+  return async (
+    assistantContext: string,
+    assistantId: string,
+    payload: SecretPayload
+  ): Promise<ResponseProps> => {
     'use server';
     try {
       const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-      const body = { projectName: PROJECT, context, entries: [payload] };
+      // Include all private fields that Unity's log_utils would inject
+      // (Unity injects these automatically, but console creates logs directly via API)
+      // See: unity/unity/common/log_utils.py _inject_private_fields
+      // Note: These field names intentionally use Unity's underscore-prefixed naming convention
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const entriesWithPrivateFields = {
+        ...payload,
+        _user: userContext,
+        _user_id: userId,
+        _assistant: assistantContext,
+        _assistant_id: assistantId,
+      };
+      /* eslint-enable @typescript-eslint/naming-convention */
+      const body = { projectName: PROJECT, context, entries: [entriesWithPrivateFields] };
 
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
         method: 'POST',

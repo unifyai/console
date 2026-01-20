@@ -369,7 +369,8 @@ describe('Assistant Secrets Manager', () => {
 
         await waitFor(() => {
           expect(actions.create).toHaveBeenCalledWith(
-            expect.any(String),
+            expect.any(String), // assistantContext
+            expect.any(String), // assistantId
             expect.objectContaining({
               name: 'NEW_SECRET',
               value: 'my-secret-value',
@@ -524,8 +525,8 @@ describe('Assistant Secrets Manager', () => {
         await waitFor(() => {
           expect(errorActions.get).toHaveBeenCalledTimes(1);
         });
-        // Verify get was called with the correct assistant context
-        expect(errorActions.get).toHaveBeenCalledWith('TestAssistant');
+        // Verify get was called with the correct assistant context and ID
+        expect(errorActions.get).toHaveBeenCalledWith('TestAssistant', 'test-assistant-id');
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       }
@@ -570,11 +571,15 @@ describe('Assistant Secrets Manager', () => {
           expect(errorActions.create).toHaveBeenCalledTimes(1);
         });
         // Verify create was called with correct secret details
-        expect(errorActions.create).toHaveBeenCalledWith('TestAssistant', {
-          name: 'TEST_SECRET',
-          value: 'test-value',
-          description: '',
-        });
+        expect(errorActions.create).toHaveBeenCalledWith(
+          'TestAssistant', // assistantContext
+          'test-assistant-id', // assistantId
+          {
+            name: 'TEST_SECRET',
+            value: 'test-value',
+            description: '',
+          }
+        );
       }
     );
 

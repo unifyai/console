@@ -4,7 +4,11 @@ import { toast } from 'sonner';
 import { Secret, SecretPayload, SecretActions } from '@/types/assistants/secret';
 import { ResponseProps } from '@/types/common';
 
-export function useAssistantSecrets(assistantContext: string | null, secretActions: SecretActions) {
+export function useAssistantSecrets(
+  assistantContext: string | null,
+  assistantId: string | null,
+  secretActions: SecretActions
+) {
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -17,11 +21,11 @@ export function useAssistantSecrets(assistantContext: string | null, secretActio
   const { reset, setValue } = formMethods;
 
   const fetchSecrets = React.useCallback(async () => {
-    if (!assistantContext) return;
+    if (!assistantContext || !assistantId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const result = await secretActions.get(assistantContext);
+      const result = await secretActions.get(assistantContext, assistantId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
       const sortedSecrets = (result as Secret[]).sort((a, b) => a.name.localeCompare(b.name));
       setSecrets(sortedSecrets);
@@ -32,7 +36,7 @@ export function useAssistantSecrets(assistantContext: string | null, secretActio
     } finally {
       setIsLoading(false);
     }
-  }, [assistantContext, secretActions]);
+  }, [assistantContext, assistantId, secretActions]);
 
   React.useEffect(() => {
     if (assistantContext) {
@@ -76,13 +80,13 @@ export function useAssistantSecrets(assistantContext: string | null, secretActio
   };
 
   const onSubmit = async (data: SecretPayload) => {
-    if (!assistantContext || selectedSecret) return; // Only allow creation
+    if (!assistantContext || !assistantId || selectedSecret) return; // Only allow creation
 
     setIsSubmitting(true);
     const toastId = toast.loading('Creating secret...');
 
     try {
-      const result = await secretActions.create(assistantContext, data);
+      const result = await secretActions.create(assistantContext, assistantId, data);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret created.', { id: toastId });

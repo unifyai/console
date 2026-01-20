@@ -379,12 +379,16 @@ export interface AssistantActions {
     getContactId: (
       ownerContext: string,
       assistantContext: string,
-      userEmail: string
+      userEmail: string,
+      ownerId: string,
+      assistantId: string
     ) => Promise<number | null>;
     getTranscripts: (
       ownerContext: string,
       assistantContext: string,
       contactId: number,
+      ownerId: string,
+      assistantId: string,
       beforeMessageId?: number
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;

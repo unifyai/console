@@ -18,6 +18,8 @@ const MOCK_BASE_URL = 'http://localhost:3000';
 describe('task.ts', () => {
   const TEST_API_KEY = 'test-api-key';
   const USER_CONTEXT = 'user-123';
+  const USER_ID = 'user-id-456';
+  const ASSISTANT_ID = 'assistant-id-789';
 
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
@@ -52,9 +54,9 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        const result = await getTasksFn('assistant-ctx', null, null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('logs');
@@ -63,12 +65,12 @@ describe('task.ts', () => {
     );
 
     it(
-      'builds correct context path',
+      'builds correct context path and includes security filters in personal workspace',
       {
         meta: {
           alias: 'GetTasks-ContextPath',
-          scenario: 'Verify URL contains correct context',
-          behavior: 'URL includes userContext/assistantContext/Tasks',
+          scenario: 'Verify URL contains correct context and _user_id/_assistant_id filters',
+          behavior: 'URL includes userContext/assistantContext/Tasks with security filterExpr',
         },
       },
       async () => {
@@ -81,22 +83,26 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx');
-        await getTasksFn('agent-ctx', null, null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', false);
+        await getTasksFn('agent-ctx', 'test-assistant-id', null, null, null);
 
-        // Assert - URL may or may not be encoded depending on fetch implementation
+        // Assert - URL should contain context path and security filters
         expect(capturedUrl).toContain('owner-ctx/agent-ctx/Tasks');
+        // Check for security filter parameters (URL encoded)
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain("_user_id == 'test-user-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
 
     it(
-      'includes filter expression when provided',
+      'only includes _user_id filter when assistantId is null in personal workspace (All context)',
       {
         meta: {
-          alias: 'GetTasks-FilterExpr',
-          scenario: 'Filter expression is provided',
-          behavior: 'URL includes encoded filterExpr',
+          alias: 'GetTasks-AllContext-Personal',
+          scenario: 'Using All context with null assistantId in personal workspace',
+          behavior: 'URL includes only _user_id filter, not _assistant_id',
         },
       },
       async () => {
@@ -109,13 +115,107 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        await getTasksFn('assistant-ctx', 'status = "pending"', null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', false);
+        await getTasksFn('All', null, null, null, null);
 
-        // Assert
-        expect(capturedUrl).toContain('filterExpr=');
-        expect(capturedUrl).toContain(encodeURIComponent('status = "pending"'));
+        // Assert - URL should contain only _user_id filter
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain("_user_id == 'test-user-id'");
+        expect(decodedUrl).not.toContain('_assistant_id');
+      }
+    );
+
+    it(
+      'skips _user_id filter in organization workspace (All context)',
+      {
+        meta: {
+          alias: 'GetTasks-AllContext-Org',
+          scenario: 'Using All context in organization workspace',
+          behavior: 'URL has no _user_id filter, API key scopes data to org',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ logs: [] });
+          })
+        );
+
+        // Act - isOrgContext=true for organization workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', true);
+        await getTasksFn('All', null, null, null, null);
+
+        // Assert - URL should NOT contain _user_id filter (org members see all tasks)
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).not.toContain('_user_id');
+        expect(decodedUrl).not.toContain('_assistant_id');
+        // Should not have filterExpr at all when no filters
+        expect(decodedUrl).not.toContain('filterExpr');
+      }
+    );
+
+    it(
+      'includes only _assistant_id filter in organization workspace when assistantId provided',
+      {
+        meta: {
+          alias: 'GetTasks-OrgContext-SpecificAssistant',
+          scenario: 'Fetching tasks for specific assistant in org workspace',
+          behavior: 'URL includes only _assistant_id filter, not _user_id',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ logs: [] });
+          })
+        );
+
+        // Act - isOrgContext=true for organization workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', true);
+        await getTasksFn('agent-ctx', 'test-assistant-id', null, null, null);
+
+        // Assert - URL should contain only _assistant_id filter
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).not.toContain('_user_id');
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
+      }
+    );
+
+    it(
+      'includes filter expression when provided (combined with security filter)',
+      {
+        meta: {
+          alias: 'GetTasks-FilterExpr',
+          scenario: 'Filter expression is provided',
+          behavior: 'URL includes encoded filterExpr combined with security filter',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ logs: [] });
+          })
+        );
+
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        await getTasksFn('assistant-ctx', ASSISTANT_ID, 'status = "pending"', null, null);
+
+        // Assert - should contain both security filter and user filter
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain('filterExpr=');
+        expect(decodedUrl).toContain('status = "pending"');
+        expect(decodedUrl).toContain('_user_id ==');
       }
     );
 
@@ -138,9 +238,9 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        await getTasksFn('assistant-ctx', null, 25, 50);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        await getTasksFn('assistant-ctx', ASSISTANT_ID, null, 25, 50);
 
         // Assert
         expect(capturedUrl).toContain('limit=25');
@@ -167,9 +267,9 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        const result = await getTasksFn('assistant-ctx', null, null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -194,9 +294,9 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        const result = await getTasksFn('assistant-ctx', null, null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Access denied');
@@ -220,9 +320,9 @@ describe('task.ts', () => {
           })
         );
 
-        // Act
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT);
-        const result = await getTasksFn('assistant-ctx', null, null, null);
+        // Act - isOrgContext=false for personal workspace
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
+        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail');

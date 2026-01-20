@@ -112,8 +112,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       verifySocialAccount: await verifySocialAccount(adminKey),
     },
     secret: {
-      get: await getSecrets(apiKey, userName),
-      create: await createSecret(apiKey, userName),
+      get: await getSecrets(apiKey, userName, user.id),
+      create: await createSecret(apiKey, userName, user.id),
       delete: await deleteSecret(apiKey, userName),
     },
     approval: {
@@ -132,7 +132,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
   };
 
   const taskActions: TaskActions = {
-    get: await getTasks(apiKey, userName),
+    get: await getTasks(apiKey, userName, user.id, isOrgContext),
     update: await updateTask(apiKey, userName),
   };
 

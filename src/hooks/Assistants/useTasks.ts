@@ -160,7 +160,8 @@ export function useTasks(
             return;
           }
 
-          const response = await taskActions.get('All', expr, TASK_PAGE_LIMIT, offset);
+          // Pass null for assistantId when using "All" context (filter by _user_id only)
+          const response = await taskActions.get('All', null, expr, TASK_PAGE_LIMIT, offset);
 
           if ('detail' in response && response.detail) {
             setTaskError(response.detail);
@@ -205,7 +206,8 @@ export function useTasks(
             if (!isInitialLoad && !perAssistantData.get(assistant.agentId)?.hasMore) {
               return Promise.resolve(null);
             }
-            return taskActions.get(context, expr, TASK_PAGE_LIMIT, offset);
+            // Pass assistantId for per-assistant filtering (security filter by _user_id and _assistant_id)
+            return taskActions.get(context, assistant.agentId, expr, TASK_PAGE_LIMIT, offset);
           });
 
           const responses = await Promise.all(promises);

@@ -72,6 +72,7 @@ export interface Task {
 export interface TaskActions {
   get: (
     context: string,
+    assistantId: string | null,
     filterExpression: string | null,
     limit: number | null,
     offset: number | null
