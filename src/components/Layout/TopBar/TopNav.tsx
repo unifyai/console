@@ -4,7 +4,17 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/utils/misc/cn';
-import { User, CreditCard, LogOut, Check, Building2, Building, AlertTriangle } from 'lucide-react';
+import {
+  User,
+  CreditCard,
+  LogOut,
+  Check,
+  Building2,
+  Building,
+  AlertTriangle,
+  ChevronDown,
+  Slash,
+} from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
 import {
@@ -13,10 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSubContent,
   DropdownMenuLabel,
 } from '@/components/UI/dropdown-menu';
 import {
@@ -118,7 +124,7 @@ export default function TopNav() {
   return (
     <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">
       <div className="flex h-full items-center justify-between px-3.5">
-        {/* Logo + Nav */}
+        {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
             <Image
@@ -128,6 +134,72 @@ export default function TopNav() {
               className={`h-5 w-5 object-contain transition-opacity duration-300`}
             />
           </Link>
+
+          {/* Workspace Pill */}
+          {activeWorkspace && (
+            <>
+              <Slash className="rotate-25 ml-2 h-4 w-4 text-muted-foreground" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-6 gap-1.5 px-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {activeWorkspace.type === 'personal' ? (
+                      <User className="h-3.5 w-3.5" />
+                    ) : (
+                      <Building2 className="h-3.5 w-3.5" />
+                    )}
+                    <span className="max-w-[120px] truncate">{activeWorkspace.name}</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[200px]" align="start">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Personal
+                  </DropdownMenuLabel>
+                  {workspaces
+                    .filter((w) => w.type === 'personal')
+                    .map((w) => (
+                      <DropdownMenuItem
+                        key={w.id}
+                        onSelect={() => handlePersonalWorkspaceSwitch()}
+                        className="cursor-pointer gap-2"
+                      >
+                        <User className="h-4 w-4" />
+                        {w.name}
+                        {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Organizations
+                  </DropdownMenuLabel>
+                  {workspaces.filter((w) => w.type === 'organization').length === 0 && (
+                    <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
+                      No organizations
+                    </div>
+                  )}
+                  {workspaces
+                    .filter((w) => w.type === 'organization')
+                    .map((w) => (
+                      <DropdownMenuItem
+                        key={w.id}
+                        onSelect={() => switchWorkspace(w.id)}
+                        className="cursor-pointer gap-2"
+                      >
+                        <Building2 className="h-4 w-4" />
+                        {w.name}
+                        {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+
           <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
           {/* Navigation */}
           <nav className="hidden items-center space-x-6 md:flex">
@@ -182,70 +254,6 @@ export default function TopNav() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              {activeWorkspace && (
-                <>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-pointer">
-                      <div className="flex items-center gap-2 truncate">
-                        {activeWorkspace.type === 'personal' ? (
-                          <User className="h-4 w-4" />
-                        ) : (
-                          <Building2 className="h-4 w-4" />
-                        )}
-                        <span className="max-w-[120px] truncate">
-                          {activeWorkspace.name}&apos;s Workspace
-                        </span>
-                      </div>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-[200px] p-0">
-                        <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Personal
-                        </DropdownMenuLabel>
-                        {workspaces
-                          .filter((w) => w.type === 'personal')
-                          .map((w) => (
-                            <DropdownMenuItem
-                              key={w.id}
-                              onSelect={() => handlePersonalWorkspaceSwitch()}
-                              className="cursor-pointer gap-2"
-                            >
-                              <User className="h-4 w-4" />
-                              {w.name}
-                              {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
-                            </DropdownMenuItem>
-                          ))}
-
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Organizations
-                        </DropdownMenuLabel>
-                        {workspaces.filter((w) => w.type === 'organization').length === 0 && (
-                          <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
-                            No organizations
-                          </div>
-                        )}
-                        {workspaces
-                          .filter((w) => w.type === 'organization')
-                          .map((w) => (
-                            <DropdownMenuItem
-                              key={w.id}
-                              onSelect={() => switchWorkspace(w.id)}
-                              className="cursor-pointer gap-2"
-                            >
-                              <Building2 className="h-4 w-4" />
-                              {w.name}
-                              {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
-                            </DropdownMenuItem>
-                          ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
               <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                 <Link
                   href="/profile"
