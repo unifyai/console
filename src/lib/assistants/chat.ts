@@ -245,12 +245,12 @@ export const triggerContactSync = async () => {
 
     const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unity/system-event`;
 
-    // API expects snake_case
-    const payload = {
+    // API expects snake_case - convert camelCase to snake_case
+    const payload = camelToSnakeObject({
       assistantId: parseInt(assistantId),
       eventType: 'sync_contacts',
       message: 'Contacts sync triggered.',
-    };
+    });
 
     try {
       const webhookResponse = await fetch(webhookUrl, {

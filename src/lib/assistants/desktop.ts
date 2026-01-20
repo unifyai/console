@@ -2,6 +2,7 @@
 
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
+import { camelToSnakeObject } from '@/utils/casing';
 
 const MAX_LIVEVIEW_URL_RETRIES = 15;
 const LIVEVIEW_URL_RETRY_DELAY_MS = 2000;
@@ -129,11 +130,12 @@ export const sendSystemEvent = async () => {
 
     const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unity/system-event`;
 
-    const payload = {
-      assistantId: parseInt(assistantId), // The webhook likely expects an integer ID
+    // API expects snake_case - convert camelCase to snake_case
+    const payload = camelToSnakeObject({
+      assistantId: parseInt(assistantId),
       eventType: eventType,
       message: message,
-    };
+    });
 
     try {
       const webhookResponse = await fetch(webhookUrl, {
