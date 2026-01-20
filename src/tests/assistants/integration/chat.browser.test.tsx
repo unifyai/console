@@ -2,6 +2,14 @@ import * as React from 'react';
 import { render, screen, waitFor, act, fireEvent } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
+
+// Mock the Server Action module before importing components that use it
+// This prevents loading next-auth dependencies in the browser environment
+vi.mock('@/lib/assistants/preHireChat', () => ({
+  sendPreHireChatMessage: vi.fn().mockResolvedValue({ content: 'Mocked response' }),
+  generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
+}));
+
 import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
 import { createMockAssistant } from '../mocks/data';
 import { mockAssistantActions } from '../mocks/actions';

@@ -4,6 +4,13 @@ import { render, screen, within, waitFor, waitForElementToBeRemoved } from '@/te
 import { describe, it, expect, vi, Mock } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
+// Mock the Server Action module before importing components that use it
+// This prevents loading next-auth dependencies in the browser environment
+vi.mock('@/lib/assistants/preHireChat', () => ({
+  sendPreHireChatMessage: vi.fn().mockResolvedValue({ content: 'Mocked response' }),
+  generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
+}));
+
 import Main from '@/components/Pages/Assistants/Main';
 import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
 
