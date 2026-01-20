@@ -315,7 +315,7 @@ export function HireForm({
           <fieldset disabled={isSubmitting} className="group px-4 py-2">
             <Accordion
               type="multiple"
-              defaultValue={['profile', 'photo', 'voice', 'advanced']}
+              defaultValue={['profile', 'photo', 'voice']}
               className="w-full"
             >
               {/* Profile Section */}
