@@ -4,6 +4,7 @@ import { ChatMessage, BroadcastMessagePayload } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
+import { formatUserContext, formatAssistantContext } from '@/utils/assistants/context-utils';
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -136,7 +137,10 @@ export function useAssistantProfileChat(
 
       // Try direct names from assistant object
       if (currentAssistant.userFirstName && currentAssistant.userLastName) {
-        const context = `${currentAssistant.userFirstName}${currentAssistant.userLastName}`;
+        const context = formatUserContext(
+          currentAssistant.userFirstName,
+          currentAssistant.userLastName
+        );
         ownerContextCacheRef.current.set(currentAssistant.agentId, context);
         return context;
       }
@@ -148,7 +152,7 @@ export function useAssistantProfileChat(
             currentAssistant.userId
           );
           if (userDetails && userDetails.firstName) {
-            const context = `${userDetails.firstName}${userDetails.lastName || ''}`;
+            const context = formatUserContext(userDetails.firstName, userDetails.lastName || '');
             ownerContextCacheRef.current.set(currentAssistant.agentId, context);
             return context;
           }
@@ -186,7 +190,10 @@ export function useAssistantProfileChat(
         return;
       }
 
-      const assistantContext = `${currentAssistant.firstName}${currentAssistant.surname}`;
+      const assistantContext = formatAssistantContext(
+        currentAssistant.firstName,
+        currentAssistant.surname
+      );
 
       try {
         let contactId: number;
@@ -300,7 +307,7 @@ export function useAssistantProfileChat(
             setCanChat(false);
             return;
           }
-          const assistantContext = `${assistant.firstName}${assistant.surname}`;
+          const assistantContext = formatAssistantContext(assistant.firstName, assistant.surname);
           const contactId = await assistantActions.chat.getContactId(
             ownerContext,
             assistantContext,
@@ -371,7 +378,7 @@ export function useAssistantProfileChat(
 
     setLoadMoreError(false);
     setIsLoadingMore(true);
-    const assistantContext = `${assistant.firstName}${assistant.surname}`;
+    const assistantContext = formatAssistantContext(assistant.firstName, assistant.surname);
     try {
       const result = await assistantActions.chat.getTranscripts(
         ownerContext,

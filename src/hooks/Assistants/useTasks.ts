@@ -10,6 +10,7 @@ import {
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { toast } from 'sonner';
 import { Assistant } from '@/types/assistants/assistant';
+import { formatAssistantContext } from '@/utils/assistants/context-utils';
 
 const TASK_PAGE_LIMIT = 20;
 
@@ -198,7 +199,7 @@ export function useTasks(
           }
 
           const promises = assistantsToFetch.map((assistant) => {
-            const context = `${assistant.firstName}${assistant.surname}`;
+            const context = formatAssistantContext(assistant.firstName, assistant.surname);
             const offset = isInitialLoad ? 0 : perAssistantData.get(assistant.agentId)?.offset || 0;
             // Don't fetch more for an assistant that already has no more tasks
             if (!isInitialLoad && !perAssistantData.get(assistant.agentId)?.hasMore) {
