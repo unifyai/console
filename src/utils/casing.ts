@@ -6,17 +6,32 @@
 
 /**
  * Convert a snake_case string to camelCase.
- * @example snakeToCamel('userId') // 'userId'
- * @example snakeToCamel('createdAt') // 'createdAt'
+ * Preserves leading underscores for private/metadata fields.
+ *
+ * @example snakeToCamel('user_id') // 'userId'
+ * @example snakeToCamel('created_at') // 'createdAt'
+ * @example snakeToCamel('_user_id') // '_userId' (preserves leading underscore)
+ * @example snakeToCamel('_assistant') // '_assistant'
  */
 export function snakeToCamel(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+  // Check for leading underscore(s) and preserve them
+  const leadingUnderscores = str.match(/^_+/)?.[0] || '';
+  const rest = str.slice(leadingUnderscores.length);
+
+  // Convert the rest from snake_case to camelCase
+  const camelCased = rest.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+
+  return leadingUnderscores + camelCased;
 }
 
 /**
  * Convert a camelCase string to snake_case.
- * @example camelToSnake('userId') // 'userId'
- * @example camelToSnake('createdAt') // 'createdAt'
+ * Preserves leading underscores for private/metadata fields.
+ *
+ * @example camelToSnake('userId') // 'user_id'
+ * @example camelToSnake('createdAt') // 'created_at'
+ * @example camelToSnake('_userId') // '_user_id' (preserves leading underscore)
+ * @example camelToSnake('_assistant') // '_assistant'
  */
 export function camelToSnake(str: string): string {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);

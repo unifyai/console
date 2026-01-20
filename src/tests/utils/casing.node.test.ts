@@ -34,6 +34,19 @@ describe('casing utilities', () => {
     it('handles empty string', () => {
       expect(snakeToCamel('')).toBe('');
     });
+
+    it('preserves leading underscores for private fields', () => {
+      // Single leading underscore (Unity/Orchestra private fields)
+      expect(snakeToCamel('_user')).toBe('_user');
+      expect(snakeToCamel('_user_id')).toBe('_userId');
+      expect(snakeToCamel('_assistant_id')).toBe('_assistantId');
+    });
+
+    it('preserves multiple leading underscores', () => {
+      // Python-style "dunder" or other multi-underscore prefixes
+      expect(snakeToCamel('__private')).toBe('__private');
+      expect(snakeToCamel('__private_field')).toBe('__privateField');
+    });
   });
 
   describe('camelToSnake', () => {
@@ -60,6 +73,18 @@ describe('casing utilities', () => {
 
     it('handles empty string', () => {
       expect(camelToSnake('')).toBe('');
+    });
+
+    it('preserves leading underscores for private fields', () => {
+      // Single leading underscore (Unity/Orchestra private fields)
+      expect(camelToSnake('_user')).toBe('_user');
+      expect(camelToSnake('_userId')).toBe('_user_id');
+      expect(camelToSnake('_assistantId')).toBe('_assistant_id');
+    });
+
+    it('preserves multiple leading underscores', () => {
+      expect(camelToSnake('__private')).toBe('__private');
+      expect(camelToSnake('__privateField')).toBe('__private_field');
     });
   });
 
@@ -129,6 +154,27 @@ describe('casing utilities', () => {
       expect(snakeToCamelObject('string')).toBe('string');
       expect(snakeToCamelObject(123)).toBe(123);
       expect(snakeToCamelObject(true)).toBe(true);
+    });
+
+    it('preserves leading underscores in private fields', () => {
+      // Unity/Orchestra private fields start with underscore
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const input = {
+        _user: 'JohnDoe',
+        _user_id: 'user-123',
+        _assistant: 'AdaLovelace',
+        _assistant_id: 'asst-456',
+        regular_field: 'value',
+      };
+      const expected = {
+        _user: 'JohnDoe',
+        _userId: 'user-123',
+        _assistant: 'AdaLovelace',
+        _assistantId: 'asst-456',
+        regularField: 'value',
+      };
+      /* eslint-enable @typescript-eslint/naming-convention */
+      expect(snakeToCamelObject(input)).toEqual(expected);
     });
   });
 
