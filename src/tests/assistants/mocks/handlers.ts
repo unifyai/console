@@ -41,7 +41,8 @@ export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
   const filterExpr = url.searchParams.get('filterExpr') || '';
   const context = url.searchParams.get('context');
   const limit = parseInt(url.searchParams.get('limit') || '50', 10);
-  if (context?.includes('FailPagination') && filterExpr.includes('message_id <')) {
+  // Case-insensitive check since context formatting lowercases most characters
+  if (context?.toLowerCase().includes('failpagination') && filterExpr.includes('message_id <')) {
     return HttpResponse.json({ detail: 'Simulated Network Error' }, { status: 500 });
   }
   const match = filterExpr.match(/message_id < (\d+)/);

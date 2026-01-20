@@ -39,6 +39,8 @@ const createMockChatActions = (
     ownerContext: string,
     assistantContext: string,
     contactId: number,
+    ownerId: string,
+    assistantId: string,
     beforeMessageId?: number
   ) => Promise<ChatMessage[] | { detail: string }>,
   messageMock?: (payload: any) => Promise<{ info?: string; detail?: string }>
@@ -56,6 +58,8 @@ const fetchTranscriptsViaApi = async (
   ownerContext: string,
   assistantContext: string,
   contactId: number,
+  _ownerId: string,
+  _assistantId: string,
   beforeMessageId?: number
 ): Promise<ChatMessage[] | any> => {
   const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
@@ -1114,20 +1118,29 @@ describe('Assistant Profile Chat', () => {
         const assistantB = createMockAssistant({ agentId: 'assistant-b', firstName: 'B' });
 
         // Mock Transcripts for A
-        const getTranscriptsMock = vi.fn(async (ownerContext: string, assistantContext: string) => {
-          if (assistantContext.includes('A')) {
-            return [
-              {
-                id: 'msg-transcript',
-                role: 'assistant' as const,
-                content: 'Transcript Msg',
-                timestamp: tTranscript,
-                messageId: 1,
-              },
-            ];
+        const getTranscriptsMock = vi.fn(
+          async (
+            _ownerContext: string,
+            assistantContext: string,
+            _contactId: number,
+            _ownerId: string,
+            _assistantId: string,
+            _beforeMessageId?: number
+          ) => {
+            if (assistantContext.includes('A')) {
+              return [
+                {
+                  id: 'msg-transcript',
+                  role: 'assistant' as const,
+                  content: 'Transcript Msg',
+                  timestamp: tTranscript,
+                  messageId: 1,
+                },
+              ];
+            }
+            return [];
           }
-          return [];
-        });
+        );
 
         const actionsOverride = {
           chat: {
@@ -1451,9 +1464,11 @@ describe('Assistant Profile Chat', () => {
         let paginationAttempt = 0;
         const getTranscriptsMock = vi.fn(
           async (
-            ownerContext: string,
-            assistantContext: string,
-            contactId: number,
+            _ownerContext: string,
+            _assistantContext: string,
+            _contactId: number,
+            _ownerId: string,
+            _assistantId: string,
             beforeMessageId?: number
           ) => {
             // Initial Load
@@ -2001,7 +2016,9 @@ describe('Assistant Profile Chat', () => {
           expect(getContactIdMock).toHaveBeenCalledWith(
             'JohnDoe', // ownerContext from userFirstName + userLastName
             'AdaLovelace', // assistantContext
-            'test@example.com' // userEmail
+            'test@example.com', // userEmail
+            expect.any(String), // ownerId
+            expect.any(String) // assistantId
           );
         });
 
@@ -2009,7 +2026,9 @@ describe('Assistant Profile Chat', () => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
             'JohnDoe', // ownerContext
             'AdaLovelace', // assistantContext
-            1 // contactId returned by getContactIdMock
+            1, // contactId returned by getContactIdMock
+            expect.any(String), // ownerId
+            expect.any(String) // assistantId
             // beforeMessageId is not passed for initial load
           );
         });
@@ -2066,7 +2085,9 @@ describe('Assistant Profile Chat', () => {
           expect(getContactIdMock).toHaveBeenCalledWith(
             'JaneSmith', // ownerContext from getAssistantOwnerById result
             'AdaLovelace',
-            'test@example.com'
+            'test@example.com',
+            expect.any(String), // ownerId
+            expect.any(String) // assistantId
           );
         });
       }
@@ -2289,6 +2310,8 @@ describe('Assistant Profile Chat', () => {
             string,
             string,
             number,
+            string,
+            string,
             number | undefined,
           ];
           expect(callArgs[2]).toBe(42); // contactId is 3rd argument
@@ -2832,7 +2855,9 @@ describe('Assistant Profile Chat', () => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
             expect.any(String),
             expect.any(String),
-            userContactId
+            userContactId,
+            expect.any(String), // ownerId
+            expect.any(String) // assistantId
             // beforeMessageId is not passed for initial load
           );
         });

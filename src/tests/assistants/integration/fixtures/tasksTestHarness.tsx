@@ -128,6 +128,7 @@ export function createMockTaskActions(options: MockTaskActionsOptions = {}): Tas
     get: vi.fn(
       async (
         _context: string,
+        _assistantId: string | null,
         _filterExpression: string | null,
         _limit: number | null,
         _offset: number | null
@@ -169,6 +170,7 @@ export function createPendingTaskActions(): TaskActions {
     get: vi.fn(
       (
         _context: string,
+        _assistantId: string | null,
         _filterExpression: string | null,
         _limit: number | null,
         _offset: number | null

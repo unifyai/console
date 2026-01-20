@@ -29,7 +29,9 @@ const isError = (res: unknown): res is { detail: string } => {
 describe('@real task.ts - Orchestra Integration', () => {
   let API_KEY: string;
   let TEST_USER_CONTEXT: string;
+  let TEST_USER_ID: string;
   let TEST_ASSISTANT_CONTEXT: string;
+  let TEST_ASSISTANT_ID: string;
 
   beforeAll(async () => {
     try {
@@ -44,13 +46,15 @@ describe('@real task.ts - Orchestra Integration', () => {
     // Get a test assistant to use for context
     const assistant = await getTestAssistant(API_KEY);
     TEST_USER_CONTEXT = 'test-user';
+    TEST_USER_ID = 'test-user-id'; // Placeholder for real tests
     TEST_ASSISTANT_CONTEXT = `${assistant.firstName}_${assistant.surname}`;
+    TEST_ASSISTANT_ID = String(assistant.agentId);
   }, 30000);
 
   describe('getTasks', () => {
     it('@real should retrieve tasks list (may be empty)', realTestOptions, async () => {
-      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT);
-      const result = await getTasksAction(TEST_ASSISTANT_CONTEXT, null, 10, 0);
+      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT, TEST_USER_ID, false);
+      const result = await getTasksAction(TEST_ASSISTANT_CONTEXT, TEST_ASSISTANT_ID, null, 10, 0);
 
       // Should return a LogsResponseProps or error object
       if (isError(result)) {
@@ -68,9 +72,15 @@ describe('@real task.ts - Orchestra Integration', () => {
     });
 
     it('@real should support filtering by expression', realTestOptions, async () => {
-      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT);
+      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT, TEST_USER_ID, false);
       // Filter for completed tasks
-      const result = await getTasksAction(TEST_ASSISTANT_CONTEXT, 'status == "completed"', 10, 0);
+      const result = await getTasksAction(
+        TEST_ASSISTANT_CONTEXT,
+        TEST_ASSISTANT_ID,
+        'status == "completed"',
+        10,
+        0
+      );
 
       if (isError(result)) {
         // Filter might return no results or context doesn't exist
@@ -83,17 +93,17 @@ describe('@real task.ts - Orchestra Integration', () => {
     });
 
     it('@real should support pagination', realTestOptions, async () => {
-      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT);
+      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT, TEST_USER_ID, false);
 
       // Get first page
-      const page1 = await getTasksAction(TEST_ASSISTANT_CONTEXT, null, 5, 0);
+      const page1 = await getTasksAction(TEST_ASSISTANT_CONTEXT, TEST_ASSISTANT_ID, null, 5, 0);
       if (isError(page1)) {
         console.log('Note: getTasks pagination test - no tasks exist');
         return;
       }
 
       // Get second page
-      const page2 = await getTasksAction(TEST_ASSISTANT_CONTEXT, null, 5, 5);
+      const page2 = await getTasksAction(TEST_ASSISTANT_CONTEXT, TEST_ASSISTANT_ID, null, 5, 5);
       if (isError(page2)) {
         // Second page might be empty if there are <= 5 tasks
         return;
@@ -107,8 +117,14 @@ describe('@real task.ts - Orchestra Integration', () => {
   describe('updateTask', () => {
     it('@real should update task entries', realTestOptions, async () => {
       // First get a task to update
-      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT);
-      const tasksResult = await getTasksAction(TEST_ASSISTANT_CONTEXT, null, 1, 0);
+      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT, TEST_USER_ID, false);
+      const tasksResult = await getTasksAction(
+        TEST_ASSISTANT_CONTEXT,
+        TEST_ASSISTANT_ID,
+        null,
+        1,
+        0
+      );
 
       if (isError(tasksResult)) {
         console.log('Note: No tasks available to update');
@@ -152,8 +168,14 @@ describe('@real task.ts - Orchestra Integration', () => {
 
     it('@real should support batch updates', realTestOptions, async () => {
       // Get multiple tasks if available
-      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT);
-      const tasksResult = await getTasksAction(TEST_ASSISTANT_CONTEXT, null, 3, 0);
+      const getTasksAction = await getTasks(API_KEY, TEST_USER_CONTEXT, TEST_USER_ID, false);
+      const tasksResult = await getTasksAction(
+        TEST_ASSISTANT_CONTEXT,
+        TEST_ASSISTANT_ID,
+        null,
+        3,
+        0
+      );
 
       if (isError(tasksResult)) {
         console.log('Note: No tasks available for batch update');
