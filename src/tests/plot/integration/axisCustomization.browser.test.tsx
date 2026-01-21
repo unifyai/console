@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe('Axis Customization Integration', () => {
   describe('axis label visibility', () => {
-    it('shows X-axis label by default', async () => {
+    it('hides X-axis label by default', async () => {
       const dataTypeConfig = {
         xAxisType: 'float' as const,
         yAxisType: 'float' as const,
@@ -59,12 +59,11 @@ describe('Axis Customization Integration', () => {
 
       await result.waitForPlot();
 
-      // X-axis should be visible by default
-      const xAxis = result.getXAxis();
-      expect(xAxis).not.toBeNull();
+      // X-axis label should be hidden by default
+      assertXAxisLabelHidden(result);
     });
 
-    it('shows Y-axis label by default', async () => {
+    it('hides Y-axis label by default', async () => {
       const dataTypeConfig = {
         xAxisType: 'float' as const,
         yAxisType: 'float' as const,
@@ -85,9 +84,60 @@ describe('Axis Customization Integration', () => {
 
       await result.waitForPlot();
 
-      // Y-axis should be visible by default
-      const yAxis = result.getYAxis();
-      expect(yAxis).not.toBeNull();
+      // Y-axis label should be hidden by default
+      assertYAxisLabelHidden(result);
+    });
+
+    it('shows X-axis label when showXAxisLabel is true', async () => {
+      const dataTypeConfig = {
+        xAxisType: 'float' as const,
+        yAxisType: 'float' as const,
+        groupByType: 'str' as const,
+      };
+      const scale = { name: 'small', count: 30, skip: false, timeout: 5000 };
+
+      const logs = createMockLogs({ dataTypeConfig, scale, deterministic: false });
+      const fields = createMockFields(dataTypeConfig);
+
+      const result = renderPlotCanvas({
+        plotType: 'Bar Chart',
+        xAxis: 'table1.x_value',
+        yAxis: 'table1.y_value',
+        logs: logs as any,
+        fields: fields as any,
+        showXAxisLabel: true,
+      });
+
+      await result.waitForPlot();
+
+      // X-axis label should be visible
+      assertXAxisLabelVisible(result);
+    });
+
+    it('shows Y-axis label when showYAxisLabel is true', async () => {
+      const dataTypeConfig = {
+        xAxisType: 'float' as const,
+        yAxisType: 'float' as const,
+        groupByType: 'str' as const,
+      };
+      const scale = { name: 'small', count: 30, skip: false, timeout: 5000 };
+
+      const logs = createMockLogs({ dataTypeConfig, scale, deterministic: false });
+      const fields = createMockFields(dataTypeConfig);
+
+      const result = renderPlotCanvas({
+        plotType: 'Bar Chart',
+        xAxis: 'table1.x_value',
+        yAxis: 'table1.y_value',
+        logs: logs as any,
+        fields: fields as any,
+        showYAxisLabel: true,
+      });
+
+      await result.waitForPlot();
+
+      // Y-axis label should be visible
+      assertYAxisLabelVisible(result);
     });
 
     it('hides X-axis label when showXAxisLabel is false', async () => {
@@ -193,6 +243,7 @@ describe('Axis Customization Integration', () => {
         yAxis: 'table1.y_value',
         logs: logs as any,
         fields: fields as any,
+        showXAxisLabel: true,
         xAxisLabel: 'Custom X Label',
       });
 
@@ -219,6 +270,7 @@ describe('Axis Customization Integration', () => {
         yAxis: 'table1.y_value',
         logs: logs as any,
         fields: fields as any,
+        showYAxisLabel: true,
         yAxisLabel: 'Custom Y Label',
       });
 
@@ -245,6 +297,8 @@ describe('Axis Customization Integration', () => {
         yAxis: 'table1.y_value',
         logs: logs as any,
         fields: fields as any,
+        showXAxisLabel: true,
+        showYAxisLabel: true,
         xAxisLabel: 'Day',
         yAxisLabel: 'Billed Cost',
       });
@@ -526,6 +580,8 @@ describe('Axis Customization Integration', () => {
         groupBy: 'table1.category',
         logs: logs as any,
         fields: fields as any,
+        showXAxisLabel: true,
+        showYAxisLabel: true,
         xAxisLabel: 'Category',
         yAxisLabel: 'Total',
         groupByLabel: 'Type',

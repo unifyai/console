@@ -83,8 +83,8 @@ export interface PlotCanvasProps {
   preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
 
   // Axis label customization
-  showXAxisLabel?: boolean; // Whether to show X axis label (default: true)
-  showYAxisLabel?: boolean; // Whether to show Y axis label (default: true)
+  showXAxisLabel?: boolean; // Whether to show X axis label (default: false)
+  showYAxisLabel?: boolean; // Whether to show Y axis label (default: false)
   xAxisLabel?: string; // Custom label for X axis AND tooltip (overrides field name)
   yAxisLabel?: string; // Custom label for Y axis AND tooltip (overrides field name)
 
@@ -159,8 +159,8 @@ export function PlotCanvas({
   settingsRef: externalSettingsRef,
   preAggregatedBarData,
   // Axis label customization
-  showXAxisLabel = true,
-  showYAxisLabel = true,
+  showXAxisLabel = false,
+  showYAxisLabel = false,
   xAxisLabel,
   yAxisLabel,
   // Tick formatters

@@ -50,12 +50,12 @@ describe('AxisCustomization', () => {
   });
 
   describe('label visibility options', () => {
-    it('showXAxisLabel defaults to undefined (truthy in implementation)', () => {
+    it('showXAxisLabel defaults to undefined (falsy in implementation)', () => {
       const config: AxisCustomization = {};
       expect(config.showXAxisLabel).toBeUndefined();
     });
 
-    it('showYAxisLabel defaults to undefined (truthy in implementation)', () => {
+    it('showYAxisLabel defaults to undefined (falsy in implementation)', () => {
       const config: AxisCustomization = {};
       expect(config.showYAxisLabel).toBeUndefined();
     });
