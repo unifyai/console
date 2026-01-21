@@ -209,8 +209,11 @@ describe('TableViewer - Sorting', () => {
     const table = screen.getByRole('table');
     const headers = within(table).getAllByRole('columnheader');
 
-    // Each header should have buttons (grip for drag, button for sort)
+    // Each data header (not row number) should have buttons (grip for drag, button for sort)
     for (const header of headers) {
+      // Skip the row number column (shows "#")
+      if (header.textContent === '#') continue;
+
       const buttons = within(header).getAllByRole('button');
       expect(buttons.length).toBeGreaterThanOrEqual(1);
     }

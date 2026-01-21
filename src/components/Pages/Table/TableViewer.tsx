@@ -34,6 +34,10 @@ import {
   Columns3,
   Grip,
   Loader2,
+  PanelRightOpen,
+  PanelRightClose,
+  Search,
+  Keyboard,
 } from 'lucide-react';
 import {
   DndContext,
@@ -76,6 +80,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/UI/resizable';
 import { cn } from '@/lib/utils';
 import type {
   TableViewConfig,
@@ -84,6 +89,8 @@ import type {
   PaginationInfo,
   TableDataResponse,
 } from '@/types/tableView';
+import { useCellSelection } from './useCellSelection';
+import { DetailPane, type SelectedCellData } from './DetailPane';
 
 // ============================================================================
 // Constants
@@ -160,6 +167,7 @@ interface DraggableHeaderProps {
   onSortAsc: (columnId: string) => void;
   onSortDesc: (columnId: string) => void;
   onCopyColumn: (columnId: string) => void;
+  onSelectColumn: (columnId: string) => void;
 }
 
 function DraggableHeader({
@@ -169,6 +177,7 @@ function DraggableHeader({
   onSortAsc,
   onSortDesc,
   onCopyColumn,
+  onSelectColumn,
 }: DraggableHeaderProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: header.id,
@@ -236,6 +245,10 @@ function DraggableHeader({
         </TableHead>
       </ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem onClick={() => onSelectColumn(header.id)}>
+          <Columns3 className="mr-2 h-4 w-4" />
+          Select Column
+        </ContextMenuItem>
         <ContextMenuItem onClick={() => onCopyColumn(header.id)}>
           <Copy className="mr-2 h-4 w-4" />
           Copy Column
@@ -382,6 +395,41 @@ export function TableViewer({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Cell selection state
+  const [selectedCells, setSelectedCells] = useState<string[]>([]);
+
+  // Detail pane state with exit animation support
+  const [isDetailPaneOpen, setIsDetailPaneOpen] = useState(false);
+  const [isDetailPaneVisible, setIsDetailPaneVisible] = useState(false);
+  const [isDetailPaneExiting, setIsDetailPaneExiting] = useState(false);
+
+  // Handle detail pane open/close with animation
+  const handleDetailPaneToggle = useCallback(() => {
+    if (isDetailPaneOpen) {
+      // Start exit animation
+      setIsDetailPaneExiting(true);
+      // Wait for animation to complete before hiding
+      setTimeout(() => {
+        setIsDetailPaneVisible(false);
+        setIsDetailPaneExiting(false);
+        setIsDetailPaneOpen(false);
+      }, 200);
+    } else {
+      // Open immediately with entrance animation
+      setIsDetailPaneOpen(true);
+      setIsDetailPaneVisible(true);
+    }
+  }, [isDetailPaneOpen]);
+
+  const handleDetailPaneClose = useCallback(() => {
+    setIsDetailPaneExiting(true);
+    setTimeout(() => {
+      setIsDetailPaneVisible(false);
+      setIsDetailPaneExiting(false);
+      setIsDetailPaneOpen(false);
+    }, 200);
+  }, []);
+
   // Fetch a page (with caching)
   const fetchPageData = useCallback(
     async (
@@ -477,7 +525,15 @@ export function TableViewer({
     return visibility;
   });
 
-  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(config.columnOrder);
+  // Row number column ID (special, pinned) - must be defined before columnOrder
+  const ROW_NUMBER_COLUMN_ID = '#';
+
+  // Ensure row number column is always first in the order
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(() => {
+    const baseOrder = config.columnOrder || [];
+    // Filter out any existing # column and add it at the start
+    return [ROW_NUMBER_COLUMN_ID, ...baseOrder.filter((id) => id !== ROW_NUMBER_COLUMN_ID)];
+  });
 
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => {
     const sizing: ColumnSizingState = {};
@@ -526,7 +582,25 @@ export function TableViewer({
       Object.keys(row).forEach((key) => allKeys.add(key));
     });
 
-    return Array.from(allKeys).map((key) => {
+    // Row number column (pinned)
+    const rowNumberColumn = columnHelper.display({
+      id: ROW_NUMBER_COLUMN_ID,
+      header: '#',
+      cell: (info) => {
+        // Calculate visual row number based on pagination
+        const rowNumber = (pagination.page - 1) * pagination.pageSize + info.row.index + 1;
+        return <span className="block text-center text-muted-foreground">{rowNumber}</span>;
+      },
+      size: 50,
+      minSize: 40,
+      maxSize: 60,
+      enableResizing: false,
+      enableSorting: false,
+      enableHiding: false,
+    });
+
+    // Data columns
+    const dataColumns = Array.from(allKeys).map((key) => {
       const fieldType = fields[key]?.type;
       return columnHelper.accessor((row) => row[key], {
         id: key,
@@ -544,7 +618,9 @@ export function TableViewer({
         enableResizing: true,
       });
     });
-  }, [data, fields, config.columns?.widths]);
+
+    return [rowNumberColumn, ...dataColumns];
+  }, [data, fields, config.columns?.widths, pagination.page, pagination.pageSize]);
 
   // Table instance - no client-side pagination (server-side only)
   const table = useReactTable({
@@ -565,6 +641,91 @@ export function TableViewer({
     // No getPaginationRowModel - we use server-side pagination
     enableColumnResizing: true,
     columnResizeMode: 'onChange',
+  });
+
+  // Helper to escape TSV values - handles any input type (defined early for use in copy handlers)
+  const escapeTsv = useCallback((value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    const stringValue = String(value);
+    if (
+      stringValue.includes('\t') ||
+      stringValue.includes('\n') ||
+      stringValue.includes('\r') ||
+      stringValue.includes('"')
+    ) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  }, []);
+
+  // Copy selected cells to clipboard (Ctrl+C handler)
+  const handleCopySelectedCells = useCallback(async () => {
+    if (selectedCells.length === 0) return;
+
+    // Group cells by row for proper TSV formatting
+    const allRows = table.getRowModel().rows;
+    const visibleColumns = table
+      .getVisibleLeafColumns()
+      .filter((col) => col.id !== ROW_NUMBER_COLUMN_ID);
+
+    // Parse selected cells into row/column structure
+    const selectedByRow = new Map<string, Set<string>>();
+    selectedCells.forEach((cellId) => {
+      const underscoreIdx = cellId.indexOf('_');
+      const rowId = cellId.substring(0, underscoreIdx);
+      const columnId = cellId.substring(underscoreIdx + 1);
+      if (!selectedByRow.has(rowId)) {
+        selectedByRow.set(rowId, new Set());
+      }
+      selectedByRow.get(rowId)!.add(columnId);
+    });
+
+    // Build TSV - only include rows/columns that have selected cells
+    const lines: string[] = [];
+    allRows.forEach((row) => {
+      const selectedColumnsInRow = selectedByRow.get(row.id);
+      if (!selectedColumnsInRow) return;
+
+      const values: string[] = [];
+      visibleColumns.forEach((col) => {
+        if (selectedColumnsInRow.has(col.id)) {
+          const fieldType = fields[col.id]?.type;
+          values.push(escapeTsv(formatCellValue(row.getValue(col.id), fieldType)));
+        }
+      });
+      if (values.length > 0) {
+        lines.push(values.join('\t'));
+      }
+    });
+
+    const tsv = lines.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(tsv);
+      setCopied(true);
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+    } catch (err) {
+      console.error('Failed to copy selected cells:', err);
+    }
+  }, [selectedCells, table, fields, escapeTsv]);
+
+  // Cell selection
+  const {
+    handleCellMouseDown,
+    handleCellMouseUp,
+    handleCellMouseOver,
+    handleHeaderMouseDown,
+    handleKeyDown,
+    isCellSelected,
+    clearSelection,
+    selectAll,
+  } = useCellSelection({
+    table,
+    selectedCells,
+    setSelectedCells,
+    scrollContainerRef: tableContainerRef,
+    excludeColumnId: ROW_NUMBER_COLUMN_ID,
+    onCopy: handleCopySelectedCells,
   });
 
   // Get all rows for virtualization
@@ -636,24 +797,12 @@ export function TableViewer({
     setActiveId(null);
   }, []);
 
-  // Helper to escape TSV values - handles any input type
-  const escapeTsv = useCallback((value: unknown): string => {
-    if (value === null || value === undefined) return '';
-    const stringValue = String(value);
-    if (
-      stringValue.includes('\t') ||
-      stringValue.includes('\n') ||
-      stringValue.includes('\r') ||
-      stringValue.includes('"')
-    ) {
-      return `"${stringValue.replace(/"/g, '""')}"`;
-    }
-    return stringValue;
-  }, []);
-
   const handleCopyTable = useCallback(async () => {
     const visibleRows = table.getRowModel().rows;
-    const visibleColumns = table.getVisibleLeafColumns();
+    // Exclude row number column from copy
+    const visibleColumns = table
+      .getVisibleLeafColumns()
+      .filter((col) => col.id !== ROW_NUMBER_COLUMN_ID);
 
     const headers = visibleColumns.map((col) => escapeTsv(col.id)).join('\t');
     const rows = visibleRows.map((row) =>
@@ -687,7 +836,10 @@ export function TableViewer({
 
   const handleCopyRow = useCallback(
     async (row: Record<string, unknown>) => {
-      const visibleColumns = table.getVisibleLeafColumns();
+      // Exclude row number column from copy
+      const visibleColumns = table
+        .getVisibleLeafColumns()
+        .filter((col) => col.id !== ROW_NUMBER_COLUMN_ID);
       const values = visibleColumns.map((col) => {
         const fieldType = fields[col.id]?.type;
         return escapeTsv(formatCellValue(row[col.id], fieldType));
@@ -720,7 +872,69 @@ export function TableViewer({
     [table, fields, escapeTsv]
   );
 
-  const visibleColumnIds = table.getVisibleLeafColumns().map((col) => col.id);
+  // Select an entire row (all visible columns)
+  const handleSelectRow = useCallback(
+    (rowId: string) => {
+      const visibleColumns = table.getVisibleLeafColumns();
+      const cellIds = visibleColumns.map((col) => `${rowId}_${col.id}`);
+      setSelectedCells(cellIds);
+    },
+    [table]
+  );
+
+  // Select an entire column (all rows)
+  const handleSelectColumn = useCallback(
+    (columnId: string) => {
+      const allRows = table.getRowModel().rows;
+      const cellIds = allRows.map((row) => `${row.id}_${columnId}`);
+      setSelectedCells(cellIds);
+    },
+    [table]
+  );
+
+  // Get visible columns, excluding row number for drag-and-drop
+  const visibleColumnIds = table
+    .getVisibleLeafColumns()
+    .filter((col) => col.id !== ROW_NUMBER_COLUMN_ID)
+    .map((col) => col.id);
+
+  // Convert selected cell IDs to full cell data for DetailPane
+  const selectedCellsData: SelectedCellData[] = useMemo(() => {
+    return selectedCells.map((cellId) => {
+      // Cell ID format: "rowId_columnId"
+      const underscoreIdx = cellId.indexOf('_');
+      const rowId = cellId.substring(0, underscoreIdx);
+      const columnId = cellId.substring(underscoreIdx + 1);
+
+      // Find the row and get the value
+      const allRows = table.getRowModel().rows;
+      const rowIdx = allRows.findIndex((r) => r.id === rowId);
+      const row = rowIdx >= 0 ? allRows[rowIdx] : undefined;
+      const value = row ? row.getValue(columnId) : undefined;
+
+      // Get the actual _id from the row data if available
+      const rawRowDataId = row?.original?._id;
+      // Ensure it's string or number, not null or object
+      const rowDataId =
+        typeof rawRowDataId === 'string' || typeof rawRowDataId === 'number'
+          ? rawRowDataId
+          : undefined;
+
+      // Calculate visual row number (1-based, accounting for pagination)
+      const rowIndex =
+        rowIdx >= 0 ? (pagination.page - 1) * pagination.pageSize + rowIdx + 1 : undefined;
+
+      return {
+        cellId,
+        rowId,
+        columnId,
+        value,
+        fieldType: fields[columnId]?.type,
+        rowDataId,
+        rowIndex,
+      };
+    });
+  }, [selectedCells, table, fields, pagination.page, pagination.pageSize]);
 
   // Get data for drag overlay
   const activeColumn = activeId ? table.getColumn(activeId as string) : null;
@@ -754,23 +968,49 @@ export function TableViewer({
                   <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-80 p-4">
+              <PopoverContent align="start" className="w-96 p-4">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="mb-2 font-semibold text-foreground">How to Use</h3>
+                    <h3 className="mb-2 font-semibold text-foreground">Table Viewer</h3>
                     <p className="text-sm text-muted-foreground">
-                      This is a read-only table view. You can explore and copy data, but not edit
-                      it.
+                      Read-only table view. Explore, select, and copy data.
                     </p>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
+                      <Square className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="text-sm">
+                        <p className="font-medium text-foreground">Select cells</p>
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Click</span> to select a cell.{' '}
+                          <span className="font-medium">Ctrl/Cmd+Click</span> for multi-select.{' '}
+                          <span className="font-medium">Shift+Click</span> for range select.{' '}
+                          <span className="font-medium">Drag</span> to select multiple cells.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <PanelRightOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="text-sm">
+                        <p className="font-medium text-foreground">Details pane</p>
+                        <p className="text-muted-foreground">
+                          Click <span className="font-medium">Details</span> to open the detail
+                          view. Shows selected cell contents with nested data expanded. Right-click
+                          a cell and choose <span className="font-medium">Inspect</span> to open.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
                       <MousePointerClick className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <div className="text-sm">
-                        <p className="font-medium text-foreground">Right-click for options</p>
+                        <p className="font-medium text-foreground">Context menus</p>
                         <p className="text-muted-foreground">
-                          Copy cells, rows, or columns. Sort and hide columns.
+                          <span className="font-medium">Right-click headers</span> to sort, hide, or
+                          copy columns. <span className="font-medium">Right-click cells</span> to
+                          copy, select rows/columns, or inspect.
                         </p>
                       </div>
                     </div>
@@ -778,9 +1018,10 @@ export function TableViewer({
                     <div className="flex items-start gap-3">
                       <Grip className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <div className="text-sm">
-                        <p className="font-medium text-foreground">Drag to reorder</p>
+                        <p className="font-medium text-foreground">Reorder &amp; resize</p>
                         <p className="text-muted-foreground">
-                          Drag column headers to rearrange columns.
+                          <span className="font-medium">Drag headers</span> to reorder columns.{' '}
+                          <span className="font-medium">Drag borders</span> to resize.
                         </p>
                       </div>
                     </div>
@@ -788,9 +1029,10 @@ export function TableViewer({
                     <div className="flex items-start gap-3">
                       <Columns3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <div className="text-sm">
-                        <p className="font-medium text-foreground">Resize columns</p>
+                        <p className="font-medium text-foreground">Column visibility</p>
                         <p className="text-muted-foreground">
-                          Drag column borders to adjust width.
+                          Click <span className="font-medium">Columns</span> to show/hide columns.
+                          The popover stays open for multiple toggles.
                         </p>
                       </div>
                     </div>
@@ -798,9 +1040,24 @@ export function TableViewer({
                     <div className="flex items-start gap-3">
                       <Copy className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <div className="text-sm">
-                        <p className="font-medium text-foreground">Copy all data</p>
+                        <p className="font-medium text-foreground">Copy data</p>
                         <p className="text-muted-foreground">
-                          Click Copy to copy visible data as TSV for spreadsheets.
+                          Click <span className="font-medium">Copy</span> to copy visible data as
+                          TSV (paste into spreadsheets). Use context menus for specific cells, rows,
+                          or columns.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <Keyboard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="text-sm">
+                        <p className="font-medium text-foreground">Keyboard shortcuts</p>
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Ctrl+A</span> select all.{' '}
+                          <span className="font-medium">Ctrl+C</span> copy selected.{' '}
+                          <span className="font-medium">Arrows</span> navigate.{' '}
+                          <span className="font-medium">Esc</span> deselect.
                         </p>
                       </div>
                     </div>
@@ -827,18 +1084,21 @@ export function TableViewer({
                       className="styled-scrollbar max-h-72 w-56 overflow-y-auto p-2"
                     >
                       <div className="space-y-1">
-                        {table.getAllLeafColumns().map((column) => (
-                          <label
-                            key={column.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
-                          >
-                            <Checkbox
-                              checked={column.getIsVisible()}
-                              onCheckedChange={(checked) => column.toggleVisibility(!!checked)}
-                            />
-                            <span className="truncate">{column.id}</span>
-                          </label>
-                        ))}
+                        {table
+                          .getAllLeafColumns()
+                          .filter((col) => col.id !== ROW_NUMBER_COLUMN_ID)
+                          .map((column) => (
+                            <label
+                              key={column.id}
+                              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                            >
+                              <Checkbox
+                                checked={column.getIsVisible()}
+                                onCheckedChange={(checked) => column.toggleVisibility(!!checked)}
+                              />
+                              <span className="truncate">{column.id}</span>
+                            </label>
+                          ))}
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -870,232 +1130,408 @@ export function TableViewer({
                 <p className="text-sm">Copy current page as TSV</p>
               </TooltipContent>
             </Tooltip>
+
+            {/* Details Pane Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isDetailPaneOpen ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={handleDetailPaneToggle}
+                >
+                  {isDetailPaneOpen ? (
+                    <>
+                      <PanelRightClose className="mr-2 h-4 w-4" />
+                      Details
+                    </>
+                  ) : (
+                    <>
+                      <PanelRightOpen className="mr-2 h-4 w-4" />
+                      Details
+                    </>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-sm">{isDetailPaneOpen ? 'Hide' : 'Show'} details pane</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </header>
 
-        {/* Table Container */}
-        <div ref={tableContainerRef} className="styled-scrollbar relative flex-1 overflow-auto">
-          {/* Loading overlay */}
-          {isLoading && (
-            <div className="bg-background/60 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-6 py-4 shadow-lg">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">
-                    Loading page {pagination.page}...
-                  </span>
-                  <span className="text-xs text-muted-foreground">Fetching data from server</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToHorizontalAxis]}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
-            <Table ref={tableRef} style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
-              <colgroup>
-                {table.getVisibleLeafColumns().map((column) => (
-                  <col key={column.id} style={{ width: column.getSize() }} />
-                ))}
-              </colgroup>
-              <TableHeader className="sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                    <SortableContext
-                      items={visibleColumnIds}
-                      strategy={horizontalListSortingStrategy}
-                    >
-                      {headerGroup.headers.map((header) => (
-                        <DraggableHeader
-                          key={header.id}
-                          header={header}
-                          tableHeight={tableHeight}
-                          onHideColumn={(columnId) => {
-                            const column = table.getColumn(columnId);
-                            if (column) column.toggleVisibility(false);
-                          }}
-                          onSortAsc={(columnId) => {
-                            setSorting([{ id: columnId, desc: false }]);
-                          }}
-                          onSortDesc={(columnId) => {
-                            setSorting([{ id: columnId, desc: true }]);
-                          }}
-                          onCopyColumn={handleCopyColumn}
-                        />
-                      ))}
-                    </SortableContext>
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody
-                style={{
-                  // Only use absolute positioning when virtualization is active
-                  height: virtualItems.length > 0 ? `${rowVirtualizer.getTotalSize()}px` : 'auto',
-                  position: virtualItems.length > 0 ? 'relative' : 'static',
-                }}
+        {/* Main Content - Resizable Table + Detail Pane */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Table Panel */}
+          <ResizablePanel defaultSize={isDetailPaneVisible ? 70 : 100} minSize={40}>
+            <div className="flex h-full flex-col">
+              {/* Table Container */}
+              <div
+                ref={tableContainerRef}
+                className="styled-scrollbar relative flex-1 overflow-auto outline-none"
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
               >
-                {rowsToRender.map((renderItem) => {
-                  const row = renderItem.row;
-                  const rowIndex = renderItem.index;
-                  const isVirtualized = renderItem.isVirtualized;
+                {/* Loading overlay */}
+                {isLoading && (
+                  <div className="bg-background/60 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm">
+                    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-6 py-4 shadow-lg">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">
+                          Loading page {pagination.page}...
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Fetching data from server
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                  return (
-                    <TableRow
-                      key={row.id}
-                      data-index={rowIndex}
-                      ref={
-                        isVirtualized ? (node) => rowVirtualizer.measureElement(node) : undefined
-                      }
-                      className={cn(rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/30')}
-                      style={
-                        isVirtualized
-                          ? {
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: `${ROW_HEIGHT}px`,
-                              transform: `translateY(${renderItem.start}px)`,
-                            }
-                          : undefined
-                      }
-                    >
-                      {row.getVisibleCells().map((cell) => {
-                        const cellValue = cell.getValue();
-                        const fieldType = fields[cell.column.id]?.type;
-                        const formattedValue = formatCellValue(cellValue, fieldType);
-
-                        return (
-                          <ContextMenu key={cell.id}>
-                            <ContextMenuTrigger asChild>
-                              <TableCell
+                {/* Copy toast notification */}
+                {copied && (
+                  <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 shadow-lg backdrop-blur-sm">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                        {selectedCells.length > 0
+                          ? `Copied ${selectedCells.length} cell${selectedCells.length > 1 ? 's' : ''}`
+                          : 'Copied to clipboard'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  modifiers={[restrictToHorizontalAxis]}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
+                >
+                  <Table
+                    ref={tableRef}
+                    style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}
+                  >
+                    <colgroup>
+                      {table.getVisibleLeafColumns().map((column) => (
+                        <col key={column.id} style={{ width: column.getSize() }} />
+                      ))}
+                    </colgroup>
+                    <TableHeader className="sticky top-0 z-10">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                          {/* Row number column - pinned, non-draggable */}
+                          {headerGroup.headers
+                            .filter((h) => h.id === ROW_NUMBER_COLUMN_ID)
+                            .map((header) => (
+                              <TableHead
+                                key={header.id}
+                                className="sticky left-0 z-20 border-b border-r-2 border-border bg-background text-center text-muted-foreground"
                                 style={{
-                                  width: cell.column.getSize(),
-                                  maxWidth: cell.column.getSize(),
-                                  height: `${ROW_HEIGHT}px`,
-                                  borderRight: '1px solid var(--muted)',
-                                  borderBottom: '1px solid var(--muted)',
-                                  opacity: activeId === cell.column.id ? 0.3 : 1,
+                                  width: header.getSize(),
+                                  minWidth: header.getSize(),
                                 }}
                               >
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="block cursor-default truncate">
-                                      {formattedValue}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-sm">
-                                    <p className="whitespace-pre-wrap break-all text-sm">
-                                      {formattedValue}
-                                    </p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent>
-                              <ContextMenuItem onClick={() => handleCopyCell(cellValue, fieldType)}>
-                                <Square className="mr-2 h-4 w-4" />
-                                Copy Cell
-                              </ContextMenuItem>
-                              <ContextMenuItem onClick={() => handleCopyRow(row.original)}>
-                                <Rows3 className="mr-2 h-4 w-4" />
-                                Copy Row
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
+                                #
+                              </TableHead>
+                            ))}
+                          {/* Data columns - draggable */}
+                          <SortableContext
+                            items={visibleColumnIds}
+                            strategy={horizontalListSortingStrategy}
+                          >
+                            {headerGroup.headers
+                              .filter((h) => h.id !== ROW_NUMBER_COLUMN_ID)
+                              .map((header) => (
+                                <DraggableHeader
+                                  key={header.id}
+                                  header={header}
+                                  tableHeight={tableHeight}
+                                  onHideColumn={(columnId) => {
+                                    const column = table.getColumn(columnId);
+                                    if (column) column.toggleVisibility(false);
+                                  }}
+                                  onSortAsc={(columnId) => {
+                                    setSorting([{ id: columnId, desc: false }]);
+                                  }}
+                                  onSortDesc={(columnId) => {
+                                    setSorting([{ id: columnId, desc: true }]);
+                                  }}
+                                  onCopyColumn={handleCopyColumn}
+                                  onSelectColumn={handleSelectColumn}
+                                />
+                              ))}
+                          </SortableContext>
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody
+                      style={{
+                        // Only use absolute positioning when virtualization is active
+                        height:
+                          virtualItems.length > 0 ? `${rowVirtualizer.getTotalSize()}px` : 'auto',
+                        position: virtualItems.length > 0 ? 'relative' : 'static',
+                      }}
+                    >
+                      {rowsToRender.map((renderItem) => {
+                        const row = renderItem.row;
+                        const rowIndex = renderItem.index;
+                        const isVirtualized = renderItem.isVirtualized;
+
+                        return (
+                          <TableRow
+                            key={row.id}
+                            data-index={rowIndex}
+                            ref={
+                              isVirtualized
+                                ? (node) => rowVirtualizer.measureElement(node)
+                                : undefined
+                            }
+                            className={cn(rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/30')}
+                            style={
+                              isVirtualized
+                                ? {
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${ROW_HEIGHT}px`,
+                                    transform: `translateY(${renderItem.start}px)`,
+                                  }
+                                : undefined
+                            }
+                          >
+                            {row.getVisibleCells().map((cell) => {
+                              const isRowNumberCell = cell.column.id === ROW_NUMBER_COLUMN_ID;
+                              const cellValue = cell.getValue();
+                              const fieldType = fields[cell.column.id]?.type;
+                              const formattedValue = formatCellValue(cellValue, fieldType);
+                              const isSelected = isCellSelected(cell);
+
+                              // Row number cell - sticky, with context menu, click to select row
+                              // Must have SOLID background for sticky cells (same color for all rows)
+                              if (isRowNumberCell) {
+                                const visualRowNumber =
+                                  (pagination.page - 1) * pagination.pageSize + rowIndex + 1;
+                                return (
+                                  <ContextMenu key={cell.id}>
+                                    <ContextMenuTrigger asChild>
+                                      <TableCell
+                                        onClick={() => handleSelectRow(row.id)}
+                                        className="hover:bg-primary/10 sticky left-0 z-20 cursor-pointer select-none border-b border-r-2 border-border bg-background text-center text-muted-foreground"
+                                        style={{
+                                          width: cell.column.getSize(),
+                                          minWidth: cell.column.getSize(),
+                                          height: `${ROW_HEIGHT}px`,
+                                        }}
+                                      >
+                                        {visualRowNumber}
+                                      </TableCell>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent>
+                                      <ContextMenuItem onClick={() => handleSelectRow(row.id)}>
+                                        <Rows3 className="mr-2 h-4 w-4" />
+                                        Select Row
+                                      </ContextMenuItem>
+                                      <ContextMenuItem onClick={() => handleCopyRow(row.original)}>
+                                        <Copy className="mr-2 h-4 w-4" />
+                                        Copy Row
+                                      </ContextMenuItem>
+                                    </ContextMenuContent>
+                                  </ContextMenu>
+                                );
+                              }
+
+                              // Regular data cell
+                              return (
+                                <ContextMenu key={cell.id}>
+                                  <ContextMenuTrigger asChild>
+                                    <TableCell
+                                      onMouseDown={(e) => handleCellMouseDown(e, cell)}
+                                      onMouseUp={handleCellMouseUp}
+                                      onMouseOver={(e) => handleCellMouseOver(e, cell)}
+                                      className={cn(
+                                        'cursor-pointer select-none',
+                                        isSelected && 'bg-primary/20 ring-1 ring-inset ring-primary'
+                                      )}
+                                      style={{
+                                        width: cell.column.getSize(),
+                                        maxWidth: cell.column.getSize(),
+                                        height: `${ROW_HEIGHT}px`,
+                                        borderRight: '1px solid var(--muted)',
+                                        borderBottom: '1px solid var(--muted)',
+                                        opacity: activeId === cell.column.id ? 0.3 : 1,
+                                      }}
+                                    >
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="block cursor-default truncate">
+                                            {formattedValue}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-sm">
+                                          <p className="whitespace-pre-wrap break-all text-sm">
+                                            {formattedValue}
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TableCell>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent>
+                                    {/* Inspect option - opens details pane */}
+                                    {!isDetailPaneOpen && (
+                                      <ContextMenuItem
+                                        onClick={() => {
+                                          // Select this cell and open details pane
+                                          setSelectedCells([cell.id]);
+                                          setIsDetailPaneOpen(true);
+                                          setIsDetailPaneVisible(true);
+                                        }}
+                                      >
+                                        <Search className="mr-2 h-4 w-4" />
+                                        Inspect
+                                      </ContextMenuItem>
+                                    )}
+                                    <ContextMenuItem
+                                      onClick={() => handleCopyCell(cellValue, fieldType)}
+                                    >
+                                      <Square className="mr-2 h-4 w-4" />
+                                      Copy Cell
+                                    </ContextMenuItem>
+                                    <ContextMenuItem onClick={() => handleCopyRow(row.original)}>
+                                      <Rows3 className="mr-2 h-4 w-4" />
+                                      Copy Row
+                                    </ContextMenuItem>
+                                    <ContextMenuItem
+                                      onClick={() => handleCopyColumn(cell.column.id)}
+                                    >
+                                      <Columns3 className="mr-2 h-4 w-4" />
+                                      Copy Column
+                                    </ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem onClick={() => handleSelectRow(row.id)}>
+                                      <Rows3 className="mr-2 h-4 w-4" />
+                                      Select Row
+                                    </ContextMenuItem>
+                                    <ContextMenuItem
+                                      onClick={() => handleSelectColumn(cell.column.id)}
+                                    >
+                                      <Columns3 className="mr-2 h-4 w-4" />
+                                      Select Column
+                                    </ContextMenuItem>
+                                  </ContextMenuContent>
+                                </ContextMenu>
+                              );
+                            })}
+                          </TableRow>
                         );
                       })}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                    </TableBody>
+                  </Table>
 
-            {/* Drag Overlay - renders full column preview */}
-            <DragOverlay dropAnimation={null}>
-              {activeId && activeColumn ? (
-                <DragOverlayColumn
-                  columnId={activeId as string}
-                  width={activeColumn.getSize()}
-                  rows={activeColumnRows}
-                  fieldType={fields[activeId as string]?.type}
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        </div>
+                  {/* Drag Overlay - renders full column preview */}
+                  <DragOverlay dropAnimation={null}>
+                    {activeId && activeColumn ? (
+                      <DragOverlayColumn
+                        columnId={activeId as string}
+                        width={activeColumn.getSize()}
+                        rows={activeColumnRows}
+                        fieldType={fields[activeId as string]?.type}
+                      />
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
 
-        {/* Pagination Footer */}
-        <footer className="flex items-center justify-between border-t border-border px-6 py-3">
-          <div className="text-sm text-muted-foreground">
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading...
-              </span>
-            ) : error ? (
-              <span className="text-destructive">{error}</span>
-            ) : (
-              <>
-                Showing {((pagination.page - 1) * pagination.pageSize + 1).toLocaleString()}–
-                {Math.min(
-                  pagination.page * pagination.pageSize,
-                  pagination.totalCount
-                ).toLocaleString()}{' '}
-                of {pagination.totalCount.toLocaleString()} rows
-              </>
-            )}
-          </div>
+              {/* Pagination Footer */}
+              <footer className="flex items-center justify-between border-t border-border px-6 py-3">
+                <div className="text-sm text-muted-foreground">
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : error ? (
+                    <span className="text-destructive">{error}</span>
+                  ) : (
+                    <>
+                      Showing {((pagination.page - 1) * pagination.pageSize + 1).toLocaleString()}–
+                      {Math.min(
+                        pagination.page * pagination.pageSize,
+                        pagination.totalCount
+                      ).toLocaleString()}{' '}
+                      of {pagination.totalCount.toLocaleString()} rows
+                    </>
+                  )}
+                </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToFirstPage}
-              disabled={!pagination.hasPreviousPage || isLoading}
-              aria-label="Go to first page"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToPreviousPage}
-              disabled={!pagination.hasPreviousPage || isLoading}
-              aria-label="Go to previous page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={goToFirstPage}
+                    disabled={!pagination.hasPreviousPage || isLoading}
+                    aria-label="Go to first page"
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={goToPreviousPage}
+                    disabled={!pagination.hasPreviousPage || isLoading}
+                    aria-label="Go to previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
 
-            <span className="px-2 text-sm text-foreground">
-              Page {pagination.page} of {pagination.totalPages}
-            </span>
+                  <span className="px-2 text-sm text-foreground">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToNextPage}
-              disabled={!pagination.hasNextPage || isLoading}
-              aria-label="Go to next page"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToLastPage}
-              disabled={!pagination.hasNextPage || isLoading}
-              aria-label="Go to last page"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </footer>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={goToNextPage}
+                    disabled={!pagination.hasNextPage || isLoading}
+                    aria-label="Go to next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={goToLastPage}
+                    disabled={!pagination.hasNextPage || isLoading}
+                    aria-label="Go to last page"
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </footer>
+            </div>
+          </ResizablePanel>
+
+          {/* Detail Pane - with slide animation */}
+          {isDetailPaneVisible && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={15}>
+                <div
+                  className={cn(
+                    'h-full duration-200',
+                    isDetailPaneExiting
+                      ? 'animate-out slide-out-to-right'
+                      : 'animate-in slide-in-from-right'
+                  )}
+                >
+                  <DetailPane selectedCells={selectedCellsData} onClose={handleDetailPaneClose} />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
     </TooltipProvider>
   );
