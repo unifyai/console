@@ -367,7 +367,7 @@ export async function fetchTableData(
     const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
     const rawLogs = logsData.logs || [];
     console.log('[tableData] Step 3 SUCCESS - Got', rawLogs.length, 'logs');
-    console.log('[tableData] Total logs available:', logsData.totalCount);
+    console.log('[tableData] Total logs available:', logsData.count);
 
     // ========================================================================
     // Step 4: Fetch fields metadata

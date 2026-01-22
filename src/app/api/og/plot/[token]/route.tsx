@@ -338,7 +338,6 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   console.log('[og/plot] Data fetched successfully, generating image...');
 
   const { data: plotData } = result;
-  const { data: plotData } = result;
   const title = plotData.metadata?.title || plotData.config?.title || 'Plot View';
   const projectName = plotData.metadata?.projectName || 'Project';
   const chartType = plotData.config?.type || 'chart';
