@@ -106,8 +106,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL not supported' }, { status: 404 });
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
+  // Derive baseUrl from the incoming request to work correctly in any environment
+  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  const baseUrl = host
+    ? `${protocol}://${host}`
+    : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
   // Fetch metadata based on type
   let title: string;

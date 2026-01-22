@@ -9,7 +9,9 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
+// Use Node.js runtime to allow access to internal networks (staging, etc.)
+// Edge runtime cannot resolve internal DNS names like *.internal.example.com
+// export const runtime = 'edge';
 
 // =============================================================================
 // Design Tokens (inline for Edge runtime - synced with src/lib/design-tokens.ts)
@@ -322,8 +324,13 @@ function SimpleScatterViz() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
+  // Derive baseUrl from the incoming request to work correctly in any environment
+  // This ensures staging URLs use staging API, production uses production, etc.
+  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  const baseUrl = host
+    ? `${protocol}://${host}`
+    : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
   const data = await getPlotMetadata(params.token, baseUrl);
 
