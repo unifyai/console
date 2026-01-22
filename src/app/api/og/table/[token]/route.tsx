@@ -2,19 +2,17 @@
  * Open Graph Image Generation for Table Views
  *
  * Generates a dynamic preview image for social sharing.
- * Uses Next.js ImageResponse (Satori) for fast edge-compatible generation.
+ * Uses Next.js ImageResponse (Satori) for image generation.
+ * Uses shared fetchTableData for data fetching (no HTTP roundtrip).
  * Colors derived from src/lib/design-tokens.ts to match app theme.
  */
 
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-
-// Use Node.js runtime to allow access to internal networks (staging, etc.)
-// Edge runtime cannot resolve internal DNS names like *.internal.example.com
-// export const runtime = 'edge';
+import { fetchTableData } from '@/lib/tableData';
 
 // =============================================================================
-// Design Tokens (inline for Edge runtime - synced with src/lib/design-tokens.ts)
+// Design Tokens (inline - synced with src/lib/design-tokens.ts)
 // =============================================================================
 
 const colors = {
@@ -52,47 +50,9 @@ const colors = {
 const WIDTH = 1200;
 const HEIGHT = 630;
 
-interface TableMetadata {
-  title?: string;
-  projectName: string;
-  createdAt: string;
-}
+// Shorter timeout for OG generation (5 seconds)
+const OG_TIMEOUT_MS = 5000;
 
-interface TableDataResponse {
-  metadata: TableMetadata;
-  fields: Record<string, { type: string }>;
-  pagination: {
-    totalCount: number;
-  };
-  data: Record<string, unknown>[];
-}
-
-/**
- * Fetch table metadata for the OG image
- */
-async function getTableMetadata(token: string, baseUrl: string): Promise<TableDataResponse | null> {
-  try {
-    // Use AbortController for timeout (5 seconds max for OG generation)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const res = await fetch(`${baseUrl}/api/table/data/${token}?page=1&pageSize=5`, {
-      signal: controller.signal,
-      cache: 'no-store',
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Format a cell value for display
- */
 /**
  * Unify Logo SVG component for OG images
  */
@@ -137,48 +97,51 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  // Derive baseUrl from the incoming request to work correctly in any environment
-  // This ensures staging URLs use staging API, production uses production, etc.
-  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'https';
-  const baseUrl = host
-    ? `${protocol}://${host}`
-    : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
+/**
+ * Generate fallback image when data can't be fetched
+ */
+function generateFallbackImage() {
+  return new ImageResponse(
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: colors.backgroundGradient,
+        fontFamily: 'system-ui, sans-serif',
+      }}
+    >
+      <div style={{ fontSize: 80, marginBottom: 20 }}>📊</div>
+      <div style={{ color: colors.title, fontSize: 48, fontWeight: 600 }}>Table View</div>
+      <div style={{ color: colors.subtitle, fontSize: 24, marginTop: 16 }}>View not available</div>
+    </div>,
+    { width: WIDTH, height: HEIGHT }
+  );
+}
 
-  const data = await getTableMetadata(params.token, baseUrl);
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+  // Fetch table data directly using shared function (no HTTP roundtrip)
+  const result = await fetchTableData(params.token, {
+    page: 1,
+    pageSize: 5,
+    timeoutMs: OG_TIMEOUT_MS,
+  });
 
   // Fallback image if data can't be fetched
-  if (!data) {
-    return new ImageResponse(
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: colors.backgroundGradient,
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        <div style={{ fontSize: 80, marginBottom: 20 }}>📊</div>
-        <div style={{ color: colors.title, fontSize: 48, fontWeight: 600 }}>Table View</div>
-        <div style={{ color: colors.subtitle, fontSize: 24, marginTop: 16 }}>
-          View not available
-        </div>
-      </div>,
-      { width: WIDTH, height: HEIGHT }
-    );
+  if (!result.success) {
+    return generateFallbackImage();
   }
 
-  const title = data.metadata?.title || 'Table View';
-  const projectName = data.metadata?.projectName || 'Project';
-  const rowCount = data.pagination.totalCount;
-  const allFields = Object.keys(data.fields || {});
+  const { data: tableData } = result;
+  const title = tableData.metadata?.title || 'Table View';
+  const projectName = tableData.metadata?.projectName || 'Project';
+  const rowCount = tableData.pagination.totalCount;
+  const allFields = Object.keys(tableData.fields || {});
   const columnCount = allFields.length;
-  const previewRows = data.data?.slice(0, 4) || [];
+  const previewRows = tableData.data?.slice(0, 4) || [];
 
   // Prioritize columns that have actual data in preview rows
   // Count non-empty values per field

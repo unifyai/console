@@ -2,19 +2,17 @@
  * Open Graph Image Generation for Plot Views
  *
  * Generates a dynamic preview image for social sharing.
- * Uses Next.js ImageResponse (Satori) for fast edge-compatible generation.
+ * Uses Next.js ImageResponse (Satori) for image generation.
+ * Uses shared fetchPlotData for data fetching (no HTTP roundtrip).
  * Colors derived from src/lib/design-tokens.ts to match app theme.
  */
 
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-
-// Use Node.js runtime to allow access to internal networks (staging, etc.)
-// Edge runtime cannot resolve internal DNS names like *.internal.example.com
-// export const runtime = 'edge';
+import { fetchPlotData } from '@/lib/plotData';
 
 // =============================================================================
-// Design Tokens (inline for Edge runtime - synced with src/lib/design-tokens.ts)
+// Design Tokens (inline - synced with src/lib/design-tokens.ts)
 // =============================================================================
 
 const colors = {
@@ -54,48 +52,8 @@ const colors = {
 const WIDTH = 1200;
 const HEIGHT = 630;
 
-interface PlotMetadata {
-  title?: string;
-  projectName: string;
-}
-
-interface PlotConfig {
-  type: string;
-  xAxis?: string;
-  yAxis?: string;
-  title?: string;
-}
-
-interface PlotDataResponse {
-  metadata: PlotMetadata;
-  config: PlotConfig;
-  data: Record<string, unknown>[];
-  preAggregatedBarData?: [string, number][] | { group: string; values: [string, number][] }[];
-  isGroupedBarChart?: boolean;
-}
-
-/**
- * Fetch plot metadata for the OG image
- */
-async function getPlotMetadata(token: string, baseUrl: string): Promise<PlotDataResponse | null> {
-  try {
-    // Use AbortController for timeout (5 seconds max for OG generation)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const res = await fetch(`${baseUrl}/api/plot/data/${token}`, {
-      signal: controller.signal,
-      cache: 'no-store',
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
+// Shorter timeout for OG generation (5 seconds)
+const OG_TIMEOUT_MS = 5000;
 
 /**
  * Unify Logo SVG component for OG images
@@ -323,76 +281,72 @@ function SimpleScatterViz() {
   );
 }
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  // Derive baseUrl from the incoming request to work correctly in any environment
-  // This ensures staging URLs use staging API, production uses production, etc.
-  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
-  const protocol = request.headers.get('x-forwarded-proto') || 'https';
-  const baseUrl = host
-    ? `${protocol}://${host}`
-    : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
+/**
+ * Generate fallback image when data can't be fetched
+ */
+function generateFallbackImage() {
+  return new ImageResponse(
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: colors.backgroundGradient,
+        fontFamily: 'system-ui, sans-serif',
+      }}
+    >
+      <div style={{ fontSize: 80, marginBottom: 20 }}>📈</div>
+      <div style={{ color: colors.title, fontSize: 48, fontWeight: 600 }}>Plot View</div>
+      <div style={{ color: colors.subtitle, fontSize: 24, marginTop: 16 }}>View not available</div>
+    </div>,
+    { width: WIDTH, height: HEIGHT }
+  );
+}
 
-  const data = await getPlotMetadata(params.token, baseUrl);
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+  // Fetch plot data directly using shared function (no HTTP roundtrip)
+  const result = await fetchPlotData(params.token, {
+    timeoutMs: OG_TIMEOUT_MS,
+  });
 
   // Fallback image if data can't be fetched
-  if (!data) {
-    return new ImageResponse(
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: colors.backgroundGradient,
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        <div style={{ fontSize: 80, marginBottom: 20 }}>📈</div>
-        <div style={{ color: colors.title, fontSize: 48, fontWeight: 600 }}>Plot View</div>
-        <div style={{ color: colors.subtitle, fontSize: 24, marginTop: 16 }}>
-          View not available
-        </div>
-      </div>,
-      { width: WIDTH, height: HEIGHT }
-    );
+  if (!result.success) {
+    return generateFallbackImage();
   }
 
-  const title = data.metadata?.title || data.config?.title || 'Plot View';
-  const projectName = data.metadata?.projectName || 'Project';
-  const chartType = data.config?.type || 'chart';
+  const { data: plotData } = result;
+  const title = plotData.metadata?.title || plotData.config?.title || 'Plot View';
+  const projectName = plotData.metadata?.projectName || 'Project';
+  const chartType = plotData.config?.type || 'chart';
   const chartTypeName = getChartTypeName(chartType);
   const chartEmoji = getChartEmoji(chartType);
-  const dataPoints = data.data?.length || 0;
-  const xAxis = data.config?.xAxis;
-  const yAxis = data.config?.yAxis;
+  const dataPoints = plotData.data?.length || 0;
+  const xAxis = plotData.config?.xAxis;
+  const yAxis = plotData.config?.yAxis;
 
   // Extract numeric values for bar chart visualization
   // Priority: 1) preAggregatedBarData, 2) raw y-axis values from data
   let numericValues: number[] = [];
 
   // Try to get pre-aggregated bar data first (most accurate for bar charts)
-  if (data.preAggregatedBarData && Array.isArray(data.preAggregatedBarData)) {
-    if (!data.isGroupedBarChart) {
+  if (plotData.preAggregatedBarData && Array.isArray(plotData.preAggregatedBarData)) {
+    if (!plotData.isGroupedBarChart) {
       // Ungrouped: [[label, value], ...]
-      const ungrouped = data.preAggregatedBarData as [string, number][];
+      const ungrouped = plotData.preAggregatedBarData as [string, number][];
       numericValues = ungrouped.slice(0, 8).map(([, v]) => v);
     } else {
-      // Grouped: [{ group, values: [[label, value], ...] }, ...]
-      const grouped = data.preAggregatedBarData as { group: string; values: [string, number][] }[];
-      // Flatten first few values from each group
-      grouped.slice(0, 4).forEach((g) => {
-        g.values.slice(0, 2).forEach(([, v]) => {
-          numericValues.push(v);
-        });
-      });
+      // Grouped: [[groupKey, [label, value]], ...]
+      const grouped = plotData.preAggregatedBarData as [string, [string, number]][];
+      numericValues = grouped.slice(0, 8).map(([, labelValue]) => labelValue[1]);
     }
   }
 
   // Fallback: try raw y-axis values
-  if (numericValues.length === 0 && data.data && yAxis) {
-    data.data.slice(0, 8).forEach((row) => {
+  if (numericValues.length === 0 && plotData.data && yAxis) {
+    plotData.data.slice(0, 8).forEach((row) => {
       const val = row[yAxis];
       if (typeof val === 'number') numericValues.push(val);
     });

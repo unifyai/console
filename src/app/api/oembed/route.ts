@@ -5,10 +5,14 @@
  * This allows platforms like Slack, Discord, and others to
  * fetch rich embed information for our URLs.
  *
+ * Uses shared data fetching functions (no HTTP roundtrip).
+ *
  * Spec: https://oembed.com/
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchTableData } from '@/lib/tableData';
+import { fetchPlotData } from '@/lib/plotData';
 
 interface OEmbedResponse {
   type: 'rich' | 'photo' | 'video' | 'link';
@@ -54,36 +58,6 @@ function parseUrl(url: string): { type: 'table' | 'plot'; token: string } | null
   }
 }
 
-/**
- * Fetch metadata for table
- */
-async function getTableMetadata(token: string, baseUrl: string) {
-  try {
-    const res = await fetch(`${baseUrl}/api/table/data/${token}?page=1&pageSize=1`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch metadata for plot
- */
-async function getPlotMetadata(token: string, baseUrl: string) {
-  try {
-    const res = await fetch(`${baseUrl}/api/plot/data/${token}`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
@@ -106,34 +80,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL not supported' }, { status: 404 });
   }
 
-  // Derive baseUrl from the incoming request to work correctly in any environment
+  // Derive baseUrl from the incoming request for thumbnail URLs
   const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
   const protocol = request.headers.get('x-forwarded-proto') || 'https';
   const baseUrl = host
     ? `${protocol}://${host}`
     : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
-  // Fetch metadata based on type
+  // Fetch metadata based on type using shared functions (no HTTP roundtrip)
   let title: string;
   let description: string;
 
   if (parsed.type === 'table') {
-    const data = await getTableMetadata(parsed.token, baseUrl);
-    if (!data) {
+    const result = await fetchTableData(parsed.token, { page: 1, pageSize: 1 });
+    if (!result.success) {
       return NextResponse.json({ error: 'Table not found' }, { status: 404 });
     }
-    title = data.metadata?.title || 'Table View';
-    const rowCount = data.pagination?.totalCount || 0;
-    const columnCount = Object.keys(data.fields || {}).length;
+    title = result.data.metadata?.title || 'Table View';
+    const rowCount = result.data.pagination?.totalCount || 0;
+    const columnCount = Object.keys(result.data.fields || {}).length;
     description = `Interactive table with ${rowCount.toLocaleString()} rows and ${columnCount} columns`;
   } else {
-    const data = await getPlotMetadata(parsed.token, baseUrl);
-    if (!data) {
+    const result = await fetchPlotData(parsed.token);
+    if (!result.success) {
       return NextResponse.json({ error: 'Plot not found' }, { status: 404 });
     }
-    title = data.metadata?.title || data.config?.title || 'Plot View';
-    const chartType = data.config?.type || 'chart';
-    const dataPoints = data.data?.length || 0;
+    title = result.data.metadata?.title || result.data.config?.title || 'Plot View';
+    const chartType = result.data.config?.type || 'chart';
+    const dataPoints = result.data.data?.length || 0;
     description = `Interactive ${chartType} with ${dataPoints.toLocaleString()} data points`;
   }
 
@@ -197,3 +171,6 @@ function escapeXml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
+
+// Suppress unused variable warning - description is used for documentation
+void ((s: string) => s)('' as typeof description);
