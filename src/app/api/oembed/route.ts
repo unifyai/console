@@ -89,7 +89,6 @@ export async function GET(request: NextRequest) {
 
   // Fetch metadata based on type using shared functions (no HTTP roundtrip)
   let title: string;
-  let description: string;
 
   if (parsed.type === 'table') {
     const result = await fetchTableData(parsed.token, { page: 1, pageSize: 1 });
@@ -97,18 +96,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Table not found' }, { status: 404 });
     }
     title = result.data.metadata?.title || 'Table View';
-    const rowCount = result.data.pagination?.totalCount || 0;
-    const columnCount = Object.keys(result.data.fields || {}).length;
-    description = `Interactive table with ${rowCount.toLocaleString()} rows and ${columnCount} columns`;
   } else {
     const result = await fetchPlotData(parsed.token);
     if (!result.success) {
       return NextResponse.json({ error: 'Plot not found' }, { status: 404 });
     }
     title = result.data.metadata?.title || result.data.config?.title || 'Plot View';
-    const chartType = result.data.config?.type || 'chart';
-    const dataPoints = result.data.data?.length || 0;
-    description = `Interactive ${chartType} with ${dataPoints.toLocaleString()} data points`;
   }
 
   // Calculate dimensions (maintain 16:9 aspect ratio)
@@ -171,6 +164,3 @@ function escapeXml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
-
-// Suppress unused variable warning - description is used for documentation
-void ((s: string) => s)('' as typeof description);
