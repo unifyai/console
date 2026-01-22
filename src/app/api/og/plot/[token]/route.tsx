@@ -308,7 +308,10 @@ function generateFallbackImage() {
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   // Fetch plot data directly using shared function (no HTTP roundtrip)
-  const result = await fetchPlotData(params.token, {
+  // Strip .png extension if present (URL can be /api/og/plot/xxx or /api/og/plot/xxx.png)
+  const token = params.token.replace(/\.png$/i, '');
+
+  const result = await fetchPlotData(token, {
     timeoutMs: OG_TIMEOUT_MS,
   });
 

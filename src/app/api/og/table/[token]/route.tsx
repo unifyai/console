@@ -124,7 +124,10 @@ function generateFallbackImage() {
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   // Fetch table data directly using shared function (no HTTP roundtrip)
-  const result = await fetchTableData(params.token, {
+  // Strip .png extension if present (URL can be /api/og/table/xxx or /api/og/table/xxx.png)
+  const token = params.token.replace(/\.png$/i, '');
+
+  const result = await fetchTableData(token, {
     page: 1,
     pageSize: 5,
     timeoutMs: OG_TIMEOUT_MS,
