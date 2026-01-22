@@ -444,9 +444,16 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     const projectConfig = plotConfig.projectConfig;
     const logsParams = new URLSearchParams();
 
-    // Required: project name
-    if (projectConfig.projectName) {
-      logsParams.append('project_name', projectConfig.projectName as string);
+    // Required: project name (stored in metadata, not projectConfig)
+    const projectName = plotConfig.metadata?.projectName;
+    if (projectName) {
+      logsParams.append('project_name', projectName);
+    } else {
+      console.error('[plot/data] No project name found in metadata');
+      return NextResponse.json(
+        { error: 'Plot configuration missing project name' },
+        { status: 400 }
+      );
     }
 
     // Optional parameters
@@ -503,9 +510,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     // Step 4: Fetch fields metadata
     // ========================================================================
     const fieldsParams = new URLSearchParams();
-    if (projectConfig.projectName) {
-      fieldsParams.append('project_name', projectConfig.projectName as string);
-    }
+    fieldsParams.append('project_name', projectName);
     if (projectConfig.context) {
       fieldsParams.append('context', projectConfig.context as string);
     }
@@ -536,8 +541,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     const transformedFields = transformFieldsForFrontend(rawFields);
     const normalizedConfig = normalizeConfigForFrontend(plotConfig.config);
 
-    // Add projectName to metadata for frontend (it's in projectConfig)
-    const projectName = (projectConfig.projectName as string) || 'Unknown Project';
+    // projectName is already defined above from metadata
 
     // ========================================================================
     // Step 6: For Bar Charts, fetch pre-aggregated data from backend

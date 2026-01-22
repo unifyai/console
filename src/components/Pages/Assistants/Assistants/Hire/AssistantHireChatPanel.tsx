@@ -10,6 +10,7 @@ import { Input } from '@/components/UI/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
+import { RenderContentWithEmbeds, containsEmbedUrl } from '@/components/Chat';
 
 interface AssistantHireChatPanelProps {
   onClose: () => void;
@@ -70,6 +71,14 @@ const ChatMessageBubble = ({
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]"></span>
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]"></span>
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"></span>
+        </div>
+      );
+    }
+    // Check if message contains embeddable URLs (tables/plots)
+    if (containsEmbedUrl(message)) {
+      return (
+        <div className="whitespace-pre-wrap">
+          <RenderContentWithEmbeds content={message} expandedHeight={300} />
         </div>
       );
     }

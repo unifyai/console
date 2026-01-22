@@ -8,6 +8,7 @@ import { Textarea } from '@/components/UI/textarea';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
+import { RenderContentWithEmbeds, containsEmbedUrl } from '@/components/Chat';
 
 /* ---------------------
    ChatMessageBubble
@@ -39,6 +40,14 @@ const ChatMessageBubble = ({
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
+        </div>
+      );
+    }
+    // Check if message contains embeddable URLs (tables/plots)
+    if (containsEmbedUrl(message)) {
+      return (
+        <div className="whitespace-pre-wrap">
+          <RenderContentWithEmbeds content={message} expandedHeight={300} />
         </div>
       );
     }
