@@ -365,15 +365,23 @@ export async function fetchPlotData(
   token: string,
   options: FetchPlotDataOptions = {}
 ): Promise<FetchPlotDataResult> {
+  console.log('[plotData] === fetchPlotData START ===');
+  console.log('[plotData] Input token:', token);
+  console.log('[plotData] Options:', JSON.stringify(options));
+  console.log('[plotData] ORCHESTRA_URL:', ORCHESTRA_URL);
+  console.log('[plotData] ORCHESTRA_ADMIN_KEY present:', !!ORCHESTRA_ADMIN_KEY);
+
   const { timeoutMs = REQUEST_TIMEOUT_MS } = options;
 
   // Validate token format (12 hex chars)
   if (!/^[a-f0-9]{12}$/.test(token)) {
+    console.error('[plotData] Invalid token format:', token);
     return {
       success: false,
       error: { error: 'Invalid token format', status: 400 },
     };
   }
+  console.log('[plotData] Token format valid');
 
   // Check for admin key
   if (!ORCHESTRA_ADMIN_KEY) {
@@ -383,12 +391,15 @@ export async function fetchPlotData(
       error: { error: 'Server configuration error', status: 500 },
     };
   }
+  console.log('[plotData] Admin key configured, proceeding...');
 
   try {
     // ========================================================================
     // Step 1: Fetch plot config from admin endpoint
     // ========================================================================
+    console.log('[plotData] Step 1: Fetching plot config...');
     const configUrl = `${ORCHESTRA_URL}/v0/admin/logs/plot?token=${token}`;
+    console.log('[plotData] Config URL:', configUrl);
     const configRes = await fetchWithTimeout(
       configUrl,
       {
@@ -421,11 +432,17 @@ export async function fetchPlotData(
     }
 
     const plotConfig: AdminPlotConfigResponse = snakeToCamelObject(await configRes.json());
+    console.log('[plotData] Step 1 SUCCESS - Config fetched');
+    console.log('[plotData] userId:', plotConfig.userId);
+    console.log('[plotData] organizationId:', plotConfig.organizationId);
+    console.log('[plotData] metadata:', JSON.stringify(plotConfig.metadata));
 
     // ========================================================================
     // Step 2: Fetch user data and extract the appropriate API key
     // ========================================================================
+    console.log('[plotData] Step 2: Fetching user data...');
     const userUrl = `${ORCHESTRA_URL}/v0/admin/auth-user/by-user-id?user_id=${encodeURIComponent(plotConfig.userId)}`;
+    console.log('[plotData] User URL:', userUrl);
     const userRes = await fetchWithTimeout(
       userUrl,
       {
@@ -476,11 +493,14 @@ export async function fetchPlotData(
         error: { error: 'User credentials not available', status: 500 },
       };
     }
+    console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
 
     // ========================================================================
     // Step 3: Call /v0/logs with user's API key
     // ========================================================================
+    console.log('[plotData] Step 3: Fetching logs...');
     const projectConfig = plotConfig.projectConfig;
+    console.log('[plotData] projectConfig:', JSON.stringify(projectConfig));
     const logsParams = new URLSearchParams();
 
     const projectName = plotConfig.metadata?.projectName;
@@ -545,10 +565,12 @@ export async function fetchPlotData(
 
     const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
     const rawLogs = logsData.logs || [];
+    console.log('[plotData] Step 3 SUCCESS - Got', rawLogs.length, 'logs');
 
     // ========================================================================
     // Step 4: Fetch fields metadata
     // ========================================================================
+    console.log('[plotData] Step 4: Fetching fields metadata...');
     const fieldsParams = new URLSearchParams();
     fieldsParams.append('project_name', projectName);
     if (projectConfig.context) {
@@ -574,14 +596,17 @@ export async function fetchPlotData(
     let rawFields: Record<string, unknown> = {};
     if (fieldsRes.ok) {
       rawFields = snakeToCamelObject(await fieldsRes.json());
+      console.log('[plotData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
     } else {
-      console.warn('[plotData] Failed to fetch fields, continuing without');
+      console.warn('[plotData] Step 4 WARN - Failed to fetch fields, continuing without');
     }
 
     // ========================================================================
     // Step 5: Transform data
     // ========================================================================
+    console.log('[plotData] Step 5: Transforming data...');
     const transformedData = transformLogsForFrontend(rawLogs);
+    console.log('[plotData] Transformed', transformedData.length, 'data points');
     const transformedFields = transformFieldsForFrontend(rawFields);
     const normalizedConfig = normalizeConfigForFrontend(plotConfig.config);
 
@@ -610,6 +635,15 @@ export async function fetchPlotData(
         isGroupedBarChart = barChartResult.isGrouped;
       }
     }
+
+    console.log('[plotData] === fetchPlotData SUCCESS ===');
+    console.log(
+      '[plotData] Returning',
+      transformedData.length,
+      'data points,',
+      Object.keys(transformedFields).length,
+      'fields'
+    );
 
     return {
       success: true,

@@ -158,6 +158,12 @@ export async function fetchTableData(
   token: string,
   options: FetchTableDataOptions = {}
 ): Promise<FetchTableDataResult> {
+  console.log('[tableData] === fetchTableData START ===');
+  console.log('[tableData] Input token:', token);
+  console.log('[tableData] Options:', JSON.stringify(options));
+  console.log('[tableData] ORCHESTRA_URL:', ORCHESTRA_URL);
+  console.log('[tableData] ORCHESTRA_ADMIN_KEY present:', !!ORCHESTRA_ADMIN_KEY);
+
   const {
     page = 1,
     pageSize: requestedPageSize = DEFAULT_PAGE_SIZE,
@@ -166,16 +172,20 @@ export async function fetchTableData(
 
   // Normalize token to lowercase for case-insensitive matching
   const normalizedToken = token.toLowerCase();
+  console.log('[tableData] Normalized token:', normalizedToken);
 
   // Validate token format (12 hex chars)
   if (!/^[a-f0-9]{12}$/.test(normalizedToken)) {
+    console.error('[tableData] Invalid token format:', normalizedToken);
     return {
       success: false,
       error: { error: 'Invalid token format', status: 400 },
     };
   }
+  console.log('[tableData] Token format valid');
 
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, requestedPageSize));
+  console.log('[tableData] Page:', page, 'PageSize:', pageSize, 'Timeout:', timeoutMs);
 
   // Check for admin key
   if (!ORCHESTRA_ADMIN_KEY) {
@@ -185,12 +195,15 @@ export async function fetchTableData(
       error: { error: 'Server configuration error', status: 500 },
     };
   }
+  console.log('[tableData] Admin key configured, proceeding...');
 
   try {
     // ========================================================================
     // Step 1: Fetch table view config from admin endpoint
     // ========================================================================
+    console.log('[tableData] Step 1: Fetching table view config...');
     const configUrl = `${ORCHESTRA_URL}/v0/admin/logs/table?token=${normalizedToken}`;
+    console.log('[tableData] Config URL:', configUrl);
     const configRes = await fetchWithTimeout(
       configUrl,
       {
@@ -223,11 +236,17 @@ export async function fetchTableData(
     }
 
     const tableViewConfig: AdminTableViewResponse = snakeToCamelObject(await configRes.json());
+    console.log('[tableData] Step 1 SUCCESS - Config fetched');
+    console.log('[tableData] userId:', tableViewConfig.userId);
+    console.log('[tableData] organizationId:', tableViewConfig.organizationId);
+    console.log('[tableData] metadata:', JSON.stringify(tableViewConfig.metadata));
 
     // ========================================================================
     // Step 2: Fetch user data and extract the appropriate API key
     // ========================================================================
+    console.log('[tableData] Step 2: Fetching user data...');
     const userUrl = `${ORCHESTRA_URL}/v0/admin/auth-user/by-user-id?user_id=${encodeURIComponent(tableViewConfig.userId)}`;
+    console.log('[tableData] User URL:', userUrl);
     const userRes = await fetchWithTimeout(
       userUrl,
       {
@@ -280,11 +299,14 @@ export async function fetchTableData(
         error: { error: 'User credentials not available', status: 500 },
       };
     }
+    console.log('[tableData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
 
     // ========================================================================
     // Step 3: Call /v0/logs with user's API key
     // ========================================================================
+    console.log('[tableData] Step 3: Fetching logs...');
     const projectConfig = tableViewConfig.projectConfig;
+    console.log('[tableData] projectConfig:', JSON.stringify(projectConfig));
     const logsParams = new URLSearchParams();
 
     // Required: project name (from metadata, not projectConfig - it's stored via FK)
@@ -344,10 +366,13 @@ export async function fetchTableData(
 
     const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
     const rawLogs = logsData.logs || [];
+    console.log('[tableData] Step 3 SUCCESS - Got', rawLogs.length, 'logs');
+    console.log('[tableData] Total logs available:', logsData.totalCount);
 
     // ========================================================================
     // Step 4: Fetch fields metadata
     // ========================================================================
+    console.log('[tableData] Step 4: Fetching fields metadata...');
     const fieldsParams = new URLSearchParams();
     if (projectName) {
       fieldsParams.append('project_name', projectName);
@@ -372,14 +397,17 @@ export async function fetchTableData(
     let rawFields: Record<string, FieldMetadata> = {};
     if (fieldsRes.ok) {
       rawFields = snakeToCamelObject(await fieldsRes.json());
+      console.log('[tableData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
     } else {
-      console.warn('[tableData] Failed to fetch fields, continuing without');
+      console.warn('[tableData] Step 4 WARN - Failed to fetch fields, continuing without');
     }
 
     // ========================================================================
     // Step 5: Transform data and build response
     // ========================================================================
+    console.log('[tableData] Step 5: Transforming data...');
     const transformedData = transformLogsForTable(rawLogs);
+    console.log('[tableData] Transformed', transformedData.length, 'rows');
 
     // Get all available column names from data
     const allColumns = new Set<string>();
@@ -394,6 +422,16 @@ export async function fetchTableData(
 
     const totalCount = logsData.count ?? 0;
     const totalPages = Math.ceil(totalCount / pageSize);
+
+    console.log('[tableData] === fetchTableData SUCCESS ===');
+    console.log(
+      '[tableData] Returning',
+      transformedData.length,
+      'rows,',
+      Object.keys(rawFields).length,
+      'fields'
+    );
+    console.log('[tableData] Pagination: page', page, 'of', totalPages, '| total:', totalCount);
 
     return {
       success: true,

@@ -307,19 +307,37 @@ function generateFallbackImage() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  // Fetch plot data directly using shared function (no HTTP roundtrip)
+  console.log('[og/plot] === OG Plot Image Request ===');
+  console.log('[og/plot] Raw token from params:', params.token);
+  console.log('[og/plot] Request URL:', request.url);
+  console.log(
+    '[og/plot] Request headers:',
+    JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2)
+  );
+
   // Strip .png extension if present (URL can be /api/og/plot/xxx or /api/og/plot/xxx.png)
   const token = params.token.replace(/\.png$/i, '');
+  console.log('[og/plot] Cleaned token:', token);
 
+  console.log('[og/plot] Calling fetchPlotData...');
+  const startTime = Date.now();
   const result = await fetchPlotData(token, {
     timeoutMs: OG_TIMEOUT_MS,
   });
+  const elapsed = Date.now() - startTime;
+  console.log(`[og/plot] fetchPlotData completed in ${elapsed}ms`);
+  console.log('[og/plot] Result success:', result.success);
 
   // Fallback image if data can't be fetched
   if (!result.success) {
+    console.error('[og/plot] Fetch failed, returning fallback image');
+    console.error('[og/plot] Error details:', JSON.stringify(result.error, null, 2));
     return generateFallbackImage();
   }
 
+  console.log('[og/plot] Data fetched successfully, generating image...');
+
+  const { data: plotData } = result;
   const { data: plotData } = result;
   const title = plotData.metadata?.title || plotData.config?.title || 'Plot View';
   const projectName = plotData.metadata?.projectName || 'Project';

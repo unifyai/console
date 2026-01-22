@@ -123,20 +123,37 @@ function generateFallbackImage() {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  // Fetch table data directly using shared function (no HTTP roundtrip)
+  console.log('[og/table] === OG Table Image Request ===');
+  console.log('[og/table] Raw token from params:', params.token);
+  console.log('[og/table] Request URL:', request.url);
+  console.log(
+    '[og/table] Request headers:',
+    JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2)
+  );
+
   // Strip .png extension if present (URL can be /api/og/table/xxx or /api/og/table/xxx.png)
   const token = params.token.replace(/\.png$/i, '');
+  console.log('[og/table] Cleaned token:', token);
 
+  console.log('[og/table] Calling fetchTableData...');
+  const startTime = Date.now();
   const result = await fetchTableData(token, {
     page: 1,
     pageSize: 5,
     timeoutMs: OG_TIMEOUT_MS,
   });
+  const elapsed = Date.now() - startTime;
+  console.log(`[og/table] fetchTableData completed in ${elapsed}ms`);
+  console.log('[og/table] Result success:', result.success);
 
   // Fallback image if data can't be fetched
   if (!result.success) {
+    console.error('[og/table] Fetch failed, returning fallback image');
+    console.error('[og/table] Error details:', JSON.stringify(result.error, null, 2));
     return generateFallbackImage();
   }
+
+  console.log('[og/table] Data fetched successfully, generating image...');
 
   const { data: tableData } = result;
   const title = tableData.metadata?.title || 'Table View';
