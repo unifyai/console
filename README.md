@@ -163,10 +163,24 @@ Configuration is in `.eslintrc.json`:
 
 ## CI/CD Pipeline
 
-GitHub Actions automatically runs on:
+### Running Tests in CI
 
-- **Push** to `main` or `staging`
-- **Pull Requests** targeting `main` or `staging`
+**Tests are opt-in to reduce GitHub Actions costs.** Tests only run when explicitly requested:
+
+- **Commit message**: Include `[run-tests]` in your commit message
+- **PR title**: Include `[run-tests]` in your pull request title
+- **Manual trigger**: Use the "Run workflow" button in GitHub Actions
+
+Examples:
+```bash
+# Run tests on this commit
+git commit -m "Fix interface rendering [run-tests]"
+
+# No tests (default)
+git commit -m "Update README"
+```
+
+Note: The `ci.yml` checks (lint, typecheck, format, build) always run on every push.
 
 ### Pipeline Jobs
 
