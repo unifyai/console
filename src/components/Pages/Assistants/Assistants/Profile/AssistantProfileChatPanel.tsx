@@ -1,14 +1,23 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, MessageSquareMore } from 'lucide-react';
+import { Send, Loader2, MessageSquareMore, Paperclip } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
+import { useDropzone } from 'react-dropzone';
+import { toast } from 'sonner';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage } from '@/types/assistants/chat';
-import { RenderContentWithEmbeds, containsEmbedUrl } from '@/components/Chat';
+import { ChatMessage, ChatAttachment } from '@/types/assistants/chat';
+import {
+  RenderContentWithEmbeds,
+  containsEmbedUrl,
+  PendingAttachmentList,
+  MessageAttachmentList,
+  createAttachment,
+  validateFile,
+} from '@/components/Chat';
 
 /* ---------------------
    ChatMessageBubble
@@ -20,6 +29,7 @@ const ChatMessageBubble = ({
   assistantName,
   isLoading,
   index,
+  attachments,
 }: {
   message: string;
   isUser?: boolean;
@@ -27,6 +37,7 @@ const ChatMessageBubble = ({
   assistantName?: string;
   isLoading?: boolean;
   index?: number;
+  attachments?: ChatAttachment[];
 }) => {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -74,6 +85,9 @@ const ChatMessageBubble = ({
         )}
       >
         {bubbleContent()}
+        {attachments && attachments.length > 0 && (
+          <MessageAttachmentList attachments={attachments} className="mt-2" />
+        )}
       </div>
     </div>
   );
@@ -137,6 +151,61 @@ export function AssistantProfileChatPanel({
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Attachment state
+  const [pendingAttachments, setPendingAttachments] = React.useState<ChatAttachment[]>([]);
+  const MAX_ATTACHMENTS = 5;
+
+  /* Cleanup on unmount to release File object references */
+  React.useEffect(() => {
+    return () => {
+      setPendingAttachments([]);
+    };
+  }, []);
+
+  /* File handling */
+  const handleFiles = React.useCallback(
+    (files: File[]) => {
+      const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
+      if (remaining <= 0) {
+        toast.error('Maximum 5 attachments per message');
+        return;
+      }
+
+      const filesToAdd = files.slice(0, remaining);
+      const newAttachments: ChatAttachment[] = [];
+
+      for (const file of filesToAdd) {
+        const validation = validateFile(file);
+        if (!validation.valid) {
+          toast.error(validation.error);
+          continue;
+        }
+        // Check for duplicates
+        if (pendingAttachments.some((a) => a.name === file.name && a.size === file.size)) {
+          continue; // Silent skip duplicates
+        }
+        newAttachments.push(createAttachment(file));
+      }
+
+      if (newAttachments.length > 0) {
+        setPendingAttachments((prev) => [...prev, ...newAttachments]);
+      }
+    },
+    [pendingAttachments]
+  );
+
+  const removeAttachment = React.useCallback((id: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  /* react-dropzone setup */
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: handleFiles,
+    noClick: true, // We use the paperclip button for click
+    noKeyboard: true,
+  });
 
   /* Auto-resize textarea */
   React.useEffect(() => {
@@ -232,12 +301,36 @@ export function AssistantProfileChatPanel({
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
 
-  const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      sendMessage({ preventDefault: () => {} } as React.FormEvent);
-    }
-  };
+  /* Handle send with attachments */
+  const handleSendWithAttachments = React.useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!inputValue.trim() && pendingAttachments.length === 0) return;
+
+      // Store attachments to send
+      const attachmentsToSend = [...pendingAttachments];
+
+      // Clear pending attachments optimistically
+      setPendingAttachments([]);
+
+      // Call send with attachments, with error callback to restore on failure
+      sendMessage(e, attachmentsToSend, (failedAttachments) => {
+        // Use functional update to preserve any attachments added while request was in-flight
+        setPendingAttachments((prev) => [...failedAttachments, ...prev]);
+      });
+    },
+    [inputValue, pendingAttachments, sendMessage]
+  );
+
+  const sendMessageOnEnter = React.useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        handleSendWithAttachments({ preventDefault: () => {} } as React.FormEvent);
+      }
+    },
+    [handleSendWithAttachments]
+  );
 
   const connectionStatusText = {
     connected: 'Connected',
@@ -308,6 +401,7 @@ export function AssistantProfileChatPanel({
                 assistantPhoto={photoSrc}
                 assistantName={displayName}
                 index={i}
+                attachments={msg.attachments}
               />
             ))}
             {isAssistantReplying && (
@@ -334,47 +428,91 @@ export function AssistantProfileChatPanel({
       )}
 
       {/* Input Area */}
-      <form onSubmit={sendMessage} className="bg-background p-4">
-        <div className="relative">
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            placeholder={
-              !canChat
-                ? 'Chat disabled'
-                : initialLoadError
-                  ? 'Connection failed'
-                  : isLoading
-                    ? 'Loading messages...'
-                    : 'Send a message...'
-            }
-            value={inputValue}
-            onChange={handleInputChange}
-            disabled={!canChat || isLoading || initialLoadError || connectionStatus !== 'connected'}
-            className="text-body min-h-[36px] resize-none overflow-y-hidden pr-10"
-            autoComplete="off"
-            onKeyDown={sendMessageOnEnter}
-          />
+      <form onSubmit={handleSendWithAttachments} className="bg-background p-4">
+        <div
+          {...getRootProps()}
+          className={cn('relative', isDragActive && 'rounded-md ring-2 ring-primary ring-offset-2')}
+          data-testid="chat-dropzone"
+        >
+          {/* Drag-and-drop overlay */}
+          {isDragActive && (
+            <div className="bg-primary/10 absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary">
+              <span className="font-medium text-primary">Drop files here</span>
+            </div>
+          )}
 
-          <Button
-            type="submit"
-            aria-label="Send message"
-            size="icon"
-            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
-            disabled={
-              !canChat ||
-              isLoading ||
-              !inputValue.trim() ||
-              initialLoadError ||
-              connectionStatus !== 'connected'
-            }
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+          {/* Pending attachments */}
+          {pendingAttachments.length > 0 && (
+            <PendingAttachmentList
+              attachments={pendingAttachments}
+              onRemove={removeAttachment}
+              className="mb-2"
+            />
+          )}
+
+          {/* Hidden file input */}
+          <input {...getInputProps()} ref={fileInputRef} className="hidden" />
+
+          <div className="relative">
+            {/* Paperclip button - bottom left */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute bottom-1 left-1 h-7 w-7"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={
+                !canChat || isLoading || initialLoadError || connectionStatus !== 'connected'
+              }
+              aria-label="Attach files"
+              data-testid="attach-button"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+
+            <Textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder={
+                !canChat
+                  ? 'Chat disabled'
+                  : initialLoadError
+                    ? 'Connection failed'
+                    : isLoading
+                      ? 'Loading messages...'
+                      : 'Send a message...'
+              }
+              value={inputValue}
+              onChange={handleInputChange}
+              disabled={
+                !canChat || isLoading || initialLoadError || connectionStatus !== 'connected'
+              }
+              className="text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
+              autoComplete="off"
+              onKeyDown={sendMessageOnEnter}
+            />
+
+            {/* Send button - bottom right */}
+            <Button
+              type="submit"
+              aria-label="Send message"
+              size="icon"
+              className="absolute bottom-1 right-1 h-7 w-7"
+              disabled={
+                !canChat ||
+                isLoading ||
+                (!inputValue.trim() && pendingAttachments.length === 0) ||
+                initialLoadError ||
+                connectionStatus !== 'connected'
+              }
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

@@ -26,6 +26,17 @@
     --near-black: #0a0c13;
     --text-gray: #51515e;
 
+    /* File type colors */
+    --file-pdf: #e53935;
+    --file-word: #2196f3;
+    --file-excel: #4caf50;
+    --file-powerpoint: #ff9800;
+    --file-image: #9c27b0;
+    --file-text: #607d8b;
+    --file-code: #78909c;
+    --file-archive: #ffc107;
+    --file-generic: #9e9e9e;
+
     /* Chart overrides */
     --chart-grid: #cccccc;
 
