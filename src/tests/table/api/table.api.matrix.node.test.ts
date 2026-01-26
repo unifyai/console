@@ -15,7 +15,7 @@
  * - MATRIX_SHARD: "1/4" for first of 4 shards
  */
 
-import { beforeAll, afterAll, afterEach, vi } from 'vitest';
+import { beforeAll, afterAll, afterEach, vi, expect } from 'vitest';
 import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
 import { server, createTableViewDataResponse } from './handlers';
 import {
