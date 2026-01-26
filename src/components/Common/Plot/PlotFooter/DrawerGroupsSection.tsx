@@ -22,7 +22,7 @@ export function DrawerGroupsSection({ groups, onHighlight }: DrawerGroupsSection
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-label text-semibold uppercase tracking-wide text-muted-foreground">
         Groups ({groups.length})
       </h3>
       <div className="flex flex-wrap gap-2">
@@ -38,7 +38,7 @@ export function DrawerGroupsSection({ groups, onHighlight }: DrawerGroupsSection
               style={{ backgroundColor: group.color }}
               aria-hidden="true"
             />
-            <span className="text-sm text-foreground">{group.key || 'null'}</span>
+            <span className="text-body text-foreground">{group.key || 'null'}</span>
           </div>
         ))}
       </div>

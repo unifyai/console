@@ -596,7 +596,7 @@ function EditModeInner({
             {isEditMode && (
               <button
                 onClick={handleMakeChange}
-                className="mt-2 text-sm text-blue-500 hover:underline"
+                className="text-body mt-2 text-blue-500 hover:underline"
                 data-testid={`change-tile-${i + 1}`}
               >
                 Make change

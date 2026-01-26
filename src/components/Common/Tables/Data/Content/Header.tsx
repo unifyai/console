@@ -662,7 +662,7 @@ const DataTableHeader = ({
                           <div className="flex flex-col gap-1">
                             <span>{`${header.id.split('/').at(-1)}: ${header.column.columnDef.meta?.dataType || 'unknown'}`}</span>
                             {header.column.columnDef.meta?.description && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-caption">
                                 {header.column.columnDef.meta.description}
                               </span>
                             )}

@@ -34,15 +34,13 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
           </button>
           <div className="flex flex-col items-center gap-3">
             <AlertTriangle className="h-8 w-8 text-destructive" />
-            <div className="text-sm font-medium">Context Not Found</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-title">Context Not Found</div>
+            <p className="text-caption">
               {contextName
                 ? `The context "${contextName}" no longer exists.`
                 : 'The selected context no longer exists.'}
             </p>
-            <p className="text-xs text-muted-foreground">
-              Select a different context or create a new one.
-            </p>
+            <p className="text-caption">Select a different context or create a new one.</p>
             {actionButton && <div className="mt-2">{actionButton}</div>}
           </div>
         </div>

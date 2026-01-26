@@ -93,7 +93,7 @@ const RoleListPanel = ({
       {/* List */}
       <div className="flex-1 overflow-auto px-3">
         {filteredRoles.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div className="text-body-muted flex h-full items-center justify-center">
             No roles found.
           </div>
         ) : (

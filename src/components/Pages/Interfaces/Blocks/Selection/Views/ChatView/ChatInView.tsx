@@ -521,7 +521,7 @@ export default function ChatInView({
                       {asstParts.length > 0 && (
                         <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(asstParts[0].rowIndex)}>
-                            <div className="mb-2 flex w-full items-center justify-start text-sm">
+                            <div className="text-body mb-2 flex w-full items-center justify-start">
                               <TabsList className="justify-start">
                                 {asstParts.map((m) => (
                                   <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
@@ -578,7 +578,7 @@ export default function ChatInView({
                       {userParts.length > 0 && (
                         <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(userParts[0].rowIndex)}>
-                            <div className="mb-2 flex w-full items-center justify-between text-sm">
+                            <div className="text-body mb-2 flex w-full items-center justify-between">
                               <TabsList className="justify-end">
                                 {userParts.map((m) => (
                                   <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>

@@ -68,7 +68,7 @@ export function PlotDetailsDrawer({
             )}
           </div>
         ) : (
-          <p className="text-center text-sm text-muted-foreground">No details available</p>
+          <p className="text-body-muted text-center">No details available</p>
         )}
       </div>
     </div>

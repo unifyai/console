@@ -229,8 +229,8 @@ function DraggableHeader({
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p className="text-sm font-medium">{header.id}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-title">{header.id}</p>
+              <p className="text-caption">
                 Click to sort · Drag to reorder · Right-click for options
               </p>
             </TooltipContent>
@@ -290,7 +290,7 @@ function DragOverlayColumn({ columnId, width, rows, fieldType }: DragOverlayColu
       style={{ width, maxHeight: '400px' }}
     >
       {/* Header */}
-      <div className="flex items-center gap-1 border-b border-muted bg-card px-3 py-2 text-sm font-medium">
+      <div className="text-title flex items-center gap-1 border-b border-muted bg-card px-3 py-2">
         <GripVertical className="h-3 w-3 text-muted-foreground" />
         <span className="truncate">{columnId}</span>
       </div>
@@ -308,9 +308,7 @@ function DragOverlayColumn({ columnId, width, rows, fieldType }: DragOverlayColu
           </div>
         ))}
         {rows.length > 8 && (
-          <div className="px-3 py-1 text-center text-xs text-muted-foreground">
-            +{rows.length - 8} more rows
-          </div>
+          <div className="text-caption px-3 py-1 text-center">+{rows.length - 8} more rows</div>
         )}
       </div>
     </div>
@@ -953,10 +951,10 @@ export function TableViewer({
         <header className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
             <div>
-              <h1 className="text-xl font-semibold text-foreground">
+              <h1 className="text-h1 text-semibold text-foreground">
                 {metadata.title || 'Table View'}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body-muted">
                 {metadata.projectName} · {pagination.totalCount.toLocaleString()} total rows
               </p>
             </div>
@@ -972,7 +970,7 @@ export function TableViewer({
                 <div className="space-y-4">
                   <div>
                     <h3 className="mb-2 font-semibold text-foreground">Table Viewer</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-body-muted">
                       Read-only table view. Explore, select, and copy data.
                     </p>
                   </div>
@@ -980,7 +978,7 @@ export function TableViewer({
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <Square className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Select cells</p>
                         <p className="text-muted-foreground">
                           <span className="font-medium">Click</span> to select a cell.{' '}
@@ -993,7 +991,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <PanelRightOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Details pane</p>
                         <p className="text-muted-foreground">
                           Click <span className="font-medium">Details</span> to open the detail
@@ -1005,7 +1003,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <MousePointerClick className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Context menus</p>
                         <p className="text-muted-foreground">
                           <span className="font-medium">Right-click headers</span> to sort, hide, or
@@ -1017,7 +1015,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <Grip className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Reorder &amp; resize</p>
                         <p className="text-muted-foreground">
                           <span className="font-medium">Drag headers</span> to reorder columns.{' '}
@@ -1028,7 +1026,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <Columns3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Column visibility</p>
                         <p className="text-muted-foreground">
                           Click <span className="font-medium">Columns</span> to show/hide columns.
@@ -1039,7 +1037,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <Copy className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Copy data</p>
                         <p className="text-muted-foreground">
                           Click <span className="font-medium">Copy</span> to copy visible data as
@@ -1051,7 +1049,7 @@ export function TableViewer({
 
                     <div className="flex items-start gap-3">
                       <Keyboard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <div className="text-sm">
+                      <div className="text-body">
                         <p className="font-medium text-foreground">Keyboard shortcuts</p>
                         <p className="text-muted-foreground">
                           <span className="font-medium">Ctrl+A</span> select all.{' '}
@@ -1090,7 +1088,7 @@ export function TableViewer({
                           .map((column) => (
                             <label
                               key={column.id}
-                              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                              className="text-body flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-muted"
                             >
                               <Checkbox
                                 checked={column.getIsVisible()}
@@ -1105,7 +1103,7 @@ export function TableViewer({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-sm">Show or hide columns</p>
+                <p className="text-body">Show or hide columns</p>
               </TooltipContent>
             </Tooltip>
 
@@ -1127,7 +1125,7 @@ export function TableViewer({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-sm">Copy current page as TSV</p>
+                <p className="text-body">Copy current page as TSV</p>
               </TooltipContent>
             </Tooltip>
 
@@ -1153,7 +1151,7 @@ export function TableViewer({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-sm">{isDetailPaneOpen ? 'Hide' : 'Show'} details pane</p>
+                <p className="text-body">{isDetailPaneOpen ? 'Hide' : 'Show'} details pane</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -1177,12 +1175,8 @@ export function TableViewer({
                     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-6 py-4 shadow-lg">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">
-                          Loading page {pagination.page}...
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Fetching data from server
-                        </span>
+                        <span className="text-title">Loading page {pagination.page}...</span>
+                        <span className="text-caption">Fetching data from server</span>
                       </div>
                     </div>
                   </div>
@@ -1193,7 +1187,7 @@ export function TableViewer({
                   <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 shadow-lg backdrop-blur-sm">
                       <Check className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                      <span className="text-title text-success">
                         {selectedCells.length > 0
                           ? `Copied ${selectedCells.length} cell${selectedCells.length > 1 ? 's' : ''}`
                           : 'Copied to clipboard'}
@@ -1371,7 +1365,7 @@ export function TableViewer({
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="max-w-sm">
-                                          <p className="whitespace-pre-wrap break-all text-sm">
+                                          <p className="text-body whitespace-pre-wrap break-all">
                                             {formattedValue}
                                           </p>
                                         </TooltipContent>
@@ -1446,7 +1440,7 @@ export function TableViewer({
 
               {/* Pagination Footer */}
               <footer className="flex items-center justify-between border-t border-border px-6 py-3">
-                <div className="text-sm text-muted-foreground">
+                <div className="text-body-muted">
                   {isLoading ? (
                     <span className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1486,7 +1480,7 @@ export function TableViewer({
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
 
-                  <span className="px-2 text-sm text-foreground">
+                  <span className="text-body px-2">
                     Page {pagination.page} of {pagination.totalPages}
                   </span>
 

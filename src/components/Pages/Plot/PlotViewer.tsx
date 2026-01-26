@@ -208,7 +208,7 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
     <div ref={containerRef} className="relative flex h-screen flex-col bg-background">
       {/* Header - compact styling */}
       <header className="flex-shrink-0 border-b border-border px-3 py-1.5">
-        <h1 className="text-sm font-medium text-foreground">{displayTitle}</h1>
+        <h1 className="text-title">{displayTitle}</h1>
       </header>
 
       {/* Plot Container */}

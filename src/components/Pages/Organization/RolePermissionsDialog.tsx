@@ -82,7 +82,7 @@ const RolePermissionsDialog = ({
           {!role.isSystemRole && (
             <div className="flex items-end gap-2">
               <div className="flex-1 space-y-2">
-                <label className="text-sm font-medium">Add Permission</label>
+                <label className="text-title">Add Permission</label>
                 <Select value={selectedPermissionId} onValueChange={setSelectedPermissionId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a permission to add" />
@@ -95,7 +95,7 @@ const RolePermissionsDialog = ({
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="p-2 text-center text-sm text-muted-foreground">
+                      <div className="text-body-muted p-2 text-center">
                         No available permissions to add
                       </div>
                     )}
@@ -112,17 +112,17 @@ const RolePermissionsDialog = ({
 
           {/* Permissions List */}
           <div>
-            <h4 className="mb-3 text-sm font-medium">Assigned Permissions</h4>
+            <h4 className="text-title mb-3">Assigned Permissions</h4>
             <ScrollArea className="h-[400px] rounded-md border p-4">
               {role.permissions.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">
+                <p className="text-body-muted py-4 text-center">
                   No permissions assigned to this role.
                 </p>
               ) : (
                 <div className="space-y-6">
                   {Object.entries(groupedPermissions).map(([resource, perms]) => (
                     <div key={resource}>
-                      <h5 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                      <h5 className="text-label text-semibold mb-2 flex items-center gap-2 uppercase text-muted-foreground">
                         {getResourceIcon(resource)} {resource}
                       </h5>
                       <div className="grid grid-cols-1 gap-1">
@@ -132,11 +132,9 @@ const RolePermissionsDialog = ({
                             className="group flex items-start justify-between rounded-md p-2 transition-colors hover:bg-muted"
                           >
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-sm font-medium">{p.name}</span>
+                              <span className="text-title">{p.name}</span>
                               {p.description && (
-                                <span className="text-xs text-muted-foreground">
-                                  {p.description}
-                                </span>
+                                <span className="text-caption">{p.description}</span>
                               )}
                               <span className="mt-0.5 font-mono text-[10px] text-muted-foreground opacity-50">
                                 {p.action}

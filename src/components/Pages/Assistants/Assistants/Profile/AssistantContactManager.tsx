@@ -537,8 +537,8 @@ export function AssistantContactManager({
         {confirmDelete ? (
           <div className="py-8 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-            <h3 className="mt-4 text-lg font-medium">Are you sure?</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            <h3 className="text-h2 mt-4">Are you sure?</h3>
+            <p className="text-body-muted mx-auto mt-2 max-w-sm">
               Deleting the {confirmDelete} contact method is irreversible. You can add a new one
               again at any time.
             </p>

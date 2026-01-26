@@ -46,7 +46,7 @@ export function AssistantCommunicationMainView({
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-4 text-sm text-muted-foreground">{loadingMessage}</p>
+        <p className="text-body-muted mt-4">{loadingMessage}</p>
       </div>
     );
   }
@@ -55,7 +55,7 @@ export function AssistantCommunicationMainView({
     return (
       <div className="flex flex-col items-center justify-center p-4 text-center">
         <AlertTriangle className="mb-4 h-8 w-8 text-destructive" />
-        <h3 className="text-lg font-semibold text-foreground">Connection Issue</h3>
+        <h3 className="text-h2 text-semibold text-foreground">Connection Issue</h3>
         <p className="text-body mt-2 text-muted-foreground">{connectionError}</p>
         {onRetry && (
           <div className="mt-6">

@@ -75,8 +75,8 @@ const AnimationProgressToast = ({
   return (
     <div className="group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border bg-background p-4 pr-6 text-foreground shadow-lg">
       <div className="flex flex-grow flex-col gap-1.5">
-        <div className="text-sm font-semibold">Animating photo{dots}</div>
-        <div className="text-sm opacity-90">This can take up to a minute.</div>
+        <div className="text-title text-semibold">Animating photo{dots}</div>
+        <div className="text-body opacity-90">This can take up to a minute.</div>
         <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="absolute left-0 top-0 h-full rounded-full bg-primary transition-all duration-1000 ease-linear"

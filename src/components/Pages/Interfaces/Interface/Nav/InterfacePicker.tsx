@@ -112,7 +112,7 @@ export function InterfacePicker({
             ) : (
               renderSidebarIcon(displayInterface?.icon, 'h-3.5 w-3.5 flex-shrink-0', 'interface')
             )}
-            <span className="truncate text-xs">{displayName || 'Select interface'}</span>
+            <span className="text-label truncate">{displayName || 'Select interface'}</span>
           </div>
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
@@ -130,13 +130,13 @@ export function InterfacePicker({
         <Command>
           <CommandInput
             placeholder="Search interfaces..."
-            className="text-xs"
+            className="text-label"
             data-testid="interface-search-input"
           />
           <CommandList className="max-h-[300px] overflow-hidden p-0">
             <ScrollArea className="h-[250px]">
               {!isLoading && !isFetching && interfaces.length > 0 && (
-                <CommandEmpty className="px-2 py-3 text-xs">No interface found.</CommandEmpty>
+                <CommandEmpty className="text-label px-2 py-3">No interface found.</CommandEmpty>
               )}
               <CommandGroup>
                 {isLoading || isFetching ? (
@@ -145,11 +145,11 @@ export function InterfacePicker({
                     data-testid="interface-picker-loading"
                   >
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    <div className="text-xs text-muted-foreground">Loading interfaces...</div>
+                    <div className="text-caption">Loading interfaces...</div>
                   </div>
                 ) : interfaces.length === 0 ? (
                   <div
-                    className="p-3 text-center text-xs text-muted-foreground"
+                    className="text-caption p-3 text-center"
                     data-testid="interface-picker-empty"
                   >
                     <svg
@@ -178,7 +178,7 @@ export function InterfacePicker({
                         value={iface.name}
                         onSelect={() => handleSelect(iface.name)}
                         className={cn(
-                          'max-w-full overflow-hidden text-xs',
+                          'text-label max-w-full overflow-hidden',
                           isSelected && !isInterfaceLoading && 'bg-accent'
                         )}
                         data-testid={`interface-option-${iface.name}`}

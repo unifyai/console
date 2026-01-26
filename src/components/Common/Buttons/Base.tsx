@@ -1,17 +1,8 @@
 import { Button } from '@/components/UI/button';
-import { ReactNode } from 'react';
+import { ReactNode, forwardRef } from 'react';
 import { MouseEventHandler, KeyboardEventHandler } from 'react';
-export default function BaseButton({
-  text,
-  icon,
-  variant,
-  disabled = false,
-  type,
-  size = 'sm',
-  onClick,
-  className,
-  onKeyDown,
-}: {
+
+interface BaseButtonProps {
   text?: string;
   variant?:
     | 'default'
@@ -30,18 +21,30 @@ export default function BaseButton({
   onClick?: MouseEventHandler<HTMLButtonElement>;
   className?: string;
   onKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
-}) {
-  return (
-    <Button
-      disabled={disabled}
-      variant={variant}
-      size={size}
-      type={type}
-      onClick={onClick}
-      className={className}
-      onKeyDown={onKeyDown}
-    >
-      {icon} {text}
-    </Button>
-  );
 }
+
+const BaseButton = forwardRef<HTMLButtonElement, BaseButtonProps>(
+  (
+    { text, icon, variant, disabled = false, type, size = 'sm', onClick, className, onKeyDown },
+    ref
+  ) => {
+    return (
+      <Button
+        ref={ref}
+        disabled={disabled}
+        variant={variant}
+        size={size}
+        type={type}
+        onClick={onClick}
+        className={className}
+        onKeyDown={onKeyDown}
+      >
+        {icon} {text}
+      </Button>
+    );
+  }
+);
+
+BaseButton.displayName = 'BaseButton';
+
+export default BaseButton;

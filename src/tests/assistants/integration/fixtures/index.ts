@@ -33,6 +33,16 @@ export {
   getChatBubbles,
   getChatInput,
   getSendButton,
+  // File Attachment Helpers
+  createTestFile,
+  testFiles,
+  simulateFileDrop,
+  getAttachButton,
+  getAttachmentChips,
+  getAttachmentChipNames,
+  removeAttachmentChip,
+  isDragActiveVisible,
+  getMessageAttachments,
   // Types
   type MockChatActionsOptions,
   type ChatTestHarnessProps,

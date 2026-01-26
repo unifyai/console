@@ -229,21 +229,21 @@ export function OneTimeLinkTable({
                 </div>
               </TableCell>
               <TableCell
-                className={cn('text-center text-xs', isExpired && !isClaimed && 'opacity-60')}
+                className={cn('text-label text-center', isExpired && !isClaimed && 'opacity-60')}
               >
                 {formatDistanceToNowStrict(new Date(link.expiresAt), { addSuffix: true })}
               </TableCell>
               <TableCell className={cn('text-center', isExpired && !isClaimed && 'opacity-60')}>
                 <Badge
                   variant="outline"
-                  className={cn('whitespace-nowrap px-2 py-0.5 text-xs capitalize', statusColor)}
+                  className={cn('text-label whitespace-nowrap px-2 py-0.5 capitalize', statusColor)}
                 >
                   <StatusIcon className="mr-1.5 h-3 w-3" />
                   {statusText}
                 </Badge>
               </TableCell>
               <TableCell
-                className={cn('truncate text-xs', isExpired && !isClaimed && 'opacity-60')}
+                className={cn('text-label truncate', isExpired && !isClaimed && 'opacity-60')}
                 title={link.claimedByEmail || link.userId || undefined}
               >
                 {link.claimedByEmail ||
@@ -289,7 +289,7 @@ export function OneTimeLinkTable({
               <AlertDialogDescription>
                 Are you sure you want to delete this one-time approval link?
                 <br />
-                <span className="mt-1 inline-block rounded bg-muted p-1 font-mono text-xs">
+                <span className="text-code-sm mt-1 inline-block rounded bg-muted p-1">
                   {confirmDelete.token}
                 </span>
                 <br />

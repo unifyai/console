@@ -372,8 +372,8 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
     return (
       <div className="w-full space-y-8">
         <div className="mb-6">
-          <h3 className="mb-3 text-xl font-semibold">Tax Classification</h3>
-          <p className="text-base text-muted-foreground">
+          <h3 className="text-h1 text-semibold mb-3">Tax Classification</h3>
+          <p className="text-body-lg-muted">
             {initialData?.accountType
               ? 'Review and update your tax classification information as needed.'
               : 'To comply with tax regulations, please provide your account classification information.'}
@@ -383,7 +383,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
         <div className="space-y-8">
           {/* Account Type Selection */}
           <div className="space-y-4">
-            <Label className="text-base font-medium">Account Type</Label>
+            <Label className="text-label">Account Type</Label>
             <RadioGroup
               value={formData.accountType}
               onValueChange={(value: AccountType) => handleInputChange('accountType', value)}
@@ -391,13 +391,13 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
             >
               <div className="hover:bg-accent/10 flex items-center space-x-3 rounded-lg border p-6 transition-colors">
                 <RadioGroupItem value="individual" id="individual" className="h-5 w-5" />
-                <Label htmlFor="individual" className="cursor-pointer text-base font-medium">
+                <Label htmlFor="individual" className="text-body text-strong cursor-pointer">
                   Individual
                 </Label>
               </div>
               <div className="hover:bg-accent/10 flex items-center space-x-3 rounded-lg border p-6 transition-colors">
                 <RadioGroupItem value="business" id="business" className="h-5 w-5" />
-                <Label htmlFor="business" className="cursor-pointer text-base font-medium">
+                <Label htmlFor="business" className="text-body text-strong cursor-pointer">
                   Business
                 </Label>
               </div>
@@ -407,11 +407,11 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
           {/* Business Information Section */}
           {formData.accountType === 'business' && (
             <div className="space-y-6 border-t pt-8">
-              <h3 className="text-xl font-semibold">Business Information</h3>
+              <h3 className="text-h1 text-semibold">Business Information</h3>
 
               {/* Business Name */}
               <div className="space-y-3">
-                <Label htmlFor="businessName" className="text-base font-medium">
+                <Label htmlFor="businessName" className="text-label">
                   Business Name *
                 </Label>
                 <Input
@@ -420,20 +420,20 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                   onChange={(e) => handleInputChange('businessName', e.target.value)}
                   placeholder="Enter your business name"
                   required
-                  className="h-12 text-base"
+                  className="h-12"
                 />
               </div>
 
               {/* Business Type */}
               <div className="space-y-3">
-                <Label htmlFor="businessType" className="text-base font-medium">
+                <Label htmlFor="businessType" className="text-label">
                   Business Type *
                 </Label>
                 <Select
                   value={formData.businessType}
                   onValueChange={(value) => handleInputChange('businessType', value)}
                 >
-                  <SelectTrigger className="h-12 text-base">
+                  <SelectTrigger className="h-12">
                     <SelectValue placeholder="Select business type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -448,7 +448,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
 
               {/* Tax Country */}
               <div className="space-y-3">
-                <Label htmlFor="taxCountry" className="text-base font-medium">
+                <Label htmlFor="taxCountry" className="text-label">
                   Tax Country *
                 </Label>
                 <Select
@@ -456,7 +456,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                   onValueChange={(value) => handleInputChange('taxCountry', value)}
                   disabled={loadingCountries}
                 >
-                  <SelectTrigger className="h-12 text-base">
+                  <SelectTrigger className="h-12">
                     <SelectValue
                       placeholder={loadingCountries ? 'Loading countries...' : 'Select tax country'}
                     />
@@ -473,7 +473,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
 
               {/* Tax ID */}
               <div className="space-y-3">
-                <Label htmlFor="taxId" className="text-base font-medium">
+                <Label htmlFor="taxId" className="text-label">
                   {selectedCountry?.taxIdName || 'Tax ID'} *
                 </Label>
                 <div className="relative">
@@ -483,7 +483,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                     onChange={(e) => handleInputChange('taxId', e.target.value)}
                     placeholder={selectedCountry?.taxIdFormat || 'Enter tax ID'}
                     required
-                    className="h-12 text-base"
+                    className="h-12"
                   />
                   {validatingTaxId && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 transform">
@@ -501,16 +501,16 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                   )}
                 </div>
                 {taxIdValidation && !taxIdValidation.valid && (
-                  <p className="text-sm text-destructive">{taxIdValidation.errorMessage}</p>
+                  <p className="text-body text-error">{taxIdValidation.errorMessage}</p>
                 )}
               </div>
 
               {/* Business Address */}
               <div className="space-y-4">
-                <Label className="text-base font-semibold">Business Address</Label>
+                <Label className="text-title text-semibold">Business Address</Label>
 
                 <div className="space-y-3">
-                  <Label htmlFor="addressLine1" className="text-base font-medium">
+                  <Label htmlFor="addressLine1" className="text-label">
                     Address Line 1 *
                   </Label>
                   <Input
@@ -519,12 +519,12 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                     onChange={(e) => handleAddressChange('addressLine1', e.target.value)}
                     placeholder="Street address"
                     required
-                    className="h-12 text-base"
+                    className="h-12"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="addressLine2" className="text-base font-medium">
+                  <Label htmlFor="addressLine2" className="text-label">
                     Address Line 2
                   </Label>
                   <Input
@@ -532,13 +532,13 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                     value={formData.businessAddress.addressLine2}
                     onChange={(e) => handleAddressChange('addressLine2', e.target.value)}
                     placeholder="Apartment, suite, unit, etc. (optional)"
-                    className="h-12 text-base"
+                    className="h-12"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-3">
-                    <Label htmlFor="city" className="text-base font-medium">
+                    <Label htmlFor="city" className="text-label">
                       City *
                     </Label>
                     <Input
@@ -547,11 +547,11 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       placeholder="City"
                       required
-                      className="h-12 text-base"
+                      className="h-12"
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label htmlFor="state" className="text-base font-medium">
+                    <Label htmlFor="state" className="text-label">
                       State/Province
                     </Label>
                     <Input
@@ -559,14 +559,14 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                       value={formData.businessAddress.state}
                       onChange={(e) => handleAddressChange('state', e.target.value)}
                       placeholder="State or Province"
-                      className="h-12 text-base"
+                      className="h-12"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-3">
-                    <Label htmlFor="country" className="text-base font-medium">
+                    <Label htmlFor="country" className="text-label">
                       Country *
                     </Label>
                     <Input
@@ -575,11 +575,11 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                       onChange={(e) => handleAddressChange('country', e.target.value)}
                       placeholder="Country"
                       required
-                      className="h-12 text-base"
+                      className="h-12"
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label htmlFor="postalCode" className="text-base font-medium">
+                    <Label htmlFor="postalCode" className="text-label">
                       Postal Code
                     </Label>
                     <Input
@@ -587,7 +587,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                       value={formData.businessAddress.postalCode}
                       onChange={(e) => handleAddressChange('postalCode', e.target.value)}
                       placeholder="Postal code"
-                      className="h-12 text-base"
+                      className="h-12"
                     />
                   </div>
                 </div>
@@ -601,7 +601,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
                   onCheckedChange={(checked) => handleInputChange('taxExempt', !!checked)}
                   className="h-5 w-5"
                 />
-                <Label htmlFor="taxExempt" className="cursor-pointer text-base font-medium">
+                <Label htmlFor="taxExempt" className="text-body text-strong cursor-pointer">
                   Tax Exempt Organization
                 </Label>
               </div>

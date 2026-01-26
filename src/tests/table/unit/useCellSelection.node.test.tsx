@@ -10,7 +10,7 @@
  * - Copy callback (Ctrl+C)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useCellSelection } from '@/components/Pages/Table/useCellSelection';
 import type { Table, Cell, Row, Column } from '@tanstack/react-table';
@@ -58,7 +58,7 @@ function createMockTable(rowCount: number, columnIds: string[]): Table<Record<st
 
 let mockTable: Table<Record<string, unknown>>;
 let selectedCells: string[];
-let setSelectedCells: ReturnType<typeof vi.fn>;
+let setSelectedCells: Mock<(cells: string[]) => void>;
 
 beforeEach(() => {
   mockTable = createMockTable(5, ['name', 'status', 'value']);

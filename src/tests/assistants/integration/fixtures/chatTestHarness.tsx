@@ -19,6 +19,7 @@
  */
 import * as React from 'react';
 import { vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
 import { createMockAssistant } from '../../mocks/data';
 import { mockAssistantActions } from '../../mocks/actions';
@@ -185,11 +186,13 @@ export interface MockChatActionsOptions {
     ownerContext: string,
     assistantContext: string,
     contactId: number,
+    ownerId: string,
+    assistantId: string,
     beforeMessageId?: number
   ) => Promise<ChatMessage[] | { detail: string }>;
   /** Mock implementation for message */
   message?: (payload: {
-    assistantId: string;
+    assistantId: number;
     contactId: number;
     message: string;
   }) => Promise<{ info?: string; detail?: string }>;
@@ -197,17 +200,39 @@ export interface MockChatActionsOptions {
 
 /**
  * Create mock chat actions with configurable behavior.
+ * Returns type-compatible mock for AssistantActions['chat'].
  */
-export function createMockChatActions(options: MockChatActionsOptions = {}) {
+export function createMockChatActions(
+  options: MockChatActionsOptions = {}
+): AssistantActions['chat'] {
   const { contactId = 1, getTranscripts, message } = options;
 
   return {
-    getContactId: vi.fn(async () => contactId),
-    getTranscripts: getTranscripts ? vi.fn(getTranscripts) : vi.fn(async () => [] as ChatMessage[]),
+    getContactId: vi.fn(
+      async (
+        _ownerContext: string,
+        _assistantContext: string,
+        _userEmail: string,
+        _ownerId: string,
+        _assistantId: string
+      ) => contactId
+    ),
+    getTranscripts: getTranscripts
+      ? vi.fn(getTranscripts)
+      : vi.fn(
+          async (
+            _ownerContext: string,
+            _assistantContext: string,
+            _contactId: number,
+            _ownerId: string,
+            _assistantId: string,
+            _beforeMessageId?: number
+          ) => [] as ChatMessage[]
+        ),
     message: message ? vi.fn(message) : vi.fn(async () => ({ info: 'Message sent' })),
     getAssistantOwnerById: vi.fn(async () => ({ firstName: 'Test', lastName: 'Owner' })),
     triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
-  };
+  } as AssistantActions['chat'];
 }
 
 // =============================================================================
@@ -371,7 +396,7 @@ export function getChatBubbles(screen: { queryAllByTestId: (id: string) => HTMLE
 export function getChatInput(screen: {
   getByPlaceholderText: (text: string | RegExp) => HTMLElement;
 }) {
-  return screen.getByPlaceholderText(/type a message/i) as HTMLInputElement;
+  return screen.getByPlaceholderText(/send a message/i) as HTMLInputElement;
 }
 
 /**
@@ -381,4 +406,127 @@ export function getSendButton(screen: {
   getByRole: (role: string, options?: { name?: string | RegExp }) => HTMLElement;
 }) {
   return screen.getByRole('button', { name: /send/i });
+}
+
+// =============================================================================
+// FILE ATTACHMENT HELPERS
+// =============================================================================
+
+/**
+ * Create a test file for attachment testing.
+ * Compatible with react-dropzone file handling.
+ */
+export function createTestFile(name: string, content: string, type: string): File {
+  const blob = new Blob([content], { type });
+  return new File([blob], name, { type });
+}
+
+/**
+ * Create common test files for different file types.
+ */
+export const testFiles = {
+  pdf: () => createTestFile('report.pdf', 'PDF content', 'application/pdf'),
+  docx: () =>
+    createTestFile(
+      'document.docx',
+      'DOCX content',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ),
+  xlsx: () =>
+    createTestFile(
+      'spreadsheet.xlsx',
+      'XLSX content',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ),
+  png: () => createTestFile('image.png', 'PNG content', 'image/png'),
+  txt: () => createTestFile('notes.txt', 'Text content', 'text/plain'),
+  json: () => createTestFile('data.json', '{"key": "value"}', 'application/json'),
+  zip: () => createTestFile('archive.zip', 'ZIP content', 'application/zip'),
+  generic: () => createTestFile('file.xyz', 'Unknown content', 'application/octet-stream'),
+  large: () => {
+    // Create 11MB file (over limit)
+    const content = 'x'.repeat(11 * 1024 * 1024);
+    return createTestFile('large.pdf', content, 'application/pdf');
+  },
+};
+
+/**
+ * Simulate file drop via react-dropzone.
+ * Uses userEvent.upload() for proper browser test compatibility.
+ */
+export async function simulateFileDrop(
+  container: HTMLElement,
+  files: File[],
+  user: ReturnType<typeof userEvent.setup>
+): Promise<void> {
+  const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+  if (!fileInput) {
+    throw new Error('Could not find file input element');
+  }
+  await user.upload(fileInput, files);
+}
+
+/**
+ * Query helper to find the paperclip (attach) button.
+ */
+export function getAttachButton(screen: {
+  getByRole: (role: string, options?: { name?: string | RegExp }) => HTMLElement;
+}) {
+  return screen.getByRole('button', { name: /attach/i });
+}
+
+/**
+ * Query helper to find all pending attachment chips (above input).
+ */
+export function getAttachmentChips(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll('[data-testid="pending-attachment-chip"]'));
+}
+
+/**
+ * Query helper to get pending attachment chip filenames.
+ */
+export function getAttachmentChipNames(container: HTMLElement): string[] {
+  return getAttachmentChips(container).map(
+    (chip) => chip.querySelector('[data-testid="attachment-name"]')?.textContent || ''
+  );
+}
+
+/**
+ * Remove a pending attachment chip by clicking its remove button.
+ */
+export async function removeAttachmentChip(
+  container: HTMLElement,
+  filename: string,
+  user: ReturnType<typeof userEvent.setup>
+): Promise<void> {
+  const chips = Array.from(container.querySelectorAll('[data-testid="pending-attachment-chip"]'));
+  for (const chip of chips) {
+    const nameEl = chip.querySelector('[data-testid="attachment-name"]');
+    if (nameEl?.textContent?.includes(filename)) {
+      const removeBtn = chip.querySelector('[data-testid="attachment-remove"]');
+      if (removeBtn) {
+        await user.click(removeBtn as HTMLElement);
+        return;
+      }
+    }
+  }
+  throw new Error(`Could not find pending attachment chip for: ${filename}`);
+}
+
+/**
+ * Query helper to check if drag-active state is visible.
+ */
+export function isDragActiveVisible(container: HTMLElement): boolean {
+  const dropzone = container.querySelector('[data-testid="chat-dropzone"]');
+  return dropzone?.classList.contains('ring-2') || false;
+}
+
+/**
+ * Get attachment chips displayed in a sent message bubble.
+ */
+export function getMessageAttachments(messageBubble: HTMLElement): string[] {
+  const chips = messageBubble.querySelectorAll('[data-testid="message-attachment"]');
+  return Array.from(chips).map(
+    (chip) => chip.querySelector('[data-testid="attachment-name"]')?.textContent || ''
+  );
 }

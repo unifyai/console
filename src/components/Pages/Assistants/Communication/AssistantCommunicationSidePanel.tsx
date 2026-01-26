@@ -61,7 +61,7 @@ export function AssistantCommunicationSidePanel({
   const renderSettings = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="camera-select" className="flex items-center gap-2 text-sm font-medium">
+        <Label htmlFor="camera-select" className="text-title flex items-center gap-2">
           <Video className="h-4 w-4" /> Camera
         </Label>
         <Select
@@ -88,7 +88,7 @@ export function AssistantCommunicationSidePanel({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="mic-select" className="flex items-center gap-2 text-sm font-medium">
+        <Label htmlFor="mic-select" className="text-title flex items-center gap-2">
           <Mic className="h-4 w-4" /> Microphone
         </Label>
         <Select
@@ -115,7 +115,7 @@ export function AssistantCommunicationSidePanel({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="speaker-select" className="flex items-center gap-2 text-sm font-medium">
+        <Label htmlFor="speaker-select" className="text-title flex items-center gap-2">
           <Volume2 className="h-4 w-4" /> Speaker
         </Label>
         <Select
@@ -157,7 +157,7 @@ export function AssistantCommunicationSidePanel({
       <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2.5">
         <div className="flex items-center gap-2">
           {headerContent[panelType].icon}
-          <h3 className="text-sm font-semibold">{headerContent[panelType].title}</h3>
+          <h3 className="text-title text-semibold">{headerContent[panelType].title}</h3>
         </div>
         <Button
           variant="ghost"

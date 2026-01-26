@@ -79,7 +79,7 @@ const Login = () => {
           initial={{ y: '100vh' }}
           animate={{ y: 0 }}
           transition={{ type: 'spring', bounce: 0.1 }}
-          className="border-1 z-[200] mt-20 rounded-3xl border-[#F5F5F5] p-6 backdrop-blur-lg"
+          className="border-1 z-[200] mt-20 rounded-3xl border-[var(--white-smoke)] p-6 backdrop-blur-lg"
         >
           <div className="max-h-screen w-screen overflow-y-auto overflow-x-hidden rounded-lg bg-background p-8 md:p-24 xl:w-[1280px] xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
             <motion.div

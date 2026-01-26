@@ -107,7 +107,7 @@ export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPr
 
       <div className="min-w-0 flex-1">
         <div className="font-medium text-foreground">{label}</div>
-        <div className="truncate text-xs text-muted-foreground">{embed.token}</div>
+        <div className="text-caption truncate">{embed.token}</div>
       </div>
 
       <div className="flex shrink-0 gap-1">
@@ -180,7 +180,7 @@ export function InlineEmbedExpanded({
       <div className="bg-muted/30 flex items-center justify-between border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">{label}</span>
+          <span className="text-title">{label}</span>
         </div>
         <div className="flex gap-1">
           <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0" title="Open in new tab">

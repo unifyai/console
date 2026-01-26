@@ -64,7 +64,7 @@ const LoginVerify = ({ url }: LoginVerifyProps) => {
               >
                 Account
               </Button>
-              <p className="mt-10 w-full text-start text-xs text-gray-500">
+              <p className="text-caption mt-10 w-full text-start text-gray-500">
                 If you did not try to sign-up you can safely ignore this email
               </p>
             </div>

@@ -452,7 +452,7 @@ export default function TimestampView({
                 </div>
 
                 {/* → Arrow */}
-                <div className="mx-2 text-xl font-bold">→</div>
+                <div className="text-h1 text-bold mx-2">→</div>
 
                 {/* Comparable block */}
                 <div className="group relative rounded border p-2">
@@ -466,7 +466,7 @@ export default function TimestampView({
                 </div>
 
                 {/* = difference */}
-                <div className="mx-2 text-xl font-bold">=</div>
+                <div className="text-h1 text-bold mx-2">=</div>
 
                 {/* Difference block */}
                 <div className="group relative min-w-24 rounded border p-2">

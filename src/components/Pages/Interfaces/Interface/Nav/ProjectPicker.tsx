@@ -122,7 +122,7 @@ export function ProjectPicker({
             ) : (
               renderSidebarIcon(displayIcon, 'h-3.5 w-3.5 flex-shrink-0', 'project')
             )}
-            <span className="truncate text-xs">{displayProject || 'Select project'}</span>
+            <span className="text-label truncate">{displayProject || 'Select project'}</span>
           </div>
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
@@ -140,19 +140,19 @@ export function ProjectPicker({
         <Command>
           <CommandInput
             placeholder="Search projects..."
-            className="text-xs"
+            className="text-label"
             data-testid="project-search-input"
           />
           <CommandList className="max-h-[300px] overflow-hidden p-0">
             <ScrollArea className="h-[250px]">
               {!isLoading && !isFetching && (
-                <CommandEmpty className="px-2 py-3 text-xs">No project found.</CommandEmpty>
+                <CommandEmpty className="text-label px-2 py-3">No project found.</CommandEmpty>
               )}
               <CommandGroup>
                 {isError ? (
                   <div className="p-3 text-center" data-testid="project-picker-error">
-                    <p className="mb-2 text-xs text-destructive">Failed to load projects</p>
-                    <Button size="sm" variant="ghost" onClick={onRefresh} className="text-xs">
+                    <p className="text-label text-error mb-2">Failed to load projects</p>
+                    <Button size="sm" variant="ghost" onClick={onRefresh} className="text-label">
                       <RefreshCw className="mr-1 h-3 w-3" />
                       Retry
                     </Button>
@@ -163,13 +163,10 @@ export function ProjectPicker({
                     data-testid="project-picker-loading"
                   >
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    <div className="text-xs text-muted-foreground">Loading projects...</div>
+                    <div className="text-caption">Loading projects...</div>
                   </div>
                 ) : projects.length === 0 ? (
-                  <div
-                    className="p-3 text-center text-xs text-muted-foreground"
-                    data-testid="project-picker-empty"
-                  >
+                  <div className="text-caption p-3 text-center" data-testid="project-picker-empty">
                     <svg
                       className="text-muted-foreground/50 mx-auto mb-2 h-6 w-6"
                       fill="none"
@@ -196,7 +193,7 @@ export function ProjectPicker({
                         value={project.projectName}
                         onSelect={() => handleSelect(project.projectName)}
                         className={cn(
-                          'max-w-full overflow-hidden text-xs',
+                          'text-label max-w-full overflow-hidden',
                           isSelected && !isProjectLoading && 'bg-accent'
                         )}
                         data-testid={`project-option-${project.projectName}`}

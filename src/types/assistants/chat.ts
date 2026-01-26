@@ -1,3 +1,22 @@
+export type AttachmentType =
+  | 'pdf'
+  | 'word'
+  | 'excel'
+  | 'powerpoint'
+  | 'image'
+  | 'text'
+  | 'code'
+  | 'archive'
+  | 'generic';
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: AttachmentType;
+  file?: File;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'assistant' | 'user';
@@ -5,6 +24,7 @@ export interface ChatMessage {
   timestamp: Date;
   messageId?: number;
   __ackId?: string;
+  attachments?: ChatAttachment[];
 }
 
 export type ChatRole = 'user' | 'system' | 'assistant';

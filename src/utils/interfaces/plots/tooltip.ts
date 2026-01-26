@@ -35,7 +35,7 @@ export const tooltipTemplate = (data: InfoCardData) => {
   // Instructions to pin the tooltip
   template += `
         <div class="border-b border-border my-2"></div>
-        <p class="text-xs text-muted-foreground flex items-center gap-1">
+        <p class="text-caption flex items-center gap-1">
             <span class="inline-block" aria-hidden="true">ⓘ</span>
             <span class="italic">Click to pin in the foldable menu</span>
         </p>
@@ -145,7 +145,7 @@ function renderFixedTooltipContent(
     ) => {
       const itemDiv = parent.append('div').attr('class', 'flex items-center justify-between gap-2');
       const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
-      textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
+      textDiv.append('p').attr('class', 'text-caption truncate').text(label);
       if (value != null) {
         textDiv.append('p').attr('class', 'font-semibold truncate text-sm').text(value);
       }

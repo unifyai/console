@@ -96,7 +96,7 @@ export default function TopNav() {
           setAvatarJSX(
             <Avatar className="h-6 w-6">
               <AvatarImage src={imageUrl} alt="User Avatar" />
-              <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
+              <AvatarFallback className="text-label">{getInitials(userName)}</AvatarFallback>
             </Avatar>
           );
         }
@@ -143,7 +143,7 @@ export default function TopNav() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="h-6 gap-1.5 px-2 text-sm text-muted-foreground hover:text-foreground"
+                    className="text-body-muted h-6 gap-1.5 px-2 hover:text-foreground"
                   >
                     {activeWorkspace.type === 'personal' ? (
                       <User className="h-3.5 w-3.5" />
@@ -155,9 +155,7 @@ export default function TopNav() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[200px]" align="start">
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Personal
-                  </DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
                   {workspaces
                     .filter((w) => w.type === 'personal')
                     .map((w) => (
@@ -174,9 +172,7 @@ export default function TopNav() {
 
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Organizations
-                  </DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
                   {workspaces.filter((w) => w.type === 'organization').length === 0 && (
                     <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
                       No organizations
@@ -236,7 +232,7 @@ export default function TopNav() {
           {canManageBilling && (
             <Button
               variant="primary"
-              className="relative h-6 w-fit p-2 text-sm"
+              className="text-body relative h-6 w-fit p-2"
               onClick={(e) => window.open('/billing', '_blank')}
             >
               Upgrade
@@ -312,7 +308,7 @@ export default function TopNav() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 text-left">
               <p>Switching to your personal workspace means:</p>
-              <ul className="list-inside list-disc space-y-1 text-sm">
+              <ul className="text-body list-inside list-disc space-y-1">
                 <li>You will only see resources in your personal account</li>
                 <li>Organization resources will not be visible until you switch back</li>
                 <li>Any billable usage will be billed to your personal account</li>

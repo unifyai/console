@@ -50,7 +50,7 @@ function PinnedCard({
     >
       {/* Header with unpin button */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Pinned Datapoint</span>
+        <span className="text-label text-muted-foreground">Pinned Datapoint</span>
         {onUnpin && (
           <button
             onClick={(e) => {
@@ -111,8 +111,8 @@ function DataRow({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex-1 overflow-hidden">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <p className="truncate text-sm font-medium text-foreground">{String(value)}</p>
+        <span className="text-caption">{label}</span>
+        <p className="text-title truncate text-foreground">{String(value)}</p>
       </div>
       <button
         onClick={(e) => {
@@ -146,7 +146,7 @@ export function DrawerPinnedSection({
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-label text-semibold uppercase tracking-wide text-muted-foreground">
         Pinned ({pinnedDatapoints.length})
       </h3>
       <div className="flex flex-wrap gap-2">

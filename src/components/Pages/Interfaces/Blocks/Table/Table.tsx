@@ -106,6 +106,7 @@ import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { useTileSync } from '@/contexts/hooks/tile/sync';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import SettingButton from '@/components/Common/Buttons/Setting';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 import { Button } from '@/components/UI/button';
 import { useInfiniteLogsQuery } from '@/hooks/Interfaces/Query/useInfiniteLogsQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1114,10 +1115,12 @@ const LogsTable = ({
   const contextSelectorForPopover = projectId ? (
     <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
       <PopoverTrigger asChild>
-        <Button variant={inheritedContext ? 'primary' : 'outline'} size="sm" className="h-7">
-          <FolderTree className="mr-2 h-4 w-4" />
-          Context
-        </Button>
+        <Tooltip content="Filter logs by context">
+          <Button variant={inheritedContext ? 'primary' : 'outline'} size="sm" className="h-7">
+            <FolderTree className="mr-2 h-4 w-4" />
+            Context
+          </Button>
+        </Tooltip>
       </PopoverTrigger>
       <PopoverContent className="z-50 w-96 p-0">
         {treePicker((ctx) => {

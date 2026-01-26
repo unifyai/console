@@ -46,7 +46,7 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
               Continue with Github
             </div>
           </HallowButton>
-          <div className="text-branding-grey text-sm">
+          <div className="text-branding-grey text-body">
             {'By signing up you agree to our '}
             <a href="https://unify.ai/privacy-policy" className="font-semibold">
               Privacy Policy
@@ -61,7 +61,7 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
           </div>
         </div>
       </div>
-      <div className="hidden w-[1px] bg-[#DADADA] lg:block" />
+      <div className="hidden w-[1px] bg-[var(--border-light)] lg:block" />
       <div className="flex flex-col gap-[60px] text-xl lg:flex-[2]">
         <div className="text-branding-grey">Your Unify account lets you:</div>
         <div className="flex flex-col gap-[40px]">
@@ -90,7 +90,7 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
           {'Got any questions? Contact us at '}
           <a
             href="mailto:hello@unify.ai"
-            className="bg-gradient-to-br from-[#0A0C13] to-[#00B828] bg-clip-text font-semibold text-transparent"
+            className="bg-gradient-to-br from-[var(--near-black)] to-[var(--brand-green)] bg-clip-text font-semibold text-transparent"
           >
             hello@unify.ai
           </a>

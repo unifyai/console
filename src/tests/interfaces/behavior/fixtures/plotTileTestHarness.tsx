@@ -429,7 +429,7 @@ function PlotTileInner({
           >
             {/* Y axis label */}
             <div
-              className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-gray-500"
+              className="text-caption absolute left-2 top-1/2 -translate-y-1/2 -rotate-90"
               data-testid="y-axis-label"
             >
               {plotTile.yAxis}
@@ -437,7 +437,7 @@ function PlotTileInner({
 
             {/* X axis label */}
             <div
-              className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-gray-500"
+              className="text-caption absolute bottom-2 left-1/2 -translate-x-1/2"
               data-testid="x-axis-label"
             >
               {plotTile.xAxis}
@@ -558,7 +558,7 @@ function PlotTileInner({
             {/* Tooltip */}
             {hoveredPoint && (
               <div
-                className="pointer-events-none absolute rounded bg-gray-900 px-2 py-1 text-xs text-white"
+                className="text-label pointer-events-none absolute rounded bg-gray-900 px-2 py-1 text-white"
                 style={{ left: '50%', top: '10px' }}
                 data-testid="tooltip"
               >
@@ -569,7 +569,7 @@ function PlotTileInner({
             {/* Legend (when color by is set) */}
             {plotTile.plotGroupBy && (
               <div
-                className="absolute right-2 top-2 rounded border bg-white p-2 text-xs"
+                className="text-label absolute right-2 top-2 rounded border bg-white p-2"
                 data-testid="legend"
               >
                 <div className="mb-1 font-semibold">{plotTile.plotGroupBy}</div>
@@ -594,7 +594,7 @@ function PlotTileInner({
 
             {/* X Axis */}
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium">X Axis</label>
+              <label className="text-title mb-1 block">X Axis</label>
               <select
                 value={plotTile.xAxis || ''}
                 onChange={(e) => handleSetXAxis(e.target.value)}
@@ -611,7 +611,7 @@ function PlotTileInner({
 
             {/* Y Axis */}
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium">Y Axis</label>
+              <label className="text-title mb-1 block">Y Axis</label>
               <select
                 value={plotTile.yAxis || ''}
                 onChange={(e) => handleSetYAxis(e.target.value)}
@@ -628,7 +628,7 @@ function PlotTileInner({
 
             {/* Plot Type */}
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium">Plot Type</label>
+              <label className="text-title mb-1 block">Plot Type</label>
               <select
                 value={plotTile.plotType || 'scatter'}
                 onChange={(e) => handleSetPlotType(e.target.value as PlotType)}
@@ -644,7 +644,7 @@ function PlotTileInner({
 
             {/* Color By */}
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium">Color By</label>
+              <label className="text-title mb-1 block">Color By</label>
               <select
                 value={plotTile.plotGroupBy || ''}
                 onChange={(e) => handleSetColorBy(e.target.value || null)}
@@ -665,7 +665,7 @@ function PlotTileInner({
               plotTile.plotType === 'line' ||
               !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">X Scale</label>
+                <label className="text-title mb-1 block">X Scale</label>
                 <select
                   value={scaleX}
                   onChange={(e) => handleSetScaleX(e.target.value as ScaleType)}
@@ -683,7 +683,7 @@ function PlotTileInner({
               plotTile.plotType === 'line' ||
               !plotTile.plotType) && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">Y Scale</label>
+                <label className="text-title mb-1 block">Y Scale</label>
                 <select
                   value={scaleY}
                   onChange={(e) => handleSetScaleY(e.target.value as ScaleType)}
@@ -709,7 +709,7 @@ function PlotTileInner({
                     className="rounded"
                     data-testid="zoom-toggle"
                   />
-                  <span className="text-sm font-medium">Enable Zoom</span>
+                  <span className="text-title">Enable Zoom</span>
                 </label>
               </div>
             )}
@@ -725,7 +725,7 @@ function PlotTileInner({
                     className="rounded"
                     data-testid="regression-toggle"
                   />
-                  <span className="text-sm font-medium">Show Regression</span>
+                  <span className="text-title">Show Regression</span>
                 </label>
               </div>
             )}
@@ -733,7 +733,7 @@ function PlotTileInner({
             {/* Bin Count (for histogram) */}
             {plotTile.plotType === 'histogram' && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">
+                <label className="text-title mb-1 block">
                   Bin Count: <span data-testid="bin-count-value">{binCount}</span>
                 </label>
                 <input

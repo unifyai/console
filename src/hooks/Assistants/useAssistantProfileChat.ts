@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, BroadcastMessagePayload } from '@/types/assistants/chat';
+import { ChatMessage, BroadcastMessagePayload, ChatAttachment } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
@@ -632,10 +632,17 @@ export function useAssistantProfileChat(
   }, [messages, assistantId, setChatHistories]);
 
   // Send message with contact_id
-  const sendMessage = (e: React.FormEvent) => {
+  const sendMessage = (
+    e: React.FormEvent,
+    attachments?: ChatAttachment[],
+    onError?: (attachments: ChatAttachment[]) => void
+  ) => {
     e.preventDefault();
+
+    // Allow sending if there's text OR attachments
+    const hasContent = inputValue.trim() || (attachments && attachments.length > 0);
     if (
-      !inputValue.trim() ||
+      !hasContent ||
       isInitialLoading ||
       initialLoadError ||
       !assistant ||
@@ -657,6 +664,13 @@ export function useAssistantProfileChat(
       role: 'user',
       content: inputValue.trim(),
       timestamp: new Date(),
+      attachments: attachments?.map((a) => ({
+        id: a.id,
+        name: a.name,
+        size: a.size,
+        type: a.type,
+        // file: omitted - don't store File objects in history
+      })),
     };
 
     // 1. Update Local State (Optimistic)
@@ -704,6 +718,11 @@ export function useAssistantProfileChat(
         setInputValue(messageToSend);
         stopReplying();
         toast.error('Failed to send message.');
+
+        // Restore attachments if callback provided
+        if (onError && attachments && attachments.length > 0) {
+          onError(attachments);
+        }
       });
   };
 

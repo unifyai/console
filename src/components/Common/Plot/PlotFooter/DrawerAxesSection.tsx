@@ -16,16 +16,16 @@ import { DrawerAxesSectionProps } from '@/types/interfaces/plot-details';
 export function DrawerAxesSection({ axesInfo }: DrawerAxesSectionProps) {
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Axes</h3>
-      <div className="flex flex-wrap gap-4 text-sm">
+      <h3 className="text-label text-semibold uppercase tracking-wide text-muted-foreground">
+        Axes
+      </h3>
+      <div className="text-body flex flex-wrap gap-4">
         {/* X-Axis */}
         <div className="flex items-center gap-2">
           <span className="font-medium text-muted-foreground">X:</span>
           <span className="text-foreground">{axesInfo.x.label || axesInfo.x.field}</span>
           {axesInfo.x.scale && axesInfo.x.scale !== 'linear' && (
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              {axesInfo.x.scale}
-            </span>
+            <span className="text-caption rounded bg-muted px-1.5 py-0.5">{axesInfo.x.scale}</span>
           )}
         </div>
 
@@ -38,7 +38,7 @@ export function DrawerAxesSection({ axesInfo }: DrawerAxesSectionProps) {
               {axesInfo.y.metric && ` (${axesInfo.y.metric})`}
             </span>
             {axesInfo.y.scale && axesInfo.y.scale !== 'linear' && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              <span className="text-caption rounded bg-muted px-1.5 py-0.5">
                 {axesInfo.y.scale}
               </span>
             )}

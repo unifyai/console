@@ -547,7 +547,7 @@ export default function ChatOutView({
                       {asstParts.length > 0 && (
                         <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(asstParts[0].rowIndex)}>
-                            <div className="mb-2 flex w-full items-center justify-start text-sm">
+                            <div className="text-body mb-2 flex w-full items-center justify-start">
                               <TabsList className="justify-start">
                                 {asstParts.map((m) => (
                                   <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
@@ -634,7 +634,7 @@ export default function ChatOutView({
                       {userParts.length > 0 && (
                         <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(userParts[0].rowIndex)}>
-                            <div className="mb-2 flex w-full items-center justify-between text-sm">
+                            <div className="text-body mb-2 flex w-full items-center justify-between">
                               <TabsList className="justify-end">
                                 {userParts.map((m) => (
                                   <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
@@ -655,7 +655,7 @@ export default function ChatOutView({
                                 >
                                   <div className="w-full rounded border bg-background p-4 shadow-sm">
                                     <div className="mb-2 flex items-center justify-between">
-                                      <p className="text-sm font-bold">{label}</p>
+                                      <p className="text-title-bold">{label}</p>
                                       <CopyButton
                                         content={JSON.stringify(m.content)}
                                         copyMessage="Copied!"
@@ -683,7 +683,7 @@ export default function ChatOutView({
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
-                                        <p className="mb-1 text-sm font-bold">Tool Calls</p>
+                                        <p className="text-title-bold mb-1">Tool Calls</p>
                                         <CopyButton
                                           className="mb-1"
                                           content={JSON.stringify(m.toolCalls, null, 2)}

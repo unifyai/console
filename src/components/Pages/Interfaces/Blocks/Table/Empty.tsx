@@ -14,7 +14,9 @@ export const EmptyTable = () => {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="text-label bg-[#F5F4F4] py-2 text-center">Logs</TableHead>
+          <TableHead className="text-label bg-[var(--white-smoke)] py-2 text-center">
+            Logs
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
