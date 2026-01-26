@@ -43,7 +43,7 @@ const UpdateTeamDialog = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
-          <h3 className="text-lg font-medium">Update Team</h3>
+          <h3 className="text-h2">Update Team</h3>
           <Input
             placeholder="Team Name"
             value={name}

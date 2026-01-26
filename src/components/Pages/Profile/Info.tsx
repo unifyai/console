@@ -200,7 +200,7 @@ const UserInfo = ({
                     </Button>
                   </div>
                   {phoneState.verificationError && (
-                    <p className="mt-1 flex items-center gap-1.5 text-sm text-destructive">
+                    <p className="text-body text-error mt-1 flex items-center gap-1.5">
                       <AlertCircle className="h-3.5 w-3.5" />
                       {phoneState.verificationError}
                     </p>
@@ -230,7 +230,7 @@ const UserInfo = ({
               </div>
             )}
             {phoneState.verificationError && !isVerificationFlowActive && (
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-destructive">
+              <p className="text-body text-error mt-1 flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5" />
                 {phoneState.verificationError}
               </p>
@@ -238,9 +238,7 @@ const UserInfo = ({
             {phoneState.phoneNumber.trim() &&
               !phoneState.isPhoneVerified &&
               !phoneState.isVerifying && (
-                <p className="text-sm text-muted-foreground">
-                  Phone number must be verified before saving.
-                </p>
+                <p className="text-body-muted">Phone number must be verified before saving.</p>
               )}
           </div>
         </div>

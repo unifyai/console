@@ -1639,8 +1639,9 @@ export default function InterfaceNav({
 
   const getDefaultPrimary = () =>
     typeof window !== 'undefined'
-      ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2a862a'
-      : '#2a862a';
+      ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() ||
+        'var(--forest-green)'
+      : 'var(--forest-green)';
 
   const pickerColor = themeColor && themeColor.trim() !== '' ? themeColor : getDefaultPrimary();
   // Only show mode controls when there's a project, interface AND at least one tab
@@ -2953,7 +2954,10 @@ export default function InterfaceNav({
             body={
               <div className="space-y-4 pt-4">
                 <div className="flex justify-center">
-                  <HexColorPicker color={newTabColor || '#2a862a'} onChange={setNewTabColor} />
+                  <HexColorPicker
+                    color={newTabColor || 'var(--forest-green)'}
+                    onChange={setNewTabColor}
+                  />
                 </div>
                 <div className="flex justify-center">
                   <Button variant="outline" size="sm" onClick={() => setNewTabColor('')}>

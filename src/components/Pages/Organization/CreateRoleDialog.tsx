@@ -75,7 +75,7 @@ const CreateRoleDialog = ({ onCreate, availablePermissions }: CreateRoleDialogPr
               />
             </div>
             <div className="rounded-md border p-2">
-              <p className="mb-2 text-sm font-medium text-muted-foreground">Permissions</p>
+              <p className="text-title mb-2 text-muted-foreground">Permissions</p>
               <ScrollArea className="h-[200px]">
                 <div className="space-y-2">
                   {availablePermissions.map((p) => (
@@ -85,9 +85,9 @@ const CreateRoleDialog = ({ onCreate, availablePermissions }: CreateRoleDialogPr
                         checked={selectedPermissions.includes(p.id)}
                         onCheckedChange={() => togglePermission(p.id)}
                       />
-                      <Label htmlFor={`perm-${p.id}`} className="cursor-pointer text-sm">
+                      <Label htmlFor={`perm-${p.id}`} className="text-body cursor-pointer">
                         {p.name}{' '}
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption">
                           ({p.resourceType}:{p.action})
                         </span>
                       </Label>

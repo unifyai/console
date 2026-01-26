@@ -99,7 +99,7 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
     return (
       <div className="relative flex h-full w-full flex-col items-center justify-center p-2 text-center">
         <AlertTriangle className="mb-1 h-4 w-4 text-destructive" />
-        <p className="mb-1.5 px-1 text-center text-xs text-muted-foreground">{connectionError}</p>
+        <p className="text-caption mb-1.5 px-1 text-center">{connectionError}</p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

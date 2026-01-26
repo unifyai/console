@@ -807,7 +807,7 @@ export default function SelectionPanel({
     return (
       <div className="flex flex-col gap-2">
         <div className="sticky -top-0.5 z-10 flex items-center justify-between border-b border-muted bg-background py-2">
-          <p className="text-lg font-bold">Entries</p>
+          <p className="text-h2-bold">Entries</p>
           {!cellEditMode && (
             <ActionButton
               variant="ghost"

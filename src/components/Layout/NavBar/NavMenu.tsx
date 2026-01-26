@@ -475,7 +475,7 @@ export default function NavMenu() {
                 <div className="pl-5 group-data-[collapsible=icon]:pl-0">
                   <SidebarMenu className="space-y-0.5">
                     {state === 'expanded' && (
-                      <div className="pb-1 pl-1.5 pt-2 text-xs font-semibold uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
+                      <div className="text-label text-semibold pb-1 pl-1.5 pt-2 uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
                         Favourites
                       </div>
                     )}

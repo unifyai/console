@@ -203,7 +203,7 @@ const AutomaticRefill = () => {
               disabled={!isAutoRechargeEnabled}
             />
             {isAutoRechargeEnabled && (
-              <p className="mt-1 text-xs text-muted-foreground">Minimum recharge amount: $25</p>
+              <p className="text-caption mt-1">Minimum recharge amount: $25</p>
             )}
           </div>
           <Button onClick={handleSaveSettings} disabled={!hasChanges() || !isAutoRechargeEnabled}>

@@ -305,7 +305,7 @@ export default function MatrixView({
               )}
 
               <div className="diff-viewer-container space-y-2">
-                <div className="flex items-center gap-2 text-xs">
+                <div className="text-label flex items-center gap-2">
                   <RowBadge rowNumbers={[baseLogIndex]} mode={highlight ? 'delete' : 'none'} />
                   <RowBadge rowNumbers={grp.rows} mode={highlight ? 'insert' : 'none'} />
                 </div>

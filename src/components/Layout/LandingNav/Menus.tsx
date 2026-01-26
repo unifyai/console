@@ -29,14 +29,14 @@ const Menus = ({ selected }: MenusParams) => {
                 >
                   <a
                     href={sublink.href}
-                    className="font-bold text-[#222] no-underline hover:text-[#0a0c13] dark:text-white/90 dark:hover:text-white"
+                    className="font-bold text-[var(--near-black)] no-underline hover:text-[var(--near-black)] dark:text-white/90 dark:hover:text-white"
                   >
                     <p>{sublink.title}</p>
                   </a>
                   {sublink.title == 'Socials' ? (
-                    <div className="pb-1 text-sm">{sublink.description}</div>
+                    <div className="text-body pb-1">{sublink.description}</div>
                   ) : (
-                    <div className="pb-1 text-sm">
+                    <div className="text-body pb-1">
                       <a href={sublink.href} className="no-underline">
                         <p>{'' + sublink.description}</p>
                       </a>

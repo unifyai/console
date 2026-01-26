@@ -246,7 +246,7 @@ const Tab = ({
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading tiles...</p>
+        <p className="text-body-muted">Loading tiles...</p>
       </div>
     );
   }
@@ -259,15 +259,15 @@ const Tab = ({
           <LayoutGrid className="h-8 w-8 text-muted-foreground" />
         </div>
         <div className="max-w-md text-center">
-          <h3 className="mb-2 text-lg font-medium">No tiles yet</h3>
-          <p className="mb-4 text-sm text-muted-foreground">
+          <h3 className="text-h2 mb-2">No tiles yet</h3>
+          <p className="text-body-muted mb-4">
             {isEditMode
               ? "Click the 'Add tile' button below to create your first tile."
               : 'Enable Edit Mode to add tiles to this tab.'}
           </p>
         </div>
         {isEditMode && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="text-body-muted flex items-center gap-2">
             <Plus className="h-4 w-4" />
             <span>
               Use the <strong>Add tile</strong> button in the bottom left

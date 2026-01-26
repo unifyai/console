@@ -81,7 +81,7 @@ function getTypeIcon(type: ValueType) {
     case 'date':
       return <Calendar className="h-3.5 w-3.5 text-pink-500" />;
     case 'null':
-      return <span className="text-xs text-muted-foreground">∅</span>;
+      return <span className="text-caption">∅</span>;
     default:
       return <Type className="h-3.5 w-3.5 text-muted-foreground" />;
   }
@@ -147,7 +147,7 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
   // Null/undefined
   if (type === 'null') {
     return (
-      <div className="flex items-center gap-2 py-0.5 text-xs">
+      <div className="text-label flex items-center gap-2 py-0.5">
         <span className="shrink-0">{getTypeIcon('null')}</span>
         {keyName && <span className="text-muted-foreground">{keyName}:</span>}
         <span className="italic text-muted-foreground">null</span>
@@ -184,11 +184,11 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
     const isLongString = type === 'string' && displayValue.length > 100;
 
     return (
-      <div className="flex items-center gap-2 py-0.5 text-xs">
+      <div className="text-label flex items-center gap-2 py-0.5">
         <span className="shrink-0">{getTypeIcon(type)}</span>
         {keyName && <span className="shrink-0 text-muted-foreground">{keyName}:</span>}
         {isLongString ? (
-          <pre className={cn('whitespace-pre-wrap break-all text-xs', valueClass)}>
+          <pre className={cn('text-code-sm whitespace-pre-wrap break-all', valueClass)}>
             {displayValue}
           </pre>
         ) : (
@@ -203,7 +203,7 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
     const arr = value as unknown[];
     if (arr.length === 0) {
       return (
-        <div className="flex items-center gap-2 py-0.5 text-xs">
+        <div className="text-label flex items-center gap-2 py-0.5">
           <span className="shrink-0">{getTypeIcon('array')}</span>
           {keyName && <span className="text-muted-foreground">{keyName}:</span>}
           <span className="text-muted-foreground">[ ]</span>
@@ -227,7 +227,7 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
           <div>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="hover:bg-muted/50 flex w-full items-center gap-1 py-0.5 text-left text-xs"
+              className="hover:bg-muted/50 text-label flex w-full items-center gap-1 py-0.5 text-left"
             >
               <span className="shrink-0 text-muted-foreground">
                 {isExpanded ? (
@@ -276,7 +276,7 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
 
     if (keys.length === 0) {
       return (
-        <div className="flex items-center gap-2 py-0.5 text-xs">
+        <div className="text-label flex items-center gap-2 py-0.5">
           <span className="shrink-0">{getTypeIcon('object')}</span>
           {keyName && <span className="text-muted-foreground">{keyName}:</span>}
           <span className="text-muted-foreground">{'{ }'}</span>
@@ -300,7 +300,7 @@ function ValueView({ value, depth = 0, keyName, expandAll }: ValueViewProps) {
           <div>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="hover:bg-muted/50 flex w-full items-center gap-1 py-0.5 text-left text-xs"
+              className="hover:bg-muted/50 text-label flex w-full items-center gap-1 py-0.5 text-left"
             >
               <span className="shrink-0 text-muted-foreground">
                 {isExpanded ? (
@@ -370,7 +370,7 @@ function CellEntry({ cell, isFirst }: CellEntryProps) {
       <div className="mb-2 flex items-center gap-2 text-sm">
         <span className="font-medium text-foreground">{cell.columnId}</span>
         <span className="text-muted-foreground">·</span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption">
           Row {rowNumber}
           {cell.rowDataId !== undefined && (
             <span className="text-muted-foreground/70 ml-1">({displayId})</span>
@@ -398,8 +398,8 @@ export function DetailPane({ selectedCells, onClose }: DetailPaneProps) {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Details</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className="text-title text-semibold text-foreground">Details</h2>
+          <p className="text-caption">
             {hasSelection
               ? `${selectedCells.length} cell${selectedCells.length > 1 ? 's' : ''} selected`
               : 'Select cells to view'}
@@ -415,12 +415,8 @@ export function DetailPane({ selectedCells, onClose }: DetailPaneProps) {
         {!hasSelection ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-2 text-4xl">📊</div>
-            <p className="text-sm text-muted-foreground">
-              Click on cells to view their full content here
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Use Ctrl+click or Shift+click to select multiple
-            </p>
+            <p className="text-body-muted">Click on cells to view their full content here</p>
+            <p className="text-caption mt-1">Use Ctrl+click or Shift+click to select multiple</p>
           </div>
         ) : selectedCells.length === 1 ? (
           // Single cell - show just the value
@@ -429,7 +425,7 @@ export function DetailPane({ selectedCells, onClose }: DetailPaneProps) {
             const rowNumber = cell.rowIndex ?? parseInt(cell.rowId, 10) + 1;
             return (
               <div>
-                <div className="mb-2 text-sm">
+                <div className="text-body mb-2">
                   <span className="font-medium">{cell.columnId}</span>
                   <span className="text-muted-foreground">
                     {' '}

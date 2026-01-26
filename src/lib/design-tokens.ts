@@ -122,6 +122,49 @@ export const ogColors = {
 } as const;
 
 // =============================================================================
+// Diff Viewer Colors (for react-diff-viewer-continued - requires JS objects)
+// =============================================================================
+
+export const diffColors = {
+  light: {
+    diffViewerBackground: 'transparent',
+    diffViewerColor: 'transparent',
+    addedBackground: '#e6ffed', // Light green background
+    addedColor: '#24292e', // Dark text for light mode
+    removedBackground: '#ffeef0', // Light red background
+    removedColor: '#24292e', // Dark text for light mode
+    wordAddedBackground: '#acf2bd', // Light green for word diff
+    wordRemovedBackground: '#fdb8c0', // Light red for word diff
+    gutterBackground: 'transparent',
+    gutterBackgroundDark: 'transparent',
+    emptyLineBackground: 'transparent',
+    addedGutterBackground: '#cdffd8', // Light green for gutter
+    removedGutterBackground: '#ffdce0', // Light red for gutter
+    gutterColor: '#24292e', // Dark text for light mode
+    addedGutterColor: '#24292e', // Dark text for light mode
+    removedGutterColor: '#24292e', // Dark text for light mode
+  },
+  dark: {
+    diffViewerBackground: 'transparent',
+    diffViewerColor: 'transparent',
+    addedBackground: '#166534', // Darker green background
+    addedColor: baseColors.whiteSmoke, // Light text for dark mode
+    removedBackground: '#991b1b', // Darker red background
+    removedColor: baseColors.whiteSmoke, // Light text for dark mode
+    wordAddedBackground: '#15803d', // Darker green for word diff
+    wordRemovedBackground: '#b91c1c', // Darker red for word diff
+    gutterBackground: 'transparent',
+    gutterBackgroundDark: 'transparent',
+    emptyLineBackground: 'transparent',
+    addedGutterBackground: '#166534', // Same dark green as content
+    removedGutterBackground: '#991b1b', // Same dark red as content
+    gutterColor: baseColors.whiteSmoke, // Light text for dark mode
+    addedGutterColor: baseColors.whiteSmoke, // Light text for dark mode
+    removedGutterColor: baseColors.whiteSmoke, // Light text for dark mode
+  },
+} as const;
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 
@@ -129,3 +172,4 @@ export type BaseColors = typeof baseColors;
 export type Theme = typeof darkTheme;
 export type ChartColors = typeof chartColors;
 export type OGColors = typeof ogColors;
+export type DiffColors = typeof diffColors;

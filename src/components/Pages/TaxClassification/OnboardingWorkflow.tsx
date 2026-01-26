@@ -445,7 +445,7 @@ export default function OnboardingWorkflow() {
               <h1 className="text-h2">Welcome to Unify</h1>
               <p className="text-subtitle mt-2">Let&apos;s get your account set up</p>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-body-muted">
               Step {currentStep + 1} of {ONBOARDING_STEPS.length}
             </div>
           </div>
@@ -457,7 +457,7 @@ export default function OnboardingWorkflow() {
               {ONBOARDING_STEPS.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                    className={`text-title flex h-8 w-8 items-center justify-center rounded-full ${
                       index < currentStep ||
                       (index === 0 && existingUser) ||
                       (index === 1 && existingBusinessStatus)
@@ -475,7 +475,7 @@ export default function OnboardingWorkflow() {
                       index + 1
                     )}
                   </div>
-                  <div className="mt-2 text-center text-xs">
+                  <div className="text-caption mt-2 text-center">
                     <div className="text-label">{step.title}</div>
                     <div className="text-muted">{step.description}</div>
                   </div>
@@ -532,7 +532,7 @@ export default function OnboardingWorkflow() {
               variant="outline"
               onClick={goBack}
               disabled={currentStep === 0 || isSubmitting}
-              className="h-12 px-8 text-base"
+              className="h-12 px-8"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -544,7 +544,7 @@ export default function OnboardingWorkflow() {
                   variant="outline"
                   onClick={handleSkipNewsletters}
                   disabled={isSubmitting}
-                  className="h-12 px-8 text-base"
+                  className="h-12 px-8"
                 >
                   Skip for now
                 </Button>
@@ -553,7 +553,7 @@ export default function OnboardingWorkflow() {
               <Button
                 onClick={goNext}
                 disabled={!getCurrentStepValid() || isSubmitting}
-                className="h-12 min-w-[140px] px-8 text-base"
+                className="h-12 min-w-[140px] px-8"
               >
                 {isSubmitting ? (
                   <>

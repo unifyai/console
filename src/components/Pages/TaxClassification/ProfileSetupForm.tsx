@@ -97,7 +97,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
       <div className="w-full space-y-8">
         <div className="mb-6 flex items-center space-x-3">
           <User className="h-6 w-6 text-primary" />
-          <p className="text-base text-muted-foreground">
+          <p className="text-body-lg-muted">
             {initialData?.name || initialData?.lastName || initialData?.jobTitle || initialData?.bio
               ? 'Please review and update your profile information as needed.'
               : "Let's start by getting to know you."}
@@ -107,7 +107,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-3">
-              <Label htmlFor="name" className="text-base font-medium">
+              <Label htmlFor="name" className="text-label">
                 First Name *
               </Label>
               <Input
@@ -116,11 +116,11 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Enter your first name"
                 required
-                className="h-12 text-base"
+                className="h-12"
               />
             </div>
             <div className="space-y-3">
-              <Label htmlFor="lastName" className="text-base font-medium">
+              <Label htmlFor="lastName" className="text-label">
                 Last Name *
               </Label>
               <Input
@@ -129,13 +129,13 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
                 placeholder="Enter your last name"
                 required
-                className="h-12 text-base"
+                className="h-12"
               />
             </div>
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="jobTitle" className="text-base font-medium">
+            <Label htmlFor="jobTitle" className="text-label">
               Job Title (Optional)
             </Label>
             <Input
@@ -148,7 +148,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="bio" className="text-base font-medium">
+            <Label htmlFor="bio" className="text-label">
               About (Optional)
             </Label>
             <Input
@@ -161,14 +161,14 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="timezone" className="text-base font-medium">
+            <Label htmlFor="timezone" className="text-label">
               Timezone
             </Label>
             <Select
               value={formData.timezone}
               onValueChange={(val) => handleInputChange('timezone', val)}
             >
-              <SelectTrigger id="timezone" className="h-12 text-base">
+              <SelectTrigger id="timezone" className="h-12">
                 <SelectValue placeholder="Select a timezone..." />
               </SelectTrigger>
               <SelectContent>

@@ -96,7 +96,7 @@ export function AssistantSecretsManager({
 
   const renderEmptyState = () => (
     <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-      <h3 className="text-lg font-medium">No secret found</h3>
+      <h3 className="text-h2">No secret found</h3>
       {canWrite && (
         <Button variant="outline" className="mt-4" onClick={handleStartCreate}>
           Add a secret
@@ -125,7 +125,7 @@ export function AssistantSecretsManager({
                   )}
                   onClick={() => handleSelect(secret)}
                 >
-                  <span className="truncate text-sm">{secret.name}</span>
+                  <span className="text-body truncate">{secret.name}</span>
                   {canWrite && (
                     <Button
                       variant="ghost"
@@ -173,9 +173,7 @@ export function AssistantSecretsManager({
                   {...register('name', { required: 'Name is required' })}
                   disabled={isSubmitting || isViewing}
                 />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
-                )}
+                {errors.name && <p className="text-body text-error mt-1">{errors.name.message}</p>}
               </div>
               <div>
                 <Label htmlFor="value" className="mb-2 block">
@@ -200,7 +198,7 @@ export function AssistantSecretsManager({
                   </Button>
                 </div>
                 {errors.value && (
-                  <p className="mt-1 text-sm text-destructive">{errors.value.message}</p>
+                  <p className="text-body text-error mt-1">{errors.value.message}</p>
                 )}
               </div>
               <div className="flex flex-1 flex-col">

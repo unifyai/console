@@ -20,7 +20,7 @@ export function AssistantCommunicationHeader({
 }: AssistantCommunicationHeaderProps) {
   return (
     <div className="flex h-10 flex-shrink-0 items-center justify-between border-b bg-background px-4">
-      <p className="text-sm font-medium text-foreground">Talk to {assistantName}</p>
+      <p className="text-title">Talk to {assistantName}</p>
       <div className="flex items-center">
         {onPopOut && (
           <TooltipProvider delayDuration={100}>

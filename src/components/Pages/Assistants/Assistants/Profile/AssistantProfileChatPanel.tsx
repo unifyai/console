@@ -253,15 +253,15 @@ export function AssistantProfileChatPanel({
         {!canChat ? (
           <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="space-y-1 text-center">
-              <p className="text-sm font-medium">Chat is not available</p>
-              <p className="text-xs opacity-80">Please try again in a few minutes</p>
+              <p className="text-title">Chat is not available</p>
+              <p className="text-caption opacity-80">Please try again in a few minutes</p>
             </div>
           </div>
         ) : initialLoadError ? (
           <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="space-y-1 text-center">
-              <p className="text-sm font-medium">Failed to load chat history</p>
-              <p className="text-xs opacity-80">Please check your connection</p>
+              <p className="text-title">Failed to load chat history</p>
+              <p className="text-caption opacity-80">Please check your connection</p>
             </div>
             <Button variant="outline" size="sm" onClick={retryInitialLoad} disabled={isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}

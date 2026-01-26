@@ -56,7 +56,7 @@ const UpdateOrgDialog = ({ currentName, onUpdate }: UpdateOrgDialogProps) => {
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4">
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Enter a new name for your organization.</p>
+            <p className="text-body-muted">Enter a new name for your organization.</p>
           </div>
           <Input
             id="name"

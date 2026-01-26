@@ -91,8 +91,8 @@ export function AuthErrorBoundary({ children }: { children: React.ReactNode }) {
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-foreground">Session Expired</h2>
-              <p className="text-sm text-muted-foreground">Authentication Required</p>
+              <h2 className="text-h1 text-semibold text-foreground">Session Expired</h2>
+              <p className="text-body-muted">Authentication Required</p>
             </div>
           </div>
 

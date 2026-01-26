@@ -5,14 +5,14 @@
   "scripts": {
     "generate:api": "openapi-typescript https://api.unify.ai/v0/openapi.json -o src/lib/orchestra/schema.d.ts",
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:styles:all && next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "ci": "npm run lint && npm run typecheck && npm run format:check && npm run build",
+    "ci": "npm run lint && npm run typecheck && npm run format:check && npm run check:styles:all && npm run build",
     "prepare": "husky",
     "test:node": "vitest --project node",
     "test:node:matrix": "bash src/tests/scripts/test-node-matrix.sh",
@@ -23,13 +23,21 @@
     "test:interfaces": "vitest --project node src/tests/interfaces",
     "test:interfaces:real": "npm run dev & DEV_PID=$!; sleep 10 && npm run test:interfaces; EXIT_CODE=$?; kill $DEV_PID 2>/dev/null; exit $EXIT_CODE",
     "test:interfaces:browser": "vitest --project browser src/tests/interfaces",
-    "test:real": "vitest --project real"
+    "test:real": "vitest --project real",
+    "check:fonts": "npx tsx scripts/check-font-classes.ts",
+    "check:fonts:all": "npx tsx scripts/check-font-classes.ts",
+    "check:colors": "npx tsx scripts/check-colors.ts",
+    "check:colors:all": "npx tsx scripts/check-colors.ts",
+    "check:styles": "npm run check:fonts && npm run check:colors",
+    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all"
   },
   "lint-staged": {
     "package.json": "prettier --write",
     "*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix --max-warnings=0"
+      "eslint --fix --max-warnings=0",
+      "npx tsx scripts/check-font-classes.ts",
+      "npx tsx scripts/check-colors.ts"
     ],
     "*.{json,md,yml,yaml,css,scss}": "prettier --write"
   },

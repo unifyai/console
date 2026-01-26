@@ -165,7 +165,7 @@ export function AssistantProfileInfoPanel({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="mr-3 h-auto gap-1 px-2 py-1 text-xs"
+                      className="text-label mr-3 h-auto gap-1 px-2 py-1"
                       onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}
                     >
                       {timezoneInfo.relativeOffsetString}

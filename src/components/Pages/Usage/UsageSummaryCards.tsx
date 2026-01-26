@@ -55,7 +55,7 @@ function SummaryCard({
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
-              <p className="text-sm font-medium text-muted-foreground">{title}</p>
+              <p className="text-title text-muted-foreground">{title}</p>
               {infoTooltip && (
                 <TooltipProvider>
                   <Tooltip>
@@ -78,9 +78,9 @@ function SummaryCard({
             {isLoading ? (
               <div className="h-8 w-24 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="text-2xl font-bold text-foreground">{value}</p>
+              <p className="text-display text-bold text-foreground">{value}</p>
             )}
-            {subtitle && !isLoading && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            {subtitle && !isLoading && <p className="text-caption">{subtitle}</p>}
           </div>
           <div className="bg-primary/10 shrink-0 rounded-full p-2 text-primary">{icon}</div>
         </div>
@@ -111,7 +111,7 @@ export function UsageSummaryCards({
         isLoading={isLoading}
         testId="summary-card-total"
         infoTooltip={
-          <p className="text-sm">
+          <p className="text-body">
             <strong>Billed Cost</strong> represents the total LLM credits consumed by your
             assistant(s). This includes all API calls, token usage, and any associated processing
             fees.

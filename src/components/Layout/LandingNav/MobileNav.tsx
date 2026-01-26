@@ -41,7 +41,7 @@ const MobileNav = ({ children, menuOpen, mobileChildren }: MobileNavParams) => {
                       >
                         <a
                           href={sublink.href}
-                          className="w-full text-xl font-bold text-[#51515e] no-underline transition-all hover:text-[#0a0c13] dark:text-white/90 dark:hover:text-white"
+                          className="text-h1 text-bold w-full text-[var(--text-gray)] no-underline transition-all hover:text-[var(--near-black)] dark:text-white/90 dark:hover:text-white"
                         >
                           <p>{sublink.title}</p>
                         </a>
@@ -49,7 +49,7 @@ const MobileNav = ({ children, menuOpen, mobileChildren }: MobileNavParams) => {
                           <div className="w-full pb-1">{sublink.description}</div>
                         ) : (
                           <div className="w-full pb-1">
-                            <a href={sublink.href} className="text-sm no-underline">
+                            <a href={sublink.href} className="text-body no-underline">
                               <p>{'' + sublink.description}</p>
                             </a>
                           </div>

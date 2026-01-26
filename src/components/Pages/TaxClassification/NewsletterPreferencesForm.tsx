@@ -56,7 +56,7 @@ export default function NewsletterPreferencesForm({
     <div className="w-full space-y-8">
       <div className="mb-6 flex items-center space-x-3">
         <Mail className="h-6 w-6 text-primary" />
-        <p className="text-base text-muted-foreground">Stay updated with the latest from Unify.</p>
+        <p className="text-body-lg-muted">Stay updated with the latest from Unify.</p>
       </div>
 
       <div className="space-y-6">
@@ -73,7 +73,7 @@ export default function NewsletterPreferencesForm({
                 className="mt-1 h-5 w-5"
               />
               <div className="min-w-0 flex-1">
-                <Label htmlFor={newsletter.id} className="cursor-pointer text-lg font-semibold">
+                <Label htmlFor={newsletter.id} className="text-h2 text-semibold cursor-pointer">
                   {newsletter.name}
                 </Label>
                 <p className="mt-2 text-base leading-relaxed text-muted-foreground">
@@ -87,7 +87,7 @@ export default function NewsletterPreferencesForm({
         {subscriptions.length > 0 && (
           <div className="flex items-center space-x-3 rounded-lg border border-green-500/20 bg-green-500/10 p-4">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            <span className="text-base font-medium text-green-500">
+            <span className="text-body text-strong text-success">
               {subscriptions.filter((sub) => newsletters.some((n) => n.id === sub)).length}{' '}
               newsletter
               {subscriptions.filter((sub) => newsletters.some((n) => n.id === sub)).length !== 1

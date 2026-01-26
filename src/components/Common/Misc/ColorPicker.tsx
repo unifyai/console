@@ -39,12 +39,12 @@ const getDefaultColor = (): string => {
         const b = parseInt(match[3]);
         return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
       }
-      return primaryColor.startsWith('#') ? primaryColor : '#2a862a';
+      return primaryColor.startsWith('#') ? primaryColor : 'var(--forest-green)';
     }
   } catch (e) {
     console.warn('Failed to get primary color from CSS variables');
   }
-  return '#2a862a'; // Fallback to forest green
+  return 'var(--forest-green)'; // Fallback to forest green
 };
 
 type TColorPicker = {

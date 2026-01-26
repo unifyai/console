@@ -176,7 +176,7 @@ const OrganizationWorkspaceView = ({
         {/* Header Section: Title & Actions */}
         <div className="bg-background/50 flex flex-shrink-0 items-center justify-between border-b p-4">
           <div className="flex flex-col gap-1">
-            <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <h2 className="text-h1 text-semibold flex items-center gap-2">
               {organization.name}
               <span className="rounded-full border px-2 py-0.5 text-xs font-normal capitalize text-muted-foreground">
                 {organization.roleName || 'Member'}

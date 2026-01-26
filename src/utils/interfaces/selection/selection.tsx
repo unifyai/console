@@ -165,12 +165,12 @@ export const AudioPlayer = ({ value, className }: { value: string; className?: s
   );
 
   if (loading) {
-    return <span className="text-xs text-muted-foreground">Loading audio...</span>;
+    return <span className="text-caption">Loading audio...</span>;
   }
 
   if (error || !url) {
     console.error('[AudioPlayer] Rendering error state:', error);
-    return <span className="text-xs text-destructive">Error loading audio</span>;
+    return <span className="text-label text-error">Error loading audio</span>;
   }
 
   return (

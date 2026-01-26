@@ -1057,7 +1057,7 @@ const Interface = ({
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-base text-muted-foreground">Loading tiles...</p>
+          <p className="text-body-muted">Loading tiles...</p>
         </div>
       );
     }
@@ -1165,7 +1165,7 @@ const Interface = ({
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-base text-muted-foreground">Switching tabs...</p>
+          <p className="text-body-muted">Switching tabs...</p>
         </div>
       );
     }
@@ -1911,13 +1911,13 @@ const Interface = ({
                                   </svg>
                                 </div>
                                 <div>
-                                  <h3 className="mb-1 text-lg font-medium">No Tabs Yet</h3>
-                                  <p className="max-w-md text-sm text-muted-foreground">
+                                  <h3 className="text-h2 mb-1">No Tabs Yet</h3>
+                                  <p className="text-body-muted max-w-md">
                                     Create a tab to start building your interface. Tabs help you
                                     organize your data views and dashboards.
                                   </p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-caption">
                                   Use the <span className="font-medium">+</span> button in the
                                   sidebar to create your first tab
                                 </p>
@@ -2097,7 +2097,7 @@ const Interface = ({
                             <div className="mt-0.5 text-destructive">⚠️</div>
                             <div className="flex-1">
                               <div className="mb-1 font-medium">Failed to load projects</div>
-                              <div className="mb-3 break-words text-sm text-muted-foreground">
+                              <div className="text-body-muted mb-3 break-words">
                                 {projectTreeErrorObj instanceof Error
                                   ? projectTreeErrorObj.message
                                   : 'Please check your connection and try again.'}

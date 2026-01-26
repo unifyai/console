@@ -387,7 +387,7 @@ export default function FavouritesClient({
             </Button>
           </IconPicker>
         </div>
-        <span className="truncate text-center text-sm font-medium">{fav.projectName}</span>
+        <span className="text-title truncate text-center">{fav.projectName}</span>
         <div className="flex justify-center">
           <Button
             variant="ghost"
@@ -498,7 +498,7 @@ export default function FavouritesClient({
           <Check className="h-4 w-4 text-primary" />
           <AlertTitle>Changes Detected</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm">
+            <span className="text-body">
               Your favourites have been modified. Save changes to update your dashboard.
             </span>
           </AlertDescription>
@@ -510,10 +510,8 @@ export default function FavouritesClient({
           {/* Projects list */}
           <Card className="w-full border border-border shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-semibold">Available Projects</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Select projects to add to your favourites (max 10)
-              </p>
+              <CardTitle className="text-h1 text-semibold">Available Projects</CardTitle>
+              <p className="text-body-muted">Select projects to add to your favourites (max 10)</p>
             </CardHeader>
 
             <Separator />
@@ -527,7 +525,7 @@ export default function FavouritesClient({
                   placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 w-full pl-9 text-sm"
+                  className="text-body h-9 w-full pl-9"
                 />
                 {searchQuery && (
                   <button
@@ -539,7 +537,7 @@ export default function FavouritesClient({
                 )}
               </div>
               {searchQuery && (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="text-caption mt-2">
                   Showing {filteredProjects.length} of {projects.length} projects
                 </p>
               )}
@@ -586,12 +584,12 @@ export default function FavouritesClient({
                           />
                           <label
                             htmlFor={`project-${name}`}
-                            className="flex-1 cursor-pointer truncate text-sm font-medium"
+                            className="text-title flex-1 cursor-pointer truncate"
                           >
                             {name}
                           </label>
                           {isChecked && (
-                            <div className="flex items-center text-xs text-primary">
+                            <div className="text-label flex items-center text-primary">
                               <Star className="mr-1 h-3 w-3 fill-primary text-primary" />
                               Added
                             </div>
@@ -608,10 +606,8 @@ export default function FavouritesClient({
           {/* Selected favourites with icon pickers */}
           <Card className="w-full border border-border shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-semibold">Selected Favourites</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Customize icons for your favourite projects
-              </p>
+              <CardTitle className="text-h1 text-semibold">Selected Favourites</CardTitle>
+              <p className="text-body-muted">Customize icons for your favourite projects</p>
             </CardHeader>
 
             <Separator />
@@ -619,7 +615,7 @@ export default function FavouritesClient({
             <CardContent className="pt-5">
               {selected.size > 0 ? (
                 <>
-                  <div className="mb-3 grid grid-cols-4 gap-4 px-2 text-sm">
+                  <div className="text-body mb-3 grid grid-cols-4 gap-4 px-2">
                     <div className="" />
                     <div className="select-none text-center font-medium">Icon</div>
                     <div className="select-none text-center font-medium">Project</div>
@@ -642,7 +638,7 @@ export default function FavouritesClient({
               ) : (
                 <div className="bg-muted/10 border-muted-foreground/30 flex h-[320px] flex-col items-center justify-center rounded-lg border border-dashed text-muted-foreground">
                   <p className="font-medium">No favourites selected</p>
-                  <p className="mt-2 text-sm">Select projects from the list on the left</p>
+                  <p className="text-body mt-2">Select projects from the list on the left</p>
                 </div>
               )}
             </CardContent>

@@ -127,7 +127,7 @@ function TableNotFoundMessage() {
     <main className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">📊</div>
-        <h1 className="mb-2 text-2xl font-semibold text-foreground">Table Not Found</h1>
+        <h1 className="text-display text-semibold mb-2 text-foreground">Table Not Found</h1>
         <p className="text-muted-foreground">
           This table view may have been deleted or the link is invalid.
         </p>
@@ -144,7 +144,7 @@ function ErrorMessage({ message }: { message: string }) {
     <main className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">⚠️</div>
-        <h1 className="mb-2 text-2xl font-semibold text-foreground">Error Loading Table</h1>
+        <h1 className="text-display text-semibold mb-2 text-foreground">Error Loading Table</h1>
         <p className="text-muted-foreground">{message}</p>
       </div>
     </main>
@@ -159,7 +159,7 @@ function EmptyDataMessage() {
     <main className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">📭</div>
-        <h1 className="mb-2 text-2xl font-semibold text-foreground">No Data</h1>
+        <h1 className="text-display text-semibold mb-2 text-foreground">No Data</h1>
         <p className="text-muted-foreground">
           No data available for this table view. The project may be empty or the filters returned no
           results.

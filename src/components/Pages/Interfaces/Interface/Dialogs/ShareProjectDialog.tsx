@@ -282,7 +282,7 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
                             <div className="flex flex-row items-center justify-between gap-2">
                               <span>{option.label}</span>
                               {option.sublabel && (
-                                <span className="text-xs"> - {option.sublabel}</span>
+                                <span className="text-caption"> - {option.sublabel}</span>
                               )}
                             </div>
                           </div>
@@ -303,7 +303,7 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
                     <SelectItem key={role.id} value={role.id.toString()}>
                       {role.name}
                       {role.description && (
-                        <span className="ml-2 text-xs">- {role.description}</span>
+                        <span className="text-caption ml-2">- {role.description}</span>
                       )}
                     </SelectItem>
                   ))}

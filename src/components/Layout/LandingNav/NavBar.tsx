@@ -41,7 +41,7 @@ const NavBar = ({ menuAlwaysOpaque = false, children, mobileChildren }: NavbarPa
   return (
     <header
       role="banner"
-      className="fixed left-0 right-0 top-0 z-50 w-full px-[16px] pb-[13px] pt-[13px] text-base transition-all will-change-[transform,background] lg:px-14"
+      className="text-body fixed left-0 right-0 top-0 z-50 w-full px-[16px] pb-[13px] pt-[13px] transition-all will-change-[transform,background] lg:px-14"
       style={
         (scrolled && !menuOpen) ||
         (selected !== null && NavbarLinks.at(selected)!.title != 'Pricing') // Remove dropdown from menus that don't have sublinks

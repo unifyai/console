@@ -229,10 +229,8 @@ function DraggableTile({
               <Move className="h-4 w-4 text-gray-500" />
             </button>
           )}
-          <span className="truncate text-sm font-medium">{tile.name}</span>
-          <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500">
-            {tile.type}
-          </span>
+          <span className="text-title truncate">{tile.name}</span>
+          <span className="text-caption rounded bg-gray-200 px-1.5 py-0.5">{tile.type}</span>
         </div>
 
         <div className="flex items-center gap-1">
@@ -277,7 +275,7 @@ function DraggableTile({
 
       {/* Tile Content */}
       <div className="h-full p-3" data-testid={`tile-content-${tile.id}`}>
-        <div className="text-sm text-gray-400">{tile.type} content placeholder</div>
+        <div className="text-body-muted">{tile.type} content placeholder</div>
       </div>
 
       {/* Resize Handle (only in edit mode) */}
@@ -309,12 +307,12 @@ function HiddenTilesPanel({ tiles, onShow }: HiddenTilesPanelProps) {
       className="fixed bottom-4 right-4 rounded-lg border bg-white p-3 shadow-lg"
       data-testid="hidden-tiles-panel"
     >
-      <h4 className="mb-2 text-sm font-medium">Hidden Tiles ({tiles.length})</h4>
+      <h4 className="text-title mb-2">Hidden Tiles ({tiles.length})</h4>
       <div className="space-y-1">
         {tiles.map((tile) => (
           <div
             key={tile.id}
-            className="flex items-center justify-between gap-2 text-sm"
+            className="text-body flex items-center justify-between gap-2"
             data-testid={`hidden-tile-${tile.id}`}
           >
             <span>{tile.name}</span>
@@ -352,7 +350,7 @@ function AddTileOverlay({ onSelect, onClose }: AddTileOverlayProps) {
       onClick={onClose}
     >
       <div className="rounded-lg bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="mb-4 text-lg font-semibold">Select Tile Type</h3>
+        <h3 className="text-h2 text-semibold mb-4">Select Tile Type</h3>
         <div className="grid grid-cols-2 gap-3">
           {tileTypes.map((type) => (
             <button
@@ -535,7 +533,7 @@ function TileGridInner({
         <div className="flex items-center gap-2">
           <button
             onClick={() => toggleEditMode()} // Use REAL toggle from useGlobalUIMode
-            className={`rounded px-3 py-1.5 text-sm ${
+            className={`text-body rounded px-3 py-1.5 ${
               editMode ? 'bg-blue-500 text-white' : 'bg-gray-200'
             }`}
             data-testid="edit-mode-toggle"
@@ -545,7 +543,7 @@ function TileGridInner({
           {editMode && (
             <button
               onClick={() => setShowAddOverlay(true)}
-              className="flex items-center gap-1 rounded bg-green-500 px-3 py-1.5 text-sm text-white"
+              className="text-body flex items-center gap-1 rounded bg-green-500 px-3 py-1.5 text-white"
               data-testid="add-tile-button"
             >
               <Plus className="h-4 w-4" />
@@ -553,7 +551,7 @@ function TileGridInner({
             </button>
           )}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-body-muted">
           {visibleTiles.length} tiles visible
           {hiddenTiles.length > 0 && `, ${hiddenTiles.length} hidden`}
         </div>

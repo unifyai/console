@@ -244,7 +244,7 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     if (viewMode === 'raw') {
       return (
         <pre
-          className="max-h-40 overflow-auto rounded bg-gray-50 p-2 text-sm"
+          className="text-body max-h-40 overflow-auto rounded bg-gray-50 p-2"
           data-testid={`raw-content-${cell.id}`}
         >
           {typeof cell.value === 'object'
@@ -269,8 +269,8 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     if (viewMode === 'diff') {
       return (
         <div data-testid={`diff-content-${cell.id}`}>
-          <div className="bg-red-50 p-1 text-sm text-red-700">- removed line</div>
-          <div className="bg-green-50 p-1 text-sm text-green-700">+ added line</div>
+          <div className="text-body bg-red-50 p-1 text-red-700">- removed line</div>
+          <div className="text-body bg-green-50 p-1 text-green-700">+ added line</div>
         </div>
       );
     }
@@ -304,7 +304,7 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
         <div className="space-y-1" data-testid={`trace-content-${cell.id}`}>
           {spans.map((span, i) => (
             <div key={i} className="flex items-center gap-2" data-testid={`trace-span-${i}`}>
-              <span className="w-20 text-xs">{span.name}</span>
+              <span className="text-label w-20">{span.name}</span>
               <div
                 className="h-4 rounded bg-blue-500"
                 style={{ width: `${span.end - span.start}px`, marginLeft: `${span.start / 3}px` }}
@@ -346,7 +346,7 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
             {matrix.flat().map((val, i) => (
               <div
                 key={i}
-                className="flex h-8 w-8 items-center justify-center border text-xs"
+                className="text-label flex h-8 w-8 items-center justify-center border"
                 style={{ backgroundColor: `rgba(59, 130, 246, ${val / 10})` }}
                 data-testid={`matrix-cell-${i}`}
               >
@@ -402,16 +402,16 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
         <button data-testid={`toggle-${cell.id}`}>
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
-        <span className="text-sm font-medium">{cell.column}</span>
-        <span className="text-xs text-gray-500">({cell.type})</span>
+        <span className="text-title">{cell.column}</span>
+        <span className="text-caption">({cell.type})</span>
       </div>
       {isExpanded && (
         <div className="p-2" data-testid={`content-${cell.id}`}>
           {renderValue()}
           {cell.nested && (
             <div className="ml-4 mt-2 border-l-2 pl-2" data-testid={`nested-${cell.id}`}>
-              <div className="mb-1 text-xs text-gray-500">Nested data:</div>
-              <pre className="rounded bg-gray-50 p-1 text-xs">
+              <div className="text-caption mb-1">Nested data:</div>
+              <pre className="text-code-sm rounded bg-gray-50 p-1">
                 {JSON.stringify(cell.nested, null, 2)}
               </pre>
             </div>
@@ -565,7 +565,7 @@ function SelectionPanelWrapper({
     <div data-testid="selection-panel-container" className="w-80 border-l">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-3">
-        <h3 className="text-sm font-semibold">Selection ({selectedCells.length})</h3>
+        <h3 className="text-title text-semibold">Selection ({selectedCells.length})</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExpandAll}
@@ -591,7 +591,7 @@ function SelectionPanelWrapper({
         <select
           value={viewMode}
           onChange={(e) => handleSetViewMode(e.target.value as ViewMode)}
-          className="w-full rounded border px-2 py-1 text-sm"
+          className="text-body w-full rounded border px-2 py-1"
           data-testid="view-mode-select"
         >
           <option value="raw">Raw JSON</option>

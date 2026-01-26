@@ -22,7 +22,7 @@ export function PlotFooter({ groupCount, pinnedCount, isOpen, onToggle }: PlotFo
   const hasDetails = groupCount > 0 || pinnedCount > 0;
 
   return (
-    <footer className="flex flex-shrink-0 items-center border-t border-border bg-background px-4 py-2 text-xs text-muted-foreground">
+    <footer className="text-caption flex flex-shrink-0 items-center border-t border-border bg-background px-4 py-2">
       {/* Counts - clickable to toggle drawer */}
       <button
         onClick={onToggle}

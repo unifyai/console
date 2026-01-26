@@ -101,7 +101,7 @@ export function GenerateOneTimeLinkButton({
               className="col-span-2 h-9"
               min="1"
             />
-            <span className="col-span-1 text-sm text-muted-foreground">days</span>
+            <span className="text-body-muted col-span-1">days</span>
           </div>
           {generatedUrl && (
             <div className="mt-2 space-y-2">
@@ -127,7 +127,7 @@ export function GenerateOneTimeLinkButton({
                   )}
                 </Button>
               </div>
-              <p className="flex items-center text-xs text-muted-foreground">
+              <p className="text-caption flex items-center">
                 <AlertTriangle className="mr-1 h-3 w-3 text-orange-500" />
                 This link can only be used once.
               </p>

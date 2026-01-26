@@ -140,7 +140,7 @@ const TeamListPanel = ({
       {/* List */}
       <div className="flex-1 overflow-auto px-3">
         {filteredTeams.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div className="text-body-muted flex h-full items-center justify-center">
             No teams found.
           </div>
         ) : (
@@ -166,7 +166,9 @@ const TeamListPanel = ({
                       {team.description || '-'}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center text-sm">{team.members?.length || 0}</TableCell>
+                  <TableCell className="text-body text-center">
+                    {team.members?.length || 0}
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <TooltipProvider delayDuration={300}>
@@ -243,9 +245,7 @@ const TeamListPanel = ({
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-center text-sm text-muted-foreground">
-                    No available members
-                  </div>
+                  <div className="text-body-muted p-2 text-center">No available members</div>
                 )}
               </SelectContent>
             </Select>
@@ -277,9 +277,7 @@ const TeamListPanel = ({
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-center text-sm text-muted-foreground">
-                    No members in this team
-                  </div>
+                  <div className="text-body-muted p-2 text-center">No members in this team</div>
                 )}
               </SelectContent>
             </Select>

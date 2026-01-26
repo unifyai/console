@@ -36,7 +36,7 @@ function EmptyState({ message }: { message: string }) {
       data-testid="usage-chart-empty"
     >
       <BarChart3 className="text-muted-foreground/50 mb-4 h-12 w-12" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-body-muted">{message}</p>
     </div>
   );
 }
@@ -52,7 +52,7 @@ function LoadingState() {
     >
       <div className="flex flex-col items-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="mt-2 text-sm text-muted-foreground">Loading usage data...</p>
+        <p className="text-body-muted mt-2">Loading usage data...</p>
       </div>
     </div>
   );

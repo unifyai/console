@@ -685,7 +685,7 @@ export default function InterfaceSelector({
       <div className="flex h-full w-full items-center justify-center bg-background">
         <div className="space-y-4 text-center">
           <div className="text-destructive">Error loading interfaces</div>
-          <div className="text-sm text-muted-foreground">{error.message}</div>
+          <div className="text-body-muted">{error.message}</div>
           <Button variant="outline" onClick={() => window.location.reload()}>
             Try again
           </Button>
@@ -821,7 +821,7 @@ export default function InterfaceSelector({
                   <div className="font-medium text-green-800 dark:text-green-200">
                     Template imported successfully!
                   </div>
-                  <div className="mt-1 text-sm text-green-700 dark:text-green-300">
+                  <div className="text-body-sm text-success mt-1">
                     Created: {importResult.importStats?.interfaces} interface
                     {importResult.importStats?.interfaces !== 1 ? 's' : ''},{' '}
                     {importResult.importStats?.tabs} tab
@@ -1043,9 +1043,7 @@ export default function InterfaceSelector({
                   <div className="font-medium text-green-800 dark:text-green-200">
                     {deleteResult}
                   </div>
-                  <div className="mt-1 text-sm text-green-700 dark:text-green-300">
-                    Refreshing interface list...
-                  </div>
+                  <div className="text-body-sm text-success mt-1">Refreshing interface list...</div>
                 </div>
               </Alert>
             )}
@@ -1122,9 +1120,7 @@ export default function InterfaceSelector({
                   <div className="font-medium text-green-800 dark:text-green-200">
                     {deleteProjectResult}
                   </div>
-                  <div className="mt-1 text-sm text-green-700 dark:text-green-300">
-                    Refreshing project list...
-                  </div>
+                  <div className="text-body-sm text-success mt-1">Refreshing project list...</div>
                 </div>
               </Alert>
             )}

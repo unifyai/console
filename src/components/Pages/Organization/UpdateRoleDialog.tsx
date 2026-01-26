@@ -43,7 +43,7 @@ const UpdateRoleDialog = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
-          <h3 className="text-lg font-medium">Update Role</h3>
+          <h3 className="text-h2">Update Role</h3>
           <Input
             placeholder="Role Name"
             value={name}

@@ -43,7 +43,7 @@ const Footer = () => {
           <div className="flex w-full flex-row flex-wrap items-start justify-start gap-6 gap-y-4 md:w-[60%] lg:justify-between lg:gap-6">
             {Object.keys(footerLinks).map((key) => (
               <div key={key} className="flex flex-col gap-2">
-                <div className="text-branding-grey hover:text-branding-black text-[13px] font-semibold uppercase transition-all lg:text-sm">
+                <div className="text-branding-grey hover:text-branding-black text-label text-semibold uppercase transition-all">
                   {key}
                 </div>
                 {footerLinks[key].map((link) => (

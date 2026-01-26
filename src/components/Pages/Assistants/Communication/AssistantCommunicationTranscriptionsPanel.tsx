@@ -29,9 +29,7 @@ export function AssistantCommunicationTranscriptionsPanel({
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-4">
           {sortedTranscriptions.length === 0 ? (
-            <div className="pt-8 text-center text-sm text-muted-foreground">
-              No transcriptions yet.
-            </div>
+            <div className="text-body-muted pt-8 text-center">No transcriptions yet.</div>
           ) : (
             sortedTranscriptions.map((transcription, index) => {
               const participant = participants.find(
@@ -58,8 +56,8 @@ export function AssistantCommunicationTranscriptionsPanel({
                     <AvatarFallback>{fallback}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    {showName && <p className="text-sm font-semibold">{participantName}</p>}
-                    <p className="text-sm text-muted-foreground">{transcription.text}</p>
+                    {showName && <p className="text-title text-semibold">{participantName}</p>}
+                    <p className="text-body-muted">{transcription.text}</p>
                   </div>
                 </div>
               );

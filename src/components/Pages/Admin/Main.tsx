@@ -49,7 +49,7 @@ export default function Main({ adminApprovalActions }: MainProps) {
       <Toaster richColors position="top-right" />
       <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex-shrink-0 border-b backdrop-blur">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+          <h1 className="text-display text-semibold">Admin Dashboard</h1>
         </div>
       </header>
 
@@ -57,7 +57,7 @@ export default function Main({ adminApprovalActions }: MainProps) {
         {/* Left Column: User Approvals */}
         <section className="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
           <div className="flex flex-shrink-0 items-center justify-between border-b p-4">
-            <h2 className="text-xl font-semibold">User Hiring Approvals</h2>
+            <h2 className="text-h1 text-semibold">User Hiring Approvals</h2>
             <div className="flex items-center gap-2">
               <UserApprovalFilters
                 statusFilter={statusFilter}
@@ -101,7 +101,7 @@ export default function Main({ adminApprovalActions }: MainProps) {
         {/* Right Column: One-Time Links */}
         <section className="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
           <div className="flex flex-shrink-0 items-center justify-between border-b p-4">
-            <h2 className="text-xl font-semibold">One-Time Approval Links</h2>
+            <h2 className="text-h1 text-semibold">One-Time Approval Links</h2>
             <div className="flex gap-2">
               <GenerateOneTimeLinkButton
                 onGenerateLink={generateNewLink}

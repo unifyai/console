@@ -103,7 +103,7 @@ const MemberRow = ({
               />
             </div>
             <div className="flex max-w-[180px] flex-col">
-              <span className="truncate text-sm font-medium leading-none">
+              <span className="text-title truncate leading-none">
                 {member.name}
                 {isSelf && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">(You)</span>
@@ -120,9 +120,7 @@ const MemberRow = ({
 
         {/* Email */}
         <TableCell className="hidden lg:table-cell">
-          <span className="block max-w-[200px] truncate text-sm text-muted-foreground">
-            {member.email}
-          </span>
+          <span className="text-body-muted block max-w-[200px] truncate">{member.email}</span>
         </TableCell>
 
         {/* Teams - Aligned Center */}
@@ -139,7 +137,7 @@ const MemberRow = ({
                 </Badge>
               ))
             ) : (
-              <span className="text-xs text-muted-foreground">-</span>
+              <span className="text-caption">-</span>
             )}
           </div>
         </TableCell>

@@ -95,7 +95,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
               disabled={isValidating}
             />
             {error && (
-              <div className="flex items-center text-sm text-destructive duration-200 animate-in fade-in slide-in-from-top-1">
+              <div className="text-body text-error flex items-center duration-200 animate-in fade-in slide-in-from-top-1">
                 <AlertCircle className="mr-1.5 h-3 w-3 flex-shrink-0" />
                 <span>{error}</span>
               </div>

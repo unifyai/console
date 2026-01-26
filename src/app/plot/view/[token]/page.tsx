@@ -185,7 +185,7 @@ function PlotNotFoundMessage() {
             />
           </svg>
         </div>
-        <h1 className="mb-2 text-2xl font-semibold">Plot Not Found</h1>
+        <h1 className="text-display text-semibold mb-2">Plot Not Found</h1>
         <p className="text-muted-foreground">
           This plot has been deleted or the link is invalid. Please request a new link from the
           original source.
@@ -217,7 +217,7 @@ function ErrorMessage({ message }: { message: string }) {
             />
           </svg>
         </div>
-        <h1 className="mb-2 text-2xl font-semibold">Unable to Load Plot</h1>
+        <h1 className="text-display text-semibold mb-2">Unable to Load Plot</h1>
         <p className="text-muted-foreground">{message}</p>
       </div>
     </main>

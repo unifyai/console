@@ -17,6 +17,18 @@
     --lavender: #b39ddb;
     --celeste: #bcf4f5;
 
+    /* Branding gradients */
+    --brand-green-light: #66d47e;
+    --brand-green: #00a824;
+
+    /* UI colors */
+    --border-light: #dadada;
+    --near-black: #0a0c13;
+    --text-gray: #51515e;
+
+    /* Chart overrides */
+    --chart-grid: #cccccc;
+
     /* Light theme variables */
     --background: var(--white-smoke);
     --foreground: var(--eerie-black);
@@ -396,6 +408,64 @@
   .text-overline {
     @apply font-sans text-xs uppercase tracking-widest text-muted-foreground;
   }
+
+  /* Weight modifiers */
+  .text-semibold {
+    @apply font-semibold;
+  }
+  .text-bold {
+    @apply font-bold;
+  }
+
+  /* Common combinations - body with muted */
+  .text-body-muted {
+    @apply font-sans text-sm leading-snug text-muted-foreground;
+  }
+  .text-body-lg-muted {
+    @apply font-sans text-base leading-normal text-muted-foreground;
+  }
+  .text-label-muted {
+    @apply font-sans text-xs font-medium text-muted-foreground;
+  }
+
+  /* Bold heading variants */
+  .text-h1-bold {
+    @apply font-sans text-lg font-bold leading-tight md:text-xl;
+  }
+  .text-h2-bold {
+    @apply font-sans text-base font-bold md:text-lg;
+  }
+  .text-h3-bold {
+    @apply font-sans text-sm font-bold md:text-base;
+  }
+  .text-title-bold {
+    @apply font-sans text-sm font-bold;
+  }
+
+  /* State colors */
+  .text-error {
+    @apply text-destructive;
+  }
+  .text-success {
+    @apply text-[var(--forest-green)];
+  }
+  .text-warning {
+    @apply text-[var(--soft-amber)];
+  }
+
+  /* Static (non-responsive) text sizes */
+  .text-base-static {
+    @apply font-sans text-base leading-normal;
+  }
+
+  /* Code text */
+  .text-code {
+    @apply font-mono text-sm;
+  }
+  .text-code-sm {
+    @apply font-mono text-xs;
+  }
+
   .tooltip-size-sm {
     @apply px-2 py-1 text-xs;
   }
