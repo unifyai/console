@@ -78,16 +78,20 @@ const ChatMessageBubble = ({
           <AvatarFallback>{fallback}</AvatarFallback>
         </Avatar>
       )}
-      <div
-        className={cn(
-          'text-body max-w-[75%] break-words rounded-lg p-3',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
-        )}
-      >
-        {bubbleContent()}
+      <div className="flex max-w-[75%] flex-col gap-2">
+        {/* Attachments above bubble */}
         {attachments && attachments.length > 0 && (
-          <MessageAttachmentList attachments={attachments} className="mt-2" />
+          <MessageAttachmentList attachments={attachments} />
         )}
+        {/* Message bubble */}
+        <div
+          className={cn(
+            'text-body break-words rounded-lg p-3',
+            isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
+          )}
+        >
+          {bubbleContent()}
+        </div>
       </div>
     </div>
   );

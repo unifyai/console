@@ -37,7 +37,10 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
         <TooltipTrigger asChild>
           <Badge
             variant="secondary"
-            className={cn('text-body flex items-center gap-1.5 bg-muted px-2 py-1', className)}
+            className={cn(
+              'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
+              className
+            )}
             data-testid="attachment-chip"
           >
             <Icon
@@ -53,7 +56,7 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="ml-0.5 h-4 w-4 rounded-full p-0 hover:bg-background"
+                className="ml-0.5 h-4 w-4 rounded-full p-0 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();

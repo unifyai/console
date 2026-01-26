@@ -26,15 +26,15 @@
     --near-black: #0a0c13;
     --text-gray: #51515e;
 
-    /* File type colors */
-    --file-pdf: #e53935;
-    --file-word: #2196f3;
-    --file-excel: #4caf50;
-    --file-powerpoint: #ff9800;
-    --file-image: #9c27b0;
-    --file-text: #607d8b;
-    --file-code: #78909c;
-    --file-archive: #ffc107;
+    /* File type colors - muted/desaturated for refined aesthetic */
+    --file-pdf: #bf5f5c;
+    --file-word: #5a9ec9;
+    --file-excel: #6fb573;
+    --file-powerpoint: #d4965f;
+    --file-image: #8b6b94;
+    --file-text: #7a8c96;
+    --file-code: #8a9ba3;
+    --file-archive: #d4b35f;
     --file-generic: #9e9e9e;
 
     /* Chart overrides */
