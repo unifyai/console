@@ -115,6 +115,11 @@ const createMockAssistantActions = (): AssistantActions => ({
     requestAccess: vi.fn(),
     claimToken: vi.fn(),
   },
+  spending: {
+    getSpend: vi.fn(),
+    getLimit: vi.fn(),
+    setLimit: vi.fn(),
+  },
 });
 
 // Factory for mock voice options

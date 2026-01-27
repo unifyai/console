@@ -435,4 +435,19 @@ export interface AssistantActions {
       message: string
     ) => Promise<ResponseProps>;
   };
+  spending: {
+    getSpend: (
+      assistantId: string,
+      month?: string
+    ) => Promise<import('@/types/assistants/spending').AssistantSpend | ResponseProps>;
+    getLimit: (
+      assistantId: string
+    ) => Promise<import('@/types/assistants/spending').SpendingLimitResponse | ResponseProps>;
+    setLimit: (
+      assistantId: string,
+      payload: import('@/types/assistants/spending').SpendingLimitRequest
+    ) => Promise<
+      (import('@/types/assistants/spending').SpendingLimitResponse & ResponseProps) | ResponseProps
+    >;
+  };
 }

@@ -56,6 +56,11 @@ import {
 import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
 import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
+import {
+  getAssistantSpend,
+  getAssistantSpendingLimit,
+  setAssistantSpendingLimit,
+} from '@/lib/assistants/spending';
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
   const user = await getCurrentUser();
@@ -128,6 +133,11 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
       sendSystemEvent: await sendSystemEvent(),
+    },
+    spending: {
+      getSpend: await getAssistantSpend(apiKey),
+      getLimit: await getAssistantSpendingLimit(apiKey),
+      setLimit: await setAssistantSpendingLimit(apiKey),
     },
   };
 

@@ -66,6 +66,8 @@ interface AssistantProfilePanelProps {
   canWrite?: boolean;
   /** Whether the current user can delete this assistant */
   canDelete?: boolean;
+  /** Whether to show spending section (default: true if spending actions available) */
+  showSpending?: boolean;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -122,6 +124,7 @@ export function AssistantProfilePanel({
   userTimezone,
   canWrite = true,
   canDelete = true,
+  showSpending = true,
 }: AssistantProfilePanelProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -208,6 +211,7 @@ export function AssistantProfilePanel({
                   userTimezone={userTimezone}
                   onEdit={() => onEdit(assistant)}
                   canWrite={canWrite}
+                  spendingActions={showSpending ? assistantActions.spending : undefined}
                 />
               </AccordionContent>
             </AccordionItem>

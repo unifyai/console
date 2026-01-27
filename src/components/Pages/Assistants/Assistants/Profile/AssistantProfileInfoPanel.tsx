@@ -1,6 +1,8 @@
+'use client';
+
 import * as React from 'react';
 import { Clock } from 'lucide-react';
-import type { Assistant } from '@/types/assistants/assistant';
+import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -11,6 +13,8 @@ import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 import { Button } from '@/components/UI/button';
+import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
+import { AssistantSpendingSection } from './AssistantSpendingSection';
 
 interface AssistantProfileInfoPanelProps {
   assistant: Assistant;
@@ -18,6 +22,8 @@ interface AssistantProfileInfoPanelProps {
   onEdit: () => void;
   /** Whether the current user can edit this assistant */
   canWrite?: boolean;
+  /** Spending-related server actions (optional - if not provided, spending section is hidden) */
+  spendingActions?: AssistantActions['spending'];
 }
 
 export function AssistantProfileInfoPanel({
@@ -25,11 +31,30 @@ export function AssistantProfileInfoPanel({
   userTimezone,
   onEdit,
   canWrite = true,
+  spendingActions,
 }: AssistantProfileInfoPanelProps) {
   const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
   const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+  // Spending data (only if actions are provided)
+  const spendingData = useAssistantSpending(
+    spendingActions
+      ? {
+          assistantId: assistant.agentId,
+          getSpendAction: spendingActions.getSpend,
+          getLimitAction: spendingActions.getLimit,
+          setLimitAction: spendingActions.setLimit,
+        }
+      : {
+          assistantId: '',
+          getSpendAction: async () => ({ detail: 'disabled' }),
+          getLimitAction: async () => ({ detail: 'disabled' }),
+          setLimitAction: async () => ({ detail: 'disabled' }),
+          enablePolling: false,
+        }
+  );
 
   const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profilePhoto ?? undefined);
   const videoSrc = assistant.signedProfileVideoUrl || (assistant.profileVideo ?? undefined);
@@ -149,7 +174,7 @@ export function AssistantProfileInfoPanel({
         </div>
 
         {/* Timezone Section */}
-        <div className="group/assistant-timezone pt-4">
+        <div className="group/assistant-timezone pt-2">
           <h3 className="text-title">Timezone</h3>
           <div className="grid max-w-sm grid-cols-2 items-center">
             <span
@@ -182,7 +207,7 @@ export function AssistantProfileInfoPanel({
         </div>
 
         {/* About Section */}
-        <div className="group/assistant-about pt-4">
+        <div className="group/assistant-about pt-2">
           <h3 className="text-title">About Me</h3>
           <div
             className={cn(
@@ -194,6 +219,23 @@ export function AssistantProfileInfoPanel({
             <Markdown>{assistant.about || 'No description provided.'}</Markdown>
           </div>
         </div>
+
+        {/* Spending Section (only shown if spending actions are provided) */}
+        {spendingActions && (
+          <div className="pt-2">
+            <AssistantSpendingSection
+              display={spendingData.display}
+              currentLimit={spendingData.limit?.monthlySpendingCap ?? null}
+              currentMonth={spendingData.currentMonth}
+              isLoading={spendingData.isLoading}
+              isRefreshing={spendingData.isRefreshing}
+              error={spendingData.error}
+              onUpdateLimit={spendingData.updateLimit}
+              onRefresh={spendingData.refreshAll}
+              canEdit={canWrite}
+            />
+          </div>
+        )}
       </ScrollArea>
     </div>
   );
