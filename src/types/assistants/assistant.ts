@@ -423,7 +423,7 @@ export interface AssistantActions {
     ) => Promise<ConnectionDetails | ResponseProps>;
     dispatchToCall: (
       assistantId: string,
-      assistantName: string,
+      livekitAgentName: string,
       roomName: string
     ) => Promise<ResponseProps>;
   };

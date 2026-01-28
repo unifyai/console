@@ -72,7 +72,7 @@ export const getCallConnectionDetails = async (apiKey: string) => {
 export const dispatchAssistantToCall = async (apiKey: string) => {
   return async (
     assistantId: string,
-    agentName: string,
+    livekitAgentName: string,
     roomName: string
   ): Promise<ResponseProps> => {
     'use server';
@@ -84,7 +84,7 @@ export const dispatchAssistantToCall = async (apiKey: string) => {
           apiKey: apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ assistantId, agentName, roomName }),
+        body: JSON.stringify({ assistantId, livekitAgentName, roomName }),
       });
 
       const data = await response.json();

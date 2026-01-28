@@ -584,7 +584,7 @@ export const callApi = {
 
   async dispatch(
     assistantId: number,
-    agentName: string,
+    livekitAgentName: string,
     roomName: string,
     apiKey?: string
   ): Promise<{ info?: string; detail?: string }> {
@@ -593,7 +593,7 @@ export const callApi = {
       endpoint,
       {
         method: 'POST',
-        body: JSON.stringify({ assistantId, agentName, roomName }),
+        body: JSON.stringify({ assistantId, livekitAgentName, roomName }),
       },
       apiKey
     );

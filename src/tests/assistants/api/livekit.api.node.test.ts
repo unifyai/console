@@ -66,7 +66,7 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room-123',
           }),
         });
@@ -141,7 +141,7 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: 'nonexistent',
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -177,7 +177,7 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -213,7 +213,7 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -306,7 +306,7 @@ describe('LiveKit API Routes', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -346,7 +346,7 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            agentName: 'Jane',
+            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });

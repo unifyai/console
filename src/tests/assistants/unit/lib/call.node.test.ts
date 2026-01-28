@@ -74,7 +74,7 @@ describe('call.ts', () => {
         meta: {
           alias: 'DispatchCall-Payload',
           scenario: 'Verify request body structure',
-          behavior: 'Request contains assistantId, agentName, roomName',
+          behavior: 'Request contains assistantId, livekitAgentName, roomName',
         },
       },
       async () => {
@@ -94,7 +94,7 @@ describe('call.ts', () => {
         // Assert
         expect(capturedBody).toEqual({
           assistantId: 'assistant-123',
-          agentName: 'Jane',
+          livekitAgentName: 'Jane',
           roomName: 'room-abc',
         });
       }
