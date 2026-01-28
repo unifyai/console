@@ -15,13 +15,22 @@ export const metadata: Metadata = {
   title: 'Usage',
 };
 
+interface UsagePageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
 /**
  * Usage Page
  *
  * Displays a bar chart visualization of billed_cost over time,
  * allowing users to track LLM credit usage across assistants.
+ *
+ * Supports URL query parameters:
+ * - `assistant`: Pre-filter by assistant ID (from assistant profile "View Usage" link)
  */
-const UsagePage: React.FC = async () => {
+const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
+  // Await searchParams (Next.js 15 async params)
+  const params = await searchParams;
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
@@ -80,6 +89,9 @@ const UsagePage: React.FC = async () => {
     }
   }
 
+  // Extract initial assistant filter from URL query params
+  const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <Suspense fallback={<SkeletonLoader />}>
@@ -89,6 +101,7 @@ const UsagePage: React.FC = async () => {
           assistants={assistants}
           orgMembers={orgMembers}
           isAdmin={isAdmin}
+          initialAssistantId={initialAssistantId}
         />
       </Suspense>
     </div>

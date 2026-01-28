@@ -37,6 +37,8 @@ interface UsageMainProps {
   orgMembers?: OrgMember[];
   /** Whether the current user is an admin/owner */
   isAdmin?: boolean;
+  /** Initial assistant ID to filter by (from URL query param) */
+  initialAssistantId?: string;
 }
 
 export function UsageMain({
@@ -45,7 +47,20 @@ export function UsageMain({
   assistants,
   orgMembers = [],
   isAdmin = false,
+  initialAssistantId,
 }: UsageMainProps) {
+  // Compute initial filters based on URL params
+  const initialFilters = React.useMemo(() => {
+    if (initialAssistantId) {
+      // Verify the assistant exists in the list
+      const assistantExists = assistants.some((a) => a.agentId === initialAssistantId);
+      if (assistantExists) {
+        return { assistantId: initialAssistantId };
+      }
+    }
+    return undefined;
+  }, [initialAssistantId, assistants]);
+
   // Filter state management
   const {
     filters,
@@ -63,6 +78,7 @@ export function UsageMain({
     assistants,
     orgMembers,
     isAdmin,
+    initialFilters,
   });
 
   // Filter assistants based on selected user scope

@@ -6,20 +6,24 @@
  * - Displays spending limit (or "Unlimited" if none set)
  * - Click to edit spending limit (if user has write access)
  * - Loading and error states
+ * - Link to view detailed usage for this assistant
  */
 
 'use client';
 
 import * as React from 'react';
-import { DollarSign, Pencil, AlertCircle, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { AlertCircle, Loader2, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
 import { SpendingProgressBar } from './SpendingProgressBar';
 import { SpendingLimitDialog } from './SpendingLimitDialog';
-import { SpendingDisplayProps, formatSpendAmount } from '@/types/assistants/spending';
+import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 export interface AssistantSpendingSectionProps {
+  /** The assistant's ID (agentId) for the View Usage link */
+  assistantId: string;
   /** Calculated display properties (null if loading) */
   display: SpendingDisplayProps | null;
   /** Current spending limit in dollars (null = unlimited) */
@@ -52,6 +56,7 @@ function formatMonthDisplay(month: string): string {
 }
 
 export function AssistantSpendingSection({
+  assistantId,
   display,
   currentLimit,
   currentMonth,
@@ -64,6 +69,9 @@ export function AssistantSpendingSection({
   className,
 }: AssistantSpendingSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+
+  // Build the View Usage URL with assistant filter
+  const viewUsageUrl = `/usage?assistant=${encodeURIComponent(assistantId)}`;
 
   const handleLimitSave = async (newLimit: number | null) => {
     const result = await onUpdateLimit(newLimit);
@@ -130,16 +138,28 @@ export function AssistantSpendingSection({
           Monthly Spending
           {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </h3>
-        {canEdit && (
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsDialogOpen(true)}
+            asChild
             className="text-caption h-auto gap-1 px-2 py-1 hover:text-foreground"
           >
-            Edit Limit
+            <Link href={viewUsageUrl} target="_blank" rel="noopener noreferrer">
+              View Usage
+            </Link>
           </Button>
-        )}
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+              className="text-caption h-auto gap-1 px-2 py-1 hover:text-foreground"
+            >
+              Edit Limit
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Month indicator */}

@@ -7,6 +7,7 @@
  * - Normal display with spending data
  * - Edit button visibility based on canEdit prop
  * - Month formatting
+ * - View Usage link with assistant filter
  */
 
 import React from 'react';
@@ -27,6 +28,7 @@ describe('AssistantSpendingSection', () => {
   };
 
   const defaultProps = {
+    assistantId: 'asst_test_123',
     display: mockDisplay,
     currentLimit: 100,
     currentMonth: '2026-01',
@@ -110,7 +112,8 @@ describe('AssistantSpendingSection', () => {
     it('shows limit info when limit is set', () => {
       render(<AssistantSpendingSection {...defaultProps} />);
 
-      expect(screen.getByText(/Monthly limit: \$100\.00/)).toBeInTheDocument();
+      // SpendingProgressBar shows "of $100.00"
+      expect(screen.getByText(/of \$100\.00/)).toBeInTheDocument();
     });
 
     it('shows no limit message when unlimited', () => {
@@ -128,7 +131,8 @@ describe('AssistantSpendingSection', () => {
         />
       );
 
-      expect(screen.getByText('No spending limit set')).toBeInTheDocument();
+      // SpendingProgressBar shows "No limit" for unlimited
+      expect(screen.getByText('No limit')).toBeInTheDocument();
     });
   });
 
@@ -205,6 +209,37 @@ describe('AssistantSpendingSection', () => {
       );
 
       expect(screen.getByText('No spending data available')).toBeInTheDocument();
+    });
+  });
+
+  // ===========================================================================
+  // View Usage Link
+  // ===========================================================================
+
+  describe('view usage link', () => {
+    it('renders View Usage link with correct assistant filter', () => {
+      render(<AssistantSpendingSection {...defaultProps} />);
+
+      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
+      expect(viewUsageLink).toBeInTheDocument();
+      expect(viewUsageLink).toHaveAttribute('href', '/usage?assistant=asst_test_123');
+    });
+
+    it('encodes special characters in assistant ID', () => {
+      render(<AssistantSpendingSection {...defaultProps} assistantId="asst/special&id" />);
+
+      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
+      expect(viewUsageLink).toHaveAttribute(
+        'href',
+        `/usage?assistant=${encodeURIComponent('asst/special&id')}`
+      );
+    });
+
+    it('shows View Usage link even when canEdit is false', () => {
+      render(<AssistantSpendingSection {...defaultProps} canEdit={false} />);
+
+      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
+      expect(viewUsageLink).toBeInTheDocument();
     });
   });
 });

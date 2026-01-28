@@ -224,6 +224,7 @@ export function AssistantProfileInfoPanel({
         {spendingActions && (
           <div className="pt-2">
             <AssistantSpendingSection
+              assistantId={assistant.agentId}
               display={spendingData.display}
               currentLimit={spendingData.limit?.monthlySpendingCap ?? null}
               currentMonth={spendingData.currentMonth}
