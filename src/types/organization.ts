@@ -203,3 +203,101 @@ export function calculateOrgSpendingDisplay(spend: OrgSpend): SpendingDisplayPro
     isUnlimited,
   };
 }
+
+// =============================================================================
+// Organization Member Spending Types
+// =============================================================================
+
+/**
+ * Cumulative spend data for an organization member in a given month.
+ * Returned by GET /admin/organization/{org_id}/members/{user_id}/spend
+ */
+export interface MemberSpend {
+  /** Organization ID */
+  orgId: number;
+  /** User ID of the member */
+  userId: string;
+  /** Month in YYYY-MM format */
+  month: string;
+  /** Total spend for the month in dollars */
+  cumulativeSpend: number;
+  /** Monthly spending limit in dollars (null = unlimited) */
+  limit: number | null;
+  /** Percentage of limit used (0-100+, can exceed 100 for soft limits) */
+  percentUsed: number;
+}
+
+/**
+ * Spending limit configuration for an organization member.
+ * Retrieved via GET /organizations/{org_id}/members/{user_id}/spending-limit
+ */
+export interface MemberSpendingLimitResponse {
+  /** Organization ID */
+  orgId: number;
+  /** User ID of the member */
+  userId: string;
+  /** Configured monthly spending cap in dollars (null = no limit) */
+  monthlySpendingCap: number | null;
+  /** Number of org assistants owned by this member that were capped during cascade */
+  cascadedUpdates?: { assistantsCapped?: number } | null;
+}
+
+/**
+ * Request payload for setting a member spending limit.
+ * Used with PUT /organizations/{org_id}/members/{user_id}/spending-limit
+ */
+export interface MemberSpendingLimitRequest {
+  /** Monthly spending cap in dollars (null to remove limit) */
+  monthlySpendingCap: number | null;
+}
+
+/**
+ * Type guard to check if a response is an error.
+ */
+export function isMemberSpendError(
+  response: MemberSpend | ResponseProps
+): response is ResponseProps {
+  return 'detail' in response;
+}
+
+/**
+ * Type guard to check if a response is member spend data.
+ */
+export function isMemberSpendData(response: MemberSpend | ResponseProps): response is MemberSpend {
+  return 'cumulativeSpend' in response && 'userId' in response && 'orgId' in response;
+}
+
+/**
+ * Type guard for member spending limit error.
+ */
+export function isMemberSpendingLimitError(
+  response: MemberSpendingLimitResponse | ResponseProps
+): response is ResponseProps {
+  return 'detail' in response;
+}
+
+/**
+ * Type guard for member spending limit data.
+ */
+export function isMemberSpendingLimitData(
+  response: MemberSpendingLimitResponse | ResponseProps
+): response is MemberSpendingLimitResponse {
+  return 'monthlySpendingCap' in response && 'userId' in response && 'orgId' in response;
+}
+
+/**
+ * Calculate display props from member spending data.
+ */
+export function calculateMemberSpendingDisplay(spend: MemberSpend): SpendingDisplayProps {
+  const isUnlimited = spend.limit === null;
+  const isOverLimit = !isUnlimited && spend.cumulativeSpend >= spend.limit!;
+  const isNearLimit = !isUnlimited && !isOverLimit && spend.percentUsed >= 80;
+  return {
+    currentSpend: spend.cumulativeSpend,
+    limit: spend.limit,
+    percentUsed: spend.percentUsed,
+    isOverLimit,
+    isNearLimit,
+    isUnlimited,
+  };
+}

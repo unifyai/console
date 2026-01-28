@@ -1,7 +1,7 @@
 'use client';
 
 import PersonalWorkspaceView from './PersonalWorkspaceView';
-import OrganizationWorkspaceView from './OrganizationWorkspaceView';
+import OrganizationWorkspaceView, { MemberSpendingActions } from './OrganizationWorkspaceView';
 import { Organization, OrganizationActions } from '@/types/organization';
 import { TeamActions } from '@/types/team';
 import { RoleActions } from '@/types/role';
@@ -16,9 +16,21 @@ interface MainProps {
   actions: OrganizationActions;
   teamActions: TeamActions;
   roleActions: RoleActions;
+  /** Member spending actions (optional - enables spending management) */
+  memberSpendingActions?: MemberSpendingActions;
+  /** Organization spending limit for validation context */
+  orgSpendingLimit?: number | null;
 }
 
-const Main = ({ initialOrganizations, userId, actions, teamActions, roleActions }: MainProps) => {
+const Main = ({
+  initialOrganizations,
+  userId,
+  actions,
+  teamActions,
+  roleActions,
+  memberSpendingActions,
+  orgSpendingLimit,
+}: MainProps) => {
   // 1. Organization Logic
   const {
     organizations,
@@ -94,6 +106,9 @@ const Main = ({ initialOrganizations, userId, actions, teamActions, roleActions 
             onDeleteRole={handleDeleteRole}
             onAddRolePermission={handleAddPermission}
             onRemoveRolePermission={handleRemovePermission}
+            // Member Spending
+            memberSpendingActions={memberSpendingActions}
+            orgSpendingLimit={orgSpendingLimit}
           />
         ) : (
           <PersonalWorkspaceView

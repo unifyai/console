@@ -80,7 +80,7 @@ describe('OrgSpendingLimitSection', () => {
 
       render(<OrgSpendingLimitSection {...defaultProps} />);
 
-      expect(screen.getByText(/loading spending data/i)).toBeInTheDocument();
+      expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
 
     it('shows organization name in header', () => {

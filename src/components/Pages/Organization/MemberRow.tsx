@@ -1,6 +1,17 @@
 'use client';
 
-import { MoreHorizontal, User, Shield, LogOut, CheckCircle, HelpCircle, Send } from 'lucide-react';
+import {
+  MoreHorizontal,
+  User,
+  Shield,
+  LogOut,
+  CheckCircle,
+  HelpCircle,
+  Send,
+  DollarSign,
+  AlertTriangle,
+  Infinity,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,9 +41,22 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { OrganizationRole } from '@/types/organization';
+import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
 import { UnifiedMember } from '@/hooks/useOrganization';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { formatSpendAmount } from '@/types/assistants/spending';
+
+/** Member spending information for display */
+export interface MemberSpendingInfo {
+  /** Current month's cumulative spend */
+  currentSpend: number;
+  /** Monthly spending limit (null = unlimited) */
+  limit: number | null;
+  /** Display properties for visualization */
+  display: SpendingDisplayProps | null;
+  /** Whether spending data is loading */
+  isLoading?: boolean;
+}
 
 interface MemberRowProps {
   member: UnifiedMember;
@@ -46,6 +70,12 @@ interface MemberRowProps {
   onTransferOwnership: (id: string) => void;
   onCancelInvite: (id: string) => void;
   onResendInvite: (email: string) => void;
+  /** Optional spending information for the member */
+  spendingInfo?: MemberSpendingInfo;
+  /** Whether spending columns should be displayed */
+  showSpending?: boolean;
+  /** Callback when user wants to edit spending limit */
+  onEditSpendingLimit?: (userId: string) => void;
 }
 
 const getRoleBadgeColor = (roleName: string) => {
@@ -73,6 +103,9 @@ const MemberRow = ({
   onTransferOwnership,
   onCancelInvite,
   onResendInvite,
+  spendingInfo,
+  showSpending = false,
+  onEditSpendingLimit,
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -164,6 +197,60 @@ const MemberRow = ({
             </Badge>
           </div>
         </TableCell>
+
+        {/* Monthly Limit - only shown if showSpending is true */}
+        {showSpending && (
+          <TableCell className="text-center">
+            {member.status === 'pending' ? (
+              <span className="text-caption">-</span>
+            ) : spendingInfo?.isLoading ? (
+              <span className="text-caption">...</span>
+            ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
+              <span className="text-sm">{formatSpendAmount(spendingInfo.limit)}</span>
+            ) : (
+              <span className="text-body-muted flex items-center justify-center gap-1">
+                <Infinity className="h-3 w-3" />
+                <span>Unlimited</span>
+              </span>
+            )}
+          </TableCell>
+        )}
+
+        {/* Spent - only shown if showSpending is true */}
+        {showSpending && (
+          <TableCell className="text-center">
+            {member.status === 'pending' ? (
+              <span className="text-caption">-</span>
+            ) : spendingInfo?.isLoading ? (
+              <span className="text-caption">...</span>
+            ) : (
+              <div className="flex flex-col items-center gap-0.5">
+                <span
+                  className={cn(
+                    'text-sm font-medium',
+                    spendingInfo?.display?.isOverLimit && 'text-destructive',
+                    spendingInfo?.display?.isNearLimit &&
+                      !spendingInfo?.display?.isOverLimit &&
+                      'text-amber-600 dark:text-amber-500'
+                  )}
+                >
+                  {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
+                  {spendingInfo?.display && !spendingInfo.display.isUnlimited && (
+                    <span className="text-caption ml-1">
+                      ({spendingInfo.display.percentUsed.toFixed(0)}%)
+                    </span>
+                  )}
+                </span>
+                {spendingInfo?.display?.isNearLimit && !spendingInfo?.display?.isOverLimit && (
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                )}
+                {spendingInfo?.display?.isOverLimit && (
+                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                )}
+              </div>
+            )}
+          </TableCell>
+        )}
 
         {/* Actions */}
         <TableCell className="text-right">
@@ -257,6 +344,14 @@ const MemberRow = ({
                             </DropdownMenuSubContent>
                           </DropdownMenuPortal>
                         </DropdownMenuSub>
+                      )}
+
+                      {/* Edit Spending Limit - shown when spending is enabled */}
+                      {showSpending && canManageMembers && onEditSpendingLimit && member.userId && (
+                        <DropdownMenuItem onClick={() => onEditSpendingLimit(member.userId!)}>
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          <span>Edit Spending Limit</span>
+                        </DropdownMenuItem>
                       )}
 
                       {isOrgOwner && (

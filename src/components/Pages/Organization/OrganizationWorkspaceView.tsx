@@ -1,18 +1,30 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Organization, OrganizationRole } from '@/types/organization';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Organization,
+  OrganizationRole,
+  MemberSpend,
+  MemberSpendingLimitResponse,
+  MemberSpendingLimitRequest,
+  isMemberSpendData,
+  isMemberSpendingLimitData,
+  calculateMemberSpendingDisplay,
+  getCurrentMonth,
+} from '@/types/organization';
+import { ResponseProps } from '@/types/common';
 import { UnifiedMember } from '@/hooks/useOrganization';
 import { Team } from '@/types/team';
 import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
 import { Search, Loader2, Users, Shield } from 'lucide-react';
-import MemberRow from './MemberRow';
+import MemberRow, { MemberSpendingInfo } from './MemberRow';
 import InviteMemberDialog from './InviteMemberDialog';
 import UpdateOrgDialog from './UpdateOrganizationDialog';
 import DeleteOrganizationDialog from './DeleteOrganizationDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
+import { MemberSpendingDialog } from './MemberSpending';
 import { Button } from '@/components/UI/button';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/UI/table';
 import {
@@ -23,6 +35,25 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+/** Type for member spending server actions */
+export interface MemberSpendingActions {
+  getMemberSpend: (
+    orgId: number,
+    userId: string,
+    month?: string
+  ) => Promise<MemberSpend | ResponseProps>;
+  getMemberSpendingLimit: (
+    orgId: number,
+    userId: string
+  ) => Promise<MemberSpendingLimitResponse | ResponseProps>;
+  setMemberSpendingLimit: (
+    orgId: number,
+    userId: string,
+    payload: MemberSpendingLimitRequest
+  ) => Promise<(MemberSpendingLimitResponse & ResponseProps) | ResponseProps>;
+}
 
 interface OrganizationWorkspaceViewProps {
   organization: Organization;
@@ -56,6 +87,10 @@ interface OrganizationWorkspaceViewProps {
   onDeleteRole: (roleId: number) => void;
   onAddRolePermission: (roleId: number, permissionIds: number[]) => void;
   onRemoveRolePermission: (roleId: number, permissionId: number) => void;
+  // Member Spending Actions (optional - if not provided, spending features are disabled)
+  memberSpendingActions?: MemberSpendingActions;
+  // Organization spending limit (for validation context)
+  orgSpendingLimit?: number | null;
 }
 
 const OrganizationWorkspaceView = ({
@@ -85,12 +120,26 @@ const OrganizationWorkspaceView = ({
   onDeleteRole,
   onAddRolePermission,
   onRemoveRolePermission,
+  memberSpendingActions,
+  orgSpendingLimit,
 }: OrganizationWorkspaceViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
   const [showTeamPanel, setShowTeamPanel] = useState(false);
   const [showRolePanel, setShowRolePanel] = useState(false);
+
+  // Member spending state
+  const [memberSpendingMap, setMemberSpendingMap] = useState<Map<string, MemberSpendingInfo>>(
+    new Map()
+  );
+  const [isLoadingSpending, setIsLoadingSpending] = useState(false);
+  const [selectedMemberForSpending, setSelectedMemberForSpending] = useState<UnifiedMember | null>(
+    null
+  );
+
+  // Check if spending features are available
+  const spendingEnabled = !!memberSpendingActions;
 
   // Toggle handlers that ensure exclusivity
   const toggleTeamPanel = () => {
@@ -102,6 +151,131 @@ const OrganizationWorkspaceView = ({
     if (showTeamPanel) setShowTeamPanel(false);
     setShowRolePanel(!showRolePanel);
   };
+
+  // Fetch spending data for all active members
+  const fetchMemberSpending = useCallback(async () => {
+    if (!memberSpendingActions) return;
+
+    setIsLoadingSpending(true);
+    const currentMonth = getCurrentMonth();
+    const activeMembers = unifiedMembers.filter((m) => m.status === 'active' && m.userId);
+
+    const newMap = new Map<string, MemberSpendingInfo>();
+
+    // Set loading state for all members
+    activeMembers.forEach((m) => {
+      if (m.userId) {
+        newMap.set(m.userId, {
+          currentSpend: 0,
+          limit: null,
+          display: null,
+          isLoading: true,
+        });
+      }
+    });
+    setMemberSpendingMap(new Map(newMap));
+
+    // Fetch spending data for each member
+    await Promise.all(
+      activeMembers.map(async (member) => {
+        if (!member.userId) return;
+
+        try {
+          const [spendResult, limitResult] = await Promise.all([
+            memberSpendingActions.getMemberSpend(organization.id, member.userId, currentMonth),
+            memberSpendingActions.getMemberSpendingLimit(organization.id, member.userId),
+          ]);
+
+          let spendData: MemberSpendingInfo = {
+            currentSpend: 0,
+            limit: null,
+            display: null,
+            isLoading: false,
+          };
+
+          if (isMemberSpendData(spendResult)) {
+            spendData.currentSpend = spendResult.cumulativeSpend;
+            spendData.limit = spendResult.limit;
+            spendData.display = calculateMemberSpendingDisplay(spendResult);
+          }
+
+          if (isMemberSpendingLimitData(limitResult)) {
+            spendData.limit = limitResult.monthlySpendingCap;
+            // Recalculate display with the limit from the limit endpoint
+            if (isMemberSpendData(spendResult)) {
+              spendData.display = calculateMemberSpendingDisplay({
+                ...spendResult,
+                limit: limitResult.monthlySpendingCap,
+              });
+            }
+          }
+
+          newMap.set(member.userId, spendData);
+        } catch (err) {
+          console.error(`Failed to fetch spending for member ${member.userId}:`, err);
+          newMap.set(member.userId, {
+            currentSpend: 0,
+            limit: null,
+            display: null,
+            isLoading: false,
+          });
+        }
+      })
+    );
+
+    setMemberSpendingMap(new Map(newMap));
+    setIsLoadingSpending(false);
+  }, [memberSpendingActions, unifiedMembers, organization.id]);
+
+  // Fetch spending data when component mounts and spending is enabled
+  useEffect(() => {
+    if (spendingEnabled) {
+      fetchMemberSpending();
+    }
+  }, [spendingEnabled, fetchMemberSpending]);
+
+  // Handle opening the spending dialog for a member
+  const handleEditSpendingLimit = useCallback(
+    (userId: string) => {
+      const member = unifiedMembers.find((m) => m.userId === userId);
+      if (member) {
+        setSelectedMemberForSpending(member);
+      }
+    },
+    [unifiedMembers]
+  );
+
+  // Handle saving a member's spending limit
+  const handleSaveSpendingLimit = useCallback(
+    async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
+      if (!memberSpendingActions || !selectedMemberForSpending?.userId) {
+        return { success: false, error: 'Spending actions not available' };
+      }
+
+      try {
+        const result = await memberSpendingActions.setMemberSpendingLimit(
+          organization.id,
+          selectedMemberForSpending.userId,
+          { monthlySpendingCap: newLimit }
+        );
+
+        if ('detail' in result && !('info' in result)) {
+          return { success: false, error: result.detail as string };
+        }
+
+        toast.success('Spending limit updated successfully');
+
+        // Refresh spending data
+        await fetchMemberSpending();
+
+        return { success: true };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to update spending limit';
+        return { success: false, error: errorMsg };
+      }
+    },
+    [memberSpendingActions, selectedMemberForSpending, organization.id, fetchMemberSpending]
+  );
 
   // Permission Logic
   const currentUserPermissions = useMemo(() => {
@@ -318,18 +492,33 @@ const OrganizationWorkspaceView = ({
                 <Table>
                   <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
                     <TableRow>
-                      <TableHead className="w-[30%] min-w-[200px]">User</TableHead>
-                      <TableHead className="hidden w-[25%] min-w-[200px] lg:table-cell">
+                      <TableHead
+                        className={cn(spendingEnabled ? 'w-[20%]' : 'w-[30%]', 'min-w-[180px]')}
+                      >
+                        User
+                      </TableHead>
+                      <TableHead className="hidden w-[20%] min-w-[180px] lg:table-cell">
                         Email
                       </TableHead>
-                      <TableHead className="w-[20%] min-w-[120px] text-center">Teams</TableHead>
-                      <TableHead className="w-[15%] min-w-[100px] text-center">Role</TableHead>
-                      <TableHead className="w-[10%] min-w-[50px] text-right"></TableHead>
+                      <TableHead className="w-[15%] min-w-[100px] text-center">Teams</TableHead>
+                      <TableHead className="w-[12%] min-w-[80px] text-center">Role</TableHead>
+                      {spendingEnabled && (
+                        <TableHead className="w-[12%] min-w-[100px] text-center">
+                          Monthly Limit
+                        </TableHead>
+                      )}
+                      {spendingEnabled && (
+                        <TableHead className="w-[12%] min-w-[100px] text-center">Spent</TableHead>
+                      )}
+                      <TableHead className="w-[8%] min-w-[50px] text-right"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredMembers.map((member) => {
                       const userTeams = getUserTeams(member.userId).map((t) => t.name);
+                      const memberSpending = member.userId
+                        ? memberSpendingMap.get(member.userId)
+                        : undefined;
                       return (
                         <MemberRow
                           key={member.id}
@@ -344,6 +533,9 @@ const OrganizationWorkspaceView = ({
                           onTransferOwnership={onTransferOwnership}
                           onCancelInvite={onCancelInvite}
                           onResendInvite={onResendInvite}
+                          showSpending={spendingEnabled}
+                          spendingInfo={memberSpending}
+                          onEditSpendingLimit={handleEditSpendingLimit}
                         />
                       );
                     })}
@@ -396,6 +588,36 @@ const OrganizationWorkspaceView = ({
           </div>
         </div>
       </section>
+
+      {/* Member Spending Dialog */}
+      {selectedMemberForSpending && (
+        <MemberSpendingDialog
+          open={!!selectedMemberForSpending}
+          onOpenChange={(open) => {
+            if (!open) setSelectedMemberForSpending(null);
+          }}
+          memberName={selectedMemberForSpending.name || 'Unknown'}
+          memberEmail={selectedMemberForSpending.email}
+          currentLimit={
+            selectedMemberForSpending.userId
+              ? (memberSpendingMap.get(selectedMemberForSpending.userId)?.limit ?? null)
+              : null
+          }
+          currentSpend={
+            selectedMemberForSpending.userId
+              ? (memberSpendingMap.get(selectedMemberForSpending.userId)?.currentSpend ?? 0)
+              : 0
+          }
+          display={
+            selectedMemberForSpending.userId
+              ? (memberSpendingMap.get(selectedMemberForSpending.userId)?.display ?? null)
+              : null
+          }
+          orgLimit={orgSpendingLimit}
+          onSave={handleSaveSpendingLimit}
+          canEdit={canManageMembers}
+        />
+      )}
     </div>
   );
 };

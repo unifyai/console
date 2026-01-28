@@ -5,7 +5,9 @@ import { getCurrentUser } from '@/lib/user/user';
 import * as OrganizationActions from '@/lib/user/organization';
 import * as TeamActions from '@/lib/user/team';
 import * as RoleActions from '@/lib/user/role';
-import { Organization } from '@/types/organization';
+import * as MemberSpendingActions from '@/lib/organizations/member-spending';
+import * as OrgSpendingActions from '@/lib/organizations/spending';
+import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
 
 const OrganizationPage = async () => {
@@ -61,6 +63,24 @@ const OrganizationPage = async () => {
     removePermissionFromRole: await RoleActions.removePermissionFromRoleAction(apiKey),
   };
 
+  // Member spending actions - bind the server actions for the organization
+  const memberSpendingActions = {
+    getMemberSpend: await MemberSpendingActions.getMemberSpend(apiKey),
+    getMemberSpendingLimit: await MemberSpendingActions.getMemberSpendingLimit(apiKey),
+    setMemberSpendingLimit: await MemberSpendingActions.setMemberSpendingLimit(apiKey),
+  };
+
+  // Fetch org spending limit for validation context
+  // We need the first org's spending limit if user is in an org
+  let orgSpendingLimit: number | null = null;
+  if (organizations.length > 0) {
+    const getOrgLimit = await OrgSpendingActions.getOrgSpendingLimit(apiKey);
+    const orgLimitResult = await getOrgLimit(organizations[0].id);
+    if (isOrgSpendingLimitData(orgLimitResult)) {
+      orgSpendingLimit = orgLimitResult.monthlySpendingCap;
+    }
+  }
+
   return (
     <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
@@ -70,6 +90,8 @@ const OrganizationPage = async () => {
           actions={orgActions}
           teamActions={teamActions}
           roleActions={roleActions}
+          memberSpendingActions={memberSpendingActions}
+          orgSpendingLimit={orgSpendingLimit}
         />
       </Suspense>
     </div>
