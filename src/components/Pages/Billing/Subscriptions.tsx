@@ -54,57 +54,47 @@ const FeatureItem = ({ children }: { children: React.ReactNode }) => (
   </li>
 );
 
-const Main = () => {
+const Subscriptions = () => {
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-h3">Select Your Plan</CardTitle>
-        <CardDescription className="text-body">
-          Hire, customize and manage your team of AI assistants with plans that fit your needs.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid w-full grid-cols-1 gap-8 md:grid-cols-3">
-          {plans.map((plan, index) => (
-            <Card
-              key={index}
-              className={`flex flex-col ${plan.name === 'Personal' ? 'border-primary' : ''}`}
-            >
-              <CardHeader className="text-center">
-                <CardTitle className="text-title">{plan.name}</CardTitle>
-                <CardDescription className="text-title text-primary">{plan.price}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <ul className="space-y-4">
-                  {plan.features.map((feature, featureIndex) => {
-                    if (feature.startsWith('-')) {
-                      return (
-                        <li key={featureIndex} className="text-body ml-8 text-muted-foreground">
-                          {feature}
-                        </li>
-                      );
-                    }
-                    return <FeatureItem key={featureIndex}>{feature}</FeatureItem>;
-                  })}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                {plan.name === 'Personal' ? (
-                  <Button className="w-full" variant={plan.buttonVariant as any} disabled>
-                    {plan.buttonText}
-                  </Button>
-                ) : (
-                  <Button className="w-full" variant={plan.buttonVariant as any}>
-                    {plan.buttonText}
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid w-full grid-cols-1 gap-8 md:grid-cols-3">
+      {plans.map((plan, index) => (
+        <Card
+          key={index}
+          className={`flex flex-col ${plan.name === 'Personal' ? 'border-primary' : ''}`}
+        >
+          <CardHeader className="text-center">
+            <CardTitle className="text-title">{plan.name}</CardTitle>
+            <CardDescription className="text-title text-primary">{plan.price}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <ul className="space-y-4">
+              {plan.features.map((feature, featureIndex) => {
+                if (feature.startsWith('-')) {
+                  return (
+                    <li key={featureIndex} className="text-body ml-8 text-muted-foreground">
+                      {feature}
+                    </li>
+                  );
+                }
+                return <FeatureItem key={featureIndex}>{feature}</FeatureItem>;
+              })}
+            </ul>
+          </CardContent>
+          <CardFooter>
+            {plan.name === 'Personal' ? (
+              <Button className="w-full" variant={plan.buttonVariant as any} disabled>
+                {plan.buttonText}
+              </Button>
+            ) : (
+              <Button className="w-full" variant={plan.buttonVariant as any}>
+                {plan.buttonText}
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
   );
 };
 
-export default Main;
+export default Subscriptions;

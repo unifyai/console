@@ -276,7 +276,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/v0/providers': {
+  '/v0/user/spending-limit': {
     parameters: {
       query?: never;
       header?: never;
@@ -284,80 +284,20 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Providers
-     * @description Lists available providers. If `model` is specified,
-     *     returns the providers that support that model.
+     * Get User Spending Limit
+     * @description Get the monthly spending limit for the current user's personal usage.
      */
-    get: operations['list_providers_v0_providers_get'];
-    put?: never;
+    get: operations['get_user_spending_limit_v0_user_spending_limit_get'];
+    /**
+     * Set User Spending Limit
+     * @description Set the monthly spending limit for the current user's personal usage.
+     *
+     *     This limit applies when using the user's personal API key (not org API keys).
+     *     When the limit is lowered, personal assistant limits that exceed the new limit
+     *     will be automatically capped.
+     */
+    put: operations['set_user_spending_limit_v0_user_spending_limit_put'];
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v0/models': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Models
-     * @description Lists available models. If `provider` is specified,
-     *     returns the models that the provider supports.
-     */
-    get: operations['list_models_v0_models_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v0/endpoints': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Endpoints
-     * @description Lists available endpoints in `model@provider` format.
-     *     If `model` or `provider` are specified, only the matching endpoints will be listed.
-     */
-    get: operations['list_endpoints_v0_endpoints_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v0/chat/completions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Chat Completions
-     * @description OpenAI compatible `/chat/completions` endpoint for LLM inference.
-     *     Check the OpenAI
-     *     [API reference](https://platform.openai.com/docs/api-reference/chat)
-     *     for the most updated documentation. The ground truth is always the latest OpenAI API
-     *     Reference. The arguments below are copied for convenience, but might not be fully
-     *     up-to-date at all times.
-     */
-    post: operations['chat_completions_v0_chat_completions_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -830,6 +770,41 @@ export interface paths {
      * @description Cancels a running video animation job.
      */
     post: operations['cancel_animation_prediction_v0_assistant_photo_animate__prediction_id__cancel_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v0/assistant/{agent_id}/spending-limit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Assistant Spending Limit
+     * @description Get the monthly spending limit for an assistant.
+     *
+     *     Returns the assistant's limit and effective limit (considering parent limits).
+     */
+    get: operations['get_assistant_spending_limit_v0_assistant__agent_id__spending_limit_get'];
+    /**
+     * Set Assistant Spending Limit
+     * @description Set the monthly spending limit for an assistant.
+     *
+     *     For personal assistants (no organization):
+     *     - Limit cannot exceed the user's personal spending limit
+     *
+     *     For organizational assistants:
+     *     - Limit cannot exceed the member's org spending limit
+     *     - Limit cannot exceed the organization's spending limit
+     *
+     *     Setting to null removes the limit.
+     */
+    put: operations['set_assistant_spending_limit_v0_assistant__agent_id__spending_limit_put'];
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1369,8 +1344,8 @@ export interface paths {
      *          - Supports multi-level grouping of logs. The order of fields in group_by dictates the nesting order.
      *          - Supports pagination at the group level using group_limit and group_offset.
      *          - Supports limiting the nesting depth with group_depth.
-     *          - When nested_groups is True, returns a nested structure under the "logs" key.
-     *          - When nested_groups is False, returns flat per-field mappings under the "groups" key.
+     *          - When nested_groups is True, returns a nested structure under the 'logs' key.
+     *          - When nested_groups is False, returns flat per-field mappings under the 'groups' key.
      *          - When groups_only is True, the detailed log objects are omitted and leaves are simplified
      *            to either lists of log ids (if return_timestamps is False) or mappings of `{log id: timestamp}` (if True).
      *
@@ -1397,7 +1372,7 @@ export interface paths {
      *     - A list of log IDs to update
      *     - A filter dictionary to select logs matching specific criteria (requires `project` or `context`)
      *
-     *     A dictionary of "explicit_types" can be passed as part of the `entries`.
+     *     A dictionary of 'explicit_types' can be passed as part of the `entries`.
      *     If present, it will override the inferred type of any matching key in all logs.
      */
     put: operations['update_logs_v0_logs_put'];
@@ -1414,7 +1389,7 @@ export interface paths {
      *     - A string: Uses the string as the context name with default values (description=None, is_versioned=False)
      *     - An object: Uses the object's name, description, and is_versioned properties
      *
-     *     An "explicit_types" dictionary can be passed as part of the `entries`.
+     *     An 'explicit_types' dictionary can be passed as part of the `entries`.
      *     If present, any matching key inside this dictionary will override the
      *     inferred type of that particular entry. The explicit_types dictionary
      *     can also specify if a field is mutable via a 'mutable' boolean flag
@@ -1422,16 +1397,16 @@ export interface paths {
      *
      *     ```json
      *     {
-     *         "field_name": {
-     *             "type": "str",
-     *             "mutable": false,  # Makes the field immutable
-     *             "unique": true     # Makes the field unique
+     *         'field_name': {
+     *             'type': 'str',
+     *             'mutable': false,  # Makes the field immutable (default is true)
+     *             'unique': true     # Makes the field unique
      *         }
      *     }
      *     ```
      *
-     *     By default, all fields are immmutable unless specified otherwise.
-     *     Once a field is marked as mutable, only then can it be modified through
+     *     By default, all fields are mutable. Set `mutable: false` to make a field
+     *     immutable after creation. Only mutable fields can be modified through
      *     the update endpoint.
      *
      *     **Response includes:**
@@ -1488,7 +1463,7 @@ export interface paths {
      * @description Creates one or more entries based on `body.equation` and `body.referenced_logs`.
      *
      *     When body.derived=True (default):
-     *       Eagerly computes each derived value and stores it in DerivedLog.value.
+     *       Eagerly computes each derived value and stores it in LogEvent.data.
      *
      *     When body.derived=False:
      *       Computes values and stores them directly in the base logs as regular entries.
@@ -1498,6 +1473,74 @@ export interface paths {
      *     - An object: Uses the object's name, description, and is_versioned properties
      */
     post: operations['create_from_logs_v0_logs_derived_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v0/logs/{log_id}/fields/{field_name}/atomic': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Atomic Field Update
+     * @description Apply an atomic operation to a numeric field in a log entry.
+     *
+     *     This endpoint performs race-safe atomic updates directly in PostgreSQL,
+     *     ensuring correct results even under high concurrent load.
+     *
+     *     Supported operations:
+     *     - `+N`: Add N to the current value
+     *     - `-N`: Subtract N from the current value
+     *     - `*N`: Multiply the current value by N
+     *     - `/N`: Divide the current value by N
+     *
+     *     If the field doesn't exist or is NULL, it is treated as 0 before the operation.
+     */
+    patch: operations['atomic_field_update_v0_logs__log_id__fields__field_name__atomic_patch'];
+    trace?: never;
+  };
+  '/v0/logs/atomic': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Atomic Field Upsert
+     * @description Atomic find-or-create with atomic field update (upsert mode).
+     *
+     *     This endpoint atomically:
+     *     1. Ensures the context exists with correct unique_keys configuration
+     *     2. Acquires an advisory lock on the unique key values (prevents race on first insert)
+     *     3. Finds an existing log by unique_keys or creates it with initial_data
+     *     4. Applies an atomic operation to the specified field
+     *     5. If add_to_all_context=true, mirrors the log to the All/* archive context
+     *
+     *     Required body fields for upsert mode:
+     *     - project: Name of the project
+     *     - context: Context path for the log
+     *     - unique_keys: Key name to type mapping (e.g., {'_assistant_id': 'str', 'month': 'str'})
+     *     - initial_data: Data for new log entry (must include all unique key values)
+     *     - operation: Atomic operation (+N, -N, *N, /N)
+     *
+     *     This is race-safe for concurrent first inserts - only one request will create the log,
+     *     and all concurrent requests will correctly increment the field.
+     */
+    post: operations['atomic_field_upsert_v0_logs_atomic_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1526,9 +1569,9 @@ export interface paths {
      *     Example with image embedding:
      *     ```json
      *     {
-     *         "project_name": "my-project",
-     *         "filter_expr": "cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3",
-     *         "limit": 10
+     *         'project_name': 'my-project',
+     *         'filter_expr': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3',
+     *         'limit': 10
      *     }
      *     ```
      */
@@ -1586,35 +1629,35 @@ export interface paths {
      *     2. Multiple keys, no grouping: Returns a dict mapping keys to metric values
      *        Example:
      *        ```bash
-     *        GET /logs/metric/mean?key=["score","length"]
+     *        GET /logs/metric/mean?key=['score','length']
      *        ```
      *        Response:
      *        ```json
-     *        {"score": 4.56, "length": 120}
+     *        {'score': 4.56, 'length': 120}
      *        ```
      *
      *     3. With grouping: Returns metrics grouped by one or more fields
      *        Example:
      *        ```bash
-     *        GET /logs/metric/mean with body {"key": "score", "group_by": "model"}
+     *        GET /logs/metric/mean with body {'key': 'score', 'group_by': 'model'}
      *        ```
      *        Response:
      *        ```json
-     *        {"gpt-4": 4.56, "gpt-3.5": 3.78}
+     *        {'gpt-4': 4.56, 'gpt-3.5': 3.78}
      *        ```
      *
      *        For nested grouping, provide a list of fields:
      *        Example:
      *        ```bash
-     *        GET /logs/metric/mean with body {"key": "score", "group_by": ["model", "temperature"]}
+     *        GET /logs/metric/mean with body {'key': 'score', 'group_by': ['model', 'temperature']}
      *        ```
      *        Response:
      *        ```json
-     *        {"gpt-4": {"0.7": 4.56, "0.9": 4.23}, "gpt-3.5": {"0.7": 3.78, "0.9": 3.45}}
+     *        {'gpt-4': {'0.7': 4.56, '0.9': 4.23}, 'gpt-3.5': {'0.7': 3.78, '0.9': 3.45}}
      *        ```
      *
      *     The group_by parameter can be a string for single-level grouping or a list of strings for
-     *     nested grouping. Each group_by field can be prefixed with "params/" to indicate it's a parameter.
+     *     nested grouping. Each group_by field can be prefixed with 'params/' to indicate it's a parameter.
      */
     get: operations['get_logs_metric_v0_logs_metric__default_metric__get'];
     put?: never;
@@ -1750,7 +1793,7 @@ export interface paths {
     /**
      * Delete Fields
      * @description Deletes one or more fields from a project. This will:
-     *     1. Delete all Log and DerivedLog entries with the specified field names (not the entire LogEvent)
+     *     1. Remove the field from LogEvent.data for all matching log events
      *     2. Delete the field type records for those fields
      *
      *     This operation cannot be undone, so use with caution.
@@ -1801,6 +1844,8 @@ export interface paths {
      *
      *     For personal API keys: Returns plots for personal projects.
      *     For organization API keys: Returns plots for org projects with access.
+     *
+     *     Supports pagination via limit and offset parameters.
      */
     get: operations['list_plots_v0_logs_plots_get'];
     put?: never;
@@ -1847,8 +1892,97 @@ export interface paths {
      * @description Update a plot.
      *
      *     Requires project:write permission on the plot's project.
+     *     If updating project_config, the new project_name and context are validated.
      */
     patch: operations['update_plot_v0_logs_plots__token__patch'];
+    trace?: never;
+  };
+  '/v0/logs/table': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Table View
+     * @description Create a new shareable table view.
+     *
+     *     Requires project:read permission on the target project.
+     */
+    post: operations['create_table_view_v0_logs_table_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v0/logs/tables': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Table Views
+     * @description List table views accessible to the user.
+     *
+     *     For personal API keys: Returns table views for personal projects.
+     *     For organization API keys: Returns table views for org projects with access.
+     *
+     *     Supports pagination via limit and offset parameters.
+     */
+    get: operations['list_table_views_v0_logs_tables_get'];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Table Views By Project
+     * @description Delete all table views for a project, optionally filtered by context.
+     *
+     *     Requires project:write permission on the target project.
+     */
+    delete: operations['delete_table_views_by_project_v0_logs_tables_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v0/logs/tables/{token}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Table View
+     * @description Get a table view by token.
+     *
+     *     Requires project:read permission on the table view's project.
+     */
+    get: operations['get_table_view_v0_logs_tables__token__get'];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Table View
+     * @description Delete a table view.
+     *
+     *     Requires project:write permission on the table view's project.
+     */
+    delete: operations['delete_table_view_v0_logs_tables__token__delete'];
+    options?: never;
+    head?: never;
+    /**
+     * Update Table View
+     * @description Update a table view.
+     *
+     *     Requires project:write permission on the table view's project.
+     *     If updating project_config, the new project_name and context are validated.
+     */
+    patch: operations['update_table_view_v0_logs_tables__token__patch'];
     trace?: never;
   };
   '/v0/interfaces/': {
@@ -2312,6 +2446,7 @@ export interface paths {
      *
      *     The authenticated user will be the owner of the organization.
      *     billing_user_id is always set to the owner (billing follows ownership).
+     *     timezone is initialized from the owner's timezone setting.
      *     Returns the organization details and the owner's organization API key.
      */
     post: operations['create_organization_v0_organizations_post'];
@@ -2683,6 +2818,69 @@ export interface paths {
     patch: operations['update_organization_business_profile_v0_organizations__organization_id__billing_business_profile_patch'];
     trace?: never;
   };
+  '/v0/organizations/{organization_id}/spending-limit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Org Spending Limit
+     * @description Get the monthly spending limit for an organization.
+     *
+     *     Returns the organization's limit. Any member of the organization can read this.
+     */
+    get: operations['get_org_spending_limit_v0_organizations__organization_id__spending_limit_get'];
+    /**
+     * Set Org Spending Limit
+     * @description Set the monthly spending limit for an organization.
+     *
+     *     When the limit is lowered, member and assistant limits that exceed the new org limit
+     *     will be automatically capped to the org limit (eager cascade).
+     *
+     *     Setting to null removes the limit (no cap for members/assistants from this org).
+     */
+    put: operations['set_org_spending_limit_v0_organizations__organization_id__spending_limit_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v0/organizations/{organization_id}/members/{member_user_id}/spending-limit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Member Spending Limit
+     * @description Get the monthly spending limit for a member within an organization.
+     */
+    get: operations['get_member_spending_limit_v0_organizations__organization_id__members__member_user_id__spending_limit_get'];
+    /**
+     * Set Member Spending Limit
+     * @description Set the monthly spending limit for a member within an organization.
+     *
+     *     This limit controls how much the member can spend when using the org's API key.
+     *     It is separate from the user's personal spending limit (which applies to their
+     *     personal API key).
+     *
+     *     The member limit cannot exceed the organization's limit.
+     *     When the limit is lowered, assistant limits owned by this member that exceed
+     *     the new limit will be automatically capped.
+     */
+    put: operations['set_member_spending_limit_v0_organizations__organization_id__members__member_user_id__spending_limit_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v0/permissions': {
     parameters: {
       query?: never;
@@ -3019,7 +3217,7 @@ export interface paths {
      *     Note: For org-level permissions, use the /organizations/{id}/members endpoint instead.
      *
      *     :param request_fastapi: FastAPI request object.
-     *     :param resource_type: Type of resource ("project").
+     *     :param resource_type: Type of resource ('project').
      *     :param resource_id: Resource ID.
      *     :param session: Database session.
      *     :return: List of access entries.
@@ -3036,7 +3234,7 @@ export interface paths {
      *     Note: For org-level permissions, use OrganizationMember roles instead.
      *
      *     :param request_fastapi: FastAPI request object.
-     *     :param resource_type: Type of resource ("project").
+     *     :param resource_type: Type of resource ('project').
      *     :param resource_id: Resource ID.
      *     :param access_data: Access grant data.
      *     :param session: Database session.
@@ -3052,7 +3250,7 @@ export interface paths {
      *     Note: For org-level permissions, use OrganizationMember roles instead.
      *
      *     :param request_fastapi: FastAPI request object.
-     *     :param resource_type: Type of resource ("project").
+     *     :param resource_type: Type of resource ('project').
      *     :param resource_id: Resource ID.
      *     :param access_data: Access revoke data.
      *     :param session: Database session.
@@ -3088,7 +3286,7 @@ export interface paths {
      *     Note: For org-level permissions, use OrganizationMember roles instead.
      *
      *     :param request_fastapi: FastAPI request object.
-     *     :param resource_type: Type of resource ("project").
+     *     :param resource_type: Type of resource ('project').
      *     :param resource_id: Resource ID.
      *     :param access_id: ResourceAccess ID to update.
      *     :param update_data: Update data containing new role_id.
@@ -3113,7 +3311,7 @@ export interface paths {
      *     and the effective role (highest permission level).
      *
      *     :param request_fastapi: FastAPI request object.
-     *     :param resource_type: Type of resource ("project").
+     *     :param resource_type: Type of resource ('project').
      *     :param resource_id: Resource ID.
      *     :param user_id: User ID to check access for.
      *     :param session: Database session.
@@ -3303,7 +3501,7 @@ export interface components {
        * Log Args
        * @description Dictionary of arguments (e.g. filter_expr) to select logs by criteria.
        * @example {
-       *       "filter_expr": "metric > 0.9"
+       *       'filter_expr': 'metric > 0.9'
        *     }
        */
       log_args?: {
@@ -3428,11 +3626,17 @@ export interface components {
        */
       desktop_url?: string | null;
       /**
-       * User Local Desktop
-       * @description User's local desktop operating system
+       * Desktop Mode
+       * @description Desktop operating system mode
        * @example windows
        */
-      user_local_desktop?: ('ubuntu' | 'windows' | 'macos') | null;
+      desktop_mode?: ('ubuntu' | 'windows' | 'macos') | null;
+      /**
+       * Is User Desktop
+       * @description Whether the desktop is user-owned
+       * @example true
+       */
+      is_user_desktop?: boolean | null;
       /**
        * About
        * @description Brief description about the assistant
@@ -3481,11 +3685,6 @@ export interface components {
        * @default true
        */
       create_infra: boolean | null;
-      /**
-       * Phone
-       * @description Phone number of the assistant (just for testing purposes)
-       */
-      phone?: string | null;
       /**
        * Phone Country
        * @description Country code for phone number provisioning (e.g., US, GB)
@@ -3586,11 +3785,17 @@ export interface components {
        */
       desktop_url?: string | null;
       /**
-       * User Local Desktop
-       * @description User's local desktop operating system
+       * Desktop Mode
+       * @description Desktop operating system mode
        * @example windows
        */
-      user_local_desktop?: ('ubuntu' | 'windows' | 'macos') | null;
+      desktop_mode?: ('ubuntu' | 'windows' | 'macos') | null;
+      /**
+       * Is User Desktop
+       * @description Whether the desktop is user-owned
+       * @example true
+       */
+      is_user_desktop?: boolean | null;
       /**
        * About
        * @description Brief description about the assistant
@@ -3640,12 +3845,6 @@ export interface components {
        */
       create_infra: boolean | null;
       /**
-       * Phone
-       * @description Phone number of the assistant
-       * @example +15551234567
-       */
-      phone?: string | null;
-      /**
        * Phone Country
        * @description Country code for phone number provisioning (e.g., US, GB)
        * @default US
@@ -3694,6 +3893,12 @@ export interface components {
        */
       updated_at?: string | null;
       /**
+       * Phone
+       * @description Phone number of the assistant
+       * @example +15551234567
+       */
+      phone?: string | null;
+      /**
        * Assistant Whatsapp Number
        * @description WhatsApp number of the assistant
        * @example +15551234567
@@ -3727,12 +3932,41 @@ export interface components {
        * Secrets
        * @description Dictionary of secret names to values. Only returned via admin endpoints.
        * @example {
-       *       "openai_api_key": "sk-..."
+       *       'openai_api_key': 'sk-...'
        *     }
        */
       secrets?: {
         [key: string]: string;
       } | null;
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars for this assistant.
+       * @example 100
+       */
+      monthly_spending_cap?: number | null;
+    };
+    /**
+     * AssistantSpendingLimitResponse
+     * @description Response for setting assistant spending limit.
+     */
+    AssistantSpendingLimitResponse: {
+      /**
+       * Agent Id
+       * @description Assistant ID.
+       */
+      agent_id: number;
+      /**
+       * Monthly Spending Cap
+       * @description The set monthly spending limit.
+       * @example 100
+       */
+      monthly_spending_cap?: number | null;
+      /**
+       * Effective Limit
+       * @description Effective limit (may be lower due to user/org limit).
+       * @example 100
+       */
+      effective_limit?: number | null;
     };
     /**
      * AssistantTransferResponse
@@ -3837,11 +4071,17 @@ export interface components {
        */
       desktop_url?: string | null;
       /**
-       * User Local Desktop
-       * @description User's local desktop operating system
+       * Desktop Mode
+       * @description Desktop operating system mode
        * @example macos
        */
-      user_local_desktop?: ('ubuntu' | 'windows' | 'macos') | null;
+      desktop_mode?: ('ubuntu' | 'windows' | 'macos') | null;
+      /**
+       * Is User Desktop
+       * @description Whether the desktop is user-owned
+       * @example true
+       */
+      is_user_desktop?: boolean | null;
       /**
        * About
        * @description Brief description about the assistant
@@ -3908,6 +4148,12 @@ export interface components {
        * @default true
        */
       create_infra: boolean | null;
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars. Set to null to remove the limit.
+       * @example 100
+       */
+      monthly_spending_cap?: number | null;
     };
     /** AssistantVideoUploadResponse */
     AssistantVideoUploadResponse: {
@@ -3917,6 +4163,98 @@ export interface components {
        * @example gs://bucket/user_id/video_uuid.mp4
        */
       gcs_url: string;
+    };
+    /**
+     * AtomicFieldUpdateRequest
+     * @description Request model for atomic field operations that are race-safe under concurrent updates.
+     *
+     *     This endpoint supports two modes:
+     *     1. Update mode (default): Updates an existing log entry by log_id
+     *     2. Upsert mode: When project/context/unique_keys/initial_data are provided,
+     *        finds or creates a log entry by unique keys, then applies the atomic operation.
+     *
+     *     Upsert mode uses advisory locks to handle concurrent first inserts safely.
+     */
+    AtomicFieldUpdateRequest: {
+      /**
+       * Operation
+       * @description Atomic operation to apply. Supported formats: +N, -N, *N, /N where N is a number.
+       * @example +1
+       */
+      operation: string;
+      /**
+       * Field
+       * @description (Upsert mode) Name of the numeric field to update atomically.
+       * @example cumulative_spend
+       */
+      field?: string | null;
+      /**
+       * Project
+       * @description (Upsert mode) Name of the project.
+       * @example Assistants
+       */
+      project?: string | null;
+      /**
+       * Context
+       * @description (Upsert mode) Context path for the log.
+       * @example JohnDoe/AdaLovelace/Spending/Monthly
+       */
+      context?: string | null;
+      /**
+       * Unique Keys
+       * @description (Upsert mode) Unique key configuration for the context. Maps key names to types (str, int, float).
+       * @example {
+       *       '_assistant_id': 'str',
+       *       'month': 'str'
+       *     }
+       */
+      unique_keys?: {
+        [key: string]: string;
+      } | null;
+      /**
+       * Initial Data
+       * @description (Upsert mode) Data to use when creating a new log entry. Must include all unique key values.
+       * @example {
+       *       '_assistant_id': '123',
+       *       '_org_id': 456,
+       *       'month': '2026-01'
+       *     }
+       */
+      initial_data?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Add To All Context
+       * @description (Upsert mode) If true, also adds the log to the 'All/*' archive context.
+       * @default false
+       */
+      add_to_all_context: boolean;
+    };
+    /**
+     * AtomicFieldUpdateResponse
+     * @description Response from atomic field update operation.
+     */
+    AtomicFieldUpdateResponse: {
+      /**
+       * New Value
+       * @description The new value of the field after the operation.
+       */
+      new_value: number;
+      /**
+       * Log Id
+       * @description ID of the log entry (included in upsert mode).
+       */
+      log_id?: number | null;
+      /**
+       * Created
+       * @description True if a new log was created (upsert mode only).
+       */
+      created?: boolean | null;
+      /**
+       * Mirrored Contexts
+       * @description List of archive contexts the log was mirrored to (upsert mode only).
+       */
+      mirrored_contexts?: string[] | null;
     };
     /**
      * BillingAddress
@@ -4072,259 +4410,6 @@ export interface components {
       /** Blockers */
       blockers: components['schemas']['DeletionBlockerResponse'][];
     };
-    /**
-     * ChatCompletionRequest
-     * @description Request model for chat completion based language model.
-     *
-     *     Attributes:
-     *         model (str): The model identifier.
-     *         messages (List[Dict[str]]): List of messages for completion.
-     *         temperature (float): The temperature parameter for generating completions.
-     *         stream (bool): Whether to stream the response.
-     */
-    ChatCompletionRequest: {
-      /**
-       * Messages
-       * @description A list of messages comprising the conversation so far.
-       * @example [
-       *       {
-       *         "content": "Tell me a joke",
-       *         "role": "user"
-       *       }
-       *     ]
-       */
-      messages: {
-        [key: string]: unknown;
-      }[];
-      /**
-       * Model
-       * @description The endpoint to use, in the format `{model}@{provider}`, based on any of the supported endpoints as per the list returned by `/v0/endpoints`
-       * @example gpt-4o-mini@openai
-       */
-      model: string;
-      /**
-       * Max Tokens
-       * @description The maximum number of tokens that can be generated in the chat completion.
-       *
-       *     The total length of input tokens and generated tokens is limited by the model's context length.
-       * @example 1024
-       */
-      max_tokens?: number | null;
-      /**
-       * Stop
-       * @description Up to 4 sequences where the API will stop generating further tokens.
-       * @example [
-       *       "The End.",
-       *       " is the answer."
-       *     ]
-       */
-      stop?: string | string[] | null;
-      /**
-       * Stream
-       * @description If set, partial message deltas will be sent. Tokens will be sent as data-only server-sent events as they become available, with the stream terminated by a `data: [DONE]` message.
-       * @default false
-       * @example false
-       */
-      stream: boolean;
-      /**
-       * Temperature
-       * @description What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
-       *
-       *     Generally recommended to alter this or `top_p`, but not both.
-       * @default 1
-       * @example 0.9
-       */
-      temperature: number | null;
-      /**
-       * Frequency Penalty
-       * @description Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
-       * @example 1.5
-       */
-      frequency_penalty?: number | null;
-      /**
-       * Logit Bias
-       * @description Modify the likelihood of specified tokens appearing in the completion.
-       *
-       *     Accepts a JSON object that maps tokens (specified by their token ID in the tokenizer) to an associated bias value from -100 to 100. Mathematically, the bias is added to the logits generated by the model prior to sampling. The exact effect will vary per model, but values between -1 and 1 should decrease or increase likelihood of selection; values like -100 or 100 should result in a ban or exclusive selection of the relevant token.
-       * @example {
-       *       "0": 10,
-       *       "1": -75,
-       *       "2": 90
-       *     }
-       */
-      logit_bias?: {
-        [key: string]: number;
-      } | null;
-      /**
-       * Logprobs
-       * @description Whether to return log probabilities of the output tokens or not. If true, returns the log probabilities of each output token returned in the `content` of `message`.
-       * @example false
-       */
-      logprobs?: boolean | null;
-      /**
-       * Top Logprobs
-       * @description An integer between 0 and 20 specifying the number of most likely tokens to return at each token position, each with an associated log probability. `logprobs` must be set to `true` if this parameter is used.
-       * @example 15
-       */
-      top_logprobs?: number | null;
-      /**
-       * N
-       * @description How many chat completion choices to generate for each input message. Note that you will be charged based on the number of generated tokens across all of the choices. Keep `n` as `1` to minimize costs.
-       * @example 15
-       */
-      n?: number | null;
-      /**
-       * Presence Penalty
-       * @description Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
-       * @example -1.1
-       */
-      presence_penalty?: number | null;
-      /**
-       * Response Format
-       * @description An object specifying the format that the model must output.
-       *
-       *     Setting to `{ "type": "json_schema", "json_schema": {...} }` enables Structured Outputs which ensures the model will match your supplied JSON schema.
-       *
-       *     Setting to `{ "type": "json_object" }` enables JSON mode, which ensures the message the model generates is valid JSON.
-       *
-       *     **Important:** when using JSON mode, you **must** also instruct the model to produce JSON yourself via a system or user message. Without this, the model may generate an unending stream of whitespace until the generation reaches the token limit, resulting in a long-running and seemingly "stuck" request. Also note that the message content may be partially cut off if `finish_reason="length"`, which indicates the generation exceeded `max_tokens` or the conversation exceeded the max context length.
-       * @example { "type": "json_mode"}
-       */
-      response_format?: {
-        [key: string]: unknown;
-      } | null;
-      /**
-       * Seed
-       * @description If specified, the system will make a best effort to sample deterministically, such that repeated requests with the same `seed` and parameters should return the same result. Determinism is not guaranteed, and you should refer to the `system_fingerprint` response parameter to monitor changes in the backend.
-       * @example 11
-       */
-      seed?: number | null;
-      /**
-       * Stream Options
-       * @description Options for streaming response. Only set this when you set `stream: true`.
-       * @example [
-       *       true,
-       *       "include_usage"
-       *     ]
-       */
-      stream_options?: {
-        [key: string]: boolean;
-      } | null;
-      /**
-       * Top P
-       * @description An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
-       *
-       *     Generally recommended to alter this or `temperature` but not both.
-       * @example 0.5
-       */
-      top_p?: number | null;
-      /**
-       * Tools
-       * @description A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for. A max of 128 functions are supported.
-       */
-      tools?: unknown[] | null;
-      /**
-       * Tool Choice
-       * @description Controls which (if any) tool is called by the model. `none` means the model will not call any tool and instead generates a message.`auto` means the model can pick between generating a message or calling one or more tools. `required` means the model must call one or more tools. Specifying a particular tool via `{"type": "function", "function": {"name": "my_function"}}` forces the model to call that tool.
-       *
-       *     `none` is the default when no tools are present. `auto` is the default if tools are present.
-       * @example {"type": "function", "function": {"name": "my_function"}}
-       */
-      tool_choice?: unknown | null;
-      /**
-       * Parallel Tool Calls
-       * @description Whether to enable parallel function calling during tool use.
-       * @default true
-       * @example true
-       */
-      parallel_tool_calls: boolean | null;
-      /**
-       * User
-       * @description A unique identifier representing your end-user.
-       * @example some_user
-       */
-      user?: string | null;
-      /**
-       * Signature
-       * @description A string used to represent where the request came from, for examples, did it come via the Python package, the NodeJS package, the chat interface etc. This should *not* be set by the user.
-       * @example python
-       */
-      signature?: string | null;
-      /**
-       * Use Custom Keys
-       * @description Whether or not to use custom API keys with the specified provider, meaning that you will be using your own account with that provider in the backend.
-       * @example true
-       */
-      use_custom_keys?: boolean | null;
-      /**
-       * Tags
-       * @description Comma-separated list of tags to associate with the corresponding prompt.
-       * @example [
-       *       "user123",
-       *       "CompanyABC"
-       *     ]
-       */
-      tags?: string | string[] | null;
-      /**
-       * Drop Params
-       * @description Whether or not to drop unsupported OpenAI params by the provider you're using
-       * @default true
-       * @example true
-       */
-      drop_params: boolean;
-      /**
-       * Region
-       * @description A string used to represent the region where the endpoint is accessed. This is only relevant for certain providers like `vertex-ai` and `aws-bedrock`, where the endpoint is being accessed through a specified region.
-       */
-      region?: string | null;
-      /**
-       * Log Query Body
-       * @description Whether to log the contents of the query json body.
-       * @default true
-       */
-      log_query_body: boolean | null;
-      /**
-       * Log Response Body
-       * @description Whether to log the contents of the response json body.
-       * @default true
-       */
-      log_response_body: boolean | null;
-    } & {
-      [key: string]: unknown;
-    };
-    /**
-     * ChatCompletionResponse
-     * @description Response model for chat completion based language model.
-     *
-     *     Attributes:
-     *         model (str): The model identifier.
-     *         created (int): Timestamp indicating when the response was created.
-     *         id (str): Identifier for the completion response.
-     *         object (str): The type of object, defaults to "chat.completion".
-     *         usage (dict): Usage statistics or additional information.
-     *         choices (List[Dict]): List of completion choices.
-     */
-    ChatCompletionResponse: {
-      /** Model */
-      model: string;
-      /** Created */
-      created?: number | null;
-      /** Id */
-      id?: string | null;
-      /**
-       * Object
-       * @default chat.completion
-       */
-      object: string;
-      /** Usage */
-      usage: {
-        [key: string]: unknown;
-      };
-      /** Choices */
-      choices: {
-        [key: string]: unknown;
-      }[];
-    };
     /** ChatMessage */
     ChatMessage: {
       /**
@@ -4340,6 +4425,34 @@ export interface components {
        * @example Hello, how can I help you?
        */
       msg: string;
+    };
+    /**
+     * ColumnConfig
+     * @description Configuration for table columns.
+     */
+    ColumnConfig: {
+      /**
+       * Visible
+       * @description Columns to show (null = all columns visible)
+       */
+      visible?: string[] | null;
+      /**
+       * Hidden
+       * @description Columns to hide (alternative to visible)
+       */
+      hidden?: string[] | null;
+      /**
+       * Order
+       * @description Column display order
+       */
+      order?: string[] | null;
+      /**
+       * Widths
+       * @description Column widths in pixels: {column_name: width}
+       */
+      widths?: {
+        [key: string]: number;
+      } | null;
     };
     /** ContextCommit */
     ContextCommit: {
@@ -4402,10 +4515,10 @@ export interface components {
        * Unique Keys
        * @description Unique key definition. Keys are column names, values are types ('str', 'int', 'float', 'bool', 'datetime', 'time', 'date', 'timedelta', 'dict', 'list').
        * @example {
-       *       "company_id": "int",
-       *       "department_id": "int",
-       *       "first_name": "str",
-       *       "last_name": "str"
+       *       'company_id': 'int',
+       *       'department_id': 'int',
+       *       'first_name': 'str',
+       *       'last_name': 'str'
        *     }
        */
       unique_keys?: {
@@ -4415,7 +4528,7 @@ export interface components {
        * Auto Counting
        * @description Auto-counting configuration. Keys are column names to auto-increment, values are parent counter names (None for independent counters).
        * @example {
-       *       "company_id": "department_id"
+       *       'company_id': 'department_id'
        *     }
        */
       auto_counting?: {
@@ -4426,11 +4539,11 @@ export interface components {
        * @description Foreign key definitions for referential integrity
        * @example [
        *       {
-       *         "default": 0,
-       *         "name": "department_id",
-       *         "on_delete": "SET DEFAULT",
-       *         "on_update": "CASCADE",
-       *         "references": "Departments.id"
+       *         'default': 0,
+       *         'name': 'department_id',
+       *         'on_delete': 'SET DEFAULT',
+       *         'on_update': 'CASCADE',
+       *         'references': 'Departments.id'
        *       }
        *     ]
        */
@@ -4471,13 +4584,13 @@ export interface components {
        * Referenced Logs
        * @description The logs to use for each newly created derived entry, either as a list of log ids or as a set of arguments for the get_logs endpoint.
        * @example {
-       *       "log0": [
+       *       'log0': [
        *         0,
        *         1,
        *         2
        *       ],
-       *       "log1": {
-       *         "filter_expr": "score > 0.5"
+       *       'log1': {
+       *         'filter_expr': 'score > 0.5'
        *       }
        *     }
        */
@@ -4519,25 +4632,40 @@ export interface components {
       context?: string | null;
       /**
        * Fields
-       * @description Dictionary mapping field names to their type definitions.
+       * @description Dictionary mapping field names to their type definitions. Supports multiple formats:
+       *     - Simple string: 'str', 'int', 'float', 'bool', 'list', 'dict', 'datetime', 'image', etc.
+       *     - JSON Schema types: 'string', 'integer', 'number', 'boolean', 'array', 'object'
+       *     - StandardFieldDefinition: {'type': 'str', 'mutable': True, 'unique': False}
+       *     - Full JSON Schema: {'type': 'string', 'format': 'date-time'} or {'$ref': '#/$defs/MyModel'}
+       *     - EnumType: {'type': 'enum', 'values': ['a', 'b', 'c']}
+       *     - None: Untyped field (accepts any value)
        * @example {
-       *       "comment": {
-       *         "description": "User comment",
-       *         "mutable": true,
-       *         "type": "str"
+       *       'email': {
+       *         'description': 'User email address',
+       *         'type': 'str',
+       *         'unique': true
        *       },
-       *       "email": {
-       *         "description": "User email address",
-       *         "type": "str",
-       *         "unique": true
+       *       'score': 'int',
+       *       'status': {
+       *         'type': 'enum',
+       *         'values': [
+       *           'pending',
+       *           'approved',
+       *           'rejected'
+       *         ]
        *       },
-       *       "score": "int"
+       *       'timestamp': {
+       *         'description': 'ISO-8601 timestamp',
+       *         'format': 'date-time',
+       *         'type': 'string'
+       *       }
        *     }
        */
       fields: {
         [key: string]:
-          | components['schemas']['StandardFieldDefinition']
           | components['schemas']['EnumType']
+          | components['schemas']['StandardFieldDefinition']
+          | components['schemas']['JsonSchemaFieldDefinition']
           | string
           | null;
       };
@@ -4584,112 +4712,54 @@ export interface components {
        */
       context?: components['schemas']['ContextCreateRequest'] | string | null;
       /**
-       * Params
-       * @description Dictionary containing one or more key:value pairs that will be logged into the platform. Can be either a single dictionary or a list of dictionaries for batch processing. When using lists for both params and entries, their lengths must match. Values must be JSON serializable. If a `explicit_types` dictionary is present, its values will override the inferred types of the entries. The explicit_types dictionary can also specify if a field is mutable via a 'mutable' boolean flag, or unique via a 'unique' boolean flag. For enum types, use the EnumType model with 'values' list and optional 'restrict' flag. Omit 'values' to create an open enum (auto-seeding). For contexts with nested unique IDs, parent ID values for the leftmost N-1 unique columns can be supplied as normal param keys. The rightmost column is always auto-incremented. For example, if unique columns are ['user', 'session', 'step'], you can provide 'user' and 'session' values in params, and 'step' will be auto-generated.
-       * @default {}
-       * @example {
-       *       "explicit_types": {
-       *         "category": {
-       *           "description": "Classification category",
-       *           "restrict": true,
-       *           "type": "enum",
-       *           "values": [
-       *             "A",
-       *             "B",
-       *             "C"
-       *           ]
-       *         },
-       *         "status": {
-       *           "restrict": false,
-       *           "type": "enum"
-       *         },
-       *         "system-prompt": {
-       *           "description": "The system prompt used for generation",
-       *           "mutable": true,
-       *           "type": "str",
-       *           "unique": false
-       *         }
-       *       },
-       *       "function_definition": "...",
-       *       "system-prompt": "..."
-       *     }
-       * @example [
-       *       {
-       *         "system-prompt": "prompt1"
-       *       },
-       *       {
-       *         "system-prompt": "prompt2"
-       *       }
-       *     ]
-       * @example [
-       *       {
-       *         "session": 4,
-       *         "system-prompt": "prompt1",
-       *         "user": 100
-       *       },
-       *       {
-       *         "session": 4,
-       *         "system-prompt": "prompt2",
-       *         "user": 100
-       *       }
-       *     ]
-       */
-      params:
-        | {
-            [key: string]: unknown;
-          }
-        | {
-            [key: string]: unknown;
-          }[];
-      /**
        * Entries
-       * @description Dictionary containing one or more key:value pairs that will be logged into the platform. Can be either a single dictionary or a list of dictionaries for batch processing. When using lists for both params and entries, their lengths must match. Values must be JSON serializable. If a `explicit_types` dictionary is present, its values will override the inferred types of the entries. The explicit_types dictionary can also specify if a field is mutable via a 'mutable' boolean flag, or unique via a 'unique' boolean flag. For enum types, use the EnumType model with 'values' list and optional 'restrict' flag. Omit 'values' to create an open enum (auto-seeding). For contexts with nested unique IDs, parent ID values for the leftmost N-1 unique columns can be supplied as normal entry keys. The rightmost column is always auto-incremented. For example, if unique columns are ['user', 'session', 'step'], you can provide 'user' and 'session' values in entries, and 'step' will be auto-generated.
+       * @description Dictionary containing one or more key:value pairs that will be logged into the platform. Can be either a single dictionary or a list of dictionaries for batch processing. Values must be JSON serializable. If a `explicit_types` dictionary is present, its values will override the inferred types of the entries. The explicit_types dictionary can also specify if a field is mutable via a 'mutable' boolean flag, or unique via a 'unique' boolean flag. For enum types, use the EnumType model with 'values' list and optional 'restrict' flag. Omit 'values' to create an open enum (auto-seeding). For contexts with nested unique IDs, parent ID values for the leftmost N-1 unique columns can be supplied as normal entry keys. The rightmost column is always auto-incremented. For example, if unique columns are ['user', 'session', 'step'], you can provide 'user' and 'session' values in entries, and 'step' will be auto-generated.
        * @default {}
        * @example {
-       *       "explicit_types": {
-       *         "input": {
-       *           "description": "Input image for processing",
-       *           "mutable": true,
-       *           "type": "Image",
-       *           "unique": true
+       *       'explicit_types': {
+       *         'input': {
+       *           'description': 'Input image for processing',
+       *           'mutable': true,
+       *           'type': 'Image',
+       *           'unique': true
        *         },
-       *         "status": {
-       *           "description": "Processing status",
-       *           "restrict": true,
-       *           "type": "enum",
-       *           "values": [
-       *             "pending",
-       *             "completed",
-       *             "failed"
+       *         'status': {
+       *           'description': 'Processing status',
+       *           'restrict': true,
+       *           'type': 'enum',
+       *           'values': [
+       *             'pending',
+       *             'completed',
+       *             'failed'
        *           ]
        *         },
-       *         "tag": {
-       *           "type": "enum"
+       *         'tag': {
+       *           'type': 'enum'
        *         }
        *       },
-       *       "input": "...",
-       *       "score-test-1": "..."
+       *       'input': '...',
+       *       'score-test-1': '...'
        *     }
        * @example [
        *       {
-       *         "input": "test1",
-       *         "score": 0.8
+       *         'input': 'test1',
+       *         'score': 0.8
        *       },
        *       {
-       *         "input": "test2",
-       *         "score": 0.9
+       *         'input': 'test2',
+       *         'score': 0.9
        *       }
        *     ]
        * @example [
        *       {
-       *         "data": "step1",
-       *         "session": 4,
-       *         "user": 100
+       *         'data': 'step1',
+       *         'session': 4,
+       *         'user': 100
        *       },
        *       {
-       *         "data": "step2",
-       *         "session": 4,
-       *         "user": 100
+       *         'data': 'step2',
+       *         'session': 4,
+       *         'user': 100
        *       }
        *     ]
        */
@@ -4714,7 +4784,7 @@ export interface components {
        */
       description?: string | null;
       /** @description Project and logs configuration */
-      project_config: components['schemas']['ProjectConfigInput'];
+      project_config: components['schemas']['orchestra__web__api__plot__schema__ProjectConfigInput'];
       /**
        * Title
        * @description Optional title for the plot
@@ -4750,6 +4820,21 @@ export interface components {
       tab_id?: string | null;
       /** Interface Id */
       interface_id: string;
+    };
+    /**
+     * CreateTableViewRequest
+     * @description Request to create a new table view.
+     */
+    CreateTableViewRequest: {
+      /** @description Table display configuration (columns, sorting, etc.) */
+      table_config?: components['schemas']['TableConfigInput'] | null;
+      /** @description Project and logs configuration */
+      project_config: components['schemas']['orchestra__web__api__table_view__schema__ProjectConfigInput'];
+      /**
+       * Title
+       * @description Optional title for the table view
+       */
+      title?: string | null;
     };
     /**
      * CreateTileRequest
@@ -4883,8 +4968,8 @@ export interface components {
        * Fields
        * @description List of field names to delete.
        * @example [
-       *       "score",
-       *       "response"
+       *       'score',
+       *       'response'
        *     ]
        */
       fields: string[];
@@ -4909,7 +4994,7 @@ export interface components {
        * @example [
        *       [
        *         123,
-       *         "score"
+       *         'score'
        *       ],
        *       [
        *         [
@@ -4917,8 +5002,8 @@ export interface components {
        *           457
        *         ],
        *         [
-       *           "score",
-       *           "response"
+       *           'score',
+       *           'response'
        *         ]
        *       ],
        *       [
@@ -4927,17 +5012,17 @@ export interface components {
        *           459,
        *           460
        *         ],
-       *         "response"
+       *         'response'
        *       ],
        *       [
        *         {
-       *           "score": "100"
+       *           'score': '100'
        *         },
        *         null
        *       ],
        *       [
        *         null,
-       *         "score"
+       *         'score'
        *       ]
        *     ]
        */
@@ -4980,6 +5065,22 @@ export interface components {
      * @description Request to delete all plots for a project/context pair.
      */
     DeletePlotsByProjectRequest: {
+      /**
+       * Project Name
+       * @description Name of the project
+       */
+      project_name: string;
+      /**
+       * Context
+       * @description Optional context to filter by (deletes all if not specified)
+       */
+      context?: string | null;
+    };
+    /**
+     * DeleteTableViewsByProjectRequest
+     * @description Request to delete all table views for a project/context pair.
+     */
+    DeleteTableViewsByProjectRequest: {
       /**
        * Project Name
        * @description Name of the project
@@ -5528,11 +5629,6 @@ export interface components {
        */
       show_regression?: boolean | null;
       /**
-       * Sort By
-       * @description Inferred sort field (bar)
-       */
-      sort_by?: string | null;
-      /**
        * Sort Order
        * @description Inferred sort order (bar)
        */
@@ -5770,12 +5866,12 @@ export interface components {
        * @description Two sets of filtering criteria for logs to join
        * @example [
        *       {
-       *         "context": "context_a",
-       *         "filter_expr": "user_id == 1"
+       *         'context': 'context_a',
+       *         'filter_expr': 'user_id == 1'
        *       },
        *       {
-       *         "context": "context_b",
-       *         "filter_expr": "user_id == 2"
+       *         'context': 'context_b',
+       *         'filter_expr': 'user_id == 2'
        *       }
        *     ]
        */
@@ -5808,8 +5904,8 @@ export interface components {
        *     Note: When copy=False (pass-by-reference), aliases are not supported and the original column names will be preserved. Use the list format in this case.
        *     If omitted, all columns will be selected and prefixed with 'A_' or 'B_'.
        * @example {
-       *       "A.user_id": "user_identifier",
-       *       "B.score": "user_score"
+       *       'A.user_id': 'user_identifier',
+       *       'B.score': 'user_score'
        *     }
        */
       columns?:
@@ -5831,12 +5927,122 @@ export interface components {
       copy: boolean;
     };
     /**
+     * JsonSchemaFieldDefinition
+     * @description Accepts a full JSON Schema field definition (e.g., from Pydantic's model_json_schema()).
+     *
+     *     This allows passing standard JSON Schema with all its features:
+     *     - Standard types: 'string', 'integer', 'number', 'boolean', 'array', 'object', 'null'
+     *     - $ref and $defs for complex/nested types
+     *     - anyOf, oneOf, allOf for union types
+     *     - items for array element types
+     *     - properties for object property types
+     *     - format, minimum, maximum, pattern, etc. for constraints
+     *     - title, description for metadata
+     *
+     *     Orchestra normalizes JSON Schema types to internal types:
+     *     - 'string' -> 'str'
+     *     - 'integer' -> 'int'
+     *     - 'number' -> 'float'
+     *     - 'boolean' -> 'bool'
+     *     - 'array' -> 'list'
+     *     - 'object' -> 'dict'
+     *     - 'null' -> 'NoneType'
+     *
+     *     The full schema is preserved for validation against logged values.
+     */
+    JsonSchemaFieldDefinition: {
+      /** Type */
+      type?: string | null;
+    } & {
+      [key: string]: unknown;
+    };
+    /**
+     * MemberSpendingLimitRequest
+     * @description Request body for setting a member's spending limit within an org.
+     */
+    MemberSpendingLimitRequest: {
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars for this member. Set to null for no limit.
+       * @example 100
+       */
+      monthly_spending_cap: number | null;
+    };
+    /**
+     * MemberSpendingLimitResponse
+     * @description Response for setting a member's spending limit.
+     */
+    MemberSpendingLimitResponse: {
+      /**
+       * Organization Id
+       * @description Organization ID.
+       */
+      organization_id: number;
+      /**
+       * User Id
+       * @description User ID.
+       */
+      user_id: string;
+      /**
+       * Monthly Spending Cap
+       * @description The set monthly spending limit for this member.
+       * @example 100
+       */
+      monthly_spending_cap?: number | null;
+      /**
+       * Assistants Capped
+       * @description Number of assistants that had their limits reduced due to this change.
+       * @default 0
+       */
+      assistants_capped: number;
+    };
+    /**
      * OnboardingStatusResponse
      * @description Response containing user's onboarding status.
      */
     OnboardingStatusResponse: {
       /** Onboarded */
       onboarded: boolean;
+    };
+    /**
+     * OrgSpendingLimitRequest
+     * @description Request body for setting organization spending limit.
+     */
+    OrgSpendingLimitRequest: {
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars. Set to null to remove the limit.
+       * @example 500
+       */
+      monthly_spending_cap: number | null;
+    };
+    /**
+     * OrgSpendingLimitResponse
+     * @description Response for setting organization spending limit.
+     */
+    OrgSpendingLimitResponse: {
+      /**
+       * Organization Id
+       * @description Organization ID.
+       */
+      organization_id: number;
+      /**
+       * Monthly Spending Cap
+       * @description The set monthly spending limit.
+       * @example 500
+       */
+      monthly_spending_cap?: number | null;
+      /**
+       * Cascaded Updates
+       * @description Count of child entities that had their limits capped.
+       * @example {
+       *       'assistants_capped': 7,
+       *       'users_capped': 3
+       *     }
+       */
+      cascaded_updates?: {
+        [key: string]: number;
+      } | null;
     };
     /**
      * OrganizationBillingUpdate
@@ -5870,6 +6076,8 @@ export interface components {
     OrganizationCreate: {
       /** Name */
       name: string;
+      /** Timezone */
+      timezone?: string | null;
     };
     /**
      * OrganizationMemberAdd
@@ -5943,6 +6151,8 @@ export interface components {
       owner_id: string;
       /** Billing User Id */
       billing_user_id: string;
+      /** Timezone */
+      timezone?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -5956,6 +6166,8 @@ export interface components {
     OrganizationUpdate: {
       /** Name */
       name?: string | null;
+      /** Timezone */
+      timezone?: string | null;
     };
     /**
      * PermissionResponse
@@ -6084,13 +6296,8 @@ export interface components {
         [key: string]: string;
       } | null;
       /**
-       * Sort By
-       * @description Field to sort by: x, y, value, name, count (bar charts)
-       */
-      sort_by?: string | null;
-      /**
        * Sort Order
-       * @description Sort order: asc or desc
+       * @description Sort order: unsorted, asc, or desc
        */
       sort_order?: string | null;
       /**
@@ -6100,14 +6307,46 @@ export interface components {
       title?: string | null;
       /**
        * X Label
-       * @description Label for the x-axis (can be inferred by LLM)
+       * @description Custom label for x-axis and tooltip (overrides field name)
        */
       x_label?: string | null;
       /**
        * Y Label
-       * @description Label for the y-axis (can be inferred by LLM)
+       * @description Custom label for y-axis and tooltip (overrides field name)
        */
       y_label?: string | null;
+      /**
+       * Show X Label
+       * @description Whether to show the x-axis label
+       * @default true
+       */
+      show_x_label: boolean | null;
+      /**
+       * Show Y Label
+       * @description Whether to show the y-axis label
+       * @default true
+       */
+      show_y_label: boolean | null;
+      /**
+       * X Tick Format
+       * @description Format string for x-axis ticks (e.g., '$' prefix for currency)
+       */
+      x_tick_format?: string | null;
+      /**
+       * Y Tick Format
+       * @description Format string for y-axis ticks (e.g., '$' prefix for currency)
+       */
+      y_tick_format?: string | null;
+      /**
+       * Group By Label
+       * @description Custom label for group_by field in tooltip and legend (overrides field name)
+       */
+      group_by_label?: string | null;
+      /**
+       * Aggregate Label
+       * @description Custom label for aggregate field in tooltip (overrides field name)
+       */
+      aggregate_label?: string | null;
     };
     /**
      * PlotListItem
@@ -6135,6 +6374,11 @@ export interface components {
        * @description When the plot was created
        */
       created_at: string;
+      /**
+       * Updated At
+       * @description When the plot was last updated
+       */
+      updated_at?: string | null;
       /**
        * Created By
        * @description User ID of the creator
@@ -6189,6 +6433,11 @@ export interface components {
        */
       created_at: string;
       /**
+       * Updated At
+       * @description When the plot was last updated
+       */
+      updated_at?: string | null;
+      /**
        * Created By
        * @description User ID of the creator
        */
@@ -6226,7 +6475,7 @@ export interface components {
       /** @description Plot metadata */
       plot_metadata: components['schemas']['PlotMetadata'];
       /** @description User/org context */
-      user_metadata: components['schemas']['UserMetadata'];
+      user_metadata: components['schemas']['orchestra__web__api__plot__schema__UserMetadata'];
       /** @description LLM-inferred configuration (if description was used) */
       inferred_config?: components['schemas']['InferredConfigResponse'] | null;
     };
@@ -6307,118 +6556,6 @@ export interface components {
        * @description Optional description of the project
        */
       description?: string | null;
-    };
-    /**
-     * ProjectConfigInput
-     * @description Project/logs configuration for fetching data.
-     */
-    ProjectConfigInput: {
-      /**
-       * Project Name
-       * @description Name of the project to fetch logs from
-       */
-      project_name: string;
-      /**
-       * Context
-       * @description Static context to filter logs by
-       */
-      context?: string | null;
-      /**
-       * Column Context
-       * @description Column context for field resolution
-       */
-      column_context?: string | null;
-      /**
-       * Filter Expr
-       * @description Boolean expression to filter entries
-       */
-      filter_expr?: string | null;
-      /**
-       * From Ids
-       * @description Log IDs to include (ampersand-separated)
-       */
-      from_ids?: string | null;
-      /**
-       * Exclude Ids
-       * @description Log IDs to exclude (ampersand-separated)
-       */
-      exclude_ids?: string | null;
-      /**
-       * From Fields
-       * @description Fields to include (ampersand-separated)
-       */
-      from_fields?: string | null;
-      /**
-       * Exclude Fields
-       * @description Fields to exclude (ampersand-separated)
-       */
-      exclude_fields?: string | null;
-      /**
-       * Limit
-       * @description Maximum number of logs to fetch
-       * @default 1000
-       */
-      limit: number | null;
-      /**
-       * Offset
-       * @description Number of logs to skip
-       */
-      offset?: number | null;
-      /**
-       * Group By
-       * @description Fields to group results by
-       */
-      group_by?: string[] | null;
-      /**
-       * Group Limit
-       * @description Maximum number of groups at each level
-       */
-      group_limit?: number | null;
-      /**
-       * Group Offset
-       * @description Number of groups to skip
-       */
-      group_offset?: number | null;
-      /**
-       * Group Depth
-       * @description Maximum depth of nested groups
-       */
-      group_depth?: number | null;
-      /**
-       * Groups Only
-       * @description Return only groups without full logs
-       */
-      groups_only?: boolean | null;
-      /**
-       * Nested Groups
-       * @description Return groups as nested structure
-       */
-      nested_groups?: boolean | null;
-      /**
-       * Sorting
-       * @description JSON-encoded sorting configuration
-       */
-      sorting?: string | null;
-      /**
-       * Group Sorting
-       * @description JSON-encoded group sorting configuration
-       */
-      group_sorting?: string | null;
-      /**
-       * Value Limit
-       * @description Maximum characters for string values
-       */
-      value_limit?: number | null;
-      /**
-       * Randomize
-       * @description Return logs in random order
-       */
-      randomize?: boolean | null;
-      /**
-       * Seed
-       * @description Seed for random ordering
-       */
-      seed?: string | null;
     };
     /**
      * ProjectOut
@@ -6562,8 +6699,8 @@ export interface components {
      *     Example with image embedding:
      *     ```json
      *     {
-     *         "project_name": "my-project",
-     *         "filter_expr": "cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3"
+     *         'project_name': 'my-project',
+     *         'filter_expr': 'cosine(image_embedding, embed_image('data:image/png;base64,iVBORw0KG...')) < 0.3'
      *     }
      *     ```
      */
@@ -6594,18 +6731,18 @@ export interface components {
       filter_expr?: string | null;
       /**
        * Sorting
-       * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`"ascending"` or `"descending"`). The first key is the primary sort field; subsequent keys break ties.
-       * @example {"timestamp": "descending", "round(score, 2)": "ascending"}
+       * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`'ascending'` or `'descending'`). The first key is the primary sort field; subsequent keys break ties.
+       * @example {'timestamp': 'descending', 'round(score, 2)': 'ascending'}
        */
       sorting?: string | null;
       /**
        * Group Sorting
        * @description Sorting configuration for groups when using group_by
        * @example {
-       *       "entries/student": {
-       *         "direction": "descending",
-       *         "field": "score",
-       *         "metric": "mean"
+       *       'entries/student': {
+       *         'direction': 'descending',
+       *         'field': 'score',
+       *         'metric': 'mean'
        *       }
        *     }
        */
@@ -6645,8 +6782,8 @@ export interface components {
        * Group By
        * @description Fields to group by
        * @example [
-       *       "model",
-       *       "temperature"
+       *       'model',
+       *       'temperature'
        *     ]
        */
       group_by?: string[] | null;
@@ -7032,6 +7169,18 @@ export interface components {
       expires_in_minutes: number;
     };
     /**
+     * SpendingLimitRequest
+     * @description Request body for setting a spending limit.
+     */
+    SpendingLimitRequest: {
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars. Set to null to remove the limit.
+       * @example 100
+       */
+      monthly_spending_cap: number | null;
+    };
+    /**
      * StandardFieldDefinition
      * @description Defines a standard field with type information and behavioral flags.
      *
@@ -7045,8 +7194,8 @@ export interface components {
       type: string;
       /**
        * Mutable
-       * @description If true, entries under this field can be updated via update endpoints; otherwise they are immutable after creation (default false).
-       * @default false
+       * @description If true, entries under this field can be updated via update endpoints; otherwise they are immutable after creation (default true).
+       * @default true
        */
       mutable: boolean;
       /**
@@ -7158,6 +7307,30 @@ export interface components {
        */
       tags: string[];
     };
+    /**
+     * TableConfigInput
+     * @description Table configuration input from user.
+     */
+    TableConfigInput: {
+      /** @description Column visibility, ordering, and sizing */
+      columns?: components['schemas']['ColumnConfig'] | null;
+      /**
+       * Row Limit
+       * @description Maximum rows to display
+       * @default 100
+       */
+      row_limit: number | null;
+      /**
+       * Sort By
+       * @description Column to sort by initially (invalid columns are ignored at render time)
+       */
+      sort_by?: string | null;
+      /**
+       * Sort Order
+       * @description Sort order: asc or desc
+       */
+      sort_order?: string | null;
+    };
     /** TableTileSchema */
     TableTileSchema: {
       /** Id */
@@ -7184,6 +7357,135 @@ export interface components {
       columns_pin_right?: string | null;
       /** Selected */
       selected?: string | null;
+    };
+    /**
+     * TableViewListItem
+     * @description Table view item for list responses (metadata only).
+     */
+    TableViewListItem: {
+      /**
+       * Token
+       * @description Unique table view token
+       */
+      token: string;
+      /**
+       * Title
+       * @description Table view title
+       */
+      title?: string | null;
+      /**
+       * Project Name
+       * @description Name of the project
+       */
+      project_name: string;
+      /**
+       * Created At
+       * Format: date-time
+       * @description When the table view was created
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * @description When the table view was last updated
+       */
+      updated_at?: string | null;
+      /**
+       * Created By
+       * @description User ID of the creator
+       */
+      created_by: string;
+      /**
+       * Url
+       * @description Shareable URL to view the table
+       */
+      url: string;
+    };
+    /**
+     * TableViewListResponse
+     * @description Response for list table views endpoint.
+     */
+    TableViewListResponse: {
+      /**
+       * Table Views
+       * @description List of table views
+       */
+      table_views: components['schemas']['TableViewListItem'][];
+      /**
+       * Count
+       * @description Total count of table views
+       */
+      count: number;
+    };
+    /**
+     * TableViewMetadata
+     * @description Metadata about a table view.
+     */
+    TableViewMetadata: {
+      /**
+       * Token
+       * @description Unique table view token
+       */
+      token: string;
+      /**
+       * Title
+       * @description Table view title
+       */
+      title?: string | null;
+      /**
+       * Project Name
+       * @description Name of the project
+       */
+      project_name: string;
+      /**
+       * Created At
+       * Format: date-time
+       * @description When the table view was created
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * @description When the table view was last updated
+       */
+      updated_at?: string | null;
+      /**
+       * Created By
+       * @description User ID of the creator
+       */
+      created_by: string;
+    };
+    /**
+     * TableViewResponse
+     * @description Full table view response.
+     */
+    TableViewResponse: {
+      /**
+       * Url
+       * @description Shareable URL to view the table
+       */
+      url: string;
+      /**
+       * Token
+       * @description Unique table view token
+       */
+      token: string;
+      /**
+       * Table Config
+       * @description Table configuration
+       */
+      table_config: {
+        [key: string]: unknown;
+      };
+      /**
+       * Project Config
+       * @description Project configuration
+       */
+      project_config: {
+        [key: string]: unknown;
+      };
+      /** @description Table view metadata */
+      table_view_metadata: components['schemas']['TableViewMetadata'];
+      /** @description User/org context */
+      user_metadata: components['schemas']['orchestra__web__api__table_view__schema__UserMetadata'];
     };
     /**
      * TeamCreate
@@ -7541,13 +7843,13 @@ export interface components {
        * Target Derived Logs
        * @description The derived logs to update, either as a list of derived_log IDs or as a set of arguments for the get_logs endpoint.
        * @example {
-       *       "log0": [
+       *       'log0': [
        *         0,
        *         1,
        *         2
        *       ],
-       *       "log1": {
-       *         "filter_expr": "derived_score > 0.5"
+       *       'log1': {
+       *         'filter_expr': 'derived_score > 0.5'
        *       }
        *     }
        */
@@ -7572,10 +7874,10 @@ export interface components {
        * Referenced Logs
        * @description Optional new referenced logs to use for computation. Can be specified either as a list of log IDs or as a set of arguments for the get_logs endpoint.
        * @example {
-       *       "other": {
-       *         "filter_expr": "score > 0.5"
+       *       'other': {
+       *         'filter_expr': 'score > 0.5'
        *       },
-       *       "t": [
+       *       't': [
        *         1,
        *         2,
        *         3
@@ -7612,15 +7914,15 @@ export interface components {
     UpdateLogRequest: {
       /**
        * Logs
-       * @description List of log IDs or a dict of filter arguments to select logs. Filter dicts are passed as key:value pairs (e.g. `{"status": "done", "user_id": 12}`).
+       * @description List of log IDs or a dict of filter arguments to select logs. Filter dicts are passed as key:value pairs (e.g. `{'status': 'done', 'user_id': 12}`).
        * @example [
        *       123,
        *       456,
        *       789
        *     ]
        * @example {
-       *       "status": "done",
-       *       "user_id": 12
+       *       'status': 'done',
+       *       'user_id': 12
        *     }
        */
       logs:
@@ -7645,68 +7947,32 @@ export interface components {
         | (components['schemas']['ContextCreateRequest'] | string)[]
         | null;
       /**
-       * Params
-       * @description Dictionary or list of dictionaries of key-value parameter pairs to add or update in the logs.
-       * @default {}
-       * @example {
-       *       "explicit_types": {
-       *         "category": {
-       *           "description": "Task category",
-       *           "restrict": false,
-       *           "type": "enum",
-       *           "values": [
-       *             "A",
-       *             "B",
-       *             "C"
-       *           ]
-       *         },
-       *         "priority": {
-       *           "type": "enum"
-       *         },
-       *         "system-prompt": {
-       *           "description": "System prompt for the model",
-       *           "mutable": true,
-       *           "type": "str"
-       *         }
-       *       },
-       *       "function_definition": "...",
-       *       "system-prompt": "..."
-       *     }
-       */
-      params:
-        | {
-            [key: string]: unknown;
-          }
-        | {
-            [key: string]: unknown;
-          }[];
-      /**
        * Entries
        * @description Dictionary or list of dictionaries of key-value entry pairs to add or update in the logs. Supports nested path syntax using dot notation for object properties (e.g., 'metadata.author') and bracket notation for array indices (e.g., 'results[0]'). Complex paths like 'results[0].scores.accuracy' are also supported for deep updates.
        * @default {}
        * @example {
-       *       "explicit_types": {
-       *         "input": {
-       *           "description": "Input data for processing",
-       *           "mutable": true,
-       *           "type": "Image"
+       *       'explicit_types': {
+       *         'input': {
+       *           'description': 'Input data for processing',
+       *           'mutable': true,
+       *           'type': 'Image'
        *         },
-       *         "label": {
-       *           "type": "enum"
+       *         'label': {
+       *           'type': 'enum'
        *         },
-       *         "status": {
-       *           "description": "Current processing status",
-       *           "restrict": true,
-       *           "type": "enum",
-       *           "values": [
-       *             "pending",
-       *             "completed",
-       *             "failed"
+       *         'status': {
+       *           'description': 'Current processing status',
+       *           'restrict': true,
+       *           'type': 'enum',
+       *           'values': [
+       *             'pending',
+       *             'completed',
+       *             'failed'
        *           ]
        *         }
        *       },
-       *       "input": "...",
-       *       "score-test-1": "..."
+       *       'input': '...',
+       *       'score-test-1': '...'
        *     }
        */
       entries:
@@ -7745,7 +8011,9 @@ export interface components {
       /** @description New plot configuration */
       plot_config?: components['schemas']['PlotConfigInput'] | null;
       /** @description New project configuration */
-      project_config?: components['schemas']['ProjectConfigInput'] | null;
+      project_config?:
+        | components['schemas']['orchestra__web__api__plot__schema__ProjectConfigInput']
+        | null;
     };
     /** UpdateQueryLoggingRequest */
     UpdateQueryLoggingRequest: {
@@ -7773,6 +8041,23 @@ export interface components {
       color?: string | null;
       /** Icon */
       icon?: string | null;
+    };
+    /**
+     * UpdateTableViewRequest
+     * @description Request to update an existing table view.
+     */
+    UpdateTableViewRequest: {
+      /**
+       * Title
+       * @description New title for the table view
+       */
+      title?: string | null;
+      /** @description New table configuration */
+      table_config?: components['schemas']['TableConfigInput'] | null;
+      /** @description New project configuration */
+      project_config?:
+        | components['schemas']['orchestra__web__api__table_view__schema__ProjectConfigInput']
+        | null;
     };
     /**
      * UpdateTileRequest
@@ -7844,22 +8129,6 @@ export interface components {
       business_address?: components['schemas']['BusinessAddress'] | null;
     };
     /**
-     * UserMetadata
-     * @description User/organization context for the plot.
-     */
-    UserMetadata: {
-      /**
-       * User Id
-       * @description User ID of the plot creator
-       */
-      user_id: string;
-      /**
-       * Organization Id
-       * @description Organization ID (null for personal plots)
-       */
-      organization_id?: number | null;
-    };
-    /**
      * UserResourceAccessEntry
      * @description Schema for a single user access entry with source info.
      */
@@ -7901,6 +8170,41 @@ export interface components {
       access_entries: components['schemas']['UserResourceAccessEntry'][];
       /** Effective Role */
       effective_role?: string | null;
+    };
+    /**
+     * UserSpendingLimitRequest
+     * @description Request body for setting user's personal spending limit.
+     */
+    UserSpendingLimitRequest: {
+      /**
+       * Monthly Spending Cap
+       * @description Monthly spending limit in dollars for personal usage. Set to null for no limit.
+       * @example 200
+       */
+      monthly_spending_cap: number | null;
+    };
+    /**
+     * UserSpendingLimitResponse
+     * @description Response for user's personal spending limit.
+     */
+    UserSpendingLimitResponse: {
+      /**
+       * User Id
+       * @description User ID.
+       */
+      user_id: string;
+      /**
+       * Monthly Spending Cap
+       * @description The monthly spending limit for personal usage.
+       * @example 200
+       */
+      monthly_spending_cap?: number | null;
+      /**
+       * Assistants Capped
+       * @description Number of personal assistants that had their limits reduced.
+       * @default 0
+       */
+      assistants_capped: number;
     };
     /** ValidationError */
     ValidationError: {
@@ -8227,6 +8531,197 @@ export interface components {
        * @example true
        */
       is_preset: boolean | null;
+    };
+    /**
+     * ProjectConfigInput
+     * @description Project/logs configuration for fetching data.
+     */
+    orchestra__web__api__plot__schema__ProjectConfigInput: {
+      /**
+       * Project Name
+       * @description Name of the project to fetch logs from
+       */
+      project_name: string;
+      /**
+       * Context
+       * @description Static context to filter logs by
+       */
+      context?: string | null;
+      /**
+       * Column Context
+       * @description Column context for field resolution
+       */
+      column_context?: string | null;
+      /**
+       * Filter Expr
+       * @description Boolean expression to filter entries
+       */
+      filter_expr?: string | null;
+      /**
+       * From Ids
+       * @description Log IDs to include (ampersand-separated)
+       */
+      from_ids?: string | null;
+      /**
+       * Exclude Ids
+       * @description Log IDs to exclude (ampersand-separated)
+       */
+      exclude_ids?: string | null;
+      /**
+       * From Fields
+       * @description Fields to include (ampersand-separated)
+       */
+      from_fields?: string | null;
+      /**
+       * Exclude Fields
+       * @description Fields to exclude (ampersand-separated)
+       */
+      exclude_fields?: string | null;
+      /**
+       * Limit
+       * @description Maximum number of logs to fetch
+       * @default 1000
+       */
+      limit: number | null;
+      /**
+       * Offset
+       * @description Number of logs to skip
+       */
+      offset?: number | null;
+      /**
+       * Group By
+       * @description Fields to group results by
+       */
+      group_by?: string[] | null;
+      /**
+       * Group Limit
+       * @description Maximum number of groups at each level
+       */
+      group_limit?: number | null;
+      /**
+       * Group Offset
+       * @description Number of groups to skip
+       */
+      group_offset?: number | null;
+      /**
+       * Group Depth
+       * @description Maximum depth of nested groups
+       */
+      group_depth?: number | null;
+      /**
+       * Groups Only
+       * @description Return only groups without full logs
+       */
+      groups_only?: boolean | null;
+      /**
+       * Nested Groups
+       * @description Return groups as nested structure
+       */
+      nested_groups?: boolean | null;
+      /**
+       * Sorting
+       * @description JSON-encoded sorting configuration
+       */
+      sorting?: string | null;
+      /**
+       * Group Sorting
+       * @description JSON-encoded group sorting configuration
+       */
+      group_sorting?: string | null;
+      /**
+       * Value Limit
+       * @description Maximum characters for string values
+       */
+      value_limit?: number | null;
+      /**
+       * Randomize
+       * @description Return logs in random order
+       */
+      randomize?: boolean | null;
+      /**
+       * Seed
+       * @description Seed for random ordering
+       */
+      seed?: string | null;
+    };
+    /**
+     * UserMetadata
+     * @description User/organization context for the plot.
+     */
+    orchestra__web__api__plot__schema__UserMetadata: {
+      /**
+       * User Id
+       * @description User ID of the plot creator
+       */
+      user_id: string;
+      /**
+       * Organization Id
+       * @description Organization ID (null for personal plots)
+       */
+      organization_id?: number | null;
+    };
+    /**
+     * ProjectConfigInput
+     * @description Project/logs configuration for fetching data.
+     */
+    orchestra__web__api__table_view__schema__ProjectConfigInput: {
+      /**
+       * Project Name
+       * @description Name of the project to fetch logs from
+       */
+      project_name: string;
+      /**
+       * Context
+       * @description Static context to filter logs by
+       */
+      context?: string | null;
+      /**
+       * Filter Expr
+       * @description Boolean expression to filter entries
+       */
+      filter_expr?: string | null;
+      /**
+       * From Fields
+       * @description Fields to include (ampersand-separated)
+       */
+      from_fields?: string | null;
+      /**
+       * Exclude Fields
+       * @description Fields to exclude (ampersand-separated)
+       */
+      exclude_fields?: string | null;
+      /**
+       * Limit
+       * @description Maximum number of logs to fetch
+       * @default 1000
+       */
+      limit: number | null;
+      /**
+       * Offset
+       * @description Number of logs to skip
+       */
+      offset?: number | null;
+      /**
+       * Sorting
+       * @description JSON-encoded sorting configuration
+       */
+      sorting?: string | null;
+    };
+    /**
+     * UserMetadata
+     * @description User/organization context for the table view.
+     */
+    orchestra__web__api__table_view__schema__UserMetadata: {
+      /**
+       * User Id
+       * @description User ID of the creator
+       */
+      user_id: string;
+      /**
+       * Organization Id
+       * @description Organization ID (null for personal table views)
+       */
+      organization_id?: number | null;
     };
   };
   responses: never;
@@ -8642,15 +9137,9 @@ export interface operations {
       };
     };
   };
-  list_providers_v0_providers_get: {
+  get_user_spending_limit_v0_user_spending_limit_get: {
     parameters: {
-      query?: {
-        /**
-         * @description Model to get available providers for.
-         * @example llama-3.1-405b-chat
-         */
-        model?: string;
-      };
+      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
@@ -8663,120 +9152,12 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          /**
-           * @example [
-           *       "openai",
-           *       "anthropic",
-           *       "together-ai",
-           *       "..."
-           *     ]
-           */
-          'application/json': string[];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
+          'application/json': components['schemas']['UserSpendingLimitResponse'];
         };
       };
     };
   };
-  list_models_v0_models_get: {
-    parameters: {
-      query?: {
-        /**
-         * @description Provider to get available models from.
-         * @example openai
-         */
-        provider?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example [
-           *       "gpt-3.5-turbo",
-           *       "gpt-4",
-           *       "claude-3-haiku",
-           *       "..."
-           *     ]
-           */
-          'application/json': string[];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  list_endpoints_v0_endpoints_get: {
-    parameters: {
-      query?: {
-        /**
-         * @description Model to get available endpoints for.
-         * @example llama-3.1-405b-chat
-         */
-        model?: string;
-        /**
-         * @description Provider to get available endpoints for.
-         * @example openai
-         */
-        provider?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example [
-           *       "claude-3-haiku@anthropic",
-           *       "llama-3-70b-chat@groq",
-           *       "mistral-large@mistral-ai",
-           *       "..."
-           *     ]
-           */
-          'application/json': string[];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  chat_completions_v0_chat_completions_post: {
+  set_user_spending_limit_v0_user_spending_limit_put: {
     parameters: {
       query?: never;
       header?: never;
@@ -8785,9 +9166,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json':
-          | components['schemas']['ChatCompletionRequest']
-          | components['schemas']['ChatCompletionRequest'][];
+        'application/json': components['schemas']['UserSpendingLimitRequest'];
       };
     };
     responses: {
@@ -8797,7 +9176,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ChatCompletionResponse'];
+          'application/json': components['schemas']['UserSpendingLimitResponse'];
         };
       };
       /** @description Validation Error */
@@ -8835,48 +9214,48 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": [
+           *       'info': [
            *         {
-           *           "agent_id": "123",
-           *           "first_name": "Alice",
-           *           "surname": "Smith",
-           *           "age": 25,
-           *           "weekly_limit": 40,
-           *           "max_parallel": 3,
-           *           "phone": "+1-555-123-4567",
-           *           "email": "alice.smith@example.com",
-           *           "nationality": "United States",
-           *           "profile_photo": "https://example.com/photos/alice.jpg",
-           *           "profile_video": "https://example.com/videos/alice.mp4",
-           *           "about": "Mathematician and writer known for work on Analytical Engine",
-           *           "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *           "voice_provider": "cartesia",
-           *           "voice_mode": "tts",
-           *           "phone_country": "US",
-           *           "timezone": "America/New_York",
-           *           "created_at": "2025-04-25T12:00:00Z",
-           *           "updated_at": "2025-04-25T12:00:00Z"
+           *           'agent_id': '123',
+           *           'first_name': 'Alice',
+           *           'surname': 'Smith',
+           *           'age': 25,
+           *           'weekly_limit': 40,
+           *           'max_parallel': 3,
+           *           'phone': '+1-555-123-4567',
+           *           'email': 'alice.smith@example.com',
+           *           'nationality': 'United States',
+           *           'profile_photo': 'https://example.com/photos/alice.jpg',
+           *           'profile_video': 'https://example.com/videos/alice.mp4',
+           *           'about': 'Mathematician and writer known for work on Analytical Engine',
+           *           'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *           'voice_provider': 'cartesia',
+           *           'voice_mode': 'tts',
+           *           'phone_country': 'US',
+           *           'timezone': 'America/New_York',
+           *           'created_at': '2025-04-25T12:00:00Z',
+           *           'updated_at': '2025-04-25T12:00:00Z'
            *         },
            *         {
-           *           "agent_id": "456",
-           *           "first_name": "Bob",
-           *           "surname": "Jones",
-           *           "age": 30,
-           *           "weekly_limit": 35.5,
-           *           "max_parallel": 2,
-           *           "phone": "+1-555-987-6543",
-           *           "email": "bob.jones@example.com",
-           *           "nationality": "Mexico",
-           *           "profile_photo": "https://example.com/photos/bob.jpg",
-           *           "profile_video": "https://example.com/videos/bob.mp4",
-           *           "about": "Machine learning expert with focus on computer vision",
-           *           "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *           "voice_provider": "cartesia",
-           *           "voice_mode": "tts",
-           *           "phone_country": "CA",
-           *           "timezone": "America/Vancouver",
-           *           "created_at": "2025-04-24T10:30:00Z",
-           *           "updated_at": "2025-04-24T10:30:00Z"
+           *           'agent_id': '456',
+           *           'first_name': 'Bob',
+           *           'surname': 'Jones',
+           *           'age': 30,
+           *           'weekly_limit': 35.5,
+           *           'max_parallel': 2,
+           *           'phone': '+1-555-987-6543',
+           *           'email': 'bob.jones@example.com',
+           *           'nationality': 'Mexico',
+           *           'profile_photo': 'https://example.com/photos/bob.jpg',
+           *           'profile_video': 'https://example.com/videos/bob.mp4',
+           *           'about': 'Machine learning expert with focus on computer vision',
+           *           'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *           'voice_provider': 'cartesia',
+           *           'voice_mode': 'tts',
+           *           'phone_country': 'CA',
+           *           'timezone': 'America/Vancouver',
+           *           'created_at': '2025-04-24T10:30:00Z',
+           *           'updated_at': '2025-04-24T10:30:00Z'
            *         }
            *       ]
            *     }
@@ -8916,19 +9295,19 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": {
-           *         "agent_id": "123",
-           *         "first_name": "Alice",
-           *         "surname": "Smith",
-           *         "age": 25,
-           *         "weekly_limit": 40,
-           *         "max_parallel": 3,
-           *         "created_at": "2025-04-25T12:00:00Z",
-           *         "updated_at": "2025-04-25T12:00:00Z",
-           *         "phone": "+1-555-123-4567",
-           *         "email": "alice.smith@example.com",
-           *         "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *         "phone_country": "US"
+           *       'info': {
+           *         'agent_id': '123',
+           *         'first_name': 'Alice',
+           *         'surname': 'Smith',
+           *         'age': 25,
+           *         'weekly_limit': 40,
+           *         'max_parallel': 3,
+           *         'created_at': '2025-04-25T12:00:00Z',
+           *         'updated_at': '2025-04-25T12:00:00Z',
+           *         'phone': '+1-555-123-4567',
+           *         'email': 'alice.smith@example.com',
+           *         'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *         'phone_country': 'US'
            *       }
            *     }
            */
@@ -8943,7 +9322,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Insufficient credits to create an assistant."
+           *       'detail': 'Insufficient credits to create an assistant.'
            *     }
            */
           'application/json': unknown;
@@ -8957,7 +9336,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "An assistant with the name 'Alice Smith' already exists for this user."
+           *       'detail': 'An assistant with the name 'Alice Smith' already exists for this user.'
            *     }
            */
           'application/json': unknown;
@@ -8971,14 +9350,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": [
+           *       'detail': [
            *         {
-           *           "loc": [
-           *             "body",
-           *             "first_name"
+           *           'loc': [
+           *             'body',
+           *             'first_name'
            *           ],
-           *           "msg": "field required",
-           *           "type": "value_error.missing"
+           *           'msg': 'field required',
+           *           'type': 'value_error.missing'
            *         }
            *       ]
            *     }
@@ -9056,7 +9435,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Assistant deleted successfully"
+           *       'info': 'Assistant deleted successfully'
            *     }
            */
           'application/json': components['schemas']['InfoResponse_str_'];
@@ -9070,7 +9449,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Assistant not found."
+           *       'detail': 'Assistant not found.'
            *     }
            */
           'application/json': unknown;
@@ -9110,26 +9489,26 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": {
-           *         "agent_id": "123",
-           *         "first_name": "Alice",
-           *         "surname": "Smith",
-           *         "age": 25,
-           *         "weekly_limit": 45,
-           *         "max_parallel": 4,
-           *         "about": "Award-winning mathematician specializing in algorithm development",
-           *         "phone": "+1-555-987-6543",
-           *         "email": "alice.smith@example.com",
-           *         "nationality": "United States",
-           *         "profile_photo": "https://example.com/photos/alice.jpg",
-           *         "profile_video": "https://example.com/videos/alice.mp4",
-           *         "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *         "voice_provider": "cartesia",
-           *         "voice_mode": "tts",
-           *         "phone_country": "US",
-           *         "timezone": "America/New_York",
-           *         "created_at": "2025-04-25T12:00:00Z",
-           *         "updated_at": "2025-04-25T14:30:00Z"
+           *       'info': {
+           *         'agent_id': '123',
+           *         'first_name': 'Alice',
+           *         'surname': 'Smith',
+           *         'age': 25,
+           *         'weekly_limit': 45,
+           *         'max_parallel': 4,
+           *         'about': 'Award-winning mathematician specializing in algorithm development',
+           *         'phone': '+1-555-987-6543',
+           *         'email': 'alice.smith@example.com',
+           *         'nationality': 'United States',
+           *         'profile_photo': 'https://example.com/photos/alice.jpg',
+           *         'profile_video': 'https://example.com/videos/alice.mp4',
+           *         'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *         'voice_provider': 'cartesia',
+           *         'voice_mode': 'tts',
+           *         'phone_country': 'US',
+           *         'timezone': 'America/New_York',
+           *         'created_at': '2025-04-25T12:00:00Z',
+           *         'updated_at': '2025-04-25T14:30:00Z'
            *       }
            *     }
            */
@@ -9144,7 +9523,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Assistant not found."
+           *       'detail': 'Assistant not found.'
            *     }
            */
           'application/json': unknown;
@@ -9158,14 +9537,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": [
+           *       'detail': [
            *         {
-           *           "loc": [
-           *             "body",
-           *             "email"
+           *           'loc': [
+           *             'body',
+           *             'email'
            *           ],
-           *           "msg": "value is not a valid email address",
-           *           "type": "value_error.email"
+           *           'msg': 'value is not a valid email address',
+           *           'type': 'value_error.email'
            *         }
            *       ]
            *     }
@@ -9306,16 +9685,16 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": [
+           *       'info': [
            *         {
-           *           "id": 123,
-           *           "url": "https://storage.example.com/recordings/call_123.mp3",
-           *           "created_at": "2025-05-08T14:30:00Z"
+           *           'id': 123,
+           *           'url': 'https://storage.example.com/recordings/call_123.mp3',
+           *           'created_at': '2025-05-08T14:30:00Z'
            *         },
            *         {
-           *           "id": 124,
-           *           "url": "https://storage.example.com/recordings/call_124.mp3",
-           *           "created_at": "2025-05-09T10:15:00Z"
+           *           'id': 124,
+           *           'url': 'https://storage.example.com/recordings/call_124.mp3',
+           *           'created_at': '2025-05-09T10:15:00Z'
            *         }
            *       ]
            *     }
@@ -9331,7 +9710,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Assistant not found."
+           *       'detail': 'Assistant not found.'
            *     }
            */
           'application/json': unknown;
@@ -9368,7 +9747,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Recording deleted successfully"
+           *       'info': 'Recording deleted successfully'
            *     }
            */
           'application/json': components['schemas']['InfoResponse_str_'];
@@ -9382,7 +9761,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Recording not found."
+           *       'detail': 'Recording not found.'
            *     }
            */
           'application/json': unknown;
@@ -9416,24 +9795,24 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": [
+           *       'info': [
            *         {
-           *           "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *           "name": "English Woman Calm 1",
-           *           "description": "Calm and relaxting voice of an english-speaking woman",
-           *           "gender": "female",
-           *           "language": "en",
-           *           "provider": "cartesia",
-           *           "is_preset": true
+           *           'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *           'name': 'English Woman Calm 1',
+           *           'description': 'Calm and relaxting voice of an english-speaking woman',
+           *           'gender': 'female',
+           *           'language': 'en',
+           *           'provider': 'cartesia',
+           *           'is_preset': true
            *         },
            *         {
-           *           "voice_id": "c99d36f3-5ffd-4253-803a-535c1bc9c306",
-           *           "name": "English Male Deep 1",
-           *           "description": "A deep, smoooth British man's voice perfect for narration.",
-           *           "gender": "male",
-           *           "language": "en",
-           *           "provider": "elevenlabs",
-           *           "is_preset": false
+           *           'voice_id': 'c99d36f3-5ffd-4253-803a-535c1bc9c306',
+           *           'name': 'English Male Deep 1',
+           *           'description': 'A deep, smoooth British man's voice perfect for narration.',
+           *           'gender': 'male',
+           *           'language': 'en',
+           *           'provider': 'elevenlabs',
+           *           'is_preset': false
            *         }
            *       ]
            *     }
@@ -9449,7 +9828,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Voice not found."
+           *       'detail': 'Voice not found.'
            *     }
            */
           'application/json': unknown;
@@ -9478,14 +9857,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": {
-           *         "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-           *         "name": "English Woman Calm 1",
-           *         "description": "Calm and relaxting voice of an english-speaking woman",
-           *         "gender": "female",
-           *         "language": "en",
-           *         "provider": "cartesia",
-           *         "is_preset": true
+           *       'info': {
+           *         'voice_id': 'bf0a246a-8642-498a-9950-80c35e9276b5',
+           *         'name': 'English Woman Calm 1',
+           *         'description': 'Calm and relaxting voice of an english-speaking woman',
+           *         'gender': 'female',
+           *         'language': 'en',
+           *         'provider': 'cartesia',
+           *         'is_preset': true
            *       }
            *     }
            */
@@ -9509,14 +9888,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": [
+           *       'detail': [
            *         {
-           *           "loc": [
-           *             "body",
-           *             "name"
+           *           'loc': [
+           *             'body',
+           *             'name'
            *           ],
-           *           "msg": "field required",
-           *           "type": "value_error.missing"
+           *           'msg': 'field required',
+           *           'type': 'value_error.missing'
            *         }
            *       ]
            *     }
@@ -9581,7 +9960,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Voice deleted successfully"
+           *       'info': 'Voice deleted successfully'
            *     }
            */
           'application/json': components['schemas']['InfoResponse_str_'];
@@ -9595,7 +9974,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Voice not found."
+           *       'detail': 'Voice not found.'
            *     }
            */
           'application/json': unknown;
@@ -9642,7 +10021,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Provider API error: ..."
+           *       'detail': 'Provider API error: ...'
            *     }
            */
           'application/json': unknown;
@@ -9665,7 +10044,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "TTS provider unavailable."
+           *       'detail': 'TTS provider unavailable.'
            *     }
            */
           'application/json': unknown;
@@ -10097,6 +10476,114 @@ export interface operations {
       };
     };
   };
+  get_assistant_spending_limit_v0_assistant__agent_id__spending_limit_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        agent_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Spending limit retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AssistantSpendingLimitResponse'];
+        };
+      };
+      /** @description Assistant not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  set_assistant_spending_limit_v0_assistant__agent_id__spending_limit_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        agent_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SpendingLimitRequest'];
+      };
+    };
+    responses: {
+      /** @description Spending limit set successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'agent_id': 123,
+           *       'monthly_spending_cap': 100,
+           *       'effective_limit': 100
+           *     }
+           */
+          'application/json': components['schemas']['AssistantSpendingLimitResponse'];
+        };
+      };
+      /** @description Invalid limit */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Assistant limit cannot exceed user limit ($50.00)'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Assistant not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Assistant not found.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   get_contexts_v0_project__project_name__contexts_get: {
     parameters: {
       query?: {
@@ -10127,26 +10614,26 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "name": "context1",
-           *         "description": "description1",
-           *         "is_versioned": true,
-           *         "allow_duplicates": true,
-           *         "unique_keys": [
-           *           "row_id"
+           *         'name': 'context1',
+           *         'description': 'description1',
+           *         'is_versioned': true,
+           *         'allow_duplicates': true,
+           *         'unique_keys': [
+           *           'row_id'
            *         ],
-           *         "auto_counting": {}
+           *         'auto_counting': {}
            *       },
            *       {
-           *         "name": "context2",
-           *         "description": "description2",
-           *         "is_versioned": false,
-           *         "allow_duplicates": true,
-           *         "unique_keys": [
-           *           "user_id",
-           *           "session_id"
+           *         'name': 'context2',
+           *         'description': 'description2',
+           *         'is_versioned': false,
+           *         'allow_duplicates': true,
+           *         'unique_keys': [
+           *           'user_id',
+           *           'session_id'
            *         ],
-           *         "auto_counting": {
-           *           "session_id": "user_id"
+           *         'auto_counting': {
+           *           'session_id': 'user_id'
            *         }
            *       }
            *     ]
@@ -10162,7 +10649,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project not found."
+           *       'detail': 'Project not found.'
            *     }
            */
           'application/json': unknown;
@@ -10233,7 +10720,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project not found."
+           *       'detail': 'Project not found.'
            *     }
            */
           'application/json': unknown;
@@ -10273,7 +10760,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project contexts and logs deleted successfully!"
+           *       'info': 'Project contexts and logs deleted successfully!'
            *     }
            */
           'application/json': unknown;
@@ -10287,7 +10774,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -10364,14 +10851,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "name": "context1",
-           *       "description": "description1",
-           *       "is_versioned": true,
-           *       "allow_duplicates": true,
-           *       "unique_keys": [
-           *         "row_id"
+           *       'name': 'context1',
+           *       'description': 'description1',
+           *       'is_versioned': true,
+           *       'allow_duplicates': true,
+           *       'unique_keys': [
+           *         'row_id'
            *       ],
-           *       "auto_counting": {}
+           *       'auto_counting': {}
            *     }
            */
           'application/json': unknown;
@@ -10385,7 +10872,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project or context not found."
+           *       'detail': 'Project or context not found.'
            *     }
            */
           'application/json': unknown;
@@ -10442,7 +10929,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Cannot delete built-in Tasks context."
+           *       'detail': 'Cannot delete built-in Tasks context.'
            *     }
            */
           'application/json': unknown;
@@ -10456,7 +10943,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project or context not found."
+           *       'detail': 'Project or context not found.'
            *     }
            */
           'application/json': unknown;
@@ -10500,7 +10987,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Logs added to context successfully!"
+           *       'info': 'Logs added to context successfully!'
            *     }
            */
           'application/json': unknown;
@@ -10514,7 +11001,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project, context or specified logs not found."
+           *       'detail': 'Project, context or specified logs not found.'
            *     }
            */
           'application/json': unknown;
@@ -10555,7 +11042,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Context renamed successfully!"
+           *       'info': 'Context renamed successfully!'
            *     }
            */
           'application/json': unknown;
@@ -10569,7 +11056,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "A context with this name already exists in the project."
+           *       'detail': 'A context with this name already exists in the project.'
            *     }
            */
           'application/json': unknown;
@@ -10583,7 +11070,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Cannot modify built-in Tasks context."
+           *       'detail': 'Cannot modify built-in Tasks context.'
            *     }
            */
           'application/json': unknown;
@@ -10597,7 +11084,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project or context not found."
+           *       'detail': 'Project or context not found.'
            *     }
            */
           'application/json': unknown;
@@ -10713,8 +11200,8 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project committed successfully!",
-           *       "commit_hash": "..."
+           *       'info': 'Project committed successfully!',
+           *       'commit_hash': '...'
            *     }
            */
           'application/json': unknown;
@@ -10728,7 +11215,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project is not versioned."
+           *       'detail': 'Project is not versioned.'
            *     }
            */
           'application/json': unknown;
@@ -10742,7 +11229,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -10786,7 +11273,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project rolled back successfully!"
+           *       'info': 'Project rolled back successfully!'
            *     }
            */
           'application/json': unknown;
@@ -10800,7 +11287,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project is not versioned."
+           *       'detail': 'Project is not versioned.'
            *     }
            */
           'application/json': unknown;
@@ -10814,7 +11301,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project or commit not found."
+           *       'detail': 'Project or commit not found.'
            *     }
            */
           'application/json': unknown;
@@ -10884,16 +11371,16 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "id": 1,
-           *         "project_name": "my-project",
-           *         "icon": "star",
-           *         "position": 0
+           *         'id': 1,
+           *         'project_name': 'my-project',
+           *         'icon': 'star',
+           *         'position': 0
            *       },
            *       {
-           *         "id": 2,
-           *         "project_name": "another-project",
-           *         "icon": "folder",
-           *         "position": 1
+           *         'id': 2,
+           *         'project_name': 'another-project',
+           *         'icon': 'folder',
+           *         'position': 1
            *       }
            *     ]
            */
@@ -10923,10 +11410,10 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": 1,
-           *       "project_name": "my-project",
-           *       "icon": "star",
-           *       "position": 0
+           *       'id': 1,
+           *       'project_name': 'my-project',
+           *       'icon': 'star',
+           *       'position': 0
            *     }
            */
           'application/json': components['schemas']['FavoriteProjectOut'];
@@ -10940,7 +11427,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project is already in favorites"
+           *       'detail': 'Project is already in favorites'
            *     }
            */
           'application/json': unknown;
@@ -10954,7 +11441,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project 'unknown-project' not found"
+           *       'detail': 'Project 'unknown-project' not found'
            *     }
            */
           'application/json': unknown;
@@ -10991,10 +11478,10 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": 1,
-           *       "project_name": "my-project",
-           *       "icon": "star",
-           *       "position": 0
+           *       'id': 1,
+           *       'project_name': 'my-project',
+           *       'icon': 'star',
+           *       'position': 0
            *     }
            */
           'application/json': components['schemas']['FavoriteProjectOut'];
@@ -11008,7 +11495,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Favorite with ID 123 not found"
+           *       'detail': 'Favorite with ID 123 not found'
            *     }
            */
           'application/json': unknown;
@@ -11045,7 +11532,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Favorite deleted successfully!"
+           *       'info': 'Favorite deleted successfully!'
            *     }
            */
           'application/json': unknown;
@@ -11059,7 +11546,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Favorite with ID 123 not found"
+           *       'detail': 'Favorite with ID 123 not found'
            *     }
            */
           'application/json': unknown;
@@ -11100,10 +11587,10 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": 1,
-           *       "project_name": "my-project",
-           *       "icon": "updated-icon",
-           *       "position": 2
+           *       'id': 1,
+           *       'project_name': 'my-project',
+           *       'icon': 'updated-icon',
+           *       'position': 2
            *     }
            */
           'application/json': components['schemas']['FavoriteProjectOut'];
@@ -11117,7 +11604,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Favorite with ID 123 not found"
+           *       'detail': 'Favorite with ID 123 not found'
            *     }
            */
           'application/json': unknown;
@@ -11155,7 +11642,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project created successfully!"
+           *       'info': 'Project created successfully!'
            *     }
            */
           'application/json': unknown;
@@ -11169,7 +11656,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "A logging project with this name already exists."
+           *       'detail': 'A logging project with this name already exists.'
            *     }
            */
           'application/json': unknown;
@@ -11183,7 +11670,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Description must be 256 characters or less."
+           *       'detail': 'Description must be 256 characters or less.'
            *     }
            */
           'application/json': unknown;
@@ -11214,7 +11701,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "All logs in project deleted successfully"
+           *       'info': 'All logs in project deleted successfully'
            *     }
            */
           'application/json': unknown;
@@ -11228,7 +11715,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -11268,11 +11755,11 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "name": "my-project",
-           *       "description": "A sample project for evaluation",
-           *       "is_versioned": true,
-           *       "created_at": "2023-01-01T00:00:00Z",
-           *       "updated_at": "2023-01-02T00:00:00Z"
+           *       'name': 'my-project',
+           *       'description': 'A sample project for evaluation',
+           *       'is_versioned': true,
+           *       'created_at': '2023-01-01T00:00:00Z',
+           *       'updated_at': '2023-01-02T00:00:00Z'
            *     }
            */
           'application/json': components['schemas']['ProjectOut'];
@@ -11286,7 +11773,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -11326,7 +11813,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project deleted successfully!"
+           *       'info': 'Project deleted successfully!'
            *     }
            */
           'application/json': unknown;
@@ -11340,7 +11827,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -11384,7 +11871,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Project updated successfully!"
+           *       'info': 'Project updated successfully!'
            *     }
            */
           'application/json': unknown;
@@ -11398,7 +11885,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <name> not found."
+           *       'detail': 'Project <name> not found.'
            *     }
            */
           'application/json': unknown;
@@ -11412,7 +11899,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Description must be 256 characters or less."
+           *       'detail': 'Description must be 256 characters or less.'
            *     }
            */
           'application/json': unknown;
@@ -11443,12 +11930,12 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "project_id": 123,
-           *       "project_name": "my-project",
-           *       "from_type": "personal",
-           *       "to_type": "organization",
-           *       "message": "Project successfully transferred to organization 'My Org'"
+           *       'success': true,
+           *       'project_id': 123,
+           *       'project_name': 'my-project',
+           *       'from_type': 'personal',
+           *       'to_type': 'organization',
+           *       'message': 'Project successfully transferred to organization 'My Org''
            *     }
            */
           'application/json': components['schemas']['TransferResponse'];
@@ -11505,12 +11992,12 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "project_id": 123,
-           *       "project_name": "my-project",
-           *       "from_type": "organization",
-           *       "to_type": "personal",
-           *       "message": "Project successfully transferred to personal ownership"
+           *       'success': true,
+           *       'project_id': 123,
+           *       'project_name': 'my-project',
+           *       'from_type': 'organization',
+           *       'to_type': 'personal',
+           *       'message': 'Project successfully transferred to personal ownership'
            *     }
            */
           'application/json': components['schemas']['TransferResponse'];
@@ -11565,9 +12052,9 @@ export interface operations {
         content: {
           /**
            * @example [
-           *       "project_a",
-           *       "project_b",
-           *       "project_c"
+           *       'project_a',
+           *       'project_b',
+           *       'project_c'
            *     ]
            */
           'application/json': unknown;
@@ -11616,22 +12103,22 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "template": {
-           *         "interfaces": [
+           *       'template': {
+           *         'interfaces': [
            *           {
-           *             "name": "Analytics Dashboard",
-           *             "tabs": [
+           *             'name': 'Analytics Dashboard',
+           *             'tabs': [
            *               {
-           *                 "name": "Overview",
-           *                 "tiles": [
+           *                 'name': 'Overview',
+           *                 'tiles': [
            *                   {
-           *                     "name": "Data Table",
-           *                     "type": "Table",
-           *                     "position": {
-           *                       "x": 0,
-           *                       "y": 0,
-           *                       "width": 6,
-           *                       "height": 4
+           *                     'name': 'Data Table',
+           *                     'type': 'Table',
+           *                     'position': {
+           *                       'x': 0,
+           *                       'y': 0,
+           *                       'width': 6,
+           *                       'height': 4
            *                     }
            *                   }
            *                 ]
@@ -11640,13 +12127,13 @@ export interface operations {
            *           }
            *         ]
            *       },
-           *       "metadata": {
-           *         "exported_at": "2024-01-01T12:00:00Z"
+           *       'metadata': {
+           *         'exported_at': '2024-01-01T12:00:00Z'
            *       },
-           *       "export_stats": {
-           *         "interfaces": 1,
-           *         "tabs": 1,
-           *         "tiles": 1
+           *       'export_stats': {
+           *         'interfaces': 1,
+           *         'tabs': 1,
+           *         'tiles': 1
            *       }
            *     }
            */
@@ -11685,19 +12172,19 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "import_stats": {
-           *         "interfaces": 2,
-           *         "tabs": 4,
-           *         "tiles": 10
+           *       'success': true,
+           *       'import_stats': {
+           *         'interfaces': 2,
+           *         'tabs': 4,
+           *         'tiles': 10
            *       },
-           *       "created_ids": {
-           *         "interface_ids": [
-           *           "abc123",
-           *           "def456"
+           *       'created_ids': {
+           *         'interface_ids': [
+           *           'abc123',
+           *           'def456'
            *         ]
            *       },
-           *       "warnings": []
+           *       'warnings': []
            *     }
            */
           'application/json': components['schemas']['TemplateImportResponse'];
@@ -11742,20 +12229,20 @@ export interface operations {
          */
         filter_expr?: string | null;
         /**
-         * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`"ascending"` or `"descending"`). The first key is the primary sort field; subsequent keys break ties.
+         * @description JSON-encoded dict mapping either static column names (e.g. `timestamp`) or full Python2SQL expressions (e.g. `cosine(embed('search text'), embedding_vector)`) to sort directions (`'ascending'` or `'descending'`). The first key is the primary sort field; subsequent keys break ties.
          * @example {
-         *       "timestamp": "descending",
-         *       "round(score, 2)": "ascending"
+         *       'timestamp': 'descending',
+         *       'round(score, 2)': 'ascending'
          *     }
          */
         sorting?: string | null;
         /**
          * @description Sorting configuration for groups when using group_by. Specifies how to sort groups relative to each other based on aggregated metrics.
          * @example {
-         *       "entries/student": {
-         *         "field": "score",
-         *         "direction": "descending",
-         *         "metric": "mean"
+         *       'entries/student': {
+         *         'field': 'score',
+         *         'direction': 'descending',
+         *         'metric': 'mean'
          *       }
          *     }
          */
@@ -11785,8 +12272,8 @@ export interface operations {
         /**
          * @description List of fields to group results by. Results will be nested based on these fields.
          * @example [
-         *       "model",
-         *       "temperature"
+         *       'model',
+         *       'temperature'
          *     ]
          */
         group_by?: string[] | null;
@@ -11823,30 +12310,27 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "params": {},
-           *       "logs": [
+           *       'logs': [
            *         {
-           *           "id": "0",
-           *           "ts": "2024-10-30 12:20:03",
-           *           "entries": {
-           *             "key1": "a",
-           *             "key2": 1
+           *           'id': '0',
+           *           'ts': '2024-10-30 12:20:03',
+           *           'entries': {
+           *             'key1': 'a',
+           *             'key2': 1
            *           },
-           *           "derived_entries": {},
-           *           "params": {}
+           *           'derived_entries': {}
            *         },
            *         {
-           *           "id": "1",
-           *           "ts": "2024-10-30 12:22:14",
-           *           "entries": {
-           *             "key1": "b",
-           *             "key2": 2
+           *           'id': '1',
+           *           'ts': '2024-10-30 12:22:14',
+           *           'entries': {
+           *             'key1': 'b',
+           *             'key2': 2
            *           },
-           *           "derived_entries": {},
-           *           "params": {}
+           *           'derived_entries': {}
            *         }
            *       ],
-           *       "count": 2
+           *       'count': 2
            *     }
            */
           'application/json': unknown;
@@ -11860,7 +12344,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -11898,7 +12382,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Logs updated successfully!"
+           *       'info': 'Logs updated successfully!'
            *     }
            */
           'application/json': unknown;
@@ -11912,7 +12396,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "When passing a filter dict in `logs`, you must supply `project` or `context`."
+           *       'detail': 'When passing a filter dict in `logs`, you must supply `project` or `context`.'
            *     }
            */
           'application/json': unknown;
@@ -11926,7 +12410,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "One or more logs with the specified IDs were not found."
+           *       'detail': 'One or more logs with the specified IDs were not found.'
            *     }
            */
           'application/json': unknown;
@@ -11964,17 +12448,17 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Logs created successfully!",
-           *       "log_event_ids": [
+           *       'info': 'Logs created successfully!',
+           *       'log_event_ids': [
            *         101,
            *         102,
            *         103
            *       ],
-           *       "row_ids": {
-           *         "names": [
-           *           "row_id"
+           *       'row_ids': {
+           *         'names': [
+           *           'row_id'
            *         ],
-           *         "ids": [
+           *         'ids': [
            *           [
            *             0
            *           ],
@@ -11986,13 +12470,13 @@ export interface operations {
            *           ]
            *         ]
            *       },
-           *       "auto_counting": {
-           *         "row_id": [
+           *       'auto_counting': {
+           *         'row_id': [
            *           0,
            *           1,
            *           2
            *         ],
-           *         "exchange_id": [
+           *         'exchange_id': [
            *           0,
            *           1,
            *           2
@@ -12011,7 +12495,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project not found."
+           *       'detail': 'Project not found.'
            *     }
            */
           'application/json': unknown;
@@ -12049,7 +12533,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Log entries deleted successfully!"
+           *       'info': 'Log entries deleted successfully!'
            *     }
            */
           'application/json': unknown;
@@ -12063,7 +12547,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "One or more logs were not found or you don't have permission to delete them."
+           *       'detail': 'One or more logs were not found or you don't have permission to delete them.'
            *     }
            */
           'application/json': unknown;
@@ -12101,7 +12585,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Derived logs updated successfully!"
+           *       'info': 'Derived logs updated successfully!'
            *     }
            */
           'application/json': unknown;
@@ -12115,7 +12599,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid request format or data."
+           *       'detail': 'Invalid request format or data.'
            *     }
            */
           'application/json': unknown;
@@ -12129,7 +12613,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "One or more logs with the specified IDs were not found."
+           *       'detail': 'One or more logs with the specified IDs were not found.'
            *     }
            */
           'application/json': unknown;
@@ -12167,8 +12651,8 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Created 3 derived logs with key='example_key'.",
-           *       "derived_log_ids": [
+           *       'info': 'Created 3 derived logs with key='example_key'.',
+           *       'derived_log_ids': [
            *         101,
            *         102,
            *         103
@@ -12186,7 +12670,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "All referenced log lists must have the same length. Found lengths: [2, 3]."
+           *       'detail': 'All referenced log lists must have the same length. Found lengths: [2, 3].'
            *     }
            */
           'application/json': unknown;
@@ -12200,7 +12684,149 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project 'example_project' not found."
+           *       'detail': 'Project 'example_project' not found.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  atomic_field_update_v0_logs__log_id__fields__field_name__atomic_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the log to update */
+        log_id: number;
+        /** @description The name of the field to update atomically */
+        field_name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AtomicFieldUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description Atomic operation applied successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'new_value': 42
+           *     }
+           */
+          'application/json': components['schemas']['AtomicFieldUpdateResponse'];
+        };
+      };
+      /** @description Invalid operation format */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Invalid operation format. Use +N, -N, *N, /N where N is a number.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Log not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Log not found.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  atomic_field_upsert_v0_logs_atomic_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AtomicFieldUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description Atomic upsert applied successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'log_id': 789,
+           *       'new_value': 83.5,
+           *       'created': false,
+           *       'mirrored_contexts': [
+           *         'All/Spending/Monthly'
+           *       ]
+           *     }
+           */
+          'application/json': components['schemas']['AtomicFieldUpdateResponse'];
+        };
+      };
+      /** @description Invalid operation format or missing required fields */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Invalid operation format. Use +N, -N, *N, /N where N is a number.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Project not found.'
            *     }
            */
           'application/json': unknown;
@@ -12238,20 +12864,18 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "params": {},
-           *       "logs": [
+           *       'logs': [
            *         {
-           *           "id": "0",
-           *           "ts": "2024-10-30 12:20:03",
-           *           "entries": {
-           *             "key1": "a",
-           *             "key2": 1
+           *           'id': '0',
+           *           'ts': '2024-10-30 12:20:03',
+           *           'entries': {
+           *             'key1': 'a',
+           *             'key2': 1
            *           },
-           *           "derived_entries": {},
-           *           "params": {}
+           *           'derived_entries': {}
            *         }
            *       ],
-           *       "count": 1
+           *       'count': 1
            *     }
            */
           'application/json': unknown;
@@ -12265,7 +12889,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -12308,8 +12932,8 @@ export interface operations {
         /**
          * @description Dict with fields as keys and either 'ascending' or 'descending' as values. The first entry in the dict is the last field to be sorted by, which takes ultimate precedent, with other keys only remaining in order when the first key values are equal.
          * @example {
-         *       "score": "ascending",
-         *       "timestamp": "descending"
+         *       'score': 'ascending',
+         *       'timestamp': 'descending'
          *     }
          */
         sorting?: string | null;
@@ -12352,28 +12976,25 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "params": {},
-           *       "logs": [
+           *       'logs': [
            *         {
-           *           "id": "0",
-           *           "ts": "2024-10-30 12:20:03",
-           *           "entries": {
-           *             "key1": "a",
-           *             "key2": 1
-           *           },
-           *           "params": {}
+           *           'id': '0',
+           *           'ts': '2024-10-30 12:20:03',
+           *           'entries': {
+           *             'key1': 'a',
+           *             'key2': 1
+           *           }
            *         },
            *         {
-           *           "id": "1",
-           *           "ts": "2024-10-30 12:22:14",
-           *           "entries": {
-           *             "key1": "b",
-           *             "key2": 2
-           *           },
-           *           "params": {}
+           *           'id': '1',
+           *           'ts': '2024-10-30 12:22:14',
+           *           'entries': {
+           *             'key1': 'b',
+           *             'key2': 2
+           *           }
            *         }
            *       ],
-           *       "count": 2
+           *       'count': 2
            *     }
            */
           'application/json': unknown;
@@ -12387,7 +13008,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -12446,7 +13067,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -12512,12 +13133,12 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "version": "v0",
-           *         "value": "First version of the system prompt"
+           *         'version': 'v0',
+           *         'value': 'First version of the system prompt'
            *       },
            *       {
-           *         "version": "v1",
-           *         "value": "Second version of the system prompt"
+           *         'version': 'v1',
+           *         'value': 'Second version of the system prompt'
            *       }
            *     ]
            */
@@ -12534,7 +13155,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -12572,7 +13193,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Field renamed successfully from 'old_name' to 'new_name'"
+           *       'info': 'Field renamed successfully from 'old_name' to 'new_name''
            *     }
            */
           'application/json': unknown;
@@ -12586,7 +13207,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid field name or field already exists"
+           *       'detail': 'Invalid field name or field already exists'
            *     }
            */
           'application/json': unknown;
@@ -12600,7 +13221,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project or field not found"
+           *       'detail': 'Project or field not found'
            *     }
            */
           'application/json': unknown;
@@ -12638,7 +13259,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Joined logs created successfully!"
+           *       'info': 'Joined logs created successfully!'
            *     }
            */
           'application/json': unknown;
@@ -12652,7 +13273,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid join parameters. Check your request and try again."
+           *       'detail': 'Invalid join parameters. Check your request and try again.'
            *     }
            */
           'application/json': unknown;
@@ -12666,7 +13287,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project not found."
+           *       'detail': 'Project not found.'
            *     }
            */
           'application/json': unknown;
@@ -12711,14 +13332,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "field1": {
-           *         "data_type": "string",
-           *         "field_type": "entry",
-           *         "mutable": "true",
-           *         "unique": "false",
-           *         "created_at": "2025-02-14T10:00:00Z",
-           *         "artifacts": "",
-           *         "description": "this field is a dummy field"
+           *       'field1': {
+           *         'data_type': 'string',
+           *         'field_type': 'entry',
+           *         'mutable': 'true',
+           *         'unique': 'false',
+           *         'created_at': '2025-02-14T10:00:00Z',
+           *         'artifacts': '',
+           *         'description': 'this field is a dummy field'
            *       }
            *     }
            */
@@ -12733,7 +13354,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project <project> not found."
+           *       'detail': 'Project <project> not found.'
            *     }
            */
           'application/json': unknown;
@@ -12771,7 +13392,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Fields created successfully."
+           *       'info': 'Fields created successfully.'
            *     }
            */
           'application/json': unknown;
@@ -12785,7 +13406,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project 'example_project' not found."
+           *       'detail': 'Project 'example_project' not found.'
            *     }
            */
           'application/json': unknown;
@@ -12823,10 +13444,10 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Fields deleted successfully.",
-           *       "deleted_fields": [
-           *         "score",
-           *         "response"
+           *       'info': 'Fields deleted successfully.',
+           *       'deleted_fields': [
+           *         'score',
+           *         'response'
            *       ]
            *     }
            */
@@ -12841,7 +13462,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project 'example_project' not found."
+           *       'detail': 'Project 'example_project' not found.'
            *     }
            */
           'application/json': unknown;
@@ -12919,6 +13540,10 @@ export interface operations {
         project_name?: string | null;
         /** @description Filter by context (stored in project_config) */
         context?: string | null;
+        /** @description Maximum number of results to return (capped at 100) */
+        limit?: number;
+        /** @description Number of results to skip for pagination */
+        offset?: number;
       };
       header?: never;
       path?: never;
@@ -13052,11 +13677,15 @@ export interface operations {
     requestBody?: never;
     responses: {
       /** @description Plot deleted */
-      204: {
+      200: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
       };
       /** @description Access denied */
       403: {
@@ -13132,6 +13761,288 @@ export interface operations {
       };
     };
   };
+  create_table_view_v0_logs_table_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateTableViewRequest'];
+      };
+    };
+    responses: {
+      /** @description Table view created successfully */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TableViewResponse'];
+        };
+      };
+      /** @description Invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Access denied to project */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_table_views_v0_logs_tables_get: {
+    parameters: {
+      query?: {
+        /** @description Filter by project name */
+        project_name?: string | null;
+        /** @description Filter by context (stored in project_config) */
+        context?: string | null;
+        /** @description Maximum number of results to return (capped at 100) */
+        limit?: number;
+        /** @description Number of results to skip for pagination */
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of table views */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TableViewListResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_table_views_by_project_v0_logs_tables_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DeleteTableViewsByProjectRequest'];
+      };
+    };
+    responses: {
+      /** @description Table views deleted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Access denied to project */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_table_view_v0_logs_tables__token__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Table view details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TableViewResponse'];
+        };
+      };
+      /** @description Access denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Table view not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_table_view_v0_logs_tables__token__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Table view deleted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Access denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Table view not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  update_table_view_v0_logs_tables__token__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateTableViewRequest'];
+      };
+    };
+    responses: {
+      /** @description Table view updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TableViewResponse'];
+        };
+      };
+      /** @description Access denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Table view not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   get_interface_v0_interfaces__get: {
     parameters: {
       query?: {
@@ -13158,14 +14069,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "name": "my_interface",
-           *       "project_id": "proj_abc",
-           *       "tabs": [],
-           *       "color": "blue",
-           *       "is_checkpoint": false,
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'name': 'my_interface',
+           *       'project_id': 'proj_abc',
+           *       'tabs': [],
+           *       'color': 'blue',
+           *       'is_checkpoint': false,
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['InterfaceSchema'];
@@ -13179,7 +14090,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either interface_id or both project and name must be provided."
+           *       'detail': 'Either interface_id or both project and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13193,7 +14104,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with ID 123 not found."
+           *       'detail': 'Interface with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13240,14 +14151,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "name": "my_interface",
-           *       "project_id": "proj_abc",
-           *       "tabs": [],
-           *       "color": "blue",
-           *       "is_checkpoint": false,
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'name': 'my_interface',
+           *       'project_id': 'proj_abc',
+           *       'tabs': [],
+           *       'color': 'blue',
+           *       'is_checkpoint': false,
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['InterfaceSchema'];
@@ -13261,7 +14172,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either interface_id or both project and name must be provided."
+           *       'detail': 'Either interface_id or both project and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13275,7 +14186,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with ID 123 not found."
+           *       'detail': 'Interface with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13316,14 +14227,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "name": "my_interface",
-           *       "project_id": "proj_abc",
-           *       "tabs": [],
-           *       "color": "blue",
-           *       "is_checkpoint": false,
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'name': 'my_interface',
+           *       'project_id': 'proj_abc',
+           *       'tabs': [],
+           *       'color': 'blue',
+           *       'is_checkpoint': false,
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['InterfaceSchema'];
@@ -13337,7 +14248,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project my_project not found or you don't have access."
+           *       'detail': 'Project my_project not found or you don't have access.'
            *     }
            */
           'application/json': unknown;
@@ -13351,7 +14262,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with name my_interface already exists in this project."
+           *       'detail': 'Interface with name my_interface already exists in this project.'
            *     }
            */
           'application/json': unknown;
@@ -13392,7 +14303,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Interface deleted successfully"
+           *       'info': 'Interface deleted successfully'
            *     }
            */
           'application/json': unknown;
@@ -13406,7 +14317,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either interface_id or both project and name must be provided."
+           *       'detail': 'Either interface_id or both project and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13420,7 +14331,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with ID 123 not found."
+           *       'detail': 'Interface with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13443,7 +14354,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to delete interface."
+           *       'detail': 'Failed to delete interface.'
            *     }
            */
           'application/json': unknown;
@@ -13474,14 +14385,14 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "id": "123",
-           *         "name": "my_interface",
-           *         "project_id": "proj_abc",
-           *         "tabs": [],
-           *         "color": "blue",
-           *         "is_checkpoint": false,
-           *         "created_at": "2024-01-01T12:00:00Z",
-           *         "updated_at": "2024-01-01T12:00:00Z"
+           *         'id': '123',
+           *         'name': 'my_interface',
+           *         'project_id': 'proj_abc',
+           *         'tabs': [],
+           *         'color': 'blue',
+           *         'is_checkpoint': false,
+           *         'created_at': '2024-01-01T12:00:00Z',
+           *         'updated_at': '2024-01-01T12:00:00Z'
            *       }
            *     ]
            */
@@ -13496,7 +14407,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Project my_project not found or you don't have access."
+           *       'detail': 'Project my_project not found or you don't have access.'
            *     }
            */
           'application/json': unknown;
@@ -13537,14 +14448,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "name": "my_interface",
-           *       "project_id": "proj_abc",
-           *       "tabs": [],
-           *       "color": "blue",
-           *       "is_checkpoint": true,
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'name': 'my_interface',
+           *       'project_id': 'proj_abc',
+           *       'tabs': [],
+           *       'color': 'blue',
+           *       'is_checkpoint': true,
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['InterfaceSchema'];
@@ -13558,7 +14469,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either interface_id or both project and name must be provided."
+           *       'detail': 'Either interface_id or both project and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13572,7 +14483,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "No checkpoint found for the specified interface."
+           *       'detail': 'No checkpoint found for the specified interface.'
            *     }
            */
           'application/json': unknown;
@@ -13613,14 +14524,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "name": "my_interface",
-           *       "project_id": "proj_abc",
-           *       "tabs": [],
-           *       "color": "blue",
-           *       "is_checkpoint": true,
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'name': 'my_interface',
+           *       'project_id': 'proj_abc',
+           *       'tabs': [],
+           *       'color': 'blue',
+           *       'is_checkpoint': true,
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['InterfaceSchema'];
@@ -13634,7 +14545,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either interface_id or both project and name must be provided."
+           *       'detail': 'Either interface_id or both project and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13648,7 +14559,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with ID 123 not found."
+           *       'detail': 'Interface with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13671,7 +14582,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to create or update checkpoint interface."
+           *       'detail': 'Failed to create or update checkpoint interface.'
            *     }
            */
           'application/json': unknown;
@@ -13700,33 +14611,33 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "template": {
-           *         "name": "Analytics Dashboard",
-           *         "tabs": [
+           *       'template': {
+           *         'name': 'Analytics Dashboard',
+           *         'tabs': [
            *           {
-           *             "name": "Overview",
-           *             "tiles": [
+           *             'name': 'Overview',
+           *             'tiles': [
            *               {
-           *                 "name": "Data Table",
-           *                 "type": "Table",
-           *                 "position": {
-           *                   "x": 0,
-           *                   "y": 0,
-           *                   "width": 6,
-           *                   "height": 4
+           *                 'name': 'Data Table',
+           *                 'type': 'Table',
+           *                 'position': {
+           *                   'x': 0,
+           *                   'y': 0,
+           *                   'width': 6,
+           *                   'height': 4
            *                 }
            *               }
            *             ]
            *           }
            *         ],
-           *         "template_version": "1.0"
+           *         'template_version': '1.0'
            *       },
-           *       "metadata": {
-           *         "exported_at": "2024-01-01T12:00:00Z"
+           *       'metadata': {
+           *         'exported_at': '2024-01-01T12:00:00Z'
            *       },
-           *       "export_stats": {
-           *         "tabs": 1,
-           *         "tiles": 1
+           *       'export_stats': {
+           *         'tabs': 1,
+           *         'tiles': 1
            *       }
            *     }
            */
@@ -13765,16 +14676,16 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "import_stats": {
-           *         "interfaces": 1,
-           *         "tabs": 2,
-           *         "tiles": 5
+           *       'success': true,
+           *       'import_stats': {
+           *         'interfaces': 1,
+           *         'tabs': 2,
+           *         'tiles': 5
            *       },
-           *       "created_ids": {
-           *         "interface_id": "abc123"
+           *       'created_ids': {
+           *         'interface_id': 'abc123'
            *       },
-           *       "warnings": []
+           *       'warnings': []
            *     }
            */
           'application/json': components['schemas']['TemplateImportResponse'];
@@ -13817,29 +14728,29 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "interface_id": "456",
-           *       "name": "my_tab",
-           *       "visible": true,
-           *       "active": true,
-           *       "order": 1,
-           *       "context": {},
-           *       "color": "blue",
-           *       "is_checkpoint": false,
-           *       "tiles": [
+           *       'id': '123',
+           *       'interface_id': '456',
+           *       'name': 'my_tab',
+           *       'visible': true,
+           *       'active': true,
+           *       'order': 1,
+           *       'context': {},
+           *       'color': 'blue',
+           *       'is_checkpoint': false,
+           *       'tiles': [
            *         {
-           *           "id": "789",
-           *           "tab_id": "123",
-           *           "name": "my_tile",
-           *           "type": "chart",
-           *           "config": {},
-           *           "is_checkpoint": false,
-           *           "created_at": "2024-01-01T12:00:00Z",
-           *           "updated_at": "2024-01-01T12:00:00Z"
+           *           'id': '789',
+           *           'tab_id': '123',
+           *           'name': 'my_tile',
+           *           'type': 'chart',
+           *           'config': {},
+           *           'is_checkpoint': false,
+           *           'created_at': '2024-01-01T12:00:00Z',
+           *           'updated_at': '2024-01-01T12:00:00Z'
            *         }
            *       ],
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['TabSchema'];
@@ -13853,7 +14764,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tab_id or both interface_id and name must be provided."
+           *       'detail': 'Either tab_id or both interface_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13867,7 +14778,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with ID 123 not found."
+           *       'detail': 'Tab with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13914,18 +14825,18 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "interface_id": "456",
-           *       "name": "updated_tab_name",
-           *       "visible": true,
-           *       "active": true,
-           *       "order": 1,
-           *       "context": {},
-           *       "color": "red",
-           *       "is_checkpoint": false,
-           *       "tiles": [],
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'id': '123',
+           *       'interface_id': '456',
+           *       'name': 'updated_tab_name',
+           *       'visible': true,
+           *       'active': true,
+           *       'order': 1,
+           *       'context': {},
+           *       'color': 'red',
+           *       'is_checkpoint': false,
+           *       'tiles': [],
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TabSchema'];
@@ -13939,7 +14850,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tab_id or both interface_id and name must be provided."
+           *       'detail': 'Either tab_id or both interface_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -13953,7 +14864,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with ID 123 not found."
+           *       'detail': 'Tab with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -13994,18 +14905,18 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "interface_id": "456",
-           *       "name": "my_tab",
-           *       "visible": true,
-           *       "active": true,
-           *       "order": 1,
-           *       "context": {},
-           *       "color": "blue",
-           *       "is_checkpoint": false,
-           *       "tiles": [],
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'id': '123',
+           *       'interface_id': '456',
+           *       'name': 'my_tab',
+           *       'visible': true,
+           *       'active': true,
+           *       'order': 1,
+           *       'context': {},
+           *       'color': 'blue',
+           *       'is_checkpoint': false,
+           *       'tiles': [],
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['TabSchema'];
@@ -14019,7 +14930,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface not found. Please provide valid interface_id or project_id+interface_name."
+           *       'detail': 'Interface not found. Please provide valid interface_id or project_id+interface_name.'
            *     }
            */
           'application/json': unknown;
@@ -14033,7 +14944,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with name my_tab already exists for this interface."
+           *       'detail': 'Tab with name my_tab already exists for this interface.'
            *     }
            */
           'application/json': unknown;
@@ -14074,7 +14985,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Tab deleted successfully"
+           *       'info': 'Tab deleted successfully'
            *     }
            */
           'application/json': unknown;
@@ -14088,7 +14999,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tab_id or both interface_id and name must be provided."
+           *       'detail': 'Either tab_id or both interface_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14102,7 +15013,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with ID 123 not found."
+           *       'detail': 'Tab with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14125,7 +15036,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to delete tab."
+           *       'detail': 'Failed to delete tab.'
            *     }
            */
           'application/json': unknown;
@@ -14158,32 +15069,32 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "id": "123",
-           *         "interface_id": "456",
-           *         "name": "my_tab_1",
-           *         "visible": true,
-           *         "active": true,
-           *         "order": 1,
-           *         "context": {},
-           *         "color": "blue",
-           *         "is_checkpoint": false,
-           *         "tiles": [],
-           *         "created_at": "2024-01-01T12:00:00Z",
-           *         "updated_at": "2024-01-01T12:00:00Z"
+           *         'id': '123',
+           *         'interface_id': '456',
+           *         'name': 'my_tab_1',
+           *         'visible': true,
+           *         'active': true,
+           *         'order': 1,
+           *         'context': {},
+           *         'color': 'blue',
+           *         'is_checkpoint': false,
+           *         'tiles': [],
+           *         'created_at': '2024-01-01T12:00:00Z',
+           *         'updated_at': '2024-01-01T12:00:00Z'
            *       },
            *       {
-           *         "id": "124",
-           *         "interface_id": "456",
-           *         "name": "my_tab_2",
-           *         "visible": true,
-           *         "active": false,
-           *         "order": 2,
-           *         "context": {},
-           *         "color": "green",
-           *         "is_checkpoint": false,
-           *         "tiles": [],
-           *         "created_at": "2024-01-01T12:00:00Z",
-           *         "updated_at": "2024-01-01T12:00:00Z"
+           *         'id': '124',
+           *         'interface_id': '456',
+           *         'name': 'my_tab_2',
+           *         'visible': true,
+           *         'active': false,
+           *         'order': 2,
+           *         'context': {},
+           *         'color': 'green',
+           *         'is_checkpoint': false,
+           *         'tiles': [],
+           *         'created_at': '2024-01-01T12:00:00Z',
+           *         'updated_at': '2024-01-01T12:00:00Z'
            *       }
            *     ]
            */
@@ -14198,7 +15109,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Interface with ID 456 not found."
+           *       'detail': 'Interface with ID 456 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14239,18 +15150,18 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "789",
-           *       "interface_id": "456",
-           *       "name": "my_tab",
-           *       "visible": true,
-           *       "active": true,
-           *       "order": 1,
-           *       "context": {},
-           *       "color": "blue",
-           *       "is_checkpoint": true,
-           *       "tiles": [],
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'id': '789',
+           *       'interface_id': '456',
+           *       'name': 'my_tab',
+           *       'visible': true,
+           *       'active': true,
+           *       'order': 1,
+           *       'context': {},
+           *       'color': 'blue',
+           *       'is_checkpoint': true,
+           *       'tiles': [],
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TabSchema'];
@@ -14264,7 +15175,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tab_id or both interface_id and name must be provided."
+           *       'detail': 'Either tab_id or both interface_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14278,7 +15189,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "No checkpoint found for the specified tab."
+           *       'detail': 'No checkpoint found for the specified tab.'
            *     }
            */
           'application/json': unknown;
@@ -14319,18 +15230,18 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "789",
-           *       "interface_id": "456",
-           *       "name": "my_tab",
-           *       "visible": true,
-           *       "active": true,
-           *       "order": 1,
-           *       "context": {},
-           *       "color": "blue",
-           *       "is_checkpoint": true,
-           *       "tiles": [],
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'id': '789',
+           *       'interface_id': '456',
+           *       'name': 'my_tab',
+           *       'visible': true,
+           *       'active': true,
+           *       'order': 1,
+           *       'context': {},
+           *       'color': 'blue',
+           *       'is_checkpoint': true,
+           *       'tiles': [],
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TabSchema'];
@@ -14344,7 +15255,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tab_id or both interface_id and name must be provided."
+           *       'detail': 'Either tab_id or both interface_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14358,7 +15269,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with ID 123 not found."
+           *       'detail': 'Tab with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14381,7 +15292,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to create tab checkpoint."
+           *       'detail': 'Failed to create tab checkpoint.'
            *     }
            */
           'application/json': unknown;
@@ -14410,27 +15321,27 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "template": {
-           *         "name": "Overview Tab",
-           *         "tiles": [
+           *       'template': {
+           *         'name': 'Overview Tab',
+           *         'tiles': [
            *           {
-           *             "name": "Data Table",
-           *             "type": "Table",
-           *             "position": {
-           *               "x": 0,
-           *               "y": 0,
-           *               "width": 6,
-           *               "height": 4
+           *             'name': 'Data Table',
+           *             'type': 'Table',
+           *             'position': {
+           *               'x': 0,
+           *               'y': 0,
+           *               'width': 6,
+           *               'height': 4
            *             }
            *           }
            *         ]
            *       },
-           *       "metadata": {
-           *         "exported_at": "2024-01-01T12:00:00Z"
+           *       'metadata': {
+           *         'exported_at': '2024-01-01T12:00:00Z'
            *       },
-           *       "export_stats": {
-           *         "tabs": 1,
-           *         "tiles": 1
+           *       'export_stats': {
+           *         'tabs': 1,
+           *         'tiles': 1
            *       }
            *     }
            */
@@ -14469,15 +15380,15 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "import_stats": {
-           *         "tabs": 1,
-           *         "tiles": 3
+           *       'success': true,
+           *       'import_stats': {
+           *         'tabs': 1,
+           *         'tiles': 3
            *       },
-           *       "created_ids": {
-           *         "tab_id": "def456"
+           *       'created_ids': {
+           *         'tab_id': 'def456'
            *       },
-           *       "warnings": []
+           *       'warnings': []
            *     }
            */
           'application/json': components['schemas']['TemplateImportResponse'];
@@ -14520,43 +15431,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "tab_id": "tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 0,
-           *         "y": 0,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': '123',
+           *       'tab_id': 'tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 0,
+           *         'y': 0,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": false,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": false,
-           *       "table_tile": {
-           *         "id": "table_123",
-           *         "tile_id": "123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': false,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': false,
+           *       'table_tile': {
+           *         'id': 'table_123',
+           *         'tile_id': '123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -14570,7 +15481,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14584,7 +15495,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with ID 123 not found."
+           *       'detail': 'Tile with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14631,43 +15542,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "tab_id": "tab_456",
-           *       "name": "Updated Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 1,
-           *         "y": 1,
-           *         "width": 8,
-           *         "height": 5
+           *       'id': '123',
+           *       'tab_id': 'tab_456',
+           *       'name': 'Updated Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 1,
+           *         'y': 1,
+           *         'width': 8,
+           *         'height': 5
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": true,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": false,
-           *       "table_tile": {
-           *         "id": "table_123",
-           *         "tile_id": "123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': true,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': false,
+           *       'table_tile': {
+           *         'id': 'table_123',
+           *         'tile_id': '123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -14681,7 +15592,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14695,7 +15606,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with ID 123 not found."
+           *       'detail': 'Tile with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14736,43 +15647,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "tab_id": "tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 0,
-           *         "y": 0,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': '123',
+           *       'tab_id': 'tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 0,
+           *         'y': 0,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": false,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": false,
-           *       "table_tile": {
-           *         "id": "table_123",
-           *         "tile_id": "123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': false,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': false,
+           *       'table_tile': {
+           *         'id': 'table_123',
+           *         'tile_id': '123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:00:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:00:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -14786,7 +15697,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab not found. Please provide valid tab_id or project_id+interface_name+tab_name."
+           *       'detail': 'Tab not found. Please provide valid tab_id or project_id+interface_name+tab_name.'
            *     }
            */
           'application/json': unknown;
@@ -14800,7 +15711,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with name Data Table already exists in this tab."
+           *       'detail': 'Tile with name Data Table already exists in this tab.'
            *     }
            */
           'application/json': unknown;
@@ -14841,7 +15752,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Tile deleted successfully"
+           *       'info': 'Tile deleted successfully'
            *     }
            */
           'application/json': unknown;
@@ -14855,7 +15766,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14869,7 +15780,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with ID 123 not found."
+           *       'detail': 'Tile with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -14892,7 +15803,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to delete tile."
+           *       'detail': 'Failed to delete tile.'
            *     }
            */
           'application/json': unknown;
@@ -14932,43 +15843,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "tab_id": "tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 2,
-           *         "y": 2,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': '123',
+           *       'tab_id': 'tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 2,
+           *         'y': 2,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": true,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": false,
-           *       "table_tile": {
-           *         "id": "table_123",
-           *         "tile_id": "123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': true,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': false,
+           *       'table_tile': {
+           *         'id': 'table_123',
+           *         'tile_id': '123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:45:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:45:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -14982,7 +15893,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -14996,7 +15907,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with ID 123 not found."
+           *       'detail': 'Tile with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -15019,7 +15930,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to patch tile."
+           *       'detail': 'Failed to patch tile.'
            *     }
            */
           'application/json': unknown;
@@ -15054,78 +15965,78 @@ export interface operations {
           /**
            * @example [
            *       {
-           *         "id": "123",
-           *         "tab_id": "tab_456",
-           *         "name": "Data Table",
-           *         "type": "Table",
-           *         "position": {
-           *           "x": 0,
-           *           "y": 0,
-           *           "width": 6,
-           *           "height": 4
+           *         'id': '123',
+           *         'tab_id': 'tab_456',
+           *         'name': 'Data Table',
+           *         'type': 'Table',
+           *         'position': {
+           *           'x': 0,
+           *           'y': 0,
+           *           'width': 6,
+           *           'height': 4
            *         },
-           *         "minW": 2,
-           *         "minH": 2,
-           *         "visible": true,
-           *         "locked": false,
-           *         "moved": false,
-           *         "static": false,
-           *         "table": "main_data",
-           *         "auto_update": true,
-           *         "freeze": false,
-           *         "is_checkpoint": false,
-           *         "table_tile": {
-           *           "id": "table_123",
-           *           "tile_id": "123",
-           *           "table_type": "Data Table",
-           *           "page_number": 1,
-           *           "column_order": [
-           *             "id",
-           *             "name",
-           *             "value"
+           *         'minW': 2,
+           *         'minH': 2,
+           *         'visible': true,
+           *         'locked': false,
+           *         'moved': false,
+           *         'static': false,
+           *         'table': 'main_data',
+           *         'auto_update': true,
+           *         'freeze': false,
+           *         'is_checkpoint': false,
+           *         'table_tile': {
+           *           'id': 'table_123',
+           *           'tile_id': '123',
+           *           'table_type': 'Data Table',
+           *           'page_number': 1,
+           *           'column_order': [
+           *             'id',
+           *             'name',
+           *             'value'
            *           ],
-           *           "hidden_columns": [],
-           *           "default_hidden_columns": true,
-           *           "columns_pin_left": [],
-           *           "columns_pin_right": []
+           *           'hidden_columns': [],
+           *           'default_hidden_columns': true,
+           *           'columns_pin_left': [],
+           *           'columns_pin_right': []
            *         },
-           *         "created_at": "2024-01-01T12:00:00Z",
-           *         "updated_at": "2024-01-01T12:00:00Z"
+           *         'created_at': '2024-01-01T12:00:00Z',
+           *         'updated_at': '2024-01-01T12:00:00Z'
            *       },
            *       {
-           *         "id": "124",
-           *         "tab_id": "tab_456",
-           *         "name": "Chart",
-           *         "type": "Plot",
-           *         "position": {
-           *           "x": 6,
-           *           "y": 0,
-           *           "width": 6,
-           *           "height": 4
+           *         'id': '124',
+           *         'tab_id': 'tab_456',
+           *         'name': 'Chart',
+           *         'type': 'Plot',
+           *         'position': {
+           *           'x': 6,
+           *           'y': 0,
+           *           'width': 6,
+           *           'height': 4
            *         },
-           *         "minW": 2,
-           *         "minH": 2,
-           *         "visible": true,
-           *         "locked": false,
-           *         "moved": false,
-           *         "static": false,
-           *         "table": "main_data",
-           *         "auto_update": true,
-           *         "freeze": false,
-           *         "is_checkpoint": false,
-           *         "plot_tile": {
-           *           "id": "plot_124",
-           *           "tile_id": "124",
-           *           "plot_type": "scatter",
-           *           "plot_scale_x": "linear",
-           *           "plot_scale_y": "linear",
-           *           "x_axis": "x",
-           *           "y_axis": "y",
-           *           "bin_count": 10,
-           *           "regression_line": false
+           *         'minW': 2,
+           *         'minH': 2,
+           *         'visible': true,
+           *         'locked': false,
+           *         'moved': false,
+           *         'static': false,
+           *         'table': 'main_data',
+           *         'auto_update': true,
+           *         'freeze': false,
+           *         'is_checkpoint': false,
+           *         'plot_tile': {
+           *           'id': 'plot_124',
+           *           'tile_id': '124',
+           *           'plot_type': 'scatter',
+           *           'plot_scale_x': 'linear',
+           *           'plot_scale_y': 'linear',
+           *           'x_axis': 'x',
+           *           'y_axis': 'y',
+           *           'bin_count': 10,
+           *           'regression_line': false
            *         },
-           *         "created_at": "2024-01-01T12:00:00Z",
-           *         "updated_at": "2024-01-01T12:00:00Z"
+           *         'created_at': '2024-01-01T12:00:00Z',
+           *         'updated_at': '2024-01-01T12:00:00Z'
            *       }
            *     ]
            */
@@ -15140,7 +16051,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tab with ID tab_456 not found."
+           *       'detail': 'Tab with ID tab_456 not found.'
            *     }
            */
           'application/json': unknown;
@@ -15181,43 +16092,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "checkpoint_123",
-           *       "tab_id": "checkpoint_tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 0,
-           *         "y": 0,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': 'checkpoint_123',
+           *       'tab_id': 'checkpoint_tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 0,
+           *         'y': 0,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": false,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": true,
-           *       "table_tile": {
-           *         "id": "checkpoint_table_123",
-           *         "tile_id": "checkpoint_123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': false,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': true,
+           *       'table_tile': {
+           *         'id': 'checkpoint_table_123',
+           *         'tile_id': 'checkpoint_123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -15231,7 +16142,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -15245,7 +16156,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "No checkpoint found for the specified tile."
+           *       'detail': 'No checkpoint found for the specified tile.'
            *     }
            */
           'application/json': unknown;
@@ -15286,43 +16197,43 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "checkpoint_123",
-           *       "tab_id": "checkpoint_tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 0,
-           *         "y": 0,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': 'checkpoint_123',
+           *       'tab_id': 'checkpoint_tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 0,
+           *         'y': 0,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": false,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": true,
-           *       "table_tile": {
-           *         "id": "checkpoint_table_123",
-           *         "tile_id": "checkpoint_123",
-           *         "table_type": "Data Table",
-           *         "page_number": 1,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': false,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': true,
+           *       'table_tile': {
+           *         'id': 'checkpoint_table_123',
+           *         'tile_id': 'checkpoint_123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 1,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value'
            *         ],
-           *         "hidden_columns": [],
-           *         "default_hidden_columns": true,
-           *         "columns_pin_left": [],
-           *         "columns_pin_right": []
+           *         'hidden_columns': [],
+           *         'default_hidden_columns': true,
+           *         'columns_pin_left': [],
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T12:30:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T12:30:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -15336,7 +16247,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Either tile_id or both tab_id and name must be provided."
+           *       'detail': 'Either tile_id or both tab_id and name must be provided.'
            *     }
            */
           'application/json': unknown;
@@ -15350,7 +16261,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Tile with ID 123 not found."
+           *       'detail': 'Tile with ID 123 not found.'
            *     }
            */
           'application/json': unknown;
@@ -15373,7 +16284,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Failed to create tile checkpoint."
+           *       'detail': 'Failed to create tile checkpoint.'
            *     }
            */
           'application/json': unknown;
@@ -15410,52 +16321,52 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "123",
-           *       "tab_id": "tab_456",
-           *       "name": "Data Table",
-           *       "type": "Table",
-           *       "position": {
-           *         "x": 0,
-           *         "y": 0,
-           *         "width": 6,
-           *         "height": 4
+           *       'id': '123',
+           *       'tab_id': 'tab_456',
+           *       'name': 'Data Table',
+           *       'type': 'Table',
+           *       'position': {
+           *         'x': 0,
+           *         'y': 0,
+           *         'width': 6,
+           *         'height': 4
            *       },
-           *       "minW": 2,
-           *       "minH": 2,
-           *       "visible": true,
-           *       "locked": false,
-           *       "moved": false,
-           *       "static": false,
-           *       "table": "main_data",
-           *       "auto_update": true,
-           *       "freeze": false,
-           *       "is_checkpoint": false,
-           *       "table_tile": {
-           *         "id": "table_123",
-           *         "tile_id": "123",
-           *         "table_type": "Data Table",
-           *         "page_number": 2,
-           *         "column_order": [
-           *           "id",
-           *           "name",
-           *           "value",
-           *           "new_column"
+           *       'minW': 2,
+           *       'minH': 2,
+           *       'visible': true,
+           *       'locked': false,
+           *       'moved': false,
+           *       'static': false,
+           *       'table': 'main_data',
+           *       'auto_update': true,
+           *       'freeze': false,
+           *       'is_checkpoint': false,
+           *       'table_tile': {
+           *         'id': 'table_123',
+           *         'tile_id': '123',
+           *         'table_type': 'Data Table',
+           *         'page_number': 2,
+           *         'column_order': [
+           *           'id',
+           *           'name',
+           *           'value',
+           *           'new_column'
            *         ],
-           *         "hidden_columns": [
-           *           "id"
+           *         'hidden_columns': [
+           *           'id'
            *         ],
-           *         "default_hidden_columns": true,
-           *         "sorting": {
-           *           "column": "name",
-           *           "direction": "asc"
+           *         'default_hidden_columns': true,
+           *         'sorting': {
+           *           'column': 'name',
+           *           'direction': 'asc'
            *         },
-           *         "columns_pin_left": [
-           *           "name"
+           *         'columns_pin_left': [
+           *           'name'
            *         ],
-           *         "columns_pin_right": []
+           *         'columns_pin_right': []
            *       },
-           *       "created_at": "2024-01-01T12:00:00Z",
-           *       "updated_at": "2024-01-01T13:00:00Z"
+           *       'created_at': '2024-01-01T12:00:00Z',
+           *       'updated_at': '2024-01-01T13:00:00Z'
            *     }
            */
           'application/json': components['schemas']['TileSchema'];
@@ -15469,7 +16380,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid tile_type. Must be one of Table, Plot, View, Editor, Terminal"
+           *       'detail': 'Invalid tile_type. Must be one of Table, Plot, View, Editor, Terminal'
            *     }
            */
           'application/json': unknown;
@@ -15483,7 +16394,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Table tile not found"
+           *       'detail': 'Table tile not found'
            *     }
            */
           'application/json': unknown;
@@ -15521,29 +16432,29 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "template": {
-           *         "name": "Data Table",
-           *         "type": "Table",
-           *         "position": {
-           *           "x": 0,
-           *           "y": 0,
-           *           "width": 6,
-           *           "height": 4
+           *       'template': {
+           *         'name': 'Data Table',
+           *         'type': 'Table',
+           *         'position': {
+           *           'x': 0,
+           *           'y': 0,
+           *           'width': 6,
+           *           'height': 4
            *         },
-           *         "table_tile": {
-           *           "table_type": "Data Table",
-           *           "column_order": [
-           *             "id",
-           *             "name",
-           *             "value"
+           *         'table_tile': {
+           *           'table_type': 'Data Table',
+           *           'column_order': [
+           *             'id',
+           *             'name',
+           *             'value'
            *           ]
            *         }
            *       },
-           *       "metadata": {
-           *         "exported_at": "2024-01-01T12:00:00Z"
+           *       'metadata': {
+           *         'exported_at': '2024-01-01T12:00:00Z'
            *       },
-           *       "export_stats": {
-           *         "tiles": 1
+           *       'export_stats': {
+           *         'tiles': 1
            *       }
            *     }
            */
@@ -15582,14 +16493,14 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "success": true,
-           *       "import_stats": {
-           *         "tiles": 1
+           *       'success': true,
+           *       'import_stats': {
+           *         'tiles': 1
            *       },
-           *       "created_ids": {
-           *         "tile_id": "ghi789"
+           *       'created_ids': {
+           *         'tile_id': 'ghi789'
            *       },
-           *       "warnings": []
+           *       'warnings': []
            *     }
            */
           'application/json': components['schemas']['TemplateImportResponse'];
@@ -15701,8 +16612,8 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "id": "<USER_ID>",
-           *       "credits": 10
+           *       'id': '<USER_ID>',
+           *       'credits': 10
            *     }
            */
           'application/json': components['schemas']['CreditsResponse'];
@@ -15731,9 +16642,9 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "previous_credits": 10,
-           *       "deducted": 2.5,
-           *       "current_credits": 7.5
+           *       'previous_credits': 10,
+           *       'deducted': 2.5,
+           *       'current_credits': 7.5
            *     }
            */
           'application/json': components['schemas']['DeductCreditsResponse'];
@@ -15747,7 +16658,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Insufficient credits. Available: 5.0, requested: 10.0"
+           *       'detail': 'Insufficient credits. Available: 5.0, requested: 10.0'
            *     }
            */
           'application/json': unknown;
@@ -15792,7 +16703,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "info": "Code {code} activated successfully!"
+           *       'info': 'Code {code} activated successfully!'
            *     }
            */
           'application/json': {
@@ -15808,7 +16719,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "This code has already been activated."
+           *       'detail': 'This code has already been activated.'
            *     }
            */
           'application/json': unknown;
@@ -15822,7 +16733,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid code."
+           *       'detail': 'Invalid code.'
            *     }
            */
           'application/json': unknown;
@@ -16517,6 +17428,220 @@ export interface operations {
             [key: string]: unknown;
           };
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_org_spending_limit_v0_organizations__organization_id__spending_limit_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Spending limit retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrgSpendingLimitResponse'];
+        };
+      };
+      /** @description User is not a member of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Organization not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  set_org_spending_limit_v0_organizations__organization_id__spending_limit_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgSpendingLimitRequest'];
+      };
+    };
+    responses: {
+      /** @description Spending limit set successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'organization_id': 1,
+           *       'monthly_spending_cap': 500,
+           *       'cascaded_updates': {
+           *         'users_capped': 3,
+           *         'assistants_capped': 7
+           *       }
+           *     }
+           */
+          'application/json': components['schemas']['OrgSpendingLimitResponse'];
+        };
+      };
+      /** @description User is not an admin of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Only organization admins can set spending limits.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Organization not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Organization not found.'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_member_spending_limit_v0_organizations__organization_id__members__member_user_id__spending_limit_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: number;
+        member_user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MemberSpendingLimitResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  set_member_spending_limit_v0_organizations__organization_id__members__member_user_id__spending_limit_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: number;
+        member_user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MemberSpendingLimitRequest'];
+      };
+    };
+    responses: {
+      /** @description Member spending limit set successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MemberSpendingLimitResponse'];
+        };
+      };
+      /** @description Member limit exceeds organization limit */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       'detail': 'Member limit cannot exceed organization limit of $500.00'
+           *     }
+           */
+          'application/json': unknown;
+        };
+      };
+      /** @description User is not an admin of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Organization or member not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {
@@ -17268,8 +18393,8 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "signed_url": "https://storage.googleapis.com/bucket/object?X-Goog-Algorithm=...",
-           *       "expires_in_minutes": 60
+           *       'signed_url': 'https://storage.googleapis.com/bucket/object?X-Goog-Algorithm=...',
+           *       'expires_in_minutes': 60
            *     }
            */
           'application/json': components['schemas']['SignedUrlResponse'];
@@ -17283,7 +18408,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid GCS URI format. Expected gs://bucket/object-path"
+           *       'detail': 'Invalid GCS URI format. Expected gs://bucket/object-path'
            *     }
            */
           'application/json': unknown;
@@ -17297,7 +18422,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Object not found: gs://bucket/path"
+           *       'detail': 'Object not found: gs://bucket/path'
            *     }
            */
           'application/json': unknown;
@@ -17335,9 +18460,9 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "content_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-           *       "content_type": "image/png",
-           *       "size_bytes": 68
+           *       'content_base64': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+           *       'content_type': 'image/png',
+           *       'size_bytes': 68
            *     }
            */
           'application/json': components['schemas']['DownloadResponse'];
@@ -17351,7 +18476,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Invalid GCS URI format. Expected gs://bucket/object-path"
+           *       'detail': 'Invalid GCS URI format. Expected gs://bucket/object-path'
            *     }
            */
           'application/json': unknown;
@@ -17365,7 +18490,7 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "detail": "Object not found: gs://bucket/path"
+           *       'detail': 'Object not found: gs://bucket/path'
            *     }
            */
           'application/json': unknown;

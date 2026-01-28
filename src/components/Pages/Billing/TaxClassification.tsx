@@ -1,17 +1,37 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../UI/card';
+import { Card, CardContent } from '../../UI/card';
 import { Button } from '../../UI/button';
 import { Badge } from '../../UI/badge';
 import { Alert, AlertDescription } from '../../UI/alert';
 import { Separator } from '../../UI/separator';
-import { Edit, Building, User, MapPin, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  Edit,
+  Building,
+  User,
+  MapPin,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
 import TaxClassificationForm from '../TaxClassification/TaxClassificationForm';
 import { TaxClassificationFormData, UserBusinessStatusResponse } from '@/types/user';
 
-const TaxClassification = () => {
-  const [editing, setEditing] = useState(false);
+interface TaxClassificationProps {
+  /** Whether the component is in editing mode (controlled externally) */
+  isEditing?: boolean;
+  /** Callback when edit mode changes */
+  onEditingChange?: (editing: boolean) => void;
+}
+
+const TaxClassification = ({ isEditing, onEditingChange }: TaxClassificationProps = {}) => {
+  const [internalEditing, setInternalEditing] = useState(false);
+
+  // Use external control if provided, otherwise use internal state
+  const editing = isEditing ?? internalEditing;
+  const setEditing = onEditingChange ?? setInternalEditing;
   const [businessStatus, setBusinessStatus] = useState<UserBusinessStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,25 +166,17 @@ const TaxClassification = () => {
 
   if (loading) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-h3">Tax Classification</CardTitle>
-          <CardDescription className="text-body">Loading tax information...</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="flex w-full items-center justify-center gap-2 py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <p className="text-body-muted">Loading...</p>
+      </div>
     );
   }
 
   if (editing) {
     return (
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-h3">Edit Tax Classification</CardTitle>
-          <CardDescription className="text-body">
-            Update your tax classification and business information
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <TaxClassificationForm
             onSubmit={handleSave}
             onValidationChange={(isValid) => setIsFormValid(isValid)}
@@ -199,20 +211,6 @@ const TaxClassification = () => {
 
   return (
     <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-h3">Tax Classification</CardTitle>
-            <CardDescription className="text-body">
-              Your account tax classification and business information
-            </CardDescription>
-          </div>
-          <Button variant="outline" onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-        </div>
-      </CardHeader>
       <CardContent>
         {alert && (
           <Alert variant={alert.type === 'error' ? 'destructive' : 'default'} className="mb-4">
@@ -225,7 +223,7 @@ const TaxClassification = () => {
           </Alert>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 pt-4">
           {/* Account Type */}
           <div className="flex items-center space-x-3">
             {businessStatus?.accountType === 'business' ? (

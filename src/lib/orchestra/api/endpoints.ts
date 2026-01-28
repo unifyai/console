@@ -17,7 +17,8 @@ import { createOrchestraClient } from '@/lib/orchestra/client';
  */
 export async function listModels(apiKey: string, provider?: string): Promise<string[]> {
   const client = createOrchestraClient(apiKey);
-  const { data, error } = await client.GET('/v0/models', {
+  // Note: /v0/models endpoint exists in production but may not be in local OpenAPI spec
+  const { data, error } = await (client.GET as Function)('/v0/models', {
     params: {
       query: provider ? { provider } : {},
     },
@@ -40,7 +41,8 @@ export async function listModels(apiKey: string, provider?: string): Promise<str
  */
 export async function listProviders(apiKey: string, model?: string): Promise<string[]> {
   const client = createOrchestraClient(apiKey);
-  const { data, error } = await client.GET('/v0/providers', {
+  // Note: /v0/providers endpoint exists in production but may not be in local OpenAPI spec
+  const { data, error } = await (client.GET as Function)('/v0/providers', {
     params: {
       query: model ? { model } : {},
     },
@@ -73,7 +75,8 @@ export async function listEndpoints(
   if (provider) query.provider = provider;
   if (model) query.model = model;
 
-  const { data, error } = await client.GET('/v0/endpoints', {
+  // Note: /v0/endpoints endpoint exists in production but may not be in local OpenAPI spec
+  const { data, error } = await (client.GET as Function)('/v0/endpoints', {
     params: { query },
   });
 

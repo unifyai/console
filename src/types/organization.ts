@@ -1,4 +1,9 @@
 import { ResponseProps } from './common';
+import { SpendingDisplayProps } from './assistants/spending';
+
+// Re-export spending display types for organization spending
+export type { SpendingDisplayProps } from './assistants/spending';
+export { formatSpendAmount, getCurrentMonth } from './assistants/spending';
 
 // Re-export OpenAPI-generated types for new code
 // These are auto-generated from Orchestra's OpenAPI spec
@@ -106,4 +111,95 @@ export interface OrganizationActions {
   getInvites: (orgId: number) => Promise<OrganizationInviteListResponse | ResponseProps>;
   cancelInvite: (orgId: number, inviteId: string) => Promise<void | ResponseProps>;
   checkUserOrganization?: (email: string) => Promise<UserOrganizationCheckResult | ResponseProps>;
+}
+
+// =============================================================================
+// Organization Spending Types
+// =============================================================================
+
+/**
+ * Cumulative spend data for an organization in a given month.
+ * Returned by GET /admin/organization/{id}/spend
+ */
+export interface OrgSpend {
+  /** Organization ID */
+  orgId: number;
+  /** Month in YYYY-MM format */
+  month: string;
+  /** Total spend for the month in dollars (aggregated from all members/assistants) */
+  cumulativeSpend: number;
+  /** Monthly spending limit in dollars (null = unlimited) */
+  limit: number | null;
+  /** Percentage of limit used (0-100+, can exceed 100 for soft limits) */
+  percentUsed: number;
+}
+
+/**
+ * Spending limit configuration for an organization.
+ * Retrieved via GET /organization/{id} or PATCH /organization/{id}
+ */
+export interface OrgSpendingLimitResponse {
+  /** Organization ID */
+  orgId: number;
+  /** Configured monthly spending cap in dollars (null = no limit) */
+  monthlySpendingCap: number | null;
+}
+
+/**
+ * Request payload for setting an organization spending limit.
+ * Used with PATCH /organization/{id}
+ */
+export interface OrgSpendingLimitRequest {
+  /** Monthly spending cap in dollars (null to remove limit) */
+  monthlySpendingCap: number | null;
+}
+
+/**
+ * Type guard to check if a response is an error.
+ */
+export function isOrgSpendError(response: OrgSpend | ResponseProps): response is ResponseProps {
+  return 'detail' in response;
+}
+
+/**
+ * Type guard to check if a response is org spend data.
+ */
+export function isOrgSpendData(response: OrgSpend | ResponseProps): response is OrgSpend {
+  return 'cumulativeSpend' in response && 'orgId' in response;
+}
+
+/**
+ * Type guard for org spending limit error.
+ */
+export function isOrgSpendingLimitError(
+  response: OrgSpendingLimitResponse | ResponseProps
+): response is ResponseProps {
+  return 'detail' in response;
+}
+
+/**
+ * Type guard for org spending limit data.
+ */
+export function isOrgSpendingLimitData(
+  response: OrgSpendingLimitResponse | ResponseProps
+): response is OrgSpendingLimitResponse {
+  return 'monthlySpendingCap' in response && 'orgId' in response;
+}
+
+/**
+ * Calculate display props from org spending data.
+ * Reuses the same logic as assistant spending display.
+ */
+export function calculateOrgSpendingDisplay(spend: OrgSpend): SpendingDisplayProps {
+  const isUnlimited = spend.limit === null;
+  const isOverLimit = !isUnlimited && spend.cumulativeSpend >= spend.limit!;
+  const isNearLimit = !isUnlimited && !isOverLimit && spend.percentUsed >= 80;
+  return {
+    currentSpend: spend.cumulativeSpend,
+    limit: spend.limit,
+    percentUsed: spend.percentUsed,
+    isOverLimit,
+    isNearLimit,
+    isUnlimited,
+  };
 }

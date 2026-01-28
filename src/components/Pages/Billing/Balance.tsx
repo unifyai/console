@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../UI/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../UI/card';
+import { Card, CardHeader, CardDescription, CardContent } from '../../UI/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { RefreshCw } from 'lucide-react';
 
@@ -96,7 +96,15 @@ const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-h3">Account Balance</CardTitle>
+          <CardDescription className="text-body">
+            {loading || isRefreshing ? (
+              'Loading balance...'
+            ) : (
+              <>
+                Your current balance is <span className="text-primary">${balance}</span>
+              </>
+            )}
+          </CardDescription>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -110,15 +118,6 @@ const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <CardDescription className="text-body">
-          {loading || isRefreshing ? (
-            'Loading balance...'
-          ) : (
-            <>
-              Your current balance is <span className="text-primary">${balance}</span>
-            </>
-          )}
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col space-y-4">

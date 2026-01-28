@@ -372,7 +372,6 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
     return (
       <div className="w-full space-y-8">
         <div className="mb-6">
-          <h3 className="text-h1 text-semibold mb-3">Tax Classification</h3>
           <p className="text-body-lg-muted">
             {initialData?.accountType
               ? 'Review and update your tax classification information as needed.'
