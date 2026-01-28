@@ -21,6 +21,8 @@ interface UsageSummaryCardsProps {
   isLoading?: boolean;
   /** Granularity for formatting peak timestamp */
   granularity?: 'time_minute' | 'time_hour' | 'time_day' | 'time_month' | 'time_year';
+  /** If true, renders cards as fragments without wrapper grid (for parent grid layout) */
+  inline?: boolean;
 }
 
 interface SummaryCardProps {
@@ -50,9 +52,9 @@ function SummaryCard({
   infoTooltip,
 }: SummaryCardProps) {
   return (
-    <Card className="flex-1" data-testid={testId}>
+    <Card className="xl:flex-1" data-testid={testId}>
       <CardContent className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
               <p className="text-title text-muted-foreground">{title}</p>
@@ -93,6 +95,7 @@ export function UsageSummaryCards({
   summary,
   isLoading = false,
   granularity = 'time_day',
+  inline = false,
 }: UsageSummaryCardsProps) {
   // Format the peak timestamp for display
   const peakSubtitle = React.useMemo(() => {
@@ -102,8 +105,8 @@ export function UsageSummaryCards({
     return `Peak on ${formatTimestampForDisplay(summary.peakTimestamp, granularity)}`;
   }, [summary.peakTimestamp, granularity]);
 
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="usage-summary-cards">
+  const cards = (
+    <>
       <SummaryCard
         title="Total Cost"
         value={formatCostForDisplay(summary.total)}
@@ -133,6 +136,18 @@ export function UsageSummaryCards({
         isLoading={isLoading}
         testId="summary-card-peak"
       />
+    </>
+  );
+
+  // In inline mode, return cards as fragment for parent grid
+  if (inline) {
+    return cards;
+  }
+
+  // Default: wrap in own grid
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="usage-summary-cards">
+      {cards}
     </div>
   );
 }

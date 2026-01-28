@@ -102,6 +102,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
           orgMembers={orgMembers}
           isAdmin={isAdmin}
           initialAssistantId={initialAssistantId}
+          orgId={orgId}
         />
       </Suspense>
     </div>

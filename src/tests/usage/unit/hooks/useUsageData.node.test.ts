@@ -53,6 +53,14 @@ function createMockUsageActions(): UsageActions {
 
       return data;
     },
+    getUserSpendingLimit: async () => ({ type: 'user', limit: 100, label: 'My Limit' }),
+    getOrgSpendingLimit: async () => ({ type: 'org', limit: 500, label: 'Org Limit' }),
+    getMemberSpendingLimit: async () => ({ type: 'member', limit: 200, label: 'Member Limit' }),
+    getAssistantSpendingLimit: async () => ({
+      type: 'assistant',
+      limit: 50,
+      label: 'Assistant Limit',
+    }),
   };
 }
 

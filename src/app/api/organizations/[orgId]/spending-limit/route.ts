@@ -53,12 +53,11 @@ export async function GET(
       return NextResponse.json(error, { status: response.status });
     }
 
-    // Transform to camelCase for frontend
-    // Note: Orchestra client middleware transforms response to camelCase at runtime
+    // Orchestra client middleware transforms response to camelCase at runtime
     const spendingLimitResponse = {
       orgId: organizationId,
       monthlySpendingCap:
-        (data as { monthly_spending_cap?: number | null })?.monthly_spending_cap ?? null,
+        (data as { monthlySpendingCap?: number | null })?.monthlySpendingCap ?? null,
     };
 
     return NextResponse.json(spendingLimitResponse, { status: 200 });
@@ -137,16 +136,16 @@ export async function PATCH(
     }
 
     // Return the updated spending limit info (including any cascade info from Orchestra)
-    // Note: Orchestra client middleware transforms response to camelCase at runtime
+    // Orchestra client middleware transforms response to camelCase at runtime
     type OrgSpendingLimitData = {
-      monthly_spending_cap?: number | null;
-      cascaded_updates?: { [key: string]: number } | null;
+      monthlySpendingCap?: number | null;
+      cascadedUpdates?: { [key: string]: number } | null;
     };
     const responseData = data as OrgSpendingLimitData;
     const spendingLimitResponse = {
       orgId: organizationId,
-      monthlySpendingCap: responseData?.monthly_spending_cap ?? null,
-      cascadedUpdates: responseData?.cascaded_updates ?? null,
+      monthlySpendingCap: responseData?.monthlySpendingCap ?? null,
+      cascadedUpdates: responseData?.cascadedUpdates ?? null,
       info: 'Spending limit updated successfully',
     };
 

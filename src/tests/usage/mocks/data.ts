@@ -287,6 +287,14 @@ export function createMockUsageActions(
 ): UsageActions {
   return {
     getMetrics: async () => responseData,
+    getUserSpendingLimit: async () => ({ type: 'user', limit: 100, label: 'My Limit' }),
+    getOrgSpendingLimit: async () => ({ type: 'org', limit: 500, label: 'Org Limit' }),
+    getMemberSpendingLimit: async () => ({ type: 'member', limit: 200, label: 'Member Limit' }),
+    getAssistantSpendingLimit: async () => ({
+      type: 'assistant',
+      limit: 50,
+      label: 'Assistant Limit',
+    }),
   };
 }
 
@@ -301,5 +309,9 @@ export function createMockErrorUsageActions(
 ): UsageActions {
   return {
     getMetrics: async () => ({ detail: errorDetail }),
+    getUserSpendingLimit: async () => ({ detail: errorDetail }),
+    getOrgSpendingLimit: async () => ({ detail: errorDetail }),
+    getMemberSpendingLimit: async () => ({ detail: errorDetail }),
+    getAssistantSpendingLimit: async () => ({ detail: errorDetail }),
   };
 }

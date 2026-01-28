@@ -11,11 +11,12 @@ import * as React from 'react';
 import { UsageFiltersBar } from './Filters';
 import { UsageSummaryCards } from './UsageSummaryCards';
 import { UsageChart } from './UsageChart';
+import { SpendingLimitCard, SpendingLimitData } from './SpendingLimitCard';
 import { useUsageFilters } from '@/hooks/Usage/useUsageFilters';
 import { useUsageData } from '@/hooks/Usage/useUsageData';
 import { useUsageSummary } from '@/hooks/Usage/useUsageSummary';
 import { Assistant } from '@/types/assistants/assistant';
-import { UsageActions } from '@/lib/usage/actions';
+import { UsageActions, SpendingLimitInfo } from '@/lib/usage/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { AlertCircle } from 'lucide-react';
 
@@ -39,6 +40,8 @@ interface UsageMainProps {
   isAdmin?: boolean;
   /** Initial assistant ID to filter by (from URL query param) */
   initialAssistantId?: string;
+  /** Organization ID if in org context (null for personal workspace) */
+  orgId?: number | null;
 }
 
 export function UsageMain({
@@ -48,6 +51,7 @@ export function UsageMain({
   orgMembers = [],
   isAdmin = false,
   initialAssistantId,
+  orgId = null,
 }: UsageMainProps) {
   // Compute initial filters based on URL params
   const initialFilters = React.useMemo(() => {
@@ -120,6 +124,77 @@ export function UsageMain({
   // Summary calculations
   const { summary } = useUsageSummary({ data });
 
+  // Spending limits state (can have multiple: scope limit + assistant limit)
+  const [spendingLimits, setSpendingLimits] = React.useState<SpendingLimitData[]>([]);
+  const [isLoadingLimits, setIsLoadingLimits] = React.useState(true);
+
+  // Type guard for spending limit response
+  const isSpendingLimit = React.useCallback(
+    (result: SpendingLimitInfo | { detail?: string }): result is SpendingLimitInfo => {
+      return 'type' in result && 'limit' in result && 'label' in result;
+    },
+    []
+  );
+
+  // Fetch spending limits based on current filter context
+  React.useEffect(() => {
+    const fetchSpendingLimits = async () => {
+      setIsLoadingLimits(true);
+      const limits: SpendingLimitData[] = [];
+
+      try {
+        // Fetch the scope-level limit (user, org, or member)
+        let scopeResult: SpendingLimitInfo | { detail?: string } | null = null;
+
+        if (orgId) {
+          // Org context
+          if (filters.userScope === 'org') {
+            // Org-wide view - show org limit
+            scopeResult = await usageActions.getOrgSpendingLimit(orgId);
+          } else if (filters.userScope === 'member' && filters.selectedUserId) {
+            // Specific member - show member limit
+            scopeResult = await usageActions.getMemberSpendingLimit(orgId, filters.selectedUserId);
+          } else {
+            // Self in org - show current user's member limit
+            scopeResult = await usageActions.getMemberSpendingLimit(orgId, currentUserId);
+          }
+        } else {
+          // Personal workspace - show user limit
+          scopeResult = await usageActions.getUserSpendingLimit();
+        }
+
+        if (scopeResult && isSpendingLimit(scopeResult)) {
+          limits.push(scopeResult);
+        }
+
+        // If filtering by specific assistant, also fetch assistant limit
+        if (filters.assistantId !== 'all') {
+          const assistantResult = await usageActions.getAssistantSpendingLimit(filters.assistantId);
+          if (assistantResult && isSpendingLimit(assistantResult)) {
+            limits.push(assistantResult);
+          }
+        }
+
+        setSpendingLimits(limits);
+      } catch (error) {
+        console.error('[UsageMain] Error fetching spending limits:', error);
+        setSpendingLimits([]);
+      } finally {
+        setIsLoadingLimits(false);
+      }
+    };
+
+    fetchSpendingLimits();
+  }, [
+    usageActions,
+    orgId,
+    currentUserId,
+    filters.userScope,
+    filters.selectedUserId,
+    filters.assistantId,
+    isSpendingLimit,
+  ]);
+
   return (
     <div className="flex h-full flex-col overflow-auto" data-testid="usage-page-main">
       {/* Error Alert */}
@@ -157,22 +232,33 @@ export function UsageMain({
         />
       </div>
 
-      {/* Summary Cards */}
-      <div className="shrink-0 px-4 py-2">
-        <UsageSummaryCards
-          summary={summary}
-          isLoading={isLoading && !hasInitiallyLoaded}
-          granularity={filters.granularity}
-        />
-      </div>
+      {/* Main content area - responsive layout */}
+      {/* At xl+: cards in row above chart (standard layout) */}
+      {/* Below xl (high zoom / narrow): cards stacked left, chart on right */}
+      <div className="flex min-h-0 flex-1 flex-row gap-4 p-4 pt-2 xl:flex-col">
+        {/* Cards sidebar (narrow viewports) / Cards row (wide viewports) */}
+        <div className="flex w-64 shrink-0 flex-col gap-3 xl:w-full xl:flex-row xl:gap-4">
+          <UsageSummaryCards
+            summary={summary}
+            isLoading={isLoading && !hasInitiallyLoaded}
+            granularity={filters.granularity}
+            inline={true}
+          />
+          <SpendingLimitCard
+            currentSpending={summary.total}
+            spendingLimits={spendingLimits}
+            isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
+          />
+        </div>
 
-      {/* Chart - fills remaining height with min-height for small screens */}
-      <div className="min-h-[300px] flex-1 p-4 pt-2">
-        <UsageChart
-          data={data}
-          granularity={filters.granularity}
-          isLoading={isLoading && !hasInitiallyLoaded}
-        />
+        {/* Chart - fills remaining space */}
+        <div className="min-h-[300px] flex-1">
+          <UsageChart
+            data={data}
+            granularity={filters.granularity}
+            isLoading={isLoading && !hasInitiallyLoaded}
+          />
+        </div>
       </div>
     </div>
   );

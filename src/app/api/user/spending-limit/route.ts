@@ -36,19 +36,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error, { status: response?.status ?? 500 });
     }
 
-    // Transform to camelCase for frontend
-    // Note: Orchestra client middleware transforms response, but TypeScript types are snake_case
+    // Orchestra client middleware already transforms response to camelCase
     type SpendingLimitData = {
-      user_id?: string;
-      monthly_spending_cap?: number | null;
-      assistants_capped?: number;
+      userId?: string;
+      monthlySpendingCap?: number | null;
+      assistantsCapped?: number;
     };
     const responseData = data as SpendingLimitData;
 
     const spendingLimitResponse = {
-      userId: responseData?.user_id ?? '',
-      monthlySpendingCap: responseData?.monthly_spending_cap ?? null,
-      assistantsCapped: responseData?.assistants_capped ?? 0,
+      userId: responseData?.userId ?? '',
+      monthlySpendingCap: responseData?.monthlySpendingCap ?? null,
+      assistantsCapped: responseData?.assistantsCapped ?? 0,
     };
 
     return NextResponse.json(spendingLimitResponse, { status: 200 });
@@ -102,18 +101,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(error, { status: response?.status ?? 500 });
     }
 
-    // Transform to camelCase for frontend
+    // Orchestra client middleware already transforms response to camelCase
     type SpendingLimitData = {
-      user_id?: string;
-      monthly_spending_cap?: number | null;
-      assistants_capped?: number;
+      userId?: string;
+      monthlySpendingCap?: number | null;
+      assistantsCapped?: number;
     };
     const responseData = data as SpendingLimitData;
 
     const spendingLimitResponse = {
-      userId: responseData?.user_id ?? '',
-      monthlySpendingCap: responseData?.monthly_spending_cap ?? null,
-      assistantsCapped: responseData?.assistants_capped ?? 0,
+      userId: responseData?.userId ?? '',
+      monthlySpendingCap: responseData?.monthlySpendingCap ?? null,
+      assistantsCapped: responseData?.assistantsCapped ?? 0,
       info: 'Spending limit updated successfully',
     };
 

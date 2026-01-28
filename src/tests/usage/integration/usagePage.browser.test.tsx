@@ -134,6 +134,10 @@ describe('UsageMain', () => {
         getMetrics: async () => ({
           detail: 'Internal server error: database connection failed',
         }),
+        getUserSpendingLimit: async () => ({ detail: 'Error' }),
+        getOrgSpendingLimit: async () => ({ detail: 'Error' }),
+        getMemberSpendingLimit: async () => ({ detail: 'Error' }),
+        getAssistantSpendingLimit: async () => ({ detail: 'Error' }),
       };
 
       render(<UsageMain {...defaultProps} usageActions={errorActions} />);
