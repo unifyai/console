@@ -81,7 +81,7 @@ export function AssistantResourcesManager({
 
   return (
     <>
-      <div className="w-full space-y-2">
+      <div className="flex w-full flex-wrap gap-x-4 gap-y-2">
         {assistant.isUserDesktop && assistant.desktopMode && onOpenSetupInstructions && (
           <ContactItem
             value="Local Setup Instructions"
@@ -101,11 +101,13 @@ export function AssistantResourcesManager({
         )}
         <ContactItem
           value="Contact Details"
+          tooltip="Manage email, phone, and WhatsApp contacts"
           icon={<Contact className="h-4 w-4 flex-shrink-0" />}
           handleClick={() => onOpenContactManager(assistant)}
         />
         <ContactItem
           value="Secrets"
+          tooltip="Manage API keys and credentials"
           icon={<KeyRound className="h-4 w-4 flex-shrink-0" />}
           handleClick={() => setIsSecretsManagerOpen(true)}
         />
