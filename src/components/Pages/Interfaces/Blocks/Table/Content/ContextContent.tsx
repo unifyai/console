@@ -54,6 +54,16 @@ const ContextContent = ({
   fieldsActions?: FieldsActions;
   loading?: boolean;
 }) => {
+  console.log('[ContextSwitch] ContextContent rendered', {
+    projectId,
+    tabId,
+    interfaceId,
+    tileId,
+    context,
+    hasSetContext: !!setContext,
+    loading,
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
@@ -74,12 +84,31 @@ const ContextContent = ({
   const finalSetContext =
     syncedTileDataActions && item != undefined
       ? (ctx: string) => {
+          console.log('[ContextSwitch] ContextContent finalSetContext (synced path) called', {
+            ctx,
+            currentContext: item.context,
+            tileId,
+            projectId,
+          });
           if (ctx !== item.context) {
             // Update the tile's context and columnContext
+            console.log(
+              '[ContextSwitch] ContextContent - calling syncedTileDataActions.setContextAndColumnContext'
+            );
             syncedTileDataActions.setContextAndColumnContext(ctx, '');
+          } else {
+            console.log('[ContextSwitch] ContextContent - ctx same as current, skipping update');
           }
         }
-      : setContext;
+      : (ctx: string) => {
+          console.log('[ContextSwitch] ContextContent finalSetContext (setContext path) called', {
+            ctx,
+            hasSetContext: !!setContext,
+            tileId,
+            projectId,
+          });
+          setContext?.(ctx);
+        };
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
   const contexts = useMemo(
@@ -132,7 +161,15 @@ const ContextContent = ({
                 isTopLevel={true}
                 prefix={''}
                 attr={item != undefined ? item.context : context}
-                setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
+                setter={(ctx: string) => {
+                  console.log('[ContextSwitch] ContextContent RenderMenuItems setter called', {
+                    ctx,
+                    name,
+                    tileId,
+                    projectId,
+                  });
+                  finalSetContext && finalSetContext(ctx);
+                }}
                 isColumnContext={false}
                 loading={loading}
                 selectableNodes={contextNames}

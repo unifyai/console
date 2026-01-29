@@ -46,6 +46,16 @@ export default function ContextTreePicker({
   contextActions?: any;
   hideClear?: boolean;
 }) {
+  console.log('[ContextSwitch] ContextTreePicker rendered', {
+    contextsCount: contexts.length,
+    contexts: contexts.slice(0, 10), // Log first 10 contexts
+    current,
+    basePrefix,
+    inherited,
+    projectId,
+    hideClear,
+  });
+
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -53,6 +63,16 @@ export default function ContextTreePicker({
   const [newName, setNewName] = useState('');
   const { mutate: renameContext } = useRenameContextQuery();
   const { mutate: deleteContext } = useDeleteContextQuery();
+
+  // Wrap onPick to add logging
+  const handlePick = (ctx: string) => {
+    console.log('[ContextSwitch] ContextTreePicker handlePick called', {
+      ctx,
+      current,
+      projectId,
+    });
+    onPick(ctx);
+  };
 
   const inheritedCtx = useMemo(() => {
     const val = typeof inherited === 'string' ? inherited : undefined;
@@ -161,7 +181,7 @@ export default function ContextTreePicker({
       <div className="max-h-80 overflow-auto p-2">
         <Accordion type="multiple" className="w-full">
           {basePrefix && basePrefix.trim() !== '' ? (
-            <TreeRow node={subtree} depth={0} current={current || undefined} onPick={onPick} />
+            <TreeRow node={subtree} depth={0} current={current || undefined} onPick={handlePick} />
           ) : (
             Object.entries(subtree.children)
               .sort((a, b) => a[0].localeCompare(b[0]))
@@ -171,7 +191,7 @@ export default function ContextTreePicker({
                   node={child}
                   depth={0}
                   current={current || undefined}
-                  onPick={onPick}
+                  onPick={handlePick}
                 />
               ))
           )}
@@ -182,7 +202,10 @@ export default function ContextTreePicker({
           <button
             type="button"
             className="text-body-sm h-6 rounded px-2 hover:bg-accent"
-            onClick={() => onPick('')}
+            onClick={() => {
+              console.log('[ContextSwitch] ContextTreePicker Clear selection clicked');
+              handlePick('');
+            }}
           >
             Clear selection
           </button>
@@ -290,6 +313,23 @@ function TreeRow({
   const indent = depth * INDENT;
   const label = fullPath.split('/').filter(Boolean).slice(-1)[0];
 
+  const handleClick = (e: React.MouseEvent, isLeaf: boolean) => {
+    const newValue = isSelected ? '' : fullPath;
+    console.log('[ContextSwitch] TreeRow clicked', {
+      fullPath,
+      label,
+      isLeaf,
+      isSelected,
+      newValue,
+      depth,
+    });
+    if (!isLeaf) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    onPick(newValue);
+  };
+
   // Leaf row
   if (!hasKids) {
     return (
@@ -298,7 +338,7 @@ function TreeRow({
           type="button"
           className={`flex h-6 w-full min-w-0 items-center gap-2 rounded px-2 hover:bg-muted ${isSelected ? 'bg-primary/10' : ''}`}
           style={{ marginLeft: indent + BULLET_OFFSET }}
-          onClick={() => onPick(isSelected ? '' : fullPath)}
+          onClick={(e) => handleClick(e, true)}
         >
           <span className={`h-2 w-2 rounded-full ${isHighlighted ? 'bg-primary' : 'bg-muted'}`} />
           <span className="text-body-sm truncate leading-6">{label}</span>
@@ -320,11 +360,7 @@ function TreeRow({
               <button
                 type="button"
                 className={`h-2 w-2 rounded-full ${isHighlighted ? 'bg-primary' : 'bg-muted'}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onPick(isSelected ? '' : fullPath);
-                }}
+                onClick={(e) => handleClick(e, false)}
               />
               <span className="text-body-sm truncate leading-6">{label}</span>
             </div>

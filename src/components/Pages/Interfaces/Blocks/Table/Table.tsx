@@ -168,7 +168,23 @@ const LogsTable = ({
 
   // Menu collapse state
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
-  const [tableContextPopoverOpen, setTableContextPopoverOpen] = useState(false);
+  const [tableContextPopoverOpen, setTableContextPopoverOpenRaw] = useState(false);
+
+  // Debug logging wrapper for context popover state
+  const setTableContextPopoverOpen = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const newValue = typeof value === 'function' ? value(tableContextPopoverOpen) : value;
+      console.log('[ContextSwitch] setTableContextPopoverOpen called', {
+        currentValue: tableContextPopoverOpen,
+        newValue,
+        tileId,
+        projectId,
+        stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+      });
+      setTableContextPopoverOpenRaw(newValue);
+    },
+    [tableContextPopoverOpen, tileId, projectId]
+  );
 
   // Section visibility states
   const [dataSectionVisible, setDataSectionVisible] = useState(true);
@@ -1069,16 +1085,40 @@ const LogsTable = ({
   const inheritedContext = item?.context || globalContext || (interfaceObj as any)?.context || null;
 
   const onPickContext = (ctx: string) => {
+    console.log('[ContextSwitch] onPickContext called', {
+      ctx,
+      tileId,
+      tabId,
+      interfaceId,
+      projectId,
+    });
     const s = storeApi.getState() as any;
     const tileIdResolved = tileId;
+    console.log('[ContextSwitch] onPickContext - store state functions available:', {
+      hasSetContextOptimistic: !!s.setContextOptimistic,
+      hasEnqueueContextSync: !!s.enqueueContextSync,
+      tileIdResolved,
+    });
     // Optimistic clear or set
     s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
     s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
     // Also update legacy synced actions to reflect immediately
+    console.log(
+      '[ContextSwitch] onPickContext - calling syncedTileActions.setContextAndColumnContext',
+      {
+        hasSyncedTileActions: !!syncedTileActions?.data?.setContextAndColumnContext,
+      }
+    );
     syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, '');
   };
 
   const onClearContext = () => {
+    console.log('[ContextSwitch] onClearContext called', {
+      tileId,
+      tabId,
+      interfaceId,
+      projectId,
+    });
     const s = storeApi.getState() as any;
     const tileIdResolved = tileId;
     s.setContextOptimistic?.('tile', tileIdResolved, '', { tabId, interfaceId, projectId });
@@ -1086,44 +1126,83 @@ const LogsTable = ({
     syncedTileActions?.data?.setContextAndColumnContext(undefined, '');
   };
 
-  const treePicker = (onPick: (ctx: string) => void) => (
-    <ContextTreePicker
-      contexts={(listContextsQuery.data || []).map((c) => c.name)}
-      current={item?.context || null}
-      basePrefix={
-        (globalContext ||
-          (interfaceObj as any)?.context ||
-          (storeApi.getState() as any).projectDefaultContext?.[projectId || ''] ||
-          undefined) as any
-      }
-      inherited={
-        !item?.context
-          ? globalContext ||
+  const treePicker = (onPick: (ctx: string) => void) => {
+    console.log('[ContextSwitch] treePicker rendered', {
+      contextsCount: (listContextsQuery.data || []).length,
+      currentContext: item?.context || null,
+      globalContext,
+      projectId,
+    });
+    return (
+      <ContextTreePicker
+        contexts={(listContextsQuery.data || []).map((c) => c.name)}
+        current={item?.context || null}
+        basePrefix={
+          (globalContext ||
             (interfaceObj as any)?.context ||
             (storeApi.getState() as any).projectDefaultContext?.[projectId || ''] ||
-            null
-          : null
-      }
-      onPick={onPick}
-      className="w-full"
-      projectId={projectId || undefined}
-      contextActions={contextActions}
-      hideClear
-    />
-  );
+            undefined) as any
+        }
+        inherited={
+          !item?.context
+            ? globalContext ||
+              (interfaceObj as any)?.context ||
+              (storeApi.getState() as any).projectDefaultContext?.[projectId || ''] ||
+              null
+            : null
+        }
+        onPick={(ctx) => {
+          console.log('[ContextSwitch] treePicker onPick callback called', { ctx });
+          onPick(ctx);
+        }}
+        className="w-full"
+        projectId={projectId || undefined}
+        contextActions={contextActions}
+        hideClear
+      />
+    );
+  };
+
+  // Log when contextSelectorForPopover renders
+  console.log('[ContextSwitch] contextSelectorForPopover rendering', {
+    projectId,
+    tableContextPopoverOpen,
+    inheritedContext,
+  });
 
   const contextSelectorForPopover = projectId ? (
-    <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Tooltip content="Filter logs by context">
-          <Button variant={inheritedContext ? 'primary' : 'outline'} size="sm" className="h-7">
+    <Popover
+      open={tableContextPopoverOpen}
+      onOpenChange={(open) => {
+        console.log('[ContextSwitch] Popover onOpenChange called', {
+          open,
+          currentState: tableContextPopoverOpen,
+        });
+        setTableContextPopoverOpen(open);
+      }}
+    >
+      <Tooltip content="Filter logs by context">
+        <PopoverTrigger asChild>
+          <Button
+            variant={inheritedContext ? 'primary' : 'outline'}
+            size="sm"
+            className="h-7"
+            onClick={(e) => {
+              console.log('[ContextSwitch] Context button in Table Controls clicked', {
+                event: e,
+                currentPopoverState: tableContextPopoverOpen,
+                projectId,
+              });
+            }}
+          >
             <FolderTree className="mr-2 h-4 w-4" />
             Context
           </Button>
-        </Tooltip>
-      </PopoverTrigger>
+        </PopoverTrigger>
+      </Tooltip>
       <PopoverContent className="z-50 w-96 p-0">
         {treePicker((ctx) => {
+          console.log('[ContextSwitch] treePicker callback in PopoverContent', { ctx });
           onPickContext(ctx);
           setTableContextPopoverOpen(false);
         })}
@@ -1159,7 +1238,19 @@ const LogsTable = ({
   const selectContextButton = (
     <Button
       onClick={(e) => {
+        console.log('[ContextSwitch] selectContextButton (center overlay button) clicked', {
+          event: e,
+          eventType: e.type,
+          target: e.target,
+          currentTarget: e.currentTarget,
+          currentPopoverState: tableContextPopoverOpen,
+          projectId,
+          tileId,
+        });
         e.stopPropagation();
+        console.log(
+          '[ContextSwitch] selectContextButton - calling setTableContextPopoverOpen(true)'
+        );
         setTableContextPopoverOpen(true);
       }}
     >

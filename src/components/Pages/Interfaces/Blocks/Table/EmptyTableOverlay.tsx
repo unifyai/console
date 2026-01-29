@@ -20,6 +20,13 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
   withPulse = true,
   contextName,
 }) => {
+  console.log('[ContextSwitch] EmptyTableOverlay rendered', {
+    tileName,
+    mode,
+    hasActionButton: !!actionButton,
+    withPulse,
+    contextName,
+  });
   // Content for contextNotFound mode
   if (mode === 'contextNotFound') {
     return (
