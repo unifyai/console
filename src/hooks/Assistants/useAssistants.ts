@@ -55,35 +55,69 @@ export function useAssistants(allActions: AssistantActions) {
         setIsLoading(false);
         if (toastId) toast.dismiss(toastId);
 
-        // Step 3: Progressively fetch signed URLs in the background
+        // Step 3: Batch fetch all signed URLs in the background, then update once
+        // This prevents multiple setAssistants calls which would cause cascading re-renders
+        const urlFetchPromises: Promise<{
+          agentId: string;
+          signedProfilePhotoUrl?: string;
+          signedProfileVideoUrl?: string;
+        } | null>[] = [];
+
         validAssistants.forEach((assistant) => {
-          if (assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)) {
-            photoActions.download(assistant.profilePhoto).then((result) => {
-              if (result.signedUrl) {
-                setAssistants((currentAssistants) =>
-                  currentAssistants.map((a) =>
-                    a.agentId === assistant.agentId
-                      ? { ...a, signedProfilePhotoUrl: result.signedUrl }
-                      : a
-                  )
-                );
-              }
-            });
-          }
-          if (assistant.profileVideo && isGcsPhoto(assistant.profileVideo)) {
-            photoActions.download(assistant.profileVideo).then((result) => {
-              if (result.signedUrl) {
-                setAssistants((currentAssistants) =>
-                  currentAssistants.map((a) =>
-                    a.agentId === assistant.agentId
-                      ? { ...a, signedProfileVideoUrl: result.signedUrl }
-                      : a
-                  )
-                );
-              }
-            });
-          }
+          const photoPromise =
+            assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)
+              ? photoActions.download(assistant.profilePhoto).then((result) => ({
+                  agentId: assistant.agentId,
+                  signedProfilePhotoUrl: result.signedUrl,
+                }))
+              : null;
+
+          const videoPromise =
+            assistant.profileVideo && isGcsPhoto(assistant.profileVideo)
+              ? photoActions.download(assistant.profileVideo).then((result) => ({
+                  agentId: assistant.agentId,
+                  signedProfileVideoUrl: result.signedUrl,
+                }))
+              : null;
+
+          if (photoPromise) urlFetchPromises.push(photoPromise);
+          if (videoPromise) urlFetchPromises.push(videoPromise);
         });
+
+        // Only proceed if there are URLs to fetch
+        if (urlFetchPromises.length > 0) {
+          Promise.allSettled(urlFetchPromises).then((results) => {
+            // Collect all successful URL updates
+            const urlUpdates = new Map<
+              string,
+              { signedProfilePhotoUrl?: string; signedProfileVideoUrl?: string }
+            >();
+
+            results.forEach((result) => {
+              if (result.status === 'fulfilled' && result.value) {
+                const { agentId, signedProfilePhotoUrl, signedProfileVideoUrl } = result.value;
+                const existing = urlUpdates.get(agentId) || {};
+                if (signedProfilePhotoUrl) {
+                  existing.signedProfilePhotoUrl = signedProfilePhotoUrl;
+                }
+                if (signedProfileVideoUrl) {
+                  existing.signedProfileVideoUrl = signedProfileVideoUrl;
+                }
+                urlUpdates.set(agentId, existing);
+              }
+            });
+
+            // Single batched update for all URLs
+            if (urlUpdates.size > 0) {
+              setAssistants((currentAssistants) =>
+                currentAssistants.map((a) => {
+                  const updates = urlUpdates.get(a.agentId);
+                  return updates ? { ...a, ...updates } : a;
+                })
+              );
+            }
+          });
+        }
       } catch (err) {
         const errorMsg =
           err instanceof Error
