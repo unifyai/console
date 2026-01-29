@@ -147,6 +147,7 @@ export function AssistantProfileChatPanel({
     loadMoreError,
     hasFetchedHistory,
     canChat,
+    reconnectSSE,
   } = useAssistantProfileChat(
     assistant,
     assistantActions,
@@ -163,6 +164,7 @@ export function AssistantProfileChatPanel({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<ChatAttachment[]>([]);
@@ -174,6 +176,17 @@ export function AssistantProfileChatPanel({
       setPendingAttachments([]);
     };
   }, []);
+
+  /* Force SSE reconnection when spending becomes unblocked.
+   * This ensures the SSE connection is fresh after spending limit changes,
+   * preventing stale connections that might not deliver messages. */
+  React.useEffect(() => {
+    if (prevSpendingBlockedRef.current && !isSpendingBlocked) {
+      // Spending just became unblocked - reconnect SSE to ensure fresh connection
+      reconnectSSE();
+    }
+    prevSpendingBlockedRef.current = isSpendingBlocked;
+  }, [isSpendingBlocked, reconnectSSE]);
 
   /* File handling */
   const handleFiles = React.useCallback(

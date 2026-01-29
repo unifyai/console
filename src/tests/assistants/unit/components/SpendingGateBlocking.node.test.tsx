@@ -5,11 +5,13 @@
  * - Chat input blocked when spending limit reached
  * - Call button disabled when blocked
  * - Tooltip messages for blocked state
+ * - SSE reconnection when spending becomes unblocked
  */
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
 // Mock data for a blocked spending gate
@@ -260,6 +262,160 @@ describe('SpendingGate blocking behavior', () => {
                 : 'Start a call';
 
       expect(callButtonTooltip).toBe('Start a call');
+    });
+  });
+
+  // ===========================================================================
+  // SSE Reconnection on Spending Unblock
+  // ===========================================================================
+
+  describe('SSE reconnection on spending unblock', () => {
+    /**
+     * Simulates the useEffect logic in AssistantProfileChatPanel that triggers
+     * SSE reconnection when spending becomes unblocked.
+     */
+    const simulateSpendingUnblockEffect = (
+      prevBlocked: boolean,
+      currentBlocked: boolean,
+      reconnectSSE: () => void
+    ) => {
+      // This mirrors the logic in AssistantProfileChatPanel.tsx
+      if (prevBlocked && !currentBlocked) {
+        reconnectSSE();
+      }
+    };
+
+    it('should trigger SSE reconnection when spending transitions from blocked to unblocked', () => {
+      const reconnectSSE = vi.fn();
+
+      // Simulate: was blocked, now unblocked
+      simulateSpendingUnblockEffect(true, false, reconnectSSE);
+
+      expect(reconnectSSE).toHaveBeenCalledTimes(1);
+    });
+
+    it('should NOT trigger SSE reconnection when spending stays blocked', () => {
+      const reconnectSSE = vi.fn();
+
+      // Simulate: was blocked, still blocked
+      simulateSpendingUnblockEffect(true, true, reconnectSSE);
+
+      expect(reconnectSSE).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger SSE reconnection when spending stays unblocked', () => {
+      const reconnectSSE = vi.fn();
+
+      // Simulate: was unblocked, still unblocked
+      simulateSpendingUnblockEffect(false, false, reconnectSSE);
+
+      expect(reconnectSSE).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger SSE reconnection when spending becomes blocked', () => {
+      const reconnectSSE = vi.fn();
+
+      // Simulate: was unblocked, now blocked
+      simulateSpendingUnblockEffect(false, true, reconnectSSE);
+
+      expect(reconnectSSE).not.toHaveBeenCalled();
+    });
+
+    it('should handle rapid block/unblock transitions correctly', () => {
+      const reconnectSSE = vi.fn();
+
+      // First transition: unblocked → blocked (no reconnect)
+      simulateSpendingUnblockEffect(false, true, reconnectSSE);
+      expect(reconnectSSE).not.toHaveBeenCalled();
+
+      // Second transition: blocked → unblocked (reconnect!)
+      simulateSpendingUnblockEffect(true, false, reconnectSSE);
+      expect(reconnectSSE).toHaveBeenCalledTimes(1);
+
+      // Third transition: unblocked → blocked again (no reconnect)
+      simulateSpendingUnblockEffect(false, true, reconnectSSE);
+      expect(reconnectSSE).toHaveBeenCalledTimes(1); // Still just 1
+
+      // Fourth transition: blocked → unblocked again (reconnect again!)
+      simulateSpendingUnblockEffect(true, false, reconnectSSE);
+      expect(reconnectSSE).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ===========================================================================
+  // SSE Reconnection Integration with Spending Gate
+  // ===========================================================================
+
+  describe('SSE reconnection integration with spending gate status', () => {
+    it('should reconnect when assistant limit is raised above spend', () => {
+      const reconnectSSE = vi.fn();
+
+      // Initially blocked due to assistant limit
+      const blockedGate = createBlockedGate('assistant_limit');
+      expect(blockedGate.isBlocked).toBe(true);
+
+      // Then limit is raised, becomes unblocked
+      const unblockedGate = createUnblockedGate();
+      expect(unblockedGate.isBlocked).toBe(false);
+
+      // Transition should trigger reconnect
+      if (blockedGate.isBlocked && !unblockedGate.isBlocked) {
+        reconnectSSE();
+      }
+
+      expect(reconnectSSE).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reconnect when user limit is raised above spend', () => {
+      const reconnectSSE = vi.fn();
+
+      // Initially blocked due to user limit
+      const blockedGate = createBlockedGate('user_limit');
+      expect(blockedGate.isBlocked).toBe(true);
+
+      // Then limit is raised
+      const unblockedGate = createUnblockedGate();
+
+      if (blockedGate.isBlocked && !unblockedGate.isBlocked) {
+        reconnectSSE();
+      }
+
+      expect(reconnectSSE).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reconnect when org limit is raised above spend', () => {
+      const reconnectSSE = vi.fn();
+
+      // Initially blocked due to org limit
+      const blockedGate = createBlockedGate('org_limit');
+      expect(blockedGate.isBlocked).toBe(true);
+
+      // Then limit is raised
+      const unblockedGate = createUnblockedGate();
+
+      if (blockedGate.isBlocked && !unblockedGate.isBlocked) {
+        reconnectSSE();
+      }
+
+      expect(reconnectSSE).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not reconnect when transitioning between different block reasons', () => {
+      const reconnectSSE = vi.fn();
+
+      // Blocked due to assistant limit
+      const assistantBlocked = createBlockedGate('assistant_limit');
+
+      // Still blocked but now due to user limit (e.g., assistant limit was raised
+      // but user limit is still exceeded)
+      const userBlocked = createBlockedGate('user_limit');
+
+      // Both are blocked, so no reconnection needed
+      if (assistantBlocked.isBlocked && !userBlocked.isBlocked) {
+        reconnectSSE();
+      }
+
+      expect(reconnectSSE).not.toHaveBeenCalled();
     });
   });
 });

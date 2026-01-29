@@ -726,6 +726,14 @@ export function useAssistantProfileChat(
       });
   };
 
+  // Force SSE reconnection (useful when chat becomes re-enabled after being blocked)
+  const reconnectSSE = React.useCallback(() => {
+    // Reset reconnect attempts to allow fresh reconnection
+    sseReconnectAttemptsRef.current = 0;
+    // Trigger reconnection by incrementing the trigger
+    setSseReconnectTrigger((prev) => prev + 1);
+  }, []);
+
   return {
     messages,
     inputValue,
@@ -744,5 +752,7 @@ export function useAssistantProfileChat(
     // Chat permission state
     canChat,
     currentContactId,
+    // Force SSE reconnection
+    reconnectSSE,
   };
 }
