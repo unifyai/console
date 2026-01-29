@@ -28,8 +28,16 @@ export default function BaseDropdown({
   side = 'bottom',
   ...restContentProps
 }: BaseDropdownProps) {
+  console.log('[ContextSwitch] BaseDropdown rendered', {
+    open,
+    defaultOpen,
+    context,
+    hasSetOpen: !!setOpen,
+  });
+
   useEffect(() => {
     if (defaultOpen && setOpen) {
+      console.log('[ContextSwitch] BaseDropdown useEffect - setting open to true (defaultOpen)');
       setOpen(true);
     }
   }, [defaultOpen, setOpen]);
@@ -46,7 +54,17 @@ export default function BaseDropdown({
     );
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(newOpen) => {
+        console.log('[ContextSwitch] BaseDropdown DropdownMenu onOpenChange', {
+          newOpen,
+          currentOpen: open,
+          context,
+        });
+        setOpen?.(newOpen);
+      }}
+    >
       <DropdownMenuTrigger>{button}</DropdownMenuTrigger>
       <DropdownMenuPortal>{dropdownMenuContent}</DropdownMenuPortal>
     </DropdownMenu>
