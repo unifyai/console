@@ -6,10 +6,12 @@
  * - Shows "Unlimited" state when no limit is set
  * - Displays current spend and limit amounts
  * - Animated progress transitions
+ * - Clickable spend/limit values with tooltips
  */
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingDisplayProps, formatSpendAmount } from '@/types/assistants/spending';
 
 export interface SpendingProgressBarProps {
@@ -23,6 +25,14 @@ export interface SpendingProgressBarProps {
   size?: 'sm' | 'md' | 'lg';
   /** Current month in YYYY-MM format (for inline display) */
   currentMonth?: string;
+  /** Callback when spend value is clicked */
+  onSpendClick?: () => void;
+  /** Callback when limit value is clicked */
+  onLimitClick?: () => void;
+  /** Tooltip for spend value */
+  spendTooltip?: string;
+  /** Tooltip for limit value */
+  limitTooltip?: string;
 }
 
 /**
@@ -86,6 +96,10 @@ export function SpendingProgressBar({
   showLabels = true,
   size = 'md',
   currentMonth,
+  onSpendClick,
+  onLimitClick,
+  spendTooltip,
+  limitTooltip,
 }: SpendingProgressBarProps) {
   const progressColor = getProgressColor(display);
   const textColor = getTextColor(display);
@@ -94,29 +108,108 @@ export function SpendingProgressBar({
   // Clamp progress to 0-100 for the visual bar
   const progressPercent = Math.min(Math.max(display.percentUsed, 0), 100);
 
+  // Render spend value (clickable if handler provided)
+  const renderSpendValue = () => {
+    const content = (
+      <span
+        className={cn('text-title', textColor, onSpendClick && 'cursor-pointer')}
+        onClick={onSpendClick}
+        role={onSpendClick ? 'button' : undefined}
+        tabIndex={onSpendClick ? 0 : undefined}
+        onKeyDown={onSpendClick ? (e) => e.key === 'Enter' && onSpendClick() : undefined}
+      >
+        {formatSpendAmount(display.currentSpend)}
+        {currentMonth && (
+          <span className="text-caption ml-1 font-normal text-muted-foreground">
+            in {formatMonthName(currentMonth)}
+          </span>
+        )}
+      </span>
+    );
+
+    if (spendTooltip && onSpendClick) {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>{content}</TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{spendTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return content;
+  };
+
+  // Render limit value (clickable if handler provided)
+  const renderLimitValue = () => {
+    if (display.isUnlimited) {
+      const content = (
+        <span
+          className={cn('text-caption', onLimitClick && 'cursor-pointer')}
+          onClick={onLimitClick}
+          role={onLimitClick ? 'button' : undefined}
+          tabIndex={onLimitClick ? 0 : undefined}
+          onKeyDown={onLimitClick ? (e) => e.key === 'Enter' && onLimitClick() : undefined}
+        >
+          No limit
+        </span>
+      );
+
+      if (limitTooltip && onLimitClick) {
+        return (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>{content}</TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{limitTooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+
+      return content;
+    }
+
+    const content = (
+      <span
+        className={cn('text-caption', onLimitClick && 'cursor-pointer')}
+        onClick={onLimitClick}
+        role={onLimitClick ? 'button' : undefined}
+        tabIndex={onLimitClick ? 0 : undefined}
+        onKeyDown={onLimitClick ? (e) => e.key === 'Enter' && onLimitClick() : undefined}
+      >
+        of {formatSpendAmount(display.limit!)}
+        <span className="ml-1 opacity-70">({Math.round(display.percentUsed)}%)</span>
+      </span>
+    );
+
+    if (limitTooltip && onLimitClick) {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>{content}</TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{limitTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return content;
+  };
+
   return (
     <div className={cn('w-full', className)}>
       {/* Labels */}
       {showLabels && (
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
-          <span className={cn('text-title', textColor)}>
-            {formatSpendAmount(display.currentSpend)}
-            {currentMonth && (
-              <span className="text-caption ml-1 font-normal text-muted-foreground">
-                in {formatMonthName(currentMonth)}
-              </span>
-            )}
-          </span>
-          <span className="text-caption">
-            {display.isUnlimited ? (
-              'No limit'
-            ) : (
-              <>
-                of {formatSpendAmount(display.limit!)}
-                <span className="ml-1 opacity-70">({Math.round(display.percentUsed)}%)</span>
-              </>
-            )}
-          </span>
+          {renderSpendValue()}
+          {renderLimitValue()}
         </div>
       )}
 

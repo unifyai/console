@@ -5,13 +5,14 @@
  * - Loading state
  * - Error state with retry
  * - Normal display with spending data
- * - Edit button visibility based on canEdit prop
+ * - Clickable spend value (opens usage)
+ * - Clickable limit value (opens edit dialog when canEdit)
+ * - Info icon tooltip
  * - Month formatting
- * - View Usage link with assistant filter
  */
 
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AssistantSpendingSection } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSpendingSection';
@@ -38,6 +39,17 @@ describe('AssistantSpendingSection', () => {
     onRefresh: vi.fn(),
     canEdit: true,
   };
+
+  // Mock window.open for testing clickable spend value
+  let windowOpenSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+  });
+
+  afterEach(() => {
+    windowOpenSpy.mockRestore();
+  });
 
   // ===========================================================================
   // Loading State
@@ -138,20 +150,106 @@ describe('AssistantSpendingSection', () => {
   });
 
   // ===========================================================================
-  // Edit Button
+  // Info Icon
   // ===========================================================================
 
-  describe('edit button', () => {
-    it('shows edit button when canEdit is true', () => {
-      render(<AssistantSpendingSection {...defaultProps} canEdit={true} />);
+  describe('info icon', () => {
+    it('shows info icon next to header', () => {
+      const { container } = render(<AssistantSpendingSection {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /edit limit/i })).toBeInTheDocument();
+      // Info icon should be present
+      const infoIcon = container.querySelector('.lucide-info');
+      expect(infoIcon).toBeInTheDocument();
+    });
+  });
+
+  // ===========================================================================
+  // Clickable Spend Value
+  // ===========================================================================
+
+  describe('clickable spend value', () => {
+    it('opens usage page when spend value is clicked', async () => {
+      const user = userEvent.setup();
+      render(<AssistantSpendingSection {...defaultProps} />);
+
+      // Find the spend value button
+      const spendButton = screen.getByRole('button', { name: /\$50\.00/i });
+      await user.click(spendButton);
+
+      // Should open the usage page in a new tab
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        '/usage?assistant=asst_test_123',
+        '_blank',
+        'noopener,noreferrer'
+      );
     });
 
-    it('hides edit button when canEdit is false', () => {
+    it('encodes special characters in assistant ID for usage URL', async () => {
+      const user = userEvent.setup();
+      render(<AssistantSpendingSection {...defaultProps} assistantId="asst/special&id" />);
+
+      const spendButton = screen.getByRole('button', { name: /\$50\.00/i });
+      await user.click(spendButton);
+
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        `/usage?assistant=${encodeURIComponent('asst/special&id')}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+
+    it('spend value is clickable even when canEdit is false', async () => {
+      const user = userEvent.setup();
       render(<AssistantSpendingSection {...defaultProps} canEdit={false} />);
 
-      expect(screen.queryByRole('button', { name: /edit limit/i })).not.toBeInTheDocument();
+      const spendButton = screen.getByRole('button', { name: /\$50\.00/i });
+      await user.click(spendButton);
+
+      expect(windowOpenSpy).toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // Clickable Limit Value
+  // ===========================================================================
+
+  describe('clickable limit value', () => {
+    it('limit value is clickable when canEdit is true', () => {
+      render(<AssistantSpendingSection {...defaultProps} canEdit={true} />);
+
+      // Limit value should have role="button"
+      const limitButton = screen.getByRole('button', { name: /of \$100\.00/i });
+      expect(limitButton).toBeInTheDocument();
+    });
+
+    it('limit value is NOT clickable when canEdit is false', () => {
+      render(<AssistantSpendingSection {...defaultProps} canEdit={false} />);
+
+      // Limit value should NOT have role="button" when canEdit is false
+      const limitButton = screen.queryByRole('button', { name: /of \$100\.00/i });
+      expect(limitButton).not.toBeInTheDocument();
+
+      // But the text should still be visible
+      expect(screen.getByText(/of \$100\.00/)).toBeInTheDocument();
+    });
+
+    it('"No limit" is clickable when canEdit is true and limit is unlimited', () => {
+      const unlimitedDisplay: SpendingDisplayProps = {
+        ...mockDisplay,
+        limit: null,
+        isUnlimited: true,
+      };
+
+      render(
+        <AssistantSpendingSection
+          {...defaultProps}
+          display={unlimitedDisplay}
+          currentLimit={null}
+        />
+      );
+
+      const limitButton = screen.getByRole('button', { name: /no limit/i });
+      expect(limitButton).toBeInTheDocument();
     });
   });
 
@@ -211,37 +309,6 @@ describe('AssistantSpendingSection', () => {
       );
 
       expect(screen.getByText('No spending data available')).toBeInTheDocument();
-    });
-  });
-
-  // ===========================================================================
-  // View Usage Link
-  // ===========================================================================
-
-  describe('view usage link', () => {
-    it('renders View Usage link with correct assistant filter', () => {
-      render(<AssistantSpendingSection {...defaultProps} />);
-
-      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
-      expect(viewUsageLink).toBeInTheDocument();
-      expect(viewUsageLink).toHaveAttribute('href', '/usage?assistant=asst_test_123');
-    });
-
-    it('encodes special characters in assistant ID', () => {
-      render(<AssistantSpendingSection {...defaultProps} assistantId="asst/special&id" />);
-
-      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
-      expect(viewUsageLink).toHaveAttribute(
-        'href',
-        `/usage?assistant=${encodeURIComponent('asst/special&id')}`
-      );
-    });
-
-    it('shows View Usage link even when canEdit is false', () => {
-      render(<AssistantSpendingSection {...defaultProps} canEdit={false} />);
-
-      const viewUsageLink = screen.getByRole('link', { name: /view usage/i });
-      expect(viewUsageLink).toBeInTheDocument();
     });
   });
 });

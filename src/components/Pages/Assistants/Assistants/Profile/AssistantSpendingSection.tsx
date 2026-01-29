@@ -4,19 +4,19 @@
  * Features:
  * - Shows current month's cumulative spend with progress bar
  * - Displays spending limit (or "Unlimited" if none set)
- * - Click to edit spending limit (if user has write access)
+ * - Click spend value to view full usage data
+ * - Click limit value to edit spending limit (if user has write access)
  * - Loading and error states
- * - Link to view detailed usage for this assistant
  */
 
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingProgressBar } from './SpendingProgressBar';
 import { SpendingLimitDialog } from './SpendingLimitDialog';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
@@ -126,40 +126,50 @@ export function AssistantSpendingSection({
     );
   }
 
+  const handleSpendClick = () => {
+    window.open(viewUsageUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleLimitClick = () => {
+    if (canEdit) {
+      setIsDialogOpen(true);
+    }
+  };
+
   return (
     <div className={cn('space-y-3', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
         <h3 className="text-title flex items-center gap-2">
           Monthly Spending
           {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </h3>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="text-caption h-auto gap-1 px-2 py-1 hover:text-foreground"
-          >
-            <Link href={viewUsageUrl} target="_blank" rel="noopener noreferrer">
-              View Usage
-            </Link>
-          </Button>
-          {canEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsDialogOpen(true)}
-              className="text-caption h-auto gap-1 p-1 hover:text-foreground"
-            >
-              Edit Limit
-            </Button>
-          )}
-        </div>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground hover:text-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-sm">
+              <p>
+                Spending tracks billable activity like working on tasks, communicating, etc.
+                Spending may slightly exceed the limit if activity is ongoing when the limit is
+                reached.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
-      {/* Progress bar */}
-      <SpendingProgressBar display={display} size="md" currentMonth={currentMonth} />
+      {/* Progress bar with clickable values */}
+      <SpendingProgressBar
+        display={display}
+        size="md"
+        currentMonth={currentMonth}
+        onSpendClick={handleSpendClick}
+        onLimitClick={canEdit ? handleLimitClick : undefined}
+        spendTooltip="View full usage data"
+        limitTooltip={canEdit ? "Set assistant's limit" : undefined}
+      />
 
       {/* Edit dialog */}
       <SpendingLimitDialog
