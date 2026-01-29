@@ -147,9 +147,9 @@ export function AssistantSpendingSection({
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground hover:text-foreground" />
+              <Info className="text-label h-3.5 w-3.5 cursor-help" />
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-sm">
+            <TooltipContent side="right" className="text-label max-w-xs">
               <p>
                 Spending tracks billable activity like working on tasks, communicating, etc.
                 Spending may slightly exceed the limit if activity is ongoing when the limit is

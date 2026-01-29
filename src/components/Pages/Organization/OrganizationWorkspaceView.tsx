@@ -68,7 +68,7 @@ interface OrganizationWorkspaceViewProps {
 
   isLoadingMembers: boolean;
   onDeleteOrg: () => void;
-  onUpdateOrg: (name: string) => void;
+  onUpdateOrg: (name: string, timezone?: string | null) => void;
   onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
   onCancelInvite: (inviteId: string) => void;
   onResendInvite: (email: string) => void;
@@ -360,7 +360,11 @@ const OrganizationWorkspaceView = ({
 
           <div className="flex items-center gap-2">
             {canUpdateOrg && (
-              <UpdateOrgDialog currentName={organization.name} onUpdate={onUpdateOrg} />
+              <UpdateOrgDialog
+                currentName={organization.name}
+                currentTimezone={organization.timezone}
+                onUpdate={onUpdateOrg}
+              />
             )}
             {canDeleteOrg && (
               <DeleteOrganizationDialog

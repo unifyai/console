@@ -85,12 +85,22 @@ export const createOrganizationAction = async (apiKey: string) => {
 };
 
 export const updateOrganizationAction = async (apiKey: string) => {
-  return async (orgId: number, name: string): Promise<Organization | ResponseProps> => {
+  return async (
+    orgId: number,
+    name: string,
+    timezone?: string | null
+  ): Promise<Organization | ResponseProps> => {
     'use server';
     const client = createOrchestraClient(apiKey);
+
+    // Build the update body, only including fields that are provided
+    const body: { name?: string; timezone?: string | null } = {};
+    if (name) body.name = name;
+    if (timezone !== undefined) body.timezone = timezone;
+
     const { data, error, response } = await client.PATCH('/v0/organizations/{organization_id}', {
       params: { path: { organization_id: orgId } },
-      body: { name } as never,
+      body: body as never,
     });
 
     if (error) {

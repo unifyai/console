@@ -418,31 +418,66 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   ]);
 
   React.useEffect(() => {
-    setIsLoadingSocialPlatforms(true);
-    assistantActions.contact
-      .listAvailableSocialPlatforms()
-      .then((result) => {
+    let isMounted = true;
+    const maxRetries = 3;
+    const baseDelayMs = 2000;
+
+    const fetchWithRetry = async (attempt = 1): Promise<void> => {
+      try {
+        const result = await assistantActions.contact.listAvailableSocialPlatforms();
+
+        if (!isMounted) return;
+
         if (Array.isArray(result)) {
           setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
+          setIsLoadingSocialPlatforms(false);
         } else {
           const backendError =
             (result as ResponseProps).detail || 'Could not fetch social platforms.';
           console.error('[Main.tsx] Error fetching social platforms:', backendError);
-          toast.error('Failed to fetch social platforms.');
-          setAvailableSocialPlatforms([]);
+
+          // Retry on error response if attempts remaining
+          if (attempt < maxRetries) {
+            const delay = baseDelayMs * Math.pow(2, attempt - 1);
+            console.log(
+              `[Main.tsx] Retrying social platforms fetch in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+            );
+            setTimeout(() => fetchWithRetry(attempt + 1), delay);
+          } else {
+            // No toast on final failure - this is a non-critical feature
+            setAvailableSocialPlatforms([]);
+            setIsLoadingSocialPlatforms(false);
+          }
         }
-      })
-      .catch((err) => {
+      } catch (err) {
+        if (!isMounted) return;
+
         console.error(
-          '[Main.tsx] An unexpected error occurred while fetching social platforms:',
+          `[Main.tsx] Error fetching social platforms (attempt ${attempt}/${maxRetries}):`,
           err
         );
-        toast.error('Failed to fetch social platforms.');
-        setAvailableSocialPlatforms([]);
-      })
-      .finally(() => {
-        setIsLoadingSocialPlatforms(false);
-      });
+
+        // Retry on exception if attempts remaining
+        if (attempt < maxRetries) {
+          const delay = baseDelayMs * Math.pow(2, attempt - 1);
+          console.log(
+            `[Main.tsx] Retrying social platforms fetch in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+          );
+          setTimeout(() => fetchWithRetry(attempt + 1), delay);
+        } else {
+          // No toast on final failure - this is a non-critical feature
+          setAvailableSocialPlatforms([]);
+          setIsLoadingSocialPlatforms(false);
+        }
+      }
+    };
+
+    setIsLoadingSocialPlatforms(true);
+    fetchWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
   }, [assistantActions.contact]);
 
   const {

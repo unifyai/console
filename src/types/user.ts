@@ -40,6 +40,7 @@ export interface UserOrganization {
   roleId: number;
   roleName: string;
   apiKey: string;
+  timezone?: string | null;
 }
 
 export interface UserWorkspace {

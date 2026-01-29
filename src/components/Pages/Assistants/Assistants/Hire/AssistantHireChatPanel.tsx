@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
 import { RenderContentWithEmbeds, containsEmbedUrl } from '@/components/Chat';
+import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
 interface AssistantHireChatPanelProps {
   onClose: () => void;
@@ -243,6 +244,11 @@ export function AssistantHireChatPanel({
 
       {/* Input Area */}
       <form onSubmit={sendMessage} className="border-t bg-background p-4">
+        <div className="mb-2 text-left">
+          <span className="text-caption text-muted-foreground">
+            `Cost: {PRE_HIRE_CHAT_MESSAGE_COST} credits per message`
+          </span>
+        </div>
         <div className="relative">
           <Input
             placeholder="Send a message..."
