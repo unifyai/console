@@ -172,6 +172,7 @@ Configuration is in `.eslintrc.json`:
 - **Manual trigger**: Use the "Run workflow" button in GitHub Actions
 
 Examples:
+
 ```bash
 # Run tests on this commit
 git commit -m "Fix interface rendering [run-tests]"
