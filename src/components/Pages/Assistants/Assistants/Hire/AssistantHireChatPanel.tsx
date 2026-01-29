@@ -122,15 +122,14 @@ export function AssistantHireChatPanel({
   const bio = watch('about');
   const displayName = `${firstName} ${surname}`;
 
-  const {
-    messages,
-    inputValue,
-    isLoading,
-    handleInputChange,
-    sendMessage,
-    userMessageCount,
-    USER_MESSAGE_LIMIT,
-  } = useAssistantChat(firstName, age, bio, assistantConfigKey, chatHistories, setChatHistories);
+  const { messages, inputValue, isLoading, handleInputChange, sendMessage } = useAssistantChat(
+    firstName,
+    age,
+    bio,
+    assistantConfigKey,
+    chatHistories,
+    setChatHistories
+  );
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
 
@@ -158,7 +157,8 @@ export function AssistantHireChatPanel({
     prevScrollHeightRef.current = scrollHeight;
   }, [messages]);
 
-  const isChatDisabled = isLoading || userMessageCount >= USER_MESSAGE_LIMIT;
+  // Chat is only disabled while loading - no message limit since users pay per message
+  const isChatDisabled = isLoading;
 
   return (
     <div className="flex h-full w-full flex-col border-l bg-background">
@@ -245,11 +245,7 @@ export function AssistantHireChatPanel({
       <form onSubmit={sendMessage} className="border-t bg-background p-4">
         <div className="relative">
           <Input
-            placeholder={
-              userMessageCount >= USER_MESSAGE_LIMIT
-                ? 'Message limit reached.'
-                : 'Send a message...'
-            }
+            placeholder="Send a message..."
             value={inputValue}
             onChange={handleInputChange}
             disabled={isChatDisabled}

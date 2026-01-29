@@ -2,6 +2,7 @@
  * Unit tests for src/hooks/Assistants/useAssistantChat.ts
  *
  * Tests the pre-hire chat hook logic for managing chat state.
+ * Note: Message limits have been removed - users pay per message via credits.
  * Uses React Testing Library's renderHook.
  *
  * @group unit
@@ -150,15 +151,23 @@ describe('useAssistantChat', () => {
     );
 
     it(
-      'exposes USER_MESSAGE_LIMIT constant',
+      'exposes userMessageCount for tracking',
       {
         meta: {
-          alias: 'Chat-MessageLimit',
-          scenario: 'Hook exposes limit',
-          behavior: 'USER_MESSAGE_LIMIT is 10',
+          alias: 'Chat-UserMessageCount',
+          scenario: 'Hook exposes message count',
+          behavior: 'userMessageCount is available for display purposes',
         },
       },
       () => {
+        // Arrange
+        histories = {
+          [configKey]: [
+            { id: '1', role: 'assistant', content: 'Hi', timestamp: new Date() },
+            { id: '2', role: 'user', content: 'Hello', timestamp: new Date() },
+          ],
+        };
+
         // Act
         const { result } = renderHook(() =>
           useAssistantChat(
@@ -172,7 +181,7 @@ describe('useAssistantChat', () => {
         );
 
         // Assert
-        expect(result.current.USER_MESSAGE_LIMIT).toBe(10);
+        expect(result.current.userMessageCount).toBe(1);
       }
     );
   });
@@ -423,6 +432,308 @@ describe('useAssistantChat', () => {
         expect(result.current.isLoading).toBe(initialLoading);
         // Input should remain unchanged since send was blocked
         expect(result.current.inputValue).toBe('   ');
+      }
+    );
+
+    it(
+      'allows unlimited messages since users pay per message',
+      {
+        meta: {
+          alias: 'Chat-NoMessageLimit',
+          scenario: 'User has sent many messages',
+          behavior: 'No message limit enforced - credits are the limiter',
+        },
+      },
+      async () => {
+        // Arrange - setup history with many user messages
+        const manyMessages: ChatMessage[] = [];
+        for (let i = 0; i < 20; i++) {
+          manyMessages.push({
+            id: `${i * 2}`,
+            role: 'user',
+            content: `Message ${i}`,
+            timestamp: new Date(),
+          });
+          manyMessages.push({
+            id: `${i * 2 + 1}`,
+            role: 'assistant',
+            content: `Response ${i}`,
+            timestamp: new Date(),
+          });
+        }
+        histories = { [configKey]: manyMessages };
+
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          content: 'Response to message 21',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Message 21' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert - message was sent (no limit)
+        expect(sendPreHireChatMessage).toHaveBeenCalled();
+      }
+    );
+  });
+
+  describe('Error Handling', () => {
+    beforeEach(() => {
+      histories = {
+        [configKey]: [{ id: '1', role: 'assistant', content: 'Hi', timestamp: new Date() }],
+      };
+    });
+
+    it(
+      'handles INSUFFICIENT_CREDITS error with friendly message',
+      {
+        meta: {
+          alias: 'Chat-InsufficientCredits',
+          scenario: 'Server returns INSUFFICIENT_CREDITS error',
+          behavior: 'Displays friendly message with billing link',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          error: 'INSUFFICIENT_CREDITS',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Hello' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert - setHistories should have been called with the insufficient credits message
+        // The last call should update the placeholder with the friendly message
+        const calls = vi.mocked(setHistories).mock.calls;
+        const lastUpdater = calls[calls.length - 1][0];
+        if (typeof lastUpdater === 'function') {
+          const updatedHistories = lastUpdater(histories);
+          const lastMessage = updatedHistories[configKey]?.[updatedHistories[configKey].length - 1];
+          expect(lastMessage?.content).toContain('credits');
+          expect(lastMessage?.content).toContain('billing');
+        }
+      }
+    );
+
+    it(
+      'handles generic errors with toast notification',
+      {
+        meta: {
+          alias: 'Chat-GenericError',
+          scenario: 'Server returns unexpected error',
+          behavior: 'Shows toast error and removes placeholder',
+        },
+      },
+      async () => {
+        // Arrange
+        const { toast } = await import('sonner');
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          error: 'Some unexpected error',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Hello' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert
+        expect(toast.error).toHaveBeenCalledWith('Failed to get a response. Please try again.');
+      }
+    );
+
+    it(
+      'clears loading state after error',
+      {
+        meta: {
+          alias: 'Chat-LoadingClearedOnError',
+          scenario: 'Message send fails',
+          behavior: 'isLoading returns to false',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          error: 'Network error',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Hello' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert
+        expect(result.current.isLoading).toBe(false);
+      }
+    );
+  });
+
+  describe('Successful Message Send', () => {
+    beforeEach(() => {
+      histories = {
+        [configKey]: [{ id: '1', role: 'assistant', content: 'Hi', timestamp: new Date() }],
+      };
+    });
+
+    it(
+      'clears input after successful send',
+      {
+        meta: {
+          alias: 'Chat-ClearsInputOnSuccess',
+          scenario: 'Message sent successfully',
+          behavior: 'inputValue is cleared immediately',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          content: 'Response',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Hello' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert
+        expect(result.current.inputValue).toBe('');
+      }
+    );
+
+    it(
+      'passes correct parameters to sendPreHireChatMessage',
+      {
+        meta: {
+          alias: 'Chat-CorrectParams',
+          scenario: 'Message is sent',
+          behavior: 'Server action receives correct parameters',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.mocked(sendPreHireChatMessage).mockResolvedValue({
+          content: 'Response',
+        });
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantChat(
+            assistantFirstName,
+            assistantAge,
+            assistantBio,
+            configKey,
+            histories,
+            setHistories
+          )
+        );
+
+        act(() => {
+          result.current.handleInputChange({
+            target: { value: 'Hello assistant' },
+          } as React.ChangeEvent<HTMLInputElement>);
+        });
+
+        await act(async () => {
+          await result.current.sendMessage({ preventDefault: vi.fn() } as any);
+        });
+
+        // Assert
+        expect(sendPreHireChatMessage).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ role: 'assistant', content: 'Hi' }),
+            expect.objectContaining({ role: 'user', content: 'Hello assistant' }),
+          ]),
+          assistantFirstName,
+          assistantAge,
+          assistantBio
+        );
       }
     );
   });
