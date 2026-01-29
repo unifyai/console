@@ -13,7 +13,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { AlertCircle, Loader2, BarChart3 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -44,15 +44,6 @@ export interface AssistantSpendingSectionProps {
   canEdit?: boolean;
   /** Optional additional class names */
   className?: string;
-}
-
-/**
- * Format month for display (YYYY-MM → "January 2026")
- */
-function formatMonthDisplay(month: string): string {
-  const [year, monthNum] = month.split('-');
-  const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
 export function AssistantSpendingSection({
@@ -88,9 +79,14 @@ export function AssistantSpendingSection({
         <div className="flex items-center justify-between">
           <h3 className="text-title flex items-center gap-2">Monthly Spending</h3>
         </div>
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-2 w-full" />
-        <Skeleton className="h-3 w-1/2" />
+        {/* Matches SpendingProgressBar layout: labels row + progress bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <Skeleton className="h-4 w-28 bg-muted" /> {/* "$45.00 in January" */}
+            <Skeleton className="h-3 w-24 bg-muted" /> {/* "of $100.00 (45%)" */}
+          </div>
+          <Skeleton className="h-2 w-full rounded-full bg-muted" /> {/* Progress bar */}
+        </div>
       </div>
     );
   }
@@ -154,7 +150,7 @@ export function AssistantSpendingSection({
               variant="ghost"
               size="sm"
               onClick={() => setIsDialogOpen(true)}
-              className="text-caption h-auto gap-1 px-2 py-1 hover:text-foreground"
+              className="text-caption h-auto gap-1 p-1 hover:text-foreground"
             >
               Edit Limit
             </Button>
@@ -162,11 +158,8 @@ export function AssistantSpendingSection({
         </div>
       </div>
 
-      {/* Month indicator */}
-      <p className="text-caption">{formatMonthDisplay(currentMonth)}</p>
-
       {/* Progress bar */}
-      <SpendingProgressBar display={display} size="md" />
+      <SpendingProgressBar display={display} size="md" currentMonth={currentMonth} />
 
       {/* Edit dialog */}
       <SpendingLimitDialog

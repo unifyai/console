@@ -84,10 +84,11 @@ export function SpendingLimitDialog({
     try {
       const result = await onSave(newLimit);
       if (!result.success) {
-        setError(result.error || 'Failed to save spending limit');
+        // Show generic error to avoid exposing backend details
+        setError('Unable to update spending limit. Please try again.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError('Unable to update spending limit. Please try again.');
     } finally {
       setIsSaving(false);
     }
