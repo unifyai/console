@@ -5,48 +5,9 @@ import * as PopoverPrimitive from '@radix-ui/react-popover';
 
 import { cn } from '@/lib/utils';
 
-// Wrapper to add logging to Popover
-const Popover = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>
->(({ open, onOpenChange, ...props }, ref) => {
-  console.log('[ContextSwitch] Popover rendered', { open });
+const Popover = PopoverPrimitive.Root;
 
-  const handleOpenChange = React.useCallback(
-    (newOpen: boolean) => {
-      console.log('[ContextSwitch] Popover onOpenChange called', {
-        newOpen,
-        currentOpen: open,
-      });
-      onOpenChange?.(newOpen);
-    },
-    [open, onOpenChange]
-  );
-
-  return <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props} />;
-});
-Popover.displayName = 'Popover';
-
-// Wrapper to add logging to PopoverTrigger
-const PopoverTrigger = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger>
->(({ onClick, ...props }, ref) => {
-  const handleClick = React.useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      console.log('[ContextSwitch] PopoverTrigger clicked', {
-        target: e.target,
-        currentTarget: e.currentTarget,
-        defaultPrevented: e.defaultPrevented,
-      });
-      onClick?.(e);
-    },
-    [onClick]
-  );
-
-  return <PopoverPrimitive.Trigger ref={ref} onClick={handleClick} {...props} />;
-});
-PopoverTrigger.displayName = 'PopoverTrigger';
+const PopoverTrigger = PopoverPrimitive.Trigger;
 
 const PopoverAnchor = PopoverPrimitive.Anchor;
 

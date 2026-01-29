@@ -59,44 +59,11 @@ const ContextSelector = ({
   withButtonText?: boolean;
   text?: string;
 }) => {
-  console.log('[ContextSwitch] ContextSelector rendered', {
-    tileId,
-    tabId,
-    interfaceId,
-    projectId,
-    context,
-    customOpen,
-    withButtonText,
-    text,
-  });
-
-  const [internalOpen, setInternalOpenRaw] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [start, setStart] = useState(true);
 
-  // Wrap setInternalOpen with logging
-  const setInternalOpen = (value: boolean) => {
-    console.log('[ContextSwitch] ContextSelector setInternalOpen called', {
-      currentValue: internalOpen,
-      newValue: value,
-      tileId,
-      projectId,
-    });
-    setInternalOpenRaw(value);
-  };
-
   const open = customOpen == undefined ? internalOpen : customOpen;
-  const setOpen =
-    setCustomOpen == undefined
-      ? setInternalOpen
-      : (value: boolean) => {
-          console.log('[ContextSwitch] ContextSelector setCustomOpen called', {
-            currentValue: customOpen,
-            newValue: value,
-            tileId,
-            projectId,
-          });
-          setCustomOpen?.(value);
-        };
+  const setOpen = setCustomOpen == undefined ? setInternalOpen : setCustomOpen;
 
   const { dataActions: projectDataActions } = useProjectData(projectId || null);
   const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
@@ -126,7 +93,6 @@ const ContextSelector = ({
   }, [listContextsQuery.data, projectDataActions]);
 
   const onOpen = () => {
-    console.log('[ContextSwitch] ContextSelector onOpen called - refetching contexts');
     // Refetch contexts using React Query
     listContextsQuery.refetch();
   };
@@ -135,25 +101,14 @@ const ContextSelector = ({
     // Handle both direct boolean values and state updater functions
     const isOpen = typeof value === 'function' ? value(open) : value;
 
-    console.log('[ContextSwitch] ContextSelector commonSetOpenHandler called', {
-      valueType: typeof value,
-      isOpen,
-      currentOpen: open,
-      start,
-      projectId,
-      hasContextActions: !!contextActions,
-    });
-
     if (isOpen && projectId && contextActions) {
       // Refetch contexts when opening
       onOpen();
     }
     if (start && isOpen && !open) {
-      console.log('[ContextSwitch] ContextSelector commonSetOpenHandler - opening (start path)');
       setOpen(true);
       setStart(false);
     } else {
-      console.log('[ContextSwitch] ContextSelector commonSetOpenHandler - closing');
       setOpen(false);
     }
   };
