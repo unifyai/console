@@ -28,12 +28,22 @@ export function snakeToCamel(str: string): string {
  * Convert a camelCase string to snake_case.
  * Preserves leading underscores for private/metadata fields.
  *
+ * Special exceptions: minW and minH are preserved as-is because the backend
+ * intentionally uses camelCase for these fields (there was a migration to rename
+ * min_width/min_height to minW/minH).
+ *
  * @example camelToSnake('userId') // 'user_id'
  * @example camelToSnake('createdAt') // 'created_at'
  * @example camelToSnake('_userId') // '_user_id' (preserves leading underscore)
  * @example camelToSnake('_assistant') // '_assistant'
+ * @example camelToSnake('minW') // 'minW' (exception - backend uses camelCase)
+ * @example camelToSnake('minH') // 'minH' (exception - backend uses camelCase)
  */
 export function camelToSnake(str: string): string {
+  // Exceptions: these fields use camelCase in the backend
+  if (str === 'minW' || str === 'minH') {
+    return str;
+  }
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
