@@ -34,7 +34,10 @@ import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
-import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
+import {
+  PRIMARY_VOICE_PROVIDER,
+  ASSISTANT_HIRE_COMPLETION_DELAY_MS,
+} from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
@@ -477,13 +480,17 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     (newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
       refreshAssistants(false);
       fetchUserVoices();
-      setIsHireDialogOpen(false);
-      setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
-      handleShowProfile(newAssistant.agentId);
       refreshHiringProfile();
-      if (formData.setup === 'local' && formData.operatingSystem) {
-        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
-      }
+
+      // Delay closing form and opening profile to allow user to see completion state
+      setTimeout(() => {
+        setIsHireDialogOpen(false);
+        setNewlyHiredInfo({ assistant: newAssistant, preHireChat });
+        handleShowProfile(newAssistant.agentId);
+        if (formData.setup === 'local' && formData.operatingSystem) {
+          setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
+        }
+      }, ASSISTANT_HIRE_COMPLETION_DELAY_MS);
     },
     [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]
   );
