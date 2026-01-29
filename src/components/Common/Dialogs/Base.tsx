@@ -48,22 +48,7 @@ export default function BaseDialog({
   style: incomingStyle,
   ...restContentProps
 }: BaseDialogProps) {
-  console.log('[ContextSwitch] BaseDialog rendered', {
-    title,
-    open,
-    disabled,
-    context,
-    hasSetOpen: !!setOpen,
-    hasOnOpen: !!onOpen,
-  });
-
   const onOpenChange = (o: boolean) => {
-    console.log('[ContextSwitch] BaseDialog onOpenChange called', {
-      newOpen: o,
-      currentOpen: open,
-      title,
-      context,
-    });
     if (onOpen && o) onOpen();
     if (setOpen) setOpen(o);
   };
