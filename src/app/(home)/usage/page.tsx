@@ -23,7 +23,7 @@ interface UsagePageProps {
  * Usage Page
  *
  * Displays a bar chart visualization of billed_cost over time,
- * allowing users to track LLM credit usage across assistants.
+ * allowing users to track billable activity across assistants.
  *
  * Supports URL query parameters:
  * - `assistant`: Pre-filter by assistant ID (from assistant profile "View Usage" link)

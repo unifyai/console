@@ -115,9 +115,8 @@ export function UsageSummaryCards({
         testId="summary-card-total"
         infoTooltip={
           <p className="text-body">
-            <strong>Billed Cost</strong> represents the total LLM credits consumed by your
-            assistant(s). This includes all API calls, token usage, and any associated processing
-            fees.
+            <strong>Billed Cost</strong> represents the total credits consumed by your assistant(s)
+            when performing any task, thinking, or communicating. fees.
           </p>
         }
       />

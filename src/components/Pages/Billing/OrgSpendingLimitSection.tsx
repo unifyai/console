@@ -172,8 +172,8 @@ export function OrgSpendingLimitSection({
               <p>No spending limit is set for this organization.</p>
             ) : display.isOverLimit ? (
               <p className="text-destructive">
-                This organization has exceeded its monthly spending limit. New LLM calls may be
-                blocked.
+                This organization has exceeded its monthly spending limit. Billable activity will be
+                blocked immediately.
               </p>
             ) : display.isNearLimit ? (
               <p className="text-amber-600 dark:text-amber-500">

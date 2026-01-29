@@ -237,7 +237,7 @@ export function MemberSpendingDialog({
                   <div className="flex items-start gap-2 rounded-md bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-500">
                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                     <span>
-                      This limit is at or below current spend. LLM calls will be blocked
+                      This limit is at or below current spend. Billable activity will be blocked
                       immediately.
                     </span>
                   </div>

@@ -161,8 +161,8 @@ export function UserSpendingLimitSection({
               <p>No spending limit is set for your personal workspace.</p>
             ) : display.isOverLimit ? (
               <p className="text-destructive">
-                You have exceeded your monthly personal spending limit. New LLM calls may be
-                blocked.
+                You have exceeded your monthly personal spending limit. Billable activity will be
+                blocked immediately.
               </p>
             ) : display.isNearLimit ? (
               <p className="text-amber-600 dark:text-amber-500">
