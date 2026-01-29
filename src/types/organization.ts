@@ -28,6 +28,7 @@ export interface Organization {
   roleId?: number;
   roleName?: string;
   apiKey?: string;
+  timezone?: string | null;
 }
 
 export interface OrganizationMember {
@@ -100,7 +101,11 @@ export interface UserOrganizationCheckResult {
 export interface OrganizationActions {
   createOrg: (name: string) => Promise<Organization | ResponseProps>;
   deleteOrg: (id: number) => Promise<void | ResponseProps>;
-  updateOrg: (orgId: number, name: string) => Promise<Organization | ResponseProps>;
+  updateOrg: (
+    orgId: number,
+    name: string,
+    timezone?: string | null
+  ) => Promise<Organization | ResponseProps>;
   inviteMember: (orgId: number, email: string, roleId?: number) => Promise<void | ResponseProps>;
   removeMember: (orgId: number, userId: string) => Promise<void | ResponseProps>;
   updateRole: (orgId: number, userId: string, roleId: number) => Promise<void | ResponseProps>;

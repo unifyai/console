@@ -25,6 +25,7 @@ const OrganizationPage = async () => {
       roleId: org.roleId,
       roleName: org.roleName,
       apiKey: org.apiKey,
+      timezone: org.timezone,
     })) || [];
 
   const orgActions = {

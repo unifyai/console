@@ -147,18 +147,24 @@ export const useOrganization = (
     }
   };
 
-  const handleUpdateOrg = async (name: string) => {
+  const handleUpdateOrg = async (name: string, timezone?: string | null) => {
     if (!currentOrg) return;
     setIsLoading(true);
     try {
-      const result = await actions.updateOrg(currentOrg.id, name);
+      const result = await actions.updateOrg(currentOrg.id, name, timezone);
       if ('detail' in result) {
         toast.error(result.detail);
       } else {
-        const updatedOrg = result as Organization;
+        const apiOrg = result as Organization;
+        // Merge current org with API response and explicitly set the timezone we sent
+        // This ensures timezone is preserved even if the API doesn't return it
+        const updatedOrg: Organization = {
+          ...currentOrg,
+          ...apiOrg,
+          timezone: timezone !== undefined ? timezone : currentOrg.timezone,
+        };
         setOrganizations((prev) => prev.map((o) => (o.id === updatedOrg.id ? updatedOrg : o)));
         toast.success('Organization updated successfully');
-        router.refresh();
       }
     } catch (error) {
       toast.error('Failed to update organization');
