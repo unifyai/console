@@ -43,6 +43,11 @@ import { Room } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
+import { useUserSpending } from '@/hooks/User/useUserSpending';
+import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
+import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
+import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
+import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 interface MainProps {
   taskActions: TaskActions;
@@ -274,6 +279,80 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   } = useAssistantCall(room, assistantActions);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
   const [isCallMinimized, setIsCallMinimized] = React.useState(false);
+
+  // --- User/Org Spending for Spending Gate ---
+  // Stable disabled action functions (defined once, never changes)
+  const disabledAction = React.useCallback(async () => ({ detail: 'disabled' }) as const, []);
+
+  // User spending (personal workspace or member spending)
+  const userSpendingConfig = React.useMemo(() => {
+    if (!assistantActions.userSpending) {
+      return {
+        getSpendAction: disabledAction,
+        getLimitAction: disabledAction,
+        setLimitAction: disabledAction,
+        enablePolling: false,
+      };
+    }
+    return {
+      getSpendAction: assistantActions.userSpending.getSpend,
+      getLimitAction: assistantActions.userSpending.getLimit,
+      setLimitAction: disabledAction,
+      enablePolling: true,
+    };
+  }, [assistantActions.userSpending, disabledAction]);
+
+  const userSpendingData = useUserSpending(userSpendingConfig);
+
+  // Org spending (only in org context)
+  const orgSpendingConfig = React.useMemo(() => {
+    if (!assistantActions.orgSpending || !assistantActions.orgId) {
+      return {
+        orgId: 0,
+        getSpendAction: disabledAction,
+        getLimitAction: disabledAction,
+        setLimitAction: disabledAction,
+        enablePolling: false,
+      };
+    }
+    const orgId = assistantActions.orgId;
+    return {
+      orgId,
+      getSpendAction: assistantActions.orgSpending.getSpend,
+      getLimitAction: assistantActions.orgSpending.getLimit,
+      setLimitAction: disabledAction,
+      enablePolling: true,
+    };
+  }, [assistantActions.orgSpending, assistantActions.orgId, disabledAction]);
+
+  const orgSpendingData = useOrgSpending(orgSpendingConfig);
+
+  // Track assistant spending display for currently selected profile assistant
+  // This will be set by the AssistantProfilePanel when it loads spending data
+  const [profileAssistantSpending, setProfileAssistantSpending] =
+    React.useState<SpendingDisplayProps | null>(null);
+
+  // Compute spending gate status
+  // Check enablePolling to determine if spending data is actually enabled
+  const isUserSpendingEnabled = userSpendingConfig.enablePolling;
+  const isOrgSpendingEnabled = orgSpendingConfig.enablePolling;
+
+  const spendingGateStatus = useSpendingGate({
+    assistantSpending: profileAssistantSpending,
+    userSpending: isUserSpendingEnabled ? userSpendingData.display : null,
+    orgSpending: isOrgSpendingEnabled ? orgSpendingData.display : null,
+    isLoading:
+      (isUserSpendingEnabled ? userSpendingData.isLoading : false) ||
+      (isOrgSpendingEnabled ? orgSpendingData.isLoading : false),
+    isRefreshing:
+      (isUserSpendingEnabled ? userSpendingData.isRefreshing : false) ||
+      (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
+  });
+
+  // Reset assistant spending when profile changes
+  React.useEffect(() => {
+    setProfileAssistantSpending(null);
+  }, [profileAssistantId]);
 
   const handleStartCall = React.useCallback(
     async (assistant: Assistant, callType: 'video' | 'audio') => {
@@ -671,6 +750,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   userTimezone={userMeta.timezone}
                   canWrite={canWrite(profileAssistant)}
                   canDelete={canDelete(profileAssistant)}
+                  spendingGate={spendingGateStatus}
+                  onAssistantSpendingChange={setProfileAssistantSpending}
                 />
               </motion.div>,
               <motion.div

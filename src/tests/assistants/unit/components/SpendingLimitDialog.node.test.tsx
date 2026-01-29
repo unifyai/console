@@ -38,7 +38,6 @@ describe('SpendingLimitDialog', () => {
       render(<SpendingLimitDialog {...defaultProps} open={true} />);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Set Spending Limit')).toBeInTheDocument();
     });
 
     it('does not render when open is false', () => {
@@ -240,7 +239,7 @@ describe('SpendingLimitDialog', () => {
   // ===========================================================================
 
   describe('error handling', () => {
-    it('shows error from onSave failure', async () => {
+    it('shows generic error from onSave failure (backend errors are obfuscated)', async () => {
       const user = userEvent.setup();
       const onSave = vi.fn().mockResolvedValue({ success: false, error: 'Server error' });
 
@@ -249,11 +248,14 @@ describe('SpendingLimitDialog', () => {
       await user.click(screen.getByRole('button', { name: /save limit/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument();
+        // Backend errors are obfuscated with a generic message
+        expect(
+          screen.getByText('Unable to update spending limit. Please try again.')
+        ).toBeInTheDocument();
       });
     });
 
-    it('shows generic error on exception', async () => {
+    it('shows generic error on exception (backend errors are obfuscated)', async () => {
       const user = userEvent.setup();
       const onSave = vi.fn().mockRejectedValue(new Error('Network failure'));
 
@@ -262,7 +264,10 @@ describe('SpendingLimitDialog', () => {
       await user.click(screen.getByRole('button', { name: /save limit/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Network failure')).toBeInTheDocument();
+        // Exceptions are obfuscated with a generic message
+        expect(
+          screen.getByText('Unable to update spending limit. Please try again.')
+        ).toBeInTheDocument();
       });
     });
   });

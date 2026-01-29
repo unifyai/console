@@ -15,6 +15,7 @@ import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/tim
 import { Button } from '@/components/UI/button';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { AssistantSpendingSection } from './AssistantSpendingSection';
+import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 interface AssistantProfileInfoPanelProps {
   assistant: Assistant;
@@ -24,6 +25,8 @@ interface AssistantProfileInfoPanelProps {
   canWrite?: boolean;
   /** Spending-related server actions (optional - if not provided, spending section is hidden) */
   spendingActions?: AssistantActions['spending'];
+  /** Callback when spending display data changes (for spending gate) */
+  onSpendingDisplayChange?: (display: SpendingDisplayProps | null) => void;
 }
 
 export function AssistantProfileInfoPanel({
@@ -32,6 +35,7 @@ export function AssistantProfileInfoPanel({
   onEdit,
   canWrite = true,
   spendingActions,
+  onSpendingDisplayChange,
 }: AssistantProfileInfoPanelProps) {
   const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
@@ -55,6 +59,13 @@ export function AssistantProfileInfoPanel({
           enablePolling: false,
         }
   );
+
+  // Notify parent of spending display changes (for spending gate)
+  React.useEffect(() => {
+    if (onSpendingDisplayChange) {
+      onSpendingDisplayChange(spendingData.display);
+    }
+  }, [spendingData.display, onSpendingDisplayChange]);
 
   const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profilePhoto ?? undefined);
   const videoSrc = assistant.signedProfileVideoUrl || (assistant.profileVideo ?? undefined);

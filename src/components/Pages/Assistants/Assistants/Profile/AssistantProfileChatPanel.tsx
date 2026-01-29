@@ -18,6 +18,7 @@ import {
   createAttachment,
   validateFile,
 } from '@/components/Chat';
+import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
 /* ---------------------
    ChatMessageBubble
@@ -109,6 +110,8 @@ interface AssistantProfileChatPanelProps {
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
   onFirstViewCompleted?: () => void;
+  /** Spending gate status for blocking new messages */
+  spendingGate?: SpendingGateStatus;
 }
 
 export function AssistantProfileChatPanel({
@@ -120,9 +123,13 @@ export function AssistantProfileChatPanel({
   isFirstView,
   preHireChat,
   onFirstViewCompleted,
+  spendingGate = DEFAULT_SPENDING_GATE_STATUS,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
+
+  // Spending gate blocks new messages when limit is reached
+  const isSpendingBlocked = spendingGate.isBlocked;
 
   const {
     messages,
@@ -466,7 +473,11 @@ export function AssistantProfileChatPanel({
               className="absolute bottom-1 left-1 h-7 w-7"
               onClick={() => fileInputRef.current?.click()}
               disabled={
-                !canChat || isLoading || initialLoadError || connectionStatus !== 'connected'
+                !canChat ||
+                isLoading ||
+                initialLoadError ||
+                connectionStatus !== 'connected' ||
+                isSpendingBlocked
               }
               aria-label="Attach files"
               data-testid="attach-button"
@@ -480,16 +491,22 @@ export function AssistantProfileChatPanel({
               placeholder={
                 !canChat
                   ? 'Chat disabled'
-                  : initialLoadError
-                    ? 'Connection failed'
-                    : isLoading
-                      ? 'Loading messages...'
-                      : 'Send a message...'
+                  : isSpendingBlocked
+                    ? spendingGate.blockedMessage || 'Spending limit reached'
+                    : initialLoadError
+                      ? 'Connection failed'
+                      : isLoading
+                        ? 'Loading messages...'
+                        : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
-                !canChat || isLoading || initialLoadError || connectionStatus !== 'connected'
+                !canChat ||
+                isLoading ||
+                initialLoadError ||
+                connectionStatus !== 'connected' ||
+                isSpendingBlocked
               }
               className="text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
               autoComplete="off"
@@ -507,7 +524,8 @@ export function AssistantProfileChatPanel({
                 isLoading ||
                 (!inputValue.trim() && pendingAttachments.length === 0) ||
                 initialLoadError ||
-                connectionStatus !== 'connected'
+                connectionStatus !== 'connected' ||
+                isSpendingBlocked
               }
             >
               {isLoading ? (

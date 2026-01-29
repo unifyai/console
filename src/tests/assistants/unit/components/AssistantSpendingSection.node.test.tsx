@@ -103,10 +103,11 @@ describe('AssistantSpendingSection', () => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    it('formats month correctly', () => {
+    it('formats month correctly (inline with amount)', () => {
       render(<AssistantSpendingSection {...defaultProps} currentMonth="2026-01" />);
 
-      expect(screen.getByText('January 2026')).toBeInTheDocument();
+      // Month is now displayed inline: "in January"
+      expect(screen.getByText(/in January/)).toBeInTheDocument();
     });
 
     it('shows limit info when limit is set', () => {
@@ -178,22 +179,23 @@ describe('AssistantSpendingSection', () => {
   });
 
   // ===========================================================================
-  // Month Formatting
+  // Month Formatting (Inline)
   // ===========================================================================
 
-  describe('month formatting', () => {
+  describe('month formatting (inline with amount)', () => {
     const testCases = [
-      { input: '2026-01', expected: 'January 2026' },
-      { input: '2026-06', expected: 'June 2026' },
-      { input: '2026-12', expected: 'December 2026' },
-      { input: '2025-03', expected: 'March 2025' },
+      { input: '2026-01', expected: 'January' },
+      { input: '2026-06', expected: 'June' },
+      { input: '2026-12', expected: 'December' },
+      { input: '2025-03', expected: 'March' },
     ];
 
     testCases.forEach(({ input, expected }) => {
-      it(`formats ${input} as "${expected}"`, () => {
+      it(`formats ${input} as "in ${expected}"`, () => {
         render(<AssistantSpendingSection {...defaultProps} currentMonth={input} />);
 
-        expect(screen.getByText(expected)).toBeInTheDocument();
+        // Month is displayed inline: "in {Month}" (without year)
+        expect(screen.getByText(new RegExp(`in ${expected}`))).toBeInTheDocument();
       });
     });
   });

@@ -450,4 +450,25 @@ export interface AssistantActions {
       (import('@/types/assistants/spending').SpendingLimitResponse & ResponseProps) | ResponseProps
     >;
   };
+  /** User spending actions (for personal workspace or member spending in org) */
+  userSpending?: {
+    getSpend: (
+      month?: string
+    ) => Promise<import('@/types/user/spending').UserSpend | ResponseProps>;
+    getLimit: () => Promise<
+      import('@/types/user/spending').UserSpendingLimitResponse | ResponseProps
+    >;
+  };
+  /** Organization spending actions (only in org context) */
+  orgSpending?: {
+    getSpend: (
+      orgId: number,
+      month?: string
+    ) => Promise<import('@/types/organization').OrgSpend | ResponseProps>;
+    getLimit: (
+      orgId: number
+    ) => Promise<import('@/types/organization').OrgSpendingLimitResponse | ResponseProps>;
+  };
+  /** Organization ID if in org context (null for personal workspace) */
+  orgId?: number | null;
 }

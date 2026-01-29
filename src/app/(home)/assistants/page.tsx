@@ -61,6 +61,9 @@ import {
   getAssistantSpendingLimit,
   setAssistantSpendingLimit,
 } from '@/lib/assistants/spending';
+import { getUserSpend, getUserSpendingLimit } from '@/lib/user/spending';
+import { getOrgSpend, getOrgSpendingLimit } from '@/lib/organizations/spending';
+import { cookies } from 'next/headers';
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
   const user = await getCurrentUser();
@@ -72,6 +75,17 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
   const userName = formatUserContext(user.name, user.lastName);
   const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
+
+  // Determine org ID from workspace cookie (same pattern as usage page)
+  const cookieStore = cookies();
+  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
+  let orgId: number | null = null;
+  if (workspaceId && workspaceId !== 'personal') {
+    const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
+    if (activeOrg) {
+      orgId = activeOrg.id;
+    }
+  }
 
   const assistantActions: AssistantActions = {
     assistant: {
@@ -139,6 +153,20 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       getLimit: await getAssistantSpendingLimit(apiKey),
       setLimit: await setAssistantSpendingLimit(apiKey),
     },
+    // User spending actions (for spending gate)
+    userSpending: {
+      getSpend: await getUserSpend(apiKey),
+      getLimit: await getUserSpendingLimit(apiKey),
+    },
+    // Org spending actions (only used if in org context)
+    orgSpending: orgId
+      ? {
+          getSpend: await getOrgSpend(apiKey),
+          getLimit: await getOrgSpendingLimit(apiKey),
+        }
+      : undefined,
+    // Pass org ID for spending gate context
+    orgId,
   };
 
   const taskActions: TaskActions = {

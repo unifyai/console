@@ -42,6 +42,10 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { AssistantResourcesManager } from './AssistantResourcesManager';
+import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
+import { SpendingDisplayProps } from '@/types/assistants/spending';
+import { Alert, AlertDescription } from '@/components/UI/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface AssistantProfilePanelProps {
   assistant: Assistant;
@@ -68,6 +72,10 @@ interface AssistantProfilePanelProps {
   canDelete?: boolean;
   /** Whether to show spending section (default: true if spending actions available) */
   showSpending?: boolean;
+  /** Spending gate status for blocking billable activity */
+  spendingGate?: SpendingGateStatus;
+  /** Callback when assistant spending data changes (for spending gate) */
+  onAssistantSpendingChange?: (display: SpendingDisplayProps | null) => void;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -125,22 +133,28 @@ export function AssistantProfilePanel({
   canWrite = true,
   canDelete = true,
   showSpending = true,
+  spendingGate = DEFAULT_SPENDING_GATE_STATUS,
+  onAssistantSpendingChange,
 }: AssistantProfilePanelProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
 
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
-  const isCallButtonDisabled = isAnotherCallActive;
+  // Block new calls if spending limit is reached (but allow returning to existing calls)
+  const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
+  const isCallButtonDisabled = isAnotherCallActive || isSpendingBlocked;
 
   const callButtonTooltip =
     isInThisCall && isConnectingCall
       ? 'Connecting call...'
       : isInThisCall
         ? 'Return to call'
-        : isAnotherCallActive
-          ? 'Another call is in progress'
-          : 'Start a call';
+        : isSpendingBlocked
+          ? spendingGate.blockedMessage || 'Spending limit reached'
+          : isAnotherCallActive
+            ? 'Another call is in progress'
+            : 'Start a call';
 
   const displayName = `${assistant.firstName} ${assistant.surname}`;
 
@@ -212,6 +226,7 @@ export function AssistantProfilePanel({
                   onEdit={() => onEdit(assistant)}
                   canWrite={canWrite}
                   spendingActions={showSpending ? assistantActions.spending : undefined}
+                  onSpendingDisplayChange={onAssistantSpendingChange}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -331,6 +346,7 @@ export function AssistantProfilePanel({
                   isFirstView={isFirstView}
                   preHireChat={preHireChat}
                   onFirstViewCompleted={onFirstViewCompleted}
+                  spendingGate={spendingGate}
                 />
               </AccordionContent>
             </AccordionItem>
