@@ -63,6 +63,7 @@ import GlobalFilter from './Buttons/GlobalFilter';
 import PageController from '@/components/Common/Tables/Data/Buttons/PageController';
 import InfiniteScrollController from '@/components/Common/Tables/Data/Buttons/InfiniteScrollController';
 import { extractBaseAndComparisonLogs } from '@/utils/interfaces/selection/selection';
+import { extractLogsData } from '@/utils/interfaces/common';
 import FreezeLogs from './Buttons/FreezeLogs';
 import RefreshLogs from './Buttons/RefreshLogs';
 import { buildFilterExpression, searchParamToFilters } from '@/utils/interfaces/table/filters';
@@ -264,6 +265,58 @@ const LogsTable = ({
     prevContextForOverlayRef.current = item?.context;
   }, [projectId, item?.context]);
 
+  // Enhanced wrapper for updateLogs that derives entriesProperties when needed
+  // This fixes the bug where context switch clears entriesProperties but updateLogs
+  // never repopulates it, causing empty table cells.
+  const enhancedUpdateLogs = useCallback(
+    (
+      logsData: Parameters<typeof updateLogs>[0],
+      mode: Parameters<typeof updateLogs>[1],
+      targetGroupId?: string | null,
+      targetGroupFilters?: [string, string][],
+      preConvertedLogs?: Parameters<typeof updateLogs>[4],
+      windowConfig?: Parameters<typeof updateLogs>[5],
+      currentOffsets?: Parameters<typeof updateLogs>[6]
+    ) => {
+      let derivedEntriesProperties: string[] | undefined;
+      const currentEntriesProperties = entriesProperties || [];
+
+      // If entriesProperties is empty but we have logs data, derive it
+      if (
+        currentEntriesProperties.length === 0 &&
+        logsData.logs &&
+        (Array.isArray(logsData.logs)
+          ? logsData.logs.length > 0
+          : Object.keys(logsData.logs).length > 0)
+      ) {
+        const extracted = extractLogsData(
+          logsData,
+          fields || {},
+          item?.columnContext || null,
+          null,
+          item?.hiddenColumns
+        );
+
+        if (extracted.entriesProperties.length > 0) {
+          derivedEntriesProperties = extracted.entriesProperties;
+        }
+      }
+
+      // Pass derived entriesProperties to updateLogs for atomic update
+      return updateLogs(
+        logsData,
+        mode,
+        targetGroupId,
+        targetGroupFilters,
+        preConvertedLogs,
+        windowConfig,
+        currentOffsets,
+        derivedEntriesProperties // Pass through to be included in single updateTableDataItem call
+      );
+    },
+    [updateLogs, entriesProperties, fields, item]
+  );
+
   // Use infinite scroll query with simplified data handling
   const infiniteLogsQuery = useInfiniteLogsQuery({
     tileId,
@@ -278,7 +331,7 @@ const LogsTable = ({
     limit: tableTileState?.limit || 20,
     groupLimit: tableTileState?.groupLimit || 20,
     logsActions,
-    updateLogs,
+    updateLogs: enhancedUpdateLogs,
     enabled:
       !!projectId && !!tileId && !!tabId && item?.autoUpdate !== 'true' && !isTableDataLoading,
     bidirectional: {
@@ -338,11 +391,18 @@ const LogsTable = ({
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
-  const [showSpinner, setShowSpinner] = useState(pending || !logs);
+
+  // Show spinner during: pending state, no logs loaded, context switch in progress, or refetching
+  // isTableDataLoading is true during context switches (before new data arrives)
+  // infiniteLogsQuery.isFetching is true when query is refetching after cache invalidation
+  const isQueryFetching = infiniteLogsQuery.isFetching && logs.length === 0;
+  const [showSpinner, setShowSpinner] = useState(
+    pending || !logs || isTableDataLoading || isQueryFetching
+  );
 
   useEffect(() => {
-    setShowSpinner(pending || !logs);
-  }, [pending, logs]);
+    setShowSpinner(pending || !logs || isTableDataLoading || isQueryFetching);
+  }, [pending, logs, isTableDataLoading, isQueryFetching]);
 
   // Get base and comparison logs
   const selectedCells = useMemo(

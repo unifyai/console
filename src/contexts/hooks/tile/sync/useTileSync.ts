@@ -449,17 +449,23 @@ export function useTileSync(
               tile.id,
             ]);
             if (existingTableData) {
+              // FIX: Set isLoading: false to allow useInfiniteLogsQuery to run
+              // Setting isLoading: true was causing a deadlock where the query
+              // would never fetch because it checks !isTableDataLoading for enabled
               queryClient.setQueryData(['tableDataItem', tile.id], {
                 ...existingTableData,
-                isLoading: true,
+                isLoading: false,
                 logs: [],
               });
             }
+            // FIX: Query key structure is ['logs', 'infinite', tileId, tabId, projectId, context, ...]
+            // Previous buggy predicate checked for 'infiniteLogs' which never matched
             queryClient.invalidateQueries({
               predicate: (q: any) => {
                 const k0 = q?.queryKey?.[0] as string;
                 const k1 = q?.queryKey?.[1] as string;
-                return k0 === 'infiniteLogs' && k1 === tile.id;
+                const k2 = q?.queryKey?.[2] as string;
+                return k0 === 'logs' && k1 === 'infinite' && k2 === tile.id;
               },
             });
           }
@@ -531,17 +537,23 @@ export function useTileSync(
               tile.id,
             ]);
             if (existingTableData) {
+              // FIX: Set isLoading: false to allow useInfiniteLogsQuery to run
+              // Setting isLoading: true was causing a deadlock where the query
+              // would never fetch because it checks !isTableDataLoading for enabled
               queryClient.setQueryData(['tableDataItem', tile.id], {
                 ...existingTableData,
-                isLoading: true,
+                isLoading: false,
                 logs: [],
               });
             }
+            // FIX: Query key structure is ['logs', 'infinite', tileId, tabId, projectId, context, ...]
+            // Previous buggy predicate checked for 'infiniteLogs' which never matched
             queryClient.invalidateQueries({
               predicate: (q: any) => {
                 const k0 = q?.queryKey?.[0] as string;
                 const k1 = q?.queryKey?.[1] as string;
-                return k0 === 'infiniteLogs' && k1 === tile.id;
+                const k2 = q?.queryKey?.[2] as string;
+                return k0 === 'logs' && k1 === 'infinite' && k2 === tile.id;
               },
             });
           }
@@ -627,18 +639,24 @@ export function useTileSync(
               tile.id,
             ]);
             if (existingTableData) {
+              // FIX: Set isLoading: false to allow useInfiniteLogsQuery to run
+              // Setting isLoading: true was causing a deadlock where the query
+              // would never fetch because it checks !isTableDataLoading for enabled
               queryClient.setQueryData(['tableDataItem', tile.id], {
                 ...existingTableData,
-                isLoading: true,
+                isLoading: false,
                 logs: [], // Clear logs to show loading state
               });
             }
+            // FIX: Query key structure is ['logs', 'infinite', tileId, tabId, projectId, context, ...]
+            // Previous buggy predicate checked for 'infiniteLogs' which never matched
             // Invalidate infinite logs queries for this tile to trigger refetch
             queryClient.invalidateQueries({
               predicate: (q: any) => {
                 const k0 = q?.queryKey?.[0] as string;
                 const k1 = q?.queryKey?.[1] as string;
-                return k0 === 'infiniteLogs' && k1 === tile.id;
+                const k2 = q?.queryKey?.[2] as string;
+                return k0 === 'logs' && k1 === 'infinite' && k2 === tile.id;
               },
             });
           }

@@ -217,7 +217,8 @@ export function useTableDataQueryWithTracking(
         pageSize: number;
         currentPageCount: number; // Current number of pages in memory
       },
-      currentOffsets?: { globalOffset: number; groupOffset: number } // Previous offsets to build upon
+      currentOffsets?: { globalOffset: number; groupOffset: number }, // Previous offsets to build upon
+      entriesProperties?: string[] // Optional entriesProperties to include in update (passed from Table.tsx)
     ): { globalOffset: number; groupOffset: number } => {
       if (!tileId) {
         return { globalOffset: 0, groupOffset: 0 };
@@ -449,11 +450,16 @@ export function useTableDataQueryWithTracking(
       }
 
       // Update the table data item
+      // NOTE: entriesProperties can be passed in from the caller (e.g., Table.tsx's enhancedUpdateLogs)
+      // which has access to fields and tile config needed to properly derive entriesProperties
+      // via extractLogsData. If passed, include it in this single update to avoid race conditions.
       updateTableDataItem({
         ...currentTableDataItem,
         logs: finalLogs,
         newCells,
         error,
+        // Include entriesProperties if passed from caller (avoids race condition with separate calls)
+        ...(entriesProperties && entriesProperties.length > 0 ? { entriesProperties } : {}),
       });
 
       // Return the calculated offsets (boundary guards are applied within utility functions)
