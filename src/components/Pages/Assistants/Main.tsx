@@ -719,7 +719,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
   const activeSidePanelCount = isProfileOpen ? 1 : 0;
   const assistantListWidth = isAssistantListFolded
-    ? 'w-12'
+    ? 'w-14'
     : activeSidePanelCount === 1
       ? 'w-1/3 lg:w-[300px] xl:w-[350px]'
       : 'w-1/3 lg:w-[400px] xl:w-[450px]';
@@ -803,14 +803,14 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
                 onMouseDown={handleProfileResizeStart}
-                className="hover:bg-primary/20 active:bg-primary/40 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
+                className="hover:bg-primary/20 active:bg-primary/40 -ml-1.5 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
                 style={{ zIndex: 20 }}
               />,
             ]}
         </AnimatePresence>
 
         {/* Task List */}
-        <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+        <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
           <TaskList
             tasks={tasks}
             fetchMoreTasks={fetchMoreTasks}

@@ -213,42 +213,24 @@ export function SpendingProgressBar({
         </div>
       )}
 
-      {/* Progress bar */}
-      <div
-        className={cn('relative w-full overflow-hidden rounded-full bg-muted', heightClass)}
-        role="progressbar"
-        aria-valuenow={display.percentUsed}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={
-          display.isUnlimited
-            ? `Spent ${formatSpendAmount(display.currentSpend)}, no limit`
-            : `Spent ${formatSpendAmount(display.currentSpend)} of ${formatSpendAmount(display.limit!)}`
-        }
-      >
-        {display.isUnlimited ? (
-          /* Diagonal stripes pattern for unlimited state */
-          <div
-            className="h-full w-full"
-            style={{
-              background: `repeating-linear-gradient(
-                -45deg,
-                transparent,
-                transparent 3px,
-                hsl(var(--muted-foreground) / 0.2) 3px,
-                hsl(var(--muted-foreground) / 0.2) 6px
-              )`,
-            }}
-          />
-        ) : (
+      {/* Progress bar (hidden when no limit is set) */}
+      {!display.isUnlimited && (
+        <div
+          className={cn('relative w-full overflow-hidden rounded-full bg-muted', heightClass)}
+          role="progressbar"
+          aria-valuenow={display.percentUsed}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Spent ${formatSpendAmount(display.currentSpend)} of ${formatSpendAmount(display.limit!)}`}
+        >
           <div
             className={cn('h-full transition-all duration-500 ease-out', progressColor)}
             style={{
               width: `${progressPercent}%`,
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Status indicator for over limit */}
       {display.isOverLimit && showLabels && (

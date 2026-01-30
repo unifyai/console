@@ -57,7 +57,7 @@ function SummaryCard({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
-              <p className="text-title text-muted-foreground">{title}</p>
+              <p className="text-label text-muted-foreground">{title}</p>
               {infoTooltip && (
                 <TooltipProvider>
                   <Tooltip>
@@ -80,7 +80,7 @@ function SummaryCard({
             {isLoading ? (
               <div className="h-8 w-24 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="text-display text-bold text-foreground">{value}</p>
+              <p className="text-h2-bold text-foreground">{value}</p>
             )}
             {subtitle && !isLoading && <p className="text-caption">{subtitle}</p>}
           </div>
@@ -114,7 +114,7 @@ export function UsageSummaryCards({
         isLoading={isLoading}
         testId="summary-card-total"
         infoTooltip={
-          <p className="text-body">
+          <p className="text-caption">
             <strong>Billed Cost</strong> represents the total credits consumed by your assistant(s)
             when performing any task, thinking, or communicating. fees.
           </p>

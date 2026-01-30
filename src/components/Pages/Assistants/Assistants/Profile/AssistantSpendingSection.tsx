@@ -12,7 +12,7 @@
 'use client';
 
 import * as React from 'react';
-import { AlertCircle, Info, Loader2 } from 'lucide-react';
+import { AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
@@ -24,6 +24,8 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 export interface AssistantSpendingSectionProps {
   /** The assistant's ID (agentId) for the View Usage link */
   assistantId: string;
+  /** The assistant's first name (for tooltip) */
+  assistantFirstName?: string;
   /** Calculated display properties (null if loading) */
   display: SpendingDisplayProps | null;
   /** Current spending limit in dollars (null = unlimited) */
@@ -48,6 +50,7 @@ export interface AssistantSpendingSectionProps {
 
 export function AssistantSpendingSection({
   assistantId,
+  assistantFirstName,
   display,
   currentLimit,
   currentMonth,
@@ -140,10 +143,7 @@ export function AssistantSpendingSection({
     <div className={cn('space-y-3', className)}>
       {/* Header */}
       <div className="flex items-center gap-2">
-        <h3 className="text-title flex items-center gap-2">
-          Monthly Spending
-          {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-        </h3>
+        <h3 className="text-title flex items-center gap-2">Monthly Spending</h3>
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -151,9 +151,7 @@ export function AssistantSpendingSection({
             </TooltipTrigger>
             <TooltipContent side="right" className="text-label max-w-xs">
               <p>
-                Spending tracks billable activity like working on tasks, communicating, etc.
-                Spending may slightly exceed the limit if activity is ongoing when the limit is
-                reached.
+                {assistantFirstName ? `${assistantFirstName}'s` : "Assistant's"} spending this month
               </p>
             </TooltipContent>
           </Tooltip>
@@ -168,7 +166,7 @@ export function AssistantSpendingSection({
         onSpendClick={handleSpendClick}
         onLimitClick={canEdit ? handleLimitClick : undefined}
         spendTooltip="View full usage data"
-        limitTooltip={canEdit ? "Set assistant's limit" : undefined}
+        limitTooltip={canEdit ? "Set assistant's spending limit" : undefined}
       />
 
       {/* Edit dialog */}

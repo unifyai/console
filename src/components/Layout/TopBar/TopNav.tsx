@@ -138,7 +138,7 @@ export default function TopNav() {
           {/* Workspace Pill */}
           {activeWorkspace && (
             <>
-              <Slash className="rotate-25 ml-2 h-4 w-4 text-muted-foreground" />
+              <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -197,6 +197,7 @@ export default function TopNav() {
           )}
 
           <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
+
           {/* Navigation */}
           <nav className="hidden items-center space-x-6 md:flex">
             {/* Assistants - Direct Link */}

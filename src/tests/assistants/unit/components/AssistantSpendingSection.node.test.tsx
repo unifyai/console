@@ -30,6 +30,7 @@ describe('AssistantSpendingSection', () => {
 
   const defaultProps = {
     assistantId: 'asst_test_123',
+    assistantFirstName: 'Alice',
     display: mockDisplay,
     currentLimit: 100,
     currentMonth: '2026-01',
@@ -161,6 +162,43 @@ describe('AssistantSpendingSection', () => {
       const infoIcon = container.querySelector('.lucide-info');
       expect(infoIcon).toBeInTheDocument();
     });
+
+    it('renders with personalized tooltip when assistantFirstName is provided', async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <AssistantSpendingSection {...defaultProps} assistantFirstName="Bob" />
+      );
+
+      // Hover over the info icon to show tooltip
+      const infoIcon = container.querySelector('.lucide-info');
+      expect(infoIcon).toBeInTheDocument();
+
+      if (infoIcon) {
+        await user.hover(infoIcon);
+        // Wait for tooltip and verify it contains the personalized name
+        const tooltipContent = await screen.findByRole('tooltip', {}, { timeout: 2000 });
+        expect(tooltipContent.textContent).toContain("Bob's");
+        expect(tooltipContent.textContent).toContain('spending this month');
+      }
+    });
+
+    it('renders with fallback tooltip when firstName is not provided', async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <AssistantSpendingSection {...defaultProps} assistantFirstName={undefined} />
+      );
+
+      const infoIcon = container.querySelector('.lucide-info');
+      expect(infoIcon).toBeInTheDocument();
+
+      if (infoIcon) {
+        await user.hover(infoIcon);
+        // Wait for tooltip and verify fallback text
+        const tooltipContent = await screen.findByRole('tooltip', {}, { timeout: 2000 });
+        expect(tooltipContent.textContent).toContain("Assistant's");
+        expect(tooltipContent.textContent).toContain('spending this month');
+      }
+    });
   });
 
   // ===========================================================================
@@ -254,22 +292,15 @@ describe('AssistantSpendingSection', () => {
   });
 
   // ===========================================================================
-  // Refreshing Indicator
+  // Refreshing Indicator (removed - loader no longer shown)
   // ===========================================================================
 
-  describe('refreshing indicator', () => {
-    it('shows loading indicator when refreshing', () => {
+  describe('refreshing state', () => {
+    it('does not show loading indicator regardless of refreshing state', () => {
+      // Loader was removed from the header - polling continues in background
+      // but we don't show a visual indicator anymore
       const { container } = render(
         <AssistantSpendingSection {...defaultProps} isRefreshing={true} />
-      );
-
-      // Should have a spinning loader
-      expect(container.querySelector('.animate-spin')).toBeInTheDocument();
-    });
-
-    it('does not show loading indicator when not refreshing', () => {
-      const { container } = render(
-        <AssistantSpendingSection {...defaultProps} isRefreshing={false} />
       );
 
       expect(container.querySelector('.animate-spin')).not.toBeInTheDocument();

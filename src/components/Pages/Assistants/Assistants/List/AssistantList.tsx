@@ -121,8 +121,13 @@ export function AssistantList({
       </div>
 
       {/* Content Area: Loading Skeletons, Error, or List */}
-      <ScrollArea className="flex-1 p-1">
-        <div className={cn('space-y-1 pt-2', isFolded && 'flex flex-col items-center space-y-3')}>
+      <ScrollArea className="flex-1">
+        <div
+          className={cn(
+            'space-y-1 px-2 py-2',
+            isFolded && 'flex flex-col items-center space-y-3 px-3 py-3'
+          )}
+        >
           {isLoading ? (
             <>
               {[...Array(10)].map((_, i) => (

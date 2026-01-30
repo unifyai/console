@@ -157,7 +157,7 @@ export function SpendingLimitCard({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             {/* Title */}
-            <p className="text-title text-muted-foreground">Current Month Limits</p>
+            <p className="text-label text-muted-foreground">Current Month Limits</p>
 
             {isLoading ? (
               <div className="mt-1 space-y-2">

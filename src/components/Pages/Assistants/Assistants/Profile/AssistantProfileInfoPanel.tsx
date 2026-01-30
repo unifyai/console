@@ -201,7 +201,7 @@ export function AssistantProfileInfoPanel({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-label mr-3 h-auto gap-1 px-2 py-1"
+                      className="text-caption mr-3 h-auto gap-1 px-2 py-1"
                       onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}
                     >
                       {timezoneInfo.relativeOffsetString}
@@ -236,6 +236,7 @@ export function AssistantProfileInfoPanel({
           <div className="pt-2">
             <AssistantSpendingSection
               assistantId={assistant.agentId}
+              assistantFirstName={assistant.firstName}
               display={spendingData.display}
               currentLimit={spendingData.limit?.monthlySpendingCap ?? null}
               currentMonth={spendingData.currentMonth}

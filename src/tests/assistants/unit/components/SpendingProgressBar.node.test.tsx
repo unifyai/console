@@ -111,7 +111,7 @@ describe('SpendingProgressBar', () => {
       expect(screen.getByText(/Over limit by \$20\.00/)).toBeInTheDocument();
     });
 
-    it('shows unlimited state', () => {
+    it('shows unlimited state without progress bar', () => {
       const display: SpendingDisplayProps = {
         currentSpend: 500,
         limit: null,
@@ -125,6 +125,8 @@ describe('SpendingProgressBar', () => {
 
       expect(screen.getByText('$500.00')).toBeInTheDocument();
       expect(screen.getByText('No limit')).toBeInTheDocument();
+      // Progress bar is hidden when no limit is set
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
   });
 
