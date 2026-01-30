@@ -231,53 +231,26 @@ export async function fetchAndBuildTableDataItem(
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
 
-    // Narrow payload: request only currently visible leaf columns when we can derive them.
-    // Fallback to full payload if we cannot reliably compute a subset.
-    try {
-      // Build candidate IDs from column order or fields; remove hidden columns, parents, and util headers
-      const orderIds = tile.tableTile?.columnOrder
-        ? tile.tableTile?.columnOrder.split(',').filter(Boolean)
-        : Object.keys(fields)
-            .map((k) => processContext('split', tile.columnContext || null, k))
-            .filter(Boolean);
-      const hiddenSet = new Set(
-        (tile.tableTile?.hiddenColumns
-          ? tile.tableTile?.hiddenColumns.split(',').filter(Boolean)
-          : []
-        ).map(sanitizeId)
-      );
-      // Remove util headers and parents (keep only leaves)
-      const idsSanitized = orderIds
-        .map((id) => sanitizeId(id))
-        .filter((id) => id && id !== 'RowNumbering' && id !== 'Parameters' && id !== 'Entries');
-      const leafIds = idsSanitized.filter(
-        (id) => !idsSanitized.some((other) => other !== id && other.startsWith(id + '/'))
-      );
-      const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
-      // Limit the subset to a reasonable number to keep payload small
-      const MAX_SUBSET = 60;
-      let subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
-
-      // Always include assistant_id fields for Contacts tables (needed for contact sync)
-      if (projectId === 'Assistants' && tile.context?.endsWith('/Contacts')) {
-        const syncRequiredFields = ['_assistant_id', 'assistant_id'];
-        for (const field of syncRequiredFields) {
-          if (!subsetIds.includes(field)) {
-            subsetIds = [...subsetIds, field];
-          }
-        }
-      }
-
-      if (subsetIds.length > 0) {
-        // Merge back columnContext for the API
-        const subset = subsetIds
-          .map((id) => processContext('merge', tile.columnContext || null, id))
-          .join('&');
-        if (subset) {
-          params.set('fromFields', subset);
-        }
-      }
-    } catch {}
+    // DISABLED: fromFields narrowing was causing missing column data (Bug #15 & #16)
+    //
+    // When from_fields is set, Orchestra filters log entries to only include
+    // those fields. However, this was causing valid fields (like 'rowId') to
+    // be missing from the response even though they exist in the schema.
+    //
+    // Root cause: Orchestra's from_fields parameter requires exact field name
+    // matches. Any mismatch (case, prefix, format) causes fields to be filtered out.
+    //
+    // The infinite query path (fetchLogsCore) doesn't use from_fields and works
+    // correctly. For consistency and reliability, we now fetch all fields on
+    // initial load as well.
+    //
+    // Performance impact: Slightly larger payload on initial load, but this
+    // ensures all column data is available and prevents empty columns.
+    //
+    // Symptoms this fixes:
+    // - Column headers appear but values are empty on initial page load
+    // - Hidden columns have no data when unhidden after page refresh
+    // - Data appears correctly only after re-selecting the context
 
     // Handle grouping (can be multiple values)
     if (groupingExpression) {

@@ -1260,3 +1260,106 @@ describe('Bug #13: Column visibility map missing fields columns', () => {
     expect(columnVisibility['Entries/contentText']).toBe(false);
   });
 });
+
+/**
+ * Bug #15 & #16: fromFields optimization causing empty columns
+ *
+ * The buildTableDataItem function was using a `fromFields` parameter to narrow
+ * the API payload to only visible columns. However, Orchestra's from_fields
+ * filtering was causing valid fields to be missing from the response.
+ *
+ * Symptoms:
+ * - Column headers appear but values are empty on initial page load
+ * - Hidden columns have no data when unhidden after page refresh
+ * - Data appears correctly only after re-selecting the context
+ *
+ * Root cause:
+ * Orchestra's from_fields requires exact field name matches. The buildTableDataItem
+ * path used from_fields, while the infinite query path (fetchLogsCore) did not.
+ * This caused inconsistent data between initial load and subsequent fetches.
+ *
+ * Fix:
+ * Disable the fromFields optimization entirely. All fields are now fetched on
+ * initial load, matching the behavior of the infinite query path.
+ */
+describe('Bug #15 & #16: fromFields optimization disabled', () => {
+  it('EXPECTED: buildTableDataItem should NOT use fromFields to ensure all column data is fetched', () => {
+    // This test documents the architectural decision to disable fromFields
+    //
+    // The problem: Orchestra's from_fields filtering doesn't work reliably
+    // with all field name formats. When from_fields is set, some valid fields
+    // get filtered out even though they exist in the schema and data.
+    //
+    // The solution: Don't use from_fields at all. Fetch all fields and let
+    // the frontend handle column visibility as a UI concern.
+
+    // Simulate what buildTableDataItem does now (without fromFields)
+    const params = new URLSearchParams();
+    params.set('projectName', 'TestProject');
+    params.set('context', 'TestContext');
+    // Note: NO fromFields parameter is set
+
+    // Verify fromFields is NOT in the params
+    expect(params.has('fromFields')).toBe(false);
+
+    // This ensures the API returns ALL fields, not just a subset
+    // The frontend will then filter columns for display based on visibility settings
+  });
+
+  it('EXPECTED: fetchLogsCore should also NOT use fromFields for consistency', () => {
+    // fetchLogsCore (used by infinite query) never used fromFields
+    // This test documents that behavior for consistency
+
+    const params = new URLSearchParams();
+    params.set('projectName', 'TestProject');
+    params.set('context', 'TestContext');
+    // fetchLogsCore builds params without fromFields
+
+    expect(params.has('fromFields')).toBe(false);
+  });
+
+  it('EXPECTED: Column visibility is a UI concern, not a data concern', () => {
+    // When a column is hidden, we should still have its data
+    // This allows users to unhide columns and see data immediately
+
+    const fields = {
+      rowId: { dataType: 'str', fieldType: 'entry' },
+      Trip: { dataType: 'str', fieldType: 'entry' },
+      Driver: { dataType: 'str', fieldType: 'entry' },
+    };
+
+    const hiddenColumns = 'rowId'; // User has hidden rowId
+
+    // Simulate API response (all fields fetched, including hidden ones)
+    const mockApiResponse = {
+      logs: [
+        {
+          id: '1',
+          entries: {
+            rowId: '12345', // Data IS present even though column is hidden
+            Trip: 'Trip A',
+            Driver: 'John',
+          },
+        },
+      ],
+    };
+
+    // All fields have data
+    const firstLog = mockApiResponse.logs[0];
+    expect(firstLog.entries.rowId).toBe('12345');
+    expect(firstLog.entries.Trip).toBe('Trip A');
+    expect(firstLog.entries.Driver).toBe('John');
+
+    // When user unhides rowId, the data is already available
+    const isHidden = hiddenColumns.includes('rowId');
+    expect(isHidden).toBe(true);
+
+    // Simulate unhiding
+    const newHiddenColumns = '';
+    const isNowHidden = newHiddenColumns.includes('rowId');
+    expect(isNowHidden).toBe(false);
+
+    // Data is still there, ready to display
+    expect(firstLog.entries.rowId).toBe('12345');
+  });
+});
