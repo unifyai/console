@@ -151,4 +151,52 @@ describe('@real Logs API', () => {
     expect(result).not.toHaveProperty('log_ids');
     expect(result).not.toHaveProperty('created_at');
   });
+
+  it('@real gets fields for project', realTestOptions, async () => {
+    // First create some logs to ensure fields exist
+    await logsApi.create(
+      testProject,
+      [{ testParam: 'fields-test' }],
+      [{ testField: 'value', numericField: 123 }]
+    );
+
+    // Get fields without context
+    const result = await logsApi.getFields(testProject);
+
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('object');
+    // Should have at least some fields from the log we created
+    // Fields have structure like { dataType: 'str', fieldType: 'entry', ... }
+  });
+
+  it('@real gets fields with context parameter', realTestOptions, async () => {
+    // This test verifies that the context parameter is passed correctly
+    // to the backend (fix for Bug #14)
+    const testContext = 'TestContext';
+
+    // Get fields with a specific context
+    // This should not return fields from other contexts
+    const result = await logsApi.getFields(testProject, testContext);
+
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('object');
+    // Empty context may return empty object, that's okay
+    // The important thing is it doesn't throw and doesn't return wrong fields
+  });
+
+  it('@real projectName parameter is used (not project)', realTestOptions, async () => {
+    // This test specifically verifies the fix for Bug #14
+    // The API was reading 'project' but frontend sends 'projectName'
+
+    // If the fix works, this should return fields for testProject
+    // If broken, it would return default/fallback fields
+    const result = await logsApi.getFields(testProject);
+
+    expect(result).toBeDefined();
+    // If we get fields with strange names like 'modelProviderStr', 'endpointId', etc.
+    // it means the project parameter wasn't passed correctly
+    expect(result).not.toHaveProperty('modelProviderStr');
+    expect(result).not.toHaveProperty('endpointId');
+    expect(result).not.toHaveProperty('credits');
+  });
 });

@@ -733,6 +733,18 @@ export const logsApi = {
     });
     return parseResponse(res, endpoint);
   },
+
+  async getFields(
+    project: string,
+    context?: string
+  ): Promise<Record<string, { dataType: string; fieldType: string; [key: string]: unknown }>> {
+    const params = new URLSearchParams({ projectName: project });
+    if (context) params.set('context', context);
+
+    const endpoint = `/api/logs/fields?${params.toString()}`;
+    const res = await apiFetch(endpoint);
+    return parseResponse(res, endpoint);
+  },
 };
 
 // ============================================

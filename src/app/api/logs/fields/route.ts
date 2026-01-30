@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
 
   const client = createOrchestraClient(apiKey);
 
-  const project = searchParams.get('project');
+  // Support both 'project' and 'projectName' for backwards compatibility
+  const project = searchParams.get('projectName') || searchParams.get('project');
+  const context = searchParams.get('context');
 
   try {
     const startedAt = Date.now();
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest) {
       params: {
         query: {
           project_name: project || '',
+          ...(context && { context }),
         },
       },
     });
