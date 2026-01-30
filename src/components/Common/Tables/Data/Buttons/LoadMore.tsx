@@ -98,18 +98,14 @@ const LoadMore: React.FC<LoadMoreProps> = ({
       </button>
     );
 
+    // Simple centered layout - no CSS variable dependencies
     const content = (
-      <div
-        className={`${position} inline-block -translate-x-1/2 transform`}
-        style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
-      >
-        <div className="flex items-center justify-center gap-2">
-          {isDisabled && disabledTooltip ? (
-            <Tooltip content={disabledTooltip}>{button}</Tooltip>
-          ) : (
-            button
-          )}
-        </div>
+      <div className="flex w-full items-center justify-center gap-2">
+        {isDisabled && disabledTooltip ? (
+          <Tooltip content={disabledTooltip}>{button}</Tooltip>
+        ) : (
+          button
+        )}
       </div>
     );
 
@@ -118,10 +114,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
 
   // Helper function to render loading content
   const renderLoadingContent = () => (
-    <div
-      className={`${position} inline-block -translate-x-1/2 transform`}
-      style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
-    >
+    <div className="flex w-full items-center justify-center gap-2">
       <div className="bg-background/90 border-border/50 flex items-center justify-center gap-2 rounded-md border px-6 py-2 shadow-md backdrop-blur-sm">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <span className="text-muted-foreground">{loadingText}</span>

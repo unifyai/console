@@ -25,7 +25,6 @@ import React, {
   useRef,
   useState,
   useCallback,
-  createRef,
   useContext,
 } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
@@ -119,7 +118,6 @@ import { getDeep, setDeep } from '@/utils/objectPath';
 import { castToPythonType } from '@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils';
 import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications';
 import { FolderTree } from 'lucide-react';
-import { useDimensionsTracker } from '@/hooks/Interfaces/useDimensionsTracker';
 import { useTableAutoUpdateQuery } from '@/hooks/Interfaces/Query/useTableAutoUpdateQuery';
 
 // Check if advanced table features should be shown
@@ -432,17 +430,27 @@ const LogsTable = ({
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
 
-  // Show spinner during: pending state, no logs loaded, context switch in progress, or refetching
-  // isTableDataLoading is true during context switches (before new data arrives)
-  // infiniteLogsQuery.isFetching is true when query is refetching after cache invalidation
+  // Show spinner ONLY during initial load when there's NO existing data
+  // FIX: Don't show spinner during context switch if we already have data
+  // This prevents the jarring flash when switching contexts
   const isQueryFetching = infiniteLogsQuery.isFetching && logs.length === 0;
+  const hasExistingData = logs && logs.length > 0;
+
+  // Show full spinner only when:
+  // 1. We have no data at all (!hasExistingData), AND
+  // 2. Something is loading (pending, isTableDataLoading, or isQueryFetching)
+  // If we have existing data, we'll show a subtle overlay instead
   const [showSpinner, setShowSpinner] = useState(
-    pending || !logs || isTableDataLoading || isQueryFetching
+    !hasExistingData && (pending || isTableDataLoading || isQueryFetching)
   );
 
   useEffect(() => {
-    setShowSpinner(pending || !logs || isTableDataLoading || isQueryFetching);
-  }, [pending, logs, isTableDataLoading, isQueryFetching]);
+    setShowSpinner(!hasExistingData && (pending || isTableDataLoading || isQueryFetching));
+  }, [pending, hasExistingData, isTableDataLoading, isQueryFetching]);
+
+  // Show subtle loading overlay when we have data but are refetching (context switch)
+  const showLoadingOverlay =
+    hasExistingData && (isTableDataLoading || infiniteLogsQuery.isFetching);
 
   // Get base and comparison logs
   const selectedCells = useMemo(
@@ -1686,23 +1694,10 @@ const LogsTable = ({
       ]);
   };
 
-  // Manage per-panel scroll refs
-  const [panelScrollRefs, setPanelScrollRefs] = useState<React.RefObject<HTMLDivElement>[]>(() =>
-    Array.from({ length: panelCount }, () => createRef<HTMLDivElement>())
-  );
-  useEffect(() => {
-    setPanelScrollRefs((prev) => {
-      const updated = prev.slice(0, panelCount);
-      while (updated.length < panelCount) {
-        updated.push(createRef<HTMLDivElement>());
-      }
-      return updated;
-    });
-  }, [panelCount]);
-
   // Scrolling outside of the table cells should scroll the page
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pageScrollContainerRef = useContext(PageScrollContext);
+
   useEffect(() => {
     const tableScrollViewport = scrollAreaRef.current?.querySelector(
       '[data-radix-scroll-area-viewport]'
@@ -1732,53 +1727,8 @@ const LogsTable = ({
     };
   }, [pageScrollContainerRef]);
 
-  // New refs and state for "Load More" button positioning
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  // Ref for the table menu
   const tableMenuRef = useRef<HTMLDivElement>(null);
-  const [loadMoreStyle, setLoadMoreStyle] = useState<React.CSSProperties>({});
-  const [isLoadMoreVisible, setIsLoadMoreVisible] = useState(true);
-
-  const tileDimensions = useDimensionsTracker(containerRef); // containerRef is the tile's main div
-  const tableDimensions = useDimensionsTracker(tableContainerRef); // will be on the table's wrapper
-  const scrollAreaDimensions = useDimensionsTracker(scrollAreaRef); // on the ScrollArea component
-  const tableMenuDimensions = useDimensionsTracker(tableMenuRef); // on the menu's wrapper
-
-  useEffect(() => {
-    const tileWidth = tileDimensions.width;
-    const tableWidth = tableDimensions.width;
-    const tableHeight = tableDimensions.height;
-    const scrollAreaHeight = scrollAreaDimensions.height;
-    const menuHeight = tableMenuDimensions.height;
-
-    // Ensure we have valid dimensions to work with before calculating
-    if (tileWidth > 0 && scrollAreaHeight > 0 && tableHeight > 0) {
-      // If the full table height is greater than the available scroll area,
-      // it means the table is overflowing and scrolling. In this case, hide the button.
-      if (tableHeight > scrollAreaHeight) {
-        setIsLoadMoreVisible(false);
-      } else {
-        // Otherwise, the table fits, so show the button and calculate its position.
-        setIsLoadMoreVisible(true);
-
-        // --- Vertical Position ---
-        // Position it 10px below the actual rendered table.
-        const top = menuHeight + tableHeight + 10;
-
-        // --- Horizontal Position ---
-        // Center it relative to the narrower of the tile or the table.
-        const centeringWidth = Math.min(tileWidth, tableWidth);
-        const left = centeringWidth / 2;
-
-        setLoadMoreStyle({
-          position: 'absolute',
-          top: `${top}px`,
-          left: `${left}px`,
-          transform: 'translateX(-50%)',
-          zIndex: 40, // Ensure it's above the table but can be below other UI elements
-        });
-      }
-    }
-  }, [tileDimensions, tableDimensions, scrollAreaDimensions, tableMenuDimensions]);
 
   return (
     <div
@@ -1842,6 +1792,15 @@ const LogsTable = ({
       ) : (
         <div className="relative flex h-full min-h-0 w-full flex-col">
           <div ref={tableMenuRef}>{tableMenu}</div>
+          {/* Subtle loading overlay during context switch - keeps table visible */}
+          {showLoadingOverlay && (
+            <div className="bg-background/50 absolute inset-0 z-40 flex items-start justify-center pt-20">
+              <div className="flex items-center gap-2 rounded-md bg-background px-3 py-2 shadow-md">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-body-muted">Loading...</span>
+              </div>
+            </div>
+          )}
           <ScrollArea
             ref={scrollAreaRef}
             className="tutorial-logs-table relative min-h-0 w-full flex-1 pb-3 pr-3"
@@ -1867,13 +1826,12 @@ const LogsTable = ({
               />
             )}
             {/* <div className="min-w-max w-full"> */}
-            <div className="w-fit min-w-0 pb-2 pr-4" ref={tableContainerRef}>
+            <div className="w-fit min-w-0 pb-2 pr-4">
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
                     <div
                       key={idx}
-                      ref={panelScrollRefs[idx]}
                       className="relative flex-1 snap-y snap-mandatory flex-col gap-2 border-l border-gray-200 first:border-none"
                       style={{
                         overflowX: 'visible',
@@ -1900,7 +1858,6 @@ const LogsTable = ({
                         columns={columns}
                         state={state}
                         setState={setState}
-                        scrollContainerRef={panelScrollRefs[idx]}
                         showFooter={showMetricsRow && logs.length > 0}
                         setShowFooter={setShowMetricsRow}
                         // Inline editing props
@@ -1929,8 +1886,8 @@ const LogsTable = ({
                         bidirectionalEnabled={useBidirectionalLoading}
                         bidirectionalInfo={infiniteLogsQuery.bidirectionalInfo}
                         isItemLoaded={(index: number) => !!logs[index]}
-                        // Component props
-                        LoadMore={LoadMore}
+                        // NOTE: LoadMore is handled externally (positioned outside scroll area)
+                        // to stay visible during horizontal scroll. Only GroupLoadMore is passed.
                         // Multi-level LoadMore props
                         GroupLoadMore={({ groupId, colSpan, interactive, position }) => (
                           <GroupLoadMore
@@ -2297,13 +2254,21 @@ const LogsTable = ({
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>
-          {/* Absolutely positioned LoadMore button */}
-          {effectiveHasNextPage && !infiniteLogsQuery.isFetchingNextPage && isLoadMoreVisible && (
-            <div style={loadMoreStyle}>
+          {/* LoadMore button - positioned outside ScrollArea to stay in view during horizontal scroll */}
+          {effectiveHasNextPage && !infiniteLogsQuery.isFetchingNextPage && (
+            <div className="flex w-full justify-center py-3">
               <LoadMore
                 onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
                 interactive={interactive}
+                hasNextPage={effectiveHasNextPage}
+                isLoading={infiniteLogsQuery.isFetchingNextPage}
               />
+            </div>
+          )}
+          {infiniteLogsQuery.isFetchingNextPage && (
+            <div className="flex w-full items-center justify-center gap-2 py-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-body-muted">Loading more...</span>
             </div>
           )}
         </div>
