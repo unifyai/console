@@ -265,9 +265,20 @@ const LogsTable = ({
     prevContextForOverlayRef.current = item?.context;
   }, [projectId, item?.context]);
 
+  // Track the context for which entriesProperties was derived
+  // This allows us to detect when context changes and re-derive entriesProperties
+  const entriesPropertiesContextRef = useRef<string | null | undefined>(undefined);
+
+  // Store derived properties in a ref to avoid race conditions where React props
+  // are stale but the ref has already been updated for the new context.
+  // This ensures subsequent calls in the same render cycle use the updated value.
+  const derivedPropertiesRef = useRef<string[]>([]);
+
   // Enhanced wrapper for updateLogs that derives entriesProperties when needed
   // This fixes the bug where context switch clears entriesProperties but updateLogs
   // never repopulates it, causing empty table cells.
+  // FIX: Also re-derive when context changes (not just when entriesProperties is empty)
+  // FIX2: Use ref to track derived properties to avoid race condition with stale props
   const enhancedUpdateLogs = useCallback(
     (
       logsData: Parameters<typeof updateLogs>[0],
@@ -279,19 +290,38 @@ const LogsTable = ({
       currentOffsets?: Parameters<typeof updateLogs>[6]
     ) => {
       let derivedEntriesProperties: string[] | undefined;
-      const currentEntriesProperties = entriesProperties || [];
+      const currentContext = item?.context || null;
 
-      // If entriesProperties is empty but we have logs data, derive it
-      if (
-        currentEntriesProperties.length === 0 &&
+      // Check if context has changed since we last derived entriesProperties
+      const contextChanged = entriesPropertiesContextRef.current !== currentContext;
+
+      // Use the ref value if available (it's more up-to-date than props during race conditions),
+      // otherwise fall back to props
+      const currentEntriesProperties =
+        derivedPropertiesRef.current.length > 0 &&
+        entriesPropertiesContextRef.current === currentContext
+          ? derivedPropertiesRef.current
+          : entriesProperties || [];
+
+      // Derive entriesProperties if:
+      // 1. It's empty (original condition), OR
+      // 2. Context has changed (new condition - fixes stale columns on context switch)
+      const shouldDeriveProperties =
+        (currentEntriesProperties.length === 0 || contextChanged) &&
         logsData.logs &&
         (Array.isArray(logsData.logs)
           ? logsData.logs.length > 0
-          : Object.keys(logsData.logs).length > 0)
-      ) {
+          : Object.keys(logsData.logs).length > 0);
+
+      if (shouldDeriveProperties) {
+        // When context changes, pass empty fields to force extractLogsData to derive
+        // entriesProperties from the actual log entries, not from stale fields object.
+        // The fields object may be from the OLD context and would produce wrong columns.
+        const fieldsToUse = contextChanged ? {} : fields || {};
+
         const extracted = extractLogsData(
           logsData,
-          fields || {},
+          fieldsToUse,
           item?.columnContext || null,
           null,
           item?.hiddenColumns
@@ -299,6 +329,9 @@ const LogsTable = ({
 
         if (extracted.entriesProperties.length > 0) {
           derivedEntriesProperties = extracted.entriesProperties;
+          // Update BOTH refs to track the derived properties and their context
+          entriesPropertiesContextRef.current = currentContext;
+          derivedPropertiesRef.current = derivedEntriesProperties;
         }
       }
 

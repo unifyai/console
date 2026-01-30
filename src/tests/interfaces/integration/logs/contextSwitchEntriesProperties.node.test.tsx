@@ -17,6 +17,20 @@
  * 3. The derived `entriesProperties` is passed through to `updateLogs` in a single atomic call
  * 4. This avoids race conditions between separate `updateTableDataItem` calls
  *
+ * ADDITIONAL FIX (Context Switch with Stale entriesProperties):
+ * The original fix only derived `entriesProperties` when it was empty.
+ * But when switching contexts, the old context's `entriesProperties` is NOT empty -
+ * it contains stale field names from the previous context.
+ *
+ * Example:
+ * - Context A (Content): entriesProperties = ['rowId', 'fileId', 'contentId', ...]
+ * - User switches to Context B (August_2025)
+ * - Logs are fetched with entries: ['rowId', 'Trip', 'Driver', 'Vehicle', ...]
+ * - But entriesProperties still has old fields → empty columns for Trip, Driver, etc.
+ *
+ * FIX: Track the context for which entriesProperties was derived.
+ * When context changes, re-derive entriesProperties even if it's not empty.
+ *
  * This test verifies that when `entriesProperties` is passed to `updateLogs()`,
  * it correctly updates the cache. If someone removes the `entriesProperties` parameter
  * handling from `updateLogs()`, this test will FAIL.
@@ -417,5 +431,255 @@ describe('Context Switch entriesProperties - Regression Test', () => {
       missingColumns.length,
       'With the bug, all 8 columns are missing from entriesProperties'
     ).toBe(8);
+  });
+
+  /**
+   * REGRESSION TEST: Context switch with STALE (non-empty) entriesProperties
+   *
+   * Scenario:
+   * 1. User is on Context A with entriesProperties = ['rowId', 'fileId', 'contentId', ...]
+   * 2. User switches to Context B
+   * 3. New logs have entries = ['rowId', 'Trip', 'Driver', 'Vehicle', ...]
+   * 4. BUG: entriesProperties still has old Context A fields
+   * 5. RESULT: Columns show old field names, new fields have empty cells
+   *
+   * The fix: enhancedUpdateLogs tracks the context and re-derives entriesProperties
+   * when context changes, even if entriesProperties is not empty.
+   */
+  it('REGRESSION: Context switch with stale entriesProperties should update columns', async () => {
+    const wrapper = createWrapper(queryClient);
+
+    // Step 1: Simulate state from Context A (Content context)
+    // entriesProperties has OLD context's fields
+    const staleEntriesProperties = ['rowId', 'fileId', 'contentId', 'contentType', 'title'];
+
+    const staleTableDataItem: TableDataItem = {
+      ...EMPTY_TABLEDATAITEM,
+      isLoading: false,
+      logs: [], // Will be replaced by new context's logs
+      fields: {},
+      totalCount: 0,
+      entriesProperties: staleEntriesProperties, // NOT empty - has old context's fields
+    };
+    queryClient.setQueryData(['tableDataItem', 'tile-1'], staleTableDataItem);
+
+    const { result } = renderHook(() => useTableDataQueryWithTracking('tile-1', 'tab-1'), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.tableData).toBeDefined();
+    });
+
+    // Verify initial state has stale entriesProperties
+    expect(result.current.tableData.entriesProperties).toEqual(staleEntriesProperties);
+    expect(result.current.tableData.entriesProperties).toContain('fileId'); // Old field
+    expect(result.current.tableData.entriesProperties).not.toContain('Trip'); // New field not present
+
+    // Step 2: Simulate new context's logs being fetched
+    // These logs have DIFFERENT fields than the stale entriesProperties
+    const mockLogsResponse = createMockLogsResponse();
+
+    // Step 3: Call updateLogs WITH new entriesProperties
+    // This is what enhancedUpdateLogs does when it detects context changed
+    const logsArray = Array.isArray(mockLogsResponse.logs) ? mockLogsResponse.logs : [];
+    const newEntriesProperties = Object.keys(logsArray[0]?.entries || {});
+
+    act(() => {
+      result.current.updateLogs(
+        mockLogsResponse,
+        'replace',
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        newEntriesProperties // The fix: pass new context's entriesProperties
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.tableData.logs.length).toBeGreaterThan(0);
+    });
+
+    // Step 4: Verify entriesProperties was REPLACED with new context's fields
+    expect(result.current.tableData.entriesProperties).not.toContain('fileId'); // Old field gone
+    expect(result.current.tableData.entriesProperties).toContain('Trip'); // New field present
+    expect(result.current.tableData.entriesProperties).toContain('Driver'); // New field present
+    expect(result.current.tableData.entriesProperties).toContain('Vehicle'); // New field present
+
+    // Verify all new fields are present
+    expect(result.current.tableData.entriesProperties.length).toBe(8);
+    expect(result.current.tableData.entriesProperties).toEqual(
+      expect.arrayContaining([
+        'rowId',
+        'Trip',
+        'Driver',
+        'Vehicle',
+        'Departure',
+        'StartLocation',
+        'EndLocation',
+        'Arrival',
+      ])
+    );
+
+    // Verify logs have the correct data
+    expect(result.current.tableData.logs[0].entries).toHaveProperty('Trip');
+    expect(result.current.tableData.logs[0].entries).toHaveProperty('Driver');
+  });
+
+  /**
+   * REGRESSION TEST: Demonstrates the bug when entriesProperties is NOT updated on context switch
+   *
+   * This is what happens when enhancedUpdateLogs doesn't detect context change:
+   * - Old entriesProperties is kept (not empty, so original fix doesn't trigger)
+   * - New logs have different fields
+   * - Table shows old column headers, new data doesn't match → empty cells
+   */
+  it('BUG DEMONSTRATION: Stale entriesProperties causes empty cells for new fields', async () => {
+    const wrapper = createWrapper(queryClient);
+
+    // Simulate the buggy state: logs have new fields, but entriesProperties has old fields
+    const mockLogs = createMockLogs(); // Has Trip, Driver, Vehicle, etc.
+    const staleEntriesProperties = ['rowId', 'fileId', 'contentId', 'contentType', 'title']; // Old fields
+
+    const buggyTableDataItem: TableDataItem = {
+      ...EMPTY_TABLEDATAITEM,
+      isLoading: false,
+      logs: mockLogs, // New context's logs
+      fields: {},
+      totalCount: mockLogs.length,
+      entriesProperties: staleEntriesProperties, // OLD context's fields
+    };
+    queryClient.setQueryData(['tableDataItem', 'tile-1'], buggyTableDataItem);
+
+    const { result } = renderHook(() => useTableDataQueryWithTracking('tile-1', 'tab-1'), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.tableData.logs.length).toBeGreaterThan(0);
+    });
+
+    // Logs have the new context's data
+    expect(result.current.tableData.logs[0].entries).toHaveProperty('Trip');
+    expect(result.current.tableData.logs[0].entries).toHaveProperty('Driver');
+
+    // But entriesProperties has old context's fields
+    expect(result.current.tableData.entriesProperties).toContain('fileId');
+    expect(result.current.tableData.entriesProperties).not.toContain('Trip');
+
+    // Calculate mismatches - these fields exist in logs but not in column definitions
+    const logEntriesKeys = Object.keys(result.current.tableData.logs[0].entries || {});
+    const missingColumns = logEntriesKeys.filter(
+      (key) => !result.current.tableData.entriesProperties.includes(key)
+    );
+
+    // 7 out of 8 fields are missing (only 'rowId' exists in both)
+    expect(missingColumns.length, 'With stale entriesProperties, most columns are missing').toBe(7);
+    expect(missingColumns).toContain('Trip');
+    expect(missingColumns).toContain('Driver');
+    expect(missingColumns).toContain('Vehicle');
+  });
+
+  /**
+   * REGRESSION TEST: Multiple updateLogs calls in same render cycle should NOT overwrite
+   *
+   * BUG (FIXED): Race condition where:
+   * 1. First call to updateLogs derives entriesProperties (23 fields) and updates cache
+   * 2. Second call runs immediately (same render cycle) with stale props (10 fields)
+   * 3. Second call overwrites cache with stale 10 fields
+   *
+   * FIX: enhancedUpdateLogs now uses a ref (derivedPropertiesRef) to store derived
+   * properties immediately. Subsequent calls check the ref value instead of stale props.
+   *
+   * This test simulates the pattern by calling updateLogs twice:
+   * - First with entriesProperties (simulates successful derivation)
+   * - Second without entriesProperties (simulates stale props scenario)
+   *
+   * The second call should preserve the first call's entriesProperties.
+   */
+  it('REGRESSION: Multiple updateLogs calls should preserve first derivation (race condition fix)', async () => {
+    const wrapper = createWrapper(queryClient);
+
+    // Start with empty/cleared state (simulates context switch clearing cache)
+    const clearedTableDataItem: TableDataItem = {
+      ...EMPTY_TABLEDATAITEM,
+      isLoading: false,
+      logs: [],
+      fields: {},
+      totalCount: 0,
+      entriesProperties: [], // Empty
+    };
+    queryClient.setQueryData(['tableDataItem', 'tile-1'], clearedTableDataItem);
+
+    const { result } = renderHook(() => useTableDataQueryWithTracking('tile-1', 'tab-1'), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.tableData).toBeDefined();
+    });
+
+    // Verify initial state
+    expect(result.current.tableData.entriesProperties.length).toBe(0);
+
+    const mockLogsResponse = createMockLogsResponse();
+    const logsArray = Array.isArray(mockLogsResponse.logs) ? mockLogsResponse.logs : [];
+    const correctEntriesProperties = Object.keys(logsArray[0]?.entries || {}); // 8 fields
+
+    // Simulate the race condition scenario:
+    // First call correctly passes entriesProperties
+    act(() => {
+      result.current.updateLogs(
+        mockLogsResponse,
+        'append', // Use append to simulate typical flow
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        correctEntriesProperties // First call has correct properties
+      );
+    });
+
+    // Wait for first update
+    await waitFor(() => {
+      expect(result.current.tableData.logs.length).toBeGreaterThan(0);
+    });
+
+    // Verify first call set entriesProperties correctly
+    expect(result.current.tableData.entriesProperties.length).toBe(8);
+    expect(result.current.tableData.entriesProperties).toContain('Trip');
+
+    // Second call WITHOUT entriesProperties (simulates stale props causing skip)
+    // In the buggy version, this would overwrite with empty/stale entriesProperties
+    act(() => {
+      result.current.updateLogs(
+        mockLogsResponse,
+        'append',
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined // No entriesProperties - simulates stale props scenario
+      );
+    });
+
+    // Wait for second update
+    await waitFor(() => {
+      expect(result.current.tableData.logs.length).toBeGreaterThan(0);
+    });
+
+    // CRITICAL: entriesProperties should STILL be 8 fields, not overwritten
+    // The fix ensures that not passing entriesProperties doesn't clear it
+    expect(
+      result.current.tableData.entriesProperties.length,
+      'Second call should NOT overwrite first call entriesProperties'
+    ).toBe(8);
+    expect(result.current.tableData.entriesProperties).toContain('Trip');
+    expect(result.current.tableData.entriesProperties).toContain('Driver');
+    expect(result.current.tableData.entriesProperties).toContain('Vehicle');
   });
 });
