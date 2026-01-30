@@ -448,19 +448,38 @@ export function useTileSync(
               'tableDataItem',
               tile.id,
             ]);
+
             if (existingTableData) {
+              // FIX Bug #10: Get new context's fields from cache BEFORE clearing
+              // The fields for the new context may already be cached from a previous visit
+              // or from buildServerData. Use those instead of leaving fields empty.
+              const newFieldsKey = ['fields', state.activeProjectId, context];
+              const cachedNewFields = queryClient.getQueryData(newFieldsKey) as
+                | Record<string, any>
+                | undefined;
+              const fieldsToUse = cachedNewFields || {};
+              const entriesPropertiesToUse = cachedNewFields ? Object.keys(cachedNewFields) : [];
+
               // FIX: Set isLoading: false to allow useInfiniteLogsQuery to run
               // Setting isLoading: true was causing a deadlock where the query
               // would never fetch because it checks !isTableDataLoading for enabled
+              //
+              // FIX Bug #8: Clear old fields and use new context's cached fields
+              // FIX Bug #10: Populate fields from cache instead of leaving empty
               queryClient.setQueryData(['tableDataItem', tile.id], {
                 ...existingTableData,
                 isLoading: false,
                 logs: [],
+                fields: fieldsToUse, // FIX Bug #10: Use cached fields for new context
+                entriesProperties: entriesPropertiesToUse, // FIX Bug #10: Derive from cached fields
+                totalCount: 0, // Reset count for new context
               });
             }
             // FIX: Query key structure is ['logs', 'infinite', tileId, tabId, projectId, context, ...]
             // Previous buggy predicate checked for 'infiniteLogs' which never matched
-            queryClient.invalidateQueries({
+            // FIX Bug #9: Use removeQueries instead of invalidateQueries to reset page count
+            // invalidateQueries preserves the page data, causing second fetch to use 'append' mode
+            queryClient.removeQueries({
               predicate: (q: any) => {
                 const k0 = q?.queryKey?.[0] as string;
                 const k1 = q?.queryKey?.[1] as string;
@@ -638,20 +657,40 @@ export function useTileSync(
               'tableDataItem',
               tile.id,
             ]);
+
             if (existingTableData) {
+              // FIX Bug #10: Get new context's fields from cache BEFORE clearing
+              // The fields for the new context may already be cached from a previous visit
+              // or from buildServerData. Use those instead of leaving fields empty.
+              const newFieldsKey = ['fields', state.activeProjectId, context];
+              const cachedNewFields = queryClient.getQueryData(newFieldsKey) as
+                | Record<string, any>
+                | undefined;
+              const fieldsToUse = cachedNewFields || {};
+              const entriesPropertiesToUse = cachedNewFields ? Object.keys(cachedNewFields) : [];
+
               // FIX: Set isLoading: false to allow useInfiniteLogsQuery to run
               // Setting isLoading: true was causing a deadlock where the query
               // would never fetch because it checks !isTableDataLoading for enabled
+              //
+              // FIX Bug #8: Clear old fields and use new context's cached fields
+              // Previously, spreading existingTableData preserved old fields, causing
+              // stale column definitions to appear after context switch.
+              // FIX Bug #10: Populate fields from cache instead of leaving empty
               queryClient.setQueryData(['tableDataItem', tile.id], {
                 ...existingTableData,
                 isLoading: false,
                 logs: [], // Clear logs to show loading state
+                fields: fieldsToUse, // FIX Bug #10: Use cached fields for new context
+                entriesProperties: entriesPropertiesToUse, // FIX Bug #10: Derive from cached fields
+                totalCount: 0, // Reset count for new context
               });
             }
             // FIX: Query key structure is ['logs', 'infinite', tileId, tabId, projectId, context, ...]
             // Previous buggy predicate checked for 'infiniteLogs' which never matched
-            // Invalidate infinite logs queries for this tile to trigger refetch
-            queryClient.invalidateQueries({
+            // FIX Bug #9: Use removeQueries instead of invalidateQueries to reset page count
+            // invalidateQueries preserves the page data, causing second fetch to use 'append' mode
+            queryClient.removeQueries({
               predicate: (q: any) => {
                 const k0 = q?.queryKey?.[0] as string;
                 const k1 = q?.queryKey?.[1] as string;

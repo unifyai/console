@@ -449,6 +449,10 @@ export function useTableDataQueryWithTracking(
         }
       }
 
+      // FIX Bug #12: Get totalCount from API response to update the cache
+      // Previously, totalCount was calculated for windowing but never included in the update
+      const responseTotalCount = getTotalCountFromLogsResponse(logsData) || 0;
+
       // Update the table data item
       // NOTE: entriesProperties can be passed in from the caller (e.g., Table.tsx's enhancedUpdateLogs)
       // which has access to fields and tile config needed to properly derive entriesProperties
@@ -458,6 +462,8 @@ export function useTableDataQueryWithTracking(
         logs: finalLogs,
         newCells,
         error,
+        // FIX Bug #12: Include totalCount from API response
+        totalCount: responseTotalCount,
         // Include entriesProperties if passed from caller (avoids race condition with separate calls)
         ...(entriesProperties && entriesProperties.length > 0 ? { entriesProperties } : {}),
       });

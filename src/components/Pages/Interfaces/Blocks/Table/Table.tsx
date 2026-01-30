@@ -335,10 +335,17 @@ const LogsTable = ({
         }
       }
 
+      // FIX Bug #7: Force 'replace' mode when context changes to prevent ghost rows
+      // When context changes, the infinite query uses 'append' mode by default,
+      // but the tableDataItem hook state is stale (hasn't re-rendered yet).
+      // This causes old logs to be merged with new logs, creating "ghost rows".
+      // By forcing 'replace' mode when context changes, we ensure old logs are cleared.
+      const effectiveMode = contextChanged ? 'replace' : mode;
+
       // Pass derived entriesProperties to updateLogs for atomic update
       return updateLogs(
         logsData,
-        mode,
+        effectiveMode,
         targetGroupId,
         targetGroupFilters,
         preConvertedLogs,
@@ -567,7 +574,11 @@ const LogsTable = ({
     [tableTileActions, setManualColumnOrderOverride]
   );
 
+  // Track columns that have been processed for auto-hide to avoid re-hiding user-shown columns
+  const processedColumnsRef = useRef<Set<string>>(new Set());
+
   // Auto-hide underscores when enabled, and auto-show exception columns (e.g., _assistant in Assistants/All)
+  // FIX Bug #11: Only auto-hide NEW columns, not columns the user has explicitly shown
   useEffect(() => {
     if (!defaultHidden) return;
     const currentHidden = hiddenColumns != null ? hiddenColumns.split(',').filter((x) => x) : [];
@@ -581,11 +592,18 @@ const LogsTable = ({
       return hasUnderscore && !isHiddenByDefault(id, projectId, context);
     });
 
-    // Add new columns that should be hidden
-    const toHide = shouldBeHidden.filter((id) => !currentHidden.includes(id));
+    // FIX Bug #11: Only auto-hide columns we haven't processed yet
+    // This prevents re-hiding columns the user has explicitly shown
+    const newColumns = columnIDs.filter((id) => !processedColumnsRef.current.has(id));
+    const toHide = shouldBeHidden.filter(
+      (id) => !currentHidden.includes(id) && newColumns.includes(id)
+    );
 
     // Remove columns that are hidden but should now be visible (exception kicked in)
     const toShow = shouldBeVisible.filter((id) => currentHidden.includes(id));
+
+    // Mark all current columns as processed
+    columnIDs.forEach((id) => processedColumnsRef.current.add(id));
 
     // Only update if there are actual changes
     if ((toHide.length > 0 || toShow.length > 0) && tableTileActions) {
@@ -598,11 +616,21 @@ const LogsTable = ({
   }, [columnIDs, context, defaultHidden, tableTileActions, projectId, hiddenColumns]);
 
   // Compute column visibility map: user override or default underscore hide when enabled
+  // FIX Bug #13: Include columns from both columnIDs AND fields
+  // VisibilityFilter shows columns from `fields`, so columnVisibility must include them all
   const hiddenList = hiddenColumns != null ? hiddenColumns.split(',').filter((x) => x) : undefined;
+  const fieldsColumnIDs = useMemo(
+    () => (fields ? Object.keys(fields).map((key) => `Entries/${key}`) : []),
+    [fields]
+  );
+  const allColumnIDs = useMemo(
+    () => Array.from(new Set([...columnIDs, ...fieldsColumnIDs])),
+    [columnIDs, fieldsColumnIDs]
+  );
   const columnVisibility = useMemo(
     () =>
       Object.fromEntries(
-        columnIDs.map((id) => [
+        allColumnIDs.map((id) => [
           id,
           hiddenList !== undefined
             ? !hiddenList.includes(id)
@@ -611,7 +639,7 @@ const LogsTable = ({
               : true,
         ])
       ),
-    [columnIDs, hiddenList, defaultHidden, projectId, context]
+    [allColumnIDs, hiddenList, defaultHidden, projectId, context]
   );
 
   // Toggle handler for updating hiddenColumns from visibility map
