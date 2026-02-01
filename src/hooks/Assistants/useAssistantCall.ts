@@ -24,6 +24,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = React.useRef(false);
   const isRedispatchingRef = React.useRef(false);
+  // Unique ID for each connection attempt - used to detect stale operations
+  const connectionAttemptIdRef = React.useRef(0);
 
   // --- Remote Control State ---
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
@@ -69,7 +71,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
+      // Increment connection attempt ID to invalidate any in-flight operations from previous attempts
+      connectionAttemptIdRef.current += 1;
+      const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
+
+      // Helper to check if this connection attempt is still valid
+      const isStaleAttempt = () =>
+        isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
 
       if (room.state !== 'disconnected') {
         return;
@@ -87,7 +96,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         // Retry loop for connection setup
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
-          if (isCancelledRef.current) return;
+          if (isStaleAttempt()) return;
 
           try {
             // Step 1: Get connection details for the user
@@ -95,7 +104,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
               assistant.agentId,
               assistantName
             );
-            if (isCancelledRef.current) return;
+            if (isStaleAttempt()) return;
             if ('detail' in details) {
               throw new Error(details.detail || 'Could not get call details.');
             }
@@ -108,7 +117,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
               assistantName,
               connDetails.roomName
             );
-            if (isCancelledRef.current) return;
+            if (isStaleAttempt()) return;
             if (dispatchResult.detail) {
               throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
             }
@@ -129,7 +138,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         // Step 3: Connect the user's client
         await room.connect(connDetails.serverUrl, connDetails.token);
-        if (isCancelledRef.current) {
+        if (isStaleAttempt()) {
           await room.disconnect();
           return;
         }
@@ -146,7 +155,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
             ASSISTANT_JOIN_TIMEOUT;
           assistantJoinTimeoutRef.current = setTimeout(() => {
-            if (isCancelledRef.current) return;
+            if (isStaleAttempt()) return;
             setConnectionError(`${assistant.firstName} is taking too long to join.`);
             setIsWaitingForAssistant(false);
           }, timeoutDuration);
@@ -154,13 +163,12 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           setIsWaitingForAssistant(false); // Assistant was already present
         }
       } catch (e: any) {
+        // Only handle error if this attempt is still the current one
+        if (isStaleAttempt()) return;
+
         setIsConnecting(false);
-        if (isCancelledRef.current) {
-          /* no-op */
-        } else {
-          toast.error(`Failed to start call. Please try again.`);
-          setError(`Failed to start call: ${e.message}`);
-        }
+        toast.error(`Failed to start call. Please try again.`);
+        setError(`Failed to start call: ${e.message}`);
         // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
         if (room.state !== 'disconnected') {
           room.disconnect().catch(console.error);
