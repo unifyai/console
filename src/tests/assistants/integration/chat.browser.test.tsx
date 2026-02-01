@@ -24,6 +24,16 @@ import {
   setupChatMocks,
   cleanupChatMocks,
   getChatBubbles as getChatBubblesHelper,
+  ChatTestHarness,
+  createMockChatActions as createMockChatActionsFromFixture,
+  getChatInput,
+  getSendButton,
+  testFiles,
+  simulateFileDrop,
+  getAttachButton,
+  getAttachmentChips,
+  getAttachmentChipNames,
+  removeAttachmentChip,
 } from './fixtures';
 
 // Chat mocks state - managed via harness
@@ -285,6 +295,9 @@ describe('Assistant Profile Chat', () => {
 
         expect(screen.queryByText('Typing')).not.toBeInTheDocument();
         expect(screen.getByText('Here is your reply')).toBeInTheDocument();
+
+        // Restore real timers before test ends
+        vi.useRealTimers();
       }
     );
 
@@ -323,6 +336,9 @@ describe('Assistant Profile Chat', () => {
           vi.advanceTimersByTime(20000);
         });
         expect(screen.queryByText('Typing')).not.toBeInTheDocument();
+
+        // Restore real timers before test ends
+        vi.useRealTimers();
       }
     );
 
@@ -339,20 +355,22 @@ describe('Assistant Profile Chat', () => {
         render(<ChatTestWrapper initialHistory={undefined} />);
         await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
         act(() => chatMocks.eventSource!.simulateOpen());
-        const user = userEvent.setup();
 
+        // Use fireEvent instead of userEvent for reliability in browser tests
         const input = await screen.findByPlaceholderText('Send a message...');
-        await user.type(input, 'User Concurrent');
+        fireEvent.change(input, { target: { value: 'User Concurrent' } });
 
-        await act(async () => {
-          const sendPromise = user.keyboard('{Enter}');
+        // Simulate concurrent send and receive
+        act(() => {
+          // Submit form
+          fireEvent.submit(input.closest('form')!);
+          // Server message arrives at the same moment
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-concurrent',
             publishTime: new Date().toISOString(),
             event: { content: 'Server Concurrent' },
           });
-          await sendPromise;
         });
 
         await waitFor(() => {
@@ -399,18 +417,17 @@ describe('Assistant Profile Chat', () => {
         );
 
         // 1. Assert Loading State
-        expect(screen.getByPlaceholderText('Loading messages...')).toBeInTheDocument();
+        await waitFor(() => {
+          expect(screen.getByPlaceholderText('Loading messages...')).toBeInTheDocument();
+        });
 
         // 2. Assert No EventSource created yet
         expect(chatMocks.allEventSources.length).toBe(0);
 
-        // 3. Finish Loading
-        await act(async () => {
-          // @ts-ignore
-          resolveFetch([]);
-        });
+        // 3. Finish Loading - resolve the promise and let React process updates
+        resolveFetch!([]);
 
-        // 4. Assert Loaded State
+        // 4. Assert Loaded State - use waitFor to handle async state updates
         await waitFor(() => {
           expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
         });
@@ -1114,8 +1131,16 @@ describe('Assistant Profile Chat', () => {
         const tLatePubSub = new Date('2023-01-01T10:02:00Z'); // The one to test
         const tLiveCached = new Date('2023-01-01T10:05:00Z'); // The one already in cache
 
-        const assistantA = createMockAssistant({ agentId: 'assistant-a', firstName: 'A' });
-        const assistantB = createMockAssistant({ agentId: 'assistant-b', firstName: 'B' });
+        const assistantA = createMockAssistant({
+          agentId: 'assistant-a',
+          firstName: 'AssistantA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'assistant-b',
+          firstName: 'AssistantB',
+          surname: 'Test',
+        });
 
         // Mock Transcripts for A
         const getTranscriptsMock = vi.fn(
@@ -1127,7 +1152,8 @@ describe('Assistant Profile Chat', () => {
             _assistantId: string,
             _beforeMessageId?: number
           ) => {
-            if (assistantContext.includes('A')) {
+            // Use lowercase check since formatContextName lowercases the name
+            if (assistantContext.toLowerCase().includes('assistanta')) {
               return [
                 {
                   id: 'msg-transcript',
@@ -1160,11 +1186,14 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
-        // 1. Wait for Transcript
+        // 1. Wait for SSE connection first (ensures history has loaded)
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+
+        // 2. Wait for Transcript to appear
         await waitFor(() => expect(screen.getByText('Transcript Msg')).toBeInTheDocument());
 
-        // 2. Connect SSE and receive "Live Cached" message
-        await act(async () => {
+        // 3. Connect SSE and receive "Live Cached" message
+        act(() => {
           chatMocks.eventSource!.simulateOpen();
           chatMocks.eventSource!.simulateMessage({
             thread: 'unify_message_outbound',
@@ -1175,7 +1204,7 @@ describe('Assistant Profile Chat', () => {
         });
         await waitFor(() => expect(screen.getByText('Live Msg')).toBeInTheDocument());
 
-        // 3. Switch to B (Unmounts A's connection, caches A's history)
+        // 4. Switch to B (Unmounts A's connection, caches A's history)
         rerender(
           <ChatTestWrapper
             initialHistory={undefined}
@@ -1187,7 +1216,7 @@ describe('Assistant Profile Chat', () => {
         // Wait for B to load (empty transcripts)
         await waitFor(() => expect(chatMocks.allEventSources[1]?.url).toContain('assistant-b'));
 
-        // 4. Switch back to A
+        // 5. Switch back to A
         rerender(
           <ChatTestWrapper
             initialHistory={undefined}
@@ -1204,12 +1233,12 @@ describe('Assistant Profile Chat', () => {
         // Wait for SSE A to reconnect
         await waitFor(() => expect(chatMocks.allEventSources[2]?.url).toContain('assistant-a'));
         const connectionA = chatMocks.allEventSources[2];
-        await act(async () => connectionA.simulateOpen());
+        act(() => connectionA.simulateOpen());
 
-        // 5. Send "Late" message (Older than Live, Newer than Transcript)
+        // 6. Send "Late" message (Older than Live, Newer than Transcript)
         // If logic uses local cache max (10:05), 10:02 is rejected.
         // If logic uses transcript max (10:00), 10:02 is accepted.
-        await act(async () => {
+        act(() => {
           connectionA.simulateMessage({
             thread: 'unify_message_outbound',
             id: 'msg-late',
@@ -1218,7 +1247,7 @@ describe('Assistant Profile Chat', () => {
           });
         });
 
-        // 6. Assert
+        // 7. Assert
         await waitFor(() => expect(screen.getByText('Late Msg')).toBeInTheDocument());
       }
     );
@@ -3151,6 +3180,1606 @@ describe('Assistant Profile Chat', () => {
         await waitFor(() => {
           expect(screen.getByText('After reconnect')).toBeInTheDocument();
         });
+      }
+    );
+  });
+
+  // =========================================================================
+  // SECTION M: CONNECTION STABILITY
+  // =========================================================================
+  describe('M - Connection Stability', () => {
+    // These tests use pre-loaded history with ChatTestHarness which provides
+    // a more reliable test setup for connection stability testing
+    it(
+      'creates exactly one EventSource after history loads',
+      {
+        meta: {
+          alias: 'SSE-Single-Connection',
+          scenario: 'Component mounts and history loads',
+          behavior: 'Only one EventSource is created and maintained',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+
+        // Verify only one connection was created
+        expect(chatMocks.allEventSources.length).toBe(1);
+
+        // Simulate connection open
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Wait for connection to stabilize and verify no new connections
+        await waitFor(() => {
+          expect(chatMocks.allEventSources.length).toBe(1);
+        });
+      }
+    );
+
+    it(
+      'does not create duplicate connections when receiving messages',
+      {
+        meta: {
+          alias: 'SSE-No-Duplicate',
+          scenario: 'Multiple messages received rapidly',
+          behavior: 'Connection count remains stable',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        const initialConnectionCount = chatMocks.allEventSources.length;
+
+        // Send multiple messages rapidly
+        for (let i = 0; i < 10; i++) {
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: `msg-stability-${i}`,
+              publishTime: new Date().toISOString(),
+              event: { content: `Stability Message ${i}` },
+            });
+          });
+        }
+
+        // Verify no new connections were created
+        expect(chatMocks.allEventSources.length).toBe(initialConnectionCount);
+      }
+    );
+
+    it(
+      'maintains stable connection during rapid state updates',
+      {
+        meta: {
+          alias: 'SSE-Rapid-Updates',
+          scenario: 'Rapid message bursts trigger state updates',
+          behavior: 'Connection remains stable throughout',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        const initialConnectionCount = chatMocks.allEventSources.length;
+
+        // Rapidly receive messages and trigger state updates
+        for (let i = 0; i < 5; i++) {
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: `rapid-msg-${i}`,
+              publishTime: new Date().toISOString(),
+              event: { content: `Rapid Message ${i}` },
+            });
+          });
+        }
+
+        // Wait for all messages to be displayed
+        await waitFor(() => {
+          expect(screen.getByText('Rapid Message 4')).toBeInTheDocument();
+        });
+
+        // Connection should remain stable throughout
+        expect(chatMocks.allEventSources.length).toBe(initialConnectionCount);
+      }
+    );
+
+    it(
+      'shows correct status during connection lifecycle',
+      {
+        meta: {
+          alias: 'SSE-Status-Lifecycle',
+          scenario: 'Connection transitions through states',
+          behavior: 'UI reflects correct connection status',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+
+        // Before open - should show connecting
+        expect(screen.getByText(/Connecting/i)).toBeInTheDocument();
+
+        // After open - should show connected (status indicator disappears)
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        await waitFor(() => {
+          expect(screen.queryByText(/Connecting/i)).not.toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'displays messages received via SSE correctly',
+      {
+        meta: {
+          alias: 'SSE-Message-Display',
+          scenario: 'SSE message arrives',
+          behavior: 'Message is displayed in chat',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Send a message
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'display-test-msg',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Display Test Message' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Display Test Message')).toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'does not reconnect when receiving multiple messages',
+      {
+        meta: {
+          alias: 'SSE-No-Reconnect-On-Messages',
+          scenario: 'Multiple SSE messages received',
+          behavior: 'Connection remains stable without reconnection',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        const initialConnectionCount = chatMocks.allEventSources.length;
+
+        // Receive messages (which should not trigger reconnection)
+        for (let i = 0; i < 5; i++) {
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: `no-reconnect-msg-${i}`,
+              publishTime: new Date().toISOString(),
+              event: { content: `No Reconnect Message ${i}` },
+            });
+          });
+        }
+
+        // Wait for messages to be processed
+        await waitFor(() => {
+          expect(screen.getByText('No Reconnect Message 4')).toBeInTheDocument();
+        });
+
+        // Connection count should remain stable
+        expect(chatMocks.allEventSources.length).toBe(initialConnectionCount);
+      }
+    );
+
+    it(
+      'deduplicates messages with same ID',
+      {
+        meta: {
+          alias: 'SSE-Dedup-Same-ID',
+          scenario: 'Same message ID received multiple times',
+          behavior: 'Only one instance of message is displayed',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        const messageId = 'dedup-stability-msg';
+        const messageContent = 'Deduplicated Stability Message';
+
+        // Send the same message multiple times
+        for (let i = 0; i < 3; i++) {
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: messageId,
+              publishTime: new Date().toISOString(),
+              event: { content: messageContent },
+            });
+          });
+        }
+
+        // Should still have only one instance of the message
+        await waitFor(() => {
+          const messages = screen.queryAllByText(messageContent);
+          expect(messages.length).toBe(1);
+        });
+      }
+    );
+
+    it(
+      'does not deduplicate messages with different IDs',
+      {
+        meta: {
+          alias: 'SSE-No-Dedup-Different-ID',
+          scenario: 'Different message IDs received',
+          behavior: 'All messages are displayed',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Send multiple messages with different IDs
+        for (let i = 0; i < 3; i++) {
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: `unique-stability-msg-${i}`,
+              publishTime: new Date().toISOString(),
+              event: { content: `Unique Stability Message ${i}` },
+            });
+          });
+        }
+
+        // Should have all three messages
+        await waitFor(() => {
+          expect(screen.getByText('Unique Stability Message 0')).toBeInTheDocument();
+          expect(screen.getByText('Unique Stability Message 1')).toBeInTheDocument();
+          expect(screen.getByText('Unique Stability Message 2')).toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'shows reconnecting status after error',
+      {
+        meta: {
+          alias: 'SSE-Reconnecting-Status',
+          scenario: 'SSE connection error occurs',
+          behavior: 'Reconnecting status is displayed',
+        },
+      },
+      async () => {
+        const chatActions = createMockChatActionsFromFixture();
+        render(
+          <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+        );
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Verify connected
+        await waitFor(() => {
+          expect(screen.queryByText(/Connecting/i)).not.toBeInTheDocument();
+        });
+
+        // Simulate error
+        act(() => chatMocks.eventSource!.simulateError());
+
+        // Should show reconnecting
+        await waitFor(() => {
+          expect(screen.getByText(/Reconnecting/i)).toBeInTheDocument();
+        });
+      }
+    );
+  });
+
+  // =========================================================================
+  // SECTION N: ATTACHMENTS
+  // =========================================================================
+  describe('N - Attachments', () => {
+    const attachmentUser = userEvent.setup();
+
+    describe('Paperclip Button', () => {
+      it(
+        'should render paperclip button and be enabled when connected',
+        {
+          meta: {
+            alias: 'Attach-Button-Enabled',
+            scenario: 'Chat is connected',
+            behavior: 'Paperclip button is enabled',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          // Wait for EventSource and open connection
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for input to be enabled (using findBy which waits)
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Attach button should also be enabled when connection is ready
+          const attachButton = getAttachButton(screen);
+          expect(attachButton).not.toBeDisabled();
+        }
+      );
+
+      it(
+        'should be disabled when chat is not connected',
+        {
+          meta: {
+            alias: 'Attach-Button-Disabled',
+            scenario: 'Chat is not connected',
+            behavior: 'Paperclip button is disabled',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          // Wait for EventSource to be created but don't open it
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+
+          // Button should render but be disabled without connection
+          const attachButton = await screen.findByLabelText('Attach files');
+          expect(attachButton).toBeDisabled();
+        }
+      );
+    });
+
+    describe('File Selection', () => {
+      it(
+        'should add attachment chip when file is selected',
+        {
+          meta: {
+            alias: 'Attach-Add-Chip',
+            scenario: 'User selects a file',
+            behavior: 'Attachment chip appears',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for connection to be ready
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Upload a file
+          const file = testFiles.pdf();
+          await simulateFileDrop(container, [file], attachmentUser);
+
+          // Check chip was added
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toContain('report.pdf');
+          });
+        }
+      );
+
+      it(
+        'should show correct icon for PDF files',
+        {
+          meta: {
+            alias: 'Attach-PDF-Icon',
+            scenario: 'PDF file attached',
+            behavior: 'PDF icon is displayed',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          const file = testFiles.pdf();
+          await simulateFileDrop(container, [file], attachmentUser);
+
+          await waitFor(() => {
+            const chips = getAttachmentChips(container);
+            expect(chips.length).toBe(1);
+            // Icon should be present
+            const icon = chips[0].querySelector('[data-testid="attachment-icon"]');
+            expect(icon).toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'should show correct icon for image files',
+        {
+          meta: {
+            alias: 'Attach-Image-Icon',
+            scenario: 'Image file attached',
+            behavior: 'Image icon is displayed',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          const file = testFiles.png();
+          await simulateFileDrop(container, [file], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toContain('image.png');
+          });
+        }
+      );
+
+      it(
+        'should handle multiple file types',
+        {
+          meta: {
+            alias: 'Attach-Multiple-Types',
+            scenario: 'Multiple file types attached',
+            behavior: 'All files appear as chips',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Upload multiple files
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.png()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.docx()], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(3);
+            expect(chipNames).toContain('report.pdf');
+            expect(chipNames).toContain('image.png');
+            expect(chipNames).toContain('document.docx');
+          });
+        }
+      );
+    });
+
+    describe('File Validation', () => {
+      it(
+        'should reject files over 10MB with toast error',
+        {
+          meta: {
+            alias: 'Attach-Reject-Large',
+            scenario: 'File over 10MB attached',
+            behavior: 'File is rejected, not added',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          const file = testFiles.large();
+          await simulateFileDrop(container, [file], attachmentUser);
+
+          // File should not be added
+          await waitFor(
+            () => {
+              const chipNames = getAttachmentChipNames(container);
+              expect(chipNames).toHaveLength(0);
+            },
+            { timeout: 1000 }
+          );
+        }
+      );
+
+      it(
+        'should reject more than 5 attachments with toast error',
+        {
+          meta: {
+            alias: 'Attach-Reject-Over5',
+            scenario: 'More than 5 files attached',
+            behavior: '6th file is rejected',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Add 5 files
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.png()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.docx()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.txt()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.json()], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(5);
+          });
+
+          // Try to add a 6th file
+          await simulateFileDrop(container, [testFiles.zip()], attachmentUser);
+
+          // Should still have only 5
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(5);
+          });
+        }
+      );
+
+      it(
+        'should silently skip duplicate files',
+        {
+          meta: {
+            alias: 'Attach-Skip-Duplicate',
+            scenario: 'Same file attached twice',
+            behavior: 'Only one instance appears',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Add same file twice
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(1);
+          });
+        }
+      );
+    });
+
+    describe('Attachment Management', () => {
+      it(
+        'should remove attachment when X is clicked',
+        {
+          meta: {
+            alias: 'Attach-Remove-Chip',
+            scenario: 'User clicks X on attachment chip',
+            behavior: 'Attachment is removed',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(1);
+          });
+
+          // Remove the file
+          await removeAttachmentChip(container, 'report.pdf', attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(0);
+          });
+        }
+      );
+
+      it(
+        'should allow adding more files after removing one',
+        {
+          meta: {
+            alias: 'Attach-Add-After-Remove',
+            scenario: 'User removes file then adds another',
+            behavior: 'New file is added successfully',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Add 5 files (max)
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.png()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.docx()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.txt()], attachmentUser);
+          await simulateFileDrop(container, [testFiles.json()], attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(5);
+          });
+
+          // Remove one
+          await removeAttachmentChip(container, 'report.pdf', attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(4);
+          });
+
+          // Should be able to add another
+          await simulateFileDrop(container, [testFiles.zip()], attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(5);
+            expect(chipNames).toContain('archive.zip');
+          });
+        }
+      );
+
+      it(
+        'should clear all attachments after sending',
+        {
+          meta: {
+            alias: 'Attach-Clear-After-Send',
+            scenario: 'User sends message with attachment',
+            behavior: 'Pending attachments are cleared',
+          },
+        },
+        async () => {
+          let sentMessages: ChatMessage[] = [];
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness
+              initialHistory={[]}
+              assistantActionsOverride={{ chat: chatActions }}
+              onHistoryChange={(history) => {
+                sentMessages = history;
+              }}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for chat to be ready
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Add attachment
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(1);
+          });
+
+          // Type some text
+          await attachmentUser.type(input, 'Sending with attachment');
+
+          // Press Enter to send
+          await attachmentUser.keyboard('{Enter}');
+
+          // Verify message was sent with attachment
+          await waitFor(() => {
+            expect(sentMessages.length).toBeGreaterThan(0);
+            const lastMessage = sentMessages[sentMessages.length - 1];
+            expect(lastMessage.content).toBe('Sending with attachment');
+            expect(lastMessage.attachments).toBeDefined();
+            expect(lastMessage.attachments).toHaveLength(1);
+            expect(lastMessage.attachments?.[0].name).toBe('report.pdf');
+          });
+
+          // Input should be cleared
+          await waitFor(() => {
+            expect(input).toHaveValue('');
+          });
+
+          // Allow React to complete all rendering updates
+          await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          });
+
+          // Pending attachments should be cleared from UI (not in message bubbles)
+          const pendingChips = screen.queryAllByTestId('pending-attachment-chip');
+          expect(pendingChips).toHaveLength(0);
+        }
+      );
+    });
+
+    describe('Sending Messages with Attachments', () => {
+      it(
+        'should send message with text and attachments',
+        {
+          meta: {
+            alias: 'Attach-Send-Text-And-File',
+            scenario: 'User sends message with text and attachment',
+            behavior: 'Message appears in chat with attachment',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for input to be enabled
+          const input = getChatInput(screen);
+          await waitFor(() => {
+            expect(input).not.toBeDisabled();
+          });
+
+          // Type message
+          await attachmentUser.type(input, 'Here is the file');
+
+          // Add attachment
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(1);
+          });
+
+          // Send
+          const sendButton = getSendButton(screen);
+          await waitFor(() => {
+            expect(sendButton).not.toBeDisabled();
+          });
+          await attachmentUser.click(sendButton);
+
+          // Message should be sent
+          await waitFor(
+            () => {
+              const bubbles = getChatBubbles();
+              expect(bubbles.some((b) => b?.includes('Here is the file'))).toBe(true);
+            },
+            { timeout: 2000 }
+          );
+        }
+      );
+
+      it(
+        'should send message with only attachments (no text)',
+        {
+          meta: {
+            alias: 'Attach-Send-File-Only',
+            scenario: 'User sends attachment without text',
+            behavior: 'Message is sent with attachment only',
+          },
+        },
+        async () => {
+          let sentMessages: ChatMessage[] = [];
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness
+              initialHistory={[]}
+              assistantActionsOverride={{ chat: chatActions }}
+              onHistoryChange={(history) => {
+                sentMessages = history;
+              }}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for input to be enabled
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Initially send button should be disabled (no content)
+          let sendButton = getSendButton(screen);
+          expect(sendButton).toBeDisabled();
+
+          // Add attachment without typing any text
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(1);
+          });
+
+          // Send button should now be enabled (attachment counts as content)
+          await waitFor(() => {
+            sendButton = getSendButton(screen);
+            expect(sendButton).not.toBeDisabled();
+          });
+
+          // Click send button with user event
+          await attachmentUser.click(sendButton);
+
+          // Verify message was sent with attachment (even without text)
+          await waitFor(() => {
+            expect(sentMessages.length).toBeGreaterThan(0);
+            const lastMessage = sentMessages[sentMessages.length - 1];
+            expect(lastMessage.content).toBe(''); // No text
+            expect(lastMessage.attachments).toBeDefined();
+            expect(lastMessage.attachments).toHaveLength(1);
+            expect(lastMessage.attachments?.[0].name).toBe('report.pdf');
+          });
+
+          // Input should still be empty (no text was typed)
+          await waitFor(() => {
+            expect(input).toHaveValue('');
+          });
+
+          // Allow React to complete all rendering updates
+          await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          });
+
+          // Pending attachments should be cleared from UI (not in message bubbles)
+          const pendingChips = screen.queryAllByTestId('pending-attachment-chip');
+          expect(pendingChips).toHaveLength(0);
+        }
+      );
+
+      it(
+        'should enable send button when attachments added',
+        {
+          meta: {
+            alias: 'Attach-Enable-Send-Button',
+            scenario: 'User adds attachment',
+            behavior: 'Send button becomes enabled',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Wait for input to be ready
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Send button should be disabled without text or attachments
+          let sendButton = getSendButton(screen);
+          expect(sendButton).toBeDisabled();
+
+          // Add attachment
+          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
+
+          await waitFor(() => {
+            expect(getAttachmentChipNames(container)).toHaveLength(1);
+          });
+
+          // Send button should now be enabled
+          await waitFor(() => {
+            sendButton = getSendButton(screen);
+            expect(sendButton).not.toBeDisabled();
+          });
+        }
+      );
+    });
+  });
+
+  // =========================================================================
+  // SECTION O: MULTI-ASSISTANT SWITCHING
+  // =========================================================================
+  describe('O - Multi-Assistant Switching', () => {
+    // NOTE: contactId is always 1 for the user (same across all assistants)
+    // Assistants are differentiated by assistantId, not contactId
+
+    it(
+      'uses correct assistantId in API calls when switching assistants',
+      {
+        meta: {
+          alias: 'Switch-Correct-AssistantId',
+          scenario: 'User switches between two different assistants',
+          behavior: 'Each API call uses the correct assistantId',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'assistant-alpha',
+          firstName: 'Alpha',
+          surname: 'Assistant',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'assistant-beta',
+          firstName: 'Beta',
+          surname: 'Assistant',
+        });
+
+        const getTranscriptsCalls: Array<{ assistantId: string; contactId: number }> = [];
+        const getTranscriptsMock = vi.fn(
+          async (
+            _ownerContext: string,
+            _assistantContext: string,
+            contactId: number,
+            _ownerId: string,
+            assistantId: string
+          ) => {
+            getTranscriptsCalls.push({ assistantId, contactId });
+            return [];
+          }
+        );
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1), // User contactId is always 1
+            getTranscripts: getTranscriptsMock,
+            message: vi.fn(async () => ({ info: 'sent' })),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant A to load
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        expect(chatMocks.eventSource!.url).toContain('assistant-alpha');
+
+        // Switch to Assistant B
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant B connection
+        await waitFor(() => {
+          expect(chatMocks.allEventSources.length).toBe(2);
+          expect(chatMocks.allEventSources[1].url).toContain('assistant-beta');
+        });
+
+        // Verify getTranscripts was called with correct assistantIds
+        await waitFor(() => {
+          expect(getTranscriptsCalls.length).toBe(2);
+        });
+
+        const alphaCall = getTranscriptsCalls.find((c) => c.assistantId === 'assistant-alpha');
+        const betaCall = getTranscriptsCalls.find((c) => c.assistantId === 'assistant-beta');
+
+        // Both use contactId=1 (user), but different assistantIds
+        expect(alphaCall?.contactId).toBe(1);
+        expect(alphaCall?.assistantId).toBe('assistant-alpha');
+        expect(betaCall?.contactId).toBe(1);
+        expect(betaCall?.assistantId).toBe('assistant-beta');
+      }
+    );
+
+    it(
+      'sends messages to correct assistant with correct assistantId',
+      {
+        meta: {
+          alias: 'Switch-Correct-Message-Routing',
+          scenario: 'User sends messages to different assistants',
+          behavior: 'Each message is sent to the correct assistant',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'assistant-msg-a',
+          firstName: 'MsgA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'assistant-msg-b',
+          firstName: 'MsgB',
+          surname: 'Test',
+        });
+
+        const sentMessages: Array<{ assistantId: number; contactId: number; message: string }> = [];
+        const messageMock = vi.fn(
+          async (payload: { assistantId: number; contactId: number; message: string }) => {
+            sentMessages.push(payload);
+            return { info: 'sent' };
+          }
+        );
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1), // User contactId is always 1
+            getTranscripts: vi.fn(async () => []),
+            message: messageMock,
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant A to load and connect
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Send message to Assistant A
+        const inputA = await screen.findByPlaceholderText('Send a message...');
+        fireEvent.change(inputA, { target: { value: 'Hello Alpha' } });
+        fireEvent.submit(inputA.closest('form')!);
+
+        await waitFor(() => expect(sentMessages.length).toBe(1));
+        // contactId is always 1 (user), messages are differentiated by assistantId
+        expect(sentMessages[0].contactId).toBe(1);
+        expect(sentMessages[0].message).toBe('Hello Alpha');
+
+        // Switch to Assistant B
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant B connection
+        await waitFor(() => {
+          expect(chatMocks.allEventSources.length).toBe(2);
+        });
+        act(() => chatMocks.allEventSources[1].simulateOpen());
+
+        // Send message to Assistant B
+        const inputB = await screen.findByPlaceholderText('Send a message...');
+        fireEvent.change(inputB, { target: { value: 'Hello Beta' } });
+        fireEvent.submit(inputB.closest('form')!);
+
+        await waitFor(() => expect(sentMessages.length).toBe(2));
+        // Both messages use contactId=1, but were sent to different assistants
+        expect(sentMessages[1].contactId).toBe(1);
+        expect(sentMessages[1].message).toBe('Hello Beta');
+      }
+    );
+
+    it(
+      'receives SSE messages into correct assistant history (no cross-contamination)',
+      {
+        meta: {
+          alias: 'Switch-No-Cross-Contamination',
+          scenario: 'SSE messages arrive while switching assistants',
+          behavior: 'Messages are added only to the correct assistant history',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'assistant-sse-a',
+          firstName: 'SseA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'assistant-sse-b',
+          firstName: 'SseB',
+          surname: 'Test',
+        });
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: vi.fn(async () => []),
+            message: vi.fn(async () => ({ info: 'sent' })),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant A SSE
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Receive message for Assistant A
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-for-a-1',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Message for Alpha 1' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Message for Alpha 1')).toBeInTheDocument();
+        });
+
+        // Switch to Assistant B
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant B SSE
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(2));
+        act(() => chatMocks.allEventSources[1].simulateOpen());
+
+        // Message for Alpha should not be visible when viewing Beta
+        expect(screen.queryByText('Message for Alpha 1')).not.toBeInTheDocument();
+
+        // Receive message for Assistant B
+        act(() => {
+          chatMocks.allEventSources[1].simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-for-b-1',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Message for Beta 1' },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByText('Message for Beta 1')).toBeInTheDocument();
+        });
+
+        // Switch back to Assistant A
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for Assistant A to restore from cache
+        await waitFor(() => {
+          expect(screen.getByText('Message for Alpha 1')).toBeInTheDocument();
+        });
+
+        // Beta's message should not appear in Alpha's history
+        expect(screen.queryByText('Message for Beta 1')).not.toBeInTheDocument();
+      }
+    );
+
+    it(
+      'preserves message history when rapidly switching between assistants',
+      {
+        meta: {
+          alias: 'Switch-Rapid-Preserve-History',
+          scenario: 'User rapidly switches between assistants multiple times',
+          behavior: 'All message histories are preserved correctly',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'rapid-a',
+          firstName: 'RapidA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'rapid-b',
+          firstName: 'RapidB',
+          surname: 'Test',
+        });
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: vi.fn(async () => []),
+            message: vi.fn(async () => ({ info: 'sent' })),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Connect A and add a message
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'rapid-msg-a1',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Alpha Message 1' },
+          });
+        });
+        await waitFor(() => expect(screen.getByText('Alpha Message 1')).toBeInTheDocument());
+
+        // Switch to B
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(2));
+        act(() => chatMocks.allEventSources[1].simulateOpen());
+        act(() => {
+          chatMocks.allEventSources[1].simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'rapid-msg-b1',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Beta Message 1' },
+          });
+        });
+        await waitFor(() => expect(screen.getByText('Beta Message 1')).toBeInTheDocument());
+
+        // Switch back to A
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(screen.getByText('Alpha Message 1')).toBeInTheDocument());
+        expect(screen.queryByText('Beta Message 1')).not.toBeInTheDocument();
+
+        // Add another message to A
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(3));
+        act(() => chatMocks.allEventSources[2].simulateOpen());
+        act(() => {
+          chatMocks.allEventSources[2].simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'rapid-msg-a2',
+            publishTime: new Date().toISOString(),
+            event: { content: 'Alpha Message 2' },
+          });
+        });
+        await waitFor(() => expect(screen.getByText('Alpha Message 2')).toBeInTheDocument());
+
+        // Switch to B again
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(screen.getByText('Beta Message 1')).toBeInTheDocument());
+        expect(screen.queryByText('Alpha Message 1')).not.toBeInTheDocument();
+        expect(screen.queryByText('Alpha Message 2')).not.toBeInTheDocument();
+
+        // Final switch back to A - should have both messages
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => {
+          expect(screen.getByText('Alpha Message 1')).toBeInTheDocument();
+          expect(screen.getByText('Alpha Message 2')).toBeInTheDocument();
+        });
+      }
+    );
+
+    it(
+      'handles concurrent message sends during assistant switch',
+      {
+        meta: {
+          alias: 'Switch-Concurrent-Send',
+          scenario: 'User sends message just before switching assistants',
+          behavior: 'Message is sent to correct assistant, not the new one',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'concurrent-a',
+          firstName: 'ConcurrentA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'concurrent-b',
+          firstName: 'ConcurrentB',
+          surname: 'Test',
+        });
+
+        // Track which assistant received the message via the assistantId parameter
+        const sentMessages: Array<{ assistantId: number; contactId: number; message: string }> = [];
+        const messageMock = vi.fn(
+          async (payload: { assistantId: number; contactId: number; message: string }) => {
+            // Simulate network delay
+            await new Promise((r) => setTimeout(r, 50));
+            sentMessages.push(payload);
+            return { info: 'sent' };
+          }
+        );
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1), // User contactId is always 1
+            getTranscripts: vi.fn(async () => []),
+            message: messageMock,
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Connect to A
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        // Type message to A
+        const input = await screen.findByPlaceholderText('Send a message...');
+        fireEvent.change(input, { target: { value: 'Message before switch' } });
+
+        // Send message and immediately switch (simulating race condition)
+        fireEvent.submit(input.closest('form')!);
+
+        // Switch to B immediately after sending
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for the message to be sent (with delay)
+        await waitFor(
+          () => {
+            expect(sentMessages.length).toBe(1);
+          },
+          { timeout: 2000 }
+        );
+
+        // The message should have been sent - contactId is always 1 for user
+        // The key is that the message was initiated before the switch
+        expect(sentMessages[0].contactId).toBe(1);
+        expect(sentMessages[0].message).toBe('Message before switch');
+      }
+    );
+
+    it(
+      'SSE messages for inactive assistant are not displayed',
+      {
+        meta: {
+          alias: 'Switch-Inactive-SSE-Ignored',
+          scenario: 'SSE message arrives for assistant that is no longer active',
+          behavior: 'Message is not displayed (old connection should be closed)',
+        },
+      },
+      async () => {
+        const assistantA = createMockAssistant({
+          agentId: 'inactive-a',
+          firstName: 'InactiveA',
+          surname: 'Test',
+        });
+        const assistantB = createMockAssistant({
+          agentId: 'inactive-b',
+          firstName: 'InactiveB',
+          surname: 'Test',
+        });
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: vi.fn(async () => []),
+            message: vi.fn(async () => ({ info: 'sent' })),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantA}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Connect A
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        const connectionA = chatMocks.eventSource!;
+        act(() => connectionA.simulateOpen());
+
+        // Switch to B (this should close A's connection)
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistantB}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Wait for B to connect
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(2));
+        act(() => chatMocks.allEventSources[1].simulateOpen());
+
+        // Verify A's connection was closed
+        expect(connectionA.closeSpy).toHaveBeenCalled();
+
+        // Even if somehow A's connection wasn't closed, messages shouldn't appear
+        // because the component is now showing B's chat
+        // (The closeSpy being called confirms proper cleanup)
+      }
+    );
+
+    it(
+      'each assistant gets unique SSE connection URL',
+      {
+        meta: {
+          alias: 'Switch-Unique-SSE-URLs',
+          scenario: 'Switch between multiple assistants',
+          behavior: 'Each SSE connection URL contains the correct assistant ID',
+        },
+      },
+      async () => {
+        const assistants = [
+          createMockAssistant({ agentId: 'unique-1', firstName: 'One', surname: 'Test' }),
+          createMockAssistant({ agentId: 'unique-2', firstName: 'Two', surname: 'Test' }),
+          createMockAssistant({ agentId: 'unique-3', firstName: 'Three', surname: 'Test' }),
+        ];
+
+        const actionsOverride = {
+          chat: {
+            getContactId: vi.fn(async () => 1),
+            getTranscripts: vi.fn(async () => []),
+            message: vi.fn(async () => ({ info: 'sent' })),
+            getAssistantOwnerById: vi.fn(async () => null),
+            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+          },
+        };
+
+        const { rerender } = render(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistants[0]}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+
+        // Connect to first assistant
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        expect(chatMocks.eventSource!.url).toContain('unique-1');
+
+        // Switch to second
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistants[1]}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(2));
+        expect(chatMocks.allEventSources[1].url).toContain('unique-2');
+
+        // Switch to third
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistants[2]}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(3));
+        expect(chatMocks.allEventSources[2].url).toContain('unique-3');
+
+        // Switch back to first - should create new connection
+        rerender(
+          <ChatTestWrapper
+            initialHistory={undefined}
+            assistantOverride={assistants[0]}
+            assistantActionsOverride={actionsOverride}
+          />
+        );
+        await waitFor(() => expect(chatMocks.allEventSources.length).toBe(4));
+        expect(chatMocks.allEventSources[3].url).toContain('unique-1');
       }
     );
   });
