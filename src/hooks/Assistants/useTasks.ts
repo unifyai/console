@@ -105,6 +105,9 @@ export function useTasks(
   });
   const initialLoadAttemptedRef = React.useRef(false);
 
+  // Track fetch operations to prevent stale responses from updating state
+  const fetchOperationIdRef = React.useRef(0);
+
   // State for per-assistant pagination (used when filtering by specific assistant)
   const [perAssistantData, setPerAssistantData] = React.useState<Map<string, PerAssistantData>>(
     new Map()
@@ -137,6 +140,14 @@ export function useTasks(
       isInitialLoad: boolean,
       useAllContext: boolean // When true, use single "All" context API call
     ) => {
+      // Increment operation ID and capture it for this fetch
+      // This allows us to ignore stale responses when filter changes
+      fetchOperationIdRef.current += 1;
+      const thisOperationId = fetchOperationIdRef.current;
+
+      // Helper to check if this operation is stale
+      const isStaleOperation = () => fetchOperationIdRef.current !== thisOperationId;
+
       if (isInitialLoad) {
         setIsLoadingInitial(true);
         setTasks([]);
@@ -162,6 +173,9 @@ export function useTasks(
 
           // Pass null for assistantId when using "All" context (filter by _user_id only)
           const response = await taskActions.get('All', null, expr, TASK_PAGE_LIMIT, offset);
+
+          // Check if this operation is stale after async call
+          if (isStaleOperation()) return;
 
           if ('detail' in response && response.detail) {
             setTaskError(response.detail);
@@ -211,6 +225,10 @@ export function useTasks(
           });
 
           const responses = await Promise.all(promises);
+
+          // Check if this operation is stale after async call
+          if (isStaleOperation()) return;
+
           const newTasks: Task[] = [];
           const newPerAssistantData = new Map<string, PerAssistantData>(perAssistantData);
           let hadError = false;
@@ -261,6 +279,9 @@ export function useTasks(
           setPerAssistantData(newPerAssistantData);
         }
       } catch (error) {
+        // Ignore errors from stale operations
+        if (isStaleOperation()) return;
+
         const errorMsg =
           error instanceof Error
             ? error.message
@@ -269,8 +290,11 @@ export function useTasks(
         toast.error(`Failed to load tasks`);
         if (isInitialLoad) setTasks([]);
       } finally {
-        if (isInitialLoad) setIsLoadingInitial(false);
-        setIsLoadingMore(false);
+        // Only update loading state if this operation is still current
+        if (!isStaleOperation()) {
+          if (isInitialLoad) setIsLoadingInitial(false);
+          setIsLoadingMore(false);
+        }
       }
     },
     [taskActions, isLoadingMore, perAssistantData, allContextPagination, sortTasks]
