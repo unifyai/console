@@ -63,6 +63,7 @@ export function useAssistantProfileChat(
   const contactSyncTriggeredRef = React.useRef<Set<string>>(new Set());
 
   // Get the current user's contact_id for the active assistant
+  // This value is stable and only changes when the contact ID for THIS assistant changes
   const currentContactId = React.useMemo(() => {
     if (!assistantId) return null;
     return contactIdCache.get(assistantId) ?? null;
@@ -452,9 +453,11 @@ export function useAssistantProfileChat(
   React.useEffect(() => {
     if (!assistantId || historyLoadedForAssistantId !== assistantId || !canChat) return;
 
-    const userContactId = contactIdCache.get(assistantId);
+    // Use currentContactId (a primitive) as a dependency to avoid unnecessary reconnections
+    // when the contactIdCache Map reference changes but the actual contact ID hasn't
+    const userContactId = currentContactId;
     // If we don't have a contact_id, we shouldn't be connecting to SSE
-    if (userContactId === undefined) return;
+    if (userContactId === undefined || userContactId === null) return;
 
     setConnectionStatus('connecting');
     const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
@@ -602,7 +605,7 @@ export function useAssistantProfileChat(
     stopReplying,
     historyLoadedForAssistantId,
     canChat,
-    contactIdCache,
+    currentContactId, // Use primitive contact ID instead of contactIdCache Map to prevent unnecessary reconnections
     sseReconnectTrigger, // Re-run effect when reconnect is triggered
   ]);
 
