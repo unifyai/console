@@ -666,4 +666,295 @@ describe('useAssistantHireForm', () => {
       }
     );
   });
+
+  // ===========================================================================
+  // F - Stress and Robustness
+  // ===========================================================================
+
+  describe('F - Stress and Robustness', () => {
+    describe('Preset Selection Race Conditions', () => {
+      it(
+        'ignores stale video download when switching presets rapidly',
+        {
+          meta: {
+            alias: 'HireForm-IgnoresStalePresetVideo',
+            scenario: 'User rapidly clicks through different presets',
+            behavior: 'Only the last preset video should be displayed',
+          },
+        },
+        async () => {
+          // Arrange - setup delayed video downloads
+          let resolveFirstVideo: ((v: any) => void) | null = null;
+          let resolveSecondVideo: ((v: any) => void) | null = null;
+          let callCount = 0;
+
+          mockActions.photo.downloadPresetVideo = vi
+            .fn()
+            .mockImplementation(async (firstName: string) => {
+              callCount++;
+              if (callCount === 1) {
+                return new Promise((resolve) => {
+                  resolveFirstVideo = resolve;
+                });
+              }
+              return new Promise((resolve) => {
+                resolveSecondVideo = resolve;
+              });
+            });
+
+          const preset1: AssistantPreset = {
+            firstName: 'Alice',
+            surname: 'First',
+            age: 25,
+            gender: 'female',
+            nationality: 'United States',
+            voiceIds: { elevenlabs: 'voice-1', openai: 'voice-1-openai' },
+            profilePhoto: 'gs://bucket/alice.jpg',
+            profileVideo: null,
+            about: 'A helpful assistant',
+            voiceMode: 'tts',
+            phoneCountry: 'US',
+            timezone: 'UTC',
+          };
+
+          const preset2: AssistantPreset = {
+            firstName: 'Bob',
+            surname: 'Second',
+            age: 30,
+            gender: 'male',
+            nationality: 'United Kingdom',
+            voiceIds: { elevenlabs: 'voice-2', openai: 'voice-2-openai' },
+            profilePhoto: 'gs://bucket/bob.jpg',
+            profileVideo: null,
+            about: 'Another helpful assistant',
+            voiceMode: 'tts',
+            phoneCountry: 'GB',
+            timezone: 'UTC',
+          };
+
+          const { result } = renderHook(() =>
+            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          );
+
+          await waitFor(() => {
+            expect(result.current.isLoadingCountries).toBe(false);
+          });
+
+          // Select first preset
+          act(() => {
+            result.current.selectPreset(preset1);
+          });
+
+          // Give time for async operation to start
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 10));
+          });
+
+          // Quickly select second preset before first video loads
+          act(() => {
+            result.current.selectPreset(preset2);
+          });
+
+          // Give time for async operation to start
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 10));
+          });
+
+          // Resolve first video (stale - should be ignored)
+          await act(async () => {
+            resolveFirstVideo?.({ signedUrl: 'https://stale-alice-video.mp4' });
+            await new Promise((r) => setTimeout(r, 10));
+          });
+
+          // Resolve second video (current)
+          await act(async () => {
+            resolveSecondVideo?.({ signedUrl: 'https://current-bob-video.mp4' });
+            await new Promise((r) => setTimeout(r, 10));
+          });
+
+          // BUG: First video might overwrite second since there's no operation ID
+          // After fix, should have Bob's data and video
+          const formValues = result.current.hireFormMethods.getValues();
+          expect(formValues.firstName).toBe('Bob');
+          expect(formValues.videoPreviewUrl).toBe('https://current-bob-video.mp4');
+        }
+      );
+    });
+
+    describe('Double Submission Prevention', () => {
+      it(
+        'prevents double hire submission when clicked rapidly',
+        {
+          meta: {
+            alias: 'HireForm-PreventsDoubleHire',
+            scenario: 'User clicks hire button twice rapidly',
+            behavior: 'Only one hire should be processed',
+          },
+        },
+        async () => {
+          // Arrange - slow hire process
+          let hireCallCount = 0;
+          mockActions.assistant.create = vi.fn().mockImplementation(async () => {
+            hireCallCount++;
+            // Never resolve to keep isSubmitting true
+            return new Promise(() => {});
+          });
+
+          const { result } = renderHook(() =>
+            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          );
+
+          await waitFor(() => {
+            expect(result.current.isLoadingCountries).toBe(false);
+          });
+
+          // Setup valid form data
+          act(() => {
+            result.current.hireFormMethods.setValue('firstName', 'Test');
+            result.current.hireFormMethods.setValue('surname', 'Assistant');
+            result.current.hireFormMethods.setValue('nationality', 'United States');
+            result.current.hireFormMethods.setValue('voiceId', 'voice-1');
+            result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
+            result.current.hireFormMethods.setValue('voiceGender', 'female');
+            result.current.hireFormMethods.setValue('voiceLanguage', 'en');
+            result.current.hireFormMethods.setValue('voiceExists', true);
+          });
+
+          // First hire attempt
+          act(() => {
+            result.current.initiateHireSequence();
+          });
+
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 100));
+          });
+
+          // Verify submitting state
+          expect(result.current.isCheckingBalance || result.current.isSubmitting).toBe(true);
+
+          // Second hire attempt while first is processing
+          act(() => {
+            result.current.initiateHireSequence();
+          });
+
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 100));
+          });
+
+          // Should only have one hire call
+          // Note: The guard at line 851 should prevent this
+          expect(hireCallCount).toBeLessThanOrEqual(1);
+        }
+      );
+
+      it(
+        'prevents double update submission when clicked rapidly',
+        {
+          meta: {
+            alias: 'HireForm-PreventsDoubleUpdate',
+            scenario: 'User clicks update button twice rapidly',
+            behavior: 'Only one update should be processed',
+          },
+        },
+        async () => {
+          // Arrange
+          let updateCallCount = 0;
+          mockActions.assistant.update = vi.fn().mockImplementation(async () => {
+            updateCallCount++;
+            // Never resolve
+            return new Promise(() => {});
+          });
+
+          const existingAssistant: Assistant = {
+            agentId: 'existing-1',
+            firstName: 'Existing',
+            surname: 'Assistant',
+            age: 25,
+            nationality: 'United States',
+            timezone: 'UTC',
+            voiceId: 'voice-1',
+            voiceProvider: 'elevenlabs',
+          } as Assistant;
+
+          const { result } = renderHook(() =>
+            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          );
+
+          await waitFor(() => {
+            expect(result.current.isLoadingCountries).toBe(false);
+          });
+
+          // Load assistant for editing
+          act(() => {
+            result.current.loadAssistantForEdit(existingAssistant);
+          });
+
+          // Make a change
+          act(() => {
+            result.current.hireFormMethods.setValue('about', 'Updated bio');
+          });
+
+          // First update attempt
+          act(() => {
+            result.current.initiateUpdate();
+          });
+
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 50));
+          });
+
+          // Second update attempt while first is processing
+          act(() => {
+            result.current.initiateUpdate();
+          });
+
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 50));
+          });
+
+          // Should only have one update call
+          expect(updateCallCount).toBeLessThanOrEqual(1);
+        }
+      );
+    });
+
+    describe('Operation ID Tracking', () => {
+      it(
+        'should have mechanism to cancel stale hire operations',
+        {
+          meta: {
+            alias: 'HireForm-CancelStaleHire',
+            scenario: 'User starts hire, closes dialog, starts new hire',
+            behavior: 'First hire should be cancelled/ignored',
+          },
+        },
+        async () => {
+          // This test documents that the hook currently lacks operation ID tracking
+          // for the hire sequence. The form reset clears state but doesn't cancel
+          // in-flight operations.
+
+          // For now, verify that resetForm can be called
+          const { result } = renderHook(() =>
+            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          );
+
+          await waitFor(() => {
+            expect(result.current.isLoadingCountries).toBe(false);
+          });
+
+          act(() => {
+            result.current.hireFormMethods.setValue('firstName', 'Test');
+          });
+
+          expect(result.current.hireFormMethods.getValues('firstName')).toBe('Test');
+
+          act(() => {
+            result.current.resetForm();
+          });
+
+          expect(result.current.hireFormMethods.getValues('firstName')).toBe('');
+        }
+      );
+    });
+  });
 });

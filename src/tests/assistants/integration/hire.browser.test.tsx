@@ -449,7 +449,7 @@ describe('Assistant Hire Flow', () => {
         await user.type(screen.getByLabelText(/about/i), 'Bio');
         await user.click(screen.getByRole('button', { name: /hire assistant/i }));
         expect(
-          await screen.findByText(/an error occurred during the hiring process/i)
+          await screen.findByText(/An error occurred during the hiring process/i)
         ).toBeInTheDocument();
         expect(screen.getByLabelText(/first name/i)).toHaveValue('Retry');
       }

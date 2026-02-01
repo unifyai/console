@@ -41,6 +41,10 @@ export function useAssistantHireForm(
   isDialogOpen?: boolean
 ) {
   const toastIdRef = React.useRef<string | number | undefined>(undefined);
+  // Ref to prevent double submissions (avoids stale closure issues)
+  const isSubmittingRef = React.useRef(false);
+  // Ref to track preset selection operations and ignore stale video downloads
+  const presetOperationIdRef = React.useRef(0);
 
   const defaultVoice = getDefaultVoiceForProvider();
 
@@ -153,6 +157,11 @@ export function useAssistantHireForm(
   const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
   const [fetchedAssistantEmails, setFetchedAssistantEmails] = React.useState<string[]>([]);
   const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+
+  // Keep ref in sync with state to avoid stale closures
+  React.useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
 
   React.useEffect(() => {
     if (isDialogOpen) {
@@ -281,6 +290,10 @@ export function useAssistantHireForm(
 
   const selectPreset = React.useCallback(
     (preset: AssistantPreset) => {
+      // Increment operation ID to track this specific preset selection
+      presetOperationIdRef.current += 1;
+      const thisOperationId = presetOperationIdRef.current;
+
       handleMediaRemove();
       const isFastMode = getValues('fastMode');
 
@@ -372,6 +385,10 @@ export function useAssistantHireForm(
       assistantActions.photo
         .downloadPresetVideo(preset.firstName, preset.surname, finalProvider)
         .then((res) => {
+          // Ignore stale video downloads from previous preset selections
+          if (presetOperationIdRef.current !== thisOperationId) {
+            return;
+          }
           if (res.signedUrl) {
             setValue('videoPreviewUrl', res.signedUrl);
             setValue('videoSourceVoiceId', providerSpecificVoiceId);
@@ -384,6 +401,10 @@ export function useAssistantHireForm(
           }
         })
         .catch((err) => {
+          // Ignore stale errors from previous preset selections
+          if (presetOperationIdRef.current !== thisOperationId) {
+            return;
+          }
           setValue('isPresetPristine', false);
           setValue('videoPreviewUrl', null);
         });
@@ -521,6 +542,10 @@ export function useAssistantHireForm(
   );
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
+    // Prevent double submission using ref to avoid stale closure
+    if (isSubmittingRef.current) {
+      return;
+    }
     if (!editingAssistant) {
       toast.error('No assistant selected for editing.');
       return;
@@ -832,7 +857,7 @@ export function useAssistantHireForm(
       );
 
       if (!isRHFError) {
-        toast.error(`an error occurred during the hiring process. Please try again.`, {
+        toast.error(`An error occurred during the hiring process. Please try again.`, {
           id: toastIdRef.current,
         });
       } else {
