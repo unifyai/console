@@ -129,6 +129,11 @@ export function usePhotoCreator(
   const toastIdRef = React.useRef<string | number | undefined>();
   const isProcessingRef = React.useRef(isProcessing);
 
+  // Operation ID to track and ignore stale operations
+  const operationIdRef = React.useRef(0);
+  // Captured voice for animation (to avoid stale closure issues)
+  const capturedVoiceIdRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     isProcessingRef.current = isProcessing;
   }, [isProcessing]);
@@ -165,10 +170,26 @@ export function usePhotoCreator(
       return;
     }
 
+    // Prevent concurrent operations
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    operationIdRef.current += 1;
+    const thisOperationId = operationIdRef.current;
+
     setIsProcessing(true);
     const toastId = toast.loading('Checking your balance...');
 
     const currentBalance = await fetchBalance();
+
+    // Check if this operation is still current
+    if (operationIdRef.current !== thisOperationId) {
+      toast.dismiss(toastId);
+      return;
+    }
+
     if (currentBalance < photoOperationCost) {
       insufficientFundsToast('generation');
       toast.dismiss(toastId);
@@ -191,6 +212,13 @@ export function usePhotoCreator(
 
     try {
       const result = await photoActions.generate({ prompt: finalPrompt });
+
+      // Check if this operation is still current
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if ((result as ResponseProps).detail) {
         throw new Error((result as ResponseProps).detail);
       }
@@ -198,6 +226,13 @@ export function usePhotoCreator(
 
       toast.loading('Processing generated image...', { id: toastId });
       const imageResponse = await fetch(newUrl);
+
+      // Check again after async operation
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if (!imageResponse.ok) throw new Error('Failed to download the generated image.');
 
       const blob = await imageResponse.blob();
@@ -207,9 +242,15 @@ export function usePhotoCreator(
       onNewMediaReady(imageFile, 'photo');
       toast.success('Photo generated successfully!', { id: toastId });
     } catch (error: any) {
-      toast.error(`Photo generation failed.`, { id: toastId });
+      // Only show error if this operation is still current
+      if (operationIdRef.current === thisOperationId) {
+        toast.error(`Photo generation failed.`, { id: toastId });
+      }
     } finally {
-      setIsProcessing(false);
+      // Only update state if this operation is still current
+      if (operationIdRef.current === thisOperationId) {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -223,10 +264,26 @@ export function usePhotoCreator(
       return;
     }
 
+    // Prevent concurrent operations
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    operationIdRef.current += 1;
+    const thisOperationId = operationIdRef.current;
+
     setIsProcessing(true);
     const toastId = toast.loading('Checking your balance...');
 
     const currentBalance = await fetchBalance();
+
+    // Check if this operation is still current
+    if (operationIdRef.current !== thisOperationId) {
+      toast.dismiss(toastId);
+      return;
+    }
+
     if (currentBalance < photoOperationCost) {
       insufficientFundsToast('editing');
       toast.dismiss(toastId);
@@ -256,6 +313,12 @@ export function usePhotoCreator(
 
       const result = await photoActions.edit(formData);
 
+      // Check if this operation is still current
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if ((result as ResponseProps).detail) {
         throw new Error((result as ResponseProps).detail);
       }
@@ -264,6 +327,13 @@ export function usePhotoCreator(
 
       toast.loading('Processing edited image...', { id: toastId });
       const imageResponse = await fetch(newUrl);
+
+      // Check again after async operation
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if (!imageResponse.ok) throw new Error('Failed to download the edited image.');
 
       const blob = await imageResponse.blob();
@@ -273,9 +343,15 @@ export function usePhotoCreator(
       onNewMediaReady(imageFile, 'photo');
       toast.success('Photo edited successfully!', { id: toastId });
     } catch (error: any) {
-      toast.error(`Photo editing failed.`, { id: toastId });
+      // Only show error if this operation is still current
+      if (operationIdRef.current === thisOperationId) {
+        toast.error(`Photo editing failed.`, { id: toastId });
+      }
     } finally {
-      setIsProcessing(false);
+      // Only update state if this operation is still current
+      if (operationIdRef.current === thisOperationId) {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -295,6 +371,18 @@ export function usePhotoCreator(
       return;
     }
 
+    // Prevent concurrent operations
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    operationIdRef.current += 1;
+    const thisOperationId = operationIdRef.current;
+
+    // Capture the voice ID at start time to avoid stale closure issues
+    capturedVoiceIdRef.current = selectedVoice.voiceId;
+
     setIsProcessing(true);
     toastIdRef.current = toast.loading('Generating video speech...');
 
@@ -312,6 +400,14 @@ export function usePhotoCreator(
       };
 
       const ttsResult = await generateSpeechAction(ttsPayload);
+
+      // Check if this operation is still current
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastIdRef.current);
+        toastIdRef.current = undefined;
+        return;
+      }
+
       if (ttsResult.detail || !ttsResult.audioBase64 || !ttsResult.contentType) {
         throw new Error(ttsResult.detail || 'TTS generation failed for animation.');
       }
@@ -330,6 +426,14 @@ export function usePhotoCreator(
       toast.loading('Checking your balance...', { id: toastIdRef.current });
 
       const currentBalance = await fetchBalance();
+
+      // Check if this operation is still current
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastIdRef.current);
+        toastIdRef.current = undefined;
+        return;
+      }
+
       if (currentBalance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
         insufficientFundsToast('animation');
         setIsProcessing(false);
@@ -357,6 +461,14 @@ export function usePhotoCreator(
       }
 
       const createResult = await photoActions.animate(formData);
+
+      // Check if this operation is still current
+      if (operationIdRef.current !== thisOperationId) {
+        toast.dismiss(toastIdRef.current);
+        toastIdRef.current = undefined;
+        return;
+      }
+
       if ('detail' in createResult) {
         throw new Error(createResult.detail);
       }
@@ -404,13 +516,20 @@ export function usePhotoCreator(
       );
 
       const poll = async () => {
-        if (!isProcessingRef.current) {
+        // Check if this operation is still current
+        if (!isProcessingRef.current || operationIdRef.current !== thisOperationId) {
           stopPolling();
           return;
         }
 
         try {
           const statusResult = await photoActions.getAnimation(prediction.id);
+
+          // Check again after async operation
+          if (operationIdRef.current !== thisOperationId) {
+            stopPolling();
+            return;
+          }
 
           if ('detail' in statusResult) {
             pollIntervalRef.current = setTimeout(poll, 20000);
@@ -444,6 +563,13 @@ export function usePhotoCreator(
             }
 
             const videoFetchResponse = await fetch(outputUrl);
+
+            // Check again after fetch
+            if (operationIdRef.current !== thisOperationId) {
+              stopPolling();
+              return;
+            }
+
             if (!videoFetchResponse.ok) {
               toast.error('Failed to retrieve the final video.', { id: toastIdRef.current });
               toastIdRef.current = undefined;
@@ -458,7 +584,8 @@ export function usePhotoCreator(
               type: videoBlob.type || 'video/mp4',
             });
 
-            onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice!.voiceId });
+            // Use the captured voice ID from when animation started
+            onNewMediaReady(newVideoFile, 'video', { voiceId: capturedVoiceIdRef.current! });
             if (toastIdRef.current)
               toast.success('Animation complete! Your video is now available.', {
                 id: toastIdRef.current,
@@ -485,24 +612,30 @@ export function usePhotoCreator(
           }
         } catch (pollError) {
           stopPolling();
-          if (toastIdRef.current) {
+          // Only show error if this operation is still current
+          if (operationIdRef.current === thisOperationId && toastIdRef.current) {
             toast.error('An error occurred while checking animation status.', {
               id: toastIdRef.current,
               duration: 5000,
             });
             toastIdRef.current = undefined;
           }
-          setIsProcessing(false);
+          if (operationIdRef.current === thisOperationId) {
+            setIsProcessing(false);
+          }
         }
       };
 
       pollIntervalRef.current = setTimeout(poll, ANIMATION_POLLING_INTERVAL);
     } catch (error: any) {
-      if (toastIdRef.current) {
-        toast.error('Failed to start animation. Please try again.', { id: toastIdRef.current });
+      // Only show error if this operation is still current
+      if (operationIdRef.current === thisOperationId) {
+        if (toastIdRef.current) {
+          toast.error('Failed to start animation. Please try again.', { id: toastIdRef.current });
+        }
+        toastIdRef.current = undefined;
+        setIsProcessing(false);
       }
-      toastIdRef.current = undefined;
-      setIsProcessing(false);
     }
   };
 

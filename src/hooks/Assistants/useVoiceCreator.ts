@@ -44,7 +44,31 @@ export function useVoiceCreator(
 
   const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
 
+  // Operation ID tracking to ignore stale operations
+  const previewOperationIdRef = React.useRef(0);
+  const createOperationIdRef = React.useRef(0);
+  // Refs for current state to avoid stale closures
+  const isGeneratingPreviewsRef = React.useRef(false);
+  const isProcessingCreateRef = React.useRef(false);
+  const createModeRef = React.useRef<CreateMode>(createMode);
+
+  // Keep refs in sync with state
+  React.useEffect(() => {
+    isGeneratingPreviewsRef.current = isGeneratingPreviews;
+  }, [isGeneratingPreviews]);
+
+  React.useEffect(() => {
+    isProcessingCreateRef.current = isProcessingCreate;
+  }, [isProcessingCreate]);
+
+  React.useEffect(() => {
+    createModeRef.current = createMode;
+  }, [createMode]);
+
   const resetCreateForm = React.useCallback(() => {
+    // Increment operation IDs to invalidate any in-flight operations
+    previewOperationIdRef.current += 1;
+    createOperationIdRef.current += 1;
     setCloneFile(null);
     setCloneFileName(null);
     setCloneName('');
@@ -59,6 +83,11 @@ export function useVoiceCreator(
   const handleGenerateDesignPreviews = async () => {
     if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
       toast.error('Voice design is only available for the ElevenLabs provider.');
+      return;
+    }
+
+    // Prevent concurrent preview generation
+    if (isGeneratingPreviewsRef.current) {
       return;
     }
 
@@ -92,6 +121,10 @@ export function useVoiceCreator(
       return;
     }
 
+    // Increment operation ID to track this specific operation
+    previewOperationIdRef.current += 1;
+    const thisOperationId = previewOperationIdRef.current;
+
     setIsGeneratingPreviews(true);
     setDesignPreviews([]);
     setSelectedPreviewId(null);
@@ -114,6 +147,13 @@ export function useVoiceCreator(
       }
 
       const result = await assistantVoiceActions.preview(payload);
+
+      // Check if this operation is still current and mode hasn't changed
+      if (previewOperationIdRef.current !== thisOperationId || createModeRef.current !== 'design') {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if ('detail' in result) {
         toast.error('Failed to generate previews.', { id: toastId });
       } else {
@@ -125,13 +165,30 @@ export function useVoiceCreator(
         }
       }
     } catch (error: any) {
-      toast.error(`Preview generation failed.`, { id: toastId });
+      // Only show error if this operation is still current
+      if (previewOperationIdRef.current === thisOperationId && createModeRef.current === 'design') {
+        toast.error(`Preview generation failed.`, { id: toastId });
+      }
     } finally {
-      setIsGeneratingPreviews(false);
+      // Only update state if this operation is still current
+      if (previewOperationIdRef.current === thisOperationId) {
+        setIsGeneratingPreviews(false);
+      }
     }
   };
 
   const handleCreateAndSelect = async () => {
+    // Prevent concurrent create operations
+    if (isProcessingCreateRef.current) {
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    createOperationIdRef.current += 1;
+    const thisOperationId = createOperationIdRef.current;
+    // Capture the mode at call time
+    const modeAtStart = createMode;
+
     setIsProcessingCreate(true);
     let backendResponse: (Voice & { info?: string; isPreset?: boolean }) | ResponseProps | null =
       null;
@@ -181,6 +238,15 @@ export function useVoiceCreator(
         return;
       }
 
+      // Check if this operation is still current and mode hasn't changed
+      if (
+        createOperationIdRef.current !== thisOperationId ||
+        createModeRef.current !== modeAtStart
+      ) {
+        toast.dismiss(toastId);
+        return;
+      }
+
       if (backendResponse && (backendResponse as ResponseProps).detail) {
         const errorDetail =
           (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
@@ -205,9 +271,15 @@ export function useVoiceCreator(
         toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
       }
     } catch (error: any) {
-      toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
+      // Only show error if this operation is still current
+      if (createOperationIdRef.current === thisOperationId) {
+        toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
+      }
     } finally {
-      setIsProcessingCreate(false);
+      // Only update state if this operation is still current
+      if (createOperationIdRef.current === thisOperationId) {
+        setIsProcessingCreate(false);
+      }
     }
   };
 
