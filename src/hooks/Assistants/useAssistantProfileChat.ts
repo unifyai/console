@@ -660,10 +660,15 @@ export function useAssistantProfileChat(
       return;
     }
 
+    // Capture values at call time to ensure consistent closure in async handlers
+    const currentAssistantId = assistantId;
+    const currentAssistant = assistant;
+
     clearTimers();
 
+    const messageId = uuidv4();
     const newUserMessage: ChatMessage = {
-      id: uuidv4(),
+      id: messageId,
       role: 'user',
       content: inputValue.trim(),
       timestamp: new Date(),
@@ -678,11 +683,11 @@ export function useAssistantProfileChat(
 
     // 1. Update Local State (Optimistic)
     setChatHistories((prev) => {
-      const current = prev[assistantId] || [];
+      const current = prev[currentAssistantId] || [];
       const updated = [...current, newUserMessage].sort(
         (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
-      return { ...prev, [assistantId]: updated };
+      return { ...prev, [currentAssistantId]: updated };
     });
 
     const messageToSend = inputValue.trim();
@@ -693,7 +698,7 @@ export function useAssistantProfileChat(
     }, 5000);
 
     // 2. Broadcast to other tabs
-    const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+    const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
     const payload: BroadcastMessagePayload = {
       type: 'NEW_MESSAGE',
       message: newUserMessage,
@@ -704,7 +709,7 @@ export function useAssistantProfileChat(
     // 3. Send to Backend with contact_id
     assistantActions.chat
       .message({
-        assistantId: parseInt(assistant.agentId),
+        assistantId: parseInt(currentAssistant.agentId),
         contactId: contactId,
         message: messageToSend,
       })
@@ -714,9 +719,13 @@ export function useAssistantProfileChat(
         }
       })
       .catch((error) => {
+        // Use captured messageId and currentAssistantId to ensure correct rollback
+        // even when multiple messages are sent rapidly
         setChatHistories((prev) => ({
           ...prev,
-          [assistantId]: (prev[assistantId] || []).filter((msg) => msg.id !== newUserMessage.id),
+          [currentAssistantId]: (prev[currentAssistantId] || []).filter(
+            (msg) => msg.id !== messageId
+          ),
         }));
         setInputValue(messageToSend);
         stopReplying();

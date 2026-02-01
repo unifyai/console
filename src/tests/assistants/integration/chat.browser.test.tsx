@@ -4783,4 +4783,1114 @@ describe('Assistant Profile Chat', () => {
       }
     );
   });
+
+  // =========================================================================
+  // SECTION P: STRESS AND ROBUSTNESS
+  // =========================================================================
+  describe('P - Stress and Robustness', () => {
+    describe('SSE Reconnection Under Stress', () => {
+      it(
+        'resets reconnection attempt counter when switching assistants',
+        {
+          meta: {
+            alias: 'Stress-Reconnect-Reset-On-Switch',
+            scenario:
+              'Assistant A has multiple failed reconnections, user switches to Assistant B which also fails',
+            behavior:
+              'Assistant B should have full reconnection attempts available, not inherit A counter',
+          },
+        },
+        async () => {
+          const assistantA = createMockAssistant({
+            agentId: 'reconnect-stress-a',
+            firstName: 'ReconnectA',
+            surname: 'Test',
+          });
+          const assistantB = createMockAssistant({
+            agentId: 'reconnect-stress-b',
+            firstName: 'ReconnectB',
+            surname: 'Test',
+          });
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => ({ info: 'sent' })),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          // Use pre-loaded history to avoid async fetch issues with fake timers
+          const { rerender } = render(
+            <ChatTestWrapper
+              initialHistory={[]}
+              assistantOverride={assistantA}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // Wait for A's first connection with real timers
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          const connectionA1 = chatMocks.eventSource!;
+          act(() => connectionA1.simulateOpen());
+
+          // Now use fake timers for timing control
+          vi.useFakeTimers();
+
+          // Simulate 4 failed reconnections for A (almost at max of 5)
+          for (let i = 0; i < 4; i++) {
+            act(() => {
+              // Get the latest connection for A
+              const latestAConnection = chatMocks.allEventSources
+                .filter((es) => es.url.includes('reconnect-stress-a'))
+                .pop();
+              latestAConnection?.simulateError();
+            });
+            // Advance past reconnect delay with exponential backoff
+            act(() => {
+              vi.advanceTimersByTime(1000 * Math.pow(2, i) + 100);
+            });
+          }
+
+          vi.useRealTimers();
+
+          // A should have multiple connection attempts
+          const aConnections = chatMocks.allEventSources.filter((es) =>
+            es.url.includes('reconnect-stress-a')
+          );
+          expect(aConnections.length).toBeGreaterThan(1);
+
+          // Switch to B
+          rerender(
+            <ChatTestWrapper
+              initialHistory={[]}
+              assistantOverride={assistantB}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // Wait for B's connection
+          await waitFor(() => {
+            const bConnections = chatMocks.allEventSources.filter((es) =>
+              es.url.includes('reconnect-stress-b')
+            );
+            expect(bConnections.length).toBe(1);
+          });
+
+          const connectionB1 = chatMocks.allEventSources.find((es) =>
+            es.url.includes('reconnect-stress-b')
+          )!;
+          act(() => connectionB1.simulateOpen());
+
+          vi.useFakeTimers();
+
+          // Simulate error on B - should start fresh with attempt 1, not 5
+          act(() => connectionB1.simulateError());
+          act(() => {
+            vi.advanceTimersByTime(1100); // Base delay for first reconnect + buffer
+          });
+
+          vi.useRealTimers();
+
+          // B should create a new connection (not be stuck at error state from A's counter)
+          await waitFor(
+            () => {
+              const bConnections = chatMocks.allEventSources.filter((es) =>
+                es.url.includes('reconnect-stress-b')
+              );
+              expect(bConnections.length).toBe(2); // Original + 1 reconnect
+            },
+            { timeout: 3000 }
+          );
+        }
+      );
+
+      it(
+        'clears pending reconnection timeout when assistant switches',
+        {
+          meta: {
+            alias: 'Stress-Reconnect-Timeout-Cleanup',
+            scenario:
+              'SSE fails, reconnection is scheduled, user switches assistant before timeout fires',
+            behavior: 'Scheduled reconnection for old assistant should not execute after switch',
+          },
+        },
+        async () => {
+          const assistantA = createMockAssistant({
+            agentId: 'timeout-cleanup-a',
+            firstName: 'TimeoutA',
+            surname: 'Test',
+          });
+          const assistantB = createMockAssistant({
+            agentId: 'timeout-cleanup-b',
+            firstName: 'TimeoutB',
+            surname: 'Test',
+          });
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => ({ info: 'sent' })),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          // Use pre-loaded history to avoid async issues
+          const { rerender } = render(
+            <ChatTestWrapper
+              initialHistory={[]}
+              assistantOverride={assistantA}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          const connectionA = chatMocks.eventSource!;
+          act(() => connectionA.simulateOpen());
+
+          vi.useFakeTimers();
+
+          // Trigger error - this schedules a reconnection
+          act(() => connectionA.simulateError());
+
+          vi.useRealTimers();
+
+          // Immediately switch to B (before reconnect timeout fires)
+          rerender(
+            <ChatTestWrapper
+              initialHistory={[]}
+              assistantOverride={assistantB}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // Wait for B's connection
+          await waitFor(() => {
+            const bConnections = chatMocks.allEventSources.filter((es) =>
+              es.url.includes('timeout-cleanup-b')
+            );
+            expect(bConnections.length).toBe(1);
+          });
+
+          vi.useFakeTimers();
+
+          // Now advance time past A's reconnect delay
+          act(() => {
+            vi.advanceTimersByTime(5000);
+          });
+
+          vi.useRealTimers();
+
+          // No new connection for A should have been created
+          const aConnectionsAfter = chatMocks.allEventSources.filter((es) =>
+            es.url.includes('timeout-cleanup-a')
+          );
+          expect(aConnectionsAfter.length).toBe(1); // Only the original, no reconnect
+        }
+      );
+    });
+
+    describe('Rapid Message Sending', () => {
+      it(
+        'handles rapid consecutive message sends without losing messages',
+        {
+          meta: {
+            alias: 'Stress-Rapid-Send-No-Loss',
+            scenario: 'User sends 5 messages in quick succession',
+            behavior: 'All messages appear in chat and are sent to backend',
+          },
+        },
+        async () => {
+          const sentMessages: string[] = [];
+          const messageMock = vi.fn(
+            async (payload: { assistantId: number; contactId: number; message: string }) => {
+              await new Promise((r) => setTimeout(r, 50)); // Simulate network delay
+              sentMessages.push(payload.message);
+              return { info: 'sent' };
+            }
+          );
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: messageMock,
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Send 5 messages rapidly
+          for (let i = 1; i <= 5; i++) {
+            fireEvent.change(input, { target: { value: `Rapid message ${i}` } });
+            fireEvent.submit(input.closest('form')!);
+          }
+
+          // All messages should appear in UI (optimistically)
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toContain('Rapid message 1');
+            expect(bubbles).toContain('Rapid message 2');
+            expect(bubbles).toContain('Rapid message 3');
+            expect(bubbles).toContain('Rapid message 4');
+            expect(bubbles).toContain('Rapid message 5');
+          });
+
+          // All messages should be sent to backend
+          await waitFor(
+            () => {
+              expect(sentMessages).toHaveLength(5);
+              expect(sentMessages).toContain('Rapid message 1');
+              expect(sentMessages).toContain('Rapid message 5');
+            },
+            { timeout: 2000 }
+          );
+        }
+      );
+
+      it(
+        'correctly rolls back only the failed message when one of many rapid sends fails',
+        {
+          meta: {
+            alias: 'Stress-Rapid-Send-Partial-Fail',
+            scenario: 'User sends 3 messages rapidly, the 2nd one fails',
+            behavior: 'Only message 2 is rolled back, messages 1 and 3 remain',
+          },
+        },
+        async () => {
+          // Track which message content should fail - capture at call time, not after await
+          const messageMock = vi.fn(
+            async (payload: { assistantId: number; contactId: number; message: string }) => {
+              // Capture the message content synchronously before any async work
+              const shouldFail = payload.message === 'Message 2';
+              await new Promise((r) => setTimeout(r, 50));
+              if (shouldFail) {
+                throw new Error('Simulated failure for message 2');
+              }
+              return { info: 'sent' };
+            }
+          );
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: messageMock,
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Send 3 messages rapidly
+          fireEvent.change(input, { target: { value: 'Message 1' } });
+          fireEvent.submit(input.closest('form')!);
+          fireEvent.change(input, { target: { value: 'Message 2' } });
+          fireEvent.submit(input.closest('form')!);
+          fireEvent.change(input, { target: { value: 'Message 3' } });
+          fireEvent.submit(input.closest('form')!);
+
+          // Wait for all sends to complete
+          await waitFor(
+            () => {
+              expect(messageMock).toHaveBeenCalledTimes(3);
+            },
+            { timeout: 2000 }
+          );
+
+          // Message 2 should be rolled back, 1 and 3 should remain
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toContain('Message 1');
+            expect(bubbles).not.toContain('Message 2');
+            expect(bubbles).toContain('Message 3');
+          });
+
+          // Input should contain the failed message
+          expect(input).toHaveValue('Message 2');
+        }
+      );
+    });
+
+    describe('Typing Indicator Stress', () => {
+      it(
+        'clears typing indicator when message send fails',
+        {
+          meta: {
+            alias: 'Stress-Typing-Clear-On-Fail',
+            scenario: 'User sends message, typing indicator shows, then send fails',
+            behavior: 'Typing indicator is cleared when failure is detected',
+          },
+        },
+        async () => {
+          // Control when the message fails
+          let rejectMessage: (err: Error) => void;
+          const messagePromise = new Promise<never>((_, reject) => {
+            rejectMessage = reject;
+          });
+
+          const messageMock = vi.fn(() => messagePromise);
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: messageMock,
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper initialHistory={[]} assistantActionsOverride={actionsOverride} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          vi.useFakeTimers();
+
+          // Send message
+          act(() => {
+            fireEvent.change(input, { target: { value: 'This will fail' } });
+            fireEvent.submit(input.closest('form')!);
+          });
+
+          // Advance to show typing indicator (5 seconds delay)
+          act(() => {
+            vi.advanceTimersByTime(5000);
+          });
+
+          expect(screen.getByText('Typing')).toBeInTheDocument();
+
+          vi.useRealTimers();
+
+          // Now trigger the failure
+          act(() => {
+            rejectMessage!(new Error('Send failed'));
+          });
+
+          // Typing indicator should be cleared after failure
+          await waitFor(() => {
+            expect(screen.queryByText('Typing')).not.toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'handles overlapping typing timers correctly with rapid message exchanges',
+        {
+          meta: {
+            alias: 'Stress-Typing-Overlap',
+            scenario:
+              'User sends message, reply arrives before typing shows, user sends another message',
+            behavior: 'Typing indicator state remains consistent',
+          },
+        },
+        async () => {
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => ({ info: 'sent' })),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper initialHistory={[]} assistantActionsOverride={actionsOverride} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          vi.useFakeTimers();
+
+          // Send first message
+          act(() => {
+            fireEvent.change(input, { target: { value: 'First message' } });
+            fireEvent.submit(input.closest('form')!);
+          });
+
+          // Advance 2 seconds (before typing indicator shows at 5s)
+          act(() => {
+            vi.advanceTimersByTime(2000);
+          });
+
+          // Reply arrives quickly (before typing indicator would show)
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: 'quick-reply',
+              publishTime: new Date().toISOString(),
+              event: { content: 'Quick reply' },
+            });
+          });
+
+          // Typing should NOT be showing (reply cleared the pending timer)
+          expect(screen.queryByText('Typing')).not.toBeInTheDocument();
+
+          // Send second message
+          act(() => {
+            fireEvent.change(input, { target: { value: 'Second message' } });
+            fireEvent.submit(input.closest('form')!);
+          });
+
+          // Advance 5 seconds for second message
+          act(() => {
+            vi.advanceTimersByTime(5000);
+          });
+
+          // Now typing should show for the second message
+          expect(screen.getByText('Typing')).toBeInTheDocument();
+
+          vi.useRealTimers();
+        }
+      );
+    });
+
+    describe('SSE Message Burst Handling', () => {
+      it(
+        'handles 100 messages arriving in a single burst without UI freeze',
+        {
+          meta: {
+            alias: 'Stress-SSE-Mega-Burst',
+            scenario: '100 unique messages arrive via SSE in rapid succession',
+            behavior: 'All messages are rendered without duplicates or missing entries',
+          },
+        },
+        async () => {
+          render(<ChatTestWrapper initialHistory={[]} />);
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const messageCount = 100;
+          const messages = Array.from({ length: messageCount }, (_, i) => ({
+            thread: 'unify_message_outbound',
+            id: `burst-msg-${i}`,
+            publishTime: new Date(Date.now() + i * 10).toISOString(),
+            event: { content: `Burst ${i}` },
+          }));
+
+          // Send all messages in a single batch
+          act(() => {
+            messages.forEach((msg) => chatMocks.eventSource!.simulateMessage(msg));
+          });
+
+          // All messages should render
+          await waitFor(
+            () => {
+              const bubbles = getChatBubbles();
+              expect(bubbles).toHaveLength(messageCount);
+              expect(bubbles[0]).toBe('Burst 0');
+              expect(bubbles[99]).toBe('Burst 99');
+            },
+            { timeout: 5000 }
+          );
+        }
+      );
+
+      it(
+        'correctly deduplicates when same message arrives via SSE and BroadcastChannel simultaneously',
+        {
+          meta: {
+            alias: 'Stress-SSE-BC-Race',
+            scenario: 'Identical message arrives via SSE and BroadcastChannel at the same time',
+            behavior: 'Only one copy of the message appears',
+          },
+        },
+        async () => {
+          const assistantId = 'stress-test-id';
+          render(<ChatTestWrapper initialHistory={[]} />);
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const messageId = 'simultaneous-msg';
+          const messageContent = 'Simultaneous Message';
+          const timestamp = new Date().toISOString();
+
+          // Find the broadcast channel listener
+          const listenerChannel = chatMocks.allBroadcastChannels.find(
+            (c) => c.name.includes(assistantId) && c.onmessage
+          );
+          expect(listenerChannel).toBeDefined();
+
+          // Send via both channels simultaneously
+          act(() => {
+            // SSE message
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: messageId,
+              publishTime: timestamp,
+              event: { content: messageContent },
+            });
+
+            // BroadcastChannel message (from another tab)
+            listenerChannel!.simulateIncomingMessage({
+              type: 'NEW_MESSAGE',
+              message: {
+                id: messageId,
+                role: 'assistant',
+                content: messageContent,
+                timestamp: timestamp,
+              },
+            });
+          });
+
+          // Wait for processing
+          await new Promise((r) => setTimeout(r, 100));
+
+          // Should have exactly one message
+          const bubbles = getChatBubbles();
+          expect(bubbles.filter((b) => b === messageContent)).toHaveLength(1);
+        }
+      );
+    });
+
+    describe('ACK Robustness', () => {
+      it(
+        'does not double-ack messages when render triggers during ack processing',
+        {
+          meta: {
+            alias: 'Stress-Double-Ack-Prevention',
+            scenario:
+              'Message with ackId arrives, component re-renders during ack effect execution',
+            behavior: 'ACK is sent exactly once per message',
+          },
+        },
+        async () => {
+          render(<ChatTestWrapper initialHistory={[]} />);
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const ackId = 'single-ack-token';
+
+          // Send message with ack
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: 'ack-once-msg',
+              publishTime: new Date().toISOString(),
+              __ackId: ackId,
+              event: { content: 'Ack me once' },
+            });
+          });
+
+          // Wait for message to appear
+          await waitFor(() => {
+            expect(screen.getByText('Ack me once')).toBeInTheDocument();
+          });
+
+          // Force multiple re-renders by typing
+          const user = userEvent.setup();
+          const input = screen.getByRole('textbox');
+          await user.type(input, 'trigger render 1');
+          await user.clear(input);
+          await user.type(input, 'trigger render 2');
+
+          // Wait for any pending effects
+          await new Promise((r) => setTimeout(r, 200));
+
+          // Count ACK calls for this specific ackId
+          const ackCalls = fetchSpy.mock.calls.filter(
+            (call) =>
+              String(call[0]).includes('/events/ack') &&
+              call[1]?.body === JSON.stringify({ ackId: ackId })
+          );
+
+          // Should have exactly 1 ACK call
+          expect(ackCalls.length).toBe(1);
+        }
+      );
+
+      it(
+        'maintains ACK queue when multiple ack-required messages arrive rapidly',
+        {
+          meta: {
+            alias: 'Stress-Ack-Queue-Burst',
+            scenario: '10 messages with ackIds arrive in rapid succession',
+            behavior: 'All messages are ACKed without any being lost',
+          },
+        },
+        async () => {
+          render(<ChatTestWrapper initialHistory={[]} />);
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const messageCount = 10;
+
+          // Send burst of messages with acks
+          act(() => {
+            for (let i = 0; i < messageCount; i++) {
+              chatMocks.eventSource!.simulateMessage({
+                thread: 'unify_message_outbound',
+                id: `ack-burst-${i}`,
+                publishTime: new Date(Date.now() + i).toISOString(),
+                __ackId: `ack-token-${i}`,
+                event: { content: `Ack burst ${i}` },
+              });
+            }
+          });
+
+          // Wait for all messages to appear
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toHaveLength(messageCount);
+          });
+
+          // Wait for ACK processing
+          await new Promise((r) => setTimeout(r, 500));
+
+          // Verify all acks were sent
+          for (let i = 0; i < messageCount; i++) {
+            const ackCalls = fetchSpy.mock.calls.filter(
+              (call) =>
+                String(call[0]).includes('/events/ack') &&
+                call[1]?.body === JSON.stringify({ ackId: `ack-token-${i}` })
+            );
+            expect(ackCalls.length).toBeGreaterThanOrEqual(1);
+          }
+        }
+      );
+    });
+
+    describe('State Consistency Under Concurrent Operations', () => {
+      it(
+        'maintains message order when user send and SSE receive happen simultaneously',
+        {
+          meta: {
+            alias: 'Stress-Concurrent-Send-Receive-Order',
+            scenario: 'User sends message at exact moment SSE message arrives',
+            behavior: 'Messages are correctly ordered by timestamp',
+          },
+        },
+        async () => {
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => {
+                await new Promise((r) => setTimeout(r, 50));
+                return { info: 'sent' };
+              }),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          vi.setSystemTime(new Date('2024-01-01T12:00:00Z'));
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          // Set up messages with specific timestamps
+          const pastTime = '2024-01-01T11:59:55Z'; // 5 seconds before "now"
+          const nowTime = '2024-01-01T12:00:00Z'; // "now"
+          const futureTime = '2024-01-01T12:00:05Z'; // 5 seconds after "now"
+
+          // Send user message (will use Date.now())
+          act(() => {
+            fireEvent.change(input, { target: { value: 'User message' } });
+            fireEvent.submit(input.closest('form')!);
+          });
+
+          // Simultaneously receive past and future SSE messages
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: 'past-msg',
+              publishTime: pastTime,
+              event: { content: 'Past SSE message' },
+            });
+
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: 'future-msg',
+              publishTime: futureTime,
+              event: { content: 'Future SSE message' },
+            });
+          });
+
+          // Verify order: past, user (now), future
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toHaveLength(3);
+            expect(bubbles[0]).toBe('Past SSE message');
+            expect(bubbles[1]).toBe('User message');
+            expect(bubbles[2]).toBe('Future SSE message');
+          });
+        }
+      );
+
+      it(
+        'handles history load completing during SSE message arrival',
+        {
+          meta: {
+            alias: 'Stress-History-SSE-Race',
+            scenario: 'History fetch completes at same moment as SSE message arrives',
+            behavior: 'Both history and SSE message appear without duplicates',
+          },
+        },
+        async () => {
+          let resolveHistory: (msgs: ChatMessage[]) => void;
+          const historyPromise = new Promise<ChatMessage[]>((resolve) => {
+            resolveHistory = resolve;
+          });
+
+          const historyMessages: ChatMessage[] = [
+            {
+              id: 'history-1',
+              role: 'assistant',
+              content: 'History message 1',
+              timestamp: new Date(Date.now() - 10000),
+              messageId: 1,
+            },
+            {
+              id: 'history-2',
+              role: 'user',
+              content: 'History message 2',
+              timestamp: new Date(Date.now() - 5000),
+              messageId: 2,
+            },
+          ];
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(() => historyPromise),
+              message: vi.fn(async () => ({ info: 'sent' })),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // Wait for loading state
+          await waitFor(() => {
+            expect(screen.getByPlaceholderText('Loading messages...')).toBeInTheDocument();
+          });
+
+          // Resolve history and send SSE message simultaneously
+          act(() => {
+            resolveHistory!(historyMessages);
+          });
+
+          // Wait for SSE to connect after history loads
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          // Send SSE message immediately after
+          act(() => {
+            chatMocks.eventSource!.simulateMessage({
+              thread: 'unify_message_outbound',
+              id: 'sse-concurrent',
+              publishTime: new Date().toISOString(),
+              event: { content: 'SSE during load' },
+            });
+          });
+
+          // All messages should appear
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toContain('History message 1');
+            expect(bubbles).toContain('History message 2');
+            expect(bubbles).toContain('SSE during load');
+            expect(bubbles).toHaveLength(3);
+          });
+        }
+      );
+    });
+
+    describe('Memory and Cleanup', () => {
+      it(
+        'cleans up event listeners and timers on unmount during active operations',
+        {
+          meta: {
+            alias: 'Stress-Cleanup-Active-Unmount',
+            scenario:
+              'Component unmounts while SSE connection is active and typing indicator is pending',
+            behavior: 'No memory leaks or errors after unmount',
+          },
+        },
+        async () => {
+          const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+          vi.useFakeTimers();
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => {
+                // Slow message that will complete after unmount
+                await new Promise((r) => setTimeout(r, 5000));
+                return { info: 'sent' };
+              }),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          // Use real timers for setup
+          vi.useRealTimers();
+
+          const { unmount } = render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          vi.useFakeTimers();
+
+          // Start a message send (creates pending timers)
+          act(() => {
+            fireEvent.change(input, { target: { value: 'Message before unmount' } });
+            fireEvent.submit(input.closest('form')!);
+          });
+
+          // Advance a bit to get timers going
+          act(() => {
+            vi.advanceTimersByTime(1000);
+          });
+
+          // Unmount while operations are pending
+          unmount();
+
+          // Advance time significantly to ensure any leaked timers would fire
+          act(() => {
+            vi.advanceTimersByTime(30000);
+          });
+
+          // Should not have any React state update errors
+          // (These would appear as "Can't perform a React state update on an unmounted component")
+          const stateUpdateErrors = consoleSpy.mock.calls.filter((call) =>
+            String(call[0]).includes('unmounted component')
+          );
+          expect(stateUpdateErrors).toHaveLength(0);
+
+          vi.useRealTimers();
+          consoleSpy.mockRestore();
+        }
+      );
+
+      it(
+        'does not leak BroadcastChannel instances after assistant switch',
+        {
+          meta: {
+            alias: 'Stress-BC-Leak-Prevention',
+            scenario: 'Switch between 5 assistants rapidly',
+            behavior: 'Previous BroadcastChannels are closed, no accumulation of open channels',
+          },
+        },
+        async () => {
+          const assistants = Array.from({ length: 5 }, (_, i) =>
+            createMockAssistant({
+              agentId: `leak-test-${i}`,
+              firstName: `Leak${i}`,
+              surname: 'Test',
+            })
+          );
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => []),
+              message: vi.fn(async () => ({ info: 'sent' })),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          const { rerender } = render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantOverride={assistants[0]}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // Switch through all assistants
+          for (let i = 1; i < 5; i++) {
+            await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+
+            rerender(
+              <ChatTestWrapper
+                initialHistory={undefined}
+                assistantOverride={assistants[i]}
+                assistantActionsOverride={actionsOverride}
+              />
+            );
+          }
+
+          // Check that previous channels were closed
+          const closedChannels = chatMocks.allBroadcastChannels.filter(
+            (bc) => bc.close.mock.calls.length > 0
+          );
+
+          // Each assistant switch should close the previous channel
+          // We expect at least 4 closed channels (one for each switch away from an assistant)
+          expect(closedChannels.length).toBeGreaterThanOrEqual(4);
+        }
+      );
+    });
+
+    describe('Error Recovery Under Stress', () => {
+      it(
+        'recovers gracefully when multiple errors occur in sequence',
+        {
+          meta: {
+            alias: 'Stress-Sequential-Errors',
+            scenario:
+              'History load fails, retry succeeds, SSE fails, reconnects, message send fails',
+            behavior: 'System recovers from each error and remains functional',
+          },
+        },
+        async () => {
+          // Use controlled error state to avoid StrictMode double-invoke issues
+          let shouldHistoryFail = true;
+          let shouldMessageFail = true;
+
+          const actionsOverride = {
+            chat: {
+              getContactId: vi.fn(async () => 1),
+              getTranscripts: vi.fn(async () => {
+                if (shouldHistoryFail) {
+                  return { detail: 'History call fails' };
+                }
+                return [];
+              }),
+              message: vi.fn(async () => {
+                if (shouldMessageFail) {
+                  throw new Error('Message fails');
+                }
+                return { info: 'sent' };
+              }),
+              getAssistantOwnerById: vi.fn(async () => null),
+              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
+            },
+          };
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={actionsOverride}
+            />
+          );
+
+          // 1. History load fails
+          await waitFor(() => {
+            expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
+          });
+
+          // 2. Retry history load - succeeds
+          shouldHistoryFail = false;
+          await userEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+          await waitFor(() => {
+            expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
+          });
+
+          // 3. SSE connects then fails
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+          act(() => chatMocks.eventSource!.simulateError());
+
+          // Should show reconnecting
+          await waitFor(() => {
+            expect(screen.getByText(/Reconnecting/i)).toBeInTheDocument();
+          });
+
+          // 4. SSE reconnects
+          await waitFor(() => expect(chatMocks.allEventSources.length).toBeGreaterThan(1));
+          const newConnection = chatMocks.allEventSources[chatMocks.allEventSources.length - 1];
+          act(() => newConnection.simulateOpen());
+
+          await waitFor(() => {
+            expect(screen.queryByText(/Reconnecting/i)).not.toBeInTheDocument();
+          });
+
+          // 5. Send message - fails first time
+          const input = screen.getByPlaceholderText('Send a message...');
+          fireEvent.change(input, { target: { value: 'First try' } });
+          fireEvent.submit(input.closest('form')!);
+
+          await waitFor(() => {
+            expect(screen.getByText('Failed to send message.')).toBeInTheDocument();
+          });
+
+          // 6. Switch to success mode and send message
+          shouldMessageFail = false;
+          fireEvent.change(input, { target: { value: 'Second try' } });
+          fireEvent.submit(input.closest('form')!);
+
+          await waitFor(() => {
+            const bubbles = getChatBubbles();
+            expect(bubbles).toContain('Second try');
+          });
+
+          // System is now functional
+          expect(input).toHaveValue('');
+        }
+      );
+    });
+  });
 });
