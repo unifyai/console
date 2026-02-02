@@ -147,6 +147,7 @@ export function AssistantProfileChatPanel({
     loadMoreError,
     hasFetchedHistory,
     canChat,
+    isRetryingContactId,
     reconnectSSE,
   } = useAssistantProfileChat(
     assistant,
@@ -367,14 +368,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef} data-testid="chat-scroll-area">
-        {!canChat ? (
-          <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
-            <div className="space-y-1 text-center">
-              <p className="text-title">Chat is not available</p>
-              <p className="text-caption opacity-80">Please try again in a few minutes</p>
-            </div>
-          </div>
-        ) : initialLoadError ? (
+        {initialLoadError ? (
           <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="space-y-1 text-center">
               <p className="text-title">Failed to load chat history</p>
@@ -503,7 +497,9 @@ export function AssistantProfileChatPanel({
               rows={1}
               placeholder={
                 !canChat
-                  ? 'Chat disabled'
+                  ? isRetryingContactId
+                    ? 'Chat unavailable, retrying connection...'
+                    : 'Chat unavailable'
                   : isSpendingBlocked
                     ? spendingGate.blockedMessage || 'Spending limit reached'
                     : initialLoadError

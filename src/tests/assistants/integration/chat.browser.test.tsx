@@ -2159,8 +2159,10 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
+        // When owner context fails, initialLoadError is set to true
+        // which shows "Failed to load chat history" instead of messages
         await waitFor(() => {
-          expect(screen.getByText('Chat is not available')).toBeInTheDocument();
+          expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
         });
       }
     );
@@ -2234,14 +2236,18 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
+        // With new UX: messages area shows normally, but there's a status banner and input is disabled
         await waitFor(() => {
-          expect(screen.getByText('Chat is not available')).toBeInTheDocument();
-          expect(screen.getByText(/Please try again in a few minutes/i)).toBeInTheDocument();
+          // Check for the retrying status banner
+          expect(
+            screen.getByText(/Setting up chat connection|Chat is currently unavailable/i)
+          ).toBeInTheDocument();
         });
 
-        // Input should be disabled
+        // Input should be disabled with appropriate placeholder
         const input = screen.getByRole('textbox');
         expect(input).toBeDisabled();
+        expect(input).toHaveAttribute('placeholder', expect.stringMatching(/Chat unavailable/i));
       }
     );
 
@@ -2347,6 +2353,251 @@ describe('Assistant Profile Chat', () => {
         });
       }
     );
+
+    // -------------------------------------------------------------------------
+    // Contact ID Auto-Retry Tests
+    // -------------------------------------------------------------------------
+    describe('Contact ID Auto-Retry', () => {
+      it(
+        'triggers contact sync and shows retrying status when initial contact_id lookup fails',
+        {
+          meta: {
+            alias: 'ContactId-RetryStart',
+            scenario: 'getContactId returns null initially',
+            behavior: 'triggerContactSync is called and retry banner is shown',
+          },
+        },
+        async () => {
+          const getContactIdMock = vi.fn(async () => null);
+          const triggerContactSyncMock = vi.fn(async () => ({ info: 'Contact sync triggered' }));
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: triggerContactSyncMock,
+                },
+              }}
+            />
+          );
+
+          // Wait for initial lookup to complete and trigger sync
+          await waitFor(() => {
+            expect(triggerContactSyncMock).toHaveBeenCalled();
+          });
+
+          // Should show retrying status
+          await waitFor(() => {
+            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'disables input and shows retry placeholder when contact_id not available',
+        {
+          meta: {
+            alias: 'ContactId-RetryDisabledInput',
+            scenario: 'getContactId returns null',
+            behavior: 'Input is disabled with retry placeholder',
+          },
+        },
+        async () => {
+          const getContactIdMock = vi.fn(async () => null);
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+                },
+              }}
+            />
+          );
+
+          // Wait for initial lookup to complete
+          await waitFor(() => {
+            expect(getContactIdMock).toHaveBeenCalled();
+          });
+
+          // Input should be disabled with retry placeholder
+          const input = screen.getByRole('textbox');
+          expect(input).toBeDisabled();
+          expect(input).toHaveAttribute(
+            'placeholder',
+            expect.stringMatching(/Chat unavailable.*retrying/i)
+          );
+        }
+      );
+
+      it(
+        'clears retry state when switching to different assistant',
+        {
+          meta: {
+            alias: 'ContactId-RetryResetOnSwitch',
+            scenario: 'Retry is in progress, user switches to different assistant',
+            behavior: 'New assistant lookup starts fresh',
+          },
+        },
+        async () => {
+          const getContactIdMock = vi.fn(async () => null);
+
+          const assistant1 = createMockAssistant({
+            agentId: 'assistant-switch-1',
+            firstName: 'First',
+            surname: 'Assistant',
+          });
+
+          const assistant2 = createMockAssistant({
+            agentId: 'assistant-switch-2',
+            firstName: 'Second',
+            surname: 'Assistant',
+          });
+
+          const { rerender } = render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantOverride={assistant1}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+                },
+              }}
+            />
+          );
+
+          // Initial lookup for assistant1 fails
+          await waitFor(() => {
+            expect(getContactIdMock).toHaveBeenCalledTimes(1);
+          });
+
+          // Should show retrying status
+          await waitFor(() => {
+            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+          });
+
+          // Switch to assistant2
+          rerender(
+            <ChatTestWrapper
+              key="assistant-switch-2"
+              initialHistory={undefined}
+              assistantOverride={assistant2}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+                },
+              }}
+            />
+          );
+
+          // Initial lookup for assistant2 should happen
+          await waitFor(() => {
+            expect(getContactIdMock).toHaveBeenCalledTimes(2);
+          });
+
+          // Should still show retrying status for new assistant
+          await waitFor(() => {
+            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'shows messages area even when contact_id is not available',
+        {
+          meta: {
+            alias: 'ContactId-ShowMessagesWhileRetrying',
+            scenario: 'getContactId returns null',
+            behavior: 'Messages area is visible (not blocked by placeholder)',
+          },
+        },
+        async () => {
+          const getContactIdMock = vi.fn(async () => null);
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+                },
+              }}
+            />
+          );
+
+          // Wait for initial lookup to complete
+          await waitFor(() => {
+            expect(getContactIdMock).toHaveBeenCalled();
+          });
+
+          // Should show status banner but NOT the old "Chat is not available" placeholder
+          await waitFor(() => {
+            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+          });
+
+          // The chat scroll area should be visible
+          expect(screen.getByTestId('chat-scroll-area')).toBeVisible();
+        }
+      );
+
+      it(
+        'exposes isRetryingContactId state for UI',
+        {
+          meta: {
+            alias: 'ContactId-RetryingState',
+            scenario: 'getContactId returns null',
+            behavior: 'isRetryingContactId is true and reflected in UI',
+          },
+        },
+        async () => {
+          const getContactIdMock = vi.fn(async () => null);
+
+          render(
+            <ChatTestWrapper
+              initialHistory={undefined}
+              assistantActionsOverride={{
+                chat: {
+                  getContactId: getContactIdMock,
+                  getTranscripts: vi.fn(async () => []),
+                  message: vi.fn(async () => ({})),
+                  getAssistantOwnerById: vi.fn(async () => null),
+                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+                },
+              }}
+            />
+          );
+
+          // Wait for retrying state to be reflected in UI
+          await waitFor(() => {
+            // The placeholder should indicate retrying
+            const input = screen.getByRole('textbox');
+            expect(input.getAttribute('placeholder')).toMatch(/retrying/i);
+          });
+        }
+      );
+    });
   });
 
   // =========================================================================
@@ -2433,8 +2684,11 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
+        // With new UX: status banner shows, input is disabled
         await waitFor(() => {
-          expect(screen.getByText('Chat is not available')).toBeInTheDocument();
+          expect(
+            screen.getByText(/Setting up chat connection|Chat is currently unavailable/i)
+          ).toBeInTheDocument();
         });
 
         const sendButton = screen.getByRole('button', { name: /send/i });

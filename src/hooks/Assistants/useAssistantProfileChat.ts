@@ -55,12 +55,19 @@ export function useAssistantProfileChat(
   // Contact ID caching and chat permission state
   const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
   const [canChat, setCanChat] = React.useState<boolean>(true);
+  const [isRetryingContactId, setIsRetryingContactId] = React.useState<boolean>(false);
 
   // Owner context cache: maps assistant_id -> owner context string
   const ownerContextCacheRef = React.useRef<Map<string, string>>(new Map());
 
   // Track assistants that have already had contact sync triggered (to avoid re-syncing on chat close/open)
   const contactSyncTriggeredRef = React.useRef<Set<string>>(new Set());
+
+  // Auto-retry for contact_id resolution
+  const contactIdRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const contactIdRetryAttemptsRef = React.useRef<Map<string, number>>(new Map());
+  const CONTACT_ID_RETRY_DELAY = 5000; // 5 seconds between retries
+  const CONTACT_ID_MAX_RETRIES = 6; // Max 6 retries (30 seconds total)
 
   // Get the current user's contact_id for the active assistant
   // This value is stable and only changes when the contact ID for THIS assistant changes
@@ -78,6 +85,13 @@ export function useAssistantProfileChat(
     setHistoryLoadedForAssistantId(null);
     // Reset canChat - will be determined during initialization
     setCanChat(true);
+    setIsRetryingContactId(false);
+
+    // Clear any pending contact_id retry timeout when assistant changes
+    if (contactIdRetryTimeoutRef.current) {
+      clearTimeout(contactIdRetryTimeoutRef.current);
+      contactIdRetryTimeoutRef.current = null;
+    }
   }, [assistantId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -168,6 +182,96 @@ export function useAssistantProfileChat(
   );
 
   /**
+   * Retries getting the contact_id for an assistant.
+   * Called automatically after contact sync is triggered.
+   */
+  const retryContactIdLookup = React.useCallback(
+    async (currentAssistantId: string, currentAssistant: Assistant) => {
+      // Get current retry count
+      const currentRetries = contactIdRetryAttemptsRef.current.get(currentAssistantId) || 0;
+
+      if (currentRetries >= CONTACT_ID_MAX_RETRIES) {
+        // Max retries reached, stop retrying
+        setIsRetryingContactId(false);
+        contactIdRetryAttemptsRef.current.delete(currentAssistantId);
+        return;
+      }
+
+      // Resolve owner context
+      const ownerContext = await resolveOwnerContext(currentAssistant);
+      if (!ownerContext) {
+        // Schedule next retry
+        contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
+        contactIdRetryTimeoutRef.current = setTimeout(() => {
+          retryContactIdLookup(currentAssistantId, currentAssistant);
+        }, CONTACT_ID_RETRY_DELAY);
+        return;
+      }
+
+      const assistantContext = formatAssistantContext(
+        currentAssistant.firstName,
+        currentAssistant.surname
+      );
+
+      try {
+        const contactId = await assistantActions.chat.getContactId(
+          ownerContext,
+          assistantContext,
+          userEmail || '',
+          currentAssistant.userId,
+          currentAssistantId
+        );
+
+        if (contactId !== null) {
+          // Success! Cache the contact_id and enable chat
+          setContactIdCache((prev) => new Map(prev).set(currentAssistantId, contactId));
+          setCanChat(true);
+          setIsRetryingContactId(false);
+          contactIdRetryAttemptsRef.current.delete(currentAssistantId);
+
+          // Fetch transcripts now that we have a contact_id
+          const historyResult = await assistantActions.chat.getTranscripts(
+            ownerContext,
+            assistantContext,
+            contactId,
+            currentAssistant.userId,
+            currentAssistantId
+          );
+
+          if (!('detail' in historyResult)) {
+            const history = (historyResult as ChatMessage[]).reverse();
+            recordTranscriptTimestamp(currentAssistantId, history);
+            setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
+            if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
+              setHasMoreMessages(false);
+            }
+            setHistoryLoadedForAssistantId(currentAssistantId);
+          }
+        } else {
+          // Still no contact_id, schedule next retry
+          contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
+          contactIdRetryTimeoutRef.current = setTimeout(() => {
+            retryContactIdLookup(currentAssistantId, currentAssistant);
+          }, CONTACT_ID_RETRY_DELAY);
+        }
+      } catch {
+        // Error occurred, schedule next retry
+        contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
+        contactIdRetryTimeoutRef.current = setTimeout(() => {
+          retryContactIdLookup(currentAssistantId, currentAssistant);
+        }, CONTACT_ID_RETRY_DELAY);
+      }
+    },
+    [
+      assistantActions.chat,
+      resolveOwnerContext,
+      userEmail,
+      recordTranscriptTimestamp,
+      setChatHistories,
+    ]
+  );
+
+  /**
    * Initializes chat for an assistant:
    * 1. Resolves owner context (uses userFirstName/userLastName from assistant, or falls back to getAssistantOwnerById)
    * 2. Looks up user's contact_id
@@ -219,10 +323,10 @@ export function useAssistantProfileChat(
           );
 
           if (lookedUpContactId === null) {
-            // User not in contacts - trigger contact sync (only once per assistant) and cannot chat
+            // User not in contacts - trigger contact sync (only once per assistant) and start retry
             if (!contactSyncTriggeredRef.current.has(currentAssistantId)) {
               contactSyncTriggeredRef.current.add(currentAssistantId);
-              assistantActions.chat.triggerContactSync(currentAssistantId).catch((err) => {
+              assistantActions.chat.triggerContactSync(currentAssistantId).catch(() => {
                 /* no-op */
               });
             }
@@ -231,6 +335,14 @@ export function useAssistantProfileChat(
             setIsInitialLoading(false);
             setChatHistories((prev) => ({ ...prev, [currentAssistantId]: [] }));
             setHistoryLoadedForAssistantId(currentAssistantId);
+
+            // Start auto-retry for contact_id
+            setIsRetryingContactId(true);
+            contactIdRetryAttemptsRef.current.set(currentAssistantId, 0);
+            contactIdRetryTimeoutRef.current = setTimeout(() => {
+              retryContactIdLookup(currentAssistantId, currentAssistant);
+            }, CONTACT_ID_RETRY_DELAY);
+
             return;
           }
 
@@ -273,6 +385,7 @@ export function useAssistantProfileChat(
       userEmail,
       contactIdCache,
       resolveOwnerContext,
+      retryContactIdLookup,
     ]
   );
 
@@ -306,31 +419,43 @@ export function useAssistantProfileChat(
       const cachedContactId = contactIdCache.get(assistantId);
       if (cachedContactId === undefined && userEmail) {
         // Resolve contactId asynchronously
+        const currentAssistant = assistant;
+        const currentAssistantId = assistantId;
         (async () => {
-          const ownerContext = await resolveOwnerContext(assistant);
+          const ownerContext = await resolveOwnerContext(currentAssistant);
           if (!ownerContext) {
             setCanChat(false);
             return;
           }
-          const assistantContext = formatAssistantContext(assistant.firstName, assistant.surname);
+          const assistantContext = formatAssistantContext(
+            currentAssistant.firstName,
+            currentAssistant.surname
+          );
           const contactId = await assistantActions.chat.getContactId(
             ownerContext,
             assistantContext,
             userEmail,
-            assistant.userId,
-            assistantId
+            currentAssistant.userId,
+            currentAssistantId
           );
           if (contactId === null) {
             // User not in contacts - trigger contact sync (only once per assistant)
-            if (!contactSyncTriggeredRef.current.has(assistantId)) {
-              contactSyncTriggeredRef.current.add(assistantId);
-              assistantActions.chat.triggerContactSync(assistantId).catch((err) => {
+            if (!contactSyncTriggeredRef.current.has(currentAssistantId)) {
+              contactSyncTriggeredRef.current.add(currentAssistantId);
+              assistantActions.chat.triggerContactSync(currentAssistantId).catch(() => {
                 /* no-op */
               });
             }
             setCanChat(false);
+
+            // Start auto-retry for contact_id
+            setIsRetryingContactId(true);
+            contactIdRetryAttemptsRef.current.set(currentAssistantId, 0);
+            contactIdRetryTimeoutRef.current = setTimeout(() => {
+              retryContactIdLookup(currentAssistantId, currentAssistant);
+            }, CONTACT_ID_RETRY_DELAY);
           } else {
-            setContactIdCache((prev) => new Map(prev).set(assistantId, contactId));
+            setContactIdCache((prev) => new Map(prev).set(currentAssistantId, contactId));
             setCanChat(true);
           }
         })();
@@ -746,6 +871,16 @@ export function useAssistantProfileChat(
     setSseReconnectTrigger((prev) => prev + 1);
   }, []);
 
+  // Cleanup retry timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (contactIdRetryTimeoutRef.current) {
+        clearTimeout(contactIdRetryTimeoutRef.current);
+        contactIdRetryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   return {
     messages,
     inputValue,
@@ -761,10 +896,9 @@ export function useAssistantProfileChat(
     isLoadingMore,
     loadMoreError,
     hasFetchedHistory,
-    // Chat permission state
     canChat,
+    isRetryingContactId,
     currentContactId,
-    // Force SSE reconnection
     reconnectSSE,
   };
 }

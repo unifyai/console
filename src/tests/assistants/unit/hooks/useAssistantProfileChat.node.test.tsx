@@ -1,19 +1,272 @@
 /**
- * Unit tests for SSE reconnection behavior in useAssistantProfileChat hook.
+ * Unit tests for useAssistantProfileChat hook.
  *
  * Tests cover:
+ * - Contact ID auto-retry mechanism
+ * - SSE reconnection behavior
  * - reconnectSSE function behavior
  * - SSE reconnection trigger mechanism
  * - Integration with spending gate blocking
- *
- * Note: These tests focus on the reconnection logic without requiring
- * full SSE/EventSource mocking, which would be browser-only.
  */
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
+import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
+// Mock EventSource
+class MockEventSource {
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  readyState = 1;
+  close = vi.fn();
+}
+
+(global as any).EventSource = MockEventSource;
+
+// Mock BroadcastChannel
+class MockBroadcastChannel {
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  postMessage = vi.fn();
+  close = vi.fn();
+}
+
+(global as any).BroadcastChannel = MockBroadcastChannel;
+
+// Mock fetch for ACK
+global.fetch = vi.fn(() => Promise.resolve({ ok: true })) as unknown as typeof fetch;
+
+const createMockAssistant = (overrides: Partial<Assistant> = {}): Assistant => ({
+  agentId: 'test-assistant-1',
+  userId: 'test-user-1',
+  organizationId: 1,
+  firstName: 'Test',
+  surname: 'Assistant',
+  age: 25,
+  nationality: 'US',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  weeklyLimit: 1000,
+  maxParallel: 5,
+  voiceId: 'voice-1',
+  voiceProvider: 'elevenlabs',
+  voiceMode: null,
+  profilePhoto: 'https://example.com/photo.jpg',
+  profileVideo: null,
+  signedProfilePhotoUrl: 'https://example.com/photo-signed.jpg',
+  userFirstName: 'Owner',
+  userLastName: 'User',
+  about: null,
+  phoneCountry: 'US',
+  timezone: null,
+  email: null,
+  phone: null,
+  assistantWhatsappNumber: null,
+  userPhone: null,
+  userWhatsappNumber: null,
+  ...overrides,
+});
+
+const createMockAssistantActions = (
+  overrides: Partial<AssistantActions['chat']> = {}
+): Pick<AssistantActions, 'chat'> => ({
+  chat: {
+    getContactId: vi.fn(async () => 1),
+    getTranscripts: vi.fn(async () => []),
+    message: vi.fn(async () => ({ info: 'sent' })),
+    getAssistantOwnerById: vi.fn(async () => null),
+    triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
+    ...overrides,
+  },
+});
+
+// =============================================================================
+// SECTION 1: Contact ID Auto-Retry Tests
+// =============================================================================
+describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('clears retry timeout on unmount without errors', async () => {
+    const getContactIdMock = vi.fn(async () => null);
+
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn();
+
+    const { unmount } = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: getContactIdMock }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    // Wait for initial operations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    // getContactId should have been called at least once
+    expect(getContactIdMock).toHaveBeenCalled();
+    const callsBeforeUnmount = getContactIdMock.mock.calls.length;
+
+    // Unmount before any retry fires
+    unmount();
+
+    // Advance past retry delay - should not cause any errors or additional calls
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+
+    // Should NOT have additional calls after unmount
+    expect(getContactIdMock).toHaveBeenCalledTimes(callsBeforeUnmount);
+  });
+
+  it('exposes isRetryingContactId state correctly', async () => {
+    const getContactIdMock = vi.fn(async () => null);
+
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: getContactIdMock }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    // Wait for initial operations to complete
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    // Should have isRetryingContactId as a boolean
+    expect(typeof result.current.isRetryingContactId).toBe('boolean');
+    expect(typeof result.current.canChat).toBe('boolean');
+  });
+
+  it('triggers contact sync when contact_id is null', async () => {
+    const getContactIdMock = vi.fn(async () => null);
+    const triggerContactSyncMock = vi.fn(async () => ({ info: 'triggered' }));
+
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({
+          getContactId: getContactIdMock,
+          triggerContactSync: triggerContactSyncMock,
+        }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    // Wait for operations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(getContactIdMock).toHaveBeenCalled();
+    expect(triggerContactSyncMock).toHaveBeenCalled();
+  });
+
+  it('does not trigger contact sync when contact_id is available', async () => {
+    const getContactIdMock = vi.fn(async () => 123);
+    const triggerContactSyncMock = vi.fn(async () => ({ info: 'triggered' }));
+
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({
+          getContactId: getContactIdMock,
+          triggerContactSync: triggerContactSyncMock,
+        }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    // Wait for operations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(getContactIdMock).toHaveBeenCalled();
+    expect(triggerContactSyncMock).not.toHaveBeenCalled();
+    expect(result.current.canChat).toBe(true);
+  });
+
+  it('caches currentContactId after successful lookup', async () => {
+    const getContactIdMock = vi.fn(async () => 789);
+
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: getContactIdMock }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    // Wait for operations
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(result.current.currentContactId).toBe(789);
+    expect(result.current.canChat).toBe(true);
+  });
+});
+
+// =============================================================================
+// SECTION 2: SSE Reconnection Logic Tests
+// =============================================================================
 /**
  * Test the SSE reconnection trigger logic independently.
  *
@@ -21,12 +274,10 @@ import { renderHook, act } from '@testing-library/react';
  * that are difficult to mock in a Node environment. Instead, we test the logic patterns
  * that the hook implements.
  */
-
 describe('SSE Reconnection Logic', () => {
   // ===========================================================================
   // Reconnect Trigger State Machine
   // ===========================================================================
-
   describe('sseReconnectTrigger state machine', () => {
     /**
      * Simulates the reconnect trigger logic from useAssistantProfileChat.
@@ -103,7 +354,6 @@ describe('SSE Reconnection Logic', () => {
   // ===========================================================================
   // Spending Block Transition Detection
   // ===========================================================================
-
   describe('spending block transition detection', () => {
     /**
      * Simulates the useEffect and useRef pattern from AssistantProfileChatPanel
@@ -229,7 +479,6 @@ describe('SSE Reconnection Logic', () => {
   // ===========================================================================
   // useRef Pattern for Previous Value Tracking
   // ===========================================================================
-
   describe('useRef pattern for previous value tracking', () => {
     /**
      * Tests the React hook pattern: using useRef to track previous prop values
@@ -274,7 +523,6 @@ describe('SSE Reconnection Logic', () => {
   // ===========================================================================
   // Reconnection with Spending Gate Status
   // ===========================================================================
-
   describe('reconnection with spending gate status changes', () => {
     /**
      * Integration test simulating the full flow from spending gate change
@@ -407,10 +655,9 @@ describe('SSE Reconnection Logic', () => {
   });
 });
 
-// ===========================================================================
-// Edge Cases and Error Scenarios
-// ===========================================================================
-
+// =============================================================================
+// SECTION 3: SSE Reconnection Edge Cases
+// =============================================================================
 describe('SSE Reconnection Edge Cases', () => {
   describe('rapid state changes', () => {
     it('should handle synchronous block/unblock without issues', () => {
