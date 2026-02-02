@@ -126,7 +126,7 @@ export default function TopNav() {
       <div className="flex h-full items-center justify-between px-3.5">
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center px-1">
             <Image
               src={ivyLogoOnly}
               alt="Logo (collapsed)"
