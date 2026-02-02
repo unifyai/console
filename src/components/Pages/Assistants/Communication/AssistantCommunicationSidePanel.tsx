@@ -62,7 +62,7 @@ export function AssistantCommunicationSidePanel({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="camera-select" className="text-title flex items-center gap-2">
-          <Video className="h-4 w-4" /> Camera
+          <Video className="h-4 w-4" /> <span className="text-label">Camera</span>
         </Label>
         <Select
           value={selectedVideoDevice}
@@ -89,7 +89,7 @@ export function AssistantCommunicationSidePanel({
       </div>
       <div className="space-y-2">
         <Label htmlFor="mic-select" className="text-title flex items-center gap-2">
-          <Mic className="h-4 w-4" /> Microphone
+          <Mic className="h-4 w-4" /> <span className="text-label">Microphone</span>
         </Label>
         <Select
           value={selectedAudioInputDevice}
@@ -116,7 +116,7 @@ export function AssistantCommunicationSidePanel({
       </div>
       <div className="space-y-2">
         <Label htmlFor="speaker-select" className="text-title flex items-center gap-2">
-          <Volume2 className="h-4 w-4" /> Speaker
+          <Volume2 className="h-4 w-4" /> <span className="text-label">Speaker</span>
         </Label>
         <Select
           value={selectedAudioOutputDevice}

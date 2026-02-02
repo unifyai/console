@@ -85,7 +85,7 @@ export function AssistantEdit({
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="text-title">Edit {displayName}</DialogTitle>
-              <DialogDescription className="text-subtitle">
+              <DialogDescription className="text-subtitle pt-2">
                 Modify your assistant details.
               </DialogDescription>
             </div>
