@@ -167,6 +167,15 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       assistantName,
       assistantPhoto: assistant.signedProfilePhotoUrl || assistant.profilePhoto || '',
       userImage: userImage || '',
+      // Handoff state for seamless transition
+      handoffState: {
+        assistantJoined: !isWaitingForAssistant,
+        micEnabled: micToggle.enabled,
+        cameraEnabled: camToggle.enabled,
+        remoteControlActive: isRemoteControlActive,
+        liveviewUrl: liveviewUrl,
+        remoteControlInteractive: isRemoteControlInteractive,
+      },
     };
 
     try {

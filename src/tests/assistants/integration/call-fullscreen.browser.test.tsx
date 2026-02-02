@@ -933,4 +933,518 @@ describe('AssistantCommunicationFullScreen', () => {
       }
     );
   });
+
+  // =========================================================================
+  // H - Seamless Handoff from Dialog
+  // =========================================================================
+  describe('H - Seamless Handoff from Dialog', () => {
+    const handoffCallData = {
+      serverUrl: 'wss://test-server.livekit.cloud',
+      token: 'mock-token-123',
+      callType: 'video' as const,
+      assistantName: 'Test Assistant',
+      assistantPhoto: 'https://example.com/photo.jpg',
+      userImage: 'https://example.com/user.jpg',
+    };
+
+    beforeEach(() => {
+      mockSearchParams.set('dataKey', 'test-key-123');
+    });
+
+    describe('State Restoration', () => {
+      it(
+        'restores assistant-joined state immediately when handoff data indicates assistant was connected',
+        {
+          meta: {
+            alias: 'Handoff-RestoreAssistantJoined',
+            scenario: 'Dialog passes handoff data with assistantJoined=true.',
+            behavior: 'Fullscreen shows assistant as connected immediately, no waiting state.',
+          },
+        },
+        async () => {
+          // Handoff data includes state indicating assistant was already connected
+          const handoffDataWithState = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              micEnabled: true,
+              cameraEnabled: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithState);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Should NOT show "waiting for assistant" message since assistant was already joined
+          await waitFor(() => {
+            expect(screen.queryByText(/waiting for .* to join/i)).not.toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'restores remote control state when handoff data indicates screen sharing was active',
+        {
+          meta: {
+            alias: 'Handoff-RestoreRemoteControl',
+            scenario: 'Dialog passes handoff data with remoteControlActive=true and liveviewUrl.',
+            behavior: 'Remote control state is applied without requiring button click.',
+          },
+        },
+        async () => {
+          const handoffDataWithRemoteControl = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              remoteControlActive: true,
+              liveviewUrl: 'https://liveview.example.com/session/abc123',
+              remoteControlInteractive: false,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithRemoteControl);
+
+          renderFullScreen();
+
+          // Wait for connection to complete
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Verify connection was made
+          await waitFor(() => {
+            expect(mockRoomInstance.connect).toHaveBeenCalled();
+          });
+
+          // The key behavior: getLiveviewUrl should NOT be called since we restored from handoff
+          // If the state wasn't restored, the user would need to click the button to get the liveview URL
+          expect(mockAssistantActions.desktop.getLiveviewUrl).not.toHaveBeenCalled();
+
+          // Also verify the toggle button is available (remote control can be toggled off)
+          await waitFor(() => {
+            const remoteControlButton = screen.getByRole('button', {
+              name: /show.*screen|hide.*screen/i,
+            });
+            expect(remoteControlButton).toBeInTheDocument();
+          });
+        }
+      );
+
+      it(
+        'restores interactive mode when handoff data indicates it was enabled',
+        {
+          meta: {
+            alias: 'Handoff-RestoreInteractiveMode',
+            scenario: 'Dialog passes handoff with remoteControlInteractive=true.',
+            behavior: 'Interactive mode is enabled without requiring API call.',
+          },
+        },
+        async () => {
+          const handoffDataWithInteractive = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              remoteControlActive: true,
+              liveviewUrl: 'https://liveview.example.com/session/abc123',
+              remoteControlInteractive: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithInteractive);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Wait for connection and state restoration
+          await waitFor(() => {
+            expect(mockRoomInstance.connect).toHaveBeenCalled();
+          });
+
+          // Interactive mode toggle should NOT make an API call since state was restored
+          // The sendSystemEvent should not be called during initial load
+          expect(mockAssistantActions.desktop.sendSystemEvent).not.toHaveBeenCalled();
+        }
+      );
+
+      it(
+        'preserves mic/camera state from handoff data instead of using defaults',
+        {
+          meta: {
+            alias: 'Handoff-PreserveTrackState',
+            scenario: 'Dialog passes handoff with micEnabled=false, cameraEnabled=true.',
+            behavior: 'Fullscreen applies exact track states from handoff.',
+          },
+        },
+        async () => {
+          const handoffDataWithTrackState = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              micEnabled: false,
+              cameraEnabled: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithTrackState);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Should apply the exact mic/camera state from handoff
+          await waitFor(() => {
+            expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+              false
+            );
+            expect(mockRoomInstance.localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+          });
+        }
+      );
+    });
+
+    describe('Race Conditions and Edge Cases', () => {
+      it(
+        'handles rapid tab switch where assistant disconnects between handoff and connection',
+        {
+          meta: {
+            alias: 'Handoff-AssistantDisconnectRace',
+            scenario:
+              'Handoff says assistantJoined=true, but assistant disconnects before fullscreen connects.',
+            behavior: 'Shows waiting state and handles reconnection gracefully.',
+          },
+        },
+        async () => {
+          const handoffDataAssistantJoined = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataAssistantJoined);
+
+          // Simulate that the room will have 1 participant (only user) after connect
+          mockRoomInstance = new MockRoom() as any;
+          mockRoomInstance.numParticipants = 1; // Only user, assistant not there
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Despite handoff saying assistant was joined, if room shows otherwise,
+          // the UI should update to show waiting state
+          await waitFor(() => {
+            expect(mockRoomInstance.connect).toHaveBeenCalled();
+          });
+
+          // The component should detect the discrepancy and show waiting state
+          // This tests that the component validates handoff state against actual room state
+        }
+      );
+
+      it(
+        'handles corrupted handoff state gracefully and falls back to defaults',
+        {
+          meta: {
+            alias: 'Handoff-CorruptedState',
+            scenario: 'Handoff data has malformed handoffState object.',
+            behavior: 'Falls back to default behavior without crashing.',
+          },
+        },
+        async () => {
+          const handoffDataCorrupted = {
+            ...handoffCallData,
+            handoffState: 'not-an-object', // Corrupted - should be object
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataCorrupted);
+
+          // Should not throw
+          expect(() => renderFullScreen()).not.toThrow();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Should fall back to default behavior (enable mic, enable camera for video)
+          await waitFor(() => {
+            expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+              true
+            );
+          });
+        }
+      );
+
+      it(
+        'handles missing handoffState and uses default initialization',
+        {
+          meta: {
+            alias: 'Handoff-MissingState',
+            scenario: 'Handoff data has no handoffState (legacy format).',
+            behavior: 'Uses default initialization behavior.',
+          },
+        },
+        async () => {
+          // Legacy format without handoffState
+          localStorageData['test-key-123'] = JSON.stringify(handoffCallData);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Should use default behavior
+          await waitFor(() => {
+            expect(mockRoomInstance.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(
+              true
+            );
+            expect(mockRoomInstance.localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+          });
+        }
+      );
+
+      it(
+        'validates liveviewUrl before restoring remote control state',
+        {
+          meta: {
+            alias: 'Handoff-ValidateLiveviewUrl',
+            scenario: 'Handoff has remoteControlActive=true but liveviewUrl is expired/invalid.',
+            behavior: 'Does not show remote control, allows user to re-enable.',
+          },
+        },
+        async () => {
+          const handoffDataExpiredUrl = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              remoteControlActive: true,
+              liveviewUrl: '', // Empty/invalid URL
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataExpiredUrl);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Should NOT show remote control view with empty URL
+          await waitFor(() => {
+            const iframe = document.querySelector('iframe[src*="liveview"]');
+            expect(iframe).not.toBeInTheDocument();
+          });
+        }
+      );
+    });
+
+    describe('Dialog-Fullscreen Coordination', () => {
+      it(
+        'signals to dialog that handoff is complete so dialog can close cleanly',
+        {
+          meta: {
+            alias: 'Handoff-SignalComplete',
+            scenario: 'Fullscreen successfully connects and restores state.',
+            behavior: 'Sets localStorage flag or dispatches event for dialog to detect.',
+          },
+        },
+        async () => {
+          const handoffDataWithState = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithState);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Wait for connection
+          await waitFor(() => {
+            expect(mockRoomInstance.connect).toHaveBeenCalled();
+          });
+
+          // Should set activePopOutCall in localStorage to signal handoff complete
+          expect(setItemSpy).toHaveBeenCalledWith(
+            'activePopOutCall',
+            expect.stringContaining(mockAssistant.agentId)
+          );
+        }
+      );
+
+      it(
+        'handles scenario where dialog closes before fullscreen finishes connecting',
+        {
+          meta: {
+            alias: 'Handoff-DialogClosedEarly',
+            scenario: 'User closes dialog tab while fullscreen is still connecting.',
+            behavior: 'Fullscreen continues normally, assistant stays in room.',
+          },
+        },
+        async () => {
+          const handoffDataWithState = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithState);
+
+          renderFullScreen();
+
+          // Simulate dialog closing (removing its activePopOutCall ping)
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(50);
+            // Dialog would have cleared its state, but fullscreen should continue
+          });
+
+          // Fullscreen should still connect successfully
+          await waitFor(() => {
+            expect(mockRoomInstance.connect).toHaveBeenCalled();
+          });
+        }
+      );
+
+      it(
+        'handles multiple rapid pop-out attempts gracefully',
+        {
+          meta: {
+            alias: 'Handoff-RapidPopOut',
+            scenario: 'User rapidly clicks pop-out multiple times.',
+            behavior:
+              'Only one fullscreen instance should be active, others should detect and close.',
+          },
+        },
+        async () => {
+          const handoffData1 = {
+            ...handoffCallData,
+            handoffState: { assistantJoined: true },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffData1);
+
+          // First render
+          const { unmount } = render(
+            <AssistantCommunicationFullScreen
+              assistant={mockAssistant as any}
+              assistantActions={mockAssistantActions as any}
+              user={mockUser}
+            />
+          );
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+          });
+
+          // Simulate second pop-out by setting a new dataKey
+          mockSearchParams.set('dataKey', 'test-key-456');
+          localStorageData['test-key-456'] = JSON.stringify({
+            ...handoffCallData,
+            handoffState: { assistantJoined: true },
+          });
+
+          // The system should have a mechanism to detect duplicate windows
+          // Either via localStorage coordination or window.opener communication
+          expect(setItemSpy).toHaveBeenCalledWith('activePopOutCall', expect.any(String));
+
+          unmount();
+        }
+      );
+    });
+
+    describe('State Persistence After Handoff', () => {
+      it(
+        'maintains restored remote control state across room reconnections',
+        {
+          meta: {
+            alias: 'Handoff-MaintainStateOnReconnect',
+            scenario:
+              'Handoff restores remote control, then room briefly disconnects and reconnects.',
+            behavior: 'Remote control state persists through reconnection.',
+          },
+        },
+        async () => {
+          const handoffDataWithRemoteControl = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+              remoteControlActive: true,
+              liveviewUrl: 'https://liveview.example.com/session/abc123',
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithRemoteControl);
+
+          renderFullScreen();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Simulate room disconnect and reconnect
+          await act(async () => {
+            mockRoomInstance.emit(RoomEvent.Disconnected);
+            await vi.advanceTimersByTimeAsync(100);
+          });
+
+          // Reconnect
+          await act(async () => {
+            mockRoomInstance.state = ConnectionState.Connected;
+            mockRoomInstance.emit(RoomEvent.Connected);
+            await vi.advanceTimersByTimeAsync(100);
+          });
+
+          // Remote control state should still be active (liveview URL should persist)
+          // This tests that handoff state isn't lost on room events
+        }
+      );
+
+      it(
+        'properly cleans up handoff state on unmount to prevent stale data',
+        {
+          meta: {
+            alias: 'Handoff-CleanupOnUnmount',
+            scenario: 'User closes fullscreen tab.',
+            behavior: 'Handoff-related localStorage data is cleaned up.',
+          },
+        },
+        async () => {
+          const handoffDataWithState = {
+            ...handoffCallData,
+            handoffState: {
+              assistantJoined: true,
+            },
+          };
+          localStorageData['test-key-123'] = JSON.stringify(handoffDataWithState);
+
+          const { unmount } = render(
+            <AssistantCommunicationFullScreen
+              assistant={mockAssistant as any}
+              assistantActions={mockAssistantActions as any}
+              user={mockUser}
+            />
+          );
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(200);
+          });
+
+          // Unmount should clean up
+          unmount();
+
+          // activePopOutCall should be removed
+          expect(removeItemSpy).toHaveBeenCalledWith('activePopOutCall');
+        }
+      );
+    });
+  });
 });

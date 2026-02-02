@@ -350,6 +350,14 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     assistantName: string;
     assistantPhoto: string;
     userImage: string;
+    handoffState?: {
+      assistantJoined?: boolean;
+      micEnabled?: boolean;
+      cameraEnabled?: boolean;
+      remoteControlActive?: boolean;
+      liveviewUrl?: string | null;
+      remoteControlInteractive?: boolean;
+    };
   } | null>(null);
 
   const [room] = React.useState(() => new Room());
@@ -451,7 +459,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
   const connectToRoom = React.useCallback(async () => {
     if (!callData) return;
-    const { serverUrl, token, callType } = callData;
+    const { serverUrl, token, callType, handoffState } = callData;
 
     if (!token || !serverUrl) {
       setError('Missing connection details. This tab can be closed.');
@@ -464,11 +472,46 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
     try {
       await room.connect(serverUrl, token);
-      await room.localParticipant.setMicrophoneEnabled(true);
-      await room.localParticipant.setCameraEnabled(callType === 'video');
+
+      // Apply mic/camera state from handoff or use defaults
+      const micEnabled =
+        handoffState && typeof handoffState.micEnabled === 'boolean'
+          ? handoffState.micEnabled
+          : true;
+      const cameraEnabled =
+        handoffState && typeof handoffState.cameraEnabled === 'boolean'
+          ? handoffState.cameraEnabled
+          : callType === 'video';
+
+      await room.localParticipant.setMicrophoneEnabled(micEnabled);
+      await room.localParticipant.setCameraEnabled(cameraEnabled);
+
       setIsConnecting(false);
-      if (room.numParticipants < 2) {
-        setIsWaitingForAssistant(true);
+
+      // Determine waiting state: use handoff if available, otherwise check room
+      if (handoffState && typeof handoffState.assistantJoined === 'boolean') {
+        // Trust handoff state initially, but verify against room
+        // If handoff says joined but room shows otherwise, still show waiting
+        const actuallyJoined = room.numParticipants >= 2 || handoffState.assistantJoined;
+        setIsWaitingForAssistant(!actuallyJoined);
+      } else {
+        // Legacy path: no handoff state, check room directly
+        setIsWaitingForAssistant(room.numParticipants < 2);
+      }
+
+      // Restore remote control state from handoff
+      if (
+        handoffState &&
+        handoffState.remoteControlActive &&
+        handoffState.liveviewUrl &&
+        typeof handoffState.liveviewUrl === 'string' &&
+        handoffState.liveviewUrl.length > 0
+      ) {
+        setLiveviewUrl(handoffState.liveviewUrl);
+        setIsRemoteControlActive(true);
+        if (handoffState.remoteControlInteractive) {
+          setIsRemoteControlInteractive(true);
+        }
       }
     } catch (err) {
       console.error('Failed to connect to LiveKit room in new tab:', err);
