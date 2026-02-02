@@ -71,8 +71,13 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
         const logsResponse = data as LogsResponseProps;
         const latestLog = (logsResponse.logs as LogProps[])?.[0];
 
-        if (latestLog && latestLog.entries && typeof latestLog.entries.liveview_url === 'string') {
-          let liveviewUrl = latestLog.entries.liveview_url;
+        // Note: The orchestra client transforms snake_case to camelCase, so liveview_url becomes liveviewUrl
+        // Also check for snake_case in case the transformation didn't happen
+        const liveviewUrlValue =
+          latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
+
+        if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
+          let liveviewUrl = liveviewUrlValue;
 
           const urlObj = new URL(liveviewUrl);
           urlObj.searchParams.set('password', userApiKey); // Use the user's key for the VNC password
@@ -89,7 +94,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
       }
 
       console.warn(
-        `[getLiveviewUrl] No logs with a valid 'liveview_url' found for assistant ${assistantId} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`
+        `[getLiveviewUrl] No logs with a valid 'liveviewUrl' found for assistant ${assistantId} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`
       );
       return {
         detail:
