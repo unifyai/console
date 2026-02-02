@@ -94,6 +94,44 @@ const FullScreenCallUI: React.FC<{
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
   const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);
 
+  // Side panel resize state
+  const [sidePanelWidth, setSidePanelWidth] = React.useState(300);
+  const [isResizingSidePanel, setIsResizingSidePanel] = React.useState(false);
+
+  const handleSidePanelResizeStart = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizingSidePanel(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const startWidth = sidePanelWidth;
+      const startX = e.clientX;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        // Side panel is on the right, so we subtract the delta
+        const newWidth = startWidth - (moveEvent.clientX - startX);
+        const minWidth = 250;
+        const maxWidth = 600;
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+          setSidePanelWidth(newWidth);
+        }
+      };
+
+      const handleMouseUp = () => {
+        setIsResizingSidePanel(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    },
+    [sidePanelWidth]
+  );
+
   // Device selection state
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDevice, setSelectedVideoDevice] = React.useState<string>('');
@@ -224,13 +262,27 @@ const FullScreenCallUI: React.FC<{
         </div>
 
         <AnimatePresence>
-          {activeSidePanel && (
+          {activeSidePanel && [
+            <motion.div
+              key="side-panel-resize-handle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              onMouseDown={handleSidePanelResizeStart}
+              className="hover:bg-primary/20 active:bg-primary/40 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
+              style={{ zIndex: 20 }}
+            />,
             <motion.div
               key="side-panel"
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
+              animate={{ width: sidePanelWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+              transition={{
+                type: 'tween',
+                ease: 'easeInOut',
+                duration: isResizingSidePanel ? 0 : 0.3,
+              }}
               className="bg-background/95 h-full flex-shrink-0 overflow-hidden border-l"
             >
               <AssistantCommunicationSidePanel
@@ -254,8 +306,8 @@ const FullScreenCallUI: React.FC<{
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
               />
-            </motion.div>
-          )}
+            </motion.div>,
+          ]}
         </AnimatePresence>
       </div>
       <AssistantCommunicationControls
