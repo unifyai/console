@@ -45,6 +45,7 @@ interface AssistantCommunicationDialogContentProps {
   isRemoteControlLoading: boolean;
   toggleRemoteControl: () => void;
   isRemoteControlInteractive: boolean;
+  isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
   callType: 'video' | 'audio' | null;
@@ -70,6 +71,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   isRemoteControlLoading,
   toggleRemoteControl,
   isRemoteControlInteractive,
+  isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
   callType,
@@ -350,8 +352,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         isRemoteControlLoading={isRemoteControlLoading}
         onToggleRemoteControl={toggleRemoteControl}
         isRemoteControlInteractive={isRemoteControlInteractive}
+        isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
         onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isConnectionEstablished={isCallConnected}
+        isAssistantJoined={!isWaitingForAssistant}
         callType={callType}
       />
     </>
@@ -379,6 +383,7 @@ interface AssistantCommunicationDialogProps {
   isRemoteControlLoading: boolean;
   toggleRemoteControl: () => void;
   isRemoteControlInteractive: boolean;
+  isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
   callType: 'video' | 'audio' | null;
@@ -406,6 +411,7 @@ export function AssistantCommunicationDialog({
   isRemoteControlLoading,
   toggleRemoteControl,
   isRemoteControlInteractive,
+  isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
   callType,
@@ -439,6 +445,7 @@ export function AssistantCommunicationDialog({
           isRemoteControlLoading={isRemoteControlLoading}
           toggleRemoteControl={toggleRemoteControl}
           isRemoteControlInteractive={isRemoteControlInteractive}
+          isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
           toggleRemoteControlInteractive={toggleRemoteControlInteractive}
           isCallConnected={isCallConnected}
           callType={callType}

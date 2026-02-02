@@ -35,7 +35,9 @@ interface AssistantCommunicationControlsProps {
   isRemoteControlLoading: boolean;
   isRemoteControlInteractive: boolean;
   onToggleRemoteControlInteractive: () => void;
+  isRemoteControlInteractiveLoading?: boolean;
   isConnectionEstablished: boolean;
+  isAssistantJoined?: boolean;
   callType: 'video' | 'audio' | null;
 }
 
@@ -87,9 +89,13 @@ export function AssistantCommunicationControls({
   isRemoteControlLoading,
   isRemoteControlInteractive,
   onToggleRemoteControlInteractive,
+  isRemoteControlInteractiveLoading,
   isConnectionEstablished,
+  isAssistantJoined = true, // Default to true for backwards compatibility
   callType,
 }: AssistantCommunicationControlsProps) {
+  // Remote control requires assistant to have joined, not just connection established
+  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined;
   return (
     <div className="flex h-20 flex-shrink-0 items-center justify-between border-t bg-background px-6">
       {/* Left Controls */}
@@ -169,9 +175,9 @@ export function AssistantCommunicationControls({
                         isRemoteControlActive && 'text-primary'
                       )}
                       onClick={onToggleRemoteControl}
-                      disabled={isRemoteControlLoading || !isConnectionEstablished}
+                      disabled={isRemoteControlLoading || !canUseRemoteControl}
                       aria-label={
-                        !isConnectionEstablished
+                        !canUseRemoteControl
                           ? 'Available after assistant joins'
                           : isRemoteControlActive
                             ? 'Hide assistant screen'
@@ -188,7 +194,7 @@ export function AssistantCommunicationControls({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>
-                    {!isConnectionEstablished
+                    {!canUseRemoteControl
                       ? 'Available after assistant joins'
                       : isRemoteControlActive
                         ? 'Hide assistant screen'
@@ -213,14 +219,16 @@ export function AssistantCommunicationControls({
                           isRemoteControlInteractive && 'text-primary'
                         )}
                         onClick={onToggleRemoteControlInteractive}
-                        disabled={isRemoteControlLoading}
+                        disabled={isRemoteControlLoading || isRemoteControlInteractiveLoading}
                         aria-label={
                           isRemoteControlInteractive
                             ? 'Disable mouse & keyboard control'
                             : 'Enable mouse & keyboard control'
                         }
                       >
-                        {isRemoteControlInteractive ? (
+                        {isRemoteControlInteractiveLoading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : isRemoteControlInteractive ? (
                           <Pointer className="h-5 w-5" />
                         ) : (
                           <PointerOff className="h-5 w-5" />

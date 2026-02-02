@@ -32,6 +32,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
   const [isRemoteControlInteractive, setIsRemoteControlInteractive] = React.useState(false);
+  const [isRemoteControlInteractiveLoading, setIsRemoteControlInteractiveLoading] =
+    React.useState(false);
 
   const toggleSpeakerMute = React.useCallback(() => {
     setIsSpeakerMuted((prev) => !prev);
@@ -265,6 +267,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     const eventType = nextState ? 'pause_actor' : 'resume_actor';
     const message = nextState ? 'user is taking over' : 'user is handing back control';
 
+    setIsRemoteControlInteractiveLoading(true);
     try {
       const result = await assistantActions.desktop.sendSystemEvent(
         activeCallAssistant.agentId,
@@ -283,6 +286,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         e.message
       );
       toast.error(`Could not ${nextState ? 'enable' : 'disable'} interactive mode.`);
+    } finally {
+      setIsRemoteControlInteractiveLoading(false);
     }
   }, [
     isRemoteControlActive,
@@ -425,6 +430,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     isRemoteControlLoading,
     toggleRemoteControl,
     isRemoteControlInteractive,
+    isRemoteControlInteractiveLoading,
     toggleRemoteControlInteractive,
   };
 }

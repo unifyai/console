@@ -456,6 +456,20 @@ describe('AssistantCommunicationFullScreen', () => {
       localStorageData['test-key-123'] = JSON.stringify(validCallData);
     });
 
+    // Helper to wait for connection and simulate assistant joining
+    const waitForAssistantToJoin = async () => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Simulate assistant joining by emitting ParticipantConnected event
+      await act(async () => {
+        mockRoomInstance.numParticipants = 2;
+        mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
+        await vi.advanceTimersByTimeAsync(50);
+      });
+    };
+
     it(
       'calls getLiveviewUrl when remote control button is clicked',
       {
@@ -467,10 +481,7 @@ describe('AssistantCommunicationFullScreen', () => {
       },
       async () => {
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         // Find and click the remote control button
         const remoteControlButton = await screen.findByRole('button', {
@@ -504,10 +515,7 @@ describe('AssistantCommunicationFullScreen', () => {
         );
 
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         const remoteControlButton = await screen.findByRole('button', {
           name: /show assistant screen/i,
@@ -538,10 +546,7 @@ describe('AssistantCommunicationFullScreen', () => {
       },
       async () => {
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         const remoteControlButton = await screen.findByRole('button', {
           name: /show assistant screen/i,
@@ -580,10 +585,7 @@ describe('AssistantCommunicationFullScreen', () => {
         });
 
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         const remoteControlButton = await screen.findByRole('button', {
           name: /show assistant screen/i,
@@ -617,6 +619,20 @@ describe('AssistantCommunicationFullScreen', () => {
       localStorageData['test-key-123'] = JSON.stringify(validCallData);
     });
 
+    // Helper to wait for connection and simulate assistant joining
+    const waitForAssistantToJoin = async () => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Simulate assistant joining by emitting ParticipantConnected event
+      await act(async () => {
+        mockRoomInstance.numParticipants = 2;
+        mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
+        await vi.advanceTimersByTimeAsync(50);
+      });
+    };
+
     it(
       'sends pause_actor event when enabling interactive mode',
       {
@@ -628,10 +644,7 @@ describe('AssistantCommunicationFullScreen', () => {
       },
       async () => {
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         // First enable remote control
         const remoteControlButton = await screen.findByRole('button', {
@@ -675,10 +688,7 @@ describe('AssistantCommunicationFullScreen', () => {
         });
 
         renderFullScreen();
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(200);
-        });
+        await waitForAssistantToJoin();
 
         // Enable remote control first
         const remoteControlButton = await screen.findByRole('button', {

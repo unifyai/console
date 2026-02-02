@@ -278,6 +278,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     isRemoteControlLoading,
     toggleRemoteControl,
     isRemoteControlInteractive,
+    isRemoteControlInteractiveLoading,
     toggleRemoteControlInteractive,
   } = useAssistantCall(room, assistantActions);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
@@ -976,6 +977,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isRemoteControlLoading={isRemoteControlLoading}
             toggleRemoteControl={toggleRemoteControl}
             isRemoteControlInteractive={isRemoteControlInteractive}
+            isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
             toggleRemoteControlInteractive={toggleRemoteControlInteractive}
             callType={callType}
             connectionDetails={connectionDetails}

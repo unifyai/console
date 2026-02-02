@@ -54,7 +54,9 @@ const FullScreenCallUI: React.FC<{
   isRemoteControlLoading: boolean;
   toggleRemoteControl: () => void;
   isRemoteControlInteractive: boolean;
+  isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
+  isWaitingForAssistant: boolean;
 }> = ({
   room,
   assistant,
@@ -73,7 +75,9 @@ const FullScreenCallUI: React.FC<{
   isRemoteControlLoading,
   toggleRemoteControl,
   isRemoteControlInteractive,
+  isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
+  isWaitingForAssistant,
 }) => {
   // Standard LiveKit hooks
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
@@ -269,8 +273,10 @@ const FullScreenCallUI: React.FC<{
         onToggleRemoteControl={toggleRemoteControl}
         isRemoteControlLoading={isRemoteControlLoading}
         isRemoteControlInteractive={isRemoteControlInteractive}
+        isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
         onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isConnectionEstablished={room.state === 'connected'}
+        isAssistantJoined={!isWaitingForAssistant}
         callType={callType}
       />
     </div>
@@ -305,6 +311,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
   const [isRemoteControlInteractive, setIsRemoteControlInteractive] = React.useState(false);
+  const [isRemoteControlInteractiveLoading, setIsRemoteControlInteractiveLoading] =
+    React.useState(false);
 
   // Stop remote control helper
   const stopRemoteControl = React.useCallback(() => {
@@ -346,7 +354,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     const eventType = nextState ? 'pause_actor' : 'resume_actor';
     const message = nextState ? 'user is taking over' : 'user is handing back control';
 
-    setIsRemoteControlInteractive(nextState);
+    setIsRemoteControlInteractiveLoading(true);
 
     try {
       const result = await assistantActions.desktop.sendSystemEvent(
@@ -356,13 +364,13 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       );
       if (result.detail) {
         console.error('[FullScreen] Error sending interaction event:', result.detail);
-        // Revert on failure
-        setIsRemoteControlInteractive(!nextState);
+      } else {
+        setIsRemoteControlInteractive(nextState);
       }
     } catch (err) {
       console.error('[FullScreen] Error sending interaction event:', err);
-      // Revert on failure
-      setIsRemoteControlInteractive(!nextState);
+    } finally {
+      setIsRemoteControlInteractiveLoading(false);
     }
   }, [isRemoteControlActive, isRemoteControlInteractive, assistantActions.desktop, assistant]);
 
@@ -513,7 +521,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         isRemoteControlLoading={isRemoteControlLoading}
         toggleRemoteControl={toggleRemoteControl}
         isRemoteControlInteractive={isRemoteControlInteractive}
+        isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+        isWaitingForAssistant={isWaitingForAssistant}
       />
     </RoomContext.Provider>
   );
