@@ -48,6 +48,9 @@ export interface Assistant {
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
+  userDesktopMode?: DesktopMode | null;
+  userDesktopUrl?: string | null;
+  userDesktopFilesysSync?: boolean | null;
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;

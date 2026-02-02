@@ -82,18 +82,18 @@ export function AssistantResourcesManager({
   return (
     <>
       <div className="flex w-full flex-wrap gap-x-4 gap-y-2">
-        {assistant.isUserDesktop && assistant.desktopMode && onOpenSetupInstructions && (
+        {assistant.userDesktopMode && onOpenSetupInstructions && (
           <ContactItem
             value="Local Setup Instructions"
             tooltip="View setup instructions and download installer"
             icon={<Download className="h-4 w-4 flex-shrink-0" />}
-            handleClick={() => onOpenSetupInstructions(assistant.desktopMode!)}
+            handleClick={() => onOpenSetupInstructions(assistant.userDesktopMode!)}
           />
         )}
-        {assistant.desktopUrl && (
+        {assistant.userDesktopUrl && assistant.userDesktopMode && (
           <ContactItem
             value="Local Workspace Link"
-            copyValue={assistant.desktopUrl}
+            copyValue={assistant.userDesktopUrl}
             tooltip={'Copy the URL of your local desktop configuration'}
             icon={<Laptop className="h-4 w-4 flex-shrink-0" />}
             isCopyable
