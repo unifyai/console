@@ -87,7 +87,7 @@ const ChatMessageBubble = ({
         {/* Message bubble */}
         <div
           className={cn(
-            'text-body break-words rounded-lg p-3',
+            'break-words rounded-lg p-3 font-sans text-sm leading-snug',
             isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
           )}
         >
