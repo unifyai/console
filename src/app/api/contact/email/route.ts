@@ -5,8 +5,8 @@ import {
   getCommunicationErrorDetail,
   getCommunicationErrorStatus,
 } from '@/lib/communication/client';
-
-const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { AxiosError } from 'axios';
 
 export async function POST(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -105,43 +105,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const adminEmailsResponse = await fetch(`${ORCHESTRA_BASE_URL}/admin/assistant/emails`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        accept: 'application/json',
-      },
+    // Use the admin/assistant endpoint with from_fields parameter to only fetch emails
+    // This is more efficient than fetching full assistant objects
+    // OrchestraAdminClient base URL is already set to /v0/admin
+    const response = await OrchestraAdminClient.get('/assistant', {
+      params: { fromFields: 'email' },
     });
 
-    const responseData = await adminEmailsResponse.json().catch((e) => {
-      console.error(
-        'Failed to parse JSON response from admin backend (admin/assistant/emails):',
-        e
-      );
-      return {
-        detail: 'Invalid JSON response from admin email listing service',
-        status: adminEmailsResponse.status,
-      };
-    });
+    const responseData = response.data as { info?: Array<{ email?: string | null }> };
 
-    if (!adminEmailsResponse.ok) {
-      console.error(
-        `Admin Backend Error (admin/assistant/emails - ${adminEmailsResponse.status}):`,
-        responseData
-      );
-      return NextResponse.json(
-        { detail: responseData.detail || 'Failed to fetch assistant emails from admin service' },
-        { status: adminEmailsResponse.status }
-      );
-    }
-
-    // The backend /admin/assistant/emails returns InfoResponse[List[str]]
-    // So responseData should be { info: ["email1", "email2"] }
+    // The backend returns { info: [{ email: "..." }, { email: "..." }, ...] }
+    // We need to extract the emails and return as a flat list
     if (responseData.info && Array.isArray(responseData.info)) {
-      return NextResponse.json({ emails: responseData.info }, { status: 200 });
+      const emails = responseData.info
+        .map((item) => item.email)
+        .filter((email): email is string => email != null);
+      return NextResponse.json({ emails }, { status: 200 });
     } else {
       console.error(
-        "Admin backend (admin/assistant/emails) did not return expected 'info' array:",
+        "Admin backend (admin/assistant?from_fields=email) did not return expected 'info' array:",
         responseData
       );
       return NextResponse.json(
@@ -149,8 +131,15 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-  } catch (error: any) {
-    console.error('Error proxying to admin backend (admin/assistant/emails):', error);
+  } catch (error) {
+    console.error('Error fetching assistant emails from admin backend:', error);
+
+    if (error instanceof AxiosError) {
+      const status = error.response?.status || 500;
+      const detail = error.response?.data?.detail || 'Failed to fetch assistant emails';
+      return NextResponse.json({ detail }, { status });
+    }
+
     return internalError('Failed to connect to admin email listing service');
   }
 }

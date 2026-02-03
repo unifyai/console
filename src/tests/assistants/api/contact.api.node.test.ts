@@ -40,29 +40,40 @@ describe('Contact API Routes', () => {
       {
         meta: {
           alias: 'ContactEmail-List',
-          scenario: 'Backend returns list of emails',
-          behavior: 'Returns emails array',
+          scenario: 'Backend returns list of emails via from_fields parameter',
+          behavior: 'Returns emails array extracted from assistant objects',
         },
       },
       async () => {
-        // Arrange
+        // Arrange - The new endpoint returns objects with email field
         server.use(
-          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant/emails`, () => {
-            return HttpResponse.json({
-              info: ['assistant1@example.com', 'assistant2@example.com'],
-            });
+          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant`, ({ request }) => {
+            const url = new URL(request.url);
+            const fromFields = url.searchParams.get('from_fields');
+            // Verify the from_fields parameter is being used correctly
+            if (fromFields === 'email') {
+              return HttpResponse.json({
+                info: [
+                  { agent_id: '1', user_id: 1, created_at: '2024-01-01', email: 'assistant1@example.com' },
+                  { agent_id: '2', user_id: 2, created_at: '2024-01-01', email: 'assistant2@example.com' },
+                ],
+              });
+            }
+            return HttpResponse.json({ detail: 'Unexpected request' }, { status: 400 });
           })
         );
 
         // Act - Simulate what the route handler does
-        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant/emails`, {
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant?from_fields=email`, {
           headers: { Authorization: `Bearer ${TEST_API_KEY}` },
         });
         const data = await response.json();
 
         // Assert
         expect(response.ok).toBe(true);
-        expect(data.info).toEqual(['assistant1@example.com', 'assistant2@example.com']);
+        expect(data.info).toHaveLength(2);
+        expect(data.info[0].email).toBe('assistant1@example.com');
+        expect(data.info[1].email).toBe('assistant2@example.com');
       }
     );
 
@@ -78,13 +89,13 @@ describe('Contact API Routes', () => {
       async () => {
         // Arrange
         server.use(
-          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant/emails`, () => {
+          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant`, () => {
             return HttpResponse.json({ detail: 'Service unavailable' }, { status: 503 });
           })
         );
 
         // Act
-        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant/emails`, {
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/assistant?from_fields=email`, {
           headers: { Authorization: `Bearer ${TEST_API_KEY}` },
         });
 
