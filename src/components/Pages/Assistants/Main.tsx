@@ -24,7 +24,7 @@ import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useTaskFilters } from '@/hooks/Assistants/useTaskFilters';
 import { useTasks } from '@/hooks/Assistants/useTasks';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
-import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
+import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
 import { useAssistantHiringApproval } from '@/hooks/Assistants/useAssistantHiringApproval';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
@@ -476,7 +476,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Combined Hire/Edit Form Hook ---
   const {
-    hireFormMethods,
+    formMethods,
     initiateHireSequence,
     isCheckingBalance,
     isSubmitting: isFormSubmitting,
@@ -487,7 +487,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     loadAssistantForEdit,
     initiateUpdate,
     onNewMediaReady,
-  } = useAssistantHireForm(
+  } = useAssistantForm(
     assistantActions,
     unsortedVoices,
     handleHireSuccess,
@@ -496,8 +496,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   );
 
   // --- Voice Options  ---
-  const hireFormNationality = hireFormMethods.watch('nationality');
-  const hireFormFastMode = hireFormMethods.watch('fastMode') as boolean;
+  const hireFormNationality = formMethods.watch('nationality');
+  const hireFormFastMode = formMethods.watch('fastMode') as boolean;
   const preferredLanguage = React.useMemo(
     () => getLangCodeForNationality(hireFormNationality),
     [hireFormNationality]
@@ -621,7 +621,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   ]);
   React.useEffect(() => {
     if (justDeletedVoiceId) {
-      const { getValues, setValue } = hireFormMethods;
+      const { getValues, setValue } = formMethods;
       if (getValues('voiceId') === justDeletedVoiceId) {
         setValue('voiceId', null as any);
         setValue('voiceName', '');
@@ -633,7 +633,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       }
       setJustDeletedVoiceId(null); // Reset the trigger
     }
-  }, [justDeletedVoiceId, hireFormMethods]);
+  }, [justDeletedVoiceId, formMethods]);
 
   // --- Memoized values for props ---
   const profileAssistant = React.useMemo(
@@ -766,9 +766,9 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       </div>
 
       {/* Dialogs and Overlays */}
-      <FormProvider {...hireFormMethods}>
+      <FormProvider {...formMethods}>
         <AssistantHire
-          formMethods={hireFormMethods}
+          formMethods={formMethods}
           isHireDialogOpen={isHireDialogOpen}
           isHireSubmitting={isFormSubmitting}
           setIsHireDialogOpen={setIsHireDialogOpen}
@@ -789,7 +789,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         >
           <HireForm
             assistants={assistants}
-            formMethods={hireFormMethods}
+            formMethods={formMethods}
             isSubmitting={isFormSubmitting}
             assistantActions={assistantActions}
             onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
@@ -831,7 +831,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isOpen={!!assistantToEdit}
             onClose={() => setAssistantToEdit(null)}
             assistant={assistantToEdit}
-            formMethods={hireFormMethods}
+            formMethods={formMethods}
             onSubmit={initiateUpdate}
             isSubmitting={isFormSubmitting}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
@@ -839,7 +839,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           >
             <HireForm
               assistants={assistants}
-              formMethods={hireFormMethods}
+              formMethods={formMethods}
               onSubmit={initiateUpdate}
               isSubmitting={isFormSubmitting}
               assistantActions={assistantActions}

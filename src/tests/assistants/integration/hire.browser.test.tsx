@@ -21,7 +21,7 @@ import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/Assistan
 import { PresetsPanel } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { AssistantEdit } from '@/components/Pages/Assistants/Assistants/Edit/AssistantEdit';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
-import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
+import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { mockAssistantActions } from '../mocks/actions';
 import { mockPresets, mockVoices, mockAssistants } from '../mocks/data';
@@ -71,7 +71,7 @@ const HireFlowTestWrapper = ({
   const voicesToUse = customVoices || mockVoices;
 
   const {
-    hireFormMethods,
+    formMethods,
     initiateHireSequence,
     isCheckingBalance,
     isSubmitting,
@@ -79,7 +79,7 @@ const HireFlowTestWrapper = ({
     setShowInsufficientFundsHint,
     selectPreset,
     onNewMediaReady,
-  } = useAssistantHireForm(
+  } = useAssistantForm(
     mockAssistantActions,
     voicesToUse,
     handleHireSuccessInternal,
@@ -87,7 +87,7 @@ const HireFlowTestWrapper = ({
     isHireDialogOpen
   );
 
-  const isFastMode = hireFormMethods.watch('fastMode');
+  const isFastMode = formMethods.watch('fastMode');
   const displayableVoices = React.useMemo(() => {
     const baseVoices = customVoices || mockVoices;
     if (isFastMode) {
@@ -122,7 +122,7 @@ const HireFlowTestWrapper = ({
 
   return (
     <>
-      <FormProvider {...hireFormMethods}>
+      <FormProvider {...formMethods}>
         <AssistantHire
           isHireDialogOpen={isHireDialogOpen}
           setIsHireDialogOpen={setIsHireDialogOpen}
@@ -140,11 +140,11 @@ const HireFlowTestWrapper = ({
           userApprovalStatus={currentApprovalStatus}
           isLoadingUserApproval={isLoadingApproval}
           onRequestAccess={handleRequestAccess}
-          formMethods={hireFormMethods}
+          formMethods={formMethods}
           isFastMode={!!isFastMode}
         >
           <HireForm
-            formMethods={hireFormMethods}
+            formMethods={formMethods}
             isSubmitting={isSubmitting}
             assistantActions={mockAssistantActions}
             onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
@@ -196,8 +196,13 @@ const EditFlowTestWrapper = ({ assistant }: { assistant: Assistant }) => {
   const [isOpen, setIsOpen] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const { hireFormMethods, loadAssistantForEdit, initiateUpdate, onNewMediaReady } =
-    useAssistantHireForm(mockAssistantActions, mockVoices, undefined, undefined, true);
+  const { formMethods, loadAssistantForEdit, initiateUpdate, onNewMediaReady } = useAssistantForm(
+    mockAssistantActions,
+    mockVoices,
+    undefined,
+    undefined,
+    true
+  );
 
   React.useEffect(() => {
     loadAssistantForEdit(assistant);
@@ -206,17 +211,17 @@ const EditFlowTestWrapper = ({ assistant }: { assistant: Assistant }) => {
   if (!isOpen) return null;
 
   return (
-    <FormProvider {...hireFormMethods}>
+    <FormProvider {...formMethods}>
       <AssistantEdit
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         assistant={assistant}
-        formMethods={hireFormMethods}
+        formMethods={formMethods}
         onSubmit={initiateUpdate}
         isSubmitting={isSubmitting}
       >
         <HireForm
-          formMethods={hireFormMethods}
+          formMethods={formMethods}
           isSubmitting={isSubmitting}
           assistantActions={mockAssistantActions}
           onNewMediaReady={onNewMediaReady}

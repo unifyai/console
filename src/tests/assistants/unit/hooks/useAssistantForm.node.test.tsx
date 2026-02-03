@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/hooks/Assistants/useAssistantHireForm.ts
+ * Unit tests for src/hooks/Assistants/useAssistantForm.ts
  *
  * Tests the hire form hook logic for managing assistant creation/editing.
  * Uses React Testing Library's renderHook with mocked dependencies.
@@ -26,7 +26,7 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
 }));
 
 // Must import hook after mocking
-import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
+import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 
 // Mock sonner toast
 vi.mock('sonner', () => ({
@@ -146,7 +146,7 @@ const createMockVoices = (): VoiceOption[] => [
   },
 ];
 
-describe('useAssistantHireForm', () => {
+describe('useAssistantForm', () => {
   let mockActions: AssistantActions;
   let mockVoices: VoiceOption[];
   let onHireSuccess: (
@@ -181,7 +181,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, false)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, false)
         );
 
         // Assert
@@ -217,7 +217,7 @@ describe('useAssistantHireForm', () => {
         });
 
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Wait for initialization
@@ -227,16 +227,16 @@ describe('useAssistantHireForm', () => {
 
         // Setup valid form data (only profile data, no contact data)
         act(() => {
-          result.current.hireFormMethods.setValue('firstName', 'New');
-          result.current.hireFormMethods.setValue('surname', 'Assistant');
-          result.current.hireFormMethods.setValue('age', 25);
-          result.current.hireFormMethods.setValue('nationality', 'United States');
-          result.current.hireFormMethods.setValue('about', 'A new assistant');
-          result.current.hireFormMethods.setValue('voiceId', 'voice-1');
-          result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
-          result.current.hireFormMethods.setValue('voiceGender', 'female');
-          result.current.hireFormMethods.setValue('voiceLanguage', 'en');
-          result.current.hireFormMethods.setValue('voiceExists', true);
+          result.current.formMethods.setValue('firstName', 'New');
+          result.current.formMethods.setValue('surname', 'Assistant');
+          result.current.formMethods.setValue('age', 25);
+          result.current.formMethods.setValue('nationality', 'United States');
+          result.current.formMethods.setValue('about', 'A new assistant');
+          result.current.formMethods.setValue('voiceId', 'voice-1');
+          result.current.formMethods.setValue('voiceName', 'Test Voice');
+          result.current.formMethods.setValue('voiceGender', 'female');
+          result.current.formMethods.setValue('voiceLanguage', 'en');
+          result.current.formMethods.setValue('voiceExists', true);
         });
 
         // Act - Hire the assistant
@@ -279,7 +279,7 @@ describe('useAssistantHireForm', () => {
         });
 
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         await waitFor(() => {
@@ -288,14 +288,14 @@ describe('useAssistantHireForm', () => {
 
         // Setup minimal valid form data
         act(() => {
-          result.current.hireFormMethods.setValue('firstName', 'Test');
-          result.current.hireFormMethods.setValue('surname', 'User');
-          result.current.hireFormMethods.setValue('nationality', 'United States');
-          result.current.hireFormMethods.setValue('voiceId', 'voice-1');
-          result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
-          result.current.hireFormMethods.setValue('voiceGender', 'female');
-          result.current.hireFormMethods.setValue('voiceLanguage', 'en');
-          result.current.hireFormMethods.setValue('voiceExists', true);
+          result.current.formMethods.setValue('firstName', 'Test');
+          result.current.formMethods.setValue('surname', 'User');
+          result.current.formMethods.setValue('nationality', 'United States');
+          result.current.formMethods.setValue('voiceId', 'voice-1');
+          result.current.formMethods.setValue('voiceName', 'Test Voice');
+          result.current.formMethods.setValue('voiceGender', 'female');
+          result.current.formMethods.setValue('voiceLanguage', 'en');
+          result.current.formMethods.setValue('voiceExists', true);
         });
 
         // Act - Should succeed without any contact data
@@ -309,8 +309,8 @@ describe('useAssistantHireForm', () => {
         });
 
         // Form should not have errors
-        expect(result.current.hireFormMethods.formState.errors.firstName).toBeUndefined();
-        expect(result.current.hireFormMethods.formState.errors.surname).toBeUndefined();
+        expect(result.current.formMethods.formState.errors.firstName).toBeUndefined();
+        expect(result.current.formMethods.formState.errors.surname).toBeUndefined();
       }
     );
   });
@@ -322,20 +322,20 @@ describe('useAssistantHireForm', () => {
         meta: {
           alias: 'HireForm-ExposesRHF',
           scenario: 'Hook initialized',
-          behavior: 'hireFormMethods contains form methods',
+          behavior: 'formMethods contains form methods',
         },
       },
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Assert
-        expect(result.current.hireFormMethods).toBeDefined();
-        expect(result.current.hireFormMethods.setValue).toBeDefined();
-        expect(result.current.hireFormMethods.getValues).toBeDefined();
-        expect(result.current.hireFormMethods.watch).toBeDefined();
+        expect(result.current.formMethods).toBeDefined();
+        expect(result.current.formMethods.setValue).toBeDefined();
+        expect(result.current.formMethods.getValues).toBeDefined();
+        expect(result.current.formMethods.watch).toBeDefined();
       }
     );
 
@@ -351,10 +351,10 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.firstName).toBe('');
@@ -397,14 +397,14 @@ describe('useAssistantHireForm', () => {
       async () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
           result.current.selectPreset(mockPreset);
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.firstName).toBe('PresetFirst');
@@ -427,14 +427,14 @@ describe('useAssistantHireForm', () => {
       async () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
           result.current.selectPreset(mockPreset);
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.presetOriginalValues).not.toBeNull();
@@ -454,7 +454,7 @@ describe('useAssistantHireForm', () => {
       async () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
@@ -489,14 +489,14 @@ describe('useAssistantHireForm', () => {
 
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
           result.current.onNewMediaReady(mockFile, 'photo');
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.photoFile).toBe(mockFile);
@@ -519,14 +519,14 @@ describe('useAssistantHireForm', () => {
 
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
           result.current.onNewMediaReady(mockFile, 'video', { voiceId: 'v1' });
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.videoFile).toBe(mockFile);
@@ -549,19 +549,19 @@ describe('useAssistantHireForm', () => {
 
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Set pristine first
         act(() => {
-          result.current.hireFormMethods.setValue('isPresetPristine', true);
+          result.current.formMethods.setValue('isPresetPristine', true);
         });
 
         act(() => {
           result.current.onNewMediaReady(mockFile, 'photo');
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.isPresetPristine).toBe(false);
@@ -582,13 +582,13 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Modify some values
         act(() => {
-          result.current.hireFormMethods.setValue('firstName', 'Modified');
-          result.current.hireFormMethods.setValue('age', 25);
+          result.current.formMethods.setValue('firstName', 'Modified');
+          result.current.formMethods.setValue('age', 25);
         });
 
         // Reset
@@ -596,7 +596,7 @@ describe('useAssistantHireForm', () => {
           result.current.resetForm();
         });
 
-        const values = result.current.hireFormMethods.getValues();
+        const values = result.current.formMethods.getValues();
 
         // Assert
         expect(values.firstName).toBe('');
@@ -616,7 +616,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Set hint to true
@@ -650,7 +650,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Assert
@@ -670,7 +670,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Assert
@@ -690,7 +690,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         // Assert
@@ -710,7 +710,7 @@ describe('useAssistantHireForm', () => {
       () => {
         // Act
         const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         act(() => {
@@ -789,7 +789,7 @@ describe('useAssistantHireForm', () => {
           };
 
           const { result } = renderHook(() =>
-            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+            useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
           // Allow hook to initialize
@@ -829,7 +829,7 @@ describe('useAssistantHireForm', () => {
 
           // BUG: First video might overwrite second since there's no operation ID
           // After fix, should have Bob's data and video
-          const formValues = result.current.hireFormMethods.getValues();
+          const formValues = result.current.formMethods.getValues();
           expect(formValues.firstName).toBe('Bob');
           expect(formValues.videoPreviewUrl).toBe('https://current-bob-video.mp4');
         }
@@ -856,7 +856,7 @@ describe('useAssistantHireForm', () => {
           });
 
           const { result } = renderHook(() =>
-            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+            useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
           // Allow hook to initialize
@@ -864,14 +864,14 @@ describe('useAssistantHireForm', () => {
 
           // Setup valid form data
           act(() => {
-            result.current.hireFormMethods.setValue('firstName', 'Test');
-            result.current.hireFormMethods.setValue('surname', 'Assistant');
-            result.current.hireFormMethods.setValue('nationality', 'United States');
-            result.current.hireFormMethods.setValue('voiceId', 'voice-1');
-            result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
-            result.current.hireFormMethods.setValue('voiceGender', 'female');
-            result.current.hireFormMethods.setValue('voiceLanguage', 'en');
-            result.current.hireFormMethods.setValue('voiceExists', true);
+            result.current.formMethods.setValue('firstName', 'Test');
+            result.current.formMethods.setValue('surname', 'Assistant');
+            result.current.formMethods.setValue('nationality', 'United States');
+            result.current.formMethods.setValue('voiceId', 'voice-1');
+            result.current.formMethods.setValue('voiceName', 'Test Voice');
+            result.current.formMethods.setValue('voiceGender', 'female');
+            result.current.formMethods.setValue('voiceLanguage', 'en');
+            result.current.formMethods.setValue('voiceExists', true);
           });
 
           // First hire attempt
@@ -931,7 +931,7 @@ describe('useAssistantHireForm', () => {
           } as Assistant;
 
           const { result } = renderHook(() =>
-            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+            useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
           // Allow hook to initialize
@@ -944,7 +944,7 @@ describe('useAssistantHireForm', () => {
 
           // Make a change
           act(() => {
-            result.current.hireFormMethods.setValue('about', 'Updated bio');
+            result.current.formMethods.setValue('about', 'Updated bio');
           });
 
           // First update attempt
@@ -988,23 +988,23 @@ describe('useAssistantHireForm', () => {
 
           // For now, verify that resetForm can be called
           const { result } = renderHook(() =>
-            useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+            useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
           // Allow hook to initialize
           await new Promise((r) => setTimeout(r, 50));
 
           act(() => {
-            result.current.hireFormMethods.setValue('firstName', 'Test');
+            result.current.formMethods.setValue('firstName', 'Test');
           });
 
-          expect(result.current.hireFormMethods.getValues('firstName')).toBe('Test');
+          expect(result.current.formMethods.getValues('firstName')).toBe('Test');
 
           act(() => {
             result.current.resetForm();
           });
 
-          expect(result.current.hireFormMethods.getValues('firstName')).toBe('');
+          expect(result.current.formMethods.getValues('firstName')).toBe('');
         }
       );
     });
@@ -1059,13 +1059,7 @@ describe('useAssistantHireForm', () => {
         });
 
         const { result } = renderHook(() =>
-          useAssistantHireForm(
-            mockActionsWithError,
-            mockVoices,
-            onHireSuccess,
-            onUpdateSuccess,
-            true
-          )
+          useAssistantForm(mockActionsWithError, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
         await act(async () => {
@@ -1081,7 +1075,7 @@ describe('useAssistantHireForm', () => {
         });
 
         act(() => {
-          result.current.hireFormMethods.setValue('timezone', 'Europe/FakeZone');
+          result.current.formMethods.setValue('timezone', 'Europe/FakeZone');
         });
 
         await act(async () => {

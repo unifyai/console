@@ -21,7 +21,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 
-export function useAssistantHireForm(
+export function useAssistantForm(
   assistantActions: AssistantActions,
   registeredVoices: VoiceOption[],
   onHireSuccess?: (
@@ -42,7 +42,7 @@ export function useAssistantHireForm(
 
   const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
-  const hireFormMethods = useForm<AssistantFormData>({
+  const formMethods = useForm<AssistantFormData>({
     mode: 'onSubmit',
     defaultValues: {
       // Profile fields
@@ -95,7 +95,7 @@ export function useAssistantHireForm(
     reset,
     trigger,
     watch,
-  } = hireFormMethods;
+  } = formMethods;
 
   /* -------------------------
         General form utilities
@@ -679,11 +679,11 @@ export function useAssistantHireForm(
       }
     } catch (error: any) {
       const isRHFError = !!(
-        hireFormMethods.formState.errors.age ||
-        hireFormMethods.formState.errors.voiceId ||
-        hireFormMethods.formState.errors.firstName ||
-        hireFormMethods.formState.errors.surname ||
-        hireFormMethods.formState.errors.about
+        formMethods.formState.errors.age ||
+        formMethods.formState.errors.voiceId ||
+        formMethods.formState.errors.firstName ||
+        formMethods.formState.errors.surname ||
+        formMethods.formState.errors.about
       );
 
       if (!isRHFError) {
@@ -743,7 +743,7 @@ export function useAssistantHireForm(
   };
 
   return {
-    hireFormMethods,
+    formMethods,
     onNewMediaReady,
     initiateHireSequence,
     isCheckingBalance,
