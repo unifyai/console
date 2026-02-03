@@ -1,34 +1,34 @@
 import * as React from 'react';
-import { useFormContext, useWatch, Path, PathValue } from 'react-hook-form';
+import { useFormContext, useWatch, Path, PathValue, FieldValues } from 'react-hook-form';
 import { toast } from 'sonner';
-import { AssistantFormData, AssistantActions } from '@/types/assistants/assistant';
+import { AssistantActions } from '@/types/assistants/assistant';
 
-type FieldNames = {
-  identifier: Path<AssistantFormData>;
-  isVerified: Path<AssistantFormData>;
-  isVerifying: Path<AssistantFormData>;
-  verificationCodeSent: Path<AssistantFormData>;
-  verificationSentAt: Path<AssistantFormData>;
-  verificationAttempts: Path<AssistantFormData>;
-  verificationError: Path<AssistantFormData>;
+type FieldNames<T extends FieldValues> = {
+  identifier: Path<T>;
+  isVerified: Path<T>;
+  isVerifying: Path<T>;
+  verificationCodeSent: Path<T>;
+  verificationSentAt: Path<T>;
+  verificationAttempts: Path<T>;
+  verificationError: Path<T>;
 };
 
-interface UseAccountVerificationProps {
+interface UseAccountVerificationProps<T extends FieldValues> {
   platform: string;
-  fieldNames: FieldNames;
+  fieldNames: FieldNames<T>;
   assistantActions: AssistantActions;
   validationPattern?: RegExp;
   validationMessage?: string;
 }
 
-export function useAccountVerification({
+export function useAccountVerification<T extends FieldValues>({
   platform,
   fieldNames,
   assistantActions,
   validationPattern = /^\+[1-9]\d{7,14}$/,
   validationMessage = 'Enter a valid international phone number (e.g., +15551234567)',
-}: UseAccountVerificationProps) {
-  const { control, setValue, getValues, trigger } = useFormContext<AssistantFormData>();
+}: UseAccountVerificationProps<T>) {
+  const { control, setValue, getValues, trigger } = useFormContext<T>();
 
   const [verificationInput, setVerificationInput] = React.useState('');
   const [cooldown, setCooldown] = React.useState(0);
@@ -49,29 +49,27 @@ export function useAccountVerification({
   }, [cooldown]);
 
   const resetVerificationState = React.useCallback(() => {
-    setValue(
-      fieldNames.isVerifying,
-      false as PathValue<AssistantFormData, typeof fieldNames.isVerifying>,
-      { shouldDirty: true }
-    );
+    setValue(fieldNames.isVerifying, false as PathValue<T, typeof fieldNames.isVerifying>, {
+      shouldDirty: true,
+    });
     setValue(
       fieldNames.verificationCodeSent,
-      null as PathValue<AssistantFormData, typeof fieldNames.verificationCodeSent>,
+      null as PathValue<T, typeof fieldNames.verificationCodeSent>,
       { shouldDirty: true }
     );
     setValue(
       fieldNames.verificationSentAt,
-      null as PathValue<AssistantFormData, typeof fieldNames.verificationSentAt>,
+      null as PathValue<T, typeof fieldNames.verificationSentAt>,
       { shouldDirty: true }
     );
     setValue(
       fieldNames.verificationError,
-      null as PathValue<AssistantFormData, typeof fieldNames.verificationError>,
+      null as PathValue<T, typeof fieldNames.verificationError>,
       { shouldDirty: true }
     );
     setValue(
       fieldNames.verificationAttempts,
-      0 as PathValue<AssistantFormData, typeof fieldNames.verificationAttempts>,
+      0 as PathValue<T, typeof fieldNames.verificationAttempts>,
       { shouldDirty: true }
     );
     setVerificationInput('');
@@ -87,21 +85,19 @@ export function useAccountVerification({
     if (!isValid) return;
 
     const identifier = getValues(fieldNames.identifier) as string;
-    setValue(
-      fieldNames.isVerifying,
-      true as PathValue<AssistantFormData, typeof fieldNames.isVerifying>,
-      { shouldDirty: true }
-    );
+    setValue(fieldNames.isVerifying, true as PathValue<T, typeof fieldNames.isVerifying>, {
+      shouldDirty: true,
+    });
     setValue(
       fieldNames.verificationError,
-      null as PathValue<AssistantFormData, typeof fieldNames.verificationError>,
+      null as PathValue<T, typeof fieldNames.verificationError>,
       { shouldDirty: true }
     );
 
     if (isRetry) {
       setValue(
         fieldNames.verificationAttempts,
-        0 as PathValue<AssistantFormData, typeof fieldNames.verificationAttempts>,
+        0 as PathValue<T, typeof fieldNames.verificationAttempts>,
         { shouldDirty: true }
       );
       setVerificationInput('');
@@ -115,30 +111,22 @@ export function useAccountVerification({
       toast.error(errorMsg);
       setValue(
         fieldNames.verificationError,
-        errorMsg as PathValue<AssistantFormData, typeof fieldNames.verificationError>,
+        errorMsg as PathValue<T, typeof fieldNames.verificationError>,
         { shouldDirty: true }
       );
-      setValue(
-        fieldNames.isVerifying,
-        false as PathValue<AssistantFormData, typeof fieldNames.isVerifying>,
-        { shouldDirty: true }
-      );
+      setValue(fieldNames.isVerifying, false as PathValue<T, typeof fieldNames.isVerifying>, {
+        shouldDirty: true,
+      });
     } else {
       toast.success(`Verification code sent to ${identifier}`);
       setValue(
         fieldNames.verificationCodeSent,
-        result.verificationCode as PathValue<
-          AssistantFormData,
-          typeof fieldNames.verificationCodeSent
-        >,
+        result.verificationCode as PathValue<T, typeof fieldNames.verificationCodeSent>,
         { shouldDirty: true }
       );
       setValue(
         fieldNames.verificationSentAt,
-        new Date(result.sentAt) as PathValue<
-          AssistantFormData,
-          typeof fieldNames.verificationSentAt
-        >,
+        new Date(result.sentAt) as PathValue<T, typeof fieldNames.verificationSentAt>,
         { shouldDirty: true }
       );
     }
@@ -156,10 +144,7 @@ export function useAccountVerification({
     if (Date.now() - sentAt.getTime() > 5 * 60 * 1000) {
       setValue(
         fieldNames.verificationError,
-        'Code expired. Please retry.' as PathValue<
-          AssistantFormData,
-          typeof fieldNames.verificationError
-        >,
+        'Code expired. Please retry.' as PathValue<T, typeof fieldNames.verificationError>,
         { shouldDirty: true }
       );
       return;
@@ -168,10 +153,7 @@ export function useAccountVerification({
     if (attempts >= 3) {
       setValue(
         fieldNames.verificationError,
-        'Too many attempts. Send new code.' as PathValue<
-          AssistantFormData,
-          typeof fieldNames.verificationError
-        >,
+        'Too many attempts. Send new code.' as PathValue<T, typeof fieldNames.verificationError>,
         { shouldDirty: true }
       );
       return;
@@ -179,21 +161,19 @@ export function useAccountVerification({
 
     if (verificationInput === sentCode) {
       toast.success('Account verified successfully!');
-      setValue(
-        fieldNames.isVerified,
-        true as PathValue<AssistantFormData, typeof fieldNames.isVerified>,
-        { shouldDirty: true }
-      );
+      setValue(fieldNames.isVerified, true as PathValue<T, typeof fieldNames.isVerified>, {
+        shouldDirty: true,
+      });
       resetVerificationState();
     } else {
       setValue(
         fieldNames.verificationAttempts,
-        (attempts + 1) as PathValue<AssistantFormData, typeof fieldNames.verificationAttempts>,
+        (attempts + 1) as PathValue<T, typeof fieldNames.verificationAttempts>,
         { shouldDirty: true }
       );
       setValue(
         fieldNames.verificationError,
-        'Incorrect code.' as PathValue<AssistantFormData, typeof fieldNames.verificationError>,
+        'Incorrect code.' as PathValue<T, typeof fieldNames.verificationError>,
         { shouldDirty: true }
       );
     }

@@ -8,7 +8,6 @@ import {
   PhotoUploadResponse,
   VoiceOption,
   AssistantUpdatePayload,
-  SocialAccount,
   DesktopMode,
   AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
@@ -16,15 +15,8 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
 import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
-import { AvailablePhoneCountry } from '@/types/assistants/assistant';
-import {
-  ASSISTANT_ONBOARDING_FEE,
-  EMAIL_DOMAIN_WITH_AT,
-  FALLBACK_DEFAULT_COUNTRY_CODE,
-  PRIMARY_VOICE_PROVIDER,
-} from '@/constants/assistants/settings';
+import { ASSISTANT_ONBOARDING_FEE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
@@ -48,40 +40,29 @@ export function useAssistantHireForm(
 
   const defaultVoice = getDefaultVoiceForProvider();
 
-  const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<
-    AvailablePhoneCountry[]
-  >([]);
-  const [isLoadingCountries, setIsLoadingCountries] = React.useState(true);
   const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
   const hireFormMethods = useForm<AssistantFormData>({
     mode: 'onSubmit',
     defaultValues: {
+      // Profile fields
       firstName: '',
       surname: '',
       age: null,
       nationality: 'United States',
       about: '',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-      email: null,
-      isEmailAdded: false,
-      emailManuallyEdited: false,
-      userPhone: '',
-      userPhoneIsVerified: false,
-      userPhoneIsVerifying: false,
-      userPhoneVerificationCodeSent: null,
-      userPhoneVerificationSentAt: null,
-      userPhoneVerificationAttempts: 0,
-      userPhoneVerificationError: null,
-      userWhatsappNumber: null,
-      socialAccounts: [],
-      phoneCountry: FALLBACK_DEFAULT_COUNTRY_CODE,
+
+      // Media fields
       photoFile: null,
       videoFile: null,
       profilePhotoUrl: null,
       profileVideoUrl: null,
       photoPreviewUrl: null,
       videoPreviewUrl: null,
+      videoSourceVoiceId: null,
+
+      // Voice fields
       voiceId: defaultVoice.voiceId,
       voiceName: defaultVoice.name,
       voiceLanguage: defaultVoice.language as SupportedLanguage,
@@ -89,13 +70,17 @@ export function useAssistantHireForm(
       voiceGender: defaultVoice.gender as Gender,
       voiceProvider: defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
       voiceExists: false,
+
+      // Preset fields
       isPresetPristine: false,
       presetOriginalValues: null,
       currentPreset: null,
-      isPhoneNumberAdded: false,
+
+      // Setup fields
       setup: 'remote',
       operatingSystem: 'ubuntu',
-      videoSourceVoiceId: null,
+
+      // UI state fields
       designIncludeBio: false,
       fastMode: false,
     },
@@ -115,74 +100,14 @@ export function useAssistantHireForm(
   /* -------------------------
         General form utilities
     ------------------------- */
-  React.useEffect(() => {
-    async function loadCountries() {
-      setIsLoadingCountries(true);
-      try {
-        const countries = await assistantActions.contact.listAvailablePhoneCountries();
-        setAvailablePhoneCountries(countries);
-        // Optionally set a default country from the fetched list if needed
-        // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
-        if (
-          countries.length > 0 &&
-          !countries.find((c) => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)
-        ) {
-          setValue('phoneCountry', countries[0].code);
-        } else if (
-          countries.length > 0 &&
-          countries.find((c) => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)
-        ) {
-          // Ensure the default value is set explicitly if it exists
-          setValue('phoneCountry', FALLBACK_DEFAULT_COUNTRY_CODE);
-        } else if (countries.length === 0) {
-          throw new Error('No countries returned');
-        }
-      } catch (error) {
-        // Fallback for error or empty list
-        const usName = getCountryName('US') || 'United States';
-        const usFlag = getCountryFlag('US');
-        setAvailablePhoneCountries([{ code: 'US', name: usName, flag: usFlag }]);
-        setValue('phoneCountry', 'US');
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    }
-    if (isDialogOpen) {
-      loadCountries();
-    }
-  }, [isDialogOpen, setValue, assistantActions.contact]);
-
   const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
-  const [fetchedAssistantEmails, setFetchedAssistantEmails] = React.useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
 
   // Keep ref in sync with state to avoid stale closures
   React.useEffect(() => {
     isSubmittingRef.current = isSubmitting;
   }, [isSubmitting]);
-
-  React.useEffect(() => {
-    if (isDialogOpen) {
-      setIsLoadingEmails(true);
-      assistantActions.contact
-        .listAllAssistantEmails()
-        .then((result) => {
-          if (Array.isArray(result)) {
-            setFetchedAssistantEmails(result);
-          } else {
-            setFetchedAssistantEmails([]);
-          }
-        })
-        .catch((err) => {
-          setFetchedAssistantEmails([]);
-        })
-        .finally(() => {
-          setIsLoadingEmails(false);
-        });
-    }
-  }, [assistantActions.contact, isDialogOpen]);
 
   const watchedFields = watch([
     'firstName',
@@ -194,7 +119,6 @@ export function useAssistantHireForm(
     'photoFile',
     'profilePhotoUrl',
     'presetOriginalValues',
-    'phoneCountry',
   ]);
   React.useEffect(() => {
     const [
@@ -207,7 +131,6 @@ export function useAssistantHireForm(
       photoFile,
       profilePhotoUrl,
       originalValues,
-      phoneCountry,
     ] = watchedFields;
 
     if (photoFile) {
@@ -235,7 +158,6 @@ export function useAssistantHireForm(
       surname === originalValues.surname &&
       age === originalValues.age &&
       (nationality ?? '') === (originalValues.nationality ?? '') &&
-      phoneCountry === originalValues.phoneCountry &&
       isVoicePristine &&
       (profilePhotoUrl === originalValues.profilePhotoUrl ||
         (!profilePhotoUrl && !originalValues.profilePhotoUrl));
@@ -309,14 +231,6 @@ export function useAssistantHireForm(
       setValue('photoFile', null);
       setValue('videoFile', null);
       setValue('videoSourceVoiceId', null);
-      setValue('userPhone', '');
-      setValue('userPhoneIsVerified', false);
-      setValue('userPhoneIsVerifying', false);
-      setValue('userPhoneVerificationCodeSent', null);
-      setValue('userPhoneVerificationSentAt', null);
-      setValue('userPhoneVerificationAttempts', 0);
-      setValue('userPhoneVerificationError', null);
-      setValue('socialAccounts', []);
       setValue(
         'timezone',
         preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -376,9 +290,7 @@ export function useAssistantHireForm(
         age: preset.age,
         nationality: preset.nationality ?? '',
         voiceId: selectedPresetVoiceDetails.voiceId,
-        videoSourceVoiceId: providerSpecificVoiceId,
         profilePhotoUrl: preset.profilePhoto,
-        phoneCountry: preset.phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE,
       };
       setValue('presetOriginalValues', originalValues);
       setValue('videoPreviewUrl', null);
@@ -426,25 +338,15 @@ export function useAssistantHireForm(
   const resetFormAndHints = React.useCallback(
     (values?: AssistantFormData) => {
       reset({
+        // Profile fields
         firstName: values?.firstName || '',
         surname: values?.surname || '',
         age: values?.age || null,
         nationality: values?.nationality || 'United States',
         about: values?.about || '',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        email: null,
-        isEmailAdded: false,
-        emailManuallyEdited: false,
-        userPhone: '',
-        userPhoneIsVerified: false,
-        userPhoneIsVerifying: false,
-        userPhoneVerificationCodeSent: null,
-        userPhoneVerificationSentAt: null,
-        userPhoneVerificationAttempts: 0,
-        userPhoneVerificationError: null,
-        userWhatsappNumber: null,
-        socialAccounts: [],
-        phoneCountry: FALLBACK_DEFAULT_COUNTRY_CODE,
+
+        // Media fields
         photoFile: null,
         videoFile: null,
         profilePhotoUrl: null,
@@ -452,6 +354,8 @@ export function useAssistantHireForm(
         photoPreviewUrl: null,
         videoPreviewUrl: null,
         videoSourceVoiceId: null,
+
+        // Voice fields
         voiceId: values?.voiceId || defaultVoice.voiceId,
         voiceName: values?.voiceName || defaultVoice.name,
         voiceLanguage: values?.voiceLanguage || (defaultVoice.language as SupportedLanguage),
@@ -459,11 +363,19 @@ export function useAssistantHireForm(
         voiceGender: values?.voiceGender || (defaultVoice.gender as Gender),
         voiceExists: values?.voiceExists || false,
         voiceProvider: values?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
+
+        // Preset fields
         isPresetPristine: false,
         presetOriginalValues: null,
         currentPreset: null,
+
+        // Setup fields
+        setup: 'remote',
         operatingSystem: 'ubuntu',
+
+        // UI state fields
         designIncludeBio: false,
+        fastMode: false,
       });
       setShowInsufficientFundsHint(false);
     },
@@ -471,28 +383,16 @@ export function useAssistantHireForm(
   );
 
   /* ----------------------------
-        Editing exsiting assistant
+        Editing existing assistant
        ---------------------------- */
   const loadAssistantForEdit = React.useCallback(
     (assistant: Assistant) => {
       setEditingAssistant(assistant);
-      const socialAccounts: SocialAccount[] = [];
-      if (assistant.userWhatsappNumber) {
-        socialAccounts.push({
-          platform: 'whatsapp',
-          identifier: assistant.userWhatsappNumber,
-          isVerified: true,
-          isInitial: true,
-          isVerifying: false,
-          verificationCodeSent: null,
-          verificationSentAt: null,
-          verificationAttempts: 0,
-          verificationError: null,
-        });
-      }
+
       const assistantVoiceDetails = registeredVoices.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
+
       reset({
         ...getValues(),
 
@@ -512,16 +412,6 @@ export function useAssistantHireForm(
         photoFile: null,
         videoFile: null,
 
-        // Contact
-        phoneCountry: assistant.phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE,
-        userPhone: assistant.userPhone || '',
-        userPhoneIsVerified: !!assistant.userPhone,
-        socialAccounts: socialAccounts,
-        isPhoneNumberAdded: !!assistant.phone,
-        email: assistant.email || null,
-        isEmailAdded: !!assistant.email,
-        emailManuallyEdited: true, // Assume existing email was set
-
         // Voice
         voiceId: assistant.voiceId || undefined,
         voiceName: assistantVoiceDetails?.name,
@@ -532,7 +422,7 @@ export function useAssistantHireForm(
           assistant.voiceProvider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
         voiceExists: !!assistantVoiceDetails,
 
-        // Advanced
+        // Setup
         setup: assistant.isUserDesktop ? 'local' : 'remote',
         operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
@@ -556,29 +446,8 @@ export function useAssistantHireForm(
     toastIdRef.current = toast.loading('Updating assistant...', { id: toastIdRef.current });
 
     try {
-      // Validations
-      if (data.isEmailAdded) {
-        const emailValue = data.email;
-        if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-          setError('email', { type: 'manual', message: `Valid email is required.` });
-          throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
-        }
-      }
-      if (data.isPhoneNumberAdded) {
-        if (data.userPhone && !data.userPhoneIsVerified) {
-          setError('userPhone', { type: 'manual', message: 'Your phone number must be verified.' });
-          throw new Error('Your phone number must be verified.');
-        }
-      }
-      if (
-        data.socialAccounts &&
-        data.socialAccounts.some((acc) => acc.identifier && !acc.isVerified)
-      ) {
-        toast.error('All added social accounts must be verified before saving.');
-        throw new Error('Unverified social accounts.');
-      }
-
       // Construct payload with only changed fields
+      // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
       if (data.about !== editingAssistant.about) payload.about = data.about;
@@ -588,33 +457,6 @@ export function useAssistantHireForm(
         payload.voiceProvider = data.voiceProvider;
       const newVoiceMode = data.fastMode ? 'sts' : 'tts';
       if (newVoiceMode !== editingAssistant.voiceMode) payload.voiceMode = newVoiceMode;
-
-      if (data.isEmailAdded) {
-        if (data.email !== editingAssistant.email) {
-          payload.email = data.email || null;
-        }
-      } else {
-        // Email was removed
-        if (editingAssistant.email !== null) {
-          payload.email = null;
-        }
-      }
-
-      if (data.isPhoneNumberAdded) {
-        if (data.userPhone !== editingAssistant.userPhone)
-          payload.userPhone = data.userPhone || null;
-      }
-
-      if (data.phoneCountry !== editingAssistant.phoneCountry) {
-        payload.phoneCountry = data.phoneCountry;
-      }
-
-      const whatsappAccount = data.socialAccounts?.find(
-        (acc) => acc.platform === 'whatsapp' && acc.isVerified
-      );
-      const userWhatsappNumber = whatsappAccount ? whatsappAccount.identifier : null;
-      if (userWhatsappNumber !== editingAssistant.userWhatsappNumber)
-        payload.userWhatsappNumber = userWhatsappNumber;
 
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
@@ -672,16 +514,11 @@ export function useAssistantHireForm(
       toastIdRef.current = undefined;
       if (onUpdateSuccess) onUpdateSuccess(payload);
     } catch (error: any) {
-      const isRHFError = !!(
-        hireFormMethods.formState.errors.userPhone ||
-        hireFormMethods.formState.errors.socialAccounts
-      );
-      if (!isRHFError)
-        toast.error(`An error occurred while updating. Please try again.`, {
-          id: toastIdRef.current,
-        });
-      else if (toastIdRef.current) toast.dismiss(toastIdRef.current);
-
+      // Show specific error message if available, otherwise show generic message
+      const errorMessage = error?.message || 'An error occurred while updating. Please try again.';
+      toast.error(errorMessage, {
+        id: toastIdRef.current,
+      });
       toastIdRef.current = undefined;
     } finally {
       setIsSubmitting(false);
@@ -823,10 +660,6 @@ export function useAssistantHireForm(
         data.voiceId,
         voiceProviderVal,
         voiceMode,
-        null,
-        null,
-        null,
-        null,
         isUserDesktop,
         desktopModePayload,
         formattedPreHireChat
@@ -847,13 +680,10 @@ export function useAssistantHireForm(
     } catch (error: any) {
       const isRHFError = !!(
         hireFormMethods.formState.errors.age ||
-        hireFormMethods.formState.errors.email ||
         hireFormMethods.formState.errors.voiceId ||
         hireFormMethods.formState.errors.firstName ||
         hireFormMethods.formState.errors.surname ||
-        hireFormMethods.formState.errors.about ||
-        hireFormMethods.formState.errors.userPhone ||
-        hireFormMethods.formState.errors.phoneCountry
+        hireFormMethods.formState.errors.about
       );
 
       if (!isRHFError) {
@@ -873,7 +703,7 @@ export function useAssistantHireForm(
     reactHookFormHandleSubmit((data) => submitAssistantData(data, chatHistory));
 
   const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
-    if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
+    if (isSubmitting || isCheckingBalance) {
       return;
     }
 
@@ -924,9 +754,5 @@ export function useAssistantHireForm(
     initiateUpdate: initiateUpdateSequence,
     isSubmitting,
     resetForm: resetFormAndHints,
-    fetchedAssistantEmails,
-    isLoadingEmails,
-    availablePhoneCountries,
-    isLoadingCountries,
   };
 }

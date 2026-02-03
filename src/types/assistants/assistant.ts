@@ -115,6 +115,37 @@ export interface SocialAccount {
   isInitial?: boolean;
 }
 
+/**
+ * Contact-specific form data for the AssistantContactManager.
+ * This is a self-contained form type for managing assistant contact details
+ * (email, phone, WhatsApp) independently from the main assistant form.
+ */
+export interface ContactFormData {
+  // Email fields
+  email: string | null;
+  isEmailAdded: boolean;
+  emailManuallyEdited: boolean;
+
+  // Phone fields
+  userPhone: string;
+  userPhoneIsVerified: boolean;
+  userPhoneIsVerifying: boolean;
+  userPhoneVerificationCodeSent: string | null;
+  userPhoneVerificationSentAt: Date | null;
+  userPhoneVerificationAttempts: number;
+  userPhoneVerificationError: string | null;
+  phoneCountry: string;
+  isPhoneNumberAdded: boolean;
+
+  // WhatsApp / Social fields
+  userWhatsappNumber: string | null;
+  socialAccounts: SocialAccount[];
+}
+
+/**
+ * Form data for creating/editing assistant profile.
+ * Contact fields are managed separately via ContactFormData.
+ */
 export type AssistantFormData = Omit<
   Assistant,
   | 'agentId'
@@ -129,6 +160,8 @@ export type AssistantFormData = Omit<
   | 'phone'
   | 'assistantWhatsappNumber'
   | 'userWhatsappNumber'
+  | 'userPhone'
+  | 'phoneCountry'
   | 'weeklyLimit'
   | 'maxParallel'
   | 'gender'
@@ -136,9 +169,7 @@ export type AssistantFormData = Omit<
   | 'voiceProvider'
   | 'email'
 > & {
-  email?: string | null;
-  isEmailAdded?: boolean;
-  emailManuallyEdited?: boolean;
+  // Media fields
   profilePhotoUrl?: string | null; // GCS URL for photo
   profileVideoUrl?: string | null; // GCS URL for video
   photoFile?: File | null;
@@ -146,15 +177,8 @@ export type AssistantFormData = Omit<
   photoPreviewUrl?: string | null;
   videoPreviewUrl?: string | null;
   videoSourceVoiceId?: string | null;
-  userPhone?: string | null;
-  userPhoneIsVerified?: boolean;
-  userPhoneIsVerifying?: boolean;
-  userPhoneVerificationCodeSent?: string | null;
-  userPhoneVerificationSentAt?: Date | null;
-  userPhoneVerificationAttempts?: number;
-  userPhoneVerificationError?: string | null;
-  userWhatsappNumber?: string | null;
-  phoneCountry?: string;
+
+  // Voice fields
   timezone?: string | null;
   voiceId?: string;
   voiceName?: string;
@@ -163,16 +187,20 @@ export type AssistantFormData = Omit<
   voiceLanguage?: SupportedLanguage | 'multi';
   voiceExists?: boolean;
   voiceProvider?: VoiceProvider;
+
+  // Preset fields
   isPresetPristine?: boolean;
   presetOriginalValues?: Pick<
     AssistantFormData,
-    'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl' | 'phoneCountry'
+    'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl'
   > | null;
   currentPreset?: AssistantPreset | null;
-  socialAccounts?: SocialAccount[];
+
+  // Setup fields
   setup?: 'remote' | 'local';
-  isPhoneNumberAdded?: boolean;
   operatingSystem?: 'ubuntu' | 'windows' | 'macos';
+
+  // UI state fields
   designIncludeBio?: boolean;
   fastMode?: boolean;
 };
@@ -323,10 +351,6 @@ export interface AssistantActions {
       voiceId: string | null,
       voiceProvider: VoiceProvider | null,
       voiceMode: VoiceMode | null,
-      email: string | null,
-      userPhone: string | null,
-      phoneCountry: string | null,
-      userWhatsappNumber: string | null,
       isUserDesktop: boolean,
       desktopMode: DesktopMode | null,
       preHireChat?: PreHireChatMessage[]

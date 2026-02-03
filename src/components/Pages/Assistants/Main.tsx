@@ -9,7 +9,6 @@ import {
   AssistantActions,
   AssistantPreset,
   AssistantUpdatePayload,
-  AvailableSocialPlatform,
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { TaskActions, Status as TaskStatusEnum } from '@/types/assistants/task';
@@ -194,10 +193,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     os: string;
     isOpen: boolean;
   } | null>(null);
-  const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<
-    AvailableSocialPlatform[]
-  >([]);
-  const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
   const [popOutCallAssistantId, setPopOutCallAssistantId] = React.useState<string | null>(null);
 
   const pongTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -418,69 +413,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     connectionError,
   ]);
 
-  React.useEffect(() => {
-    let isMounted = true;
-    const maxRetries = 3;
-    const baseDelayMs = 2000;
-
-    const fetchWithRetry = async (attempt = 1): Promise<void> => {
-      try {
-        const result = await assistantActions.contact.listAvailableSocialPlatforms();
-
-        if (!isMounted) return;
-
-        if (Array.isArray(result)) {
-          setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
-          setIsLoadingSocialPlatforms(false);
-        } else {
-          const backendError =
-            (result as ResponseProps).detail || 'Could not fetch social platforms.';
-          console.error('[Main.tsx] Error fetching social platforms:', backendError);
-
-          // Retry on error response if attempts remaining
-          if (attempt < maxRetries) {
-            const delay = baseDelayMs * Math.pow(2, attempt - 1);
-            console.log(
-              `[Main.tsx] Retrying social platforms fetch in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
-            );
-            setTimeout(() => fetchWithRetry(attempt + 1), delay);
-          } else {
-            // No toast on final failure - this is a non-critical feature
-            setAvailableSocialPlatforms([]);
-            setIsLoadingSocialPlatforms(false);
-          }
-        }
-      } catch (err) {
-        if (!isMounted) return;
-
-        console.error(
-          `[Main.tsx] Error fetching social platforms (attempt ${attempt}/${maxRetries}):`,
-          err
-        );
-
-        // Retry on exception if attempts remaining
-        if (attempt < maxRetries) {
-          const delay = baseDelayMs * Math.pow(2, attempt - 1);
-          console.log(
-            `[Main.tsx] Retrying social platforms fetch in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
-          );
-          setTimeout(() => fetchWithRetry(attempt + 1), delay);
-        } else {
-          // No toast on final failure - this is a non-critical feature
-          setAvailableSocialPlatforms([]);
-          setIsLoadingSocialPlatforms(false);
-        }
-      }
-    };
-
-    setIsLoadingSocialPlatforms(true);
-    fetchWithRetry();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [assistantActions.contact]);
-
   const {
     displayedPresets,
     loadMorePresets,
@@ -554,10 +486,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     resetForm: resetHireFormInternal,
     loadAssistantForEdit,
     initiateUpdate,
-    fetchedAssistantEmails,
-    isLoadingEmails,
-    availablePhoneCountries,
-    isLoadingCountries,
     onNewMediaReady,
   } = useAssistantHireForm(
     assistantActions,
@@ -679,7 +607,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       !initialAssistantLoadProcessedRef.current
     ) {
       initialAssistantLoadProcessedRef.current = true;
-      if (!assistantError && assistants.length === 0 && !isLoadingEmails && !isHireDialogOpen) {
+      if (!assistantError && assistants.length === 0 && !isHireDialogOpen) {
         handleOpenHireDialog();
       }
     }
@@ -688,7 +616,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     isLoadingAssistants,
     assistantError,
     handleOpenHireDialog,
-    isLoadingEmails,
     userHiringApprovalStatus,
     isHireDialogOpen,
   ]);
@@ -863,7 +790,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           <HireForm
             assistants={assistants}
             formMethods={hireFormMethods}
-            isSubmitting={isFormSubmitting || isLoadingEmails}
+            isSubmitting={isFormSubmitting}
             assistantActions={assistantActions}
             onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
             onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
@@ -932,14 +859,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isOpen={!!contactManagerAssistant}
             onClose={() => setContactManagerAssistant(null)}
             assistant={contactManagerAssistant}
-            formMethods={hireFormMethods}
-            onSubmit={initiateUpdate}
-            isSubmitting={isFormSubmitting}
             assistantActions={assistantActions}
-            allAssistantEmails={fetchedAssistantEmails}
-            availablePhoneCountries={availablePhoneCountries}
-            isLoadingCountries={isLoadingCountries}
-            availableSocialPlatforms={availableSocialPlatforms}
             onSuccess={handleUpdateSuccess}
             initialTab={contactManagerInitialTab}
             canWrite={canWrite(contactManagerAssistant)}

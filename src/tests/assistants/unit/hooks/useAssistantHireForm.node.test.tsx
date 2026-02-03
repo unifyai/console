@@ -170,51 +170,6 @@ describe('useAssistantHireForm', () => {
 
   describe('Initialization', () => {
     it(
-      'loads available phone countries on dialog open',
-      {
-        meta: {
-          alias: 'HireForm-LoadCountries',
-          scenario: 'Dialog opens',
-          behavior: 'Fetches available phone countries',
-        },
-      },
-      async () => {
-        // Act
-        const { result } = renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
-        );
-
-        // Assert
-        await waitFor(() => {
-          expect(mockActions.contact.listAvailablePhoneCountries).toHaveBeenCalled();
-          expect(result.current.isLoadingCountries).toBe(false);
-        });
-      }
-    );
-
-    it(
-      'loads assistant emails on dialog open',
-      {
-        meta: {
-          alias: 'HireForm-LoadEmails',
-          scenario: 'Dialog opens',
-          behavior: 'Fetches existing assistant emails',
-        },
-      },
-      async () => {
-        // Act
-        renderHook(() =>
-          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
-        );
-
-        // Assert
-        await waitFor(() => {
-          expect(mockActions.contact.listAllAssistantEmails).toHaveBeenCalled();
-        });
-      }
-    );
-
-    it(
       'does not load data when dialog is closed',
       {
         meta: {
@@ -234,27 +189,128 @@ describe('useAssistantHireForm', () => {
         expect(mockActions.contact.listAllAssistantEmails).not.toHaveBeenCalled();
       }
     );
+  });
 
+  // ===========================================================================
+  // Assistant Creation - No Contact Data
+  // These tests verify that creating an assistant does not send contact details
+  // ===========================================================================
+
+  describe('Assistant Creation - No Contact Data', () => {
     it(
-      'exposes available countries after loading',
+      'creates assistant without email, phone, or whatsapp data',
       {
         meta: {
-          alias: 'HireForm-ExposesCountries',
-          scenario: 'Countries loaded',
-          behavior: 'availablePhoneCountries contains loaded data',
+          alias: 'HireForm-CreateWithoutContactData',
+          scenario: 'User hires a new assistant',
+          behavior: 'API should be called with null for all contact fields',
         },
       },
       async () => {
-        // Act
+        // Arrange
+        mockActions.assistant.create = vi.fn().mockResolvedValue({
+          assistant: {
+            agentId: 'new-1',
+            firstName: 'New',
+            surname: 'Assistant',
+          },
+        });
+
         const { result } = renderHook(() =>
           useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
         );
 
-        // Assert
+        // Wait for initialization
         await waitFor(() => {
-          expect(result.current.availablePhoneCountries).toHaveLength(2);
-          expect(result.current.availablePhoneCountries[0].code).toBe('US');
+          expect(result.current.isSubmitting).toBe(false);
         });
+
+        // Setup valid form data (only profile data, no contact data)
+        act(() => {
+          result.current.hireFormMethods.setValue('firstName', 'New');
+          result.current.hireFormMethods.setValue('surname', 'Assistant');
+          result.current.hireFormMethods.setValue('age', 25);
+          result.current.hireFormMethods.setValue('nationality', 'United States');
+          result.current.hireFormMethods.setValue('about', 'A new assistant');
+          result.current.hireFormMethods.setValue('voiceId', 'voice-1');
+          result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
+          result.current.hireFormMethods.setValue('voiceGender', 'female');
+          result.current.hireFormMethods.setValue('voiceLanguage', 'en');
+          result.current.hireFormMethods.setValue('voiceExists', true);
+        });
+
+        // Act - Hire the assistant
+        await act(async () => {
+          await result.current.initiateHireSequence();
+        });
+
+        // Assert - Create should be called with null for contact fields
+        await waitFor(() => {
+          expect(mockActions.assistant.create).toHaveBeenCalled();
+        });
+
+        const createCall = (mockActions.assistant.create as any).mock.calls[0];
+        // Based on the function signature: create(firstName, surname, age, nationality, timezone,
+        // profilePhoto, profileVideo, about, voiceId, voiceProvider, voiceMode,
+        // email, userPhone, phoneCountry, userWhatsappNumber, isUserDesktop, desktopMode, preHireChat)
+
+        // Email (index 11), userPhone (index 12), phoneCountry (index 13), userWhatsappNumber (index 14)
+        // should all be null
+        expect(createCall[11]).toBeNull(); // email
+        expect(createCall[12]).toBeNull(); // userPhone
+        expect(createCall[13]).toBeNull(); // phoneCountry
+        expect(createCall[14]).toBeNull(); // userWhatsappNumber
+      }
+    );
+
+    it(
+      'does NOT validate contact fields during hire submission',
+      {
+        meta: {
+          alias: 'HireForm-NoContactValidationOnHire',
+          scenario: 'User submits hire form',
+          behavior: 'Should not validate email or phone fields',
+        },
+      },
+      async () => {
+        // Arrange
+        mockActions.assistant.create = vi.fn().mockResolvedValue({
+          assistant: { agentId: 'new-1', firstName: 'Test', surname: 'User' },
+        });
+
+        const { result } = renderHook(() =>
+          useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        await waitFor(() => {
+          expect(result.current.isSubmitting).toBe(false);
+        });
+
+        // Setup minimal valid form data
+        act(() => {
+          result.current.hireFormMethods.setValue('firstName', 'Test');
+          result.current.hireFormMethods.setValue('surname', 'User');
+          result.current.hireFormMethods.setValue('nationality', 'United States');
+          result.current.hireFormMethods.setValue('voiceId', 'voice-1');
+          result.current.hireFormMethods.setValue('voiceName', 'Test Voice');
+          result.current.hireFormMethods.setValue('voiceGender', 'female');
+          result.current.hireFormMethods.setValue('voiceLanguage', 'en');
+          result.current.hireFormMethods.setValue('voiceExists', true);
+        });
+
+        // Act - Should succeed without any contact data
+        await act(async () => {
+          await result.current.initiateHireSequence();
+        });
+
+        // Assert - Hire should succeed (create was called)
+        await waitFor(() => {
+          expect(mockActions.assistant.create).toHaveBeenCalled();
+        });
+
+        // Form should not have errors
+        expect(result.current.hireFormMethods.formState.errors.firstName).toBeUndefined();
+        expect(result.current.hireFormMethods.formState.errors.surname).toBeUndefined();
       }
     );
   });
@@ -736,9 +792,8 @@ describe('useAssistantHireForm', () => {
             useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
-          await waitFor(() => {
-            expect(result.current.isLoadingCountries).toBe(false);
-          });
+          // Allow hook to initialize
+          await new Promise((r) => setTimeout(r, 50));
 
           // Select first preset
           act(() => {
@@ -804,9 +859,8 @@ describe('useAssistantHireForm', () => {
             useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
-          await waitFor(() => {
-            expect(result.current.isLoadingCountries).toBe(false);
-          });
+          // Allow hook to initialize
+          await new Promise((r) => setTimeout(r, 50));
 
           // Setup valid form data
           act(() => {
@@ -880,9 +934,8 @@ describe('useAssistantHireForm', () => {
             useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
-          await waitFor(() => {
-            expect(result.current.isLoadingCountries).toBe(false);
-          });
+          // Allow hook to initialize
+          await new Promise((r) => setTimeout(r, 50));
 
           // Load assistant for editing
           act(() => {
@@ -938,9 +991,8 @@ describe('useAssistantHireForm', () => {
             useAssistantHireForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
           );
 
-          await waitFor(() => {
-            expect(result.current.isLoadingCountries).toBe(false);
-          });
+          // Allow hook to initialize
+          await new Promise((r) => setTimeout(r, 50));
 
           act(() => {
             result.current.hireFormMethods.setValue('firstName', 'Test');
@@ -956,5 +1008,96 @@ describe('useAssistantHireForm', () => {
         }
       );
     });
+  });
+
+  describe('G - Update Error Handling', () => {
+    const mockEditingAssistant: Assistant = {
+      agentId: 'edit-assistant-1',
+      firstName: 'Existing',
+      surname: 'Assistant',
+      userId: '1',
+      organizationId: null,
+      about: 'Test bio',
+      timezone: 'UTC',
+      voiceId: 'default-voice',
+      voiceProvider: 'elevenlabs',
+      voiceMode: 'tts',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      email: null,
+      phone: null,
+      userPhone: null,
+      phoneCountry: null,
+      userWhatsappNumber: null,
+      assistantWhatsappNumber: null,
+      profilePhoto: null,
+      profileVideo: null,
+      nationality: null,
+      age: null,
+      weeklyLimit: null,
+      maxParallel: null,
+    };
+
+    // Note: Contact-specific error tests (email, phone) are in useAssistantContactManager tests
+    // since contact updates are handled exclusively by the contact manager.
+
+    it(
+      'shows specific error message for any backend detail response',
+      {
+        meta: {
+          alias: 'HireForm-BackendDetailError',
+          scenario: 'Backend returns any error with detail field',
+          behavior: 'Should propagate the detail message to user',
+        },
+      },
+      async () => {
+        const { toast } = await import('sonner');
+
+        const mockActionsWithError = createMockAssistantActions();
+        mockActionsWithError.assistant.update = vi.fn().mockResolvedValue({
+          detail: 'Timezone Europe/FakeZone is not valid',
+        });
+
+        const { result } = renderHook(() =>
+          useAssistantHireForm(
+            mockActionsWithError,
+            mockVoices,
+            onHireSuccess,
+            onUpdateSuccess,
+            true
+          )
+        );
+
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 50));
+        });
+
+        act(() => {
+          result.current.loadAssistantForEdit(mockEditingAssistant);
+        });
+
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 50));
+        });
+
+        act(() => {
+          result.current.hireFormMethods.setValue('timezone', 'Europe/FakeZone');
+        });
+
+        await act(async () => {
+          await result.current.initiateUpdate();
+        });
+
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 100));
+        });
+
+        // Should show the specific backend error
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.stringContaining('Timezone'),
+          expect.any(Object)
+        );
+      }
+    );
   });
 });
