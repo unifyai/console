@@ -16,14 +16,21 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return shuffled;
 };
 
-export function useAssistantPresets() {
-  const [allAssistantPresets] = React.useState<AssistantPreset[]>(() =>
-    shuffleArray(
-      assistantPresetsConstant.filter(
-        (assistant) => assistant.voiceIds[PRIMARY_VOICE_PROVIDER] || assistant.voiceIds['openai']
-      ) as AssistantPreset[]
-    )
-  );
+interface UseAssistantPresetsConfig {
+  /**
+   * Whether to enable initialization of presets.
+   * When false, presets will not be processed until enabled becomes true.
+   * Defaults to true for backward compatibility.
+   */
+  enabled?: boolean;
+}
+
+export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
+  // Default to enabled=true for backward compatibility
+  const enabled = options?.enabled ?? true;
+
+  const [hasInitialized, setHasInitialized] = React.useState(false);
+  const [allAssistantPresets, setAllAssistantPresets] = React.useState<AssistantPreset[]>([]);
 
   const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
   const [presetNationalityFilter, setPresetNationalityFilter] = React.useState<string>('all');
@@ -41,9 +48,24 @@ export function useAssistantPresets() {
   const [presetsToShowCount, setPresetsToShowCount] = React.useState<number>(PRESETS_PAGE_LIMIT);
   const [isLoadingMorePresets, setIsLoadingMorePresets] = React.useState(false);
 
-  const allPresetVoices = voicePresetsConstant as Voice[];
+  const allPresetVoices = React.useMemo(() => voicePresetsConstant as Voice[], []);
+
+  // Initialize presets when enabled becomes true (and not already initialized)
+  React.useEffect(() => {
+    if (enabled && !hasInitialized) {
+      const shuffledPresets = shuffleArray(
+        assistantPresetsConstant.filter(
+          (assistant) => assistant.voiceIds[PRIMARY_VOICE_PROVIDER] || assistant.voiceIds['openai']
+        ) as AssistantPreset[]
+      );
+      setAllAssistantPresets(shuffledPresets);
+      setHasInitialized(true);
+    }
+  }, [enabled, hasInitialized]);
 
   const presetsWithLanguage = React.useMemo(() => {
+    if (!hasInitialized) return [];
+
     return allAssistantPresets.map((preset) => {
       const voiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] || preset.voiceIds['openai'];
       const voice = allPresetVoices.find((v) => v.voiceId === voiceId);
@@ -52,9 +74,12 @@ export function useAssistantPresets() {
         language: voice?.language || null,
       };
     });
-  }, [allAssistantPresets, allPresetVoices]);
+  }, [allAssistantPresets, allPresetVoices, hasInitialized]);
 
+  // Compute unique filter values only after initialization
   React.useEffect(() => {
+    if (!hasInitialized || presetsWithLanguage.length === 0) return;
+
     const nationalities = [
       'all',
       ...(Array.from(
@@ -76,9 +101,12 @@ export function useAssistantPresets() {
     setUniquePresetNationalities(nationalities.sort());
     setUniquePresetGenders(genders.sort((a, b) => a.localeCompare(b)));
     setUniquePresetLanguages(languages.sort());
-  }, [presetsWithLanguage]);
+  }, [presetsWithLanguage, hasInitialized]);
 
+  // Apply filters only after initialization
   React.useEffect(() => {
+    if (!hasInitialized) return;
+
     let filtered = [...presetsWithLanguage];
 
     if (presetAgeFilter !== 'all' && presetAgeFilter) {
@@ -107,11 +135,14 @@ export function useAssistantPresets() {
     presetNationalityFilter,
     presetGenderFilter,
     presetLanguageFilter,
+    hasInitialized,
   ]);
 
+  // Update displayed presets
   React.useEffect(() => {
+    if (!hasInitialized) return;
     setDisplayedPresets(currentFilteredPresets.slice(0, presetsToShowCount));
-  }, [currentFilteredPresets, presetsToShowCount]);
+  }, [currentFilteredPresets, presetsToShowCount, hasInitialized]);
 
   const loadMorePresets = React.useCallback(() => {
     if (isLoadingMorePresets || presetsToShowCount >= currentFilteredPresets.length) return;
@@ -147,5 +178,7 @@ export function useAssistantPresets() {
     availableLanguages: uniquePresetLanguages,
     currentFilteredPresets,
     allAssistantPresets,
+    /** Whether presets have been initialized */
+    hasInitialized,
   };
 }

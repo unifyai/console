@@ -6,7 +6,22 @@ import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 
-export function useVoiceOptions(assistantVoiceActions: AssistantActions['voice']) {
+interface UseVoiceOptionsConfig {
+  /**
+   * Whether to enable automatic fetching of user voices.
+   * When false, voices will only be fetched when manually calling fetchUserVoices().
+   * Defaults to true for backward compatibility.
+   */
+  enabled?: boolean;
+}
+
+export function useVoiceOptions(
+  assistantVoiceActions: AssistantActions['voice'],
+  options?: UseVoiceOptionsConfig
+) {
+  // Default to enabled=true for backward compatibility
+  const enabled = options?.enabled ?? true;
+
   const [presetVoices] = React.useState<VoiceOption[]>(() => {
     const allPresets = voicePresetsConstant as Voice[];
     // Filter presets based on the PRIMARY_VOICE_PROVIDER setting
@@ -26,6 +41,7 @@ export function useVoiceOptions(assistantVoiceActions: AssistantActions['voice']
 
   const [userVoicesFromOrchestra, setUserVoicesFromOrchestra] = React.useState<VoiceOption[]>([]);
   const [isLoadingUserVoices, setIsLoadingUserVoices] = React.useState(false);
+  const [hasFetchedOnce, setHasFetchedOnce] = React.useState(false);
 
   const fetchUserVoicesFromOrchestra = React.useCallback(async () => {
     setIsLoadingUserVoices(true);
@@ -55,12 +71,16 @@ export function useVoiceOptions(assistantVoiceActions: AssistantActions['voice']
       setUserVoicesFromOrchestra([]);
     } finally {
       setIsLoadingUserVoices(false);
+      setHasFetchedOnce(true);
     }
   }, [assistantVoiceActions]);
 
+  // Auto-fetch when enabled becomes true AND we haven't fetched yet
   React.useEffect(() => {
-    fetchUserVoicesFromOrchestra();
-  }, [fetchUserVoicesFromOrchestra]);
+    if (enabled && !hasFetchedOnce) {
+      fetchUserVoicesFromOrchestra();
+    }
+  }, [enabled, hasFetchedOnce, fetchUserVoicesFromOrchestra]);
 
   const allDisplayableVoices = React.useMemo(() => {
     const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map((uv) => uv.voiceId));
@@ -121,5 +141,7 @@ export function useVoiceOptions(assistantVoiceActions: AssistantActions['voice']
     isLoadingUserVoices,
     fetchUserVoices: fetchUserVoicesFromOrchestra,
     deleteUserVoice,
+    /** Whether user voices have been fetched at least once */
+    hasFetchedOnce,
   };
 }

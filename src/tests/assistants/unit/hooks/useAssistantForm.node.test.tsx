@@ -252,14 +252,15 @@ describe('useAssistantForm', () => {
         const createCall = (mockActions.assistant.create as any).mock.calls[0];
         // Based on the function signature: create(firstName, surname, age, nationality, timezone,
         // profilePhoto, profileVideo, about, voiceId, voiceProvider, voiceMode,
-        // email, userPhone, phoneCountry, userWhatsappNumber, isUserDesktop, desktopMode, preHireChat)
+        // isUserDesktop, desktopMode, preHireChat)
+        // Contact fields (email, userPhone, etc.) are no longer passed - handled by contact manager
 
-        // Email (index 11), userPhone (index 12), phoneCountry (index 13), userWhatsappNumber (index 14)
-        // should all be null
-        expect(createCall[11]).toBeNull(); // email
-        expect(createCall[12]).toBeNull(); // userPhone
-        expect(createCall[13]).toBeNull(); // phoneCountry
-        expect(createCall[14]).toBeNull(); // userWhatsappNumber
+        // Verify the call has the expected number of arguments (14 total: 13 required + optional preHireChat)
+        expect(createCall.length).toBeLessThanOrEqual(14);
+        // isUserDesktop (index 11) should be a boolean
+        expect(typeof createCall[11]).toBe('boolean');
+        // desktopMode (index 12) can be string or null
+        expect(createCall[12] === null || typeof createCall[12] === 'string').toBe(true);
       }
     );
 

@@ -432,16 +432,18 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     availableLanguages,
     currentFilteredPresets,
     allAssistantPresets,
-  } = useAssistantPresets();
+  } = useAssistantPresets({ enabled: isHireDialogOpen });
 
   // --- Voice Management Options ---
   const [justDeletedVoiceId, setJustDeletedVoiceId] = React.useState<string | null>(null);
+  // Lazy load voices only when hire/edit dialogs are open
+  const shouldLoadVoices = isHireDialogOpen || !!assistantToEdit;
   const {
     allDisplayableVoices: unsortedVoices,
     isLoadingUserVoices,
     fetchUserVoices,
     deleteUserVoice,
-  } = useVoiceOptions(assistantActions.voice);
+  } = useVoiceOptions(assistantActions.voice, { enabled: shouldLoadVoices });
 
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
@@ -522,6 +524,9 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   }, [unsortedVoices, preferredLanguage, hireFormFastMode]);
 
   // --- Callbacks for UI interaction ---
+  // Track whether we need to auto-select a preset when presets become available
+  const [needsPresetSelection, setNeedsPresetSelection] = React.useState(false);
+
   const handleOpenHireDialog = React.useCallback(() => {
     resetHireFormInternal();
     setIsAssistantPresetsOpen(true);
@@ -531,29 +536,29 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     setPresetLanguageFilter('all');
     setIsDialogBusyProcessingVoice(false);
 
-    let presetsToUse =
-      currentFilteredPresets.length > 0
-        ? currentFilteredPresets
-        : (allAssistantPresets as AssistantPreset[]);
-    if (presetsToUse.length > 0) {
-      const randomIndex = Math.floor(Math.random() * presetsToUse.length);
-      selectPresetForHireForm(presetsToUse[randomIndex]);
-    }
+    // Mark that we need to select a preset once they're loaded
+    setNeedsPresetSelection(true);
 
-    // Then, open the dialog. It will initially show its own loading state.
+    // Open the dialog - this triggers lazy loading of presets
     setIsHireDialogOpen(true);
     refreshHiringProfile();
   }, [
     resetHireFormInternal,
-    currentFilteredPresets,
-    allAssistantPresets,
-    selectPresetForHireForm,
     setPresetAgeFilter,
     setPresetNationalityFilter,
     setPresetGenderFilter,
     setPresetLanguageFilter,
     refreshHiringProfile,
   ]);
+
+  // Auto-select a random preset when presets become available after opening dialog
+  React.useEffect(() => {
+    if (needsPresetSelection && allAssistantPresets.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allAssistantPresets.length);
+      selectPresetForHireForm(allAssistantPresets[randomIndex]);
+      setNeedsPresetSelection(false);
+    }
+  }, [needsPresetSelection, allAssistantPresets, selectPresetForHireForm]);
 
   const handleOpenEditDialog = React.useCallback(
     (assistant: Assistant) => {
