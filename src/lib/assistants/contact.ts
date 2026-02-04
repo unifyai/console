@@ -150,7 +150,8 @@ export const deleteAssistantContact = async (apiKey: string) => {
             apiKey: apiKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ contactType: contactType }),
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          body: JSON.stringify({ contact_type: contactType }),
         }
       );
 
