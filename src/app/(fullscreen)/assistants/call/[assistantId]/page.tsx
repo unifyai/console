@@ -5,7 +5,6 @@ import {
   messageAssistant,
   getContactIdByEmail,
   getAssistantOwnerById,
-  triggerContactSync,
 } from '@/lib/assistants/chat';
 import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
@@ -28,7 +27,6 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
       getTranscripts: await getTranscripts(apiKey),
       message: await messageAssistant(apiKey),
       getAssistantOwnerById: await getAssistantOwnerById(),
-      triggerContactSync: await triggerContactSync(),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),

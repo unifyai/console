@@ -118,7 +118,6 @@ export const mockAssistantActions: any = {
       firstName: 'Test',
       lastName: 'Owner',
     })),
-    triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
   },
   contact: {
     delete: vi.fn(async () => ({ info: 'Contact deleted', assistant: mockAssistants[0] })),

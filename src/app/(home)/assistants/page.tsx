@@ -35,7 +35,6 @@ import {
   messageAssistant,
   getContactIdByEmail,
   getAssistantOwnerById,
-  triggerContactSync,
 } from '@/lib/assistants/chat';
 import {
   listAllAssistantEmails,
@@ -121,7 +120,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       getTranscripts: await getTranscripts(apiKey),
       message: await messageAssistant(apiKey),
       getAssistantOwnerById: await getAssistantOwnerById(),
-      triggerContactSync: await triggerContactSync(),
     },
     contact: {
       delete: await deleteAssistantContact(apiKey),

@@ -77,7 +77,6 @@ const createMockAssistantActions = (
     getTranscripts: vi.fn(async () => []),
     message: vi.fn(async () => ({ info: 'sent' })),
     getAssistantOwnerById: vi.fn(async () => null),
-    triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
     ...overrides,
   },
 });
@@ -164,9 +163,8 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
     expect(typeof result.current.canChat).toBe('boolean');
   });
 
-  it('triggers contact sync when contact_id is null', async () => {
+  it('sets canChat to false and starts retry when contact_id is null', async () => {
     const getContactIdMock = vi.fn(async () => null);
-    const triggerContactSyncMock = vi.fn(async () => ({ info: 'triggered' }));
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
@@ -176,31 +174,28 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       }
     });
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useAssistantProfileChat(
         assistant,
-        createMockAssistantActions({
-          getContactId: getContactIdMock,
-          triggerContactSync: triggerContactSyncMock,
-        }),
+        createMockAssistantActions({ getContactId: getContactIdMock }),
         chatHistories,
         setChatHistories,
         'test@example.com'
       )
     );
 
-    // Wait for operations
+    // Wait for initial operations to complete
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(200);
     });
 
-    expect(getContactIdMock).toHaveBeenCalled();
-    expect(triggerContactSyncMock).toHaveBeenCalled();
+    // Should have canChat as false and isRetryingContactId as true
+    expect(result.current.canChat).toBe(false);
+    expect(result.current.isRetryingContactId).toBe(true);
   });
 
-  it('does not trigger contact sync when contact_id is available', async () => {
+  it('sets canChat to true when contact_id is available', async () => {
     const getContactIdMock = vi.fn(async () => 123);
-    const triggerContactSyncMock = vi.fn(async () => ({ info: 'triggered' }));
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
@@ -215,7 +210,6 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
         assistant,
         createMockAssistantActions({
           getContactId: getContactIdMock,
-          triggerContactSync: triggerContactSyncMock,
         }),
         chatHistories,
         setChatHistories,
@@ -229,8 +223,8 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
     });
 
     expect(getContactIdMock).toHaveBeenCalled();
-    expect(triggerContactSyncMock).not.toHaveBeenCalled();
     expect(result.current.canChat).toBe(true);
+    expect(result.current.isRetryingContactId).toBe(false);
   });
 
   it('caches currentContactId after successful lookup', async () => {

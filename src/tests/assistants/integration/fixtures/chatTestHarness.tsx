@@ -231,7 +231,6 @@ export function createMockChatActions(
         ),
     message: message ? vi.fn(message) : vi.fn(async () => ({ info: 'Message sent' })),
     getAssistantOwnerById: vi.fn(async () => ({ firstName: 'Test', lastName: 'Owner' })),
-    triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
   } as AssistantActions['chat'];
 }
 

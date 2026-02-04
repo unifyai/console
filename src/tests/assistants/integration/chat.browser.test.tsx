@@ -59,7 +59,6 @@ const createMockChatActions = (
   getTranscripts: getTranscriptsMock ? vi.fn(getTranscriptsMock) : vi.fn(async () => []),
   message: messageMock ? vi.fn(messageMock) : vi.fn(async () => ({ info: 'Message sent' })),
   getAssistantOwnerById: vi.fn(async () => ({ firstName: 'Test', lastName: 'Owner' })),
-  triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
 });
 
 // --- Helper: Real Fetch Implementation for Tests ---
@@ -215,7 +214,6 @@ describe('Assistant Profile Chat', () => {
               throw new Error('Simulated Network Fail');
             }),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -408,7 +406,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(() => fetchPromise),
             message: vi.fn(async () => ({})),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -846,7 +843,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(async () => ({})),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1174,7 +1170,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1274,7 +1269,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1316,7 +1310,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: fetchTranscriptsViaApi,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1369,7 +1362,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: fetchTranscriptsViaApi,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
         render(
@@ -1418,7 +1410,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: fetchTranscriptsViaApi,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1526,7 +1517,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1603,7 +1593,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -1683,7 +1672,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
         const TransitionContainer = () => {
@@ -2035,7 +2023,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null), // Should NOT be called
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2100,7 +2087,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: getAssistantOwnerByIdMock,
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2153,7 +2139,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: getAssistantOwnerByIdMock,
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2193,7 +2178,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2230,7 +2214,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2280,7 +2263,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2299,7 +2281,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2333,7 +2314,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2355,49 +2335,9 @@ describe('Assistant Profile Chat', () => {
     );
 
     // -------------------------------------------------------------------------
-    // Contact ID Auto-Retry Tests
+    // Contact ID Not Found Tests
     // -------------------------------------------------------------------------
-    describe('Contact ID Auto-Retry', () => {
-      it(
-        'triggers contact sync and shows retrying status when initial contact_id lookup fails',
-        {
-          meta: {
-            alias: 'ContactId-RetryStart',
-            scenario: 'getContactId returns null initially',
-            behavior: 'triggerContactSync is called and retry banner is shown',
-          },
-        },
-        async () => {
-          const getContactIdMock = vi.fn(async () => null);
-          const triggerContactSyncMock = vi.fn(async () => ({ info: 'Contact sync triggered' }));
-
-          render(
-            <ChatTestWrapper
-              initialHistory={undefined}
-              assistantActionsOverride={{
-                chat: {
-                  getContactId: getContactIdMock,
-                  getTranscripts: vi.fn(async () => []),
-                  message: vi.fn(async () => ({})),
-                  getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: triggerContactSyncMock,
-                },
-              }}
-            />
-          );
-
-          // Wait for initial lookup to complete and trigger sync
-          await waitFor(() => {
-            expect(triggerContactSyncMock).toHaveBeenCalled();
-          });
-
-          // Should show retrying status
-          await waitFor(() => {
-            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
-          });
-        }
-      );
-
+    describe('Contact ID Not Found', () => {
       it(
         'disables input and shows retry placeholder when contact_id not available',
         {
@@ -2419,7 +2359,6 @@ describe('Assistant Profile Chat', () => {
                   getTranscripts: vi.fn(async () => []),
                   message: vi.fn(async () => ({})),
                   getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
                 },
               }}
             />
@@ -2474,7 +2413,6 @@ describe('Assistant Profile Chat', () => {
                   getTranscripts: vi.fn(async () => []),
                   message: vi.fn(async () => ({})),
                   getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
                 },
               }}
             />
@@ -2502,7 +2440,6 @@ describe('Assistant Profile Chat', () => {
                   getTranscripts: vi.fn(async () => []),
                   message: vi.fn(async () => ({})),
                   getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
                 },
               }}
             />
@@ -2541,7 +2478,6 @@ describe('Assistant Profile Chat', () => {
                   getTranscripts: vi.fn(async () => []),
                   message: vi.fn(async () => ({})),
                   getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
                 },
               }}
             />
@@ -2583,7 +2519,6 @@ describe('Assistant Profile Chat', () => {
                   getTranscripts: vi.fn(async () => []),
                   message: vi.fn(async () => ({})),
                   getAssistantOwnerById: vi.fn(async () => null),
-                  triggerContactSync: vi.fn(async () => ({ info: 'triggered' })),
                 },
               }}
             />
@@ -2626,7 +2561,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: messageMock,
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2678,7 +2612,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2723,7 +2656,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2775,7 +2707,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2826,7 +2757,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2891,7 +2821,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2937,7 +2866,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -2981,7 +2909,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -3042,7 +2969,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: vi.fn(async () => []),
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -3128,7 +3054,6 @@ describe('Assistant Profile Chat', () => {
                 getTranscripts: getTranscriptsMock,
                 message: vi.fn(async () => ({})),
                 getAssistantOwnerById: vi.fn(async () => null),
-                triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
               },
             }}
           />
@@ -3210,7 +3135,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: failingMessageAction,
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -3271,7 +3195,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(async () => ({})),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4449,7 +4372,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: getTranscriptsMock,
             message: vi.fn(async () => ({ info: 'sent' })),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4531,7 +4453,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: messageMock,
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4611,7 +4532,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: vi.fn(async () => ({ info: 'sent' })),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4717,7 +4637,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: vi.fn(async () => ({ info: 'sent' })),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4851,7 +4770,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: messageMock,
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4925,7 +4843,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: vi.fn(async () => ({ info: 'sent' })),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -4986,7 +4903,6 @@ describe('Assistant Profile Chat', () => {
             getTranscripts: vi.fn(async () => []),
             message: vi.fn(async () => ({ info: 'sent' })),
             getAssistantOwnerById: vi.fn(async () => null),
-            triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
           },
         };
 
@@ -5072,7 +4988,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: vi.fn(async () => ({ info: 'sent' })),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5189,7 +5104,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: vi.fn(async () => ({ info: 'sent' })),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5274,7 +5188,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: messageMock,
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5348,7 +5261,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: messageMock,
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5420,7 +5332,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: messageMock,
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5480,7 +5391,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: vi.fn(async () => ({ info: 'sent' })),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5764,7 +5674,6 @@ describe('Assistant Profile Chat', () => {
                 return { info: 'sent' };
               }),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5860,7 +5769,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(() => historyPromise),
               message: vi.fn(async () => ({ info: 'sent' })),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -5933,7 +5841,6 @@ describe('Assistant Profile Chat', () => {
                 return { info: 'sent' };
               }),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -6010,7 +5917,6 @@ describe('Assistant Profile Chat', () => {
               getTranscripts: vi.fn(async () => []),
               message: vi.fn(async () => ({ info: 'sent' })),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 
@@ -6079,7 +5985,6 @@ describe('Assistant Profile Chat', () => {
                 return { info: 'sent' };
               }),
               getAssistantOwnerById: vi.fn(async () => null),
-              triggerContactSync: vi.fn(async () => ({ info: 'Contact sync triggered' })),
             },
           };
 

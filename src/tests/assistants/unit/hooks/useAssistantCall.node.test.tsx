@@ -103,7 +103,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     getTranscripts: vi.fn(),
     message: vi.fn(),
     getAssistantOwnerById: vi.fn(),
-    triggerContactSync: vi.fn(),
   },
   call: {
     getConnectionDetails: vi.fn().mockResolvedValue({

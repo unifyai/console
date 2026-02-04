@@ -422,7 +422,6 @@ export interface AssistantActions {
     getAssistantOwnerById: (
       userId: string
     ) => Promise<{ firstName: string; lastName: string } | null>;
-    triggerContactSync: (assistantId: string) => Promise<ResponseProps>;
   };
   contact: {
     delete: (

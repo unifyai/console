@@ -60,9 +60,6 @@ export function useAssistantProfileChat(
   // Owner context cache: maps assistant_id -> owner context string
   const ownerContextCacheRef = React.useRef<Map<string, string>>(new Map());
 
-  // Track assistants that have already had contact sync triggered (to avoid re-syncing on chat close/open)
-  const contactSyncTriggeredRef = React.useRef<Set<string>>(new Set());
-
   // Auto-retry for contact_id resolution
   const contactIdRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const contactIdRetryAttemptsRef = React.useRef<Map<string, number>>(new Map());
@@ -183,7 +180,7 @@ export function useAssistantProfileChat(
 
   /**
    * Retries getting the contact_id for an assistant.
-   * Called automatically after contact sync is triggered.
+   * Called automatically when contact_id is not found initially.
    */
   const retryContactIdLookup = React.useCallback(
     async (currentAssistantId: string, currentAssistant: Assistant) => {
@@ -276,7 +273,7 @@ export function useAssistantProfileChat(
    * 1. Resolves owner context (uses userFirstName/userLastName from assistant, or falls back to getAssistantOwnerById)
    * 2. Looks up user's contact_id
    * 3. Fetches transcripts if contact_id found
-   * 4. Sets canChat=false if contact_id not found
+   * 4. Sets canChat=false and starts retry if contact_id not found
    */
   const fetchInitialHistory = React.useCallback(
     async (currentAssistantId: string, currentAssistant: Assistant) => {
@@ -323,14 +320,7 @@ export function useAssistantProfileChat(
           );
 
           if (lookedUpContactId === null) {
-            // User not in contacts - trigger contact sync (only once per assistant) and start retry
-            if (!contactSyncTriggeredRef.current.has(currentAssistantId)) {
-              contactSyncTriggeredRef.current.add(currentAssistantId);
-              assistantActions.chat.triggerContactSync(currentAssistantId).catch(() => {
-                /* no-op */
-              });
-            }
-
+            // User not in contacts - disable chat and start retry
             setCanChat(false);
             setIsInitialLoading(false);
             setChatHistories((prev) => ({ ...prev, [currentAssistantId]: [] }));
@@ -439,13 +429,7 @@ export function useAssistantProfileChat(
             currentAssistantId
           );
           if (contactId === null) {
-            // User not in contacts - trigger contact sync (only once per assistant)
-            if (!contactSyncTriggeredRef.current.has(currentAssistantId)) {
-              contactSyncTriggeredRef.current.add(currentAssistantId);
-              assistantActions.chat.triggerContactSync(currentAssistantId).catch(() => {
-                /* no-op */
-              });
-            }
+            // User not in contacts - disable chat and start retry
             setCanChat(false);
 
             // Start auto-retry for contact_id

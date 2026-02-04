@@ -15,7 +15,6 @@ import {
   getContactIdByEmail,
   getTranscripts,
   messageAssistant,
-  triggerContactSync,
   getAssistantOwnerById,
 } from '@/lib/assistants/chat';
 
@@ -477,63 +476,6 @@ describe('chat.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail', 'Failed to queue message');
-      }
-    );
-  });
-
-  describe('triggerContactSync', () => {
-    it(
-      'sends sync request to adapters service',
-      {
-        meta: {
-          alias: 'TriggerSync-Success',
-          scenario: 'Sync request succeeds',
-          behavior: 'Returns success info message',
-        },
-      },
-      async () => {
-        // Arrange
-        let capturedUrl = '';
-        server.use(
-          http.post(/unity-adapters.*\/unity\/system-event/, ({ request }) => {
-            capturedUrl = request.url;
-            return HttpResponse.json({});
-          })
-        );
-
-        // Act
-        const triggerSyncFn = await triggerContactSync();
-        const result = await triggerSyncFn('123');
-
-        // Assert
-        expect(result).toHaveProperty('info');
-        expect(capturedUrl).toContain('unity-adapters');
-      }
-    );
-
-    it(
-      'returns error when webhook fails',
-      {
-        meta: {
-          alias: 'TriggerSync-WebhookError',
-          scenario: 'Adapters service returns error',
-          behavior: 'Returns error detail',
-        },
-      },
-      async () => {
-        // Arrange
-        server.use(
-          http.post(/unity-adapters.*\/unity\/system-event/, () => {
-            return new HttpResponse('Service unavailable', { status: 500 });
-          })
-        );
-
-        // Act
-        const triggerSyncFn = await triggerContactSync();
-        const result = await triggerSyncFn('123');
-
-        // Assert
-        expect(result).toHaveProperty('detail');
       }
     );
   });
