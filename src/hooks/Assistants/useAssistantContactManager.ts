@@ -204,6 +204,18 @@ export function useAssistantContactManager({
   const [isSubmittingContact, setIsSubmittingContact] = React.useState(false);
   const toastIdRef = React.useRef<string | number | undefined>(undefined);
 
+  // Initialize tab and reset confirmDelete when dialog opens
+  // This effect only depends on isOpen and initialTab to avoid resetting the tab
+  // when other async data (like allAssistantEmails) loads
+  React.useEffect(() => {
+    if (isOpen) {
+      setConfirmDelete(null);
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+    }
+  }, [isOpen, initialTab]);
+
   // Initialize email local part when dialog opens
   React.useEffect(() => {
     if (isOpen) {
@@ -235,13 +247,8 @@ export function useAssistantContactManager({
         setValue('isEmailAdded', true, { shouldDirty: true });
         setValue('emailManuallyEdited', false);
       }
-
-      setConfirmDelete(null);
-      if (initialTab) {
-        setActiveTab(initialTab);
-      }
     }
-  }, [isOpen, assistant, initialTab, allAssistantEmails, setValue]);
+  }, [isOpen, assistant, allAssistantEmails, setValue]);
 
   const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLocalPart = event.target.value.replace(/[@\s]/g, '');
