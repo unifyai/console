@@ -157,7 +157,7 @@ jobs:
       - name: Start Orchestra API
         run: |
           cd orchestra
-          export ORCHESTRA_VERTEXAI_SERVICE_ACC_JSON="$GOOGLE_APPLICATION_CREDENTIALS"
+          # GOOGLE_APPLICATION_CREDENTIALS is already set by the google-github-actions/auth step
           nohup poetry run python -m orchestra &
           sleep 10
           curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:8000/v0/health || exit 1
@@ -170,8 +170,8 @@ jobs:
           ORCHESTRA_DB_USER: orchestra
           ORCHESTRA_DB_PASS: orchestra
           ORCHESTRA_DB_BASE: orchestra
-          ORCHESTRA_VERTEXAI_PROJECT: ${{ vars.GCP_PROJECT_ID }}
-          ORCHESTRA_VERTEXAI_LOCATION: ${{ vars.GCP_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_LOCATION: ${{ vars.GCP_LOCATION }}
           ORCHESTRA_GCP_BUCKET_NAME: ${{ vars.GCP_BUCKET_LOGS }}
           ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME: ${{ vars.GCP_BUCKET_ASSISTANT_IMAGES }}
           ORCHESTRA_GCP_ASSISTANT_RECORDINGS_BUCKET_NAME: ${{ vars.GCP_BUCKET_RECORDINGS }}
