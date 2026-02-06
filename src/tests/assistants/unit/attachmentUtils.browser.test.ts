@@ -166,24 +166,24 @@ describe('attachmentUtils', () => {
   });
 
   describe('validateFile', () => {
-    it('should accept files under 10MB', () => {
-      const content = 'x'.repeat(5 * 1024 * 1024);
+    it('should accept files under 25MB', () => {
+      const content = 'x'.repeat(20 * 1024 * 1024);
       const file = createTestFile('small.pdf', content, 'application/pdf');
       const result = validateFile(file);
       expect(result.valid).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
-    it('should reject files over 10MB', () => {
-      const content = 'x'.repeat(11 * 1024 * 1024);
+    it('should reject files over 25MB', () => {
+      const content = 'x'.repeat(26 * 1024 * 1024);
       const file = createTestFile('large.pdf', content, 'application/pdf');
       const result = validateFile(file);
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('File exceeds 10MB limit');
+      expect(result.error).toBe('File exceeds 25MB limit');
     });
 
-    it('should accept files exactly 10MB', () => {
-      const content = 'x'.repeat(10 * 1024 * 1024);
+    it('should accept files exactly 25MB', () => {
+      const content = 'x'.repeat(25 * 1024 * 1024);
       const file = createTestFile('exact.pdf', content, 'application/pdf');
       const result = validateFile(file);
       expect(result.valid).toBe(true);

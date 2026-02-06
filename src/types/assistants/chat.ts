@@ -9,12 +9,67 @@ export type AttachmentType =
   | 'archive'
   | 'generic';
 
+/**
+ * Local attachment representation (used in UI before upload).
+ */
 export interface ChatAttachment {
   id: string;
   name: string;
   size: number;
   type: AttachmentType;
   file?: File;
+  /** GCS URL for permanent storage (populated after upload) */
+  gsUrl?: string;
+  /** MIME type (populated after upload) */
+  contentType?: string;
+  /** File size in bytes (populated after upload) */
+  sizeBytes?: number;
+}
+
+/**
+ * Attachment metadata returned from upload API.
+ * Contains all fields needed for transcript logging.
+ * Note: API returns snake_case, converted to camelCase here.
+ */
+export interface AttachmentUploadResponse {
+  id: string;
+  filename: string;
+  gsUrl: string;
+  signedUrl: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/**
+ * Attachment format for sending in messages (uses gsUrl, not signedUrl).
+ * This is what gets stored in transcripts.
+ * Note: Converted to snake_case when sent to API.
+ */
+export interface MessageAttachment {
+  id: string;
+  filename: string;
+  gsUrl: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/**
+ * Type guard to check if an attachment has upload metadata.
+ */
+export function isAttachmentMetadata(
+  attachment: ChatAttachment
+): attachment is ChatAttachment & { gsUrl: string; contentType: string; sizeBytes: number } {
+  return !!attachment.gsUrl && !!attachment.contentType && typeof attachment.sizeBytes === 'number';
+}
+
+/**
+ * Helper to create attachment with full metadata (for testing/mocking).
+ */
+export function createAttachmentWithMetadata(
+  base: Omit<ChatAttachment, 'gsUrl' | 'contentType' | 'sizeBytes'>,
+  metadata: { gsUrl: string; contentType: string; sizeBytes: number }
+): ChatAttachment {
+  return { ...base, ...metadata };
 }
 
 export interface ChatMessage {
@@ -59,4 +114,6 @@ export interface UnifyMessage {
   assistantId: number;
   contactId: number;
   message: string;
+  /** Attachments with full metadata for transcript logging */
+  attachments?: MessageAttachment[];
 }

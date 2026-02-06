@@ -1,10 +1,16 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, BroadcastMessagePayload, ChatAttachment } from '@/types/assistants/chat';
+import {
+  ChatMessage,
+  BroadcastMessagePayload,
+  ChatAttachment,
+  MessageAttachment,
+} from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { formatUserContext, formatAssistantContext } from '@/utils/assistants/context-utils';
+import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -815,19 +821,45 @@ export function useAssistantProfileChat(
     channel.postMessage(payload);
     channel.close();
 
-    // 3. Send to Backend with contact_id
-    assistantActions.chat
-      .message({
-        assistantId: parseInt(currentAssistant.agentId),
-        contactId: contactId,
-        message: messageToSend,
-      })
-      .then((response) => {
+    // 3. Upload attachments (if any) and send to Backend
+    const sendMessageWithAttachments = async () => {
+      try {
+        // Upload attachments if present - use client-side upload function
+        let messageAttachments: MessageAttachment[] | undefined;
+
+        if (attachments && attachments.length > 0) {
+          const uploadPromises = attachments
+            .filter((a) => a.file) // Only upload attachments with File objects
+            .map(async (a) => {
+              // Use client-side upload function (not server action)
+              // File objects can't be serialized across server action boundary
+              const uploadResult = await uploadAttachmentClient(a.file!, currentAssistant.agentId);
+
+              // Convert to MessageAttachment format (with gsUrl, not signedUrl)
+              return {
+                id: uploadResult.id,
+                filename: uploadResult.filename,
+                gsUrl: uploadResult.gsUrl,
+                contentType: uploadResult.contentType,
+                sizeBytes: uploadResult.sizeBytes,
+              };
+            });
+
+          messageAttachments = await Promise.all(uploadPromises);
+        }
+
+        // Send message with attachments
+        const response = await assistantActions.chat.message({
+          assistantId: parseInt(currentAssistant.agentId),
+          contactId: contactId,
+          message: messageToSend,
+          attachments: messageAttachments,
+        });
+
         if (response.detail) {
           throw new Error(response.detail);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         // Use captured messageId and currentAssistantId to ensure correct rollback
         // even when multiple messages are sent rapidly
         setChatHistories((prev) => ({
@@ -844,7 +876,10 @@ export function useAssistantProfileChat(
         if (onError && attachments && attachments.length > 0) {
           onError(attachments);
         }
-      });
+      }
+    };
+
+    sendMessageWithAttachments();
   };
 
   // Force SSE reconnection (useful when chat becomes re-enabled after being blocked)

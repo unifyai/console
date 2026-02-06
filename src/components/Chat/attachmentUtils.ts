@@ -9,7 +9,84 @@ import {
   File,
   type LucideIcon,
 } from 'lucide-react';
-import type { AttachmentType, ChatAttachment } from '@/types/assistants/chat';
+import type {
+  AttachmentType,
+  ChatAttachment,
+  AttachmentUploadResponse,
+  MessageAttachment,
+} from '@/types/assistants/chat';
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/** Maximum file size in bytes (25MB) */
+export const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+/** Maximum number of attachments per message */
+export const MAX_ATTACHMENTS = 10;
+
+/** Allowed file extensions for upload */
+export const ALLOWED_EXTENSIONS = new Set([
+  // Images
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.bmp',
+  '.ico',
+  // Documents
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.txt',
+  '.rtf',
+  '.odt',
+  // Spreadsheets
+  '.xls',
+  '.xlsx',
+  '.csv',
+  '.ods',
+  // Presentations
+  '.ppt',
+  '.pptx',
+  '.odp',
+  // Archives
+  '.zip',
+  // Data
+  '.json',
+  '.xml',
+  '.yaml',
+  '.yml',
+]);
+
+/** Blocked file extensions (security risk) */
+export const BLOCKED_EXTENSIONS = new Set([
+  '.exe',
+  '.bat',
+  '.cmd',
+  '.sh',
+  '.ps1',
+  '.dll',
+  '.so',
+  '.dylib',
+  '.app',
+  '.msi',
+  '.com',
+  '.scr',
+  '.vbs',
+  '.js',
+  '.jse',
+  '.wsf',
+  '.wsh',
+  '.psc1',
+  '.reg',
+  '.inf',
+  '.lnk',
+  '.pif',
+]);
 
 // =============================================================================
 // FILE TYPE DETECTION
@@ -118,16 +195,65 @@ export function getAttachmentColor(type: AttachmentType): string {
 // VALIDATION
 // =============================================================================
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+/**
+ * Get file extension from filename (lowercase, with dot).
+ */
+function getFileExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf('.');
+  if (lastDot === -1) return '';
+  return filename.slice(lastDot).toLowerCase();
+}
+
+/**
+ * Validate file type against allowlist and blocklist.
+ */
+export function validateFileType(filename: string): { valid: boolean; error?: string } {
+  const ext = getFileExtension(filename);
+
+  if (!ext) {
+    return { valid: false, error: 'File must have an extension' };
+  }
+
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    return { valid: false, error: `File type ${ext} is not allowed for security reasons` };
+  }
+
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return { valid: false, error: `File type ${ext} is not allowed` };
+  }
+
+  return { valid: true };
+}
 
 /**
  * Validate file size.
  */
 export function validateFile(file: File): { valid: boolean; error?: string } {
+  // Check file type first
+  const typeValidation = validateFileType(file.name);
+  if (!typeValidation.valid) {
+    return typeValidation;
+  }
+
+  // Check file size
   if (file.size > MAX_FILE_SIZE) {
     return {
       valid: false,
-      error: 'File exceeds 10MB limit',
+      error: 'File exceeds 25MB limit',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate attachment count.
+ */
+export function validateAttachmentCount(currentCount: number): { valid: boolean; error?: string } {
+  if (currentCount >= MAX_ATTACHMENTS) {
+    return {
+      valid: false,
+      error: `Maximum ${MAX_ATTACHMENTS} attachments allowed per message`,
     };
   }
   return { valid: true };
@@ -182,4 +308,110 @@ export function createAttachment(file: File): ChatAttachment {
     type: getAttachmentType(file.name),
     file,
   };
+}
+
+// =============================================================================
+// UPLOAD & MESSAGE FUNCTIONS
+// =============================================================================
+
+/**
+ * Upload an attachment to GCS via the API.
+ * Returns full metadata including gsUrl for transcript logging.
+ *
+ * @param file - The file to upload
+ * @param assistantId - The assistant ID to associate with the upload
+ * @returns Upload response with gsUrl, contentType, sizeBytes
+ */
+export async function uploadAttachment(
+  file: File,
+  assistantId: string
+): Promise<AttachmentUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('assistant_id', assistantId);
+
+  const response = await fetch('/api/assistant/attachment', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(error.detail || `Upload failed: ${response.statusText}`);
+  }
+
+  // API returns snake_case, convert to camelCase
+  const data = await response.json();
+  return {
+    id: data.id,
+    filename: data.filename,
+    gsUrl: data.gs_url,
+    signedUrl: data.signed_url,
+    contentType: data.content_type,
+    sizeBytes: data.size_bytes,
+  };
+}
+
+/**
+ * Create a MessageAttachment from an upload response.
+ * Uses gsUrl (not signedUrl) for transcript storage.
+ *
+ * @param uploadResponse - Response from uploadAttachment
+ * @returns MessageAttachment suitable for sending in messages
+ */
+export function createMessageAttachment(
+  uploadResponse: AttachmentUploadResponse
+): MessageAttachment {
+  return {
+    id: uploadResponse.id,
+    filename: uploadResponse.filename,
+    gsUrl: uploadResponse.gsUrl,
+    contentType: uploadResponse.contentType,
+    sizeBytes: uploadResponse.sizeBytes,
+  };
+}
+
+/**
+ * Update a ChatAttachment with upload metadata.
+ * Called after successful upload to add gsUrl, contentType, sizeBytes.
+ *
+ * @param attachment - Original ChatAttachment
+ * @param uploadResponse - Response from uploadAttachment
+ * @returns Updated ChatAttachment with metadata
+ */
+export function updateAttachmentWithMetadata(
+  attachment: ChatAttachment,
+  uploadResponse: AttachmentUploadResponse
+): ChatAttachment {
+  return {
+    ...attachment,
+    gsUrl: uploadResponse.gsUrl,
+    contentType: uploadResponse.contentType,
+    sizeBytes: uploadResponse.sizeBytes,
+  };
+}
+
+/**
+ * Generate a signed URL from a gs:// URL for display.
+ * Used when loading historical attachments from transcripts.
+ *
+ * @param gsUrl - GCS URL (gs://bucket/path)
+ * @returns Signed HTTPS URL for browser access
+ */
+export async function getSignedUrl(gsUrl: string): Promise<string> {
+  const response = await fetch('/api/storage/signed-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to get signed URL' }));
+    throw new Error(error.detail || `Failed to get signed URL: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  // API returns snake_case
+  return data.signed_url;
 }

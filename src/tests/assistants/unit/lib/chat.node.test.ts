@@ -383,6 +383,156 @@ describe('chat.ts', () => {
         expect(result).toEqual([]);
       }
     );
+
+    it(
+      'maps attachments from API response to ChatMessage',
+      {
+        meta: {
+          alias: 'GetTranscripts-WithAttachments',
+          scenario: 'Message has attachments in the response',
+          behavior: 'ChatMessage includes attachments array with full metadata',
+        },
+      },
+      async () => {
+        // Arrange
+        const mockAttachments = [
+          {
+            id: 'att-123',
+            filename: 'report.pdf',
+            gsUrl: 'gs://bucket/123/att-123_report.pdf',
+            contentType: 'application/pdf',
+            sizeBytes: 1024,
+          },
+        ];
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.json({
+              logs: [
+                {
+                  id: '100',
+                  timestamp: '2024-01-01T12:00:00Z',
+                  entries: {
+                    senderId: 1,
+                    content: 'Here is the report',
+                    attachments: mockAttachments,
+                  },
+                },
+              ],
+            });
+          })
+        );
+
+        // Act
+        const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+
+        // Assert
+        expect(Array.isArray(result)).toBe(true);
+        const message = (result as any[])[0];
+        expect(message).toHaveProperty('attachments');
+        expect(message.attachments).toHaveLength(1);
+        expect(message.attachments[0]).toEqual({
+          id: 'att-123',
+          filename: 'report.pdf',
+          gsUrl: 'gs://bucket/123/att-123_report.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 1024,
+        });
+      }
+    );
+
+    it(
+      'handles messages without attachments (empty array)',
+      {
+        meta: {
+          alias: 'GetTranscripts-NoAttachments',
+          scenario: 'Message has no attachments field',
+          behavior: 'ChatMessage has empty attachments array',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.json({
+              logs: [
+                {
+                  id: '100',
+                  timestamp: '2024-01-01T12:00:00Z',
+                  entries: { senderId: 1, content: 'No attachments here' },
+                },
+              ],
+            });
+          })
+        );
+
+        // Act
+        const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+
+        // Assert
+        const message = (result as any[])[0];
+        expect(message).toHaveProperty('attachments');
+        expect(message.attachments).toEqual([]);
+      }
+    );
+
+    it(
+      'handles multiple attachments per message',
+      {
+        meta: {
+          alias: 'GetTranscripts-MultipleAttachments',
+          scenario: 'Message has multiple attachments',
+          behavior: 'All attachments are mapped correctly',
+        },
+      },
+      async () => {
+        // Arrange
+        const mockAttachments = [
+          {
+            id: 'att-1',
+            filename: 'image.png',
+            gsUrl: 'gs://bucket/123/att-1_image.png',
+            contentType: 'image/png',
+            sizeBytes: 2048,
+          },
+          {
+            id: 'att-2',
+            filename: 'doc.pdf',
+            gsUrl: 'gs://bucket/123/att-2_doc.pdf',
+            contentType: 'application/pdf',
+            sizeBytes: 4096,
+          },
+        ];
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, () => {
+            return HttpResponse.json({
+              logs: [
+                {
+                  id: '100',
+                  timestamp: '2024-01-01T12:00:00Z',
+                  entries: {
+                    senderId: 1,
+                    content: 'Multiple files attached',
+                    attachments: mockAttachments,
+                  },
+                },
+              ],
+            });
+          })
+        );
+
+        // Act
+        const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
+        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+
+        // Assert
+        const message = (result as any[])[0];
+        expect(message.attachments).toHaveLength(2);
+        expect(message.attachments[0].filename).toBe('image.png');
+        expect(message.attachments[1].filename).toBe('doc.pdf');
+      }
+    );
   });
 
   describe('messageAssistant', () => {

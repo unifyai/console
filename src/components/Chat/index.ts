@@ -18,6 +18,13 @@ export {
 } from './ChatAttachments';
 
 export {
+  AttachmentPreview,
+  HistoricalAttachmentList,
+  type AttachmentPreviewProps,
+  type HistoricalAttachmentListProps,
+} from './AttachmentPreview';
+
+export {
   getAttachmentType,
   getAttachmentIcon,
   getAttachmentColor,

@@ -6,6 +6,8 @@ import {
   ChatCompletionRequest,
   ChatMessage,
   UnifyMessage,
+  AttachmentUploadResponse,
+  MessageAttachment,
 } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
@@ -16,6 +18,11 @@ import {
   buildAssistantIdFilter,
   combineFilters,
 } from '@/utils/assistants/filterExpressions';
+
+/** Message payload with optional attachments */
+export interface UnifyMessageWithAttachments extends UnifyMessage {
+  attachments?: MessageAttachment[];
+}
 
 /**
  * Looks up a user's contactId from the Contacts table using their email address.
@@ -172,6 +179,8 @@ export const getTranscripts = async (apiKey: string) => {
             content: entries.content,
             timestamp: new Date(timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+            // Map attachments from transcript - already in camelCase from snakeToCamelObject
+            attachments: Array.isArray(entries.attachments) ? entries.attachments : [],
           };
         })
         .filter((msg): msg is ChatMessage => msg !== null);
@@ -185,7 +194,9 @@ export const getTranscripts = async (apiKey: string) => {
 };
 
 export const messageAssistant = async (apiKey: string) => {
-  return async (payload: UnifyMessage): Promise<ResponseProps & { info?: string }> => {
+  return async (
+    payload: UnifyMessageWithAttachments
+  ): Promise<ResponseProps & { info?: string }> => {
     'use server';
     try {
       // Convert camelCase payload to snake_case for API
@@ -206,6 +217,90 @@ export const messageAssistant = async (apiKey: string) => {
       return data as ResponseProps & { info?: string };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error sending message.';
+      return { detail: message };
+    }
+  };
+};
+
+/**
+ * Upload an attachment for a Unify message.
+ * Returns metadata including gs_url for transcript logging.
+ *
+ * @param assistantId - The assistant ID to associate with the upload
+ * @param file - The File to upload
+ * @returns Upload response with gs_url, content_type, size_bytes
+ */
+export const uploadAttachment = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    file: File
+  ): Promise<AttachmentUploadResponse | ResponseProps> => {
+    'use server';
+    try {
+      // Create FormData with the file and assistant_id
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('assistant_id', assistantId);
+
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/attachment`, {
+        method: 'POST',
+        headers: {
+          apiKey: apiKey,
+          // Don't set Content-Type - fetch will set it with boundary for FormData
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { detail: data.detail || `Failed to upload: ${response.statusText}` };
+      }
+      // API returns snake_case, convert to camelCase
+      return {
+        id: data.id,
+        filename: data.filename,
+        gsUrl: data.gs_url,
+        signedUrl: data.signed_url,
+        contentType: data.content_type,
+        sizeBytes: data.size_bytes,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error uploading attachment.';
+      return { detail: message };
+    }
+  };
+};
+
+/**
+ * Generate a signed URL from a gs:// URL.
+ * Used for displaying historical attachments from transcripts.
+ *
+ * @param gsUrl - GCS URL (gs://bucket/path)
+ * @returns Signed HTTPS URL for browser access
+ */
+export const getSignedUrl = async (apiKey: string) => {
+  return async (gsUrl: string): Promise<{ signedUrl: string } | ResponseProps> => {
+    'use server';
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/storage/signed-url`, {
+        method: 'POST',
+        headers: {
+          apiKey: apiKey,
+          'Content-Type': 'application/json',
+        },
+        // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+        body: JSON.stringify({ gs_url: gsUrl }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { detail: data.detail || `Failed to get signed URL: ${response.statusText}` };
+      }
+      // API returns snake_case, convert to camelCase
+      return { signedUrl: data.signed_url };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error getting signed URL.';
       return { detail: message };
     }
   };

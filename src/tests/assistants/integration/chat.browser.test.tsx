@@ -3887,11 +3887,11 @@ describe('Assistant Profile Chat', () => {
 
     describe('File Validation', () => {
       it(
-        'should reject files over 10MB with toast error',
+        'should reject files over 25MB with toast error',
         {
           meta: {
             alias: 'Attach-Reject-Large',
-            scenario: 'File over 10MB attached',
+            scenario: 'File over 25MB attached',
             behavior: 'File is rejected, not added',
           },
         },

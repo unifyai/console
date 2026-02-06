@@ -5,6 +5,7 @@ import {
   messageAssistant,
   getContactIdByEmail,
   getAssistantOwnerById,
+  uploadAttachment,
 } from '@/lib/assistants/chat';
 import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
@@ -27,6 +28,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
       getTranscripts: await getTranscripts(apiKey),
       message: await messageAssistant(apiKey),
       getAssistantOwnerById: await getAssistantOwnerById(),
+      uploadAttachment: await uploadAttachment(apiKey),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),

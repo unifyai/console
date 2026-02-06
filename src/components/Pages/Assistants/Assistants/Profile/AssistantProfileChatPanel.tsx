@@ -15,6 +15,7 @@ import {
   containsEmbedUrl,
   PendingAttachmentList,
   MessageAttachmentList,
+  HistoricalAttachmentList,
   createAttachment,
   validateFile,
 } from '@/components/Chat';
@@ -81,9 +82,34 @@ const ChatMessageBubble = ({
       )}
       <div className="flex max-w-[75%] flex-col gap-2">
         {/* Attachments above bubble */}
-        {attachments && attachments.length > 0 && (
-          <MessageAttachmentList attachments={attachments} />
-        )}
+        {attachments &&
+          attachments.length > 0 &&
+          (() => {
+            // Categorize attachments:
+            // 1. Historical: have gsUrl - need signed URL fetch
+            // 2. Local: have file object - use local preview
+            // 3. In-flight: have basic info but no file or gsUrl - show as chips
+            const historicalAttachments = attachments.filter((a) => a.gsUrl);
+            const localAttachments = attachments.filter((a) => a.file && !a.gsUrl);
+            const inFlightAttachments = attachments.filter((a) => !a.file && !a.gsUrl);
+
+            return (
+              <>
+                {/* Historical attachments from transcript - need signed URL fetch */}
+                {historicalAttachments.length > 0 && (
+                  <HistoricalAttachmentList attachments={historicalAttachments} />
+                )}
+                {/* Local attachments - already have file data */}
+                {localAttachments.length > 0 && (
+                  <MessageAttachmentList attachments={localAttachments} />
+                )}
+                {/* In-flight attachments - just sent, show as chips */}
+                {inFlightAttachments.length > 0 && (
+                  <MessageAttachmentList attachments={inFlightAttachments} />
+                )}
+              </>
+            );
+          })()}
         {/* Message bubble */}
         <div
           className={cn(

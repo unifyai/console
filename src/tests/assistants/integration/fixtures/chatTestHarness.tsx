@@ -196,6 +196,20 @@ export interface MockChatActionsOptions {
     contactId: number;
     message: string;
   }) => Promise<{ info?: string; detail?: string }>;
+  /** Mock implementation for uploadAttachment */
+  uploadAttachment?: (
+    assistantId: string,
+    file: File
+  ) => Promise<{
+    id: string;
+    filename: string;
+    gsUrl: string;
+    signedUrl: string;
+    contentType: string;
+    sizeBytes: number;
+  }>;
+  /** Mock implementation for getSignedUrl */
+  getSignedUrl?: (gsUrl: string) => Promise<{ signedUrl: string }>;
 }
 
 /**
@@ -205,7 +219,7 @@ export interface MockChatActionsOptions {
 export function createMockChatActions(
   options: MockChatActionsOptions = {}
 ): AssistantActions['chat'] {
-  const { contactId = 1, getTranscripts, message } = options;
+  const { contactId = 1, getTranscripts, message, uploadAttachment, getSignedUrl } = options;
 
   return {
     getContactId: vi.fn(
@@ -231,6 +245,21 @@ export function createMockChatActions(
         ),
     message: message ? vi.fn(message) : vi.fn(async () => ({ info: 'Message sent' })),
     getAssistantOwnerById: vi.fn(async () => ({ firstName: 'Test', lastName: 'Owner' })),
+    uploadAttachment: uploadAttachment
+      ? vi.fn(uploadAttachment)
+      : vi.fn(async (_assistantId: string, file: File) => ({
+          id: `mock-${Date.now()}`,
+          filename: file.name,
+          gsUrl: `gs://bucket/mock/${file.name}`,
+          signedUrl: `https://storage.googleapis.com/mock-signed/${file.name}`,
+          contentType: file.type || 'application/octet-stream',
+          sizeBytes: file.size,
+        })),
+    getSignedUrl: getSignedUrl
+      ? vi.fn(getSignedUrl)
+      : vi.fn(async (gsUrl: string) => ({
+          signedUrl: gsUrl.replace('gs://', 'https://storage.googleapis.com/'),
+        })),
   } as AssistantActions['chat'];
 }
 
@@ -443,8 +472,8 @@ export const testFiles = {
   zip: () => createTestFile('archive.zip', 'ZIP content', 'application/zip'),
   generic: () => createTestFile('file.xyz', 'Unknown content', 'application/octet-stream'),
   large: () => {
-    // Create 11MB file (over limit)
-    const content = 'x'.repeat(11 * 1024 * 1024);
+    // Create 26MB file (over 25MB limit)
+    const content = 'x'.repeat(26 * 1024 * 1024);
     return createTestFile('large.pdf', content, 'application/pdf');
   },
 };

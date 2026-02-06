@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
+/** Maximum number of attachments allowed per message */
+const MAX_ATTACHMENTS = 10;
+
+/** Attachment format for message payload (camelCase, converted to snake_case for API) */
+interface MessageAttachment {
+  id: string;
+  filename: string;
+  gsUrl: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export async function POST(request: NextRequest) {
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
@@ -26,11 +38,28 @@ export async function POST(request: NextRequest) {
     assistantId?: string | number;
     contactId?: string | number;
     message?: string;
+    body?: string;
+    attachments?: MessageAttachment[];
   }>(requestBody);
-  const { assistantId, contactId, message } = normalizedBody;
 
-  if (!assistantId || !message) {
-    return badRequest(`Missing fields: assistantId=${!!assistantId}, message=${!!message}`);
+  // Support both 'message' and 'body' fields
+  const { assistantId, contactId, attachments } = normalizedBody;
+  const message = normalizedBody.message || normalizedBody.body;
+
+  // Allow sending if there's a message OR attachments
+  const hasContent = message || (attachments && attachments.length > 0);
+
+  if (!assistantId) {
+    return badRequest('Missing assistantId');
+  }
+
+  if (!hasContent) {
+    return badRequest('Missing message or attachments');
+  }
+
+  // Validate attachment count
+  if (attachments && attachments.length > MAX_ATTACHMENTS) {
+    return badRequest(`Maximum ${MAX_ATTACHMENTS} attachments allowed`);
   }
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
@@ -38,8 +67,13 @@ export async function POST(request: NextRequest) {
 
   const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
 
-  // Transform to snake_case for external API
-  const payload = camelToSnakeObject({ assistantId, contactId, body: message });
+  // Build payload with attachments
+  const payload = camelToSnakeObject({
+    assistantId,
+    contactId,
+    body: message || '',
+    attachments: attachments || [],
+  });
 
   try {
     const webhookResponse = await fetch(webhookUrl, {
@@ -66,11 +100,12 @@ export async function POST(request: NextRequest) {
       { info: 'Message sent to assistant for processing.' },
       { status: 202 }
     );
-  } catch (error: any) {
-    console.error('[API /api/assistant/message] Error calling webhook:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API /api/assistant/message] Error calling webhook:', errorMessage);
     // Return 502 Bad Gateway for upstream connection failures (not 500 Internal Server Error)
     return NextResponse.json(
-      { detail: `Webhook connection error: ${error.message}` },
+      { detail: `Webhook connection error: ${errorMessage}` },
       { status: 502 }
     );
   }

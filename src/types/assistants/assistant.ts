@@ -1,7 +1,7 @@
 import { ResponseProps } from '../common';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from '../user';
-import { ChatMessage, UnifyMessage } from './chat';
+import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
 
@@ -422,6 +422,13 @@ export interface AssistantActions {
     getAssistantOwnerById: (
       userId: string
     ) => Promise<{ firstName: string; lastName: string } | null>;
+    /** Upload an attachment and return metadata with gs_url for transcript logging */
+    uploadAttachment?: (
+      assistantId: string,
+      file: File
+    ) => Promise<AttachmentUploadResponse | ResponseProps>;
+    /** Get a signed URL for a gs:// URL (for displaying historical attachments) */
+    getSignedUrl?: (gsUrl: string) => Promise<{ signedUrl: string } | ResponseProps>;
   };
   contact: {
     delete: (
