@@ -7,7 +7,7 @@ import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/aut
  * Generate a signed URL from a gs:// URL for browser access.
  * Used when displaying historical attachments from transcripts.
  *
- * Request: { gs_url: string }
+ * Request: { gs_url: string, download?: boolean }
  * Response: { signed_url: string }
  */
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return badRequest('Invalid JSON body');
   }
 
-  const { gs_url } = requestBody;
+  const { gs_url, download, filename } = requestBody;
 
   if (!gs_url) {
     return badRequest('Missing gs_url');
@@ -44,7 +44,11 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ gcs_uri: gs_url }),
+      body: JSON.stringify({
+        gcs_uri: gs_url,
+        download: download ?? false,
+        filename: filename ?? null,
+      }),
     });
 
     if (!response.ok) {

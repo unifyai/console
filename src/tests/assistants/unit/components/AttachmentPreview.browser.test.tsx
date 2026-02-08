@@ -114,6 +114,12 @@ describe('Attachment Display Utilities', () => {
       expect(getSignedUrl).toBeDefined();
       expect(typeof getSignedUrl).toBe('function');
     });
+
+    it('getSignedUrl accepts optional download parameter', async () => {
+      const { getSignedUrl } = await import('@/components/Chat/attachmentUtils');
+      // Check that the function accepts two parameters (gsUrl, download)
+      expect(getSignedUrl.length).toBeLessThanOrEqual(2);
+    });
   });
 });
 

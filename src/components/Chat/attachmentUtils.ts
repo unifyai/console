@@ -396,14 +396,20 @@ export function updateAttachmentWithMetadata(
  * Used when loading historical attachments from transcripts.
  *
  * @param gsUrl - GCS URL (gs://bucket/path)
+ * @param download - If true, URL will force download with Content-Disposition: attachment
+ * @param filename - Override filename in Content-Disposition header (only used when download=true)
  * @returns Signed HTTPS URL for browser access
  */
-export async function getSignedUrl(gsUrl: string): Promise<string> {
+export async function getSignedUrl(
+  gsUrl: string,
+  download: boolean = false,
+  filename?: string
+): Promise<string> {
   const response = await fetch('/api/storage/signed-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
-    body: JSON.stringify({ gs_url: gsUrl }),
+    body: JSON.stringify({ gs_url: gsUrl, download, filename }),
   });
 
   if (!response.ok) {

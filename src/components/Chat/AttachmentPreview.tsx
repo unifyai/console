@@ -68,6 +68,9 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
   const [urlState, setUrlState] = useState<SignedUrlState>({ status: 'loading' });
   const details = getAttachmentDetails(attachment);
 
+  // Determine if this is an image (which should open in new tab, not download)
+  const isImageType = details.contentType?.startsWith('image/') || details.type === 'image';
+
   useEffect(() => {
     let cancelled = false;
 
@@ -78,7 +81,8 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
       }
 
       try {
-        const signedUrl = await getSignedUrl(details.gsUrl);
+        // All attachments trigger download with proper filename
+        const signedUrl = await getSignedUrl(details.gsUrl, true, details.filename);
         if (!cancelled) {
           setUrlState({ status: 'available', url: signedUrl });
         }
@@ -99,7 +103,6 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
 
   const Icon = getAttachmentIcon(details.type);
   const iconColor = getAttachmentColor(details.type);
-  const isImage = details.contentType?.startsWith('image/') || details.type === 'image';
 
   // Loading state - show as thumbnail-sized placeholder
   if (urlState.status === 'loading') {
@@ -138,13 +141,12 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
   // Available - render based on type
   const { url } = urlState;
 
-  // Image attachment - show constant-size thumbnail
-  if (isImage) {
+  // Image attachment - show constant-size thumbnail, click to download
+  if (isImageType) {
     return (
       <a
         href={url}
-        target="_blank"
-        rel="noopener noreferrer"
+        download={details.filename}
         className={cn(
           'group relative block h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg',
           className
