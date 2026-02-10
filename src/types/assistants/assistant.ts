@@ -504,4 +504,6 @@ export interface AssistantActions {
   };
   /** Organization ID if in org context (null for personal workspace) */
   orgId?: number | null;
+  /** Actions panel - live action events */
+  actions?: import('@/types/assistants/action').AssistantActionActions;
 }

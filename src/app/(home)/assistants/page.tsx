@@ -61,6 +61,7 @@ import {
   getAssistantSpendingLimit,
   setAssistantSpendingLimit,
 } from '@/lib/assistants/spending';
+import { getManagerMethodEvents, getToolLoopEvents } from '@/lib/assistants/action';
 import { getUserSpend, getUserSpendingLimit } from '@/lib/user/spending';
 import { getOrgSpend, getOrgSpendingLimit } from '@/lib/organizations/spending';
 import { cookies } from 'next/headers';
@@ -167,6 +168,11 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       : undefined,
     // Pass org ID for spending gate context
     orgId,
+    // Actions panel - live action events
+    actions: {
+      getManagerMethodEvents: await getManagerMethodEvents(apiKey),
+      getToolLoopEvents: await getToolLoopEvents(apiKey),
+    },
   };
 
   const taskActions: TaskActions = {

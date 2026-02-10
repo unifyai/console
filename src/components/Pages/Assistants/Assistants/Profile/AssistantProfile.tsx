@@ -11,6 +11,8 @@ import {
   Briefcase,
   Phone,
   Video,
+  Activity,
+  History,
 } from 'lucide-react';
 import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
@@ -42,10 +44,10 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { AssistantResourcesManager } from './AssistantResourcesManager';
+import { ActionsPanel } from './Actions/ActionsPanel';
+import { ActionsHistoryDialog } from './Actions/ActionsHistoryDialog';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
-import { Alert, AlertDescription } from '@/components/UI/alert';
-import { AlertCircle } from 'lucide-react';
 
 interface AssistantProfilePanelProps {
   assistant: Assistant;
@@ -138,6 +140,16 @@ export function AssistantProfilePanel({
 }: AssistantProfilePanelProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [openSections, setOpenSections] = React.useState<string[]>([
+    'profile',
+    'resources',
+    'chat',
+  ]);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = React.useState(false);
+  const [hasActiveAction, setHasActiveAction] = React.useState(false);
+
+  // Track if actions section is expanded for conditional polling
+  const isActionsExpanded = openSections.includes('actions');
 
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -181,7 +193,8 @@ export function AssistantProfilePanel({
         <div className="flex h-full w-full flex-col bg-background">
           <Accordion
             type="multiple"
-            defaultValue={['profile', 'resources', 'chat']}
+            value={openSections}
+            onValueChange={setOpenSections}
             className="flex min-h-0 w-full flex-1 flex-col"
           >
             {/* Profile Section */}
@@ -252,6 +265,52 @@ export function AssistantProfilePanel({
                 />
               </AccordionContent>
             </AccordionItem>
+
+            {/* Actions Section */}
+            {assistantActions.actions && (
+              <AccordionItem value="actions">
+                <AccordionTriggerWithButtons
+                  className="text-title"
+                  buttonSlot={
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setIsHistoryDialogOpen(true)}
+                            data-testid="actions-history-button"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>View action history</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  }
+                >
+                  <div className="flex items-center gap-2 text-[color:var(--muted-foreground)] transition-colors duration-200 hover:text-[color:var(--foreground)]">
+                    <Activity className="h-4 w-4" />
+                    <span className="text-body">Actions</span>
+                  </div>
+                </AccordionTriggerWithButtons>
+                <AccordionContent
+                  outerClassName="data-[state=open]:flex flex-col flex-1 min-h-0 p-0"
+                  className="min-h-0 flex-1 p-0"
+                >
+                  <ActionsPanel
+                    assistantId={assistant.agentId}
+                    actions={assistantActions.actions}
+                    isExpanded={isActionsExpanded}
+                    onActiveChange={setHasActiveAction}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
             {/* Chat Section */}
             <AccordionItem value="chat" className="flex min-h-0 flex-1 flex-col">
@@ -397,6 +456,16 @@ export function AssistantProfilePanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Actions History Dialog */}
+      {assistantActions.actions && (
+        <ActionsHistoryDialog
+          isOpen={isHistoryDialogOpen}
+          onClose={() => setIsHistoryDialogOpen(false)}
+          assistantId={assistant.agentId}
+          actions={assistantActions.actions}
+        />
+      )}
     </>
   );
 }
