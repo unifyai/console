@@ -21,7 +21,7 @@ import { snakeToCamelObject, snakeToCamel } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
-const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const REQUEST_TIMEOUT_MS = 60000; // 60 seconds - increased for staging cold starts and large queries
 
 // =============================================================================
 // Types
@@ -252,11 +252,13 @@ function convertMetricsToGroupedDataLabels(
   metric: string
 ): GroupedDataLabel[] {
   const result: GroupedDataLabel[] = [];
-  const fieldMetrics = metricsResponse[yAxisField] || {};
+  // Fall back to metricsResponse if yAxisField key doesn't exist (same as non-grouped version)
+  const fieldMetrics = metricsResponse[yAxisField] || metricsResponse;
 
   for (const [groupKey, categories] of Object.entries(fieldMetrics)) {
     for (const [category, values] of Object.entries(categories as Record<string, MetricsValue>)) {
-      const value = values.sharedValue ?? values[metric] ?? 0;
+      // Handle both camelCase and snake_case response formats
+      const value = values.sharedValue ?? values[metric] ?? values.shared_value ?? 0;
       result.push([groupKey, [category, typeof value === 'number' ? value : 0]]);
     }
   }
@@ -301,20 +303,31 @@ async function fetchBarChartMetrics(
     );
 
     if (!response.ok) {
-      console.warn('[plotData] Bar chart metrics fetch failed, falling back to raw logs');
+      console.warn('[plotData] Bar chart metrics fetch failed:', response.status);
       return null;
     }
 
     const metricsData = await response.json();
+    console.log(
+      '[plotData] Bar chart metrics response keys:',
+      Object.keys(metricsData).slice(0, 5),
+      '... (total:',
+      Object.keys(metricsData).length,
+      ')'
+    );
 
     if (groupBy) {
+      const data = convertMetricsToGroupedDataLabels(metricsData, yAxis, metric);
+      console.log('[plotData] Grouped bar data converted:', data.length, 'items');
       return {
-        data: convertMetricsToGroupedDataLabels(metricsData, yAxis, metric),
+        data,
         isGrouped: true,
       };
     } else {
+      const data = convertMetricsToDataLabels(metricsData, yAxis, metric);
+      console.log('[plotData] Bar data converted:', data.length, 'items');
       return {
-        data: convertMetricsToDataLabels(metricsData, yAxis, metric),
+        data,
         isGrouped: false,
       };
     }
@@ -496,12 +509,10 @@ export async function fetchPlotData(
     console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
 
     // ========================================================================
-    // Step 3: Call /v0/logs with user's API key
+    // Step 3: Extract project config and check chart type
     // ========================================================================
-    console.log('[plotData] Step 3: Fetching logs...');
     const projectConfig = plotConfig.projectConfig;
     console.log('[plotData] projectConfig:', JSON.stringify(projectConfig));
-    const logsParams = new URLSearchParams();
 
     const projectName = plotConfig.metadata?.projectName;
     if (!projectName) {
@@ -511,61 +522,140 @@ export async function fetchPlotData(
         error: { error: 'Plot configuration missing project name', status: 400 },
       };
     }
-    logsParams.append('project_name', projectName);
 
-    if (projectConfig.context) {
-      logsParams.append('context', projectConfig.context as string);
-    }
-    if (projectConfig.columnContext) {
-      logsParams.append('column_context', projectConfig.columnContext as string);
-    }
-    if (projectConfig.filterExpr) {
-      logsParams.append('filter_expr', projectConfig.filterExpr as string);
-    }
-    if (projectConfig.limit) {
-      logsParams.append('limit', String(projectConfig.limit));
-    }
-    if (projectConfig.offset) {
-      logsParams.append('offset', String(projectConfig.offset));
-    }
-    if (projectConfig.fromFields) {
-      logsParams.append('from_fields', projectConfig.fromFields as string);
-    }
-    if (projectConfig.excludeFields) {
-      logsParams.append('exclude_fields', projectConfig.excludeFields as string);
-    }
-    if (projectConfig.sorting) {
-      logsParams.append('sorting', projectConfig.sorting as string);
-    }
-    if (projectConfig.randomize) {
-      logsParams.append('randomize', String(projectConfig.randomize));
+    // Check if this is a bar chart - we can use pre-aggregated data and skip slow logs fetch
+    const isBarChart = plotConfig.config.type === 'Bar Chart' || plotConfig.config.type === 'bar';
+    let preAggregatedBarData: DataLabel[] | GroupedDataLabel[] | undefined;
+    let isGroupedBarChart: boolean | undefined;
+    let rawLogs: LogEntry[] = [];
+
+    // ========================================================================
+    // Step 3a: For Bar Charts, try pre-aggregated metrics first (faster)
+    // ========================================================================
+    if (isBarChart && plotConfig.config.xAxis && plotConfig.config.yAxis) {
+      console.log(
+        '[plotData] Step 3a: Bar chart detected, fetching pre-aggregated metrics first...'
+      );
+      const barChartResult = await fetchBarChartMetrics(
+        userApiKey,
+        projectName,
+        (projectConfig.context as string) || null,
+        plotConfig.config.xAxis,
+        plotConfig.config.yAxis,
+        plotConfig.config.metric || 'mean',
+        plotConfig.config.groupBy || null,
+        (projectConfig.filterExpr as string) || null,
+        timeoutMs
+      );
+
+      if (barChartResult) {
+        preAggregatedBarData = barChartResult.data;
+        isGroupedBarChart = barChartResult.isGrouped;
+        console.log(
+          '[plotData] Step 3a SUCCESS - Got pre-aggregated bar data:',
+          preAggregatedBarData.length,
+          'items'
+        );
+      } else {
+        console.log('[plotData] Step 3a WARN - Pre-aggregated metrics failed, will try raw logs');
+      }
     }
 
-    const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
-    const logsRes = await fetchWithTimeout(
-      logsUrl,
-      {
-        headers: {
-          Authorization: `Bearer ${userApiKey}`,
-          Accept: 'application/json',
+    // ========================================================================
+    // Step 3b: Fetch raw logs (skip for bar charts if we have pre-aggregated data)
+    // ========================================================================
+    if (!preAggregatedBarData || !isBarChart) {
+      console.log('[plotData] Step 3b: Fetching raw logs...');
+      const logsParams = new URLSearchParams();
+      logsParams.append('project_name', projectName);
+
+      if (projectConfig.context) {
+        logsParams.append('context', projectConfig.context as string);
+      }
+      if (projectConfig.columnContext) {
+        logsParams.append('column_context', projectConfig.columnContext as string);
+      }
+      if (projectConfig.filterExpr) {
+        logsParams.append('filter_expr', projectConfig.filterExpr as string);
+      }
+      if (projectConfig.limit) {
+        logsParams.append('limit', String(projectConfig.limit));
+      }
+      if (projectConfig.offset) {
+        logsParams.append('offset', String(projectConfig.offset));
+      }
+      if (projectConfig.fromFields) {
+        logsParams.append('from_fields', projectConfig.fromFields as string);
+      }
+      if (projectConfig.excludeFields) {
+        logsParams.append('exclude_fields', projectConfig.excludeFields as string);
+      }
+      if (projectConfig.sorting) {
+        logsParams.append('sorting', projectConfig.sorting as string);
+      }
+      if (projectConfig.randomize) {
+        logsParams.append('randomize', String(projectConfig.randomize));
+      }
+
+      const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
+      console.log(
+        '[plotData] Logs URL:',
+        logsUrl.substring(0, 200) + (logsUrl.length > 200 ? '...' : '')
+      );
+      const logsStartTime = Date.now();
+      const logsRes = await fetchWithTimeout(
+        logsUrl,
+        {
+          headers: {
+            Authorization: `Bearer ${userApiKey}`,
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
         },
-        cache: 'no-store',
-      },
-      timeoutMs
-    );
+        timeoutMs
+      );
 
-    if (!logsRes.ok) {
-      const errorData = await logsRes.json().catch(() => ({}));
-      console.error('[plotData] Failed to fetch logs:', errorData);
-      return {
-        success: false,
-        error: { error: errorData.detail || 'Failed to fetch log data', status: logsRes.status },
-      };
+      if (!logsRes.ok) {
+        const responseText = await logsRes.text();
+        let errorData: Record<string, unknown> = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          // Response is not JSON
+        }
+        console.error(
+          '[plotData] Failed to fetch logs - Status:',
+          logsRes.status,
+          'Response:',
+          responseText.substring(0, 500)
+        );
+        // For bar charts with pre-aggregated data, we can continue without raw logs
+        if (preAggregatedBarData) {
+          console.log('[plotData] Continuing with pre-aggregated data only (raw logs failed)');
+        } else {
+          const errorMessage =
+            typeof errorData.detail === 'string'
+              ? errorData.detail
+              : `Failed to fetch log data (${logsRes.status})`;
+          return {
+            success: false,
+            error: { error: errorMessage, status: logsRes.status },
+          };
+        }
+      } else {
+        const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
+        rawLogs = logsData.logs || [];
+        console.log(
+          '[plotData] Step 3b SUCCESS - Got',
+          rawLogs.length,
+          'logs in',
+          Date.now() - logsStartTime,
+          'ms'
+        );
+      }
+    } else {
+      console.log('[plotData] Step 3b SKIPPED - Using pre-aggregated bar chart data');
     }
-
-    const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
-    const rawLogs = logsData.logs || [];
-    console.log('[plotData] Step 3 SUCCESS - Got', rawLogs.length, 'logs');
 
     // ========================================================================
     // Step 4: Fetch fields metadata
@@ -610,31 +700,7 @@ export async function fetchPlotData(
     const transformedFields = transformFieldsForFrontend(rawFields);
     const normalizedConfig = normalizeConfigForFrontend(plotConfig.config);
 
-    // ========================================================================
-    // Step 6: For Bar Charts, fetch pre-aggregated data
-    // ========================================================================
-    let preAggregatedBarData: DataLabel[] | GroupedDataLabel[] | undefined;
-    let isGroupedBarChart: boolean | undefined;
-
-    const isBarChart = plotConfig.config.type === 'Bar Chart' || plotConfig.config.type === 'bar';
-    if (isBarChart && plotConfig.config.xAxis && plotConfig.config.yAxis) {
-      const barChartResult = await fetchBarChartMetrics(
-        userApiKey,
-        projectName,
-        (projectConfig.context as string) || null,
-        plotConfig.config.xAxis,
-        plotConfig.config.yAxis,
-        plotConfig.config.metric || 'mean',
-        plotConfig.config.groupBy || null,
-        (projectConfig.filterExpr as string) || null,
-        timeoutMs
-      );
-
-      if (barChartResult) {
-        preAggregatedBarData = barChartResult.data;
-        isGroupedBarChart = barChartResult.isGrouped;
-      }
-    }
+    // Note: Bar chart pre-aggregation is now handled in Step 3a for better performance
 
     console.log('[plotData] === fetchPlotData SUCCESS ===');
     console.log(
