@@ -1,0 +1,592 @@
+'use client';
+
+/**
+ * Demo Assistants Main Component
+ *
+ * Split-panel layout with:
+ * - Left panel: List of demo labels (selectable)
+ * - Right panel: Detail view with assistant info, spending, and contacts table
+ * - Header: Instructions button and Create button
+ */
+
+import * as React from 'react';
+import { useState } from 'react';
+import { Toaster } from 'sonner';
+import { DemoActions, DemoAssistant, DemoAssistantCreatePayload, DemoContact } from '@/types/demo';
+import { useDemoAssistants } from '@/hooks/Assistants/useDemoAssistants';
+import { Button } from '@/components/UI/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/UI/dialog';
+import { Input } from '@/components/UI/input';
+import { Label } from '@/components/UI/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/UI/table';
+import { Plus, User, DollarSign, Hash, Loader2, Phone, Trash2, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
+import DemoInstructionsDialog from './InstructionsDialog';
+import { cn } from '@/lib/utils';
+
+interface DemoAssistantsMainProps {
+  demoActions: DemoActions;
+  userEmail: string;
+}
+
+export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssistantsMainProps) {
+  const {
+    demoAssistants,
+    sourceAssistants,
+    isLoading,
+    isCreating,
+    selectedDemo,
+    contacts,
+    spending,
+    meta,
+    isLoadingDetails,
+    isDeleting,
+    isRefreshingContacts,
+    createDemoAssistant,
+    selectDemo,
+    clearSelection,
+    deleteDemoAssistant,
+    refreshContacts,
+  } = useDemoAssistants(demoActions);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Form state
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [label, setLabel] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [demoerPhone, setDemoerPhone] = useState('');
+  const [spendingCap, setSpendingCap] = useState<number>(10);
+
+  const handleCreate = async () => {
+    if (!selectedSourceId || !label || !firstName || !surname || !demoerPhone) {
+      return;
+    }
+
+    const payload: DemoAssistantCreatePayload = {
+      sourceAssistantId: parseInt(selectedSourceId, 10),
+      label,
+      firstName,
+      surname,
+      demoerPhone,
+      monthlySpendingCap: spendingCap,
+    };
+
+    const result = await createDemoAssistant(payload);
+
+    if (result) {
+      setDialogOpen(false);
+      resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedSourceId('');
+    setLabel('');
+    setFirstName('');
+    setSurname('');
+    setDemoerPhone('');
+    setSpendingCap(10);
+  };
+
+  // Check if the name matches an existing assistant
+  const nameConflict = React.useMemo(() => {
+    if (!firstName.trim() && !surname.trim()) {
+      return null;
+    }
+
+    const normalizedFirst = firstName.trim().toLowerCase();
+    const normalizedSurname = surname.trim().toLowerCase();
+
+    // Check against source assistants
+    const matchingSource = sourceAssistants.find(
+      (a) =>
+        a.firstName?.trim().toLowerCase() === normalizedFirst &&
+        a.surname?.trim().toLowerCase() === normalizedSurname
+    );
+
+    if (matchingSource) {
+      return `An assistant named "${matchingSource.firstName} ${matchingSource.surname}" already exists`;
+    }
+
+    // Check against demo assistants
+    const matchingDemo = demoAssistants.find(
+      (a) =>
+        a.firstName?.trim().toLowerCase() === normalizedFirst &&
+        a.surname?.trim().toLowerCase() === normalizedSurname
+    );
+
+    if (matchingDemo) {
+      return `A demo assistant named "${matchingDemo.firstName} ${matchingDemo.surname}" already exists`;
+    }
+
+    return null;
+  }, [firstName, surname, sourceAssistants, demoAssistants]);
+
+  // Validate phone number format (E.164: + followed by 7-15 digits)
+  const phoneError = React.useMemo(() => {
+    if (!demoerPhone.trim()) {
+      return null; // Don't show error for empty field
+    }
+
+    const phone = demoerPhone.trim();
+
+    // E.164 format: starts with +, followed by 7-15 digits
+    const e164Pattern = /^\+[1-9]\d{6,14}$/;
+
+    if (!phone.startsWith('+')) {
+      return 'Phone number must start with + (e.g., +14155559999)';
+    }
+
+    if (!e164Pattern.test(phone)) {
+      return 'Invalid phone format. Use E.164 format (e.g., +14155559999)';
+    }
+
+    return null;
+  }, [demoerPhone]);
+
+  const isFormValid =
+    selectedSourceId &&
+    label &&
+    firstName &&
+    surname &&
+    demoerPhone &&
+    !nameConflict &&
+    !phoneError;
+
+  // Get the display label for a demo in the sidebar list
+  const getDemoLabel = (demo: DemoAssistant) => {
+    // Show the assistant name for better identification
+    return `${demo.firstName} ${demo.surname}`;
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-display tracking-tight">Demo Assistants</h1>
+            <p className="text-body-muted mt-1">
+              Create and manage demo assistants for product demonstrations.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DemoInstructionsDialog />
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Create Demo Assistant</DialogTitle>
+                  <DialogDescription>
+                    Clone a source assistant to create a demo for a prospect.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="source">Source Assistant</Label>
+                    <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an assistant to clone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sourceAssistants.map((assistant) => (
+                          <SelectItem key={assistant.agentId} value={assistant.agentId}>
+                            {assistant.firstName} {assistant.surname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="label">Demo Label</Label>
+                    <Input
+                      id="label"
+                      placeholder="e.g., Richard Branson demo"
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="Demo assistant first name"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className={nameConflict ? 'border-destructive' : ''}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="surname">Surname</Label>
+                        <Input
+                          id="surname"
+                          placeholder="Demo assistant surname"
+                          value={surname}
+                          onChange={(e) => setSurname(e.target.value)}
+                          className={nameConflict ? 'border-destructive' : ''}
+                        />
+                      </div>
+                    </div>
+                    {nameConflict && <p className="text-error text-sm">{nameConflict}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="demoerPhone">Your Phone Number</Label>
+                    <Input
+                      id="demoerPhone"
+                      placeholder="+14155559999"
+                      value={demoerPhone}
+                      onChange={(e) => setDemoerPhone(e.target.value)}
+                      className={phoneError ? 'border-destructive' : ''}
+                    />
+                    {phoneError ? (
+                      <p className="text-error text-sm">{phoneError}</p>
+                    ) : (
+                      <p className="text-body-muted text-sm">
+                        E.164 format required (e.g., +14155559999).
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="spendingCap">Monthly Spending Cap ($)</Label>
+                    <Input
+                      id="spendingCap"
+                      type="number"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={spendingCap}
+                      onChange={(e) =>
+                        setSpendingCap(Math.max(1, Math.min(100, parseFloat(e.target.value) || 10)))
+                      }
+                    />
+                    <p className="text-body-muted text-sm">
+                      Maximum monthly spend (default: $10, max: $100).
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreate} disabled={isCreating || !isFormValid}>
+                    {isCreating ? 'Creating...' : 'Create Demo'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - Split Panel */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Demo Labels */}
+        <div className="w-64 flex-shrink-0 overflow-y-auto border-r">
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : demoAssistants.length === 0 ? (
+            <div className="p-4 text-center">
+              <p className="text-body-muted text-sm">No demo assistants yet</p>
+            </div>
+          ) : (
+            <div className="p-2">
+              {demoAssistants.map((demo) => (
+                <button
+                  key={demo.agentId}
+                  onClick={() => selectDemo(demo)}
+                  className={cn(
+                    'w-full rounded-md px-3 py-2 text-left text-sm transition-colors',
+                    'hover:bg-accent hover:text-accent-foreground',
+                    selectedDemo?.agentId === demo.agentId
+                      ? 'bg-accent font-medium text-accent-foreground'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {getDemoLabel(demo)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel - Detail View */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {!selectedDemo ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <User className="text-muted-foreground/50 mb-4 h-12 w-12" />
+              <h3 className="text-h2">Select a demo</h3>
+              <p className="text-body-muted mt-1 max-w-sm">
+                Click on a demo label on the left to view its details.
+              </p>
+            </div>
+          ) : (
+            <div className="h-full space-y-6">
+              {/* Assistant Info Header */}
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-h2">Assistant Info</h2>
+                  {meta?.label && (
+                    <span className="text-caption rounded bg-muted px-2 py-1 text-muted-foreground">
+                      {meta.label}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">
+                        {selectedDemo.firstName} {selectedDemo.surname}
+                      </span>
+                    </div>
+                    <div className="text-body-muted flex items-center gap-2">
+                      <Hash className="h-4 w-4" />
+                      <span className="text-code mt-0.5">ID {selectedDemo.agentId}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      {isLoadingDetails ? (
+                        <span className="text-body-muted mt-0.5">Loading...</span>
+                      ) : spending ? (
+                        <span className="text-body-muted mt-0.5">
+                          ${spending.cumulativeSpend.toFixed(2)} / $
+                          {spending.limit?.toFixed(2) ?? '∞'} this month
+                        </span>
+                      ) : (
+                        <span className="text-body-muted mt-0.5">
+                          $0.00 /{' '}
+                          {selectedDemo.monthlySpendingCap != null
+                            ? `$${selectedDemo.monthlySpendingCap.toFixed(2)}`
+                            : '∞'}{' '}
+                          this month
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Contact Info */}
+              <section>
+                <h2 className="text-h2 mb-4">Contact Info</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex items-center gap-3 rounded-md border p-3">
+                    <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
+                      <Phone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-caption text-muted-foreground">Assistant Phone</p>
+                      <p className="text-code font-medium">{selectedDemo.phone || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-md border p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+                      <Phone className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-caption text-muted-foreground">Demoer Phone</p>
+                      <p className="text-code font-medium">{selectedDemo.userPhone || '—'}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Current Contacts */}
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-h2">Current Contacts</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshContacts}
+                    disabled={isRefreshingContacts || isLoadingDetails}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={cn('h-4 w-4', isRefreshingContacts && 'animate-spin')} />
+                    Refresh
+                  </Button>
+                </div>
+                {isLoadingDetails ? (
+                  <div className="flex h-32 items-center justify-center rounded-md border">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <div className="flex h-32 items-center justify-center rounded-md border border-dashed">
+                    <p className="text-body-muted">No contacts yet</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16">ID</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead className="w-20">Type</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contacts.map((contact) => (
+                          <TableRow key={contact.logId}>
+                            <TableCell className="text-code">{contact.contactId}</TableCell>
+                            <TableCell>
+                              {contact.firstName || contact.surname ? (
+                                `${contact.firstName || ''} ${contact.surname || ''}`.trim()
+                              ) : (
+                                <span className="italic text-muted-foreground">Unknown</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {contact.phoneNumber ? (
+                                <span className="text-code">{contact.phoneNumber}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {contact.emailAddress ? (
+                                <span className="text-code">{contact.emailAddress}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <ContactTypeLabel contactId={contact.contactId} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </section>
+
+              {/* Delete Section */}
+              <section className="border-t pt-4">
+                <div className="flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-2"
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Delete Assistant
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Demo Assistant</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete{' '}
+                          <span className="font-medium">
+                            {selectedDemo.firstName} {selectedDemo.surname}
+                          </span>
+                          ? This action cannot be undone and will remove all associated
+                          infrastructure (phone number, etc.).
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteDemoAssistant(selectedDemo.agentId)}
+                          className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </section>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Toaster richColors position="bottom-right" closeButton />
+    </div>
+  );
+}
+
+/**
+ * Label showing the contact type based on contactId
+ */
+function ContactTypeLabel({ contactId }: { contactId: number }) {
+  if (contactId === 0) {
+    return (
+      <span className="bg-primary/10 text-caption inline-flex items-center rounded-full px-2 py-0.5 text-primary">
+        Assistant
+      </span>
+    );
+  }
+  if (contactId === 1) {
+    return (
+      <span className="text-caption inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-600">
+        Boss
+      </span>
+    );
+  }
+  if (contactId === 2) {
+    return (
+      <span className="text-caption inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-600">
+        Demoer
+      </span>
+    );
+  }
+  return (
+    <span className="text-caption inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+      Contact
+    </span>
+  );
+}
