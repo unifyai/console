@@ -26,6 +26,7 @@ import {
 } from '@/components/UI/dialog';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
+import { Checkbox } from '@/components/UI/checkbox';
 import {
   Select,
   SelectContent,
@@ -41,7 +42,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/UI/table';
-import { Plus, User, DollarSign, Hash, Loader2, Phone, Trash2, RefreshCw } from 'lucide-react';
+import {
+  Plus,
+  User,
+  DollarSign,
+  Hash,
+  Loader2,
+  Phone,
+  Trash2,
+  RefreshCw,
+  Mail,
+  UserCircle,
+} from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +67,7 @@ import {
 } from '@/components/UI/alert-dialog';
 import DemoInstructionsDialog from './InstructionsDialog';
 import { cn } from '@/lib/utils';
+import { getCountryFlag } from '@/utils/assistants/country-utils';
 
 interface DemoAssistantsMainProps {
   demoActions: DemoActions;
@@ -65,6 +78,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
   const {
     demoAssistants,
     sourceAssistants,
+    availablePhoneCountries,
     isLoading,
     isCreating,
     selectedDemo,
@@ -79,6 +93,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     clearSelection,
     deleteDemoAssistant,
     refreshContacts,
+    getDemoLabel,
   } = useDemoAssistants(demoActions);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -90,6 +105,14 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
   const [surname, setSurname] = useState('');
   const [demoerPhone, setDemoerPhone] = useState('');
   const [spendingCap, setSpendingCap] = useState<number>(10);
+  const [phoneCountry, setPhoneCountry] = useState<string>('US');
+  const [provisionEmail, setProvisionEmail] = useState(false);
+
+  // Optional prospect fields
+  const [prospectFirstName, setProspectFirstName] = useState('');
+  const [prospectSurname, setProspectSurname] = useState('');
+  const [prospectEmail, setProspectEmail] = useState('');
+  const [prospectPhone, setProspectPhone] = useState('');
 
   const handleCreate = async () => {
     if (!selectedSourceId || !label || !firstName || !surname || !demoerPhone) {
@@ -103,6 +126,13 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
       surname,
       demoerPhone,
       monthlySpendingCap: spendingCap,
+      phoneCountry,
+      provisionEmail,
+      // Only include prospect fields if they have values
+      ...(prospectFirstName && { prospectFirstName }),
+      ...(prospectSurname && { prospectSurname }),
+      ...(prospectEmail && { prospectEmail }),
+      ...(prospectPhone && { prospectPhone }),
     };
 
     const result = await createDemoAssistant(payload);
@@ -120,6 +150,12 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     setSurname('');
     setDemoerPhone('');
     setSpendingCap(10);
+    setPhoneCountry('US');
+    setProvisionEmail(false);
+    setProspectFirstName('');
+    setProspectSurname('');
+    setProspectEmail('');
+    setProspectPhone('');
   };
 
   // Check if the name matches an existing assistant
@@ -178,6 +214,26 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     return null;
   }, [demoerPhone]);
 
+  // Validate prospect phone if provided
+  const prospectPhoneError = React.useMemo(() => {
+    if (!prospectPhone.trim()) {
+      return null; // Optional field - no error when empty
+    }
+
+    const phone = prospectPhone.trim();
+    const e164Pattern = /^\+[1-9]\d{6,14}$/;
+
+    if (!phone.startsWith('+')) {
+      return 'Phone number must start with + (e.g., +14155559999)';
+    }
+
+    if (!e164Pattern.test(phone)) {
+      return 'Invalid phone format. Use E.164 format';
+    }
+
+    return null;
+  }, [prospectPhone]);
+
   const isFormValid =
     selectedSourceId &&
     label &&
@@ -185,13 +241,8 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     surname &&
     demoerPhone &&
     !nameConflict &&
-    !phoneError;
-
-  // Get the display label for a demo in the sidebar list
-  const getDemoLabel = (demo: DemoAssistant) => {
-    // Show the assistant name for better identification
-    return `${demo.firstName} ${demo.surname}`;
-  };
+    !phoneError &&
+    !prospectPhoneError;
 
   return (
     <div className="flex h-full flex-col">
@@ -213,99 +264,211 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                   Create
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
+              <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-[640px]">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle>Create Demo Assistant</DialogTitle>
                   <DialogDescription>
                     Clone a source assistant to create a demo for a prospect.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="source">Source Assistant</Label>
-                    <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an assistant to clone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sourceAssistants.map((assistant) => (
-                          <SelectItem key={assistant.agentId} value={assistant.agentId}>
-                            {assistant.firstName} {assistant.surname}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="label">Demo Label</Label>
-                    <Input
-                      id="label"
-                      placeholder="e.g., Richard Branson demo"
-                      value={label}
-                      onChange={(e) => setLabel(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input
-                          id="firstName"
-                          placeholder="Demo assistant first name"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className={nameConflict ? 'border-destructive' : ''}
-                        />
+
+                {/* Scrollable body */}
+                <div className="-mx-6 flex-1 overflow-y-auto px-6">
+                  <div className="grid gap-6 py-4">
+                    {/* Section: Demo Info */}
+                    <section>
+                      <h3 className="text-title mb-4 border-b pb-2">Demo Info</h3>
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="source">Source Assistant</Label>
+                          <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an assistant to clone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sourceAssistants.map((assistant) => (
+                                <SelectItem key={assistant.agentId} value={assistant.agentId}>
+                                  {assistant.firstName} {assistant.surname}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="label">Demo Label</Label>
+                          <Input
+                            id="label"
+                            placeholder="e.g., Richard Branson demo"
+                            value={label}
+                            onChange={(e) => setLabel(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="firstName">Assistant First Name</Label>
+                            <Input
+                              id="firstName"
+                              placeholder="Demo assistant first name"
+                              value={firstName}
+                              onChange={(e) => setFirstName(e.target.value)}
+                              className={nameConflict ? 'border-destructive' : ''}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="surname">Assistant Surname</Label>
+                            <Input
+                              id="surname"
+                              placeholder="Demo assistant surname"
+                              value={surname}
+                              onChange={(e) => setSurname(e.target.value)}
+                              className={nameConflict ? 'border-destructive' : ''}
+                            />
+                          </div>
+                        </div>
+                        {nameConflict && <p className="text-error text-sm">{nameConflict}</p>}
+                        <div className="grid gap-2">
+                          <Label htmlFor="spendingCap">Monthly Spending Cap ($)</Label>
+                          <Input
+                            id="spendingCap"
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={spendingCap}
+                            onChange={(e) =>
+                              setSpendingCap(
+                                Math.max(1, Math.min(100, parseFloat(e.target.value) || 10))
+                              )
+                            }
+                          />
+                          <p className="text-body-muted text-sm">
+                            Maximum monthly spend (default: $10, max: $100).
+                          </p>
+                        </div>
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="surname">Surname</Label>
-                        <Input
-                          id="surname"
-                          placeholder="Demo assistant surname"
-                          value={surname}
-                          onChange={(e) => setSurname(e.target.value)}
-                          className={nameConflict ? 'border-destructive' : ''}
-                        />
+                    </section>
+
+                    {/* Section: Contact Details */}
+                    <section>
+                      <h3 className="text-title mb-4 border-b pb-2">Contact Details</h3>
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="demoerPhone">Your Phone Number</Label>
+                          <Input
+                            id="demoerPhone"
+                            placeholder="+14155559999"
+                            value={demoerPhone}
+                            onChange={(e) => setDemoerPhone(e.target.value)}
+                            className={phoneError ? 'border-destructive' : ''}
+                          />
+                          {phoneError ? (
+                            <p className="text-error text-sm">{phoneError}</p>
+                          ) : (
+                            <p className="text-body-muted text-sm">
+                              E.164 format required (e.g., +14155559999).
+                            </p>
+                          )}
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="phoneCountry">Phone Number Country</Label>
+                          <Select value={phoneCountry} onValueChange={setPhoneCountry}>
+                            <SelectTrigger id="phoneCountry">
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availablePhoneCountries.length === 0 ? (
+                                <SelectItem value="US">
+                                  <span className="mr-2">{getCountryFlag('US')}</span> United States
+                                </SelectItem>
+                              ) : (
+                                availablePhoneCountries.map((country) => (
+                                  <SelectItem key={country.code} value={country.code}>
+                                    <span className="mr-2">{getCountryFlag(country.code)}</span>{' '}
+                                    {country.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-body-muted text-sm">
+                            Country where the assistant&apos;s phone number will be provisioned.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="provisionEmail"
+                            checked={provisionEmail}
+                            onCheckedChange={(checked) => setProvisionEmail(checked === true)}
+                          />
+                          <Label
+                            htmlFor="provisionEmail"
+                            className="cursor-pointer text-sm font-normal"
+                          >
+                            Provision email address for this demo assistant
+                          </Label>
+                        </div>
                       </div>
-                    </div>
-                    {nameConflict && <p className="text-error text-sm">{nameConflict}</p>}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="demoerPhone">Your Phone Number</Label>
-                    <Input
-                      id="demoerPhone"
-                      placeholder="+14155559999"
-                      value={demoerPhone}
-                      onChange={(e) => setDemoerPhone(e.target.value)}
-                      className={phoneError ? 'border-destructive' : ''}
-                    />
-                    {phoneError ? (
-                      <p className="text-error text-sm">{phoneError}</p>
-                    ) : (
-                      <p className="text-body-muted text-sm">
-                        E.164 format required (e.g., +14155559999).
+                    </section>
+
+                    {/* Section: Demo Prospect */}
+                    <section>
+                      <h3 className="text-title mb-1 border-b pb-2">
+                        Demo Prospect{' '}
+                        <span className="text-body-muted font-normal">(optional)</span>
+                      </h3>
+                      <p className="text-body-muted mb-4 text-sm">
+                        Pre-fill the boss contact with prospect information.
                       </p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="spendingCap">Monthly Spending Cap ($)</Label>
-                    <Input
-                      id="spendingCap"
-                      type="number"
-                      min={1}
-                      max={100}
-                      step={1}
-                      value={spendingCap}
-                      onChange={(e) =>
-                        setSpendingCap(Math.max(1, Math.min(100, parseFloat(e.target.value) || 10)))
-                      }
-                    />
-                    <p className="text-body-muted text-sm">
-                      Maximum monthly spend (default: $10, max: $100).
-                    </p>
+                      <div className="grid gap-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="prospectFirstName">First Name</Label>
+                            <Input
+                              id="prospectFirstName"
+                              placeholder="Jane"
+                              value={prospectFirstName}
+                              onChange={(e) => setProspectFirstName(e.target.value)}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="prospectSurname">Surname</Label>
+                            <Input
+                              id="prospectSurname"
+                              placeholder="Doe"
+                              value={prospectSurname}
+                              onChange={(e) => setProspectSurname(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="prospectEmail">Email</Label>
+                          <Input
+                            id="prospectEmail"
+                            type="email"
+                            placeholder="jane.doe@example.com"
+                            value={prospectEmail}
+                            onChange={(e) => setProspectEmail(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="prospectPhone">Phone</Label>
+                          <Input
+                            id="prospectPhone"
+                            placeholder="+14155559999"
+                            value={prospectPhone}
+                            onChange={(e) => setProspectPhone(e.target.value)}
+                            className={prospectPhoneError ? 'border-destructive' : ''}
+                          />
+                          {prospectPhoneError && (
+                            <p className="text-error text-sm">{prospectPhoneError}</p>
+                          )}
+                        </div>
+                      </div>
+                    </section>
                   </div>
                 </div>
-                <DialogFooter>
+
+                <DialogFooter className="flex-shrink-0 border-t pt-4">
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>
@@ -368,11 +531,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
               <section>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-h2">Assistant Info</h2>
-                  {meta?.label && (
-                    <span className="text-caption rounded bg-muted px-2 py-1 text-muted-foreground">
-                      {meta.label}
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="space-y-1">
@@ -412,7 +570,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
               {/* Contact Info */}
               <section>
                 <h2 className="text-h2 mb-4">Contact Info</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="flex items-center gap-3 rounded-md border p-3">
                     <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
                       <Phone className="h-5 w-5 text-primary" />
@@ -422,6 +580,17 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                       <p className="text-code font-medium">{selectedDemo.phone || '—'}</p>
                     </div>
                   </div>
+                  {selectedDemo.email && (
+                    <div className="flex items-center gap-3 rounded-md border p-3">
+                      <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
+                        <Mail className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-caption text-muted-foreground">Assistant Email</p>
+                        <p className="text-code font-medium">{selectedDemo.email}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 rounded-md border p-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
                       <Phone className="h-5 w-5 text-blue-600" />
@@ -433,6 +602,56 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                   </div>
                 </div>
               </section>
+
+              {/* Prospect Details (if provided) */}
+              {meta &&
+                (meta.prospectFirstName ||
+                  meta.prospectSurname ||
+                  meta.prospectEmail ||
+                  meta.prospectPhone) && (
+                  <section>
+                    <h2 className="text-h2 mb-4">Prospect Details</h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {(meta.prospectFirstName || meta.prospectSurname) && (
+                        <div className="flex items-center gap-3 rounded-md border p-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                            <UserCircle className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-muted-foreground">Name</p>
+                            <p className="font-medium">
+                              {[meta.prospectFirstName, meta.prospectSurname]
+                                .filter(Boolean)
+                                .join(' ')}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {meta.prospectEmail && (
+                        <div className="flex items-center gap-3 rounded-md border p-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                            <Mail className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-muted-foreground">Email</p>
+                            <p className="text-code font-medium">{meta.prospectEmail}</p>
+                          </div>
+                        </div>
+                      )}
+                      {meta.prospectPhone && (
+                        <div className="flex items-center gap-3 rounded-md border p-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                            <Phone className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-muted-foreground">Phone</p>
+                            <p className="text-code font-medium">{meta.prospectPhone}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
 
               {/* Current Contacts */}
               <section>
@@ -454,7 +673,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : contacts.length === 0 ? (
-                  <div className="flex h-32 items-center justify-center rounded-md border border-dashed">
+                  <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-md border border-dashed">
                     <p className="text-body-muted">No contacts yet</p>
                   </div>
                 ) : (

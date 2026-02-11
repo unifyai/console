@@ -3,7 +3,7 @@
  */
 
 import { ResponseProps } from '@/types/common';
-import { Assistant } from '@/types/assistants/assistant';
+import { Assistant, AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { AssistantSpend } from '@/types/assistants/spending';
 
 /**
@@ -17,6 +17,18 @@ export interface DemoAssistantCreatePayload {
   demoerPhone: string;
   /** Monthly spending cap in USD (default: $10, max: $100) */
   monthlySpendingCap?: number;
+  /** Country code for phone number provisioning (e.g., "US", "GB"). If not provided, uses source assistant's country. */
+  phoneCountry?: string;
+  /** Whether to provision an email address for the demo assistant */
+  provisionEmail?: boolean;
+  /** Prospect's first name (optional, for pre-populating boss contact) */
+  prospectFirstName?: string;
+  /** Prospect's surname (optional, for pre-populating boss contact) */
+  prospectSurname?: string;
+  /** Prospect's email address (optional, for pre-populating boss contact) */
+  prospectEmail?: string;
+  /** Prospect's phone number in E.164 format (optional, for pre-populating boss contact) */
+  prospectPhone?: string;
 }
 
 /**
@@ -59,6 +71,8 @@ export interface DemoAssistant {
   firstName: string;
   surname: string;
   phone: string | null;
+  /** Assistant's email address (if provisioned) */
+  email: string | null;
   /** Demoer's phone number (stored as user_phone in the assistant) */
   userPhone: string | null;
   /** Monthly spending cap in USD (null = no limit) */
@@ -80,6 +94,16 @@ export interface DemoAssistantMeta {
   demoerUserId: string;
   label: string;
   createdAt: string;
+  /** Demo assistant ID (foreign key to assistant table) */
+  demoAssistantId?: number;
+  /** Prospect's first name (for pre-populating boss contact) */
+  prospectFirstName?: string;
+  /** Prospect's surname (for pre-populating boss contact) */
+  prospectSurname?: string;
+  /** Prospect's email address (for pre-populating boss contact) */
+  prospectEmail?: string;
+  /** Prospect's phone number (for pre-populating boss contact) */
+  prospectPhone?: string;
 }
 
 /**
@@ -89,7 +113,11 @@ export interface DemoActions {
   list: () => Promise<DemoAssistant[] | ResponseProps>;
   create: (payload: DemoAssistantCreatePayload) => Promise<DemoAssistant | ResponseProps>;
   getMeta: (demoId: number) => Promise<DemoAssistantMeta | ResponseProps>;
+  /** List all demo metadata for the current user (for labels) */
+  listMeta: () => Promise<DemoAssistantMeta[] | ResponseProps>;
   listSourceAssistants: () => Promise<Assistant[] | (ResponseProps & { status?: number })>;
+  /** List available phone countries for provisioning */
+  listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
   /** Get contacts for a demo assistant from logs */
   getContacts: (assistantId: string) => Promise<DemoContact[] | ResponseProps>;
   /** Get spending data for a demo assistant */

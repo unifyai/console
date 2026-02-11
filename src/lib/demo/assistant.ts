@@ -191,6 +191,61 @@ export const getDemoMeta = async (apiKey: string) => {
 };
 
 /**
+ * Factory for listDemoMeta server action.
+ *
+ * Lists all demo metadata for the current user.
+ * Used to get labels for the demo list sidebar.
+ *
+ * @param apiKey - API key for authentication
+ * @returns Async function to list demo metadata
+ */
+export const listDemoMeta = async (apiKey: string) => {
+  return async (): Promise<DemoAssistantMeta[] | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/demo/assistant/meta`, {
+        method: 'GET',
+        headers: { apiKey: apiKey },
+      });
+
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.error(
+            `[demo/assistant.ts listDemoMeta] Received non-JSON response with status ${response.status}`
+          );
+          return { detail: 'Received an invalid response from the server.' };
+        }
+      } catch (parseError) {
+        console.error(
+          `[demo/assistant.ts listDemoMeta] Failed to parse JSON response ${parseError}`
+        );
+        return { detail: 'Received an invalid response from the server.' };
+      }
+
+      if (!response.ok) {
+        const errorMessage = data.detail || `Failed to list demo metadata: ${response.statusText}`;
+        return { detail: errorMessage };
+      }
+
+      if ('info' in data) {
+        return data.info as DemoAssistantMeta[];
+      }
+      return data as DemoAssistantMeta[];
+    } catch (error) {
+      console.error(`[demo/assistant.ts listDemoMeta] Error:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
+};
+
+/**
  * Map a log entry to a DemoContact object.
  */
 const mapLogToContact = (log: LogProps): DemoContact | null => {

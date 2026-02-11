@@ -16,11 +16,13 @@ import {
   listDemoAssistants,
   createDemoAssistant,
   getDemoMeta,
+  listDemoMeta,
   getDemoContacts,
   getDemoSpending,
   deleteDemoAssistant,
 } from '@/lib/demo/assistant';
 import { listAssistants } from '@/lib/assistants/assistant';
+import { listAvailablePhoneCountries } from '@/lib/assistants/contact';
 import { DemoActions } from '@/types/demo';
 
 const DemoPage = async () => {
@@ -31,6 +33,7 @@ const DemoPage = async () => {
   }
 
   const apiKey = user.apiKey;
+  const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
 
   // Check if user is in the Unify/Orchestra Admin Organization
   const isUnifyMember =
@@ -58,7 +61,9 @@ const DemoPage = async () => {
     list: await listDemoAssistants(apiKey),
     create: await createDemoAssistant(apiKey),
     getMeta: await getDemoMeta(apiKey),
+    listMeta: await listDemoMeta(apiKey),
     listSourceAssistants: await listAssistants(apiKey, false),
+    listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
     getContacts: await getDemoContacts(apiKey),
     getSpending: await getDemoSpending(apiKey),
     delete: await deleteDemoAssistant(apiKey),

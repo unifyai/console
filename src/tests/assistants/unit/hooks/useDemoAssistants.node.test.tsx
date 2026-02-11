@@ -42,7 +42,9 @@ vi.mock('sonner', () => ({
 const mockListDemos = vi.fn();
 const mockCreateDemo = vi.fn();
 const mockGetMeta = vi.fn();
+const mockListMeta = vi.fn();
 const mockListSourceAssistants = vi.fn();
+const mockListAvailablePhoneCountries = vi.fn();
 const mockGetContacts = vi.fn();
 const mockGetSpending = vi.fn();
 const mockDeleteDemo = vi.fn();
@@ -52,7 +54,9 @@ const mockActions: DemoActions = {
   list: mockListDemos,
   create: mockCreateDemo,
   getMeta: mockGetMeta,
+  listMeta: mockListMeta,
   listSourceAssistants: mockListSourceAssistants,
+  listAvailablePhoneCountries: mockListAvailablePhoneCountries,
   getContacts: mockGetContacts,
   getSpending: mockGetSpending,
   delete: mockDeleteDemo,
@@ -73,6 +77,7 @@ const createMockDemoAssistant = (id: string, demoId: number): DemoAssistant => (
   createdAt: new Date().toISOString(),
   userPhone: `+1555000${id}`,
   monthlySpendingCap: 100,
+  email: `demo${id}@example.com`,
 });
 
 const createMockSourceAssistant = (id: string): Assistant =>
@@ -123,6 +128,10 @@ describe('useDemoAssistants', () => {
     // Default mock implementations
     mockListDemos.mockResolvedValue([]);
     mockListSourceAssistants.mockResolvedValue([]);
+    mockListMeta.mockResolvedValue([]);
+    mockListAvailablePhoneCountries.mockResolvedValue([
+      { code: 'US', name: 'United States', flag: '🇺🇸' },
+    ]);
     mockCreateDemo.mockResolvedValue({ detail: 'Not implemented' });
     mockGetMeta.mockResolvedValue({ detail: 'Not implemented' });
     mockGetContacts.mockResolvedValue([]);

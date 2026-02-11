@@ -17,7 +17,7 @@ import {
   DemoAssistantMeta,
   DemoContact,
 } from '@/types/demo';
-import { Assistant } from '@/types/assistants/assistant';
+import { Assistant, AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { AssistantSpend } from '@/types/assistants/spending';
 
 // =============================================================================
@@ -30,6 +30,12 @@ export interface UseDemoAssistantsResult {
 
   /** List of source assistants available for cloning */
   sourceAssistants: Assistant[];
+
+  /** List of demo metadata (for labels in sidebar) */
+  metaList: DemoAssistantMeta[];
+
+  /** Available phone countries for provisioning */
+  availablePhoneCountries: AvailablePhoneCountry[];
 
   /** Whether initial data is loading */
   isLoading: boolean;
@@ -78,6 +84,9 @@ export interface UseDemoAssistantsResult {
 
   /** Whether contacts are being refreshed */
   isRefreshingContacts: boolean;
+
+  /** Get label for a demo assistant from metaList */
+  getDemoLabel: (demo: DemoAssistant) => string;
 }
 
 // =============================================================================
@@ -100,6 +109,10 @@ function isResponseError(response: unknown): response is { detail: string } {
 export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult {
   const [demoAssistants, setDemoAssistants] = React.useState<DemoAssistant[]>([]);
   const [sourceAssistants, setSourceAssistants] = React.useState<Assistant[]>([]);
+  const [metaList, setMetaList] = React.useState<DemoAssistantMeta[]>([]);
+  const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<
+    AvailablePhoneCountry[]
+  >([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isCreating, setIsCreating] = React.useState(false);
@@ -143,6 +156,16 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
           setDemoAssistants(demosResult);
         }
 
+        // Load demo metadata list (for labels)
+        const metaListResult = await actions.listMeta();
+        if (!isMountedRef.current) return;
+
+        if (isResponseError(metaListResult)) {
+          console.warn('Failed to load demo metadata:', metaListResult.detail);
+        } else if (Array.isArray(metaListResult)) {
+          setMetaList(metaListResult);
+        }
+
         // Load source assistants
         const sourcesResult = await actions.listSourceAssistants();
         if (!isMountedRef.current) return;
@@ -151,6 +174,20 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
           console.warn('Failed to load source assistants:', sourcesResult.detail);
         } else if (Array.isArray(sourcesResult)) {
           setSourceAssistants(sourcesResult);
+        }
+
+        // Load available phone countries
+        try {
+          const countriesResult = await actions.listAvailablePhoneCountries();
+          if (!isMountedRef.current) return;
+
+          if (Array.isArray(countriesResult)) {
+            setAvailablePhoneCountries(countriesResult);
+          }
+        } catch (err) {
+          console.warn('Failed to load phone countries:', err);
+          // Default to US if countries can't be loaded
+          setAvailablePhoneCountries([{ code: 'US', name: 'United States', flag: '🇺🇸' }]);
         }
 
         if (toastId) {
@@ -371,6 +408,26 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
     }
   }, [actions, selectedDemo]);
 
+  /**
+   * Get the display label for a demo assistant.
+   * Uses the label from metaList if available, falls back to assistant name.
+   */
+  const getDemoLabel = React.useCallback(
+    (demo: DemoAssistant): string => {
+      // Find the corresponding metadata for this demo
+      // Match meta.id (the demo_id in DemoAssistantMeta) with demo.demoId (from assistant.demo_id)
+      const demoMeta = metaList.find((m) => m.id === demo.demoId);
+
+      if (demoMeta?.label) {
+        return demoMeta.label;
+      }
+
+      // Fallback to assistant name
+      return `${demo.firstName} ${demo.surname}`;
+    },
+    [metaList]
+  );
+
   // Effect: Initial load
   React.useEffect(() => {
     isMountedRef.current = true;
@@ -384,6 +441,8 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
   return {
     demoAssistants,
     sourceAssistants,
+    metaList,
+    availablePhoneCountries,
     isLoading,
     error,
     isCreating,
@@ -400,5 +459,6 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
     selectDemo,
     clearSelection,
     deleteDemoAssistant,
+    getDemoLabel,
   };
 }
