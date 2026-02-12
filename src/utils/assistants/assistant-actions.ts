@@ -403,3 +403,249 @@ export function formatDuration(ms: number): string {
 export function buildTimestampFilter(startTime: string): string {
   return `ts >= '${startTime}'`;
 }
+
+// =============================================================================
+// Tree Filtering (for Live Actions Viewer)
+// =============================================================================
+
+/**
+ * Filters an action tree based on a search term.
+ *
+ * When a node matches the search:
+ * - The node is included
+ * - All ancestor nodes are included (for context)
+ * - All descendant nodes are included (to show what happened within)
+ *
+ * Search is case-insensitive and matches partial labels.
+ *
+ * @param roots - The root nodes of the action tree
+ * @param searchTerm - The search term to filter by
+ * @returns Filtered tree with matching nodes and their context
+ */
+export function filterActionTree(roots: ActionNode[], searchTerm: string): ActionNode[] {
+  const trimmed = searchTerm.trim().toLowerCase();
+
+  // Empty search returns original tree
+  if (!trimmed) {
+    return roots;
+  }
+
+  // First pass: mark all nodes that match or have matching descendants
+  const matchingNodeIds = new Set<string>();
+  const hasMatchingDescendant = new Map<string, boolean>();
+
+  function checkMatches(node: ActionNode): boolean {
+    // Check if this node matches
+    const nodeMatches = node.label.toLowerCase().includes(trimmed);
+
+    // Check if any children match
+    let childMatches = false;
+    for (const child of node.children) {
+      if (checkMatches(child)) {
+        childMatches = true;
+      }
+    }
+
+    // If this node matches, mark it
+    if (nodeMatches) {
+      matchingNodeIds.add(node.id);
+    }
+
+    // Track if this node has matching descendants
+    hasMatchingDescendant.set(node.id, childMatches);
+
+    return nodeMatches || childMatches;
+  }
+
+  // Run first pass on all roots
+  roots.forEach(checkMatches);
+
+  // Second pass: build filtered tree
+  function buildFilteredTree(nodes: ActionNode[]): ActionNode[] {
+    const result: ActionNode[] = [];
+
+    for (const node of nodes) {
+      const nodeMatches = matchingNodeIds.has(node.id);
+      const descendantMatches = hasMatchingDescendant.get(node.id) || false;
+
+      if (nodeMatches || descendantMatches) {
+        // This node should be included
+        // If this node matches, include ALL children (unfiltered)
+        // If only descendants match, filter children recursively
+        const filteredChildren = nodeMatches
+          ? node.children // Include all children when node itself matches
+          : buildFilteredTree(node.children);
+
+        result.push({
+          ...node,
+          children: filteredChildren,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  return buildFilteredTree(roots);
+}
+
+// =============================================================================
+// Node Counting (for Live Actions Viewer)
+// =============================================================================
+
+/**
+ * Result of counting action nodes by status.
+ */
+export interface ActionNodeCounts {
+  running: number;
+  completed: number;
+  error: number;
+}
+
+/**
+ * Counts action nodes by status across the entire tree.
+ *
+ * Recursively traverses all nodes at all levels and counts them by status.
+ *
+ * @param roots - The root nodes of the action tree
+ * @returns Counts of running, completed, and error nodes
+ */
+export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
+  const counts: ActionNodeCounts = {
+    running: 0,
+    completed: 0,
+    error: 0,
+  };
+
+  function countNode(node: ActionNode): void {
+    // Count this node
+    switch (node.status) {
+      case 'running':
+        counts.running++;
+        break;
+      case 'completed':
+        counts.completed++;
+        break;
+      case 'error':
+        counts.error++;
+        break;
+    }
+
+    // Count children recursively
+    for (const child of node.children) {
+      countNode(child);
+    }
+  }
+
+  // Count all roots and their descendants
+  for (const root of roots) {
+    countNode(root);
+  }
+
+  return counts;
+}
+
+// =============================================================================
+// Relative Time Formatting (for Live Actions Viewer)
+// =============================================================================
+
+/**
+ * Formats a timestamp as a relative time string.
+ *
+ * - 0-5 seconds: "just now"
+ * - 6-59 seconds: "Xs ago"
+ * - 1-59 minutes: "Xm ago"
+ * - 1+ hours: "Xh ago"
+ *
+ * @param timestamp - The timestamp to format (Date object or ISO string)
+ * @returns Formatted relative time string
+ */
+export function formatRelativeTime(timestamp: Date | string): string {
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+
+  // 0-5 seconds: "just now"
+  if (diffSeconds <= 5) {
+    return 'just now';
+  }
+
+  // 6-59 seconds: "Xs ago"
+  if (diffSeconds < 60) {
+    return `${diffSeconds}s ago`;
+  }
+
+  // 1-59 minutes: "Xm ago"
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
+
+  // 1+ hours: "Xh ago"
+  const diffHours = Math.floor(diffMinutes / 60);
+  return `${diffHours}h ago`;
+}
+
+// =============================================================================
+// Expand/Collapse State Helpers (for Live Actions Viewer)
+// =============================================================================
+
+/**
+ * Checks if all nodes in the tree are expanded.
+ *
+ * @param roots - The root nodes of the action tree
+ * @param expandedNodeIds - Set of node IDs that are currently expanded
+ * @returns True if all nodes are expanded
+ */
+export function areAllNodesExpanded(roots: ActionNode[], expandedNodeIds: Set<string>): boolean {
+  function checkNode(node: ActionNode): boolean {
+    // A node with children needs to be expanded
+    if (node.children.length > 0 && !expandedNodeIds.has(node.id)) {
+      return false;
+    }
+
+    // Check all children recursively
+    return node.children.every(checkNode);
+  }
+
+  return roots.every(checkNode);
+}
+
+/**
+ * Gets all node IDs in a tree.
+ *
+ * @param roots - The root nodes of the action tree
+ * @returns Set of all node IDs
+ */
+export function getAllNodeIds(roots: ActionNode[]): Set<string> {
+  const ids = new Set<string>();
+
+  function collectIds(node: ActionNode): void {
+    ids.add(node.id);
+    node.children.forEach(collectIds);
+  }
+
+  roots.forEach(collectIds);
+  return ids;
+}
+
+/**
+ * Gets all nodes with children (expandable nodes).
+ *
+ * @param roots - The root nodes of the action tree
+ * @returns Set of node IDs that have children
+ */
+export function getExpandableNodeIds(roots: ActionNode[]): Set<string> {
+  const ids = new Set<string>();
+
+  function collectExpandable(node: ActionNode): void {
+    if (node.children.length > 0) {
+      ids.add(node.id);
+    }
+    node.children.forEach(collectExpandable);
+  }
+
+  roots.forEach(collectExpandable);
+  return ids;
+}

@@ -22,6 +22,10 @@ export interface ActionTreeProps {
   emptyStateMessage?: string;
   /** Default expanded state for nodes (defaults to true for running nodes) */
   defaultExpanded?: boolean;
+  /** Controlled: set of expanded node IDs */
+  expandedNodeIds?: Set<string>;
+  /** Controlled: callback when expansion state changes */
+  onExpandedChange?: (nodeId: string, expanded: boolean) => void;
   /** Assistant ID for fetching ToolLoop events */
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
@@ -35,6 +39,8 @@ export function ActionTree({
   showEmptyState = false,
   emptyStateMessage = 'No actions yet',
   defaultExpanded,
+  expandedNodeIds,
+  onExpandedChange,
   assistantId,
   getToolLoopEvents,
   className,
@@ -67,6 +73,8 @@ export function ActionTree({
           node={node}
           depth={0}
           defaultExpanded={defaultExpanded}
+          expandedNodeIds={expandedNodeIds}
+          onExpandedChange={onExpandedChange}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
         />

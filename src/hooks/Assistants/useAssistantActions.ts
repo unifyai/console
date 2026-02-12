@@ -68,7 +68,7 @@ export interface UseAssistantActionsResult {
 // Constants
 // =============================================================================
 
-const DEFAULT_POLLING_INTERVAL = 2000;
+const DEFAULT_POLLING_INTERVAL = 10000;
 const DEFAULT_INITIAL_LOOKBACK_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_EVENT_LIMIT = 100;
 const LOAD_MORE_LOOKBACK_MS = 60 * 60 * 1000; // Load 1 hour more each time

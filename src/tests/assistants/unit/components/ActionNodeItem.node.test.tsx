@@ -15,9 +15,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { StatusIndicator } from '@/components/Pages/Assistants/Assistants/Profile/Actions/StatusIndicator';
-import { ActionNodeItem } from '@/components/Pages/Assistants/Assistants/Profile/Actions/ActionNodeItem';
-import { ActionTree } from '@/components/Pages/Assistants/Assistants/Profile/Actions/ActionTree';
+import { StatusIndicator } from '@/components/Pages/Assistants/LiveActions/StatusIndicator';
+import { ActionNodeItem } from '@/components/Pages/Assistants/LiveActions/ActionNodeItem';
+import { ActionTree } from '@/components/Pages/Assistants/LiveActions/ActionTree';
 import type { ActionNode } from '@/types/assistants/action';
 
 // =============================================================================

@@ -23,6 +23,10 @@ export interface ActionNodeItemProps {
   depth?: number;
   /** Default expanded state (defaults to true for running nodes) */
   defaultExpanded?: boolean;
+  /** Controlled: set of expanded node IDs */
+  expandedNodeIds?: Set<string>;
+  /** Controlled: callback when expansion state changes */
+  onExpandedChange?: (nodeId: string, expanded: boolean) => void;
   /** Assistant ID for fetching ToolLoop events */
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
@@ -130,13 +134,21 @@ export function ActionNodeItem({
   node,
   depth = 0,
   defaultExpanded,
+  expandedNodeIds,
+  onExpandedChange,
   assistantId,
   getToolLoopEvents,
   className,
 }: ActionNodeItemProps) {
+  // Determine if we're in controlled mode
+  const isControlled = expandedNodeIds !== undefined && onExpandedChange !== undefined;
+
   // Running nodes are expanded by default
   const initialExpanded = defaultExpanded ?? node.status === 'running';
-  const [isExpanded, setIsExpanded] = React.useState(initialExpanded);
+  const [localIsExpanded, setLocalIsExpanded] = React.useState(initialExpanded);
+
+  // Use controlled state if provided, otherwise use local state
+  const isExpanded = isControlled ? expandedNodeIds.has(node.id) : localIsExpanded;
 
   // Latest LLM thinking content (for running nodes)
   const [latestThinking, setLatestThinking] = React.useState<string | null>(null);
@@ -175,7 +187,11 @@ export function ActionNodeItem({
   // Handle expand/collapse toggle
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+    if (isControlled) {
+      onExpandedChange(node.id, !isExpanded);
+    } else {
+      setLocalIsExpanded(!isExpanded);
+    }
   };
 
   // Fetch latest LLM thinking while node is running
@@ -254,7 +270,11 @@ export function ActionNodeItem({
   // Update expansion when status changes (auto-expand running nodes)
   React.useEffect(() => {
     if (node.status === 'running' && !isExpanded) {
-      setIsExpanded(true);
+      if (isControlled) {
+        onExpandedChange(node.id, true);
+      } else {
+        setLocalIsExpanded(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only trigger on status change
   }, [node.status]);
@@ -339,6 +359,8 @@ export function ActionNodeItem({
               node={child}
               depth={depth + 1}
               defaultExpanded={defaultExpanded}
+              expandedNodeIds={expandedNodeIds}
+              onExpandedChange={onExpandedChange}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
             />

@@ -2,16 +2,15 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
-import { TaskList } from '@/components/Pages/Assistants/Tasks/List/TaskList';
+import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import { cn } from '@/lib/utils';
 import {
   Assistant,
   AssistantActions,
-  AssistantPreset,
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
-import { TaskActions, Status as TaskStatusEnum } from '@/types/assistants/task';
+import { TaskActions } from '@/types/assistants/task';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
@@ -21,8 +20,6 @@ import { AssistantEdit } from './Assistants/Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
-import { useTaskFilters } from '@/hooks/Assistants/useTaskFilters';
-import { useTasks } from '@/hooks/Assistants/useTasks';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
@@ -30,7 +27,6 @@ import { useAssistantHiringApproval } from '@/hooks/Assistants/useAssistantHirin
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { FormProvider } from 'react-hook-form';
-import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import {
@@ -48,7 +44,6 @@ import { AssistantCommunicationMinimized } from './Communication/AssistantCommun
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
-import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 interface MainProps {
@@ -120,43 +115,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
-
-  // --- Task Filters & Data ---
-  const {
-    searchTermInput,
-    setSearchTermInput,
-    statusFilter,
-    setStatusFilter,
-    priorityFilter,
-    setPriorityFilter,
-    deadlineFilter,
-    setDeadlineFilter,
-    assistantFilter,
-    setAssistantFilter,
-    filterExpression,
-  } = useTaskFilters();
-
-  const [initialTaskFetchTriggered, setInitialTaskFetchTriggered] = React.useState(true);
-
-  const {
-    tasks,
-    fetchMoreTasks,
-    hasMoreTasks,
-    isLoadingMore: isLoadingMoreTasks,
-    isLoadingInitial: isLoadingInitialTasks,
-    initialLoadError: taskLoadError,
-    updateLocalTask,
-  } = useTasks(
-    taskActions,
-    assistants,
-    assistantFilter,
-    filterExpression,
-    initialTaskFetchTriggered
-  );
-
-  const availableTaskStatuses = React.useMemo(() => {
-    return ['all', ...Object.values(TaskStatusEnum)];
-  }, []);
 
   // --- Assistant Hiring Approval ---
   const {
@@ -645,7 +603,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     () => assistants.find((a) => a.agentId === profileAssistantId) || null,
     [assistants, profileAssistantId]
   );
-  const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
   // Determine active panel for width calculations
@@ -742,30 +699,11 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             ]}
         </AnimatePresence>
 
-        {/* Task List */}
+        {/* Live Actions Viewer */}
         <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
-          <TaskList
-            tasks={tasks}
-            fetchMoreTasks={fetchMoreTasks}
-            hasMoreTasks={hasMoreTasks}
-            isLoadingMore={isLoadingMoreTasks}
-            isLoadingInitial={isCombinedLoadingInitial}
-            initialLoadError={taskLoadError}
-            searchTerm={searchTermInput}
-            setSearchTerm={setSearchTermInput}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-            deadlineFilter={deadlineFilter}
-            setDeadlineFilter={setDeadlineFilter}
-            updateTask={taskActions.update}
-            onTaskUpdate={updateLocalTask}
-            availableStatuses={availableTaskStatuses}
-            assistants={assistants}
-            assistantFilter={assistantFilter}
-            setAssistantFilter={setAssistantFilter}
-            canWriteAssistant={canWrite}
+          <LiveActionsViewer
+            assistant={profileAssistant}
+            actions={assistantActions.actions || null}
           />
         </div>
       </div>

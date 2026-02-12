@@ -692,4 +692,235 @@ describe('useAssistantActions', () => {
       }
     );
   });
+
+  describe('loadMore pagination', () => {
+    it(
+      'loadMore fetches older events and merges into tree',
+      {
+        meta: {
+          alias: 'Actions-LoadMoreFetches',
+          scenario: 'User scrolls up to load more',
+          behavior: 'Older events are fetched and merged into the tree',
+        },
+      },
+      async () => {
+        // Arrange - initial load returns one event
+        const initialLog = createMockLog({
+          id: 2,
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'incoming',
+            callingId: 'call-2',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r002)',
+            status: 'ok',
+          },
+        });
+
+        const olderLog = createMockLog({
+          id: 1,
+          ts: '2024-01-15T09:30:00.000Z', // 1 hour earlier
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'incoming',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(r001)',
+            status: 'ok',
+          },
+        });
+
+        const mockGetEvents = vi
+          .fn()
+          // First call - initial load with 100 items (hasMore = true)
+          .mockResolvedValueOnce({
+            logs: Array(100).fill(initialLog),
+            count: 100,
+          })
+          // Second call - loadMore returns older event
+          .mockResolvedValueOnce({
+            logs: [olderLog],
+            count: 1,
+          });
+
+        const mockActions = createMockActions(mockGetEvents);
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantActions(TEST_ASSISTANT_ID, mockActions, { enabled: true })
+        );
+
+        // Wait for initial load
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
+        expect(result.current.hasMore).toBe(true);
+
+        // Call loadMore
+        await act(async () => {
+          await result.current.loadMore();
+        });
+
+        // Assert - should have fetched older events
+        expect(mockGetEvents).toHaveBeenCalledTimes(2);
+      }
+    );
+
+    it(
+      'loadMore sets hasMore to false when no older events found',
+      {
+        meta: {
+          alias: 'Actions-LoadMoreNoMore',
+          scenario: 'loadMore returns no older events',
+          behavior: 'hasMore is set to false',
+        },
+      },
+      async () => {
+        // Arrange
+        const initialLogs = Array(100).fill(
+          createMockLog({
+            id: 1,
+            ts: '2024-01-15T10:30:00.000Z',
+            entries: {
+              manager: 'CodeActActor',
+              method: 'act',
+              phase: 'incoming',
+              callingId: 'call-1',
+              hierarchy: ['CodeActActor.act'],
+              hierarchyLabel: 'CodeActActor.act(r001)',
+              status: 'ok',
+            },
+          })
+        );
+
+        const mockGetEvents = vi
+          .fn()
+          .mockResolvedValueOnce({ logs: initialLogs, count: 100 })
+          // loadMore returns empty
+          .mockResolvedValueOnce({ logs: [], count: 0 });
+
+        const mockActions = createMockActions(mockGetEvents);
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantActions(TEST_ASSISTANT_ID, mockActions, { enabled: true })
+        );
+
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
+        expect(result.current.hasMore).toBe(true);
+
+        // Call loadMore
+        await act(async () => {
+          await result.current.loadMore();
+        });
+
+        // Assert
+        expect(result.current.hasMore).toBe(false);
+      }
+    );
+
+    it(
+      'loadMore is no-op when hasMore is false',
+      {
+        meta: {
+          alias: 'Actions-LoadMoreNoop',
+          scenario: 'hasMore is false',
+          behavior: 'loadMore does nothing',
+        },
+      },
+      async () => {
+        // Arrange - initial load returns fewer than limit
+        const mockGetEvents = vi.fn().mockResolvedValue({
+          logs: [createMockLog({ id: 1 })],
+          count: 1,
+        });
+        const mockActions = createMockActions(mockGetEvents);
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantActions(TEST_ASSISTANT_ID, mockActions, { enabled: true })
+        );
+
+        await waitFor(() => {
+          expect(result.current.isLoading).toBe(false);
+        });
+        expect(result.current.hasMore).toBe(false);
+
+        const callCount = mockGetEvents.mock.calls.length;
+
+        // Call loadMore
+        await act(async () => {
+          await result.current.loadMore();
+        });
+
+        // Assert - no additional calls
+        expect(mockGetEvents.mock.calls.length).toBe(callCount);
+      }
+    );
+  });
+
+  describe('lastUpdated timestamp', () => {
+    it(
+      'updates lastUpdated after successful fetch',
+      {
+        meta: {
+          alias: 'Actions-LastUpdated',
+          scenario: 'Successful data fetch',
+          behavior: 'lastUpdated is set to current time',
+        },
+      },
+      async () => {
+        // Arrange
+        const mockGetEvents = vi.fn().mockResolvedValue({
+          logs: [createMockLog({ id: 1 })],
+          count: 1,
+        });
+        const mockActions = createMockActions(mockGetEvents);
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantActions(TEST_ASSISTANT_ID, mockActions, { enabled: true })
+        );
+
+        // Assert
+        await waitFor(() => {
+          expect(result.current.lastUpdated).not.toBeNull();
+        });
+        expect(result.current.lastUpdated).toBeInstanceOf(Date);
+      }
+    );
+
+    it(
+      'lastUpdated is null before first successful fetch',
+      {
+        meta: {
+          alias: 'Actions-LastUpdatedNull',
+          scenario: 'Before initial fetch completes',
+          behavior: 'lastUpdated is null',
+        },
+      },
+      async () => {
+        // Arrange - slow API
+        const mockGetEvents = vi
+          .fn()
+          .mockImplementation(
+            () => new Promise((resolve) => setTimeout(() => resolve({ logs: [], count: 0 }), 5000))
+          );
+        const mockActions = createMockActions(mockGetEvents);
+
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantActions(TEST_ASSISTANT_ID, mockActions, { enabled: true })
+        );
+
+        // Assert - should be null initially
+        expect(result.current.lastUpdated).toBeNull();
+      }
+    );
+  });
 });
