@@ -88,9 +88,12 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     }
   }
 
+  // Include demo assistants so demoers can chat with them
+  const includeDemo = true;
+
   const assistantActions: AssistantActions = {
     assistant: {
-      list: await listAssistants(apiKey, isOrgContext),
+      list: await listAssistants(apiKey, isOrgContext, includeDemo),
       check: await checkHiringFunds(apiKey),
       create: await createAssistant(apiKey),
       update: await updateAssistant(apiKey),

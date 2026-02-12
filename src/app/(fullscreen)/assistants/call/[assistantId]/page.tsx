@@ -40,7 +40,9 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     },
   };
 
-  const listAssistantsAction = await listAssistants(apiKey, isOrgContext);
+  // Include demo assistants so demoers can access them via direct URL
+  const includeDemo = true;
+  const listAssistantsAction = await listAssistants(apiKey, isOrgContext, includeDemo);
   const assistantsResult = await listAssistantsAction();
 
   if ('detail' in assistantsResult) {

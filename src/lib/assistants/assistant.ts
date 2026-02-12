@@ -12,7 +12,11 @@ import {
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 
-export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
+export const listAssistants = async (
+  apiKey: string,
+  listAllOrg: boolean = false,
+  includeDemo: boolean = false
+) => {
   return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
     'use server';
 
@@ -20,6 +24,9 @@ export const listAssistants = async (apiKey: string, listAllOrg: boolean = false
       const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
       if (listAllOrg) {
         url.searchParams.set('list_all_org', 'true');
+      }
+      if (includeDemo) {
+        url.searchParams.set('demo', 'true');
       }
 
       const response = await fetch(url.toString(), {

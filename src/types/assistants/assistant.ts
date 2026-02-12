@@ -60,6 +60,8 @@ export interface Assistant {
   // Client-side generated signed URL for GCS photos
   signedProfilePhotoUrl?: string;
   signedProfileVideoUrl?: string;
+  // Demo fields
+  demoId?: string | null;
 }
 
 export interface AssistantStatus {

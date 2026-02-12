@@ -10,12 +10,14 @@ export async function GET(request: NextRequest) {
 
   const client = createOrchestraClient(apiKey);
   const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
+  const demo = request.nextUrl.searchParams.get('demo');
 
   try {
     const { data, error, response } = await client.GET('/v0/assistant', {
       params: {
         query: {
           list_all_org: listAllOrg === 'true' ? true : undefined,
+          demo: demo === 'true' ? true : undefined,
         },
       },
     });

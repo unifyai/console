@@ -70,8 +70,9 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   // Create bound server actions (API key never exposed to client)
   const usageActions = await createUsageActions(apiKey);
 
-  // Fetch assistants list
-  const listAssistantsAction = await listAssistants(apiKey, !!isOrgContext);
+  // Fetch assistants list (include demo assistants for demoers)
+  const includeDemo = true;
+  const listAssistantsAction = await listAssistants(apiKey, !!isOrgContext, includeDemo);
   const assistantsResult = await listAssistantsAction();
   const assistants = Array.isArray(assistantsResult) ? assistantsResult : [];
 

@@ -7,6 +7,7 @@ import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/UI/hover-card';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { Button } from '@/components/UI/button';
+import { Badge } from '@/components/UI/badge';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -188,6 +189,16 @@ export function AssistantListItem({
         </HoverCard>
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
+      {assistant.demoId && (
+        <span
+          className={cn(
+            `text-caption`,
+            isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+          )}
+        >
+          <Badge variant="outline">Demo</Badge>
+        </span>
+      )}
       {isCallActive && (
         <TooltipProvider delayDuration={100}>
           <Tooltip>
