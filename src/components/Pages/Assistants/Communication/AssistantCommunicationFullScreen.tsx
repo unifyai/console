@@ -89,6 +89,23 @@ const FullScreenCallUI: React.FC<{
   const screenShareTracks = useTracks([Track.Source.ScreenShare]);
   const screenShareTrack = screenShareTracks?.[0];
 
+  // Fire system events when user screen share state changes.
+  const prevScreenShareEnabledRef = React.useRef(screenShareToggle.enabled);
+  React.useEffect(() => {
+    const wasOn = prevScreenShareEnabledRef.current;
+    const isOn = screenShareToggle.enabled;
+    prevScreenShareEnabledRef.current = isOn;
+    if (wasOn === isOn || !assistant) return;
+
+    assistantActions.desktop
+      .sendSystemEvent(
+        assistant.agentId,
+        isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
+        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
+      )
+      .catch(console.error);
+  }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
+
   // UI State
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
@@ -386,6 +403,22 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     if (!assistant) return;
 
     if (isRemoteControlActive) {
+      if (isRemoteControlInteractive) {
+        assistantActions.desktop
+          .sendSystemEvent(
+            assistant.agentId,
+            'user_remote_control_stopped',
+            'User released remote control of assistant desktop'
+          )
+          .catch(console.error);
+      }
+      assistantActions.desktop
+        .sendSystemEvent(
+          assistant.agentId,
+          'assistant_screen_share_stopped',
+          'User disabled assistant screen sharing'
+        )
+        .catch(console.error);
       stopRemoteControl();
       return;
     }
@@ -396,6 +429,13 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       if ('liveviewUrl' in result && result.liveviewUrl) {
         setLiveviewUrl(result.liveviewUrl);
         setIsRemoteControlActive(true);
+        assistantActions.desktop
+          .sendSystemEvent(
+            assistant.agentId,
+            'assistant_screen_share_started',
+            'User enabled assistant screen sharing'
+          )
+          .catch(console.error);
       } else if ('detail' in result) {
         console.error('[FullScreen] Failed to get liveview URL:', result.detail);
       }
@@ -404,15 +444,23 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     } finally {
       setIsRemoteControlLoading(false);
     }
-  }, [isRemoteControlActive, stopRemoteControl, assistantActions.desktop, assistant]);
+  }, [
+    isRemoteControlActive,
+    isRemoteControlInteractive,
+    stopRemoteControl,
+    assistantActions.desktop,
+    assistant,
+  ]);
 
   // Toggle interactive mode for remote control
   const toggleRemoteControlInteractive = React.useCallback(async () => {
     if (!isRemoteControlActive || !assistant) return;
 
     const nextState = !isRemoteControlInteractive;
-    const eventType = nextState ? 'pause_actor' : 'resume_actor';
-    const message = nextState ? 'user is taking over' : 'user is handing back control';
+    const eventType = nextState ? 'user_remote_control_started' : 'user_remote_control_stopped';
+    const message = nextState
+      ? 'User took remote control of assistant desktop'
+      : 'User released remote control of assistant desktop';
 
     setIsRemoteControlInteractiveLoading(true);
 

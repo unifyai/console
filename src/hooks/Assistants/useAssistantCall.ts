@@ -235,6 +235,22 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     if (!activeCallAssistant) return;
 
     if (isRemoteControlActive) {
+      if (isRemoteControlInteractive) {
+        assistantActions.desktop
+          .sendSystemEvent(
+            activeCallAssistant.agentId,
+            'user_remote_control_stopped',
+            'User released remote control of assistant desktop'
+          )
+          .catch(console.error);
+      }
+      assistantActions.desktop
+        .sendSystemEvent(
+          activeCallAssistant.agentId,
+          'assistant_screen_share_stopped',
+          'User disabled assistant screen sharing'
+        )
+        .catch(console.error);
       stopRemoteControl();
       return;
     }
@@ -248,6 +264,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         setLiveviewUrl(result.liveviewUrl);
         setIsRemoteControlActive(true);
         setIsRemoteControlInteractive(false); // Start in view-only mode
+        assistantActions.desktop
+          .sendSystemEvent(
+            activeCallAssistant.agentId,
+            'assistant_screen_share_started',
+            'User enabled assistant screen sharing'
+          )
+          .catch(console.error);
         toast.success('Assistant screen sharing started.', { id: toastId });
       } else {
         throw new Error('Could not retrieve session URL.');
@@ -258,14 +281,22 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     } finally {
       setIsRemoteControlLoading(false);
     }
-  }, [isRemoteControlActive, stopRemoteControl, assistantActions.desktop, activeCallAssistant]);
+  }, [
+    isRemoteControlActive,
+    isRemoteControlInteractive,
+    stopRemoteControl,
+    assistantActions.desktop,
+    activeCallAssistant,
+  ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {
     if (!isRemoteControlActive || !activeCallAssistant) return;
 
     const nextState = !isRemoteControlInteractive;
-    const eventType = nextState ? 'pause_actor' : 'resume_actor';
-    const message = nextState ? 'user is taking over' : 'user is handing back control';
+    const eventType = nextState ? 'user_remote_control_started' : 'user_remote_control_stopped';
+    const message = nextState
+      ? 'User took remote control of assistant desktop'
+      : 'User released remote control of assistant desktop';
 
     setIsRemoteControlInteractiveLoading(true);
     try {

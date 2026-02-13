@@ -114,10 +114,18 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
   };
 };
 
+export type SystemEventType =
+  | 'assistant_screen_share_started'
+  | 'assistant_screen_share_stopped'
+  | 'user_screen_share_started'
+  | 'user_screen_share_stopped'
+  | 'user_remote_control_started'
+  | 'user_remote_control_stopped';
+
 export const sendSystemEvent = async () => {
   return async (
     assistantId: string,
-    eventType: 'pause_actor' | 'resume_actor',
+    eventType: SystemEventType,
     message: string
   ): Promise<ResponseProps> => {
     'use server';

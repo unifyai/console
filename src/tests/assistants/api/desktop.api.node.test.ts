@@ -124,7 +124,7 @@ describe('Desktop API Routes', () => {
 
   describe('POST /api/assistant/desktop/system-event', () => {
     it(
-      'sends system event successfully',
+      'sends user remote control started event',
       {
         meta: {
           alias: 'Desktop-SystemEvent',
@@ -150,8 +150,8 @@ describe('Desktop API Routes', () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              eventType: 'pause_actor',
-              message: 'user is taking over',
+              eventType: 'user_remote_control_started',
+              message: 'User took remote control of assistant desktop',
             }),
           }
         );
@@ -164,11 +164,11 @@ describe('Desktop API Routes', () => {
     );
 
     it(
-      'sends resume actor event',
+      'sends user remote control stopped event',
       {
         meta: {
           alias: 'Desktop-ResumeActor',
-          scenario: 'Resume actor event',
+          scenario: 'User releases remote control event',
           behavior: 'Returns success response',
         },
       },
@@ -190,8 +190,8 @@ describe('Desktop API Routes', () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              eventType: 'resume_actor',
-              message: 'user is handing back control',
+              eventType: 'user_remote_control_stopped',
+              message: 'User released remote control of assistant desktop',
             }),
           }
         );
@@ -233,8 +233,8 @@ describe('Desktop API Routes', () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              eventType: 'pause_actor',
-              message: 'user taking over',
+              eventType: 'user_remote_control_started',
+              message: 'User took remote control of assistant desktop',
             }),
           }
         );

@@ -466,7 +466,7 @@ export interface AssistantActions {
     getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
     sendSystemEvent: (
       assistantId: string,
-      eventType: 'pause_actor' | 'resume_actor',
+      eventType: import('@/lib/assistants/desktop').SystemEventType,
       message: string
     ) => Promise<ResponseProps>;
   };

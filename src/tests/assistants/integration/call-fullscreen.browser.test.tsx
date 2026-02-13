@@ -633,12 +633,12 @@ describe('AssistantCommunicationFullScreen', () => {
     };
 
     it(
-      'sends pause_actor event when enabling interactive mode',
+      'sends user_remote_control_started event when enabling interactive mode',
       {
         meta: {
           alias: 'FullScreen-Interactive-Enable',
           scenario: 'Remote control is active and user enables interactive mode.',
-          behavior: 'sendSystemEvent is called with pause_actor.',
+          behavior: 'sendSystemEvent is called with user_remote_control_started.',
         },
       },
       async () => {
@@ -663,8 +663,8 @@ describe('AssistantCommunicationFullScreen', () => {
           await waitFor(() => {
             expect(mockAssistantActions.desktop.sendSystemEvent).toHaveBeenCalledWith(
               '123',
-              'pause_actor',
-              'user is taking over'
+              'user_remote_control_started',
+              'User took remote control of assistant desktop'
             );
           });
         }

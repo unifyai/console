@@ -858,7 +858,7 @@ describe('Assistant Call', () => {
           alias: 'Call-ScreenShare-Interaction',
           scenario: 'User toggles interactive mode on the screen share view.',
           behavior:
-            "System events for 'pause_actor' (enable user control) and 'resume_actor' (return control to AI) are sent to the backend.",
+            "System events for 'user_remote_control_started' and 'user_remote_control_stopped' are sent to the backend.",
         },
       },
       async () => {
@@ -874,12 +874,12 @@ describe('Assistant Call', () => {
         const interactiveBtn = await screen.findByLabelText('Enable mouse & keyboard control');
         await defaultUser.click(interactiveBtn);
 
-        // Verify API call for enabling (Pausing AI actor)
+        // Verify API call for enabling (user takes remote control)
         await waitFor(() => {
           expect(mockAssistantActions.desktop.sendSystemEvent).toHaveBeenLastCalledWith(
             targetAssistant.agentId,
-            'pause_actor',
-            expect.stringContaining('taking over')
+            'user_remote_control_started',
+            expect.stringContaining('took remote control')
           );
         });
 
@@ -889,12 +889,12 @@ describe('Assistant Call', () => {
         // 3. Disable Interactive Mode
         await defaultUser.click(interactiveBtn); // Now acts as disable
 
-        // Verify API call for disabling (Resuming AI actor)
+        // Verify API call for disabling (user releases remote control)
         await waitFor(() => {
           expect(mockAssistantActions.desktop.sendSystemEvent).toHaveBeenLastCalledWith(
             targetAssistant.agentId,
-            'resume_actor',
-            expect.stringContaining('handing back')
+            'user_remote_control_stopped',
+            expect.stringContaining('released remote control')
           );
         });
 

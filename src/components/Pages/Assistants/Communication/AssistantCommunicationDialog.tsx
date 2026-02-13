@@ -90,6 +90,23 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const screenShareTracks = useTracks([Track.Source.ScreenShare]);
   const screenShareTrack = screenShareTracks?.[0];
 
+  // Fire system events when user screen share state changes.
+  const prevScreenShareEnabledRef = React.useRef(screenShareToggle.enabled);
+  React.useEffect(() => {
+    const wasOn = prevScreenShareEnabledRef.current;
+    const isOn = screenShareToggle.enabled;
+    prevScreenShareEnabledRef.current = isOn;
+    if (wasOn === isOn || !assistant) return;
+
+    assistantActions.desktop
+      .sendSystemEvent(
+        assistant.agentId,
+        isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
+        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
+      )
+      .catch(console.error);
+  }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
+
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
   const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);
