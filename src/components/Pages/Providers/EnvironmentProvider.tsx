@@ -8,6 +8,10 @@ import React, { createContext, useContext } from 'react';
  * Values are resolved server-side (where all env vars are available) and
  * injected into React context so that client components never need direct
  * access to server-only environment variables.
+ *
+ * IMPORTANT: This component is `'use client'` — it cannot read non-NEXT_PUBLIC_
+ * env vars at runtime in production builds.  The `config` prop MUST be resolved
+ * in a server component (e.g. Base.tsx) and passed down.
  */
 export interface EnvironmentConfig {
   /** Whether the app is running in a staging / development environment. */
@@ -17,15 +21,15 @@ export interface EnvironmentConfig {
 const EnvironmentContext = createContext<EnvironmentConfig | undefined>(undefined);
 
 export function EnvironmentProvider({
-  children
+  config,
+  children,
 }: {
+  /** Resolved server-side in a Server Component and passed as a prop. */
+  config: EnvironmentConfig;
   children: React.ReactNode;
 }) {
-    const envConfig: EnvironmentConfig = {
-        isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
-    };
     return (
-        <EnvironmentContext.Provider value={envConfig}>
+        <EnvironmentContext.Provider value={config}>
         {children}
         </EnvironmentContext.Provider>
     );

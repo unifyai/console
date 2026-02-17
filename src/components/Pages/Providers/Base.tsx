@@ -12,12 +12,20 @@ import { getCurrentUser } from '@/lib/user/user';
 export default async function Providers({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
+  // Resolve environment config server-side where all env vars are available.
+  // This is then passed to the client-side EnvironmentProvider as a prop,
+  // because client components cannot read non-NEXT_PUBLIC_ env vars in
+  // production builds.
+  const envConfig = {
+    isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
+  };
+
   return (
     <>
       <NextUIProvider className="flex h-full flex-1 flex-col">
         <SidebarProvider>
           <SessionProvider>
-            <EnvironmentProvider>
+            <EnvironmentProvider config={envConfig}>
               <WorkspaceProvider user={user}>
                 <QueryProvider>
                   <AuthErrorBoundary>{children}</AuthErrorBoundary>
