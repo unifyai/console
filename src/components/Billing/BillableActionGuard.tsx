@@ -45,6 +45,7 @@ import {
   TooltipTrigger,
 } from '@/components/UI/tooltip';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -110,9 +111,6 @@ export function computeGuardDecision(
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-// Check if we're in a staging environment (skip billing guard entirely)
-const IS_STAGING = (process.env.ORCHESTRA_URL ?? '').includes('staging');
-
 export function BillableActionGuard({
   children,
   hasPaymentMethod: hasPaymentMethodProp,
@@ -122,12 +120,12 @@ export function BillableActionGuard({
   tooltipMessage,
   tooltipSide = 'top',
 }: BillableActionGuardProps) {
-  // Fetch billing status via React Query (shared/deduplicated across all guards)
-  // Must be called unconditionally (React hooks rules)
+  // All hooks called unconditionally (React rules of hooks)
+  const { isStaging } = useEnvironment();
   const billingStatus = useBillingStatus();
 
   // In staging environments, skip billing checks entirely
-  if (IS_STAGING) {
+  if (isStaging) {
     return <>{children}</>;
   }
 

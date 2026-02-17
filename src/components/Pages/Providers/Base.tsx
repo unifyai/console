@@ -5,6 +5,7 @@ import QueryProvider from './QueryProvider';
 import { NextUIProvider } from '@nextui-org/react';
 import { SidebarProvider } from '@/components/UI/sidebar';
 import { WorkspaceProvider } from './WorkspaceProvider';
+import { EnvironmentProvider } from './EnvironmentProvider';
 import { AuthErrorBoundary } from '@/components/Common/Auth/AuthErrorBoundary';
 import { getCurrentUser } from '@/lib/user/user';
 
@@ -16,11 +17,13 @@ export default async function Providers({ children }: { children: React.ReactNod
       <NextUIProvider className="flex h-full flex-1 flex-col">
         <SidebarProvider>
           <SessionProvider>
-            <WorkspaceProvider user={user}>
-              <QueryProvider>
-                <AuthErrorBoundary>{children}</AuthErrorBoundary>
-              </QueryProvider>
-            </WorkspaceProvider>
+            <EnvironmentProvider>
+              <WorkspaceProvider user={user}>
+                <QueryProvider>
+                  <AuthErrorBoundary>{children}</AuthErrorBoundary>
+                </QueryProvider>
+              </WorkspaceProvider>
+            </EnvironmentProvider>
           </SessionProvider>
         </SidebarProvider>
       </NextUIProvider>
