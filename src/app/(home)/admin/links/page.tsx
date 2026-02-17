@@ -1,20 +1,18 @@
 import * as React from 'react';
-import Main from '@/components/Pages/Admin/Main';
+import Main from '@/components/Pages/Links/Main';
 import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { Terminal } from 'lucide-react';
 import {
-  listUsersForApproval,
-  generateOneTimeApprovalLink,
-  updateUserApprovalStatus,
-  listOneTimeApprovalLinks,
-  deleteOneTimeApprovalLink,
-} from '@/lib/admin/approval';
-import { AdminApprovalActions } from '@/types/admin';
+  generateOneTimeCreditGrantLink,
+  listOneTimeCreditGrantLinks,
+  deleteOneTimeCreditGrantLink,
+} from '@/lib/links/one-time-links';
+import { AdminCreditGrantActions } from '@/types/admin';
 
-const AdminPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
+const LinksPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
   const user = await getCurrentUser();
   if (!user) {
     signOut();
@@ -28,18 +26,16 @@ const AdminPage = async ({ searchParams }: { searchParams: { token?: string } })
         ['owner', 'admin'].includes(o.roleName?.toLowerCase())
     ) !== undefined;
 
-  const adminApprovalActions: AdminApprovalActions = {
-    listUsers: await listUsersForApproval(),
-    updateUserStatus: await updateUserApprovalStatus(),
-    generateOneTimeLink: await generateOneTimeApprovalLink(),
-    listOneTimeLinks: await listOneTimeApprovalLinks(),
-    deleteOneTimeLink: await deleteOneTimeApprovalLink(),
+  const adminCreditGrantActions: AdminCreditGrantActions = {
+    generateOneTimeLink: await generateOneTimeCreditGrantLink(),
+    listOneTimeLinks: await listOneTimeCreditGrantLinks(),
+    deleteOneTimeLink: await deleteOneTimeCreditGrantLink(),
   };
 
   return (
     <div className="flex h-full w-full">
       {isAdmin ? (
-        <Main adminApprovalActions={adminApprovalActions} />
+        <Main adminCreditGrantActions={adminCreditGrantActions} />
       ) : (
         <div className="flex h-screen items-center justify-center p-4">
           <Alert variant="destructive" className="w-auto max-w-md">
@@ -53,4 +49,4 @@ const AdminPage = async ({ searchParams }: { searchParams: { token?: string } })
   );
 };
 
-export default AdminPage;
+export default LinksPage;

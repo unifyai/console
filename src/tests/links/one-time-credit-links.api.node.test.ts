@@ -1,8 +1,8 @@
 /**
- * Real API tests for Admin User Approvals endpoints.
+ * Real API tests for Admin Credit Grant Link endpoints.
  *
- * Tests the /api/admin/user-approvals endpoints which allow
- * admins to list and manage user hiring approvals.
+ * Tests the /api/admin/credit-grant-link endpoints which allow
+ * admins to create, list, and delete credit grant links.
  *
  * Note: These tests require VITE_TEST_ADMIN_KEY to be set.
  *
@@ -53,120 +53,7 @@ async function adminFetch(endpoint: string, options: RequestInit = {}): Promise<
   }
 }
 
-describe('@real Admin User Approvals API', () => {
-  let hasAdminKey = false;
-
-  beforeAll(async () => {
-    await skipIfServerNotReachable();
-
-    // Check if admin key is available
-    try {
-      hasAdminKey = !!process.env.VITE_TEST_ADMIN_KEY;
-    } catch {
-      hasAdminKey = false;
-    }
-  });
-
-  describe('GET /api/admin/user-approvals', () => {
-    it('@real lists user approvals', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      const result = await adminApi.listApprovals();
-
-      expect(result).toBeDefined();
-      // Response should have approvals or info array
-      const approvals = result.approvals || result.info || [];
-      expect(Array.isArray(approvals)).toBe(true);
-    });
-
-    it('@real lists approvals with status filter', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      const result = await adminApi.listApprovals('approved', 10, 0);
-
-      expect(result).toBeDefined();
-      const approvals = result.approvals || result.info || [];
-      expect(Array.isArray(approvals)).toBe(true);
-    });
-
-    it('@real lists approvals with pagination', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      const result = await adminApi.listApprovals(undefined, 5, 0);
-
-      expect(result).toBeDefined();
-      const approvals = result.approvals || result.info || [];
-      expect(Array.isArray(approvals)).toBe(true);
-      expect(approvals.length).toBeLessThanOrEqual(5);
-    });
-
-    it('@real returns camelCase response properties', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      const result = await adminApi.listApprovals();
-
-      // Verify we don't get snake_case properties at top level
-      const keys = Object.keys(result);
-      for (const key of keys) {
-        expect(key).not.toMatch(/^[a-z]+_[a-z]+/); // No snake_case
-      }
-    });
-
-    it('@real returns error without admin key', realTestOptions, async () => {
-      const res = await fetch(`${BASE_URL}/api/admin/user-approvals`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      // Should fail without admin key (return 401, 403, 500 for missing config, or 200 if using internal key)
-      expect([200, 401, 403, 500]).toContain(res.status);
-    });
-  });
-
-  describe('PUT /api/admin/user-approvals/[userId]/[status]', () => {
-    it('@real rejects update with invalid user ID', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      try {
-        await adminApi.updateApprovalStatus('non-existent-user-id', 'approve');
-        expect.fail('Expected ApiError for invalid user ID');
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect([400, 404]).toContain((e as ApiError).status);
-      }
-    });
-
-    it('@real validates status parameter', realTestOptions, async () => {
-      if (!hasAdminKey) {
-        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
-        return;
-      }
-
-      const res = await adminFetch('/api/admin/user-approvals/some-user-id/invalid-status', {
-        method: 'PUT',
-      });
-
-      // Should return 400 or 404 for invalid status
-      expect([400, 404]).toContain(res.status);
-    });
-  });
-});
-
-describe('@real Admin One-Time Approval Link API', () => {
+describe('@real Admin Credit Grant Link API', () => {
   let hasAdminKey = false;
 
   beforeAll(async () => {
@@ -179,14 +66,14 @@ describe('@real Admin One-Time Approval Link API', () => {
     }
   });
 
-  describe('GET /api/admin/one-time-approval-link', () => {
-    it('@real lists approval links', realTestOptions, async () => {
+  describe('GET /api/admin/credit-grant-link', () => {
+    it('@real lists credit grant links', realTestOptions, async () => {
       if (!hasAdminKey) {
         console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
         return;
       }
 
-      const res = await adminFetch('/api/admin/one-time-approval-link');
+      const res = await adminFetch('/api/admin/credit-grant-link');
 
       expect(res.status).toBe(200);
 
@@ -202,7 +89,7 @@ describe('@real Admin One-Time Approval Link API', () => {
         return;
       }
 
-      const res = await adminFetch('/api/admin/one-time-approval-link?limit=5&offset=0');
+      const res = await adminFetch('/api/admin/credit-grant-link?limit=5&offset=0');
 
       expect(res.status).toBe(200);
 
@@ -216,7 +103,7 @@ describe('@real Admin One-Time Approval Link API', () => {
         return;
       }
 
-      const res = await adminFetch('/api/admin/one-time-approval-link');
+      const res = await adminFetch('/api/admin/credit-grant-link');
 
       expect(res.status).toBe(200);
 
@@ -231,14 +118,14 @@ describe('@real Admin One-Time Approval Link API', () => {
     });
   });
 
-  describe('POST /api/admin/one-time-approval-link', () => {
-    it('@real creates approval link with default expiry', realTestOptions, async () => {
+  describe('POST /api/admin/credit-grant-link', () => {
+    it('@real creates credit grant link with default expiry', realTestOptions, async () => {
       if (!hasAdminKey) {
         console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
         return;
       }
 
-      const res = await adminFetch('/api/admin/one-time-approval-link', {
+      const res = await adminFetch('/api/admin/credit-grant-link', {
         method: 'POST',
         body: JSON.stringify({}), // Use default expiry
       });
@@ -251,13 +138,13 @@ describe('@real Admin One-Time Approval Link API', () => {
       expect(typeof data).toBe('object');
     });
 
-    it('@real creates approval link with custom expiry', realTestOptions, async () => {
+    it('@real creates credit grant link with custom expiry', realTestOptions, async () => {
       if (!hasAdminKey) {
         console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
         return;
       }
 
-      const res = await adminFetch('/api/admin/one-time-approval-link', {
+      const res = await adminFetch('/api/admin/credit-grant-link', {
         method: 'POST',
         body: JSON.stringify({ expiresInDays: 7 }),
       });
@@ -267,9 +154,27 @@ describe('@real Admin One-Time Approval Link API', () => {
       const data = await res.json();
       expect(data).toBeDefined();
     });
+
+    it('@real creates credit grant link with custom credit amount', realTestOptions, async () => {
+      if (!hasAdminKey) {
+        console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
+        return;
+      }
+
+      const res = await adminFetch('/api/admin/credit-grant-link', {
+        method: 'POST',
+        body: JSON.stringify({ expiresInDays: 7, creditAmount: 50.0 }),
+      });
+
+      expect([200, 201]).toContain(res.status);
+
+      const data = await res.json();
+      expect(data).toBeDefined();
+      expect(data.creditAmount).toBeDefined();
+    });
   });
 
-  describe('DELETE /api/admin/one-time-approval-link/[linkId]', () => {
+  describe('DELETE /api/admin/credit-grant-link/[linkId]', () => {
     it('@real rejects delete with invalid link ID', realTestOptions, async () => {
       if (!hasAdminKey) {
         console.log('Skipping: VITE_TEST_ADMIN_KEY not set');
@@ -277,7 +182,7 @@ describe('@real Admin One-Time Approval Link API', () => {
       }
 
       try {
-        await adminApi.deleteApprovalLink('non-existent-link-id');
+        await adminApi.deleteCreditGrantLink('non-existent-link-id');
         expect.fail('Expected ApiError for invalid link ID');
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);

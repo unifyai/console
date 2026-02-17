@@ -1021,59 +1021,65 @@ export const userApi = {
 // Admin API Actions
 // ============================================
 
-export interface UserApproval {
-  userId: string;
-  email?: string;
-  status: string;
-  createdAt?: string;
+export interface CreditGrantLink {
+  id: string;
+  token: string;
+  expiresAt: string;
+  claimedAt?: string | null;
+  userId?: string | null;
+  creditAmount?: number | null;
 }
 
-export interface UserApprovalsResponse {
-  approvals?: UserApproval[];
-  info?: UserApproval[];
-  total?: number;
+export interface CreditGrantLinksResponse {
+  links?: CreditGrantLink[];
 }
 
 export const adminApi = {
   /**
-   * List user approvals (requires admin key)
+   * List credit grant links (requires admin key)
    */
-  async listApprovals(
-    statusFilter?: string,
+  async listCreditGrantLinks(
     limit?: number,
     offset?: number
-  ): Promise<UserApprovalsResponse> {
+  ): Promise<CreditGrantLink[]> {
     const adminKey = getAdminApiKey();
     const params = new URLSearchParams();
-    if (statusFilter) params.set('status_filter', statusFilter);
     if (limit) params.set('limit', limit.toString());
     if (offset) params.set('offset', offset.toString());
 
     const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/api/admin/user-approvals${query}`;
+    const endpoint = `/api/admin/credit-grant-link${query}`;
     const res = await apiFetch(endpoint, {}, adminKey);
-    return parseResponse<UserApprovalsResponse>(res, endpoint);
+    return parseResponse<CreditGrantLink[]>(res, endpoint);
   },
 
   /**
-   * Update user approval status (requires admin key)
+   * Create a credit grant link (requires admin key)
    */
-  async updateApprovalStatus(
-    userId: string,
-    status: 'approve' | 'reject'
-  ): Promise<{ info?: string; detail?: string }> {
+  async createCreditGrantLink(
+    expiresInDays: number = 7,
+    creditAmount?: number | null
+  ): Promise<CreditGrantLink> {
     const adminKey = getAdminApiKey();
-    const endpoint = `/api/admin/user-approvals/${userId}/${status}`;
-    const res = await apiFetch(endpoint, { method: 'PUT' }, adminKey);
-    return parseResponse<{ info?: string; detail?: string }>(res, endpoint);
+    const endpoint = `/api/admin/credit-grant-link`;
+    const body: Record<string, unknown> = { expiresInDays };
+    if (creditAmount != null) {
+      body.creditAmount = creditAmount;
+    }
+    const res = await apiFetch(
+      endpoint,
+      { method: 'POST', body: JSON.stringify(body) },
+      adminKey
+    );
+    return parseResponse<CreditGrantLink>(res, endpoint);
   },
 
   /**
-   * Delete an approval link (requires admin key)
+   * Delete a credit grant link (requires admin key)
    */
-  async deleteApprovalLink(linkId: string): Promise<void> {
+  async deleteCreditGrantLink(linkId: string): Promise<void> {
     const adminKey = getAdminApiKey();
-    const endpoint = `/api/admin/one-time-approval-link/${linkId}`;
+    const endpoint = `/api/admin/credit-grant-link/${linkId}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' }, adminKey);
     if (res.status === 204) return;
     // If not 204, check for error

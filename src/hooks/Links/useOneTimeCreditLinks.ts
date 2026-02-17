@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {
-  AdminApprovalActions,
+  AdminCreditGrantActions,
   OneTimeLinkResponse,
   OneTimeLinkEntry,
   ADMIN_TABLE_PAGE_SIZE,
@@ -12,7 +12,7 @@ import {
   showSuccessToast,
 } from '@/components/Common/Toasts/notifications';
 
-export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
+export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
   // --- State and logic for generating a single link ---
   const [generatedLinkData, setGeneratedLinkData] = React.useState<OneTimeLinkResponse | null>(
     null
@@ -44,7 +44,7 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
       }
       setLinksError(null);
 
-      const result = await adminApprovalActions.listOneTimeLinks(pageSize, currentOffset);
+      const result = await adminActions.listOneTimeLinks(pageSize, currentOffset);
 
       if (fetchIdRef.current !== currentFetchId) {
         // Check if this is still the latest fetch
@@ -79,7 +79,7 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
         setIsLoadingLinks(false);
       }
     },
-    [adminApprovalActions, pageSize]
+    [adminActions, pageSize]
   );
 
   const refreshLinksList = React.useCallback(() => {
@@ -104,13 +104,16 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
   }, [refreshLinksList]); // refreshLinksList is memoized
 
   // Function to generate a new link
-  const generateNewLink = async (expiresInDays: number = 1): Promise<string | null> => {
+  const generateNewLink = async (
+    expiresInDays: number = 7,
+    creditAmount: number | null = null
+  ): Promise<string | null> => {
     setIsGeneratingLink(true);
     setGenerationError(null);
     setGeneratedLinkData(null); // Clear previous specific generation data
-    const toastId = showLoadingToast('Generating approval link...');
+    const toastId = showLoadingToast('Generating credit grant link...');
 
-    const result = await adminApprovalActions.generateOneTimeLink(expiresInDays);
+    const result = await adminActions.generateOneTimeLink(expiresInDays, creditAmount);
 
     if ('detail' in result) {
       const errorMsg = (result as ResponseProps).detail;
@@ -125,7 +128,7 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
     } else {
       const linkData = result as OneTimeLinkResponse;
       setGeneratedLinkData(linkData); // Store the raw backend response for the new link
-      showSuccessToast('One-time approval link generated!', undefined, toastId);
+      showSuccessToast('Credit grant link generated!', undefined, toastId);
       setIsGeneratingLink(false);
 
       // Refresh the list to ensure the new link appears
@@ -143,7 +146,7 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
   // Function to delete a link from the list
   const deleteLink = async (linkId: string): Promise<boolean> => {
     const toastId = showLoadingToast(`Deleting link...`);
-    const result = await adminApprovalActions.deleteOneTimeLink(linkId);
+    const result = await adminActions.deleteOneTimeLink(linkId);
     if ('detail' in result) {
       showErrorToast(
         `Failed: ${(result as ResponseProps).detail}`,
@@ -155,10 +158,6 @@ export function useApprovalLinks(adminApprovalActions: AdminApprovalActions) {
       showSuccessToast((result as ResponseProps).info || 'Link deleted!', undefined, toastId);
       // Optimistic update: remove from local state
       setLinks((prev) => prev.filter((link) => link.id !== linkId));
-      // Note: This might cause a slight desync with total count if not refreshing,
-      // but for display purposes, it's often acceptable.
-      // If the deleted item was on the current page and affects pagination,
-      // a full refresh might be desired by some, but refreshLinksList() would reset to page 1.
       return true;
     }
   };

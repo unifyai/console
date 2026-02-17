@@ -15,7 +15,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { linkI
     return badRequest('Link ID is required');
   }
 
-  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link/${linkId}`;
+  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/credit-grant-link/${linkId}`;
 
   try {
     const response = await fetch(backendUrl, {
@@ -37,7 +37,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { linkI
       .catch(() => ({ detail: `Orchestra API Error: ${response.statusText}` }));
     return NextResponse.json(snakeToCamelObject(data), { status: response.status });
   } catch (error) {
-    console.error(`[API Admin One Time Link DELETE ${linkId}] Error proxying to Orchestra:`, error);
+    console.error(
+      `[API Admin Credit Grant Link DELETE ${linkId}] Error proxying to Orchestra:`,
+      error
+    );
     return internalError('Failed to connect to backend service');
   }
 }
+

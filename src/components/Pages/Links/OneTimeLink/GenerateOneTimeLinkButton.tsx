@@ -15,7 +15,10 @@ import {
 import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications';
 
 interface GenerateOneTimeLinkButtonProps {
-  onGenerateLink: (expiresInDays: number) => Promise<string | null>; // Returns the full URL or null
+  onGenerateLink: (
+    expiresInDays: number,
+    creditAmount: number | null
+  ) => Promise<string | null>; // Returns the full URL or null
   isLoading: boolean;
 }
 
@@ -26,17 +29,23 @@ export function GenerateOneTimeLinkButton({
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [generatedUrl, setGeneratedUrl] = React.useState<string | null>(null);
   const [expiresInDays, setExpiresInDays] = React.useState<number>(7);
+  const [creditAmount, setCreditAmount] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
-  const [isGenerating, setIsGenerating] = React.useState(false); // Separate from parent isLoading for dialog interactions
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
   const handleGenerate = async () => {
     if (expiresInDays <= 0) {
       showErrorToast('Expiration days must be a positive number.');
       return;
     }
+    const parsedAmount = creditAmount.trim() !== '' ? parseFloat(creditAmount) : null;
+    if (parsedAmount !== null && (isNaN(parsedAmount) || parsedAmount <= 0)) {
+      showErrorToast('Credit amount must be a positive number.');
+      return;
+    }
     setIsGenerating(true);
     setGeneratedUrl(null);
-    const url = await onGenerateLink(expiresInDays);
+    const url = await onGenerateLink(expiresInDays, parsedAmount);
     if (url) {
       setGeneratedUrl(url);
     }
@@ -64,6 +73,7 @@ export function GenerateOneTimeLinkButton({
     setIsDialogOpen(false);
     setGeneratedUrl(null); // Reset generated URL when dialog closes
     setExpiresInDays(7); // Reset expiration days
+    setCreditAmount(''); // Reset credit amount
   };
 
   return (
@@ -77,15 +87,15 @@ export function GenerateOneTimeLinkButton({
       <DialogTrigger asChild>
         <Button variant="outline" disabled={isLoading}>
           <Link className="mr-2 h-4 w-4" />
-          Generate One-Time Approval Link
+          Generate Credit Grant Link
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Generate Link</DialogTitle>
+          <DialogTitle>Generate Credit Grant Link</DialogTitle>
           <DialogDescription>
-            Create a unique link that users can click to get automatically approved for assistant
-            hiring. The link will grant credits for one assistant.
+            Create a unique link that grants credits to the user who claims it. Each link can only be
+            used once and each user can only claim one link ever.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -102,6 +112,22 @@ export function GenerateOneTimeLinkButton({
               min="1"
             />
             <span className="text-body-muted col-span-1">days</span>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="creditAmount" className="col-span-1 text-right">
+              Credits
+            </Label>
+            <Input
+              id="creditAmount"
+              type="number"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              className="col-span-2 h-9"
+              min="0.01"
+              step="0.01"
+              placeholder="Default"
+            />
+            <span className="text-body-muted col-span-1">USD</span>
           </div>
           {generatedUrl && (
             <div className="mt-2 space-y-2">

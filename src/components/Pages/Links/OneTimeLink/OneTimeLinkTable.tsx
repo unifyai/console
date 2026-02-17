@@ -36,6 +36,9 @@ const SkeletonRow = () => (
       <div className="h-4 w-full rounded bg-muted"></div>
     </TableCell>
     <TableCell className="text-center">
+      <div className="mx-auto h-4 w-16 rounded bg-muted"></div>
+    </TableCell>
+    <TableCell className="text-center">
       <div className="mx-auto h-4 w-24 rounded bg-muted"></div>
     </TableCell>
     <TableCell className="text-center">
@@ -108,6 +111,11 @@ export function OneTimeLinkTable({
     }
   };
 
+  const formatCreditAmount = (amount?: number | null) => {
+    if (amount == null) return '—';
+    return `$${amount.toFixed(2)}`;
+  };
+
   const tableData = React.useMemo(() => {
     if (isLoadingMore) {
       return [...links, { id: LOADING_MORE_LINKS_ID } as OneTimeLinkEntry];
@@ -115,18 +123,21 @@ export function OneTimeLinkTable({
     return links;
   }, [links, isLoadingMore]);
 
+  const headerRow = (
+    <TableRow>
+      <TableHead className="w-[25%] min-w-[180px]">Token</TableHead>
+      <TableHead className="w-[12%] min-w-[90px] text-center">Credits</TableHead>
+      <TableHead className="w-[18%] min-w-[120px] text-center">Expires At</TableHead>
+      <TableHead className="w-[12%] min-w-[90px] text-center">Status</TableHead>
+      <TableHead className="w-[23%] min-w-[150px]">Claimed By (Email)</TableHead>
+      <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
+    </TableRow>
+  );
+
   if (isLoading && links.length === 0 && !isLoadingMore) {
     return (
       <Table className="w-full">
-        <thead>
-          <TableRow>
-            <TableHead className="w-[30%] min-w-[200px]">Token</TableHead>
-            <TableHead className="w-[20%] min-w-[120px] text-center">Expires At</TableHead>
-            <TableHead className="w-[15%] min-w-[100px] text-center">Status</TableHead>
-            <TableHead className="w-[25%] min-w-[150px]">Claimed By (Email)</TableHead>
-            <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
-          </TableRow>
-        </thead>
+        <thead>{headerRow}</thead>
         <tbody>
           {[...Array(5)].map((_, i) => (
             <SkeletonRow key={`link-skeleton-${i}`} />
@@ -139,7 +150,7 @@ export function OneTimeLinkTable({
   if (!isLoading && links.length === 0 && !isLoadingMore) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
-        No one-time approval links found.
+        No credit grant links found.
       </div>
     );
   }
@@ -159,19 +170,11 @@ export function OneTimeLinkTable({
         components={{
           Table: VirtuosoShadcnTable,
         }}
-        fixedHeaderContent={() => (
-          <TableRow>
-            <TableHead className="w-[30%] min-w-[200px]">Token</TableHead>
-            <TableHead className="w-[20%] min-w-[120px] text-center">Expires At</TableHead>
-            <TableHead className="w-[15%] min-w-[100px] text-center">Status</TableHead>
-            <TableHead className="w-[25%] min-w-[150px]">Claimed By (Email)</TableHead>
-            <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
-          </TableRow>
-        )}
+        fixedHeaderContent={() => headerRow}
         itemContent={(_index, link) => {
           if (link.id === LOADING_MORE_LINKS_ID) {
             return (
-              <TableCell colSpan={5} className="h-[57px] p-4 text-center">
+              <TableCell colSpan={6} className="h-[57px] p-4 text-center">
                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
               </TableCell>
             );
@@ -227,6 +230,14 @@ export function OneTimeLinkTable({
                     </Tooltip>
                   </TooltipProvider>
                 </div>
+              </TableCell>
+              <TableCell
+                className={cn(
+                  'text-label text-center font-mono',
+                  isExpired && !isClaimed && 'opacity-60'
+                )}
+              >
+                {formatCreditAmount(link.creditAmount)}
               </TableCell>
               <TableCell
                 className={cn('text-label text-center', isExpired && !isClaimed && 'opacity-60')}
@@ -287,7 +298,7 @@ export function OneTimeLinkTable({
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Delete Link</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete this one-time approval link?
+                Are you sure you want to delete this credit grant link?
                 <br />
                 <span className="text-code-sm mt-1 inline-block rounded bg-muted p-1">
                   {confirmDelete.token}

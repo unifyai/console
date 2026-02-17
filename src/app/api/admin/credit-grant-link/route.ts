@@ -17,12 +17,15 @@ export async function POST(request: NextRequest) {
     return badRequest('Invalid request body');
   }
 
-  const { expiresInDays = 1 } = requestBody; // Default to 1 day
+  const { expiresInDays = 7, creditAmount = null } = requestBody;
 
   // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody = camelToSnakeObject({ expiresInDays });
+  const snakeCaseBody: Record<string, unknown> = camelToSnakeObject({ expiresInDays });
+  if (creditAmount != null) {
+    snakeCaseBody.credit_amount = creditAmount;
+  }
 
-  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link`;
+  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/credit-grant-link`;
 
   try {
     const response = await fetch(backendUrl, {
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error) {
-    console.error('[API Admin One Time Link POST] Error proxying to Orchestra:', error);
+    console.error('[API Admin Credit Grant Link POST] Error proxying to Orchestra:', error);
     return internalError('Failed to connect to backend service');
   }
 }
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
   const limit = searchParams.get('limit') || '100';
   const offset = searchParams.get('offset') || '0';
 
-  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/assistant-hiring-one-time-link?limit=${limit}&offset=${offset}`;
+  const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/credit-grant-link?limit=${limit}&offset=${offset}`;
 
   try {
     const response = await fetch(backendUrl, {
@@ -75,7 +78,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error) {
-    console.error('[API Admin One Time Link GET] Error proxying to Orchestra:', error);
+    console.error('[API Admin Credit Grant Link GET] Error proxying to Orchestra:', error);
     return internalError('Failed to connect to backend service');
   }
 }
+
