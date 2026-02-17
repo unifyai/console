@@ -8,7 +8,7 @@ import loginImage2 from '@/public/icons/login-2.png';
 import loginImage3 from '@/public/icons/login-3.png';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import GithubIcon from '@/public/icons/github-icon.png';
-import { PhoneCall, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { PhoneCall, ClipboardList, LayoutDashboard, User } from 'lucide-react';
 
 interface LoginProps {
   // eslint-disable-next-line no-unused-vars
@@ -65,25 +65,17 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
       <div className="flex flex-col gap-[60px] text-xl lg:flex-[2]">
         <div className="text-branding-grey">Your Unify account lets you:</div>
         <div className="flex flex-col gap-[40px]">
-          <div className="flex gap-[30px] font-medium">
-            <PhoneCall className="h-fit text-green-500" />
-            <p>
-              <span className="font-bold">Call</span> your assistant to handle any task for you
-            </p>
+          <div className="flex gap-[30px] font-medium items-center">
+            <User className="h-fit text-green-500" />
+            <span className="font-bold">Hire</span> your own personal assistants to handle any work for you.
           </div>
-          <div className="flex gap-[30px] font-medium">
+          <div className="flex gap-[30px] font-medium items-center">
             <ClipboardList className="h-fit text-green-500" />
-            <p>
-              <span className="font-bold">Delegate.</span> Let your assistant pick up calls, emails
-              and messages.
-            </p>
+            <span className="font-bold">Delegate.</span> Call your assistants and let them pick up emails and tasks.
           </div>
-          <div className="flex gap-[30px] font-medium">
+          <div className="flex gap-[30px] font-medium items-center">
             <LayoutDashboard className="h-fit text-green-500" />
-            <p>
-              <span className="font-bold">Iterate</span> with flexible interfaces to tweak your
-              assistant.
-            </p>
+            <span className="font-bold">Monitor.</span> Watch your assistants complete tasks and provide timely updates.
           </div>
         </div>
         <div className="text-right">

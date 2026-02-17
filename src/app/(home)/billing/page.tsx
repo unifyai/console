@@ -7,12 +7,6 @@ import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import {
-  getOrgSpend,
-  getOrgSpendingLimit,
-  setOrgSpendingLimit,
-} from '@/lib/organizations/spending';
-import { getUserSpend, getUserSpendingLimit, setUserSpendingLimit } from '@/lib/user/spending';
 
 export const metadata: Metadata = {
   title: 'Billing',
@@ -34,7 +28,6 @@ const BillingPage: React.FC = async () => {
     );
   }
 
-  const apiKey = user.apiKey || '';
   const cookieStore = await cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
 
@@ -63,35 +56,10 @@ const BillingPage: React.FC = async () => {
     }
   }
 
-  // Create bound org spending actions if in org context
-  let orgSpendingActions = null;
-  if (orgContext) {
-    orgSpendingActions = {
-      getSpend: await getOrgSpend(apiKey),
-      getLimit: await getOrgSpendingLimit(apiKey),
-      setLimit: await setOrgSpendingLimit(apiKey),
-    };
-  }
-
-  // Create bound user spending actions for personal workspace only
-  // Only shown when NOT in org context (personal workspace)
-  let userSpendingActions = null;
-  if (!orgContext) {
-    userSpendingActions = {
-      getSpend: await getUserSpend(apiKey),
-      getLimit: await getUserSpendingLimit(apiKey),
-      setLimit: await setUserSpendingLimit(apiKey),
-    };
-  }
-
   return (
     <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
-        <Main
-          orgContext={orgContext}
-          orgSpendingActions={orgSpendingActions}
-          userSpendingActions={userSpendingActions}
-        />
+        <Main orgContext={orgContext} />
       </Suspense>
     </div>
   );

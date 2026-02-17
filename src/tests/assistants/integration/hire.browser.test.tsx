@@ -6,7 +6,7 @@ import { FormProvider } from 'react-hook-form';
 import { http, HttpResponse } from 'msw';
 import { worker } from '../../../../vitest.browser.setup';
 import { Assistant, VoiceOption } from '@/types/assistants/assistant';
-import { ApprovalStatus } from '@/types/user';
+
 
 // Mock the Server Action module before importing components that use it
 // This prevents loading next-auth dependencies in the browser environment
@@ -32,7 +32,6 @@ const HireFlowTestWrapper = ({
   onClose,
   existingAssistants = [],
   customVoices,
-  userApprovalStatus = 'approved' as ApprovalStatus,
   onHireSuccess,
   presetsToUse = mockPresets,
   useRealPresetHook = false,
@@ -40,7 +39,6 @@ const HireFlowTestWrapper = ({
   onClose?: () => void;
   existingAssistants?: Assistant[];
   customVoices?: VoiceOption[];
-  userApprovalStatus?: ApprovalStatus;
   onHireSuccess?: (assistant: Assistant, formData: any) => void;
   presetsToUse?: any[];
   useRealPresetHook?: boolean;
@@ -101,15 +99,6 @@ const HireFlowTestWrapper = ({
     selectPreset(finalPresets[randomIndex]);
   };
 
-  const [currentApprovalStatus, setCurrentApprovalStatus] = React.useState(userApprovalStatus);
-  const [isLoadingApproval, setIsLoadingApproval] = React.useState(false);
-  const handleRequestAccess = async () => {
-    setIsLoadingApproval(true);
-    await mockAssistantActions.approval.requestAccess();
-    setCurrentApprovalStatus('pending');
-    setIsLoadingApproval(false);
-  };
-
   const fetchUserVoices = vi.fn();
   const handleDeleteVoice = async (voice: VoiceOption) => {
     await mockAssistantActions.voice.delete(voice.voiceId, voice.provider);
@@ -137,9 +126,7 @@ const HireFlowTestWrapper = ({
           isCheckingBalance={isCheckingBalance}
           showInsufficientFundsHint={showInsufficientFundsHint}
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
-          userApprovalStatus={currentApprovalStatus}
-          isLoadingUserApproval={isLoadingApproval}
-          onRequestAccess={handleRequestAccess}
+          onAddPaymentMethod={() => {}}
           formMethods={formMethods}
           isFastMode={!!isFastMode}
         >
@@ -457,42 +444,6 @@ describe('Assistant Hire Flow', () => {
           await screen.findByText(/An error occurred during the hiring process/i)
         ).toBeInTheDocument();
         expect(screen.getByLabelText(/first name/i)).toHaveValue('Retry');
-      }
-    );
-
-    it(
-      'should show access required screen when approval is revoked',
-      {
-        meta: {
-          alias: 'Hire-Access-Revoked',
-          behavior: 'Displays Access Required screen instead of form',
-          scenario: 'User approval status is null',
-        },
-      },
-      async () => {
-        render(<HireFlowTestWrapper userApprovalStatus={null} />);
-        expect(await screen.findByText('Access Required')).toBeInTheDocument();
-        expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
-      }
-    );
-
-    it(
-      'should handle access request',
-      {
-        meta: {
-          alias: 'Hire-Request-Access',
-          behavior: 'Changes state to pending after request',
-          scenario: 'Clicking Request Access button',
-        },
-      },
-      async () => {
-        const user = userEvent.setup();
-        render(<HireFlowTestWrapper userApprovalStatus={null} />);
-        const requestBtn = await screen.findByRole('button', { name: /request access/i });
-        await user.click(requestBtn);
-        // requestAccess takes no parameters - verify it was called once
-        expect(mockAssistantActions.approval.requestAccess).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText('Request Pending')).toBeInTheDocument();
       }
     );
 

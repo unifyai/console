@@ -5,6 +5,7 @@
 
 export {
   getUserBillingDetails,
+  getBillingAccountInfo,
   enableAutoRecharge,
   setAutoRechargeThreshold,
   setAutoRechargeQty,
@@ -13,12 +14,13 @@ export {
   storeUserCard,
   isDuplicateCard,
   getRecharges,
-  getUserBillingEligibility,
+  getAutoRechargeEligibility,
 } from '@/lib/orchestra/api/billing';
 
 // Re-export types
 export type {
   BillingDetails,
+  BillingAccountInfo,
   RechargeModelRequest,
-  BillingEligibility,
+  AutoRechargeEligibility,
 } from '@/lib/orchestra/api/billing';

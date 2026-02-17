@@ -286,6 +286,9 @@ export function createMockUsageActions(
   responseData: UsageMetricsResponse = SAMPLE_WEEK_RESPONSE
 ): UsageActions {
   return {
+    setUserSpendingLimit: async () => ({ detail: 'User spending limit set' }),
+    setOrgSpendingLimit: async () => ({ detail: 'Org spending limit set' }),
+    setMemberSpendingLimit: async () => ({ detail: 'Member spending limit set' }),
     getMetrics: async () => responseData,
     getUserSpendingLimit: async () => ({ type: 'user', limit: 100, label: 'My Limit' }),
     getOrgSpendingLimit: async () => ({ type: 'org', limit: 500, label: 'Org Limit' }),
@@ -308,6 +311,9 @@ export function createMockErrorUsageActions(
   errorDetail: string = 'Something went wrong'
 ): UsageActions {
   return {
+    setUserSpendingLimit: async () => ({ detail: errorDetail }),
+    setOrgSpendingLimit: async () => ({ detail: errorDetail }),
+    setMemberSpendingLimit: async () => ({ detail: errorDetail }),
     getMetrics: async () => ({ detail: errorDetail }),
     getUserSpendingLimit: async () => ({ detail: errorDetail }),
     getOrgSpendingLimit: async () => ({ detail: errorDetail }),

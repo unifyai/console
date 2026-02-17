@@ -8,10 +8,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Alert, AlertDescription, AlertTitle } from '../../UI/alert';
 import { AlertCircle } from 'lucide-react';
 
-interface BillingEligibility {
+interface AutoRechargeEligibility {
   userId: string;
   totalSpending: number;
-  canEnableMonthlyBilling: boolean;
+  canEnableAutoRecharge: boolean;
   minimumSpendRequired: number;
   remainingSpendNeeded: number;
 }
@@ -24,18 +24,18 @@ const AutomaticRefill = () => {
   const [initialRechargeAmount, setInitialRechargeAmount] = useState('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
-  const [billingEligibility, setBillingEligibility] = useState<BillingEligibility | null>(null);
+  const [eligibility, setEligibility] = useState<AutoRechargeEligibility | null>(null);
 
   useEffect(() => {
-    const fetchBillingEligibility = async () => {
+    const fetchEligibility = async () => {
       try {
         const response = await fetch('/api/billing/eligibility');
         if (response.ok) {
-          const eligibility = await response.json();
-          setBillingEligibility(eligibility);
+          const data = await response.json();
+          setEligibility(data);
         }
       } catch (error) {
-        console.error('Error fetching billing eligibility:', error);
+        console.error('Error fetching auto-recharge eligibility:', error);
       }
     };
 
@@ -56,15 +56,15 @@ const AutomaticRefill = () => {
     };
 
     // Always fetch settings
-    fetchBillingEligibility();
+    fetchEligibility();
     fetchAutoRechargeSettings();
   }, []);
 
   const handleToggleAutoRecharge = async () => {
     // Only check eligibility when trying to ENABLE auto-recharge (not disable)
-    if (!isAutoRechargeEnabled && !billingEligibility?.canEnableMonthlyBilling) {
+    if (!isAutoRechargeEnabled && !eligibility?.canEnableAutoRecharge) {
       setAlertMessage(
-        `You need to spend $${billingEligibility?.minimumSpendRequired} to access automated top-ups. You've spent $${billingEligibility?.totalSpending?.toFixed(2)}, spend $${billingEligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.`
+        `You need to spend $${eligibility?.minimumSpendRequired} to access automated top-ups. You've spent $${eligibility?.totalSpending?.toFixed(2)}, spend $${eligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.`
       );
       setAlertType('error');
       return;
@@ -158,18 +158,16 @@ const AutomaticRefill = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {billingEligibility &&
-            !billingEligibility.canEnableMonthlyBilling &&
+          {eligibility &&
+            !eligibility.canEnableAutoRecharge &&
             !isAutoRechargeEnabled && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="whitespace-normal break-words">
                   <div>
-                    <strong>Spend $100 to Access Automated Top-ups</strong>
+                    <strong>Spend ${eligibility.minimumSpendRequired ?? 0} to Access Automated Top-ups</strong>
                     <br />
-                    You&#39;ve spent ${billingEligibility.totalSpending.toFixed(2)}, spend $
-                    {billingEligibility.remainingSpendNeeded.toFixed(2)} more to unlock automatic
-                    refills.
+                    ${eligibility.totalSpending ? `You've spent ${eligibility.totalSpending.toFixed(2)}, spend $${eligibility.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.` : ''}
                   </div>
                 </AlertDescription>
               </Alert>

@@ -13,7 +13,6 @@ import '@/styles/globals.css';
 import ThemeLoader from '@/components/Layout/ThemeLoader';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { Toaster } from '@/components/UI/Chat/sonner';
-import OnboardingGuard from '@/components/Pages/TaxClassification/OnboardingGuard';
 import { Loader2 } from 'lucide-react';
 import { fontSans, fontMono } from '@/styles/fonts';
 
@@ -28,7 +27,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             <ThemeLoader>
-              <OnboardingGuard>
                 {/* Static skeleton bar to avoid brief blank before navbar hydration */}
                 <div
                   className="bg-background/80 fixed left-0 right-0 top-0 z-40 h-10 border-b border-[color:var(--border)] backdrop-blur-lg"
@@ -50,7 +48,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </main>
                 </Suspense>
                 <Toaster />
-              </OnboardingGuard>
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

@@ -6,18 +6,7 @@ import { Card, CardHeader, CardDescription, CardContent } from '../../UI/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { RefreshCw } from 'lucide-react';
 
-interface BalanceProps {
-  billingEligibility: {
-    userId: string;
-    totalSpending: number;
-    canEnableMonthlyBilling: boolean;
-    minimumSpendRequired: number;
-    remainingSpendNeeded: number;
-  } | null;
-  autoRechargeEnabled: boolean;
-}
-
-const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
+const Balance = () => {
   const [balance, setBalance] = useState<number | null>(null);
   const [fullBalance, setFullBalance] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -125,20 +114,11 @@ const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
             <Button className="w-fit" variant="link" onClick={handleBuyCredits}>
               Buy Credits
             </Button>
-            <Button
-              className="w-fit"
-              variant="link"
-              onClick={() => window.open('https://calendly.com/unify-chat/general', '_blank')}
-            >
-              Request Extra Credits
-            </Button>
           </div>
           <div className="flex flex-col items-center space-y-4">
-            {billingEligibility?.canEnableMonthlyBilling && (
-              <Button variant="primary" onClick={handleOpenPortal} className="w-fit">
-                Manage Billing Account
-              </Button>
-            )}
+            <Button variant="primary" onClick={handleOpenPortal} className="w-fit">
+              Manage Billing Account
+            </Button>
           </div>
         </div>
       </CardContent>

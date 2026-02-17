@@ -2789,7 +2789,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/v0/organizations/{organization_id}/billing/business-profile': {
+  '/v0/organizations/{organization_id}/billing/billing-profile': {
     parameters: {
       query?: never;
       header?: never;
@@ -2802,7 +2802,7 @@ export interface paths {
      *
      *     Requires billing:read permission.
      */
-    get: operations['get_organization_business_profile_v0_organizations__organization_id__billing_business_profile_get'];
+    get: operations['get_organization_billing_profile_v0_organizations__organization_id__billing_billing_profile_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2815,7 +2815,7 @@ export interface paths {
      *     Requires billing:write permission.
      *     Owners and Admins have this permission by default.
      */
-    patch: operations['update_organization_business_profile_v0_organizations__organization_id__billing_business_profile_patch'];
+    patch: operations['update_organization_billing_profile_v0_organizations__organization_id__billing_billing_profile_patch'];
     trace?: never;
   };
   '/v0/organizations/{organization_id}/spending-limit': {
@@ -17370,7 +17370,7 @@ export interface operations {
       };
     };
   };
-  get_organization_business_profile_v0_organizations__organization_id__billing_business_profile_get: {
+  get_organization_billing_profile_v0_organizations__organization_id__billing_billing_profile_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -17403,7 +17403,7 @@ export interface operations {
       };
     };
   };
-  update_organization_business_profile_v0_organizations__organization_id__billing_business_profile_patch: {
+  update_organization_billing_profile_v0_organizations__organization_id__billing_billing_profile_patch: {
     parameters: {
       query?: never;
       header?: never;

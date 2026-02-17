@@ -4,15 +4,22 @@
  * SpendingLimitCard Component
  *
  * Displays current spending against monthly limits with progress bars.
- * Can show multiple limits (e.g., org limit + assistant limit).
- * Designed to fit in the same row as the other summary cards.
+ * Can show multiple limits (e.g., org limit + member limit).
+ * Each limit can independently be editable or read-only, with its own edit button.
+ *
+ * Scenarios:
+ * - Personal workspace: one "My Limit" row (editable)
+ * - Org admin: "Org Limit" (editable) + "My Limit" (editable)
+ * - Org member: "Org Limit" (read-only) + "My Limit" (read-only)
  */
 
 import * as React from 'react';
 import { Card, CardContent } from '@/components/UI/card';
+import { Button } from '@/components/UI/button';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
-import { Target, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Target, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SpendingLimitDialog } from '@/components/Pages/Assistants/Assistants/Profile/SpendingLimitDialog';
 
 export interface SpendingLimitData {
   /** Type of limit being displayed */
@@ -21,6 +28,10 @@ export interface SpendingLimitData {
   limit: number | null;
   /** Label for the limit type */
   label: string;
+  /** Whether this specific limit is editable */
+  canEdit?: boolean;
+  /** Callback to save this specific limit */
+  onSave?: (newLimit: number | null) => Promise<{ success: boolean; error?: string }>;
 }
 
 interface SpendingLimitCardProps {
@@ -94,14 +105,16 @@ function getOverallStatus(limits: SpendingLimitData[], currentSpending: number) 
 }
 
 /**
- * Single limit row with mini progress bar
+ * Single limit row with mini progress bar and optional edit button
  */
 function LimitRow({
   limit,
   currentSpending,
+  onEditClick,
 }: {
   limit: SpendingLimitData;
   currentSpending: number;
+  onEditClick?: () => void;
 }) {
   const status = getSpendingStatus(currentSpending, limit.limit);
 
@@ -109,16 +122,31 @@ function LimitRow({
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">{limit.label}</span>
-        <span className={cn('font-medium', status.color)}>
-          {limit.limit !== null ? (
-            <>
-              {formatCostForDisplay(limit.limit)}
-              <span className="ml-1 text-muted-foreground">({status.percentUsed.toFixed(0)}%)</span>
-            </>
-          ) : (
-            'No limit'
+        <div className="flex items-center gap-1">
+          <span className={cn('font-medium', status.color)}>
+            {limit.limit !== null ? (
+              <>
+                {formatCostForDisplay(limit.limit)}
+                <span className="ml-1 text-muted-foreground">
+                  ({status.percentUsed.toFixed(0)}%)
+                </span>
+              </>
+            ) : (
+              'No limit'
+            )}
+          </span>
+          {limit.canEdit && onEditClick && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={onEditClick}
+              data-testid={`edit-${limit.type}-limit-button`}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
           )}
-        </span>
+        </div>
       </div>
       {limit.limit !== null && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -137,17 +165,20 @@ export function SpendingLimitCard({
   spendingLimits,
   isLoading = false,
 }: SpendingLimitCardProps) {
+  const [editingLimit, setEditingLimit] = React.useState<SpendingLimitData | null>(null);
+
   // Filter out limits that are null (unlimited) for display purposes
   const limitsWithValues = spendingLimits.filter((l) => l.limit !== null);
   const hasAnyLimit = limitsWithValues.length > 0;
+  const hasAnyEditable = spendingLimits.some((l) => l.canEdit);
 
   // Get overall status for the icon
   const overall = getOverallStatus(spendingLimits, currentSpending);
   const StatusIcon =
     overall.status === 'exceeded' || overall.status === 'warning' ? AlertTriangle : CheckCircle2;
 
-  // Don't render if no limits and not loading
-  if (spendingLimits.length === 0 && !isLoading) {
+  // Don't render if no limits and not loading and none are editable
+  if (spendingLimits.length === 0 && !isLoading && !hasAnyEditable) {
     return null;
   }
 
@@ -164,12 +195,21 @@ export function SpendingLimitCard({
                 <div className="h-6 w-20 animate-pulse rounded bg-muted" />
                 <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
               </div>
-            ) : hasAnyLimit ? (
+            ) : hasAnyLimit || hasAnyEditable ? (
               <div className="mt-1 space-y-2">
-                {/* Limit rows */}
+                {/* Limit rows — each with its own edit button if editable */}
                 <div className="space-y-2">
                   {spendingLimits.map((limit) => (
-                    <LimitRow key={limit.type} limit={limit} currentSpending={currentSpending} />
+                    <LimitRow
+                      key={limit.type}
+                      limit={limit}
+                      currentSpending={currentSpending}
+                      onEditClick={
+                        limit.canEdit && limit.onSave
+                          ? () => setEditingLimit(limit)
+                          : undefined
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -199,6 +239,19 @@ export function SpendingLimitCard({
           </div>
         </div>
       </CardContent>
+
+      {/* Spending Limit Edit Dialog — opens for whichever limit is being edited */}
+      {editingLimit?.onSave && (
+        <SpendingLimitDialog
+          open={!!editingLimit}
+          onOpenChange={(open) => {
+            if (!open) setEditingLimit(null);
+          }}
+          currentLimit={editingLimit.limit}
+          currentSpend={currentSpending}
+          onSave={editingLimit.onSave}
+        />
+      )}
     </Card>
   );
 }

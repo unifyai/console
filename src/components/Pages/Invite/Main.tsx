@@ -64,8 +64,8 @@ const Main = ({ token, onAccept }: MainProps) => {
             <p className="text-muted-foreground">You have successfully joined the organization.</p>
           </div>
           <div className="pt-4">
-            <Link href="/organizations">
-              <Button className="w-full">Go to Organizations</Button>
+            <Link href="/">
+              <Button className="w-full">Get Started</Button>
             </Link>
           </div>
         </>

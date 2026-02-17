@@ -23,7 +23,9 @@ import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
-import { useAssistantHiringApproval } from '@/hooks/Assistants/useAssistantHiringApproval';
+import { useCreditGrantLink } from '@/hooks/Billing/useCreditGrantLink';
+import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { FormProvider } from 'react-hook-form';
@@ -116,17 +118,20 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
 
-  // --- Assistant Hiring Approval ---
+  // --- Billing Status & Credit Grant Link ---
   const {
-    approvalStatus: userHiringApprovalStatus,
-    isLoading: isLoadingHiringApproval,
-    isProcessingAction: isProcessingHiringAction,
-    requestAccess: requestHiringAccess,
-    refreshHiringProfile,
-  } = useAssistantHiringApproval({
-    approvalActions: assistantActions['approval'],
-    tokenToClaimOnLoad: oneTimeToken,
-  });
+    hasPaymentMethod,
+    hasCredits,
+    isLoading: isBillingLoading,
+    refetch: refetchBillingStatus,
+  } = useBillingStatus();
+  const {
+    pendingToken,
+    isClaiming: isClaimingCreditGrant,
+    hasClaimed: hasClaimedCreditGrant,
+    claimPendingToken,
+  } = useCreditGrantLink();
+  const [isStripePanelOpen, setIsStripePanelOpen] = React.useState(false);
 
   // --- Dialogs & Forms ---
   const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
@@ -408,7 +413,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     (newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
       refreshAssistants(false);
       fetchUserVoices();
-      refreshHiringProfile();
+      refetchBillingStatus();
 
       // Delay closing form and opening profile to allow user to see completion state
       setTimeout(() => {
@@ -420,7 +425,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         }
       }, ASSISTANT_HIRE_COMPLETION_DELAY_MS);
     },
-    [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]
+    [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices]
   );
 
   const handleUpdateSuccess = React.useCallback(
@@ -499,14 +504,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
     // Open the dialog - this triggers lazy loading of presets
     setIsHireDialogOpen(true);
-    refreshHiringProfile();
   }, [
     resetHireFormInternal,
     setPresetAgeFilter,
     setPresetNationalityFilter,
     setPresetGenderFilter,
     setPresetLanguageFilter,
-    refreshHiringProfile,
   ]);
 
   // Auto-select a random preset when presets become available after opening dialog
@@ -565,7 +568,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const initialAssistantLoadProcessedRef = React.useRef(false);
   React.useEffect(() => {
     if (
-      userHiringApprovalStatus === 'approved' &&
+      !isBillingLoading &&
       !isLoadingAssistants &&
       !initialAssistantLoadProcessedRef.current
     ) {
@@ -579,7 +582,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     isLoadingAssistants,
     assistantError,
     handleOpenHireDialog,
-    userHiringApprovalStatus,
+    isBillingLoading,
     isHireDialogOpen,
   ]);
   React.useEffect(() => {
@@ -617,6 +620,41 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   return (
     <>
       <Toaster richColors position="bottom-right" closeButton />
+
+      {/* Credit grant banner — shown when user has a pending token but no payment method */}
+      {pendingToken && !hasPaymentMethod && !isBillingLoading && !hasClaimedCreditGrant && (
+        <div
+          className="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-800 dark:bg-blue-950"
+          data-testid="credit-grant-banner"
+        >
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            🎉 You have a credit grant waiting!{' '}
+            <button
+              type="button"
+              onClick={() => setIsStripePanelOpen(true)}
+              className="font-medium underline underline-offset-2"
+              data-testid="credit-grant-add-payment"
+            >
+              Add a payment method
+            </button>{' '}
+            to claim your credits.
+          </p>
+        </div>
+      )}
+
+      {/* StripeSidePanel — for adding payment method */}
+      <StripeSidePanel
+        open={isStripePanelOpen}
+        onOpenChange={setIsStripePanelOpen}
+        onSuccess={() => {
+          refetchBillingStatus();
+          // Auto-claim pending credit grant token after payment method added
+          if (pendingToken) {
+            claimPendingToken();
+          }
+        }}
+        pendingCreditToken={pendingToken}
+      />
 
       <div className="flex h-full overflow-hidden bg-background">
         {/* Assistant List */}
@@ -725,9 +763,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           isCheckingBalance={isCheckingBalance}
           showInsufficientFundsHint={showInsufficientFundsHint}
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
-          userApprovalStatus={userHiringApprovalStatus}
-          isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
-          onRequestAccess={requestHiringAccess}
+          onAddPaymentMethod={() => setIsStripePanelOpen(true)}
           isFastMode={hireFormFastMode}
         >
           <HireForm

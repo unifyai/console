@@ -37,6 +37,7 @@ import { Checkbox } from '@/components/UI/checkbox';
 import { useFormContext, Controller } from 'react-hook-form';
 import { useVoiceCreator } from '@/hooks/Assistants/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { getLanguageFlag } from '@/utils/assistants/voice-utils';
 import {
   PRIMARY_VOICE_PROVIDER,
@@ -56,6 +57,8 @@ interface VoiceCustomizationProps {
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
   handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
+  /** Callback to open the Stripe side panel for payment setup */
+  onAddPaymentMethod?: () => void;
 }
 
 type ActiveCreatorTab = 'select' | 'clone' | 'design';
@@ -70,6 +73,7 @@ export function VoiceCustomization({
   isLoadingUserVoices,
   fetchUserVoices,
   handleDeleteVoice,
+  onAddPaymentMethod,
 }: VoiceCustomizationProps) {
   const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
   const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
@@ -908,21 +912,23 @@ export function VoiceCustomization({
                 />
               </div>
 
-              <Button
-                type="button"
-                onClick={handleCreateAndSelect}
-                className="h-9 w-full bg-green-600 hover:bg-green-700"
-                disabled={
-                  disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName
-                }
-              >
-                {isProcessingCreate && createMode === 'clone' ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                )}{' '}
-                Create & Select Voice
-              </Button>
+              <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+                <Button
+                  type="button"
+                  onClick={handleCreateAndSelect}
+                  className="h-9 w-full bg-green-600 hover:bg-green-700"
+                  disabled={
+                    disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName
+                  }
+                >
+                  {isProcessingCreate && createMode === 'clone' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}{' '}
+                  Create & Select Voice
+                </Button>
+              </BillableActionGuard>
             </div>
           </ScrollArea>
         </TabsContent>
@@ -1089,24 +1095,26 @@ export function VoiceCustomization({
                       </ScrollArea>
                     </div>
                   )}
-                  <Button
-                    type="button"
-                    onClick={handleCreateAndSelect}
-                    className="h-9 w-full bg-green-600 hover:bg-green-700"
-                    disabled={
-                      disabled ||
-                      isProcessingCreate ||
-                      isGeneratingPreviews ||
-                      (createMode === 'design' && !selectedPreviewId)
-                    }
-                  >
-                    {isProcessingCreate && createMode === 'design' ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                    )}{' '}
-                    Create & Select Voice
-                  </Button>
+                  <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+                    <Button
+                      type="button"
+                      onClick={handleCreateAndSelect}
+                      className="h-9 w-full bg-green-600 hover:bg-green-700"
+                      disabled={
+                        disabled ||
+                        isProcessingCreate ||
+                        isGeneratingPreviews ||
+                        (createMode === 'design' && !selectedPreviewId)
+                      }
+                    >
+                      {isProcessingCreate && createMode === 'design' ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      )}{' '}
+                      Create & Select Voice
+                    </Button>
+                  </BillableActionGuard>
                 </div>
               </div>
             </ScrollArea>

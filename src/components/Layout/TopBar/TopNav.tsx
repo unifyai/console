@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { cn } from '@/utils/misc/cn';
 import {
   User,
   CreditCard,
@@ -13,7 +12,7 @@ import {
   Building,
   AlertTriangle,
   ChevronDown,
-  Slash,
+  BarChart3,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -196,41 +195,12 @@ export default function TopNav() {
             </>
           )}
 
-          <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
-
-          {/* Navigation */}
-          <nav className="hidden items-center space-x-6 md:flex">
-            {/* Assistants - Direct Link */}
-            <Link
-              href="/assistants"
-              className={cn(
-                'text-label flex items-center gap-1.5 rounded-md px-1 py-1 transition-colors first:pl-0',
-                pathname === '/assistants' || pathname?.startsWith('/assistants/')
-                  ? 'text-[color:var(--primary)]'
-                  : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
-              )}
-            >
-              Assistants
-            </Link>
-            {/* Usage - Direct Link */}
-            <Link
-              href="/usage"
-              className={cn(
-                'text-label flex items-center gap-1.5 rounded-md px-1 py-1 transition-colors',
-                pathname === '/usage'
-                  ? 'text-[color:var(--primary)]'
-                  : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
-              )}
-            >
-              Usage
-            </Link>
-          </nav>
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-4">
           {/* Upgrade Button */}
-          {canManageBilling && (
+          {/*canManageBilling && (
             <Button
               variant="primary"
               className="text-body relative h-6 w-fit p-2"
@@ -238,7 +208,7 @@ export default function TopNav() {
             >
               Upgrade
             </Button>
-          )}
+          )/*}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
@@ -246,7 +216,11 @@ export default function TopNav() {
           {/* Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-6 w-6 rounded-full p-0">
+              <Button
+                variant="ghost"
+                className="relative h-6 w-6 rounded-full p-0"
+                data-testid="profile-dropdown-trigger"
+              >
                 {avatarJSX || <User className="h-6 w-6" />}
               </Button>
             </DropdownMenuTrigger>
@@ -267,6 +241,15 @@ export default function TopNav() {
                 >
                   <Building className="mr-2 h-4 w-4" />
                   <span>Organizations</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
+                <Link
+                  href="/usage"
+                  className="text-body flex items-center hover:text-[color:var(--foreground)]"
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>Usage</span>
                 </Link>
               </DropdownMenuItem>
               {canManageBilling && (

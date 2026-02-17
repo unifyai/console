@@ -42,10 +42,22 @@ const Login = () => {
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
   const { resolvedTheme } = useTheme();
 
+  // Token handling: persist invite and credit tokens through OAuth flow
+  const inviteToken = searchParams?.get('invite');
+  const creditToken = searchParams?.get('credit');
+
   const handleLogin = (provider: 'email' | 'google' | 'github', email?: string) => async () => {
     setTab('loading');
     let callback: URL;
-    if (callbackUrl?.startsWith('http')) {
+
+    // If we have an invite or credit token, set the callback to the appropriate page
+    if (inviteToken) {
+      callback = new URL('/invite', document.location.href);
+      callback.searchParams.set('token', inviteToken);
+    } else if (creditToken) {
+      callback = new URL('/assistants', document.location.href);
+      callback.searchParams.set('token', creditToken);
+    } else if (callbackUrl?.startsWith('http')) {
       callback = new URL(callbackUrl);
     } else {
       callback = new URL(callbackUrl ?? '/', document.location.href);
@@ -94,6 +106,12 @@ const Login = () => {
                   <Back />
                 </a>
               </div>
+              {/* Banner for invite/credit token context */}
+              {inviteToken && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200" data-testid="invite-banner">
+                  You&apos;ve been invited to join an organization. Sign in to accept.
+                </div>
+              )}
               <div className="flex justify-center lg:container">
                 <AnimatedTabs selected={tab}>
                   <LoginFragment onLogin={handleLogin} error={error} key="login" />

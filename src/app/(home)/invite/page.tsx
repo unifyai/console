@@ -33,15 +33,15 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   const user = await getCurrentUser();
 
   if (!user) {
-    // Redirect to login, ensuring we return to this invite page afterwards
+    // Redirect to login with invite token — login page persists it through OAuth
     const callbackUrl = `/invite?token=${token}`;
-    redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    redirect(`/login?invite=${encodeURIComponent(token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`);
   }
 
   // 3. Initialize Server Action with API Key
   const acceptAction = await acceptInviteAction(user.apiKey);
 
-  // 4. Render Client View
+  // 4. Render Client View — redirects to /assistants on success (org context)
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Main token={token} onAccept={acceptAction} />

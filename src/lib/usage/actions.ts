@@ -215,6 +215,112 @@ export const getAssistantSpendingLimitAction = async (apiKey: string) => {
 };
 
 /**
+ * Set user spending limit for personal workspace
+ */
+export const setUserSpendingLimitAction = async (apiKey: string) => {
+  return async (limit: number | null): Promise<SpendingLimitInfo | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/user/spending-limit`, {
+        method: 'PUT',
+        headers: { apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monthlySpendingCap: limit }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || 'Failed to set user spending limit' };
+      }
+
+      return {
+        type: 'user',
+        limit: data.monthlySpendingCap ?? null,
+        label: 'My Limit',
+      };
+    } catch (error) {
+      console.error('[usage/actions] Error setting user spending limit:', error);
+      return { detail: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+};
+
+/**
+ * Set organization spending limit
+ */
+export const setOrgSpendingLimitAction = async (apiKey: string) => {
+  return async (orgId: number, limit: number | null): Promise<SpendingLimitInfo | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/spending-limit`,
+        {
+          method: 'PUT',
+          headers: { apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monthlySpendingCap: limit }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || 'Failed to set org spending limit' };
+      }
+
+      return {
+        type: 'org',
+        limit: data.monthlySpendingCap ?? null,
+        label: 'Org Limit',
+      };
+    } catch (error) {
+      console.error('[usage/actions] Error setting org spending limit:', error);
+      return { detail: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+};
+
+/**
+ * Set member spending limit within an organization
+ */
+export const setMemberSpendingLimitAction = async (apiKey: string) => {
+  return async (
+    orgId: number,
+    userId: string,
+    limit: number | null
+  ): Promise<SpendingLimitInfo | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending-limit`,
+        {
+          method: 'PUT',
+          headers: { apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monthlySpendingCap: limit }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || 'Failed to set member spending limit' };
+      }
+
+      return {
+        type: 'member',
+        limit: data.monthlySpendingCap ?? null,
+        label: 'My Limit',
+      };
+    } catch (error) {
+      console.error('[usage/actions] Error setting member spending limit:', error);
+      return { detail: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+};
+
+/**
  * Type for the usage actions object passed to client components
  */
 export interface UsageActions {
@@ -230,6 +336,16 @@ export interface UsageActions {
     userId: string
   ) => Promise<SpendingLimitInfo | ResponseProps>;
   getAssistantSpendingLimit: (assistantId: string) => Promise<SpendingLimitInfo | ResponseProps>;
+  setUserSpendingLimit: (limit: number | null) => Promise<SpendingLimitInfo | ResponseProps>;
+  setOrgSpendingLimit: (
+    orgId: number,
+    limit: number | null
+  ) => Promise<SpendingLimitInfo | ResponseProps>;
+  setMemberSpendingLimit: (
+    orgId: number,
+    userId: string,
+    limit: number | null
+  ) => Promise<SpendingLimitInfo | ResponseProps>;
 }
 
 /**
@@ -245,5 +361,8 @@ export async function createUsageActions(apiKey: string): Promise<UsageActions> 
     getOrgSpendingLimit: await getOrgSpendingLimitAction(apiKey),
     getMemberSpendingLimit: await getMemberSpendingLimitAction(apiKey),
     getAssistantSpendingLimit: await getAssistantSpendingLimitAction(apiKey),
+    setUserSpendingLimit: await setUserSpendingLimitAction(apiKey),
+    setOrgSpendingLimit: await setOrgSpendingLimitAction(apiKey),
+    setMemberSpendingLimit: await setMemberSpendingLimitAction(apiKey),
   };
 }

@@ -11,7 +11,7 @@ import * as React from 'react';
 import { UsageFiltersBar } from './Filters';
 import { UsageSummaryCards } from './UsageSummaryCards';
 import { UsageChart } from './UsageChart';
-import { SpendingLimitCard, SpendingLimitData } from './SpendingLimitCard';
+import { SpendingLimitCard, type SpendingLimitData } from './SpendingLimitCard';
 import { useUsageFilters } from '@/hooks/Usage/useUsageFilters';
 import { useUsageData } from '@/hooks/Usage/useUsageData';
 import { useUsageSummary } from '@/hooks/Usage/useUsageSummary';
@@ -19,6 +19,7 @@ import { Assistant } from '@/types/assistants/assistant';
 import { UsageActions, SpendingLimitInfo } from '@/lib/usage/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 /** Simplified org member type for the usage page */
 export interface OrgMember {
@@ -127,6 +128,7 @@ export function UsageMain({
   // Spending limits state (can have multiple: scope limit + assistant limit)
   const [spendingLimits, setSpendingLimits] = React.useState<SpendingLimitData[]>([]);
   const [isLoadingLimits, setIsLoadingLimits] = React.useState(true);
+  const [limitRefreshKey, setLimitRefreshKey] = React.useState(0);
 
   // Type guard for spending limit response
   const isSpendingLimit = React.useCallback(
@@ -136,35 +138,120 @@ export function UsageMain({
     []
   );
 
-  // Fetch spending limits based on current filter context
+  // Per-limit save handlers — each limit type has its own save function
+  const handleSaveUserLimit = React.useCallback(
+    async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const result = await usageActions.setUserSpendingLimit(newLimit);
+        if ('detail' in result) {
+          return { success: false, error: (result as { detail: string }).detail };
+        }
+        toast.success('Spending limit updated');
+        setLimitRefreshKey((k) => k + 1);
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update spending limit';
+        toast.error(message);
+        return { success: false, error: message };
+      }
+    },
+    [usageActions]
+  );
+
+  const handleSaveOrgLimit = React.useCallback(
+    async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
+      if (!orgId) return { success: false, error: 'No organization context' };
+      try {
+        const result = await usageActions.setOrgSpendingLimit(orgId, newLimit);
+        if ('detail' in result) {
+          return { success: false, error: (result as { detail: string }).detail };
+        }
+        toast.success('Organization spending limit updated');
+        setLimitRefreshKey((k) => k + 1);
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update spending limit';
+        toast.error(message);
+        return { success: false, error: message };
+      }
+    },
+    [usageActions, orgId]
+  );
+
+  // Determine which member's limit to show/edit based on filter selection
+  const activeMemberId =
+    filters.userScope === 'member' && filters.selectedUserId
+      ? filters.selectedUserId
+      : currentUserId;
+
+  const activeMemberName = React.useMemo(() => {
+    if (activeMemberId === currentUserId) return 'My Limit';
+    const member = orgMembers.find((m) => m.userId === activeMemberId);
+    return member ? `${member.name}'s Limit` : 'Member Limit';
+  }, [activeMemberId, currentUserId, orgMembers]);
+
+  const handleSaveMemberLimit = React.useCallback(
+    async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
+      if (!orgId) return { success: false, error: 'No organization context' };
+      try {
+        const result = await usageActions.setMemberSpendingLimit(orgId, activeMemberId, newLimit);
+        if ('detail' in result) {
+          return { success: false, error: (result as { detail: string }).detail };
+        }
+        toast.success('Member spending limit updated');
+        setLimitRefreshKey((k) => k + 1);
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update spending limit';
+        toast.error(message);
+        return { success: false, error: message };
+      }
+    },
+    [usageActions, orgId, activeMemberId]
+  );
+
+  // Fetch spending limits based on current context
+  // In org context: always show org limit + current user's member limit
+  // In personal workspace: show user limit only
   React.useEffect(() => {
     const fetchSpendingLimits = async () => {
       setIsLoadingLimits(true);
       const limits: SpendingLimitData[] = [];
 
       try {
-        // Fetch the scope-level limit (user, org, or member)
-        let scopeResult: SpendingLimitInfo | { detail?: string } | null = null;
-
         if (orgId) {
-          // Org context
-          if (filters.userScope === 'org') {
-            // Org-wide view - show org limit
-            scopeResult = await usageActions.getOrgSpendingLimit(orgId);
-          } else if (filters.userScope === 'member' && filters.selectedUserId) {
-            // Specific member - show member limit
-            scopeResult = await usageActions.getMemberSpendingLimit(orgId, filters.selectedUserId);
-          } else {
-            // Self in org - show current user's member limit
-            scopeResult = await usageActions.getMemberSpendingLimit(orgId, currentUserId);
+          // Org context — always show both org limit and the user's member limit
+          const [orgResult, memberResult] = await Promise.all([
+            usageActions.getOrgSpendingLimit(orgId),
+            usageActions.getMemberSpendingLimit(orgId, activeMemberId),
+          ]);
+
+          if (orgResult && isSpendingLimit(orgResult)) {
+            limits.push({
+              ...orgResult,
+              canEdit: isAdmin,
+              onSave: isAdmin ? handleSaveOrgLimit : undefined,
+            });
+          }
+
+          if (memberResult && isSpendingLimit(memberResult)) {
+            limits.push({
+              ...memberResult,
+              label: activeMemberName,
+              canEdit: isAdmin,
+              onSave: isAdmin ? handleSaveMemberLimit : undefined,
+            });
           }
         } else {
-          // Personal workspace - show user limit
-          scopeResult = await usageActions.getUserSpendingLimit();
-        }
-
-        if (scopeResult && isSpendingLimit(scopeResult)) {
-          limits.push(scopeResult);
+          // Personal workspace — show user limit
+          const scopeResult = await usageActions.getUserSpendingLimit();
+          if (scopeResult && isSpendingLimit(scopeResult)) {
+            limits.push({
+              ...scopeResult,
+              canEdit: true,
+              onSave: handleSaveUserLimit,
+            });
+          }
         }
 
         // If filtering by specific assistant, also fetch assistant limit
@@ -188,11 +275,15 @@ export function UsageMain({
   }, [
     usageActions,
     orgId,
-    currentUserId,
-    filters.userScope,
-    filters.selectedUserId,
+    activeMemberId,
+    activeMemberName,
+    isAdmin,
     filters.assistantId,
     isSpendingLimit,
+    limitRefreshKey,
+    handleSaveOrgLimit,
+    handleSaveMemberLimit,
+    handleSaveUserLimit,
   ]);
 
   return (

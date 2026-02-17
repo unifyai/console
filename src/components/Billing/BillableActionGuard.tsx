@@ -1,0 +1,200 @@
+'use client';
+
+/**
+ * BillableActionGuard
+ *
+ * Wraps any billable action button/element and, when the active billing
+ * account lacks a payment method or sufficient credits, disables the
+ * element and shows a tooltip explaining the requirement.
+ *
+ * The tooltip contains a clickable "add a payment method" link that opens
+ * the Stripe side panel.
+ *
+ * By default the guard fetches billing status automatically via the
+ * `useBillingStatus` hook (React Query deduplicates across all guards
+ * on the same page), but callers can also pass explicit props to
+ * override billing state.
+ *
+ * Usage:
+ * ```tsx
+ * // Automatic — fetches billing status internally (shared via React Query)
+ * <BillableActionGuard onAddPaymentMethod={() => openStripeSidePanel()}>
+ *   <Button onClick={hireAssistant}>Hire</Button>
+ * </BillableActionGuard>
+ *
+ * // With credit threshold — requires at least $5 in credits
+ * <BillableActionGuard creditsRequired={5}>
+ *   <Button onClick={expensiveAction}>Run</Button>
+ * </BillableActionGuard>
+ *
+ * // Explicit override — pass billing status from parent
+ * <BillableActionGuard hasPaymentMethod={status.hasPaymentMethod} hasCredits={status.hasCredits}>
+ *   <Button onClick={action}>Go</Button>
+ * </BillableActionGuard>
+ * ```
+ *
+ * When billing is ready (payment method + sufficient credits), children
+ * render normally with no wrapper overhead.
+ */
+
+import * as React from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/UI/tooltip';
+import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface BillableActionGuardProps {
+  children: React.ReactElement;
+  /**
+   * Whether the user has a payment method on file.
+   * If omitted, fetched automatically via useBillingStatus.
+   */
+  hasPaymentMethod?: boolean;
+  /**
+   * Whether the user has sufficient credits.
+   * If omitted, computed from useBillingStatus using `creditsRequired`.
+   */
+  hasCredits?: boolean;
+  /**
+   * Minimum credit balance required for this action (default: any positive balance).
+   * Only used when `hasCredits` is not explicitly provided.
+   */
+  creditsRequired?: number;
+  /** Callback to open the Stripe payment panel */
+  onAddPaymentMethod?: () => void;
+  /** Override the default tooltip message */
+  tooltipMessage?: string;
+  /** Tooltip placement (default: "top") */
+  tooltipSide?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+// ─── Pure logic ─────────────────────────────────────────────────────────────
+
+export interface GuardDecision {
+  blocked: boolean;
+  reason: 'no_payment_method' | 'no_credits' | null;
+  message: string;
+}
+
+/**
+ * Determines whether a billable action should be blocked and why.
+ * Exported for unit testing without React.
+ */
+export function computeGuardDecision(
+  hasPaymentMethod: boolean,
+  hasCredits: boolean,
+  customMessage?: string
+): GuardDecision {
+  if (!hasPaymentMethod) {
+    return {
+      blocked: true,
+      reason: 'no_payment_method',
+      message:
+        customMessage ?? 'You need to add a payment method and purchase credits before using this feature.',
+    };
+  }
+  if (!hasCredits) {
+    return {
+      blocked: true,
+      reason: 'no_credits',
+      message: customMessage ?? 'You need to purchase credits to use this feature.',
+    };
+  }
+  return { blocked: false, reason: null, message: '' };
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+// Check if we're in a staging environment (skip billing guard entirely)
+const IS_STAGING = (process.env.ORCHESTRA_URL ?? '').includes('staging');
+
+export function BillableActionGuard({
+  children,
+  hasPaymentMethod: hasPaymentMethodProp,
+  hasCredits: hasCreditsProp,
+  creditsRequired = 0,
+  onAddPaymentMethod,
+  tooltipMessage,
+  tooltipSide = 'top',
+}: BillableActionGuardProps) {
+  // Fetch billing status via React Query (shared/deduplicated across all guards)
+  // Must be called unconditionally (React hooks rules)
+  const billingStatus = useBillingStatus();
+
+  // In staging environments, skip billing checks entirely
+  if (IS_STAGING) {
+    return <>{children}</>;
+  }
+
+  // Use explicit props when provided, otherwise derive from hook data
+  const hasPaymentMethod = hasPaymentMethodProp ?? billingStatus.hasPaymentMethod;
+  const hasCredits =
+    hasCreditsProp ?? (creditsRequired > 0
+      ? billingStatus.credits >= creditsRequired
+      : billingStatus.hasCredits);
+
+  const decision = computeGuardDecision(hasPaymentMethod, hasCredits, tooltipMessage);
+
+  // Still loading and no explicit props → render children as-is (not blocked)
+  if (billingStatus.isLoading && hasPaymentMethodProp === undefined && hasCreditsProp === undefined) {
+    return <>{children}</>;
+  }
+
+  // Not blocked → render children as-is
+  if (!decision.blocked) {
+    return <>{children}</>;
+  }
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* Wrap in a span so disabled children still trigger the tooltip */}
+          <span
+            data-testid="billable-action-guard"
+            className="inline-flex"
+            style={{ cursor: 'not-allowed' }}
+          >
+            {React.cloneElement(children, {
+              disabled: true,
+              'aria-disabled': true,
+              onClick: (e: React.MouseEvent) => e.preventDefault(),
+              className: `${children.props.className ?? ''} pointer-events-none opacity-50`.trim(),
+            })}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side={tooltipSide} className="max-w-xs p-3">
+          <p className="text-caption leading-relaxed">
+            {decision.reason === 'no_payment_method' ? (
+              <>
+                You need to{' '}
+                {onAddPaymentMethod ? (
+                  <button
+                    type="button"
+                    onClick={onAddPaymentMethod}
+                    className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                    data-testid="add-payment-method-link"
+                  >
+                    add a payment method
+                  </button>
+                ) : (
+                  <span className="font-medium">add a payment method</span>
+                )}{' '}
+                and purchase credits before using this feature.
+              </>
+            ) : (
+              decision.message
+            )}
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+export default BillableActionGuard;

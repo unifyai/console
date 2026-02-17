@@ -11,6 +11,7 @@ import { AssistantActions, VoiceOption } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { PHOTO_OPERATION_COST, VIDEO_ANIMATION_COST } from '@/constants/assistants/settings';
 import { toast } from 'sonner';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ interface PhotoCustomizationProps {
   setActiveTab: (tab: 'upload' | 'create' | 'animate') => void;
   showAnimatePing?: boolean;
   onProcessingStateChange?: (isProcessing: boolean) => void;
+  /** Callback to open the Stripe side panel for payment setup */
+  onAddPaymentMethod?: () => void;
 }
 
 export function PhotoCustomization({
@@ -50,6 +53,7 @@ export function PhotoCustomization({
   setActiveTab,
   showAnimatePing,
   onProcessingStateChange,
+  onAddPaymentMethod,
 }: PhotoCustomizationProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -273,59 +277,48 @@ export function PhotoCustomization({
                 Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits per image
               </p>
               <div className="flex gap-1">
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      {/* Wrap the disabled button in a span to allow tooltip events */}
-                      <span tabIndex={0}>
-                        <Button
-                          aria-label="Edit photo"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(imageSourceForOperations!)}
-                          disabled={isEditDisabled}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Pen className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="end" className="text-caption max-w-xs">
-                      <p>{editTooltipContent}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span tabIndex={0}>
-                        <Button
-                          aria-label="Generate new photo"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={handleGenerate}
-                          disabled={isGenerateDisabled}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="end" className="text-caption max-w-xs">
-                      <p>{generateTooltipContent}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <BillableActionGuard
+                  onAddPaymentMethod={onAddPaymentMethod}
+                  creditsRequired={PHOTO_OPERATION_COST}
+                  tooltipSide="bottom"
+                >
+                  <Button
+                    aria-label="Edit photo"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleEdit(imageSourceForOperations!)}
+                    disabled={isEditDisabled}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Pen className="h-4 w-4" />
+                    )}
+                  </Button>
+                </BillableActionGuard>
+                <BillableActionGuard
+                  onAddPaymentMethod={onAddPaymentMethod}
+                  creditsRequired={PHOTO_OPERATION_COST}
+                  tooltipSide="bottom"
+                >
+                  <Button
+                    aria-label="Generate new photo"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleGenerate}
+                    disabled={isGenerateDisabled}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                  </Button>
+                </BillableActionGuard>
               </div>
             </div>
           </div>
@@ -347,38 +340,35 @@ export function PhotoCustomization({
               <p className="text-caption px-1 text-muted-foreground">
                 Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits per second
               </p>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0} className="relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleAnimate(imageSourceForOperations!)}
-                        disabled={isAnimateDisabled}
-                        aria-label="Animate photo"
-                      >
-                        {isProcessing ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <PlayCircle className="h-4 w-4" />
-                        )}
-                      </Button>
-                      {showAnimatePing && (
-                        <span className="absolute right-0.5 top-0.5 flex h-3 w-3">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
-                        </span>
-                      )}
+              <BillableActionGuard
+                onAddPaymentMethod={onAddPaymentMethod}
+                creditsRequired={VIDEO_ANIMATION_COST}
+                tooltipSide="bottom"
+              >
+                <span tabIndex={0} className="relative inline-flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleAnimate(imageSourceForOperations!)}
+                    disabled={isAnimateDisabled}
+                    aria-label="Animate photo"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {showAnimatePing && (
+                    <span className="absolute right-0.5 top-0.5 flex h-3 w-3">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
                     </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="end" className="text-caption max-w-xs">
-                    <p>{animateTooltipContent}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                  )}
+                </span>
+              </BillableActionGuard>
             </div>
           </div>
         </TabsContent>

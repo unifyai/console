@@ -5,48 +5,109 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import type Stripe from 'stripe';
 
 /**
- * Fetches user data required for enriched metadata.
- * @param userID - The ID of the user.
- * @returns An object containing user creation date and total spending.
+ * Describes the entity whose billing data should be used for a checkout session.
+ *
+ * - Personal workspace → `{ userId: '<id>' }`
+ * - Organization workspace → `{ userId: '<id>', organizationId: 123 }`
+ *
+ * When `organizationId` is present, billing profile data (tax, etc.) is
+ * resolved from the *organization's* billing account; the `userId` is still
+ * stored in session metadata for audit purposes.
  */
-async function getUserData(userID: string) {
+export interface CheckoutContext {
+  userId: string;
+  organizationId?: number;
+}
+
+/**
+ * Fetches billing-relevant data for a checkout session.
+ *
+ * In an organization context the billing profile (tax info, etc.) comes from
+ * the *organization*, while user-level metadata (account age, etc.) is still
+ * read from the user record so we keep rich fraud-prevention signals.
+ *
+ * @param ctx - Checkout context (user + optional org).
+ */
+async function getCheckoutData(ctx: CheckoutContext) {
   try {
-    const userResponse = await OrchestraAdminClient.get('/auth-user/by-user-id', {
-      params: { user_id: userID },
+    // Always fetch user data for audit/fraud metadata
+    const userResponse = await OrchestraAdminClient.get('/user/by-user-id', {
+      params: { user_id: ctx.userId },
     });
     console.log('[Checkout] admin auth-user response:', userResponse.data);
-    const spendingResponse = await OrchestraAdminClient.get('/user_billing_eligibility', {
-      params: { user_id: userID },
+
+    // Fetch eligibility from the correct entity (org or user)
+    const eligibilityParams: Record<string, string> = {};
+    if (ctx.organizationId) {
+      eligibilityParams.organization_id = String(ctx.organizationId);
+    } else {
+      eligibilityParams.user_id = ctx.userId;
+    }
+    const eligibilityResponse = await OrchestraAdminClient.get('/billing_eligibility', {
+      params: eligibilityParams,
     });
-    console.log('[Checkout] billing eligibility response:', spendingResponse.data);
+    console.log('[Checkout] auto-recharge eligibility response:', eligibilityResponse.data);
+
+    // In org context, fetch the org's billing profile for tax info
+    let taxId: string | undefined;
+    let taxIdType: string | undefined;
+    let billingEmail: string | undefined;
+    let billingName: string | undefined;
+
+    if (ctx.organizationId) {
+      try {
+        const orgBillingResponse = await OrchestraAdminClient.get('/billing/account-info', {
+          params: { organization_id: String(ctx.organizationId) },
+        });
+        // The billing profile comes from the billing account; tax data
+        // is synced there by the update_billing_profile endpoint.
+        const ba = orgBillingResponse.data;
+        taxId = ba?.tax_id;
+        taxIdType = ba?.tax_id_type || 'eu_vat';
+        billingEmail = ba?.billing_email;
+        billingName = ba?.name;
+      } catch (e) {
+        console.warn('[Checkout] Failed to fetch org billing profile, falling back to user', e);
+      }
+    }
+
+    // Fall back to user-level values for personal context or if org fetch failed
+    if (!ctx.organizationId || (!taxId && !billingName)) {
+      taxId = taxId || (userResponse.data?.tax_id as string | undefined);
+      taxIdType = taxIdType || (userResponse.data?.tax_id_type || 'eu_vat');
+      billingName = billingName || (userResponse.data?.name as string | undefined);
+    }
 
     return {
-      createdAt: userResponse.data?.created_at, // e.g., '2023-01-01T12:00:00Z'
-      totalSpending: (spendingResponse.data?.total_spending ?? 0) as number,
-      accountType: (userResponse.data?.business_classification?.account_type ??
-        userResponse.data?.account_type ??
-        'individual') as 'individual' | 'business',
-      email: userResponse.data?.email as string | undefined,
-      name: userResponse.data?.name as string | undefined,
-      taxId: userResponse.data?.tax_id as string | undefined,
-      taxIdType: (userResponse.data?.tax_id_type || 'eu_vat') as string | undefined,
+      createdAt: userResponse.data?.created_at,
+      totalSpending: (eligibilityResponse.data?.total_spending ?? 0) as number,
+      email: billingEmail || (userResponse.data?.email as string | undefined),
+      name: billingName,
+      taxId,
+      taxIdType,
+      // Whether the entity has a tax ID determines tax-collection behaviour
+      hasTaxId: !!taxId,
     };
   } catch (error) {
-    console.error('Failed to fetch user data for Stripe metadata:', error);
-    // Return defaults so we don't block the payment flow
+    console.error('Failed to fetch checkout data for Stripe metadata:', error);
     return {
       createdAt: null,
       totalSpending: 0,
-      accountType: 'individual' as 'individual' | 'business',
+      email: undefined as string | undefined,
+      name: undefined as string | undefined,
+      taxId: undefined as string | undefined,
+      taxIdType: undefined as string | undefined,
+      hasTaxId: false,
     };
   }
 }
 
 /**
- * Updates the Stripe customer ID for the user with the given userID (in Orchestra)
- * @param userID - The ID of the user.
- * @param stripeCustomerID - The Stripe customer ID.
- * @returns The response from Orchestra.
+ * Updates the Stripe customer ID for the user with the given userID (in Orchestra).
+ *
+ * @deprecated Only used by ensureStripeCustomer which is itself deprecated.
+ * The webhook now handles persisting the customer ID from checkout sessions.
+ * See design doc §5.7 for cleanup plan.
  */
 export async function updateStripeCustomerID(userID: string, stripeCustomerID: string) {
   const response = await OrchestraAdminClient.put('/stripe_customer_id', null, {
@@ -99,56 +160,50 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
 }
 
 /**
- * Creates a new Stripe checkout session for the given customer ID and returns the session URL.
- * @param customerID - The Stripe customer ID of the user.
- * @returns The URL of the created checkout session.
+ * Creates a Stripe Checkout session (redirect mode) and returns the session URL.
+ *
+ * Supports both personal and organization workspaces via `CheckoutContext`.
+ * When no `customerID` is provided, the session is created with
+ * `customer_creation: 'always'` so Stripe auto-creates the customer;
+ * the webhook then persists the customer ID back to the BillingAccount.
+ *
+ * @param ctx - Checkout context (user + optional org).
+ * @param customerID - Optional Stripe customer ID. Pass `null` / `undefined`
+ *   for first-time buyers — Stripe will create one during checkout.
+ * @returns The checkout session URL.
  */
-export async function createCheckoutSession(userID: string, customerID: string): Promise<string> {
+export async function createCheckoutSession(
+  ctx: CheckoutContext,
+  customerID: string | null | undefined
+): Promise<string> {
   if (!stripe) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
   const stripeClient = stripe as NonNullable<typeof stripe>;
 
-  // 1. Fetch user data from Orchestra
-  const { createdAt, totalSpending, accountType, email, name, taxId, taxIdType } =
-    await getUserData(userID);
+  const { createdAt, totalSpending, email, name, taxId, taxIdType, hasTaxId } =
+    await getCheckoutData(ctx);
 
-  // 2. Calculate enriched metadata fields
   let accountAgeDays = 0;
   if (createdAt) {
     const creationDate = new Date(createdAt);
     const today = new Date();
     accountAgeDays = Math.round((today.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
   }
-
   const isRepeatCustomer = totalSpending > 0;
 
-  console.log('[Checkout] user', userID, 'accountType', accountType);
-
-  let rawPriceOrProductId =
-    accountType === 'business'
-      ? process.env.STRIPE_PRICE_ID_BUSINESS
-      : process.env.STRIPE_PRICE_ID_PERSONAL;
-
-  console.log('[Checkout] raw price/product env value:', rawPriceOrProductId);
-
+  // Resolve price
+  const rawPriceOrProductId = ctx.organizationId ? process.env.STRIPE_PRICE_ID_BUSINESS : process.env.STRIPE_PRICE_ID_PERSONAL;
   if (!rawPriceOrProductId) {
-    throw new Error(
-      `Missing Stripe price/product ID environment variable for ${accountType} account. Ensure STRIPE_PRICE_ID_${
-        accountType === 'business' ? 'BUSINESS' : 'PERSONAL'
-      } is set.`
-    );
+    throw new Error(`Missing STRIPE_PRICE_ID_${ctx.organizationId ? 'BUSINESS' : 'PERSONAL'} environment variable.`);
   }
 
   let priceId: string;
   if (rawPriceOrProductId.startsWith('prod_')) {
-    // Convert product ID to its first active price ID
     const pricesForProduct = await stripeClient.prices.list({ product: rawPriceOrProductId });
     const activePrice = pricesForProduct.data.find((p) => p.active);
     if (!activePrice) {
-      throw new Error(
-        `No active prices found for product ID ${rawPriceOrProductId}. Please create a price in Stripe or provide a price_ ID instead.`
-      );
+      throw new Error(`No active prices found for product ID ${rawPriceOrProductId}.`);
     }
     priceId = activePrice.id;
   } else {
@@ -156,95 +211,52 @@ export async function createCheckoutSession(userID: string, customerID: string):
   }
 
   const price = await stripeClient.prices.retrieve(priceId);
-  const credits_purchased = (price.unit_amount || 0) / 100; // Assuming $1 = 1 credit, and unit_amount is in cents.
+  const creditsPurchased = (price.unit_amount || 0) / 100;
 
-  async function buildSession(custId?: string) {
-    return await stripeClient.checkout.sessions.create({
-      mode: 'payment',
-      submit_type: 'pay',
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      automatic_tax: {
-        enabled: true,
-      },
-      customer_update: {
-        address: 'auto',
-        ...(accountType === 'business' && { name: 'auto' }),
-      },
-      customer: custId,
-      client_reference_id: userID,
-      success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
-      billing_address_collection: 'required',
-      tax_id_collection: accountType === 'business' ? { enabled: true } : undefined,
-      payment_method_options: {
-        card: {
-          request_three_d_secure: 'any',
-        },
-      },
-      payment_intent_data: {
-        metadata: {
-          user_id: userID,
-          credits_purchased: String(credits_purchased),
-
-          // Enriched metadata
-          user_total_spend: String(totalSpending),
-          user_account_age_days: String(accountAgeDays),
-          user_is_repeat_customer: String(isRepeatCustomer),
-        },
-      },
-    });
+  // Sync tax ID on an existing customer before creating the session
+  if (customerID && hasTaxId && taxId) {
+    await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
   }
 
-  let checkoutSession;
-  async function ensureTaxId(custId: string) {
-    if (accountType === 'business' && taxId) {
-      // Check existing tax IDs first to avoid duplicates
-      const existing = await stripeClient.customers.listTaxIds(custId);
-      const alreadyExists = existing.data.some((t: any) => t.value === taxId);
-      if (!alreadyExists) {
-        try {
-          await stripeClient.customers.createTaxId(custId, {
-            type: (taxIdType || 'eu_vat') as any,
-            value: taxId,
-          });
-        } catch (e) {
-          console.warn('Failed to create tax ID for customer', e);
-        }
-      }
-    }
+  // Build metadata — always include user_id for audit; include org_id when applicable
+  const metadata: Record<string, string> = {
+    user_id: ctx.userId,
+    credits_purchased: String(creditsPurchased),
+    user_total_spend: String(totalSpending),
+    user_account_age_days: String(accountAgeDays),
+    user_is_repeat_customer: String(isRepeatCustomer),
+  };
+  if (ctx.organizationId) {
+    metadata.organization_id = String(ctx.organizationId);
   }
 
-  try {
-    if (customerID) {
-      await ensureTaxId(customerID);
-    }
-    checkoutSession = await buildSession(customerID);
-  } catch (err: any) {
-    // If the provided customerID is invalid/missing in Stripe, create new customer and retry once
-    if (
-      err?.code === 'resource_missing' &&
-      err?.param === 'customer' &&
-      (err?.message?.includes('No such customer') ||
-        err?.raw?.message?.includes('No such customer'))
-    ) {
-      const newCustomerId = await ensureStripeCustomer({
-        userId: userID,
-        email: email || '',
-        name: name || email || 'User',
-        // provide tax info if business
-        taxId: accountType === 'business' ? taxId : undefined,
-        taxIdType: accountType === 'business' ? taxIdType : undefined,
-      });
-      checkoutSession = await buildSession(newCustomerId);
-    } else {
-      throw err;
-    }
+  // Build session params — include customer when known, otherwise let Stripe create one
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    mode: 'payment',
+    submit_type: 'pay',
+    line_items: [{ price: priceId, quantity: 1 }],
+    automatic_tax: { enabled: true },
+    client_reference_id: ctx.userId,
+    success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
+    billing_address_collection: 'required',
+    tax_id_collection: hasTaxId ? { enabled: true } : undefined,
+    payment_method_options: { card: { request_three_d_secure: 'any' } },
+    payment_intent_data: { metadata },
+    metadata,
+  };
+
+  if (customerID) {
+    sessionParams.customer = customerID;
+    sessionParams.customer_update = { address: 'auto', name: 'auto' };
+  } else {
+    // No customer yet — let Stripe create one during checkout.
+    // The webhook will persist the customer ID to the BillingAccount.
+    sessionParams.customer_creation = 'always';
+    if (email) sessionParams.customer_email = email;
   }
+
+  const checkoutSession = await stripeClient.checkout.sessions.create(sessionParams);
 
   if (!checkoutSession.url) {
     throw new Error('Failed to create checkout session URL');
@@ -254,12 +266,149 @@ export async function createCheckoutSession(userID: string, customerID: string):
 }
 
 /**
+ * Creates a Stripe Checkout session in embedded mode for use with
+ * the `<EmbeddedCheckout>` component.  Returns the `client_secret` rather
+ * than a redirect URL, allowing the checkout to be embedded in an iframe
+ * inside the StripeSidePanel.
+ *
+ * Supports both personal and organization workspaces via `CheckoutContext`.
+ * When no `customerID` is provided, the session is created with
+ * `customer_creation: 'always'` so Stripe auto-creates the customer;
+ * the webhook then persists the customer ID back to the BillingAccount.
+ *
+ * @param ctx - Checkout context (user + optional org).
+ * @param customerID - Optional Stripe customer ID. Pass `null` / `undefined`
+ *   for first-time buyers — Stripe will create one during checkout.
+ * @returns The checkout session client_secret.
+ */
+export async function createEmbeddedCheckoutSession(
+  ctx: CheckoutContext,
+  customerID: string | null | undefined
+): Promise<string> {
+  if (!stripe) {
+    throw new Error('Stripe is not initialized. Check your environment variables.');
+  }
+  const stripeClient = stripe as NonNullable<typeof stripe>;
+
+  const { createdAt, totalSpending, email, name, taxId, taxIdType, hasTaxId } =
+    await getCheckoutData(ctx);
+
+  let accountAgeDays = 0;
+  if (createdAt) {
+    const creationDate = new Date(createdAt);
+    const today = new Date();
+    accountAgeDays = Math.round((today.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
+  }
+  const isRepeatCustomer = totalSpending > 0;
+
+  // Resolve price
+  const rawPriceOrProductId = ctx.organizationId ? process.env.STRIPE_PRICE_ID_BUSINESS : process.env.STRIPE_PRICE_ID_PERSONAL;
+  if (!rawPriceOrProductId) {
+    throw new Error(`Missing STRIPE_PRICE_ID_${ctx.organizationId ? 'BUSINESS' : 'PERSONAL'} environment variable.`);
+  }
+
+  let priceId: string;
+  if (rawPriceOrProductId.startsWith('prod_')) {
+    const pricesForProduct = await stripeClient.prices.list({ product: rawPriceOrProductId });
+    const activePrice = pricesForProduct.data.find((p) => p.active);
+    if (!activePrice) {
+      throw new Error(`No active prices found for product ${rawPriceOrProductId}.`);
+    }
+    priceId = activePrice.id;
+  } else {
+    priceId = rawPriceOrProductId;
+  }
+
+  const price = await stripeClient.prices.retrieve(priceId);
+  const creditsPurchased = (price.unit_amount || 0) / 100;
+
+  // Sync tax ID on an existing customer before creating the session
+  if (customerID && hasTaxId && taxId) {
+    await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
+  }
+
+  // Build metadata
+  const metadata: Record<string, string> = {
+    user_id: ctx.userId,
+    credits_purchased: String(creditsPurchased),
+    user_total_spend: String(totalSpending),
+    user_account_age_days: String(accountAgeDays),
+    user_is_repeat_customer: String(isRepeatCustomer),
+  };
+  if (ctx.organizationId) {
+    metadata.organization_id = String(ctx.organizationId);
+  }
+
+  // Build session params
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    ui_mode: 'embedded',
+    mode: 'payment',
+    line_items: [{ price: priceId, quantity: 1 }],
+    automatic_tax: { enabled: true },
+    client_reference_id: ctx.userId,
+    return_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+    billing_address_collection: 'required',
+    tax_id_collection: hasTaxId ? { enabled: true } : undefined,
+    payment_method_options: { card: { request_three_d_secure: 'any' } },
+    payment_intent_data: { metadata },
+    metadata,
+  };
+
+  if (customerID) {
+    sessionParams.customer = customerID;
+    sessionParams.customer_update = { address: 'auto', name: 'auto' };
+  } else {
+    // No customer yet — let Stripe create one during checkout.
+    sessionParams.customer_creation = 'always';
+    if (email) sessionParams.customer_email = email;
+  }
+
+  const session = await stripeClient.checkout.sessions.create(sessionParams);
+
+  if (!session.client_secret) {
+    throw new Error('Failed to create embedded checkout session: no client_secret returned');
+  }
+
+  return session.client_secret;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensures a tax ID is present on a Stripe customer (idempotent).
+ * Only adds the tax ID if no entry with the same `value` already exists.
+ */
+async function syncTaxIdToCustomer(
+  stripeClient: NonNullable<typeof stripe>,
+  customerId: string,
+  taxId: string,
+  taxIdType?: string
+) {
+  try {
+    const existing = await stripeClient.customers.listTaxIds(customerId);
+    const alreadyExists = existing.data.some((t: any) => t.value === taxId);
+    if (!alreadyExists) {
+      await stripeClient.customers.createTaxId(customerId, {
+        type: (taxIdType || 'eu_vat') as any,
+        value: taxId,
+      });
+    }
+  } catch (e) {
+    console.warn('[Stripe] Failed to sync tax ID for customer', customerId, e);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Card fingerprints (currently unused — see design doc §5.6)
+// ---------------------------------------------------------------------------
+
+/**
  * Retrieves the list of card fingerprints associated with a given Stripe customer ID.
  * @param customerID - The Stripe customer ID of the user.
  * @returns An array of card fingerprints associated with the user's customer ID.
- * The response will have a status of 401 if the user is not authenticated,
- * 404 if the user does not have a Stripe customer ID, or 500 if there was
- * an error retrieving the user's payment methods.
+ * @deprecated Currently unused. See design doc §5.6 for re-introduction plan.
  */
 export async function getStripeFingerprints(customerID: string) {
   if (!stripe) {
@@ -290,6 +439,10 @@ export interface StripeCustomerInfo {
  * Ensures a Stripe customer exists for the given user. If a customer ID is already stored in Orchestra, it will be reused.
  * Otherwise, a new customer is created and the ID is stored back in Orchestra.
  * The function also updates the customer's name, address and tax ID if new information is provided.
+ *
+ * @deprecated No longer used — checkout sessions now use `customer_creation: 'always'`
+ * when no customer exists, and the webhook persists the customer ID.
+ * See design doc §5.7 for cleanup plan.
  */
 export async function ensureStripeCustomer(params: {
   userId: string;

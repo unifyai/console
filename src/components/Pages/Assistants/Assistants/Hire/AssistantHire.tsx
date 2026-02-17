@@ -15,9 +15,6 @@ import {
   Loader2,
   Shuffle,
   AlertTriangle,
-  Lock,
-  Info,
-  Timer,
   Maximize2,
   Minimize2,
   Minus,
@@ -29,7 +26,7 @@ import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
-import { ApprovalStatus } from '@/types/user';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { useFormContext, UseFormReturn } from 'react-hook-form';
 import { AssistantHireChatPanel } from './AssistantHireChatPanel';
@@ -50,9 +47,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
   isCheckingBalance: boolean;
   showInsufficientFundsHint: boolean;
   setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>;
-  userApprovalStatus: ApprovalStatus | 'loading';
-  isLoadingUserApproval: boolean;
-  onRequestAccess: () => Promise<boolean | void>;
+  onAddPaymentMethod?: () => void;
   formMethods: UseFormReturn<AssistantFormData>;
   isFastMode: boolean;
 }
@@ -72,9 +67,7 @@ export function AssistantHire({
   isCheckingBalance,
   showInsufficientFundsHint,
   setShowInsufficientFundsHint,
-  userApprovalStatus,
-  isLoadingUserApproval,
-  onRequestAccess,
+  onAddPaymentMethod,
   formMethods,
   isFastMode,
 }: AssistantHireProps) {
@@ -115,14 +108,11 @@ export function AssistantHire({
 
   const handleToggleView = () => setRightPanelView((p) => (p === 'presets' ? 'chat' : 'presets'));
 
-  const isUserApproved = userApprovalStatus === 'approved';
   const isPrimaryActionDisabled =
     isHireSubmitting ||
     !!isProcessingVoice ||
-    !!isProcessingPhoto ||
-    !isUserApproved ||
-    isLoadingUserApproval;
-  const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval;
+    !!isProcessingPhoto;
+  const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance;
 
   const handleDialogClose = (open: boolean) => {
     if (!isOverallDialogBusy) {
@@ -151,8 +141,6 @@ export function AssistantHire({
   };
 
   const hireButtonLabel = () => {
-    if (isLoadingUserApproval && userApprovalStatus === 'loading') return 'Checking Access...';
-    if (isLoadingUserApproval) return 'Processing...';
     if (isCheckingBalance) return 'Checking Balance...';
     if (isHireSubmitting) return 'Hiring...';
     if (isProcessingVoice) return 'Processing Voice...';
@@ -160,44 +148,12 @@ export function AssistantHire({
     return 'Hire Assistant';
   };
 
-  const renderAccessMessage = () => {
-    let message = '';
-    let showRequestButton = false;
-    let icon = <Info className="mb-4 h-12 w-12 text-primary" />;
-
-    if (userApprovalStatus === 'pending') {
-      message = "We're reviewing your request for assistant hiring and will get back to you soon!";
-      icon = <Timer className="mb-4 h-12 w-12 text-primary" />;
-    } else {
-      // null, "rejected", "revoked"
-      message = 'Hiring assistants is currently in Beta. Feel free to request access below!';
-      icon = <Lock className="mb-4 h-12 w-12 text-primary" />;
-      showRequestButton = true;
-    }
-
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-        {icon}
-        <h3 className="text-h3 mb-3">
-          {userApprovalStatus === 'pending' ? 'Request Pending' : 'Access Required'}
-        </h3>
-        <p className="text-body mb-6 text-muted-foreground">{message}</p>
-        {showRequestButton && (
-          <Button onClick={onRequestAccess} disabled={isLoadingUserApproval}>
-            {isLoadingUserApproval ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Request Access
-          </Button>
-        )}
-      </div>
-    );
-  };
-
   return (
     <Dialog open={isHireDialogOpen} onOpenChange={handleDialogClose}>
       <DialogContent
         className={cn(
           'flex h-[90vh] max-w-5xl flex-col gap-0 p-0',
-          isAssistantPresetsOpen && isUserApproved && layoutMode === 'split' && 'max-w-6xl'
+          isAssistantPresetsOpen && layoutMode === 'split' && 'max-w-6xl'
         )}
         onInteractOutside={handleDialogInteractOutside}
         onPointerDownOutside={(e) => {
@@ -217,9 +173,7 @@ export function AssistantHire({
             <div className="flex flex-col gap-2">
               <DialogTitle className="text-h3">Hire Assistant</DialogTitle>
               <DialogDescription className="text-subtitle">
-                {isUserApproved
-                  ? 'Hire an existing assistant or create your own.'
-                  : 'Request access to hire new assistants.'}
+                Hire an existing assistant or create your own.
               </DialogDescription>
             </div>
             <TooltipProvider delayDuration={100}>
@@ -244,15 +198,7 @@ export function AssistantHire({
           </div>
         </DialogHeader>
 
-        {userApprovalStatus === 'loading' ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-            <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
-            <p className="text-body text-muted-foreground">Checking your access status...</p>
-          </div>
-        ) : !isUserApproved ? (
-          renderAccessMessage()
-        ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
             {/* Form Panel Section */}
             <motion.div
               key="hire-form-panel"
@@ -384,7 +330,6 @@ export function AssistantHire({
               )}
             </AnimatePresence>
           </div>
-        )}
 
         <DialogFooter className="flex flex-shrink-0 items-center border-t px-6 py-3">
           <div className="text-body mr-auto">
@@ -392,7 +337,25 @@ export function AssistantHire({
             <span className="text-strong">{totalOnboardingFee.toFixed(2)} Credits</span>
           </div>
           <div className="flex items-center gap-2">
-            {isUserApproved && (
+            {rightPanelView === 'presets' ? (
+              <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => {
+                    setIsAssistantPresetsOpen(true);
+                    setLayoutMode('split');
+                    setRightPanelView('chat');
+                  }}
+                >
+                  <div className="flex flex-row items-center gap-1">
+                    <MessageSquare className="h-4 w-4" />
+                    Chat Now
+                  </div>
+                </Button>
+              </BillableActionGuard>
+            ) : (
               <Button
                 type="button"
                 variant="outline"
@@ -400,25 +363,18 @@ export function AssistantHire({
                 onClick={() => {
                   setIsAssistantPresetsOpen(true);
                   setLayoutMode('split');
-                  setRightPanelView(rightPanelView === 'chat' ? 'presets' : 'chat');
+                  setRightPanelView('presets');
                 }}
               >
-                {rightPanelView === 'presets' ? (
-                  <div className="flex flex-row items-center gap-1">
-                    <MessageSquare className="h-4 w-4" />
-                    Chat Now
-                  </div>
-                ) : (
-                  <div className="flex flex-row items-center gap-1">
-                    <LayoutList className="h-4 w-4" />
-                    Browse Assistants
-                  </div>
-                )}
+                <div className="flex flex-row items-center gap-1">
+                  <LayoutList className="h-4 w-4" />
+                  Browse Assistants
+                </div>
               </Button>
             )}
             <Popover
               modal={true}
-              open={showInsufficientFundsHint && isUserApproved}
+              open={showInsufficientFundsHint}
               onOpenChange={(isOpenByRadix) => {
                 if (!isOpenByRadix) {
                   setShowInsufficientFundsHint(false);
@@ -426,23 +382,25 @@ export function AssistantHire({
               }}
             >
               <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => onHireAttempt(chatHistories[assistantConfigKey])}
-                  className="h-8"
-                  disabled={isPrimaryActionDisabled}
+                <BillableActionGuard
+                  onAddPaymentMethod={onAddPaymentMethod}
                 >
-                  {(isLoadingUserApproval ||
-                    isCheckingBalance ||
-                    isHireSubmitting ||
-                    isProcessingVoice ||
-                    isProcessingPhoto) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {hireButtonLabel()}
-                </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => onHireAttempt(chatHistories[assistantConfigKey])}
+                    className="h-8"
+                    disabled={isPrimaryActionDisabled}
+                  >
+                    {(isCheckingBalance ||
+                      isHireSubmitting ||
+                      isProcessingVoice ||
+                      isProcessingPhoto) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {hireButtonLabel()}
+                  </Button>
+                </BillableActionGuard>
               </PopoverTrigger>
-              {isUserApproved && (
-                <PopoverContent side="top" align="end" className="w-80">
+              <PopoverContent side="top" align="end" className="w-80">
                   <div className="grid gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center">
@@ -468,7 +426,6 @@ export function AssistantHire({
                     </Button>
                   </div>
                 </PopoverContent>
-              )}
             </Popover>
           </div>
         </DialogFooter>

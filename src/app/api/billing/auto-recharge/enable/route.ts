@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enableAutoRecharge } from '@/lib/user/billing/billing';
-import { getCurrentUser } from '@/lib/user/user';
+import { getWorkspaceBillingContext } from '../../../_utils/auth';
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
+  const ctx = await getWorkspaceBillingContext();
 
-  if (!user) {
+  if (!ctx) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
@@ -17,7 +17,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
     }
 
-    await enableAutoRecharge(user.id, enabled);
+    const entityParams =
+      ctx.type === 'organization'
+        ? { organizationId: ctx.organizationId }
+        : { userId: ctx.userId };
+
+    await enableAutoRecharge(enabled, entityParams);
 
     return NextResponse.json({ message: 'Auto-recharge status updated successfully' });
   } catch (error) {

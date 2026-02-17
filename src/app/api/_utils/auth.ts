@@ -1,11 +1,13 @@
 /**
- * Authentication utilities for API routes.
+ * Authentication and workspace utilities for API routes.
  *
  * Provides helpers for extracting API keys from requests using
  * session-based auth or header-based auth (for testing/backwards compatibility).
+ * Also provides workspace context resolution (personal vs org).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/user/user';
 
 /**
@@ -88,4 +90,54 @@ export function handleOrchestraError(error: unknown, response: Response): NextRe
   return NextResponse.json(error || { error: 'Unknown error' }, {
     status: response.status,
   });
+}
+
+// =============================================================================
+// Workspace Context
+// =============================================================================
+
+/**
+ * Describes the current billing context based on the active workspace.
+ *
+ * - `type === 'personal'`: the user's own billing account.
+ * - `type === 'organization'`: an organization's billing account.
+ */
+export interface WorkspaceBillingContext {
+  type: 'personal' | 'organization';
+  userId: string;
+  organizationId?: number;
+}
+
+/**
+ * Resolves the billing-relevant workspace context from the session cookie.
+ *
+ * Reads `unify_workspace_id` to determine whether the user is operating
+ * in a personal or organization workspace, and returns identifiers needed
+ * for admin API calls that accept `user_id` or `organization_id`.
+ *
+ * @returns WorkspaceBillingContext or null if the user is not authenticated.
+ */
+export async function getWorkspaceBillingContext(): Promise<WorkspaceBillingContext | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const cookieStore = await cookies();
+  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
+
+  if (workspaceId && workspaceId !== 'personal') {
+    // Validate the user is a member of this organization
+    const org = user.organizations?.find((o: any) => o.id?.toString() === workspaceId);
+    if (org) {
+      return {
+        type: 'organization',
+        userId: user.id,
+        organizationId: org.id,
+      };
+    }
+  }
+
+  return {
+    type: 'personal',
+    userId: user.id,
+  };
 }
