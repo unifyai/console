@@ -275,7 +275,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       if (result.liveviewUrl) {
         setLiveviewUrl(result.liveviewUrl);
         setIsRemoteControlActive(true);
-        setIsRemoteControlInteractive(false); // Start in view-only mode
+        setIsRemoteControlInteractive(false);
         assistantActions.desktop
           .sendSystemEvent(
             activeCallAssistant.agentId,
@@ -442,29 +442,56 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
   }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant]);
 
-  // Poll for desktop VM readiness once the call is connected
+  // Poll for desktop VM readiness once the call is connected.
+  // Uses recursive setTimeout (not setInterval) so the next check only
+  // schedules after the current one completes, avoiding overlapping calls
+  // into getLiveviewUrl which has its own internal retry loop.
   React.useEffect(() => {
     if (!isConnected || !activeCallAssistant) {
       stopDesktopPoll();
       return;
     }
 
-    const checkDesktopReady = async () => {
-      try {
-        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
-        if (result && 'liveviewUrl' in result && result.liveviewUrl) {
-          setIsDesktopReady(true);
-          stopDesktopPoll();
+    let cancelled = false;
+
+    const scheduleCheck = () => {
+      desktopPollRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const result = await assistantActions.desktop.getLiveviewUrl(
+            activeCallAssistant.agentId,
+          );
+          if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
+            setIsDesktopReady(true);
+            return;
+          }
+        } catch {
+          // VM not ready yet
         }
-      } catch {
-        // VM not ready yet — will retry on next interval
-      }
+        if (!cancelled) scheduleCheck();
+      }, DESKTOP_READY_POLL_INTERVAL);
     };
 
-    checkDesktopReady();
-    desktopPollRef.current = setInterval(checkDesktopReady, DESKTOP_READY_POLL_INTERVAL);
+    // Immediate first check
+    (async () => {
+      try {
+        const result = await assistantActions.desktop.getLiveviewUrl(
+          activeCallAssistant.agentId,
+        );
+        if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
+          setIsDesktopReady(true);
+          return;
+        }
+      } catch {
+        // VM not ready yet
+      }
+      if (!cancelled) scheduleCheck();
+    })();
 
-    return () => stopDesktopPoll();
+    return () => {
+      cancelled = true;
+      stopDesktopPoll();
+    };
   }, [isConnected, activeCallAssistant, assistantActions.desktop, stopDesktopPoll]);
 
   // Ensure proper cleanup on component unmount

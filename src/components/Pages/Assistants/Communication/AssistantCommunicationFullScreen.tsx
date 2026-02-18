@@ -634,29 +634,54 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
   }, [room, assistant, params.assistantId]);
 
-  // Poll for desktop VM readiness once connected
+  // Poll for desktop VM readiness once connected.
+  // Uses recursive setTimeout so the next check only schedules after
+  // the current one completes, avoiding overlapping calls.
   React.useEffect(() => {
     if (isConnecting || !assistant) return;
 
+    let cancelled = false;
+
     const stopPoll = () => {
       if (desktopPollRef.current) {
-        clearInterval(desktopPollRef.current);
+        clearTimeout(desktopPollRef.current);
         desktopPollRef.current = null;
       }
     };
 
-    const checkDesktopReady = async () => {
-      const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
-      if ('liveviewUrl' in result && result.liveviewUrl) {
-        setIsDesktopReady(true);
-        stopPoll();
-      }
+    const scheduleCheck = () => {
+      desktopPollRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
+          if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
+            setIsDesktopReady(true);
+            return;
+          }
+        } catch {
+          // VM not ready yet
+        }
+        if (!cancelled) scheduleCheck();
+      }, 3000);
     };
 
-    checkDesktopReady();
-    desktopPollRef.current = setInterval(checkDesktopReady, 3000);
+    (async () => {
+      try {
+        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
+        if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
+          setIsDesktopReady(true);
+          return;
+        }
+      } catch {
+        // VM not ready yet
+      }
+      if (!cancelled) scheduleCheck();
+    })();
 
-    return () => stopPoll();
+    return () => {
+      cancelled = true;
+      stopPoll();
+    };
   }, [isConnecting, assistant, assistantActions.desktop]);
 
   if (!callData || !assistant) {
