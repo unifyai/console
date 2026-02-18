@@ -689,6 +689,52 @@ describe('applyOutgoingEvent', () => {
       expect(node.endTime).toBe('2024-01-15T10:30:03.000Z');
     }
   );
+
+  it(
+    'marks node as completed when answer is null (no content to report)',
+    {
+      meta: {
+        alias: 'ApplyOutgoing-NullAnswerCompletes',
+        scenario: 'Running node receives outgoing with answer null (e.g. execute_code)',
+        behavior:
+          'Status becomes completed — null answer means the operation finished with nothing to report, not a loop-control signal',
+      },
+    },
+    () => {
+      const node: ActionNode = {
+        id: 'call-exec-1',
+        type: 'manager',
+        label: 'Running Code',
+        hierarchy: ['CodeActActor.act', 'execute_code'],
+        hierarchyLabel: 'CodeActActor.act->execute_code(b21f)',
+        status: 'running',
+        startTime: '2024-01-15T10:30:00.000Z',
+        children: [],
+      };
+
+      const outgoingEvent = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:45.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'outgoing',
+            callingId: 'call-exec-1',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(b21f)',
+            answer: undefined,
+            status: 'ok',
+          },
+        })
+      )!;
+
+      applyOutgoingEvent(node, outgoingEvent);
+
+      expect(node.status).toBe('completed');
+      expect(node.content).toBeUndefined();
+      expect(node.endTime).toBe('2024-01-15T10:30:45.000Z');
+    }
+  );
 });
 
 // =============================================================================
@@ -1120,6 +1166,169 @@ describe('buildActionTree', () => {
       expect(roots[0].status).toBe('completed');
       expect(roots[0].content).toBe('Here are all 4 contacts on file...');
       expect(roots[0].endTime).toBe('2024-01-15T10:30:06.000Z');
+    }
+  );
+
+  it(
+    'preserves multiple sibling children with the same hierarchy path',
+    {
+      meta: {
+        alias: 'BuildTree-MultipleSiblingChildren',
+        scenario:
+          'Three execute_code children under CodeActActor.act with different callingIds',
+        behavior:
+          'All three are preserved as separate siblings, not replaced by boundary-matching logic',
+      },
+    },
+    () => {
+      const logs: ManagerMethodLog[] = [
+        // Root incoming
+        createMockLog({
+          id: 1,
+          ts: '2024-01-15T15:13:53.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'incoming',
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(4501)',
+            displayLabel: 'Taking Action',
+            status: 'ok',
+          },
+        }),
+        // Child 1 incoming
+        createMockLog({
+          id: 2,
+          ts: '2024-01-15T15:14:50.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'incoming',
+            callingId: 'child-1',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(b21f)',
+            displayLabel: 'Running Code',
+            status: 'ok',
+          },
+        }),
+        // Child 1 outgoing (answer: null → completed)
+        createMockLog({
+          id: 3,
+          ts: '2024-01-15T15:15:28.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'outgoing',
+            callingId: 'child-1',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(b21f)',
+            status: 'ok',
+          },
+        }),
+        // Child 2 incoming — same hierarchy, different callingId
+        createMockLog({
+          id: 4,
+          ts: '2024-01-15T15:15:44.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'incoming',
+            callingId: 'child-2',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(d172)',
+            displayLabel: 'Running Code',
+            status: 'ok',
+          },
+        }),
+        // Child 2 outgoing
+        createMockLog({
+          id: 5,
+          ts: '2024-01-15T15:16:16.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'outgoing',
+            callingId: 'child-2',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(d172)',
+            status: 'ok',
+          },
+        }),
+        // Child 3 incoming — same hierarchy, different callingId
+        createMockLog({
+          id: 6,
+          ts: '2024-01-15T15:16:32.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'incoming',
+            callingId: 'child-3',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(36c4)',
+            displayLabel: 'Running Code',
+            status: 'ok',
+          },
+        }),
+        // Child 3 outgoing
+        createMockLog({
+          id: 7,
+          ts: '2024-01-15T15:17:17.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'execute_code',
+            phase: 'outgoing',
+            callingId: 'child-3',
+            hierarchy: ['CodeActActor.act', 'execute_code'],
+            hierarchyLabel: 'CodeActActor.act->execute_code(36c4)',
+            status: 'ok',
+          },
+        }),
+        // Root outgoing (final answer)
+        createMockLog({
+          id: 8,
+          ts: '2024-01-15T15:17:51.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'outgoing',
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(4501)',
+            answer: 'Here is the AAPL quote...',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const { roots, nodeMap } = buildActionTree(logs);
+
+      // 1 root node
+      expect(roots).toHaveLength(1);
+      const root = roots[0];
+      expect(root.id).toBe('root-1');
+      expect(root.label).toBe('Taking Action');
+      expect(root.status).toBe('completed');
+
+      // 3 distinct children — NOT replaced by boundary matching
+      expect(root.children).toHaveLength(3);
+      expect(root.children[0].id).toBe('child-1');
+      expect(root.children[1].id).toBe('child-2');
+      expect(root.children[2].id).toBe('child-3');
+
+      // All children are 'manager' type, not 'boundary'
+      for (const child of root.children) {
+        expect(child.type).toBe('manager');
+        expect(child.label).toBe('Running Code');
+        expect(child.status).toBe('completed');
+      }
+
+      // All 4 nodes in nodeMap (1 root + 3 children)
+      expect(nodeMap.size).toBe(4);
+      expect(nodeMap.has('root-1')).toBe(true);
+      expect(nodeMap.has('child-1')).toBe(true);
+      expect(nodeMap.has('child-2')).toBe(true);
+      expect(nodeMap.has('child-3')).toBe(true);
     }
   );
 });
