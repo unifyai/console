@@ -138,6 +138,10 @@ describe('UsageMain', () => {
         getOrgSpendingLimit: async () => ({ detail: 'Error' }),
         getMemberSpendingLimit: async () => ({ detail: 'Error' }),
         getAssistantSpendingLimit: async () => ({ detail: 'Error' }),
+        setUserSpendingLimit: async () => ({ detail: 'Error' }),
+        setOrgSpendingLimit: async () => ({ detail: 'Error' }),
+        setMemberSpendingLimit: async () => ({ detail: 'Error' }),
+        setAssistantSpendingLimit: async () => ({ detail: 'Error' }),
       };
 
       render(<UsageMain {...defaultProps} usageActions={errorActions} />);

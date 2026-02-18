@@ -2,7 +2,7 @@
  * Tests for StripeSidePanel component.
  *
  * Strategy:
- *   1. Pure logic tests for resolveStep, fetchCheckoutUrl, checkPaymentMethod, claimCreditGrantToken
+ *   1. Pure logic tests for resolveStep, fetchCheckoutSession, checkPaymentMethod, claimCreditGrantToken
  *   2. Component rendering tests for each step (checkout, waiting, success, error)
  *   3. Integration tests for the checkout flow with polling
  */
@@ -17,7 +17,7 @@ import React from 'react';
 import {
   StripeSidePanel,
   resolveStep,
-  fetchCheckoutUrl,
+  fetchCheckoutSession,
   checkPaymentMethod,
   claimCreditGrantToken,
 } from '@/components/Billing/StripeSidePanel';
@@ -53,49 +53,51 @@ describe('resolveStep', () => {
 
 // ─── 2. API helper tests ────────────────────────────────────────────────────
 
-describe('fetchCheckoutUrl', () => {
+describe('fetchCheckoutSession', () => {
   beforeEach(() => server.listen());
   afterEach(() => {
     server.resetHandlers();
     server.close();
   });
 
-  it('returns the checkout URL on success', async () => {
+  it('returns url and sessionId on success', async () => {
+    server.use(
+      http.get('/api/stripe/checkoutSession', () =>
+        HttpResponse.json({
+          url: 'https://checkout.stripe.com/test_session',
+          sessionId: 'cs_test_123',
+        })
+      )
+    );
+    const result = await fetchCheckoutSession();
+    expect(result).toEqual({
+      url: 'https://checkout.stripe.com/test_session',
+      sessionId: 'cs_test_123',
+    });
+  });
+
+  it('returns null when response is not ok', async () => {
+    server.use(
+      http.get('/api/stripe/checkoutSession', () => new HttpResponse(null, { status: 500 }))
+    );
+    const result = await fetchCheckoutSession();
+    expect(result).toBeNull();
+  });
+
+  it('returns null when url or sessionId is missing from response', async () => {
     server.use(
       http.get('/api/stripe/checkoutSession', () =>
         HttpResponse.json({ url: 'https://checkout.stripe.com/test_session' })
       )
     );
-    const url = await fetchCheckoutUrl();
-    expect(url).toBe('https://checkout.stripe.com/test_session');
-  });
-
-  it('returns null when response is not ok', async () => {
-    server.use(
-      http.get('/api/stripe/checkoutSession', () =>
-        new HttpResponse(null, { status: 500 })
-      )
-    );
-    const url = await fetchCheckoutUrl();
-    expect(url).toBeNull();
-  });
-
-  it('returns null when url is missing from response', async () => {
-    server.use(
-      http.get('/api/stripe/checkoutSession', () =>
-        HttpResponse.json({})
-      )
-    );
-    const url = await fetchCheckoutUrl();
-    expect(url).toBeNull();
+    const result = await fetchCheckoutSession();
+    expect(result).toBeNull();
   });
 
   it('returns null on network error', async () => {
-    server.use(
-      http.get('/api/stripe/checkoutSession', () => HttpResponse.error())
-    );
-    const url = await fetchCheckoutUrl();
-    expect(url).toBeNull();
+    server.use(http.get('/api/stripe/checkoutSession', () => HttpResponse.error()));
+    const result = await fetchCheckoutSession();
+    expect(result).toBeNull();
   });
 });
 
@@ -126,17 +128,13 @@ describe('checkPaymentMethod', () => {
 
   it('returns false when API returns 404', async () => {
     server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () =>
-        new HttpResponse(null, { status: 404 })
-      )
+      http.get('/api/stripe/defaultPaymentMethod', () => new HttpResponse(null, { status: 404 }))
     );
     expect(await checkPaymentMethod()).toBe(false);
   });
 
   it('returns false on network error', async () => {
-    server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => HttpResponse.error())
-    );
+    server.use(http.get('/api/stripe/defaultPaymentMethod', () => HttpResponse.error()));
     expect(await checkPaymentMethod()).toBe(false);
   });
 });
@@ -150,26 +148,20 @@ describe('claimCreditGrantToken', () => {
 
   it('returns true on successful claim', async () => {
     server.use(
-      http.post('/api/user/claim-credit-grant-link', () =>
-        HttpResponse.json({ success: true })
-      )
+      http.post('/api/user/claim-credit-grant-link', () => HttpResponse.json({ success: true }))
     );
     expect(await claimCreditGrantToken('token_abc')).toBe(true);
   });
 
   it('returns false on failed claim', async () => {
     server.use(
-      http.post('/api/user/claim-credit-grant-link', () =>
-        new HttpResponse(null, { status: 400 })
-      )
+      http.post('/api/user/claim-credit-grant-link', () => new HttpResponse(null, { status: 400 }))
     );
     expect(await claimCreditGrantToken('bad_token')).toBe(false);
   });
 
   it('returns false on network error', async () => {
-    server.use(
-      http.post('/api/user/claim-credit-grant-link', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/user/claim-credit-grant-link', () => HttpResponse.error()));
     expect(await claimCreditGrantToken('token_abc')).toBe(false);
   });
 });
@@ -197,9 +189,7 @@ describe('StripeSidePanel', () => {
   });
 
   it('renders nothing when closed', () => {
-    const { container } = render(
-      <StripeSidePanel open={false} onOpenChange={vi.fn()} />
-    );
+    const { container } = render(<StripeSidePanel open={false} onOpenChange={vi.fn()} />);
     expect(screen.queryByTestId('stripe-side-panel')).toBeNull();
   });
 
@@ -217,10 +207,7 @@ describe('StripeSidePanel', () => {
 
     // Auto-starts checkout, falls back to redirect mode (no embedded checkout in test env)
     await waitFor(() => {
-      expect(windowOpenSpy).toHaveBeenCalledWith(
-        'https://checkout.stripe.com/test',
-        '_blank'
-      );
+      expect(windowOpenSpy).toHaveBeenCalledWith('https://checkout.stripe.com/test', '_blank');
     });
   });
 
@@ -236,9 +223,7 @@ describe('StripeSidePanel', () => {
 
   it('shows error step when checkout session creation fails', async () => {
     server.use(
-      http.get('/api/stripe/checkoutSession', () =>
-        new HttpResponse(null, { status: 500 })
-      )
+      http.get('/api/stripe/checkoutSession', () => new HttpResponse(null, { status: 500 }))
     );
 
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
@@ -293,9 +278,7 @@ describe('StripeSidePanel', () => {
   it('resets to prompt step when panel is reopened', async () => {
     const onOpenChange = vi.fn();
 
-    const { rerender } = render(
-      <StripeSidePanel open={true} onOpenChange={onOpenChange} />
-    );
+    const { rerender } = render(<StripeSidePanel open={true} onOpenChange={onOpenChange} />);
 
     // Verify prompt is showing
     expect(screen.getByTestId('stripe-panel-add-button')).toBeTruthy();
@@ -320,7 +303,7 @@ describe('StripeSidePanel', () => {
         HttpResponse.json({ defaultPaymentMethod: 'pm_test_123' })
       ),
       http.post('/api/user/claim-credit-grant-link', async ({ request }) => {
-        const body = await request.json() as { token: string };
+        const body = (await request.json()) as { token: string };
         if (body.token === 'credit_grant_abc') {
           claimCalled = true;
           return HttpResponse.json({ success: true });
@@ -332,11 +315,7 @@ describe('StripeSidePanel', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     render(
-      <StripeSidePanel
-        open={true}
-        onOpenChange={vi.fn()}
-        pendingCreditToken="credit_grant_abc"
-      />
+      <StripeSidePanel open={true} onOpenChange={vi.fn()} pendingCreditToken="credit_grant_abc" />
     );
 
     await user.click(screen.getByTestId('stripe-panel-add-button'));
@@ -354,4 +333,3 @@ describe('StripeSidePanel', () => {
     vi.useRealTimers();
   });
 });
-

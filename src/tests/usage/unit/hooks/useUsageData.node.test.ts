@@ -61,6 +61,14 @@ function createMockUsageActions(): UsageActions {
       limit: 50,
       label: 'Assistant Limit',
     }),
+    setUserSpendingLimit: async () => ({ type: 'user', limit: 100, label: 'My Limit' }),
+    setOrgSpendingLimit: async () => ({ type: 'org', limit: 500, label: 'Org Limit' }),
+    setMemberSpendingLimit: async () => ({ type: 'member', limit: 200, label: 'Member Limit' }),
+    setAssistantSpendingLimit: async () => ({
+      type: 'assistant',
+      limit: 50,
+      label: 'Assistant Limit',
+    }),
   };
 }
 
