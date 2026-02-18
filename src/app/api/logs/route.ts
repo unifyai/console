@@ -44,36 +44,81 @@ export async function GET(request: NextRequest) {
   const startTime = searchParams.get('startTime') || searchParams.get('start_time') || undefined;
   const endTime = searchParams.get('endTime') || searchParams.get('end_time') || undefined;
 
+  // Build the query payload once so we can log it
+  const queryPayload = {
+    project_name: projectName,
+    context: context,
+    column_context: columnContext,
+    filter_expr: filterExpr,
+    sorting: sorting,
+    group_by: groupBy.length > 0 ? groupBy : undefined,
+    group_sorting: groupSorting,
+    from_ids: fromIds,
+    from_fields: fromFields,
+    exclude_fields: excludeFields,
+    limit: limit ? parseInt(limit, 10) : undefined,
+    offset: offset ? parseInt(offset, 10) : undefined,
+    group_limit: groupLimit ? parseInt(groupLimit, 10) : undefined,
+    group_offset: groupOffset ? parseInt(groupOffset, 10) : undefined,
+    group_depth: groupDepth ? parseInt(groupDepth, 10) : undefined,
+    return_ids_only: returnIdsOnly === 'true' ? true : undefined,
+    randomize: randomize === 'true' ? true : undefined,
+    tags: tags,
+    start_time: startTime,
+    end_time: endTime,
+  };
+
+  // TODO: Remove debug logging
+  console.log(`[DEBUG][/api/logs GET] Incoming request URL: ${url.pathname}${url.search}`);
+  console.log(
+    `[DEBUG][/api/logs GET] Orchestra query params:`,
+    JSON.stringify(queryPayload, null, 2)
+  );
+
   try {
     const startedAt = Date.now();
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 
     const { data, error, response } = await client.GET('/v0/logs', {
-      params: {
-        query: {
-          project_name: projectName,
-          context: context,
-          column_context: columnContext,
-          filter_expr: filterExpr,
-          sorting: sorting,
-          group_by: groupBy.length > 0 ? groupBy : undefined,
-          group_sorting: groupSorting,
-          from_ids: fromIds,
-          from_fields: fromFields,
-          exclude_fields: excludeFields,
-          limit: limit ? parseInt(limit, 10) : undefined,
-          offset: offset ? parseInt(offset, 10) : undefined,
-          group_limit: groupLimit ? parseInt(groupLimit, 10) : undefined,
-          group_offset: groupOffset ? parseInt(groupOffset, 10) : undefined,
-          group_depth: groupDepth ? parseInt(groupDepth, 10) : undefined,
-          return_ids_only: returnIdsOnly === 'true' ? true : undefined,
-          randomize: randomize === 'true' ? true : undefined,
-          tags: tags,
-          start_time: startTime,
-          end_time: endTime,
-        },
-      },
+      params: { query: queryPayload },
     });
+
+    const latencyMs = Date.now() - startedAt;
+
+    // TODO: Remove debug logging
+    console.log(
+      `[DEBUG][/api/logs GET] Orchestra response: status=${response.status}, latency=${latencyMs}ms`
+    );
+    if (error) {
+      console.log(`[DEBUG][/api/logs GET] Orchestra ERROR:`, JSON.stringify(error).slice(0, 500));
+    }
+    if (data) {
+      const logsArr = (data as any)?.logs;
+      const count = (data as any)?.count;
+      console.log(
+        `[DEBUG][/api/logs GET] Response data: count=${count}, logs.length=${logsArr?.length ?? 'N/A'}`
+      );
+      if (logsArr?.length > 0) {
+        const first = logsArr[0];
+        const last = logsArr[logsArr.length - 1];
+        console.log(
+          `[DEBUG][/api/logs GET] First log: id=${first.id}, ts=${first.ts}, entries_keys=${Object.keys(first.entries || {}).join(',')}`
+        );
+        console.log(
+          `[DEBUG][/api/logs GET] First log entries preview:`,
+          JSON.stringify(first.entries).slice(0, 500)
+        );
+        console.log(`[DEBUG][/api/logs GET] Last log: id=${last.id}, ts=${last.ts}`);
+      } else {
+        console.log(
+          `[DEBUG][/api/logs GET] No logs returned. Full response keys: ${Object.keys(data as any).join(',')}`
+        );
+        console.log(
+          `[DEBUG][/api/logs GET] Full response preview:`,
+          JSON.stringify(data).slice(0, 1000)
+        );
+      }
+    }
 
     if (DEBUG_API && !response.ok) {
       console.warn(
@@ -82,7 +127,7 @@ export async function GET(request: NextRequest) {
           method: 'GET',
           endpoint: '/v0/logs',
           status: response.status,
-          latencyMs: Date.now() - startedAt,
+          latencyMs,
           correlationId,
         })
       );
@@ -99,6 +144,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data, { status: 200, headers });
   } catch (e: unknown) {
+    // TODO: Remove debug logging
+    console.error(`[DEBUG][/api/logs GET] EXCEPTION:`, e);
     const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
     return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });

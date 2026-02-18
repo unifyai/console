@@ -11,6 +11,7 @@
 import { ResponseProps } from '@/types/common';
 import { buildAssistantIdFilter, combineFilters } from '@/utils/assistants/filterExpressions';
 import { buildTimestampFilter } from '@/utils/assistants/assistant-actions';
+import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
 import {
   USE_MOCK_DATA,
@@ -57,11 +58,14 @@ export const getManagerMethodEvents = async (apiKey: string) => {
         url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
       }
 
-      // Add sorting and limit
-      url += `&sorting=${encodeURIComponent(JSON.stringify({ ts: 'ascending' }))}`;
+      // No server-side sorting — Orchestra doesn't reliably sort on ts/id/created_at.
+      // Logs are returned newest-first by default; client sorts by id ascending.
       if (limit !== null) {
         url += `&limit=${limit}`;
       }
+
+      // TODO: Remove debug logging
+      console.log(`[DEBUG][action.ts] getManagerMethodEvents URL: ${url}`);
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
 
@@ -83,9 +87,32 @@ export const getManagerMethodEvents = async (apiKey: string) => {
         return { detail: 'Received an invalid response from the server.' };
       }
 
+      // TODO: Remove debug logging
+      console.log(
+        `[DEBUG][action.ts] getManagerMethodEvents status=${response.status}, logs count=${data?.logs?.length ?? 'N/A'}, count field=${data?.count ?? 'N/A'}`
+      );
+      if (data?.logs?.length > 0) {
+        const firstLog = data.logs[0];
+        const lastLog = data.logs[data.logs.length - 1];
+        console.log(`[DEBUG][action.ts] First log ts=${firstLog.ts}, id=${firstLog.id}`);
+        console.log(`[DEBUG][action.ts] Last log ts=${lastLog.ts}, id=${lastLog.id}`);
+      }
+
       if (!response.ok) {
         const errorMessage = data.detail || `Failed to get events: ${response.statusText}`;
         return { detail: errorMessage };
+      }
+
+      // Orchestra returns entries in snake_case — convert to camelCase
+      // so parseManagerMethodLog / the frontend types work correctly.
+      // Also sort by id ascending (Orchestra returns newest-first by default).
+      if (data?.logs) {
+        data.logs = data.logs
+          .map((log: any) => ({
+            ...log,
+            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+          }))
+          .sort((a: any, b: any) => a.id - b.id);
       }
 
       return data as ActionsLogsResponse;
@@ -134,8 +161,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
         url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
       }
 
-      // Add sorting and limit
-      url += `&sorting=${encodeURIComponent(JSON.stringify({ ts: 'ascending' }))}`;
+      // No server-side sorting — client sorts by id ascending.
       if (limit !== null) {
         url += `&limit=${limit}`;
       }
@@ -162,6 +188,17 @@ export const getToolLoopEvents = async (apiKey: string) => {
         const errorMessage =
           data.detail || `Failed to get tool loop events: ${response.statusText}`;
         return { detail: errorMessage };
+      }
+
+      // Orchestra returns entries in snake_case — convert to camelCase.
+      // Sort by id ascending (Orchestra returns newest-first by default).
+      if (data?.logs) {
+        data.logs = data.logs
+          .map((log: any) => ({
+            ...log,
+            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+          }))
+          .sort((a: any, b: any) => a.id - b.id);
       }
 
       return data as ActionsLogsResponse;
