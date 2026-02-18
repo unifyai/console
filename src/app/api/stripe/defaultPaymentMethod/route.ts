@@ -1,4 +1,4 @@
-import { getCustomerDefaultPaymentMethod } from '@/lib/user/billing/stripe/stripe';
+import { getCustomerDefaultPaymentMethod, resolveTestCustomer } from '@/lib/user/billing/stripe/stripe';
 import { getBillingAccountInfo } from '@/lib/user/billing/billing';
 import { NextRequest, NextResponse } from 'next/server';
 import { getWorkspaceBillingContext } from '../../_utils/auth';
@@ -8,6 +8,9 @@ import { getWorkspaceBillingContext } from '../../_utils/auth';
  *
  * Resolves the current workspace (personal or organization) from the session
  * cookie, fetches the Stripe customer ID, and retrieves the default payment method.
+ *
+ * In staging, uses `resolveTestCustomer` so the payment method is fetched for
+ * the correct test-mode customer.
  *
  * @param request - The request object
  * @returns A JSON response containing the default payment method ID
@@ -26,7 +29,9 @@ export async function GET(request: NextRequest) {
         : { userId: ctx.userId }
     );
 
-    const customerID = billingInfo.stripeCustomerId;
+    // In staging, resolve a test-mode customer; in prod, use the DB value directly.
+    const testCustomerId = await resolveTestCustomer(billingInfo.billingAccountId);
+    const customerID = testCustomerId ?? billingInfo.stripeCustomerId;
 
     if (!customerID) {
       return NextResponse.json({ error: 'No customer ID found' }, { status: 404 });

@@ -13,6 +13,7 @@ import {
 } from '@/components/UI/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { getLanguageLabel } from '@/utils/assistants/voice-utils';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 
 const PRESET_ITEM_APPROX_HEIGHT = 90; // Approximate height of one PresetListItem + gap for threshold calculation
 
@@ -45,6 +46,8 @@ export interface PresetsPanelProps {
 
   onToggleView?: () => void;
   isFastMode: boolean;
+  /** Callback to open the Stripe payment panel (passed to BillableActionGuard) */
+  onAddPaymentMethod?: () => void;
 }
 
 export function PresetsPanel({
@@ -70,6 +73,7 @@ export function PresetsPanel({
   availableLanguages,
   onToggleView,
   isFastMode,
+  onAddPaymentMethod,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
 
@@ -131,10 +135,14 @@ export function PresetsPanel({
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="sr-only">Chat with Assistant</span>
-                </Button>
+                <span className="inline-flex">
+                  <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="sr-only">Chat with Assistant</span>
+                    </Button>
+                  </BillableActionGuard>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>Chat with Assistant</p>

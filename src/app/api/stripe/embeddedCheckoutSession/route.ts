@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createEmbeddedCheckoutSession } from '@/lib/user/billing/stripe/stripe';
+import { createEmbeddedCheckoutSession, resolveTestCustomer } from '@/lib/user/billing/stripe/stripe';
 import { getBillingAccountInfo } from '@/lib/user/billing/billing';
 import { stripe } from '@/lib/user/billing/stripe/stripe-instance';
 import { getWorkspaceBillingContext } from '../../_utils/auth';
@@ -13,6 +13,9 @@ import { getWorkspaceBillingContext } from '../../_utils/auth';
  * If the workspace doesn't have a Stripe customer ID yet, the session is
  * created with `customer_creation: 'always'` — Stripe will create the
  * customer during checkout and the webhook persists the ID afterward.
+ *
+ * In staging, production customer IDs are swapped for test-mode customers
+ * via `resolveTestCustomer` so that test-mode Stripe keys work correctly.
  */
 export async function GET(request: NextRequest) {
   const ctx = await getWorkspaceBillingContext();
@@ -35,9 +38,12 @@ export async function GET(request: NextRequest) {
         : { userId: ctx.userId }
     );
 
-    // customerID may be null for first-time buyers — that's fine,
-    // createEmbeddedCheckoutSession handles it via customer_creation: 'always'
-    const customerID = billingInfo.stripeCustomerId;
+    // In staging, resolve a test-mode customer; in prod, use the DB value directly.
+    const testCustomerId = await resolveTestCustomer(
+      billingInfo.billingAccountId,
+      billingInfo.stripeCustomerId ? undefined : ctx.email, // email fallback only if no customer yet
+    );
+    const customerID = testCustomerId ?? billingInfo.stripeCustomerId;
 
     const checkoutCtx = {
       userId: ctx.userId,

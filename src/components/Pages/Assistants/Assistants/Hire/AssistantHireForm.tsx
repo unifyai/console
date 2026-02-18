@@ -56,6 +56,8 @@ export interface HireFormProps {
   handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
   assistants: Assistant[];
   mode?: 'hire' | 'edit';
+  /** Callback to open the Stripe side panel for payment setup */
+  onAddPaymentMethod?: () => void;
 }
 
 export function HireForm({
@@ -72,6 +74,7 @@ export function HireForm({
   handleDeleteVoice,
   assistants,
   mode = 'hire',
+  onAddPaymentMethod,
 }: HireFormProps) {
   const {
     register,
@@ -86,12 +89,22 @@ export function HireForm({
   const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<
     'upload' | 'create' | 'animate'
   >('upload');
+  const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
+    'select' | 'clone' | 'design'
+  >('select');
   const [showAnimatePing, setShowAnimatePing] = React.useState(false);
   const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
   const fastMode = useWatch({ control, name: 'fastMode' });
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
+
+  // When fast mode is turned on, force voice tab back to 'select'
+  React.useEffect(() => {
+    if (fastMode && (voiceCustomizationTab === 'clone' || voiceCustomizationTab === 'design')) {
+      setVoiceCustomizationTab('select');
+    }
+  }, [fastMode, voiceCustomizationTab]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -535,6 +548,7 @@ export function HireForm({
                       setActiveTab={setPhotoCustomizationTab}
                       showAnimatePing={showAnimatePing}
                       onProcessingStateChange={onPhotoProcessingStateChange}
+                      onAddPaymentMethod={onAddPaymentMethod}
                     />
                   </div>
                 </AccordionContent>
@@ -551,6 +565,9 @@ export function HireForm({
                 <AccordionContent className="pt-2">
                   <VoiceCustomization
                     assistantActions={assistantActions}
+                    onAddPaymentMethod={onAddPaymentMethod}
+                    activeTab={voiceCustomizationTab}
+                    setActiveTab={setVoiceCustomizationTab}
                     onVoiceSelected={(selectedVoice) => {
                       setValue('voiceId', selectedVoice?.voiceId, {
                         shouldValidate: !!selectedVoice?.voiceId,

@@ -3,7 +3,7 @@
  *
  * Strategy:
  *   1. Pure logic tests for resolveStep, fetchCheckoutUrl, checkPaymentMethod, claimCreditGrantToken
- *   2. Component rendering tests for each step (prompt, waiting, success, error)
+ *   2. Component rendering tests for each step (checkout, waiting, success, error)
  *   3. Integration tests for the checkout flow with polling
  */
 
@@ -46,8 +46,8 @@ describe('resolveStep', () => {
     expect(resolveStep(false, true, null)).toBe('waiting');
   });
 
-  it('returns "prompt" when nothing is active', () => {
-    expect(resolveStep(false, false, null)).toBe('prompt');
+  it('returns "checkout" when nothing is active', () => {
+    expect(resolveStep(false, false, null)).toBe('checkout');
   });
 });
 
@@ -203,37 +203,31 @@ describe('StripeSidePanel', () => {
     expect(screen.queryByTestId('stripe-side-panel')).toBeNull();
   });
 
-  it('shows prompt step when opened', () => {
+  it('starts checkout immediately when opened', async () => {
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
 
     expect(screen.getByTestId('stripe-side-panel')).toBeTruthy();
-    // "Add Payment Method" appears in both the SheetTitle and button; verify both exist
-    expect(screen.getAllByText('Add Payment Method').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByTestId('stripe-panel-add-button')).toBeTruthy();
-    expect(screen.getByText(/secure Stripe checkout/)).toBeTruthy();
+    expect(screen.getByText('Purchase Credits')).toBeTruthy();
   });
 
-  it('opens checkout URL in new tab when Add Payment Method is clicked', async () => {
+  it('opens checkout URL in new tab via fallback redirect mode', async () => {
     const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    const user = userEvent.setup();
 
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
 
-    await user.click(screen.getByTestId('stripe-panel-add-button'));
-
-    expect(windowOpenSpy).toHaveBeenCalledWith(
-      'https://checkout.stripe.com/test',
-      '_blank'
-    );
+    // Auto-starts checkout, falls back to redirect mode (no embedded checkout in test env)
+    await waitFor(() => {
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        'https://checkout.stripe.com/test',
+        '_blank'
+      );
+    });
   });
 
-  it('transitions to waiting step after clicking Add Payment Method', async () => {
+  it('transitions to waiting step after auto-starting checkout', async () => {
     vi.spyOn(window, 'open').mockImplementation(() => null);
-    const user = userEvent.setup();
 
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
-
-    await user.click(screen.getByTestId('stripe-panel-add-button'));
 
     await waitFor(() => {
       expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeTruthy();
@@ -247,10 +241,7 @@ describe('StripeSidePanel', () => {
       )
     );
 
-    const user = userEvent.setup();
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
-
-    await user.click(screen.getByTestId('stripe-panel-add-button'));
 
     await waitFor(() => {
       expect(screen.getByTestId('stripe-panel-error')).toBeTruthy();

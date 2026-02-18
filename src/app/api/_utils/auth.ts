@@ -105,6 +105,7 @@ export function handleOrchestraError(error: unknown, response: Response): NextRe
 export interface WorkspaceBillingContext {
   type: 'personal' | 'organization';
   userId: string;
+  email?: string;
   organizationId?: number;
 }
 
@@ -131,6 +132,7 @@ export async function getWorkspaceBillingContext(): Promise<WorkspaceBillingCont
       return {
         type: 'organization',
         userId: user.id,
+        email: user.email,
         organizationId: org.id,
       };
     }
@@ -139,5 +141,6 @@ export async function getWorkspaceBillingContext(): Promise<WorkspaceBillingCont
   return {
     type: 'personal',
     userId: user.id,
+    email: user.email,
   };
 }

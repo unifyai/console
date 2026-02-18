@@ -3,14 +3,15 @@
 /**
  * StripeSidePanel
  *
- * A slide-over panel that embeds a Stripe Checkout form inline using Stripe's
- * `<EmbeddedCheckout>` component.  The user never leaves the page, preserving
- * their in-progress work (e.g., assistant customization).
+ * A slide-over panel that opens Stripe Checkout in a new tab and polls the
+ * specific checkout session for completion.  When the session completes
+ * (payment_status === 'paid'), the panel auto-closes and a success toast is
+ * shown.
  *
  * Flow:
- *   1. Panel opens → "prompt" step with a description and "Continue" button
- *   2. User clicks Continue → embedded checkout loads in-panel
- *   3. Checkout completes → polls for payment method → "success" step
+ *   1. Panel opens → Stripe Checkout opens in a new browser tab
+ *   2. Panel shows a "waiting" state with a spinner
+ *   3. Polls the session status every 3 s until paid → success toast, auto-close
  *   4. If a pending credit grant token exists it is auto-claimed
  *
  * Usage:
@@ -25,27 +26,19 @@ import * as React from 'react';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
 } from '@/components/UI/sheet';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import { Alert, AlertDescription } from '@/components/UI/alert';
-import { CreditCard, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import getStripe from '@/lib/user/billing/stripe/get-stripe';
 import {
-  EmbeddedCheckoutProvider,
-  EmbeddedCheckout,
-} from '@stripe/react-stripe-js';
-
-// Reuse the singleton Stripe.js promise — will be null if publishable key is missing
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? getStripe() : null;
+  showErrorToast,
+  showSuccessToast,
+} from '@/components/Common/Toasts/notifications';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type StripePanelStep = 'prompt' | 'checkout' | 'waiting' | 'success' | 'error';
+export type StripePanelStep = 'loading' | 'waiting' | 'success' | 'error';
 
 export interface StripeSidePanelProps {
   /** Whether the panel is open */
@@ -63,30 +56,32 @@ export interface StripeSidePanelProps {
 // =============================================================================
 
 /**
- * Fetches the embedded checkout client secret from the backend.
+ * Fetches a Stripe checkout session URL and its session ID from the backend.
  */
-export async function fetchEmbeddedCheckoutClientSecret(): Promise<string | null> {
+export async function fetchCheckoutSession(): Promise<{ url: string; sessionId: string } | null> {
   try {
-    const response = await fetch('/api/stripe/embeddedCheckoutSession');
+    const response = await fetch('/api/stripe/checkoutSession');
     if (!response.ok) return null;
     const data = await response.json();
-    return data.clientSecret ?? null;
+    if (!data.url || !data.sessionId) return null;
+    return { url: data.url, sessionId: data.sessionId };
   } catch {
     return null;
   }
 }
 
 /**
- * Fetches a Stripe checkout session URL from the backend (fallback for redirect mode).
+ * Checks the status of a specific checkout session.
+ * Returns true when the session's payment is confirmed ('paid').
  */
-export async function fetchCheckoutUrl(): Promise<string | null> {
+export async function checkSessionStatus(sessionId: string): Promise<boolean> {
   try {
-    const response = await fetch('/api/stripe/checkoutSession');
-    if (!response.ok) return null;
+    const response = await fetch(`/api/stripe/session-status?sessionId=${sessionId}`);
+    if (!response.ok) return false;
     const data = await response.json();
-    return data.url ?? null;
+    return data.paymentStatus === 'paid';
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -132,7 +127,7 @@ export function resolveStep(
   if (error) return 'error';
   if (hasPaymentMethod) return 'success';
   if (isCheckingOut) return 'waiting';
-  return 'prompt';
+  return 'loading';
 }
 
 // =============================================================================
@@ -145,219 +140,155 @@ export function StripeSidePanel({
   onSuccess,
   pendingCreditToken,
 }: StripeSidePanelProps) {
-  const [step, setStep] = React.useState<StripePanelStep>('prompt');
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [clientSecret, setClientSecret] = React.useState<string | null>(null);
+  const [step, setStep] = React.useState<StripePanelStep>('loading');
+  const [checkoutUrl, setCheckoutUrl] = React.useState<string | null>(null);
   const pollingRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionIdRef = React.useRef<string | null>(null);
 
-  // Reset state when panel opens
+  // ── Cleanup polling ─────────────────────────────────────────────────
+  const stopPolling = React.useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // ── Success handler ─────────────────────────────────────────────────
+  const handleSuccess = React.useCallback(async () => {
+    stopPolling();
+
+    if (pendingCreditToken) {
+      await claimCreditGrantToken(pendingCreditToken);
+    }
+
+    showSuccessToast(
+      'Payment complete',
+      pendingCreditToken
+        ? 'Credits have been applied to your account.'
+        : 'You can now use all billable features.'
+    );
+
+    onSuccess?.();
+    onOpenChange(false);
+  }, [onSuccess, onOpenChange, pendingCreditToken, stopPolling]);
+
+  // ── Start polling the specific session ──────────────────────────────
+  const startPolling = React.useCallback((sessionId: string) => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(async () => {
+      const isPaid = await checkSessionStatus(sessionId);
+      if (isPaid) {
+        await handleSuccess();
+      }
+    }, 3000);
+  }, [handleSuccess]);
+
+  // ── Open checkout in new tab ────────────────────────────────────────
+  const openCheckout = React.useCallback(async () => {
+    setStep('loading');
+    setCheckoutUrl(null);
+    sessionIdRef.current = null;
+
+    const result = await fetchCheckoutSession();
+    if (!result) {
+      showErrorToast(
+        new Error('Failed to create checkout session'),
+        'Failed to create checkout session. Please try again.'
+      );
+      setStep('error');
+      return;
+    }
+
+    sessionIdRef.current = result.sessionId;
+    setCheckoutUrl(result.url);
+    window.open(result.url, '_blank');
+    setStep('waiting');
+    startPolling(result.sessionId);
+  }, [startPolling]);
+
+  // ── When the panel opens, launch checkout ───────────────────────────
   React.useEffect(() => {
     if (open) {
-      setStep('prompt');
-      setError(null);
-      setIsLoading(false);
-      setClientSecret(null);
+      openCheckout();
     } else {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
+      stopPolling();
+      sessionIdRef.current = null;
+      setCheckoutUrl(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Cleanup on unmount
   React.useEffect(() => {
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
+      stopPolling();
     };
-  }, []);
+  }, [stopPolling]);
 
-  // Start polling for payment method once we move to checkout
-  const startPolling = React.useCallback(() => {
-    if (pollingRef.current) return; // already polling
-    pollingRef.current = setInterval(async () => {
-      const hasPayment = await checkPaymentMethod();
-      if (hasPayment) {
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-        if (pendingCreditToken) {
-          await claimCreditGrantToken(pendingCreditToken);
-        }
-        setStep('success');
-        onSuccess?.();
-      }
-    }, 3000);
-  }, [onSuccess, pendingCreditToken]);
-
-  const handleStartCheckout = React.useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    // Try embedded checkout first
-    if (stripePromise) {
-      const secret = await fetchEmbeddedCheckoutClientSecret();
-      if (secret) {
-        setClientSecret(secret);
-        setStep('checkout');
-        setIsLoading(false);
-        startPolling();
-        return;
-      }
+  // ── Re-open checkout (if user closed the tab by accident) ──────────
+  const handleReopenCheckout = React.useCallback(() => {
+    if (checkoutUrl) {
+      window.open(checkoutUrl, '_blank');
     }
-
-    // Fallback: redirect mode (opens new tab)
-    const url = await fetchCheckoutUrl();
-    if (!url) {
-      setError('Failed to create checkout session. Please try again.');
-      setStep('error');
-      setIsLoading(false);
-      return;
-    }
-
-    window.open(url, '_blank');
-    setStep('waiting');
-    setIsLoading(false);
-    startPolling();
-  }, [startPolling]);
-
-  const handleClose = React.useCallback(() => {
-    onOpenChange(false);
-  }, [onOpenChange]);
-
-  // Stripe Embedded Checkout callback when the session completes
-  const handleCheckoutComplete = React.useCallback(async () => {
-    // The polling will catch the payment method, but we can also directly check
-    const hasPayment = await checkPaymentMethod();
-    if (hasPayment) {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-      if (pendingCreditToken) {
-        await claimCreditGrantToken(pendingCreditToken);
-      }
-      setStep('success');
-      onSuccess?.();
-    }
-  }, [onSuccess, pendingCreditToken]);
+  }, [checkoutUrl]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className={step === 'checkout' ? 'w-[520px] sm:w-[600px]' : 'w-[400px] sm:w-[480px]'}
+        className={[
+          'flex h-full w-[520px] flex-col overflow-hidden p-0 sm:w-[600px]',
+          '[&>button]:z-20 [&>button]:rounded-full [&>button]:bg-white/90 [&>button]:p-1.5',
+          '[&>button]:opacity-100 [&>button]:shadow-md [&>button]:backdrop-blur',
+          '[&>button]:hover:bg-white [&>button]:right-3 [&>button]:top-3',
+          '[&>button>svg]:h-4 [&>button>svg]:w-4 [&>button>svg]:text-gray-700',
+        ].join(' ')}
         data-testid="stripe-side-panel"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            {step === 'success' ? 'Payment Method Added' : 'Add Payment Method'}
-          </SheetTitle>
-          <SheetDescription>
-            {step === 'success'
-              ? 'Your payment method has been set up successfully.'
-              : step === 'checkout'
-                ? 'Complete the payment below to add your payment method and purchase credits.'
-                : 'Add a payment method to start using billable features.'}
-          </SheetDescription>
-        </SheetHeader>
+        {/* Loading — fetching checkout URL */}
+        {step === 'loading' && (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
 
-        <div className="mt-6 space-y-4">
-          {/* Step: Prompt */}
-          {step === 'prompt' && (
-            <>
-              <p className="text-body text-sm leading-relaxed">
-                To use billable features like hiring assistants, chatting, generating photos, and
-                designing voices, you need a payment method on file.
+        {/* Waiting for checkout to complete in the other tab */}
+        {step === 'waiting' && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="space-y-2 text-center">
+              <p className="text-body">
+                Complete the checkout in the Stripe tab
               </p>
-              <p className="text-body-muted text-sm">
-                Complete the secure Stripe checkout below to add your card and purchase credits.
+              <p className="text-caption">
+                This panel will close automatically once the payment is confirmed.
               </p>
-              <Button
-                onClick={handleStartCheckout}
-                disabled={isLoading}
-                className="w-full gap-2"
-                data-testid="stripe-panel-add-button"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading checkout...
-                  </>
-                ) : (
-                  'Add Payment Method'
-                )}
-              </Button>
-            </>
-          )}
-
-          {/* Step: Embedded Checkout */}
-          {step === 'checkout' && clientSecret && stripePromise && (
-            <div className="min-h-[400px]" data-testid="stripe-embedded-checkout">
-              <EmbeddedCheckoutProvider
-                stripe={stripePromise}
-                options={{
-                  clientSecret,
-                  onComplete: handleCheckoutComplete,
-                }}
-              >
-                <EmbeddedCheckout />
-              </EmbeddedCheckoutProvider>
             </div>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 gap-2"
+              onClick={handleReopenCheckout}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Reopen checkout tab
+            </Button>
+          </div>
+        )}
 
-          {/* Step: Waiting for checkout completion (fallback redirect mode) */}
-          {step === 'waiting' && (
-            <>
-              <div className="flex flex-col items-center gap-4 py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-body text-center text-sm">
-                  Complete the checkout in the Stripe tab.
-                  <br />
-                  This panel will update automatically once done.
-                </p>
-              </div>
-              <Button variant="outline" onClick={handleClose} className="w-full">
-                Close
-              </Button>
-            </>
-          )}
-
-          {/* Step: Success */}
-          {step === 'success' && (
-            <>
-              <Alert variant="default" data-testid="stripe-panel-success">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertDescription>
-                  {pendingCreditToken
-                    ? 'Payment method added and credits have been applied to your account!'
-                    : 'Payment method added successfully. You can now use all billable features.'}
-                </AlertDescription>
-              </Alert>
-              <Button onClick={handleClose} className="w-full" data-testid="stripe-panel-done">
-                Done
-              </Button>
-            </>
-          )}
-
-          {/* Step: Error */}
-          {step === 'error' && (
-            <>
-              <Alert variant="destructive" data-testid="stripe-panel-error">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-              <Button onClick={handleStartCheckout} className="w-full gap-2">
-                Try Again
-              </Button>
-            </>
-          )}
-        </div>
+        {/* Error state */}
+        {step === 'error' && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8">
+            <p className="text-body-sm text-destructive">
+              Something went wrong. Please try again.
+            </p>
+            <Button variant="outline" size="sm" onClick={openCheckout}>
+              Retry
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

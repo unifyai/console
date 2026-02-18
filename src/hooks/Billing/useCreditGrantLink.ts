@@ -121,7 +121,7 @@ export async function claimCreditGrantToken(token: string): Promise<CreditGrantC
 
 export function useCreditGrantLink(): UseCreditGrantLinkReturn {
   const searchParams = useSearchParams();
-  const { hasPaymentMethod, isLoading: isBillingLoading } = useBillingStatus();
+  const { isLoading: isBillingLoading } = useBillingStatus();
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -182,11 +182,10 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
     return result;
   }, [pendingToken]);
 
-  // 2. Auto-claim if user already has a payment method
+  // 2. Auto-claim as soon as we have a pending token
   useEffect(() => {
     if (
       pendingToken &&
-      hasPaymentMethod &&
       !isBillingLoading &&
       !isClaiming &&
       !hasClaimed &&
@@ -195,7 +194,7 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
       hasAutoClaimedRef.current = true;
       claimPendingToken();
     }
-  }, [pendingToken, hasPaymentMethod, isBillingLoading, isClaiming, hasClaimed, claimPendingToken]);
+  }, [pendingToken, isBillingLoading, isClaiming, hasClaimed, claimPendingToken]);
 
   const clearPendingTokenAction = useCallback(() => {
     clearStoredToken();

@@ -764,6 +764,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           showInsufficientFundsHint={showInsufficientFundsHint}
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
           onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+          isStripePanelOpen={isStripePanelOpen}
           isFastMode={hireFormFastMode}
         >
           <HireForm
@@ -779,6 +780,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             handleDeleteVoice={handleDeleteVoice}
             onNewMediaReady={onNewMediaReady}
             mode="hire"
+            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
           />
           <PresetsPanel
             displayedPresets={displayedPresets}
@@ -815,6 +817,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isSubmitting={isFormSubmitting}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
             isProcessingVoice={isDialogBusyProcessingVoice}
+            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+            isStripePanelOpen={isStripePanelOpen}
           >
             <HireForm
               assistants={assistants}
@@ -830,6 +834,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
               handleDeleteVoice={handleDeleteVoice}
               onNewMediaReady={onNewMediaReady}
               mode="edit"
+              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             />
           </AssistantEdit>
         )}

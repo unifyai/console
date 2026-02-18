@@ -47,6 +47,8 @@ import {
   DESIGN_SAMPLE_TEXT_MAX_LENGTH,
 } from '@/constants/assistants/settings';
 
+export type ActiveCreatorTab = 'select' | 'clone' | 'design';
+
 interface VoiceCustomizationProps {
   assistantActions: AssistantActions;
   onVoiceSelected: (selectedVoice: VoiceOption | null) => void;
@@ -59,9 +61,11 @@ interface VoiceCustomizationProps {
   handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
   /** Callback to open the Stripe side panel for payment setup */
   onAddPaymentMethod?: () => void;
+  /** Active voice tab – controlled from the parent, matching photo-tabs pattern */
+  activeTab: ActiveCreatorTab;
+  /** Setter for the active voice tab */
+  setActiveTab: (tab: ActiveCreatorTab) => void;
 }
-
-type ActiveCreatorTab = 'select' | 'clone' | 'design';
 
 export function VoiceCustomization({
   assistantActions,
@@ -74,8 +78,9 @@ export function VoiceCustomization({
   fetchUserVoices,
   handleDeleteVoice,
   onAddPaymentMethod,
+  activeTab: activeMainTab,
+  setActiveTab: setActiveMainTab,
 }: VoiceCustomizationProps) {
-  const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
   const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
   const { control, watch } = useFormContext<AssistantFormData>();
@@ -157,15 +162,10 @@ export function VoiceCustomization({
     [onVoiceSelected]
   );
 
+  // Sync selectedVoiceId when the parent changes initialVoiceId
   React.useEffect(() => {
     setSelectedVoiceId(initialVoiceId);
-    if (initialVoiceId && activeMainTab !== 'select') {
-      const voice = allDisplayableVoices.find((v) => v.voiceId === initialVoiceId);
-      if (voice) {
-        setActiveMainTab('select');
-      }
-    }
-  }, [initialVoiceId, allDisplayableVoices, activeMainTab]);
+  }, [initialVoiceId]);
 
   // Update createMode in useVoiceCreator hook when tab changes
   React.useEffect(() => {
@@ -175,12 +175,6 @@ export function VoiceCustomization({
       setCreateMode('design');
     }
   }, [activeMainTab, setCreateMode]);
-
-  React.useEffect(() => {
-    if (isFastMode && (activeMainTab === 'clone' || activeMainTab === 'design')) {
-      setActiveMainTab('select');
-    }
-  }, [isFastMode, activeMainTab]);
 
   React.useEffect(() => {
     const currentVoice = selectedVoice;

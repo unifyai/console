@@ -50,6 +50,10 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
   onAddPaymentMethod?: () => void;
   formMethods: UseFormReturn<AssistantFormData>;
   isFastMode: boolean;
+  /** When true the Stripe side-panel is open — focus-trap bypass and
+   *  outside-interaction handling are adjusted so the user can interact
+   *  with the Stripe Embedded Checkout (e.g. the quantity editor). */
+  isStripePanelOpen?: boolean;
 }
 
 export function AssistantHire({
@@ -70,6 +74,7 @@ export function AssistantHire({
   onAddPaymentMethod,
   formMethods,
   isFastMode,
+  isStripePanelOpen = false,
 }: AssistantHireProps) {
   const [hireForm, presetsPanel] = React.Children.toArray(children);
   const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
@@ -96,6 +101,46 @@ export function AssistantHire({
     // Simple serialization of the core assistant properties to create a unique key
     return `${firstName || ''}-${surname || ''}-${age || 'N/A'}-${nationality || ''}-${about || ''}`;
   }, [watchedConfigFields]);
+
+  // ── Bypass Dialog focus-trap for the Stripe side-panel ──────────────────
+  // Radix Dialog's FocusScope listens for focusin/focusout on `document`
+  // (bubbling phase) and redirects focus back inside the dialog when it
+  // leaves. When the Stripe side-panel (a separate Sheet/Dialog) is open,
+  // this trapping prevents the user from interacting with inputs inside
+  // the Stripe Embedded Checkout iframe (e.g. the quantity editor).
+  //
+  // We add a *capturing-phase* listener that stops propagation for focus
+  // events whose target is inside the Stripe panel. Because capturing
+  // fires before bubbling, this prevents the FocusScope handler from ever
+  // seeing those events, so focus stays wherever the user put it.
+  React.useEffect(() => {
+    if (!isStripePanelOpen || !isHireDialogOpen) return;
+
+    const stripePanelSelector = '[data-testid="stripe-side-panel"]';
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(stripePanelSelector)) {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    const handleFocusOut = (e: FocusEvent) => {
+      const related = e.relatedTarget as HTMLElement | null;
+      // If focus is moving TO the Stripe panel, suppress so the dialog
+      // FocusScope doesn't pull it back.
+      if (related?.closest(stripePanelSelector)) {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('focusout', handleFocusOut, true);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('focusout', handleFocusOut, true);
+    };
+  }, [isStripePanelOpen, isHireDialogOpen]);
 
   const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
 
@@ -131,11 +176,16 @@ export function AssistantHire({
       return;
     }
 
+    // Allow interaction with the Stripe side-panel (Sheet) when it's open
+    if (isStripePanelOpen && target.closest('[data-testid="stripe-side-panel"]')) {
+      return;
+    }
+
     // For any other click outside, prevent closing
     e.preventDefault();
 
-    // Show tooltip only if dialog is not busy
-    if (!isOverallDialogBusy) {
+    // Show tooltip only if dialog is not busy and the Stripe panel isn't open
+    if (!isOverallDialogBusy && !isStripePanelOpen) {
       setIsCloseTooltipOpen(true);
     }
   };
@@ -160,6 +210,11 @@ export function AssistantHire({
           const target = e.target as HTMLElement;
           // Prevent closing when clicking on popover content
           if (target.closest('[data-radix-popover-content]')) {
+            e.preventDefault();
+            return;
+          }
+          // Allow pointer events on the Stripe side-panel
+          if (isStripePanelOpen && target.closest('[data-testid="stripe-side-panel"]')) {
             e.preventDefault();
             return;
           }
@@ -313,6 +368,7 @@ export function AssistantHire({
                         onClose: () => setIsAssistantPresetsOpen(false),
                         onToggleView: handleToggleView,
                         isFastMode: isFastMode,
+                        onAddPaymentMethod: onAddPaymentMethod,
                       })
                     ) : (
                       <AssistantHireChatPanel

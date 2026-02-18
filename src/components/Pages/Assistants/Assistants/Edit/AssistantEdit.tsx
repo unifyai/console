@@ -29,6 +29,12 @@ interface AssistantEditProps {
   children: React.ReactNode;
   isProcessingPhoto?: boolean;
   isProcessingVoice?: boolean;
+  /** Callback to open the Stripe side panel for payment setup */
+  onAddPaymentMethod?: () => void;
+  /** When true the Stripe side-panel is open — focus-trap bypass and
+   *  outside-interaction handling are adjusted so the user can interact
+   *  with the Stripe Embedded Checkout (e.g. the quantity editor). */
+  isStripePanelOpen?: boolean;
 }
 
 export function AssistantEdit({
@@ -41,9 +47,38 @@ export function AssistantEdit({
   children,
   isProcessingPhoto,
   isProcessingVoice,
+  onAddPaymentMethod,
+  isStripePanelOpen = false,
 }: AssistantEditProps) {
   const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
   const isPrimaryActionDisabled = isSubmitting || !!isProcessingVoice || !!isProcessingPhoto;
+
+  // ── Bypass Dialog focus-trap for the Stripe side-panel ──────────────────
+  // Radix Dialog's FocusScope traps focus inside the dialog. When the Stripe
+  // side-panel (Sheet) is open, this prevents interaction with inputs inside
+  // the Stripe Embedded Checkout iframe (e.g. the quantity editor).
+  // We add capturing-phase listeners that stop propagation for focus events
+  // targeting the Stripe panel, so the FocusScope never sees them.
+  React.useEffect(() => {
+    if (!isStripePanelOpen || !isOpen) return;
+
+    const stopIfStripePanel = (e: FocusEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest?.('[data-testid="stripe-side-panel"]') ||
+        target?.tagName === 'IFRAME'
+      ) {
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener('focusin', stopIfStripePanel, true);
+    document.addEventListener('focusout', stopIfStripePanel, true);
+    return () => {
+      document.removeEventListener('focusin', stopIfStripePanel, true);
+      document.removeEventListener('focusout', stopIfStripePanel, true);
+    };
+  }, [isStripePanelOpen, isOpen]);
 
   const handleDialogClose = (open: boolean) => {
     if (!isPrimaryActionDisabled) {
@@ -54,6 +89,14 @@ export function AssistantEdit({
   };
 
   const handleDialogInteractOutside = (e: Event) => {
+    const target = e.target as HTMLElement;
+
+    // Allow interaction with the Stripe side-panel (Sheet) when it's open
+    if (isStripePanelOpen && target.closest('[data-testid="stripe-side-panel"]')) {
+      e.preventDefault();
+      return;
+    }
+
     e.preventDefault();
     if (!isPrimaryActionDisabled) {
       setIsCloseTooltipOpen(true);
@@ -77,6 +120,12 @@ export function AssistantEdit({
         className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0"
         onInteractOutside={handleDialogInteractOutside}
         onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          // Allow pointer events on the Stripe side-panel
+          if (isStripePanelOpen && target.closest('[data-testid="stripe-side-panel"]')) {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
         }}
         hideClose

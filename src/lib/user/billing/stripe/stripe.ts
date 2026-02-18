@@ -128,7 +128,6 @@ export async function createCustomerPortalSession(customerID: string) {
   const stripeClient = stripe as NonNullable<typeof stripe>;
   const billingPortalSession = await stripeClient.billingPortal.sessions.create({
     customer: customerID,
-    return_url: process.env.NEXTAUTH_URL + '/billing',
   });
 
   return billingPortalSession.url;
@@ -175,7 +174,7 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
 export async function createCheckoutSession(
   ctx: CheckoutContext,
   customerID: string | null | undefined
-): Promise<string> {
+): Promise<{ url: string; sessionId: string }> {
   if (!stripe) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
@@ -192,36 +191,38 @@ export async function createCheckoutSession(
   }
   const isRepeatCustomer = totalSpending > 0;
 
-  // Resolve price
-  const rawPriceOrProductId = ctx.organizationId ? process.env.STRIPE_PRICE_ID_BUSINESS : process.env.STRIPE_PRICE_ID_PERSONAL;
-  if (!rawPriceOrProductId) {
-    throw new Error(`Missing STRIPE_PRICE_ID_${ctx.organizationId ? 'BUSINESS' : 'PERSONAL'} environment variable.`);
+  // Default credit quantity — user can adjust in checkout UI
+  const defaultCreditQty = Number(process.env.STRIPE_DEFAULT_CREDIT_QTY) || 25;
+  const minCreditQty = Number(process.env.STRIPE_MIN_CREDIT_QTY) || 5;
+  const maxCreditQty = Number(process.env.STRIPE_MAX_CREDIT_QTY) || 500;
+
+  // Resolve pre-configured Price ID based on workspace context
+  const priceId = ctx.organizationId
+    ? process.env.STRIPE_UNIFY_CREDITS_PRICE_ID_BUSINESS
+    : process.env.STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL;
+
+  if (!priceId) {
+    throw new Error(
+      `Stripe price ID not configured for ${ctx.organizationId ? 'business' : 'personal'} workspace. ` +
+      'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
+    );
   }
 
-  let priceId: string;
-  if (rawPriceOrProductId.startsWith('prod_')) {
-    const pricesForProduct = await stripeClient.prices.list({ product: rawPriceOrProductId });
-    const activePrice = pricesForProduct.data.find((p) => p.active);
-    if (!activePrice) {
-      throw new Error(`No active prices found for product ID ${rawPriceOrProductId}.`);
+  // Ensure existing Stripe customer has email + name for form pre-fill,
+  // and sync tax ID if applicable.
+  if (customerID) {
+    await prefillCustomerFields(stripeClient, customerID, { email, name });
+    if (hasTaxId && taxId) {
+      await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
     }
-    priceId = activePrice.id;
-  } else {
-    priceId = rawPriceOrProductId;
   }
 
-  const price = await stripeClient.prices.retrieve(priceId);
-  const creditsPurchased = (price.unit_amount || 0) / 100;
-
-  // Sync tax ID on an existing customer before creating the session
-  if (customerID && hasTaxId && taxId) {
-    await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
-  }
-
-  // Build metadata — always include user_id for audit; include org_id when applicable
+  // Build metadata — always include user_id for audit; include org_id when applicable.
+  // credits_purchased is set to the default quantity here; the webhook updates it
+  // to the actual amount after checkout (the user can adjust quantity in the UI).
   const metadata: Record<string, string> = {
     user_id: ctx.userId,
-    credits_purchased: String(creditsPurchased),
+    credits_purchased: String(defaultCreditQty),
     user_total_spend: String(totalSpending),
     user_account_age_days: String(accountAgeDays),
     user_is_repeat_customer: String(isRepeatCustomer),
@@ -234,14 +235,28 @@ export async function createCheckoutSession(
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'payment',
     submit_type: 'pay',
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [
+      {
+        price: priceId,
+        quantity: defaultCreditQty,
+        adjustable_quantity: {
+          enabled: true,
+          minimum: minCreditQty,
+          maximum: maxCreditQty,
+        },
+      },
+    ],
+    payment_method_types: ['card'],  // Explicitly card-only; excludes Link / "Save my info" checkbox
     automatic_tax: { enabled: true },
     client_reference_id: ctx.userId,
     success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
     billing_address_collection: 'required',
     tax_id_collection: hasTaxId ? { enabled: true } : undefined,
-    payment_method_options: { card: { request_three_d_secure: 'any' } },
+    payment_method_options: { card: { request_three_d_secure: 'automatic' } },
+    custom_text: {
+      submit: { message: 'Credits will be added to your account immediately after payment.' },
+    },
     payment_intent_data: { metadata },
     metadata,
   };
@@ -262,7 +277,7 @@ export async function createCheckoutSession(
     throw new Error('Failed to create checkout session URL');
   }
 
-  return checkoutSession.url;
+  return { url: checkoutSession.url, sessionId: checkoutSession.id };
 }
 
 /**
@@ -301,36 +316,38 @@ export async function createEmbeddedCheckoutSession(
   }
   const isRepeatCustomer = totalSpending > 0;
 
-  // Resolve price
-  const rawPriceOrProductId = ctx.organizationId ? process.env.STRIPE_PRICE_ID_BUSINESS : process.env.STRIPE_PRICE_ID_PERSONAL;
-  if (!rawPriceOrProductId) {
-    throw new Error(`Missing STRIPE_PRICE_ID_${ctx.organizationId ? 'BUSINESS' : 'PERSONAL'} environment variable.`);
+  // Default credit quantity — user can adjust in checkout UI
+  const defaultCreditQty = Number(process.env.STRIPE_DEFAULT_CREDIT_QTY) || 25;
+  const minCreditQty = Number(process.env.STRIPE_MIN_CREDIT_QTY) || 5;
+  const maxCreditQty = Number(process.env.STRIPE_MAX_CREDIT_QTY) || 500;
+
+  // Resolve pre-configured Price ID based on workspace context
+  const priceId = ctx.organizationId
+    ? process.env.STRIPE_UNIFY_CREDITS_PRICE_ID_BUSINESS
+    : process.env.STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL;
+
+  if (!priceId) {
+    throw new Error(
+      `Stripe price ID not configured for ${ctx.organizationId ? 'business' : 'personal'} workspace. ` +
+      'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
+    );
   }
 
-  let priceId: string;
-  if (rawPriceOrProductId.startsWith('prod_')) {
-    const pricesForProduct = await stripeClient.prices.list({ product: rawPriceOrProductId });
-    const activePrice = pricesForProduct.data.find((p) => p.active);
-    if (!activePrice) {
-      throw new Error(`No active prices found for product ${rawPriceOrProductId}.`);
+  // Ensure existing Stripe customer has email + name for form pre-fill,
+  // and sync tax ID if applicable.
+  if (customerID) {
+    await prefillCustomerFields(stripeClient, customerID, { email, name });
+    if (hasTaxId && taxId) {
+      await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
     }
-    priceId = activePrice.id;
-  } else {
-    priceId = rawPriceOrProductId;
   }
 
-  const price = await stripeClient.prices.retrieve(priceId);
-  const creditsPurchased = (price.unit_amount || 0) / 100;
-
-  // Sync tax ID on an existing customer before creating the session
-  if (customerID && hasTaxId && taxId) {
-    await syncTaxIdToCustomer(stripeClient, customerID, taxId, taxIdType);
-  }
-
-  // Build metadata
+  // Build metadata.
+  // credits_purchased is set to the default quantity here; the webhook updates it
+  // to the actual amount after checkout (the user can adjust quantity in the UI).
   const metadata: Record<string, string> = {
     user_id: ctx.userId,
-    credits_purchased: String(creditsPurchased),
+    credits_purchased: String(defaultCreditQty),
     user_total_spend: String(totalSpending),
     user_account_age_days: String(accountAgeDays),
     user_is_repeat_customer: String(isRepeatCustomer),
@@ -343,13 +360,28 @@ export async function createEmbeddedCheckoutSession(
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     ui_mode: 'embedded',
     mode: 'payment',
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [
+      {
+        price: priceId,
+        quantity: defaultCreditQty,
+        adjustable_quantity: {
+          enabled: true,
+          minimum: minCreditQty,
+          maximum: maxCreditQty,
+        },
+      },
+    ],
+    payment_method_types: ['card'],  // Card-only; excludes Link / its "Save my info" checkbox
     automatic_tax: { enabled: true },
     client_reference_id: ctx.userId,
     return_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
     billing_address_collection: 'required',
     tax_id_collection: hasTaxId ? { enabled: true } : undefined,
-    payment_method_options: { card: { request_three_d_secure: 'any' } },
+    payment_method_options: { card: { request_three_d_secure: 'automatic' } },
+    saved_payment_method_options: { payment_method_save: 'disabled' as const },
+    custom_text: {
+      submit: { message: 'Credits will be added to your account immediately after payment.' },
+    },
     payment_intent_data: { metadata },
     metadata,
   };
@@ -373,8 +405,123 @@ export async function createEmbeddedCheckoutSession(
 }
 
 // ---------------------------------------------------------------------------
+// Staging / Test-Customer Resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns `true` when the console is running in a staging environment.
+ * Detection is based on the ORCHESTRA_URL env var (server-side only).
+ */
+function isStaging(): boolean {
+  const orchestraUrl = process.env.ORCHESTRA_URL ?? '';
+  return orchestraUrl.includes('staging');
+}
+
+/**
+ * Resolves the correct Stripe customer ID for the current environment.
+ *
+ * In **production** this is a pass-through — it returns `customerID` as-is.
+ *
+ * In **staging** the production `stripeCustomerId` stored in the database
+ * belongs to Stripe live mode and cannot be used with the test-mode API key.
+ * This function searches for (or lazily creates) a **test-mode** customer
+ * with matching `billing_account_id` metadata so that staging checkouts,
+ * portal sessions, and payment-method lookups work correctly.
+ *
+ * The test customer ID is **never** written back to the database — it exists
+ * only in Stripe test mode and is resolved at runtime.
+ *
+ * @param billingAccountId - The Orchestra billing account ID (used as the
+ *   stable cross-reference key in Stripe customer metadata).
+ * @param email - Fallback email for new test customers.
+ * @returns The resolved Stripe customer ID, or `null` if none could be
+ *   resolved and the checkout should use `customer_creation: 'always'`.
+ */
+export async function resolveTestCustomer(
+  billingAccountId: number,
+  email?: string | null,
+): Promise<string | null> {
+  if (!isStaging()) {
+    // Production — caller should use the DB customer ID directly
+    return null;
+  }
+
+  if (!stripe) {
+    console.warn('[resolveTestCustomer] Stripe not initialised');
+    return null;
+  }
+  const stripeClient = stripe as NonNullable<typeof stripe>;
+
+  try {
+    // Search for an existing test customer by billing_account_id metadata
+    const search = await stripeClient.customers.search({
+      query: `metadata["billing_account_id"]:"${billingAccountId}"`,
+      limit: 1,
+    });
+
+    if (search.data.length > 0) {
+      console.log(
+        `[resolveTestCustomer] Found existing test customer ${search.data[0].id} for BA ${billingAccountId}`,
+      );
+      return search.data[0].id;
+    }
+
+    // No test customer yet — create one
+    const newCustomer = await stripeClient.customers.create({
+      email: email ?? undefined,
+      metadata: {
+        billing_account_id: String(billingAccountId),
+        created_by: 'resolveTestCustomer',
+      },
+    });
+
+    console.log(
+      `[resolveTestCustomer] Created test customer ${newCustomer.id} for BA ${billingAccountId}`,
+    );
+    return newCustomer.id;
+  } catch (e) {
+    console.error('[resolveTestCustomer] Failed to resolve/create test customer:', e);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Best-effort update of an existing Stripe customer's email and name so that
+ * Checkout pre-fills those fields.
+ *
+ * - **email**: Always synced to the canonical value from our DB so the
+ *   checkout form never shows a stale or incorrect address.
+ * - **name**: Only set when missing on the customer record (we don't overwrite
+ *   a name the customer may have entered themselves in a previous checkout).
+ */
+async function prefillCustomerFields(
+  stripeClient: NonNullable<typeof stripe>,
+  customerId: string,
+  fields: { email?: string; name?: string },
+) {
+  try {
+    const customer = await stripeClient.customers.retrieve(customerId);
+    if ('deleted' in customer && customer.deleted) return;
+
+    const update: Record<string, string> = {};
+    // Always sync email to canonical value (may have been set to userId by mistake)
+    if (fields.email && customer.email !== fields.email) update.email = fields.email;
+    // Only set name when missing
+    if (fields.name && !customer.name) update.name = fields.name;
+
+    if (Object.keys(update).length > 0) {
+      await stripeClient.customers.update(customerId, update);
+      console.log('[Stripe] Pre-filled customer fields', customerId, Object.keys(update));
+    }
+  } catch (e) {
+    // Non-fatal — checkout will just show empty fields
+    console.warn('[Stripe] Failed to pre-fill customer fields (non-fatal)', customerId, e);
+  }
+}
 
 /**
  * Ensures a tax ID is present on a Stripe customer (idempotent).

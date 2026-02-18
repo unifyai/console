@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCheckoutSession } from '@/lib/user/billing/stripe/stripe';
+import { createCheckoutSession, resolveTestCustomer } from '@/lib/user/billing/stripe/stripe';
 import { getBillingAccountInfo } from '@/lib/user/billing/billing';
 import { stripe } from '@/lib/user/billing/stripe/stripe-instance';
 import { getWorkspaceBillingContext } from '../../_utils/auth';
@@ -13,6 +13,9 @@ import { getWorkspaceBillingContext } from '../../_utils/auth';
  *
  * If no Stripe customer exists yet, the session is created with
  * `customer_creation: 'always'` so Stripe handles customer creation inline.
+ *
+ * In staging, production customer IDs are swapped for test-mode customers
+ * via `resolveTestCustomer` so that test-mode Stripe keys work correctly.
  */
 export async function GET(request: NextRequest) {
   const ctx = await getWorkspaceBillingContext();
@@ -35,17 +38,20 @@ export async function GET(request: NextRequest) {
         : { userId: ctx.userId }
     );
 
-    // customerID may be null for first-time buyers — that's fine,
-    // createCheckoutSession handles it via customer_creation: 'always'
-    const customerID = billingInfo.stripeCustomerId;
+    // In staging, resolve a test-mode customer; in prod, use the DB value directly.
+    const testCustomerId = await resolveTestCustomer(
+      billingInfo.billingAccountId,
+      billingInfo.stripeCustomerId ? undefined : ctx.email,
+    );
+    const customerID = testCustomerId ?? billingInfo.stripeCustomerId;
 
     const checkoutCtx = {
       userId: ctx.userId,
       ...(ctx.organizationId ? { organizationId: ctx.organizationId } : {}),
     };
 
-    const checkoutUrl = await createCheckoutSession(checkoutCtx, customerID);
-    return NextResponse.json({ url: checkoutUrl });
+    const { url, sessionId } = await createCheckoutSession(checkoutCtx, customerID);
+    return NextResponse.json({ url, sessionId });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     return NextResponse.json({ error: 'Error creating checkout session' }, { status: 500 });

@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '../../UI/alert';
 import {
   AlertCircle,
   CheckCircle2,
+  Info,
   Loader2,
   Wallet,
   FileText,
@@ -501,6 +502,15 @@ const Main = ({ orgContext }: BillingMainProps) => {
                     ? `Billing details for ${orgContext.orgName}`
                     : 'Your billing details and tax information'}
                 </p>
+                {!orgContext && (
+                  <p className="text-caption mt-2 flex items-start gap-1.5 text-muted-foreground">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Personal workspaces use individual tax treatment. If you need business
+                      tax invoicing, <a href="/organizations" className="underline text-primary">create an organization</a>.
+                    </span>
+                  </p>
+                )}
               </div>
               <Button
                 variant="outline"
