@@ -57,6 +57,7 @@ const FullScreenCallUI: React.FC<{
   isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isWaitingForAssistant: boolean;
+  isDesktopReady: boolean;
 }> = ({
   room,
   assistant,
@@ -78,6 +79,7 @@ const FullScreenCallUI: React.FC<{
   isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isWaitingForAssistant,
+  isDesktopReady,
 }) => {
   // Standard LiveKit hooks
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
@@ -346,6 +348,7 @@ const FullScreenCallUI: React.FC<{
         onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isConnectionEstablished={room.state === 'connected'}
         isAssistantJoined={!isWaitingForAssistant}
+        isDesktopReady={isDesktopReady}
         callType={callType}
       />
     </div>
@@ -384,6 +387,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
   // Remote control state
+  const [isDesktopReady, setIsDesktopReady] = React.useState(false);
+  const desktopPollRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
@@ -629,6 +634,31 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
   }, [room, assistant, params.assistantId]);
 
+  // Poll for desktop VM readiness once connected
+  React.useEffect(() => {
+    if (isConnecting || !assistant) return;
+
+    const stopPoll = () => {
+      if (desktopPollRef.current) {
+        clearInterval(desktopPollRef.current);
+        desktopPollRef.current = null;
+      }
+    };
+
+    const checkDesktopReady = async () => {
+      const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
+      if ('liveviewUrl' in result && result.liveviewUrl) {
+        setIsDesktopReady(true);
+        stopPoll();
+      }
+    };
+
+    checkDesktopReady();
+    desktopPollRef.current = setInterval(checkDesktopReady, 3000);
+
+    return () => stopPoll();
+  }, [isConnecting, assistant, assistantActions.desktop]);
+
   if (!callData || !assistant) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-background text-foreground">
@@ -667,6 +697,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isWaitingForAssistant={isWaitingForAssistant}
+        isDesktopReady={isDesktopReady}
       />
     </RoomContext.Provider>
   );

@@ -48,6 +48,7 @@ interface AssistantCommunicationDialogContentProps {
   isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
+  isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
   connectionDetails: ConnectionDetails | null;
 }
@@ -74,6 +75,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
+  isDesktopReady,
   callType,
   connectionDetails,
 }) => {
@@ -434,6 +436,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isConnectionEstablished={isCallConnected}
         isAssistantJoined={!isWaitingForAssistant}
+        isDesktopReady={isDesktopReady}
         callType={callType}
       />
     </>
@@ -464,6 +467,7 @@ interface AssistantCommunicationDialogProps {
   isRemoteControlInteractiveLoading: boolean;
   toggleRemoteControlInteractive: () => void;
   isCallConnected: boolean;
+  isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
   connectionDetails: ConnectionDetails | null;
 }
@@ -492,6 +496,7 @@ export function AssistantCommunicationDialog({
   isRemoteControlInteractiveLoading,
   toggleRemoteControlInteractive,
   isCallConnected,
+  isDesktopReady,
   callType,
   connectionDetails,
 }: AssistantCommunicationDialogProps) {
@@ -526,6 +531,7 @@ export function AssistantCommunicationDialog({
           isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
           toggleRemoteControlInteractive={toggleRemoteControlInteractive}
           isCallConnected={isCallConnected}
+          isDesktopReady={isDesktopReady}
           callType={callType}
           connectionDetails={connectionDetails}
         />

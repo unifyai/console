@@ -231,6 +231,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     waitingMessage,
     connectionError,
     retryConnection,
+    isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,
     isRemoteControlLoading,
@@ -883,6 +884,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isRemoteControlInteractive={isRemoteControlInteractive}
             isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
             toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+            isDesktopReady={isDesktopReady}
             callType={callType}
             connectionDetails={connectionDetails}
           />

@@ -8,6 +8,7 @@ const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
+const DESKTOP_READY_POLL_INTERVAL = 3000; // 3 seconds between desktop readiness checks
 
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
@@ -28,6 +29,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const connectionAttemptIdRef = React.useRef(0);
 
   // --- Remote Control State ---
+  const [isDesktopReady, setIsDesktopReady] = React.useState(false);
+  const desktopPollRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
@@ -50,6 +53,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     }
   }, []);
 
+  const stopDesktopPoll = React.useCallback(() => {
+    if (desktopPollRef.current) {
+      clearInterval(desktopPollRef.current);
+      desktopPollRef.current = null;
+    }
+  }, []);
+
   const stopRemoteControl = React.useCallback(() => {
     setIsRemoteControlActive(false);
     setLiveviewUrl(null);
@@ -67,9 +77,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setCallType(null);
     setIsSpeakerMuted(false);
     isRedispatchingRef.current = false;
-    stopRemoteControl(); // Clean up remote control state
+    stopRemoteControl();
+    stopDesktopPoll();
+    setIsDesktopReady(false);
     clearAssistantJoinTimeout();
-  }, [clearAssistantJoinTimeout, stopRemoteControl]);
+  }, [clearAssistantJoinTimeout, stopRemoteControl, stopDesktopPoll]);
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
@@ -430,6 +442,31 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
   }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant]);
 
+  // Poll for desktop VM readiness once the call is connected
+  React.useEffect(() => {
+    if (!isConnected || !activeCallAssistant) {
+      stopDesktopPoll();
+      return;
+    }
+
+    const checkDesktopReady = async () => {
+      try {
+        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
+        if (result && 'liveviewUrl' in result && result.liveviewUrl) {
+          setIsDesktopReady(true);
+          stopDesktopPoll();
+        }
+      } catch {
+        // VM not ready yet — will retry on next interval
+      }
+    };
+
+    checkDesktopReady();
+    desktopPollRef.current = setInterval(checkDesktopReady, DESKTOP_READY_POLL_INTERVAL);
+
+    return () => stopDesktopPoll();
+  }, [isConnected, activeCallAssistant, assistantActions.desktop, stopDesktopPoll]);
+
   // Ensure proper cleanup on component unmount
   React.useEffect(() => {
     return () => {
@@ -456,6 +493,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     connectionError,
     retryConnection,
     // Remote control exports
+    isDesktopReady,
     isRemoteControlActive,
     liveviewUrl,
     isRemoteControlLoading,

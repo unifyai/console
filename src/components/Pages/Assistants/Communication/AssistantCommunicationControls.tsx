@@ -38,6 +38,7 @@ interface AssistantCommunicationControlsProps {
   isRemoteControlInteractiveLoading?: boolean;
   isConnectionEstablished: boolean;
   isAssistantJoined?: boolean;
+  isDesktopReady?: boolean;
   callType: 'video' | 'audio' | null;
 }
 
@@ -92,10 +93,11 @@ export function AssistantCommunicationControls({
   isRemoteControlInteractiveLoading,
   isConnectionEstablished,
   isAssistantJoined = true, // Default to true for backwards compatibility
+  isDesktopReady = true, // Default to true for backwards compatibility
   callType,
 }: AssistantCommunicationControlsProps) {
-  // Remote control requires assistant to have joined, not just connection established
-  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined;
+  // Remote control requires assistant to have joined AND desktop VM to be ready
+  const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
   return (
     <div className="flex h-20 flex-shrink-0 items-center justify-between border-t bg-background px-6">
       {/* Left Controls */}
@@ -177,11 +179,13 @@ export function AssistantCommunicationControls({
                       onClick={onToggleRemoteControl}
                       disabled={isRemoteControlLoading || !canUseRemoteControl}
                       aria-label={
-                        !canUseRemoteControl
+                        !isConnectionEstablished || !isAssistantJoined
                           ? 'Available after assistant joins'
-                          : isRemoteControlActive
-                            ? 'Hide assistant screen'
-                            : 'Show assistant screen'
+                          : !isDesktopReady
+                            ? 'Assistant desktop is starting up\u2026'
+                            : isRemoteControlActive
+                              ? 'Hide assistant screen'
+                              : 'Show assistant screen'
                       }
                     >
                       {isRemoteControlLoading ? (
@@ -194,11 +198,13 @@ export function AssistantCommunicationControls({
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <p>
-                    {!canUseRemoteControl
+                    {!isConnectionEstablished || !isAssistantJoined
                       ? 'Available after assistant joins'
-                      : isRemoteControlActive
-                        ? 'Hide assistant screen'
-                        : 'Show assistant screen'}
+                      : !isDesktopReady
+                        ? 'Assistant desktop is starting up\u2026'
+                        : isRemoteControlActive
+                          ? 'Hide assistant screen'
+                          : 'Show assistant screen'}
                   </p>
                 </TooltipContent>
               </Tooltip>
