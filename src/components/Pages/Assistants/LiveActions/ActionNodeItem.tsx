@@ -11,7 +11,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { StatusIndicator } from './StatusIndicator';
 import { formatDuration, getNodeDuration } from '@/utils/assistants/assistant-actions';
 import type { ActionNode, GetToolLoopEventsFn, ToolLoopLog } from '@/types/assistants/action';
@@ -130,6 +130,132 @@ function ContentArea({
   );
 }
 
+/**
+ * Renders a single ToolLoop message with a role tag and content.
+ */
+function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
+  const { message } = log.entries;
+
+  if (message.role === 'system') return null;
+
+  if (message.role === 'user') {
+    const content = extractTextContent(message.content);
+    if (!content) return null;
+    return (
+      <div className="flex gap-2">
+        <span className="shrink-0 font-medium text-blue-500/60">user</span>
+        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+      </div>
+    );
+  }
+
+  if (message.role === 'assistant') {
+    if (message.toolCalls && message.toolCalls.length > 0) {
+      const toolName = message.toolCalls[0].function.name;
+      return (
+        <div className="flex gap-2">
+          <span className="shrink-0 font-medium text-orange-500/60">call</span>
+          <span className="text-muted-foreground/50">{toolName}()</span>
+        </div>
+      );
+    }
+    const content = extractTextContent(message.content);
+    if (!content) return null;
+    return (
+      <div className="flex gap-2">
+        <span className="shrink-0 font-medium text-green-500/60">llm</span>
+        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+      </div>
+    );
+  }
+
+  if (message.role === 'tool') {
+    const content = extractTextContent(message.content);
+    if (!content) return null;
+    return (
+      <div className="flex gap-2">
+        <span className="shrink-0 font-medium text-purple-500/60">result</span>
+        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Displays the full ToolLoop conversation for a completed node.
+ * Styled with top/bottom fade edges and a scrollbar that appears on overflow,
+ * similar to Cursor's thinking/tool-call step display.
+ */
+function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: number }) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
+  }, [logs]);
+
+  const pad = depth > 0 ? `${depth * 12 + 36}px` : '36px';
+
+  return (
+    <div className="relative" style={{ paddingLeft: pad, paddingRight: '8px' }}>
+      {/* Top fade */}
+      {isOverflowing && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 rounded-t-md"
+          style={{
+            marginLeft: pad,
+            marginRight: '8px',
+            background: 'linear-gradient(to bottom, var(--background), transparent)',
+          }}
+        />
+      )}
+
+      {/* Scrollable content */}
+      <div
+        ref={scrollRef}
+        className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
+        style={{ maxHeight: '240px' }}
+      >
+        <div className="space-y-0.5 py-3">
+          {logs.map((log) => (
+            <ToolLoopMessage key={log.id} log={log} />
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom fade */}
+      {isOverflowing && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
+          style={{
+            marginLeft: pad,
+            marginRight: '8px',
+            background: 'linear-gradient(to top, var(--background), transparent)',
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Loading placeholder with spinner, shown while ToolLoop events are being fetched.
+ */
+function ToolLoopLoading({ depth }: { depth: number }) {
+  return (
+    <div
+      className="text-muted-foreground/50 flex items-center gap-1.5 py-2 text-[11px]"
+      style={{ paddingLeft: depth > 0 ? `${depth * 12 + 36}px` : '36px' }}
+    >
+      <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+      <span>Loading steps…</span>
+    </div>
+  );
+}
+
 export function ActionNodeItem({
   node,
   depth = 0,
@@ -153,23 +279,24 @@ export function ActionNodeItem({
   // Latest LLM thinking content (for running nodes)
   const [latestThinking, setLatestThinking] = React.useState<string | null>(null);
 
+  // Full ToolLoop conversation (lazy-loaded for completed nodes)
+  const [completedToolLoopLogs, setCompletedToolLoopLogs] = React.useState<ToolLoopLog[]>([]);
+  const [isToolLoopLoading, setIsToolLoopLoading] = React.useState(false);
+  const toolLoopFetchedRef = React.useRef(false);
+
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
+  // Manager nodes are always expandable (can show ToolLoop conversation)
+  const isExpandable = hasChildren || canLoadToolLoop;
 
   // Calculate duration
   const duration = getNodeDuration(node);
   const durationText =
     node.status === 'running' ? `${formatDuration(duration)}...` : formatDuration(duration);
 
-  // Determine what content to display:
-  // - Running: latest LLM thinking from ToolLoop
-  // - Completed: node's final answer/content (if meaningful)
-  const displayContent = React.useMemo(() => {
-    if (node.status === 'running') {
-      return latestThinking;
-    }
-    // For completed nodes, show the answer content if it's meaningful
-    // Filter out boolean-like values and very short non-meaningful content
+  // Fallback content for non-manager nodes that can't load ToolLoop
+  const fallbackContent = React.useMemo(() => {
+    if (node.status === 'running') return null;
     const content = node.content;
     if (!content) return null;
     const trimmed = content.trim().toLowerCase();
@@ -182,7 +309,7 @@ export function ActionNodeItem({
       return null;
     }
     return content;
-  }, [node.status, node.content, latestThinking]);
+  }, [node.status, node.content]);
 
   // Handle expand/collapse toggle
   const handleToggle = (e: React.MouseEvent) => {
@@ -204,65 +331,93 @@ export function ActionNodeItem({
     let isCurrentlyLoading = false;
 
     const fetchLatestThinking = async () => {
-      // Skip if already loading to avoid overlapping requests
       if (isCurrentlyLoading) return;
       isCurrentlyLoading = true;
 
       try {
-        // Fetch only the most recent ToolLoop event
-        const response = await getToolLoopEvents(assistantId!, node.hierarchyLabel, 1);
+        const hierarchyPrefix = node.hierarchy.join('->');
+        const response = await getToolLoopEvents(assistantId!, hierarchyPrefix, 5);
 
         if (isCancelled) return;
-
-        if ('detail' in response) {
-          return;
-        }
+        if ('detail' in response) return;
 
         const logs = (response.logs || []) as ToolLoopLog[];
-        if (logs.length > 0) {
-          const latest = logs[0];
-          const message = latest.entries.message;
+        for (let i = logs.length - 1; i >= 0; i--) {
+          const message = logs[i].entries.message;
+          if (message.role === 'system' || message.role === 'user') continue;
 
-          // Extract content from the latest message
           let content: string | undefined;
-
           if (message.toolCalls && message.toolCalls.length > 0) {
-            // Tool call - show tool name
-            const toolCall = message.toolCalls[0];
-            content = `Calling ${toolCall.function.name}...`;
+            content = `Calling ${message.toolCalls[0].function.name}...`;
           } else {
-            // LLM response or tool result
             content = extractTextContent(message.content);
           }
 
           if (content) {
             setLatestThinking(content);
+            break;
           }
         }
       } catch {
-        // Silently fail - this is background loading
+        // Silently fail
       } finally {
-        if (!isCancelled) {
-          isCurrentlyLoading = false;
-        }
+        if (!isCancelled) isCurrentlyLoading = false;
       }
     };
 
-    // Initial fetch
     fetchLatestThinking();
-
-    // Poll for updates while running (every 1.5s for responsiveness)
     const interval = setInterval(fetchLatestThinking, 1500);
-
     return () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [node.status, node.hierarchyLabel, canLoadToolLoop, assistantId, getToolLoopEvents]);
+  }, [node.status, node.hierarchy, canLoadToolLoop, assistantId, getToolLoopEvents]);
 
-  // Clear thinking when node completes
+  // Load full ToolLoop conversation for completed nodes when expanded.
+  // Uses the node's hierarchyLabel (updated from the outgoing event) which
+  // carries the same suffix as ToolLoop events, giving an exact scope to
+  // this specific invocation without any fragile time filtering.
   React.useEffect(() => {
-    if (node.status !== 'running') {
+    if (node.status === 'running' || !canLoadToolLoop || !isExpanded) return;
+    if (toolLoopFetchedRef.current) return;
+    toolLoopFetchedRef.current = true;
+
+    let isCancelled = false;
+    setIsToolLoopLoading(true);
+
+    const load = async () => {
+      try {
+        const response = await getToolLoopEvents(assistantId!, node.hierarchyLabel, null);
+        if (isCancelled || 'detail' in response) return;
+        const logs = (response.logs || []) as ToolLoopLog[];
+        setCompletedToolLoopLogs(logs.filter((l) => l.entries.message.role !== 'system'));
+      } catch {
+        // Silently fail
+      } finally {
+        if (!isCancelled) setIsToolLoopLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    node.status,
+    isExpanded,
+    canLoadToolLoop,
+    assistantId,
+    getToolLoopEvents,
+    node.hierarchyLabel,
+  ]);
+
+  // Clear thinking & reset ToolLoop state when node starts running
+  React.useEffect(() => {
+    if (node.status === 'running') {
+      toolLoopFetchedRef.current = false;
+      setCompletedToolLoopLogs([]);
+      setIsToolLoopLoading(false);
+    } else {
       setLatestThinking(null);
     }
   }, [node.status]);
@@ -279,12 +434,20 @@ export function ActionNodeItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only trigger on status change
   }, [node.status]);
 
+  // Determine what to render in the detail area.
+  // Manager nodes show a loader while fetching, then the ToolLoop conversation.
+  // Non-manager nodes fall back to inline content.
+  const showToolLoopLoading = isExpanded && canLoadToolLoop && isToolLoopLoading;
+  const showToolLoopConversation = isExpanded && completedToolLoopLogs.length > 0;
+  const showRunningThinking = isExpanded && node.status === 'running' && !!latestThinking;
+  const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
+
   return (
     <div
       data-testid="action-node"
       data-type={node.type}
       data-status={node.status}
-      className={cn('min-w-0 select-none overflow-hidden', className)}
+      className={cn('min-w-0 select-none', className)}
       style={{ contain: 'inline-size' }}
     >
       {/* Node header */}
@@ -297,7 +460,7 @@ export function ActionNodeItem({
         style={{ paddingLeft: depth > 0 ? `${depth * 12}px` : undefined }}
       >
         {/* Expand/collapse button */}
-        {hasChildren ? (
+        {isExpandable ? (
           <button
             type="button"
             data-testid="expand-button"
@@ -317,15 +480,17 @@ export function ActionNodeItem({
             />
           </button>
         ) : (
-          // Spacer for alignment when no children
           <span className="w-4.5 flex-shrink-0" />
         )}
 
         {/* Status indicator */}
         <StatusIndicator status={node.status} size="sm" />
 
-        {/* Label */}
-        <span className={cn('min-w-0 flex-1 truncate text-sm', getLabelStyles(node.type))}>
+        {/* Label — shows displayLabel (human-readable) with raw hierarchy on hover */}
+        <span
+          className={cn('min-w-0 flex-1 truncate text-sm', getLabelStyles(node.type))}
+          title={node.displayLabel ? node.hierarchy[node.hierarchy.length - 1] : undefined}
+        >
           {node.label}
         </span>
 
@@ -335,15 +500,24 @@ export function ActionNodeItem({
         </span>
       </div>
 
-      {/* Content area - inline below header */}
-      {displayContent && <ContentArea content={displayContent} depth={depth} maxHeight={80} />}
+      {/* Detail area — only visible when expanded */}
+      {showRunningThinking && (
+        <ContentArea content={latestThinking!} depth={depth} maxHeight={120} />
+      )}
+      {showToolLoopLoading && <ToolLoopLoading depth={depth} />}
+      {showToolLoopConversation && (
+        <ToolLoopConversation logs={completedToolLoopLogs} depth={depth} />
+      )}
+      {showFallbackContent && (
+        <ContentArea content={fallbackContent!} depth={depth} maxHeight={160} />
+      )}
 
       {/* Children (with animation) */}
       {hasChildren && (
         <div
           className={cn(
             'relative overflow-hidden transition-all duration-200 ease-out',
-            isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+            isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
           {/* Vertical line connector */}

@@ -82,7 +82,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Only poll when visible AND assistant is selected
   const shouldPoll = hasAssistant && isVisible;
 
-  const { roots, hasActiveAction, isLoading, error, refresh, loadMore, hasMore } =
+  const { roots, hasActiveAction, isLoading, error, refresh, loadMore, hasMore, connectionStatus } =
     useAssistantActions(
       hasAssistant ? assistant.agentId : '',
       actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
@@ -184,25 +184,35 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Effects
   // ==========================================================================
 
-  // Initialize expanded state for running nodes
+  // Track which nodes were running so we can auto-collapse on completion
+  const prevRunningRef = React.useRef<Set<string>>(new Set());
+
+  // Auto-expand running nodes, auto-collapse nodes that just completed
   React.useEffect(() => {
-    if (roots.length > 0) {
-      setExpandedNodeIds((prev) => {
-        const next = new Set(prev);
-        // Auto-expand running nodes
-        const addRunningNodes = (nodes: typeof roots) => {
-          for (const node of nodes) {
-            if (node.status === 'running' && node.children.length > 0) {
-              next.add(node.id);
-            }
-            addRunningNodes(node.children);
-          }
-        };
-        addRunningNodes(roots);
-        return next;
-      });
-    }
-  }, [roots]);
+    if (roots.length === 0) return;
+
+    const currentRunning = new Set<string>();
+    const collectRunning = (nodes: typeof roots) => {
+      for (const node of nodes) {
+        if (node.status === 'running') currentRunning.add(node.id);
+        collectRunning(node.children);
+      }
+    };
+    collectRunning(roots);
+
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev);
+      currentRunning.forEach((id) => next.add(id));
+      if (autoCollapse) {
+        prevRunningRef.current.forEach((id) => {
+          if (!currentRunning.has(id)) next.delete(id);
+        });
+      }
+      return next;
+    });
+
+    prevRunningRef.current = currentRunning;
+  }, [roots, autoCollapse]);
 
   // Reset state when assistant changes
   React.useEffect(() => {
@@ -263,6 +273,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           runningCount={counts.running}
           completedCount={counts.completed}
           lastUpdated={lastUpdated}
+          connectionStatus={connectionStatus}
         />
       )}
     </div>

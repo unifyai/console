@@ -5,11 +5,13 @@
  * - Assistant working/idle status with indicator
  * - Running and completed event counts
  * - Last updated timestamp
+ * - Connection status (streaming / polling / error)
  */
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/assistants/assistant-actions';
+import type { ActionConnectionStatus } from '@/hooks/Assistants/useAssistantActions';
 
 export interface LiveActionsFooterProps {
   /** Assistant first name for status message */
@@ -22,8 +24,28 @@ export interface LiveActionsFooterProps {
   completedCount: number;
   /** Timestamp of last data update */
   lastUpdated: Date | null;
+  /** Current connection strategy */
+  connectionStatus?: ActionConnectionStatus;
   /** Additional class names */
   className?: string;
+}
+
+/** Connection status indicator dot color and label */
+function getConnectionIndicator(status: ActionConnectionStatus): {
+  color: string;
+  label: string;
+} {
+  switch (status) {
+    case 'streaming':
+      return { color: 'bg-green-500', label: 'Live' };
+    case 'polling':
+      return { color: 'bg-yellow-500', label: 'Polling' };
+    case 'error':
+      return { color: 'bg-red-500', label: 'Disconnected' };
+    case 'idle':
+    default:
+      return { color: 'bg-muted-foreground/50', label: '' };
+  }
 }
 
 export function LiveActionsFooter({
@@ -32,6 +54,7 @@ export function LiveActionsFooter({
   runningCount,
   completedCount,
   lastUpdated,
+  connectionStatus = 'idle',
   className,
 }: LiveActionsFooterProps) {
   // Update relative time every second
@@ -45,14 +68,14 @@ export function LiveActionsFooter({
     return () => clearInterval(interval);
   }, []);
 
-  // Format counts with proper pluralization (we use simple format without 's')
   const runningText = `${runningCount} running`;
   const completedText = `${completedCount} completed`;
 
-  // Format last updated
   const lastUpdatedText = lastUpdated
     ? `Updated ${formatRelativeTime(lastUpdated)}`
     : 'Not yet updated';
+
+  const connectionIndicator = getConnectionIndicator(connectionStatus);
 
   return (
     <div
@@ -87,8 +110,25 @@ export function LiveActionsFooter({
         </span>
       </div>
 
-      {/* Right side: Last updated */}
-      <div data-testid="last-updated">{lastUpdatedText}</div>
+      {/* Right side: Connection status + Last updated */}
+      <div className="flex items-center gap-2">
+        {connectionIndicator.label && (
+          <div
+            className="flex items-center gap-1"
+            data-testid="connection-status"
+            title={`Connection: ${connectionIndicator.label}`}
+          >
+            <span
+              className={cn('h-1.5 w-1.5 rounded-full', connectionIndicator.color)}
+              aria-hidden="true"
+            />
+            <span className="text-caption text-muted-foreground/70">
+              {connectionIndicator.label}
+            </span>
+          </div>
+        )}
+        <span data-testid="last-updated">{lastUpdatedText}</span>
+      </div>
     </div>
   );
 }
