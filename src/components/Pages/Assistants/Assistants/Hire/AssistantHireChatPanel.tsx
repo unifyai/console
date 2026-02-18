@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 import { AssistantFormData } from '@/types/assistants/assistant';
-import { Input } from '@/components/UI/input';
+import { Textarea } from '@/components/UI/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
@@ -133,6 +133,33 @@ export function AssistantHireChatPanel({
   );
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea to fit content, capped at 3 rows
+  React.useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    textarea.style.overflowY = 'hidden';
+
+    if (inputValue) {
+      const scrollHeight = textarea.scrollHeight;
+      const computedStyle = window.getComputedStyle(textarea);
+      const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+      const paddingTop = parseFloat(computedStyle.paddingTop);
+      const paddingBottom = parseFloat(computedStyle.paddingBottom);
+      const maxLines = 3;
+      const maxHeight = lineHeight * maxLines + paddingTop + paddingBottom;
+
+      if (scrollHeight > maxHeight) {
+        textarea.style.height = `${maxHeight}px`;
+        textarea.style.overflowY = 'auto';
+      } else {
+        textarea.style.height = `${scrollHeight}px`;
+      }
+    }
+  }, [inputValue]);
 
   React.useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
@@ -250,18 +277,28 @@ export function AssistantHireChatPanel({
           </span>
         </div>
         <div className="relative">
-          <Input
+          <Textarea
+            ref={textareaRef}
+            rows={1}
             placeholder="Send a message..."
             value={inputValue}
             onChange={handleInputChange}
             disabled={isChatDisabled}
-            className="h-9 pr-10"
+            className="text-body min-h-[36px] resize-none overflow-y-hidden pr-10"
             autoComplete="off"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!isChatDisabled && inputValue.trim()) {
+                  sendMessage(e as unknown as React.FormEvent<HTMLFormElement>);
+                }
+              }
+            }}
           />
           <Button
             type="submit"
             size="icon"
-            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+            className="absolute bottom-1.5 right-1.5 h-7 w-7"
             disabled={isChatDisabled || !inputValue.trim()}
           >
             {isLoading ? (

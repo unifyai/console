@@ -134,13 +134,19 @@ export function usePhotoCreator(
   // Captured voice for animation (to avoid stale closure issues)
   const capturedVoiceIdRef = React.useRef<string | null>(null);
 
+  // Track the previous voice language to update ttsPrompt only on language change
+  const prevVoiceLanguageRef = React.useRef<string | undefined>(selectedVoice?.language);
+  React.useEffect(() => {
+    const currentLanguage = selectedVoice?.language;
+    if (currentLanguage && currentLanguage !== prevVoiceLanguageRef.current) {
+      setTtsPrompt(getRandomSampleLine(currentLanguage));
+    }
+    prevVoiceLanguageRef.current = currentLanguage;
+  }, [selectedVoice?.language]);
+
   React.useEffect(() => {
     isProcessingRef.current = isProcessing;
   }, [isProcessing]);
-
-  React.useEffect(() => {
-    setTtsPrompt(initialTtsPrompt);
-  }, [initialTtsPrompt]);
 
   // Cleanup polling on unmount
   React.useEffect(() => {

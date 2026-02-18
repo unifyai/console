@@ -96,8 +96,58 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     [profilePanelWidth]
   );
 
-  // --- Assistant List Fold State ---
+  // --- Assistant List Fold / Resize State ---
+  const LIST_SNAP_THRESHOLD = 150; // Below this width, snap to folded
+  const LIST_DEFAULT_WIDTH = 300;
+  const LIST_MIN_WIDTH = 56; // w-14 equivalent
+  const LIST_MAX_WIDTH = 500;
+
+  const [assistantListWidth, setAssistantListWidth] = React.useState(LIST_DEFAULT_WIDTH);
   const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
+  const [isResizingList, setIsResizingList] = React.useState(false);
+  const preSnapWidthRef = React.useRef(LIST_DEFAULT_WIDTH);
+
+  const handleListResizeStart = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizingList(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const startX = e.clientX;
+      const startWidth = isAssistantListFolded ? LIST_MIN_WIDTH : assistantListWidth;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const newWidth = startWidth + (moveEvent.clientX - startX);
+
+        if (newWidth < LIST_SNAP_THRESHOLD) {
+          // Snap to folded
+          if (!isAssistantListFolded) {
+            preSnapWidthRef.current = startWidth;
+          }
+          setIsAssistantListFolded(true);
+          setAssistantListWidth(LIST_MIN_WIDTH);
+        } else {
+          // Expanded mode
+          setIsAssistantListFolded(false);
+          const clampedWidth = Math.min(LIST_MAX_WIDTH, Math.max(LIST_SNAP_THRESHOLD, newWidth));
+          setAssistantListWidth(clampedWidth);
+        }
+      };
+
+      const handleMouseUp = () => {
+        setIsResizingList(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    },
+    [assistantListWidth, isAssistantListFolded]
+  );
 
   // --- Assistant Data & Actions ---
   const {
@@ -568,11 +618,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Effects ---
   const initialAssistantLoadProcessedRef = React.useRef(false);
   React.useEffect(() => {
-    if (
-      !isBillingLoading &&
-      !isLoadingAssistants &&
-      !initialAssistantLoadProcessedRef.current
-    ) {
+    if (!isBillingLoading && !isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
       initialAssistantLoadProcessedRef.current = true;
       if (!assistantError && assistants.length === 0 && !isHireDialogOpen) {
         handleOpenHireDialog();
@@ -611,12 +657,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // Determine active panel for width calculations
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
-  const activeSidePanelCount = isProfileOpen ? 1 : 0;
-  const assistantListWidth = isAssistantListFolded
-    ? 'w-14'
-    : activeSidePanelCount === 1
-      ? 'w-1/3 lg:w-[300px] xl:w-[350px]'
-      : 'w-1/3 lg:w-[400px] xl:w-[450px]';
+  const computedListWidth = isAssistantListFolded ? LIST_MIN_WIDTH : assistantListWidth;
 
   return (
     <>
@@ -660,11 +701,11 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       <div className="flex h-full overflow-hidden bg-background">
         {/* Assistant List */}
         <div
-          className={cn(
-            'relative h-full border-r transition-all duration-300 ease-in-out',
-            assistantListWidth,
-            'flex-shrink-0'
-          )}
+          className="relative h-full flex-shrink-0 border-r"
+          style={{
+            width: computedListWidth,
+            transition: isResizingList ? 'none' : 'width 0.3s ease-in-out',
+          }}
         >
           <AssistantList
             assistants={assistants}
@@ -677,12 +718,17 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             onOpenHireDialog={handleOpenHireDialog}
             onOpenContactManager={handleOpenContactManager}
             isFolded={isAssistantListFolded}
-            onToggleFold={() => setIsAssistantListFolded((prev) => !prev)}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
             canHire={canHire}
           />
         </div>
+        {/* List resize handle */}
+        <div
+          onMouseDown={handleListResizeStart}
+          className="hover:bg-primary/20 active:bg-primary/40 -ml-1.5 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
+          style={{ zIndex: 20 }}
+        />
 
         {/* Assistant Profile Panel */}
         <AnimatePresence initial={false}>
@@ -704,7 +750,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   assistant={profileAssistant}
                   assistantActions={assistantActions}
                   onClose={handleProfileClose}
-                  onDeleteAssistant={onDeleteAssistantSubmit}
                   onEdit={handleOpenEditDialog}
                   onOpenContactManager={handleOpenContactManager}
                   onOpenSetupInstructions={(os) => setSetupInstructions({ os, isOpen: true })}
@@ -720,7 +765,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   isConnectingCall={isConnectingCall}
                   userTimezone={userMeta.timezone}
                   canWrite={canWrite(profileAssistant)}
-                  canDelete={canDelete(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
                 />
@@ -820,6 +864,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isProcessingVoice={isDialogBusyProcessingVoice}
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             isStripePanelOpen={isStripePanelOpen}
+            onDeleteAssistant={onDeleteAssistantSubmit}
+            canDelete={canDelete(assistantToEdit)}
           >
             <HireForm
               assistants={assistants}

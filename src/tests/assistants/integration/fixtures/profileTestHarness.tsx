@@ -153,8 +153,6 @@ export interface ProfileTestHarnessProps {
   userEmail?: string;
   /** Callback when close is clicked */
   onClose?: () => void;
-  /** Callback when delete is confirmed */
-  onDeleteAssistant?: (assistant: Assistant) => Promise<void>;
   /** Callback when edit mode is toggled */
   onEdit?: () => void;
   /** Callback when contact manager is opened */
@@ -179,7 +177,6 @@ export function ProfileTestHarness({
   chatHistories: initialChatHistories = {},
   userEmail = 'test@example.com',
   onClose,
-  onDeleteAssistant,
   onEdit,
   onOpenContactManager,
   onStartCall,
@@ -215,7 +212,6 @@ export function ProfileTestHarness({
       assistant={activeAssistant}
       assistantActions={actions}
       onClose={onClose ?? vi.fn()}
-      onDeleteAssistant={onDeleteAssistant ?? vi.fn(async () => {})}
       onEdit={onEdit ?? vi.fn()}
       onOpenContactManager={onOpenContactManager ?? vi.fn()}
       chatHistories={chatHistories}

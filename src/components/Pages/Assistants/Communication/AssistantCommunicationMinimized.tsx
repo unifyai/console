@@ -19,7 +19,12 @@ import { Track, Room } from 'livekit-client';
 import { RoomContext, useTrackToggle, useVoiceAssistant } from '@livekit/components-react';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
+
+const MIN_WIDTH = 200;
+const MIN_HEIGHT = 160;
+const MAX_WIDTH = 640;
+const MAX_HEIGHT = 520;
 
 interface AssistantCommunicationMinimizedProps {
   assistant: Assistant;
@@ -209,13 +214,60 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
 };
 
 export function AssistantCommunicationMinimized(props: AssistantCommunicationMinimizedProps) {
+  const [size, setSize] = React.useState({ width: 256, height: 192 });
+  const [isResizing, setIsResizing] = React.useState(false);
+
+  const handleCornerResize = React.useCallback(
+    (corner: 'tl' | 'tr' | 'bl' | 'br') =>
+      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        setIsResizing(true);
+        setSize((prev) => {
+          const dx = corner === 'tl' || corner === 'bl' ? -info.delta.x : info.delta.x;
+          const dy = corner === 'tl' || corner === 'tr' ? -info.delta.y : info.delta.y;
+          return {
+            width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + dx)),
+            height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + dy)),
+          };
+        });
+      },
+    []
+  );
+
+  const handleResizeEnd = React.useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resizeHandleClass =
+    'absolute z-10 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity';
+
   return (
     <motion.div
-      drag
+      drag={!isResizing}
       dragMomentum={false}
-      whileDrag={{ scale: 1.02 }}
-      className="bg-background/80 group fixed bottom-5 right-5 z-50 flex h-48 w-64 cursor-grab flex-col items-center justify-center rounded-lg border p-4 shadow-2xl backdrop-blur-md active:cursor-grabbing"
+      whileDrag={isResizing ? undefined : { scale: 1.02 }}
+      className="bg-background/80 group fixed bottom-5 right-5 z-50 flex cursor-grab flex-col items-center justify-center rounded-lg border p-4 shadow-2xl backdrop-blur-md active:cursor-grabbing"
+      style={{ width: size.width, height: size.height }}
     >
+      {/* Resize handles on corners */}
+      {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
+        <motion.div
+          key={corner}
+          drag
+          dragMomentum={false}
+          dragElastic={0}
+          dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
+          onDrag={handleCornerResize(corner)}
+          onDragEnd={handleResizeEnd}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={cn(
+            resizeHandleClass,
+            corner === 'tl' && 'left-0 top-0 cursor-nwse-resize',
+            corner === 'tr' && 'right-0 top-0 cursor-nesw-resize',
+            corner === 'bl' && 'bottom-0 left-0 cursor-nesw-resize',
+            corner === 'br' && 'bottom-0 right-0 cursor-nwse-resize'
+          )}
+        />
+      ))}
       <RoomContext.Provider value={props.room}>
         <MinimizedContent {...props} />
       </RoomContext.Provider>

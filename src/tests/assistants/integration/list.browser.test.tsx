@@ -71,7 +71,6 @@ describe('Component Tests', () => {
     onOpenHireDialog: vi.fn(),
     onOpenContactManager: vi.fn(),
     isFolded: false,
-    onToggleFold: vi.fn(),
     activeCallAssistantId: null,
     onHangUp: vi.fn(),
   };
@@ -190,18 +189,7 @@ describe('Component Tests', () => {
       expect(newButton).toBeDisabled();
     });
 
-    it('should toggle list folding when clicking on fold button', async () => {
-      const user = userEvent.setup();
-      const { container } = render(<AssistantList {...defaultListProps} />);
-
-      const foldIcon = container.querySelector('.lucide-panel-left-close');
-      const foldButton = foldIcon?.closest('button');
-
-      expect(foldButton).toBeInTheDocument();
-
-      await user.click(foldButton!);
-      expect(defaultListProps.onToggleFold).toHaveBeenCalledTimes(1);
-    });
+    // Fold button was removed - list folding is now controlled by dragging the right border in Main
   });
 
   describe('Hover Card', () => {
@@ -342,7 +330,17 @@ describe('Integration Tests', () => {
 
         const janeListItem = await screen.findByTestId('assistant-list-item-1');
         await user.click(janeListItem);
-        // Profile panel opens - verify by finding the End contract button
+        // Profile panel opens - verify by finding the First Name label
+        expect(await screen.findByText('First Name')).toBeInTheDocument();
+
+        // Click edit button (PenLine icon) in profile to open edit dialog
+        const editButtons = screen
+          .getAllByRole('button')
+          .filter((btn) => btn.querySelector('.lucide-pen-line'));
+        expect(editButtons.length).toBeGreaterThan(0);
+        await user.click(editButtons[0]);
+
+        // Edit dialog opens - find End contract button in the edit dialog footer
         const deleteButton = await screen.findByRole('button', { name: /End contract/i });
         await user.click(deleteButton);
         const dialog = await screen.findByRole('alertdialog');
@@ -364,9 +362,8 @@ describe('Integration Tests', () => {
           { timeout: 5000 }
         );
 
-        // Verify profile panel closed and assistant removed from list
+        // Verify assistant removed from list
         await waitFor(() => {
-          expect(screen.queryByRole('button', { name: /End contract/i })).not.toBeInTheDocument();
           expect(screen.queryByTestId('assistant-list-item-1')).not.toBeInTheDocument();
         });
         expect(screen.getByText('John Smith')).toBeInTheDocument();
@@ -383,6 +380,13 @@ describe('Integration Tests', () => {
       renderMain({ assistantActions: actionsWithMockedDelete });
 
       await user.click(await screen.findByText('Jane Doe'));
+      // Profile panel opens - click edit button to open edit dialog
+      const editButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.querySelector('.lucide-pen-line'));
+      await user.click(editButtons[0]);
+
+      // Click End contract in edit dialog
       await user.click(await screen.findByRole('button', { name: /End contract/i }));
 
       const dialog = await screen.findByRole('alertdialog');
@@ -397,7 +401,7 @@ describe('Integration Tests', () => {
 
       const janeListItem = screen.getByTestId('assistant-list-item-1');
       expect(within(janeListItem).getByText('Jane Doe')).toBeInTheDocument();
-      // Profile panel still open
+      // End contract button still available in the edit dialog
       expect(screen.getByRole('button', { name: /End contract/i })).toBeInTheDocument();
     });
   });
@@ -434,8 +438,8 @@ describe('Integration Tests', () => {
         const janeItem = await screen.findByText('Jane Doe');
         await user.click(janeItem);
 
-        // Profile panel opens - verify by End contract button appearing
-        expect(await screen.findByRole('button', { name: /End contract/i })).toBeInTheDocument();
+        // Profile panel opens - verify by First Name label appearing
+        expect(await screen.findByText('First Name')).toBeInTheDocument();
       }
     );
 
@@ -449,13 +453,13 @@ describe('Integration Tests', () => {
         const janeItem = await screen.findByText('Jane Doe');
         await user.click(janeItem);
         // Profile panel opens
-        expect(await screen.findByRole('button', { name: /End contract/i })).toBeInTheDocument();
+        expect(await screen.findByText('First Name')).toBeInTheDocument();
 
         await user.click(janeItem);
 
         await waitFor(() => {
-          // Profile panel closes
-          expect(screen.queryByRole('button', { name: /End contract/i })).not.toBeInTheDocument();
+          // Profile panel closes - First Name label disappears
+          expect(screen.queryByText('First Name')).not.toBeInTheDocument();
         });
       }
     );
@@ -468,9 +472,7 @@ describe('Integration Tests', () => {
         renderMain();
 
         await user.click(await screen.findByText('Jane Doe'));
-        // Jane's profile opens - verify by profile-only content (First Name label + End contract button)
-        expect(await screen.findByRole('button', { name: /End contract/i })).toBeInTheDocument();
-        // "First Name" label only appears in profile panel, not in list
+        // Jane's profile opens - verify by profile-only content (First Name label)
         const firstNameLabel = await screen.findByText('First Name');
         expect(firstNameLabel).toBeInTheDocument();
 
@@ -478,12 +480,9 @@ describe('Integration Tests', () => {
 
         // Profile switches to John - verify profile still open and content changed
         await waitFor(() => {
-          // The profile panel shows the assistant's about text - verify it changed
-          // John's about text should now be visible instead of Jane's
-          expect(screen.getByRole('button', { name: /End contract/i })).toBeInTheDocument();
+          // First Name label still present (profile still open)
+          expect(screen.getByText('First Name')).toBeInTheDocument();
         });
-        // First Name label still present (profile still open)
-        expect(screen.getByText('First Name')).toBeInTheDocument();
       }
     );
   });

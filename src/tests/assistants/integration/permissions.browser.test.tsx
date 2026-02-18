@@ -76,7 +76,6 @@ describe('Assistant Permissions - Behavior Tests', () => {
       onOpenHireDialog: vi.fn(),
       onOpenContactManager: vi.fn(),
       isFolded: false,
-      onToggleFold: vi.fn(),
       activeCallAssistantId: null,
       onHangUp: vi.fn(),
     };
@@ -100,12 +99,11 @@ describe('Assistant Permissions - Behavior Tests', () => {
     });
   });
 
-  describe('AssistantProfilePanel - canWrite/canDelete props', () => {
+  describe('AssistantProfilePanel - canWrite prop', () => {
     const defaultProfileProps = {
       assistant: myAssistant,
       assistantActions: mockAssistantActions,
       onClose: vi.fn(),
-      onDeleteAssistant: vi.fn(),
       onEdit: vi.fn(),
       onOpenContactManager: vi.fn(),
       chatHistories: {},
@@ -118,7 +116,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
     };
 
     it('should show edit button when canWrite=true', async () => {
-      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={true} canDelete={true} />);
+      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={true} />);
       // Edit button is in the Profile accordion header - look for button with PenLine icon
       const editButtons = screen
         .getAllByRole('button')
@@ -127,22 +125,15 @@ describe('Assistant Permissions - Behavior Tests', () => {
     });
 
     it('should hide edit button when canWrite=false', () => {
-      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={false} canDelete={true} />);
+      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={false} />);
       const editButtons = screen
         .getAllByRole('button')
         .filter((btn) => btn.querySelector('.lucide-pen-line'));
       expect(editButtons.length).toBe(0);
     });
 
-    it('should show delete button when canDelete=true', () => {
-      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={true} canDelete={true} />);
-      expect(screen.getByRole('button', { name: /End contract/i })).toBeInTheDocument();
-    });
-
-    it('should hide delete button when canDelete=false', () => {
-      render(<AssistantProfilePanel {...defaultProfileProps} canWrite={true} canDelete={false} />);
-      expect(screen.queryByRole('button', { name: /End contract/i })).not.toBeInTheDocument();
-    });
+    // Note: canDelete is now tested through the AssistantEdit dialog, not the profile panel.
+    // The "End contract" button was moved from the profile panel footer to the edit dialog footer.
   });
 
   describe('AssistantProfileInfoPanel - canWrite prop', () => {

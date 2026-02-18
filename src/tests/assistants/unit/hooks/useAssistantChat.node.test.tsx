@@ -273,7 +273,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello there' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         // Assert
@@ -419,7 +419,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: '   ' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         const initialLoading = result.current.isLoading;
@@ -482,7 +482,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Message 21' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {
@@ -532,7 +532,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {
@@ -583,7 +583,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {
@@ -625,7 +625,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {
@@ -675,7 +675,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {
@@ -717,7 +717,7 @@ describe('useAssistantChat', () => {
         act(() => {
           result.current.handleInputChange({
             target: { value: 'Hello assistant' },
-          } as React.ChangeEvent<HTMLInputElement>);
+          } as React.ChangeEvent<HTMLTextAreaElement>);
         });
 
         await act(async () => {

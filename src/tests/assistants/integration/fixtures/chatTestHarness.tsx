@@ -388,7 +388,6 @@ export function ChatTestHarness({
       assistant={activeAssistant}
       assistantActions={actions}
       onClose={vi.fn()}
-      onDeleteAssistant={vi.fn()}
       onEdit={vi.fn()}
       onOpenContactManager={vi.fn()}
       chatHistories={histories}

@@ -20,6 +20,8 @@ export function useAssistantChat(
   const [inputValue, setInputValue] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [isInitialGreetingLoading, setIsInitialGreetingLoading] = React.useState(false);
+  const [isTypingIndicatorVisible, setIsTypingIndicatorVisible] = React.useState(false);
+  const typingDelayRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const userMessageCount = React.useMemo(
     () => messages.filter((msg) => msg.role === 'user').length,
@@ -69,7 +71,7 @@ export function useAssistantChat(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configKey, assistantFirstName, setHistories]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   };
 
@@ -92,14 +94,18 @@ export function useAssistantChat(
     setIsSending(true);
 
     const assistantResponseId = uuidv4();
-    // Add the empty placeholder for the assistant's response
-    setHistories((prev) => ({
-      ...prev,
-      [configKey]: [
-        ...prev[configKey],
-        { id: assistantResponseId, role: 'assistant', content: '', timestamp: new Date() },
-      ],
-    }));
+
+    // Add a slight delay before showing the typing indicator
+    typingDelayRef.current = setTimeout(() => {
+      setIsTypingIndicatorVisible(true);
+      setHistories((prev) => ({
+        ...prev,
+        [configKey]: [
+          ...prev[configKey],
+          { id: assistantResponseId, role: 'assistant', content: '', timestamp: new Date() },
+        ],
+      }));
+    }, 1200);
 
     try {
       // Use Server Action instead of API route - cannot be called directly via HTTP
@@ -114,34 +120,81 @@ export function useAssistantChat(
         throw new Error(result.error);
       }
 
-      // Update the placeholder with the response content
+      // Clear the typing delay timer since the response has arrived
+      if (typingDelayRef.current) {
+        clearTimeout(typingDelayRef.current);
+        typingDelayRef.current = null;
+      }
+
+      // Update or insert the response message
       setHistories((prev) => {
-        const updatedHistory = prev[configKey].map((msg) =>
-          msg.id === assistantResponseId ? { ...msg, content: result.content || '' } : msg
-        );
-        return { ...prev, [configKey]: updatedHistory };
+        const currentHistory = prev[configKey] || [];
+        const hasPlaceholder = currentHistory.some((msg) => msg.id === assistantResponseId);
+        if (hasPlaceholder) {
+          const updatedHistory = currentHistory.map((msg) =>
+            msg.id === assistantResponseId ? { ...msg, content: result.content || '' } : msg
+          );
+          return { ...prev, [configKey]: updatedHistory };
+        } else {
+          return {
+            ...prev,
+            [configKey]: [
+              ...currentHistory,
+              {
+                id: assistantResponseId,
+                role: 'assistant',
+                content: result.content || '',
+                timestamp: new Date(),
+              },
+            ],
+          };
+        }
       });
     } catch (error) {
+      // Clear the typing delay timer on error
+      if (typingDelayRef.current) {
+        clearTimeout(typingDelayRef.current);
+        typingDelayRef.current = null;
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
 
       if (errorMessage.includes('INSUFFICIENT_CREDITS')) {
         setHistories((prev) => {
-          const updatedHistory = prev[configKey].map((msg) =>
-            msg.id === assistantResponseId
-              ? { ...msg, content: `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}` }
-              : msg
-          );
-          return { ...prev, [configKey]: updatedHistory };
+          const currentHistory = prev[configKey] || [];
+          const hasPlaceholder = currentHistory.some((msg) => msg.id === assistantResponseId);
+          if (hasPlaceholder) {
+            const updatedHistory = currentHistory.map((msg) =>
+              msg.id === assistantResponseId
+                ? { ...msg, content: `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}` }
+                : msg
+            );
+            return { ...prev, [configKey]: updatedHistory };
+          } else {
+            return {
+              ...prev,
+              [configKey]: [
+                ...currentHistory,
+                {
+                  id: assistantResponseId,
+                  role: 'assistant',
+                  content: `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}`,
+                  timestamp: new Date(),
+                },
+              ],
+            };
+          }
         });
       } else {
         toast.error(`Failed to get a response. Please try again.`);
         setHistories((prev) => ({
           ...prev,
-          [configKey]: prev[configKey].filter((msg) => msg.id !== assistantResponseId),
+          [configKey]: (prev[configKey] || []).filter((msg) => msg.id !== assistantResponseId),
         }));
       }
     } finally {
       setIsSending(false);
+      setIsTypingIndicatorVisible(false);
     }
   };
 

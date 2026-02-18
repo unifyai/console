@@ -156,7 +156,6 @@ const ChatTestWrapper = ({
       assistant={activeAssistant}
       assistantActions={actions}
       onClose={vi.fn()}
-      onDeleteAssistant={vi.fn()}
       onEdit={vi.fn()}
       onOpenContactManager={vi.fn()}
       chatHistories={histories}
@@ -1688,7 +1687,6 @@ describe('Assistant Profile Chat', () => {
               preHireChat={isFirstView ? [greetingMsg] : undefined}
               onFirstViewCompleted={() => setIsFirstView(false)}
               onClose={vi.fn()}
-              onDeleteAssistant={vi.fn()}
               onEdit={vi.fn()}
               onOpenContactManager={vi.fn()}
               onStartCall={vi.fn()}

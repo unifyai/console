@@ -28,7 +28,6 @@ import {
   Mic,
   Square,
   Clapperboard,
-  TimerOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -113,7 +112,7 @@ export function VoiceCustomization({
       setSelectedVoiceId(newVoice.voiceId);
       setActiveMainTab('select');
     },
-    [onVoiceSelected]
+    [onVoiceSelected, setActiveMainTab, setSelectedVoiceId]
   );
 
   const {
@@ -274,9 +273,12 @@ export function VoiceCustomization({
     };
   }, [cleanupRecording]);
 
+  const [playTooltipVoiceId, setPlayTooltipVoiceId] = React.useState<string | null>(null);
+
   const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
     const isSelected = selectedVoiceId === voice.voiceId;
     const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
+    const showPlayTooltip = playTooltipVoiceId === voice.voiceId;
     return (
       <div
         role="option"
@@ -290,7 +292,16 @@ export function VoiceCustomization({
             : 'hover:border-muted-foreground/30 border-transparent hover:bg-muted',
           itemIsDisabled && 'cursor-not-allowed opacity-60 hover:bg-transparent'
         )}
-        onClick={() => !itemIsDisabled && handleSelectVoiceDisplay(voice)}
+        onClick={() => {
+          if (itemIsDisabled) return;
+          handleSelectVoiceDisplay(voice);
+          setPlayTooltipVoiceId(voice.voiceId);
+          // Auto-hide after 2.5 seconds
+          setTimeout(
+            () => setPlayTooltipVoiceId((prev) => (prev === voice.voiceId ? null : prev)),
+            2500
+          );
+        }}
       >
         <span className="text-body">{getLanguageFlag(voice.language)}</span>
         <span className="text-body text-strong flex-1 truncate" title={voice.name}>
@@ -333,102 +344,6 @@ export function VoiceCustomization({
             )}
           </TooltipProvider>
 
-          <TooltipProvider delayDuration={100}>
-            {voice.provider === 'openai' && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Low latency"
-                    className={cn(
-                      'h-7 w-7 cursor-default',
-                      isSelected ? 'hover:bg-primary/80' : 'hover:bg-muted-foreground/10'
-                    )}
-                    disabled={itemIsDisabled}
-                  >
-                    <TimerOff
-                      className={cn(
-                        'h-4 w-4',
-                        isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-                      )}
-                    />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Low latency voice</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </TooltipProvider>
-
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Description: ${voice.description || 'No description.'}`}
-                  className={cn(
-                    'h-7 w-7',
-                    isSelected ? 'hover:bg-primary/80' : 'hover:bg-muted-foreground/10'
-                  )}
-                  onClick={(e) => e.stopPropagation()}
-                  disabled={itemIsDisabled}
-                >
-                  <Info
-                    className={cn(
-                      'h-4 w-4',
-                      isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-                    )}
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-caption max-w-xs">
-                <p>{voice.description || 'No description.'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Preview "${voice.name}"`}
-                  className={cn(
-                    'h-7 w-7',
-                    isSelected
-                      ? 'hover:bg-primary/80 text-primary-foreground hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-green-600/10 hover:text-green-600'
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playPreview(voice);
-                  }}
-                  disabled={
-                    itemIsDisabled ||
-                    (isPlayingPreviewForVoiceId === voice.voiceId &&
-                      isPlayingPreviewForVoiceId !== null)
-                  }
-                >
-                  {isPlayingPreviewForVoiceId === voice.voiceId ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-caption max-w-xs">
-                <p>{`Preview "${voice.name}"`}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
           {!voice.isPreset && voice.isUserVoiceInOrchestra && (
             <TooltipProvider delayDuration={100}>
               <Tooltip>
@@ -459,6 +374,44 @@ export function VoiceCustomization({
               </Tooltip>
             </TooltipProvider>
           )}
+
+          <TooltipProvider delayDuration={0}>
+            <Tooltip open={showPlayTooltip}>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Preview "${voice.name}"`}
+                  className={cn(
+                    'h-7 w-7',
+                    isSelected
+                      ? 'hover:bg-primary/80 text-primary-foreground hover:text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-green-600/10 hover:text-green-600'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPlayTooltipVoiceId(null);
+                    playPreview(voice);
+                  }}
+                  disabled={
+                    itemIsDisabled ||
+                    (isPlayingPreviewForVoiceId === voice.voiceId &&
+                      isPlayingPreviewForVoiceId !== null)
+                  }
+                >
+                  {isPlayingPreviewForVoiceId === voice.voiceId ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-caption max-w-xs">
+                <p>Click to preview voice</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     );
@@ -912,7 +865,11 @@ export function VoiceCustomization({
                   onClick={handleCreateAndSelect}
                   className="h-9 w-full bg-green-600 hover:bg-green-700"
                   disabled={
-                    disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName
+                    disabled ||
+                    isProcessingCreate ||
+                    isGeneratingPreviews ||
+                    !cloneFile ||
+                    !cloneName
                   }
                 >
                   {isProcessingCreate && createMode === 'clone' ? (

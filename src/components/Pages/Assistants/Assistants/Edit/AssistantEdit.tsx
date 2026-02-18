@@ -14,8 +14,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/UI/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
 import { Button } from '@/components/UI/button';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -35,6 +46,10 @@ interface AssistantEditProps {
    *  outside-interaction handling are adjusted so the user can interact
    *  with the Stripe Embedded Checkout (e.g. the quantity editor). */
   isStripePanelOpen?: boolean;
+  /** Handler to delete/end-contract for the assistant */
+  onDeleteAssistant?: (assistant: Assistant) => Promise<void>;
+  /** Whether the user has permission to delete */
+  canDelete?: boolean;
 }
 
 export function AssistantEdit({
@@ -49,9 +64,28 @@ export function AssistantEdit({
   isProcessingVoice,
   onAddPaymentMethod,
   isStripePanelOpen = false,
+  onDeleteAssistant,
+  canDelete = false,
 }: AssistantEditProps) {
   const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
   const isPrimaryActionDisabled = isSubmitting || !!isProcessingVoice || !!isProcessingPhoto;
+
+  const handleDeleteConfirm = async () => {
+    if (!assistant || isDeleting || !onDeleteAssistant) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteAssistant(assistant);
+      setIsDeleteAlertOpen(false);
+      onClose();
+    } catch (error) {
+      console.error('Error during delete:', error);
+      setIsDeleteAlertOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // ── Bypass Dialog focus-trap for the Stripe side-panel ──────────────────
   // Radix Dialog's FocusScope traps focus inside the dialog. When the Stripe
@@ -64,10 +98,7 @@ export function AssistantEdit({
 
     const stopIfStripePanel = (e: FocusEvent) => {
       const target = e.target as HTMLElement | null;
-      if (
-        target?.closest?.('[data-testid="stripe-side-panel"]') ||
-        target?.tagName === 'IFRAME'
-      ) {
+      if (target?.closest?.('[data-testid="stripe-side-panel"]') || target?.tagName === 'IFRAME') {
         e.stopPropagation();
       }
     };
@@ -162,11 +193,68 @@ export function AssistantEdit({
 
         <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
 
-        <DialogFooter className="flex flex-shrink-0 items-center justify-between border-t px-6 py-3">
-          <Button type="button" onClick={onSubmit} disabled={isPrimaryActionDisabled}>
-            {isPrimaryActionDisabled && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {submitButtonLabel()}
-          </Button>
+        <DialogFooter className="flex flex-shrink-0 items-center border-t px-6 py-3">
+          <div className="flex w-full items-center justify-between">
+            <div>
+              {canDelete && onDeleteAssistant && (
+                <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={isPrimaryActionDisabled || isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      End contract
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center">
+                        <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                        Confirm End Contract
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You are about to remove{' '}
+                        <strong>
+                          {assistant.firstName} {assistant.surname}
+                        </strong>{' '}
+                        from your team. This action cannot be undone. Are you sure?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteConfirm}
+                        disabled={isDeleting}
+                        className={cn(
+                          'hover:bg-destructive/90 bg-destructive',
+                          isDeleting && 'cursor-not-allowed opacity-70'
+                        )}
+                      >
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Proceed
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={isPrimaryActionDisabled || isDeleting}
+            >
+              {(isPrimaryActionDisabled || isDeleting) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {submitButtonLabel()}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

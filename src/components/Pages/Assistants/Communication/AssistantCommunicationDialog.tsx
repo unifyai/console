@@ -505,7 +505,7 @@ export function AssistantCommunicationDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onMinimize()}>
       <DialogContent
-        className="flex h-[90vh] w-[90vw] max-w-4xl flex-col gap-0 border bg-background p-0 text-foreground"
+        className="flex h-[85vh] w-[95vw] max-w-7xl flex-col gap-0 border bg-background p-0 text-foreground"
         hideClose
       >
         <RoomAudioRenderer />

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Search, WifiOff, UserPlus, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { Search, WifiOff, UserPlus } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
@@ -20,7 +20,6 @@ interface AssistantListProps {
   onOpenHireDialog: () => void;
   onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
   isFolded: boolean;
-  onToggleFold: () => void;
   activeCallAssistantId: string | null;
   onHangUp: () => void;
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
@@ -38,7 +37,6 @@ export function AssistantList({
   onOpenHireDialog,
   onOpenContactManager,
   isFolded,
-  onToggleFold,
   activeCallAssistantId,
   onHangUp,
   canHire = true,
@@ -63,9 +61,9 @@ export function AssistantList({
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
+    <div className="relative flex h-full flex-col overflow-hidden bg-background">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="flex-shrink-0 border-b p-3">
+      <div className="flex-shrink-0 overflow-hidden border-b p-3">
         {isFolded ? (
           <div className="flex items-center justify-center">
             {showHireButton && (
@@ -163,33 +161,6 @@ export function AssistantList({
           ) : null}
         </div>
       </ScrollArea>
-
-      {/* Fold/Unfold Button */}
-      <div
-        className={cn('absolute bottom-4 z-10', isFolded ? 'left-1/2 -translate-x-1/2' : 'right-2')}
-      >
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onToggleFold}
-                className="relative h-8 w-8 hover:bg-primary hover:text-primary-foreground"
-              >
-                {isFolded ? (
-                  <PanelLeft className="h-4 w-4" />
-                ) : (
-                  <PanelLeftClose className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>{isFolded ? 'Unfold List' : 'Fold List'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </div>
   );
 }
