@@ -17,6 +17,13 @@ import type {
 } from '@/types/assistants/action';
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** Default lookback window for the action viewer (3 hours). */
+export const ACTION_LOOKBACK_MS = 3 * 60 * 60 * 1000;
+
+// =============================================================================
 // Event Parsing
 // =============================================================================
 
@@ -82,27 +89,19 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
 // =============================================================================
 
 /**
- * Determines the node type based on the label.
- */
-function getNodeType(label: string): ActionNodeType {
-  // Boundary nodes are intermediate segments like execute_code, execute_function
-  if (label.startsWith('execute_')) {
-    return 'boundary';
-  }
-  return 'manager';
-}
-
-/**
  * Creates an ActionNode from a parsed incoming event.
  * Uses the Unity-provided displayLabel (human-readable) when available,
  * falling back to the raw hierarchy segment (e.g., "ContactManager.ask").
+ *
+ * Type is always 'manager' — the 'boundary' type is exclusively assigned
+ * by createBoundaryNode for SSE placeholder nodes.
  */
 export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
   const rawLabel = event.hierarchy[event.hierarchy.length - 1];
 
   return {
     id: event.callingId,
-    type: getNodeType(rawLabel),
+    type: 'manager',
     label: event.displayLabel || rawLabel,
     displayLabel: event.displayLabel,
     hierarchy: event.hierarchy,
@@ -135,8 +134,9 @@ function createBoundaryNode(label: string, hierarchy: string[], timestamp: strin
 // =============================================================================
 
 /**
- * Returns true when content is a real answer — not a boolean loop-control
- * signal ("true"/"false") emitted by Unity at each iteration boundary.
+ * Returns true when content is a real answer worth displaying — not a
+ * boolean loop-control signal, null, undefined, or empty.
+ * Used by the UI to decide whether to render node content.
  */
 export function isMeaningfulContent(content: string | undefined): boolean {
   if (!content) return false;
@@ -151,6 +151,20 @@ export function isMeaningfulContent(content: string | undefined): boolean {
 }
 
 /**
+ * Returns true ONLY for explicit boolean loop-control signals
+ * ("true"/"false") emitted by Unity at each tool-loop iteration boundary.
+ *
+ * Crucially returns false for null/undefined content — a null answer means
+ * "this operation completed with nothing to report" (e.g. execute_code),
+ * which is NOT a loop signal and SHOULD complete the node.
+ */
+function isTrivialLoopSignal(content: string | undefined): boolean {
+  if (content == null) return false;
+  const trimmed = content.trim().toLowerCase();
+  return trimmed === 'true' || trimmed === 'false';
+}
+
+/**
  * Applies an outgoing event to a node, updating its status and content.
  *
  * Unity emits many outgoing events per calling_id: trivial loop-control
@@ -159,11 +173,16 @@ export function isMeaningfulContent(content: string | undefined): boolean {
  * node as completed on a trivial signal — otherwise the parent appears done
  * while its children are still running.
  *
+ * Some operations (like execute_code) complete with answer: null — no content
+ * to report, but the operation IS finished. These must still be marked
+ * completed. The key distinction: null means "done, nothing to say" while
+ * "false" means "loop iteration boundary, keep going."
+ *
  * Status transitions:
- *  - Error → always mark as 'error' (regardless of content)
- *  - Meaningful content → mark as 'completed'
- *  - Trivial content + already completed → keep 'completed', update endTime
- *  - Trivial content + still running → keep 'running', update endTime
+ *  - Error → always mark as 'error'
+ *  - Trivial loop signal ("true"/"false") → don't change status
+ *  - Meaningful content → mark as 'completed', set content
+ *  - No content (null/undefined) → mark as 'completed', no content to set
  */
 export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
   const wasRunning = node.status === 'running';
@@ -180,11 +199,16 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
   if (event.status !== 'ok') {
     node.status = 'error';
     if (event.content) node.content = event.content;
-  } else if (isMeaningfulContent(event.content)) {
+  } else if (isTrivialLoopSignal(event.content)) {
+    // Boolean loop-control signal: don't change status.
+  } else {
+    // Either meaningful content OR no content at all (operation completed
+    // with nothing to report, e.g. execute_code with answer: null).
     node.status = 'completed';
-    node.content = event.content;
+    if (isMeaningfulContent(event.content)) {
+      node.content = event.content;
+    }
   }
-  // Trivial outgoing (answer: "true"/"false"): don't change status.
 
   // Clear tool loop steps only on the first transition out of 'running'
   if (wasRunning && node.status !== 'running') {
@@ -656,11 +680,9 @@ export function formatRelativeTime(timestamp: Date | string): string {
  */
 export function areAllNodesExpanded(roots: ActionNode[], expandedNodeIds: Set<string>): boolean {
   function checkNode(node: ActionNode): boolean {
-    // Manager nodes are expandable (ToolLoop content), as are nodes with children
-    if ((node.children.length > 0 || node.type === 'manager') && !expandedNodeIds.has(node.id)) {
+    if (node.children.length > 0 && !expandedNodeIds.has(node.id)) {
       return false;
     }
-
     return node.children.every(checkNode);
   }
 
@@ -695,8 +717,7 @@ export function getExpandableNodeIds(roots: ActionNode[]): Set<string> {
   const ids = new Set<string>();
 
   function collectExpandable(node: ActionNode): void {
-    // Manager nodes are expandable (ToolLoop content), as are nodes with children
-    if (node.children.length > 0 || node.type === 'manager') {
+    if (node.children.length > 0) {
       ids.add(node.id);
     }
     node.children.forEach(collectExpandable);
