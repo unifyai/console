@@ -120,7 +120,7 @@ describe('action.ts server actions', () => {
 
         // Assert
         const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).toContain("ts >= '2024-01-15T10:00:00.000Z'");
+        expect(decodedUrl).toContain("created_at >= '2024-01-15T10:00:00.000Z'");
       }
     );
 

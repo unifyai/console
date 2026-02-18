@@ -14,6 +14,7 @@ import {
   parseManagerMethodLog,
   createActionNode,
   applyOutgoingEvent,
+  isMeaningfulContent,
   findNodeByCallingId,
   hasActiveRootAction,
 } from '@/utils/assistants/assistant-actions';
@@ -184,12 +185,12 @@ describe('parseManagerMethodLog', () => {
   );
 
   it(
-    'handles events with phase: null (action events)',
+    'returns null for events with phase: null (progress events)',
     {
       meta: {
         alias: 'ParseLog-NullPhase',
         scenario: 'Log has phase: null with action field (progress events)',
-        behavior: 'Phase is normalized to incoming, content uses action field',
+        behavior: 'Returns null — progress events are skipped for tree building',
       },
     },
     () => {
@@ -208,10 +209,104 @@ describe('parseManagerMethodLog', () => {
 
       const result = parseManagerMethodLog(log);
 
+      expect(result).toBeNull();
+    }
+  );
+
+  it(
+    'passes through displayLabel from entries',
+    {
+      meta: {
+        alias: 'ParseLog-DisplayLabel',
+        scenario: 'Log has displayLabel field from Unity',
+        behavior: 'Parsed event includes displayLabel',
+      },
+    },
+    () => {
+      const log = createMockLog({
+        id: 42,
+        ts: '2024-01-15T10:30:00.000Z',
+        entries: {
+          manager: 'ContactManager',
+          method: 'ask',
+          phase: 'incoming',
+          callingId: 'abc-123',
+          hierarchy: ['CodeActActor.act', 'ContactManager.ask'],
+          hierarchyLabel: 'CodeActActor.act->ContactManager.ask(abc1)',
+          question: 'Find John',
+          status: 'ok',
+          displayLabel: 'Checking Contact Book',
+        },
+      });
+
+      const result = parseManagerMethodLog(log);
+
       expect(result).not.toBeNull();
-      expect(result!.phase).toBe('incoming'); // Normalized from null
-      expect(result!.content).toBe('done'); // Uses action field as content
-      expect(result!.callingId).toBe('act-123');
+      expect(result!.displayLabel).toBe('Checking Contact Book');
+    }
+  );
+
+  it(
+    'passes through eventId for deduplication',
+    {
+      meta: {
+        alias: 'ParseLog-EventId',
+        scenario: 'Log has eventId field',
+        behavior: 'Parsed event includes eventId',
+      },
+    },
+    () => {
+      const log = createMockLog({
+        entries: {
+          manager: 'ContactManager',
+          method: 'ask',
+          phase: 'incoming',
+          callingId: 'abc-123',
+          hierarchy: ['ContactManager.ask'],
+          hierarchyLabel: 'ContactManager.ask(abc1)',
+          status: 'ok',
+          eventId: 'evt-uuid-001',
+        },
+      });
+
+      const result = parseManagerMethodLog(log);
+
+      expect(result).not.toBeNull();
+      expect(result!.eventId).toBe('evt-uuid-001');
+    }
+  );
+
+  it(
+    'passes through error detail fields',
+    {
+      meta: {
+        alias: 'ParseLog-ErrorDetails',
+        scenario: 'Outgoing error event has errorType and traceback',
+        behavior: 'Parsed event includes errorType and traceback',
+      },
+    },
+    () => {
+      const log = createMockLog({
+        entries: {
+          manager: 'ContactManager',
+          method: 'ask',
+          phase: 'outgoing',
+          callingId: 'abc-123',
+          hierarchy: ['ContactManager.ask'],
+          hierarchyLabel: 'ContactManager.ask(abc1)',
+          status: 'error',
+          error: 'Connection timeout',
+          errorType: 'TimeoutError',
+          traceback: 'Traceback (most recent call last):\n  ...',
+        },
+      });
+
+      const result = parseManagerMethodLog(log);
+
+      expect(result).not.toBeNull();
+      expect(result!.error).toBe('Connection timeout');
+      expect(result!.errorType).toBe('TimeoutError');
+      expect(result!.traceback).toBe('Traceback (most recent call last):\n  ...');
     }
   );
 });
@@ -252,6 +347,7 @@ describe('createActionNode', () => {
       expect(node.id).toBe('call-abc');
       expect(node.type).toBe('manager');
       expect(node.label).toBe('ContactManager.ask');
+      expect(node.displayLabel).toBeUndefined();
       expect(node.hierarchy).toEqual(['CodeActActor.act', 'ContactManager.ask']);
       expect(node.hierarchyLabel).toBe('CodeActActor.act->ContactManager.ask(abc1)');
       expect(node.status).toBe('running');
@@ -261,6 +357,103 @@ describe('createActionNode', () => {
       expect(node.children).toEqual([]);
     }
   );
+
+  it(
+    'uses displayLabel as node label when available',
+    {
+      meta: {
+        alias: 'CreateNode-DisplayLabel',
+        scenario: 'Event has displayLabel from Unity',
+        behavior:
+          'Node label is set to displayLabel, raw hierarchy preserved in displayLabel field',
+      },
+    },
+    () => {
+      const event = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'incoming',
+            callingId: 'call-abc',
+            hierarchy: ['CodeActActor.act', 'ContactManager.ask'],
+            hierarchyLabel: 'CodeActActor.act->ContactManager.ask(abc1)',
+            question: 'Find John',
+            status: 'ok',
+            displayLabel: 'Checking Contact Book',
+          },
+        })
+      )!;
+
+      const node = createActionNode(event);
+
+      expect(node.label).toBe('Checking Contact Book');
+      expect(node.displayLabel).toBe('Checking Contact Book');
+      expect(node.type).toBe('manager');
+    }
+  );
+
+  it(
+    'falls back to hierarchy segment when displayLabel is absent',
+    {
+      meta: {
+        alias: 'CreateNode-FallbackLabel',
+        scenario: 'Event has no displayLabel',
+        behavior: 'Node label is the last hierarchy segment',
+      },
+    },
+    () => {
+      const event = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'incoming',
+            callingId: 'call-root',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r001)',
+            status: 'ok',
+          },
+        })
+      )!;
+
+      const node = createActionNode(event);
+
+      expect(node.label).toBe('CodeActActor.act');
+      expect(node.displayLabel).toBeUndefined();
+    }
+  );
+});
+
+// =============================================================================
+// isMeaningfulContent Tests
+// =============================================================================
+
+describe('isMeaningfulContent', () => {
+  it.each([
+    [undefined, false],
+    ['', false],
+    ['true', false],
+    ['false', false],
+    ['True', false],
+    ['FALSE', false],
+    ['  true  ', false],
+    ['null', false],
+    ['undefined', false],
+  ])('returns false for trivial value: %j', (input, expected) => {
+    expect(isMeaningfulContent(input)).toBe(expected);
+  });
+
+  it.each([
+    ['Found 3 contacts', true],
+    ['Here are all 4 contacts on file...', true],
+    ['Connection timeout', true],
+    ['done', true],
+  ])('returns true for meaningful value: %j', (input, expected) => {
+    expect(isMeaningfulContent(input)).toBe(expected);
+  });
 });
 
 // =============================================================================
@@ -358,11 +551,11 @@ describe('applyOutgoingEvent', () => {
   );
 
   it(
-    'clears toolLoopSteps when node completes',
+    'clears toolLoopSteps when node completes with meaningful content',
     {
       meta: {
         alias: 'ApplyOutgoing-ClearsToolLoops',
-        scenario: 'Node had loaded toolLoopSteps',
+        scenario: 'Node had loaded toolLoopSteps, outgoing has meaningful answer',
         behavior: 'toolLoopSteps cleared, isToolLoopLoaded reset',
       },
     },
@@ -390,6 +583,7 @@ describe('applyOutgoingEvent', () => {
             callingId: 'call-1',
             hierarchy: ['ContactManager.ask'],
             hierarchyLabel: 'ContactManager.ask(a1b2)',
+            answer: 'Here are all 4 contacts',
             status: 'ok',
           },
         })
@@ -397,8 +591,102 @@ describe('applyOutgoingEvent', () => {
 
       applyOutgoingEvent(node, outgoingEvent);
 
+      expect(node.status).toBe('completed');
       expect(node.toolLoopSteps).toBeUndefined();
       expect(node.isToolLoopLoaded).toBe(false);
+    }
+  );
+
+  it(
+    'does not overwrite meaningful content with trivial value',
+    {
+      meta: {
+        alias: 'ApplyOutgoing-TrivialSkipped',
+        scenario: 'Node has meaningful content, outgoing has answer "true"',
+        behavior: 'Existing content preserved',
+      },
+    },
+    () => {
+      const node: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'ContactManager.ask',
+        hierarchy: ['ContactManager.ask'],
+        hierarchyLabel: 'ContactManager.ask(a1b2)',
+        status: 'completed',
+        startTime: '2024-01-15T10:30:00.000Z',
+        endTime: '2024-01-15T10:30:05.000Z',
+        content: 'Here are all 4 contacts',
+        children: [],
+      };
+
+      const outgoingEvent = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:06.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(a1b2)',
+            answer: 'true',
+            status: 'ok',
+          },
+        })
+      )!;
+
+      applyOutgoingEvent(node, outgoingEvent);
+
+      expect(node.content).toBe('Here are all 4 contacts');
+      expect(node.endTime).toBe('2024-01-15T10:30:06.000Z');
+    }
+  );
+
+  it(
+    'keeps node running on trivial "false" outgoing (loop-control signal)',
+    {
+      meta: {
+        alias: 'ApplyOutgoing-FalseKeepsRunning',
+        scenario: 'Running node receives outgoing with answer "false"',
+        behavior:
+          'Status stays running — trivial outgoing is a loop-control signal, not completion',
+      },
+    },
+    () => {
+      const node: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'ContactManager.ask',
+        hierarchy: ['ContactManager.ask'],
+        hierarchyLabel: 'ContactManager.ask(a1b2)',
+        status: 'running',
+        startTime: '2024-01-15T10:30:00.000Z',
+        content: 'List all contacts',
+        children: [],
+      };
+
+      const outgoingEvent = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:03.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(a1b2)',
+            answer: 'false',
+            status: 'ok',
+          },
+        })
+      )!;
+
+      applyOutgoingEvent(node, outgoingEvent);
+
+      expect(node.status).toBe('running');
+      expect(node.content).toBe('List all contacts');
+      expect(node.endTime).toBe('2024-01-15T10:30:03.000Z');
     }
   );
 });
@@ -755,6 +1043,85 @@ describe('buildActionTree', () => {
       expect(nodeMap.size).toBe(0);
     }
   );
+
+  it(
+    'keeps meaningful answer when multiple outgoings arrive (initial poll)',
+    {
+      meta: {
+        alias: 'BuildTree-MultiOutgoing',
+        scenario: 'Unity emits incoming + many outgoings with "false", real answer, then "true"',
+        behavior: 'Node content is the real answer, not the last trivial signal',
+      },
+    },
+    () => {
+      const logs = [
+        createMockLog({
+          id: 1,
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'incoming',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(f97b)',
+            question: 'List all contacts',
+            status: 'ok',
+            displayLabel: 'Checking Contact Book',
+          },
+        }),
+        createMockLog({
+          id: 2,
+          ts: '2024-01-15T10:30:03.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(709e)',
+            answer: 'false',
+            status: 'ok',
+          },
+        }),
+        createMockLog({
+          id: 3,
+          ts: '2024-01-15T10:30:05.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(709e)',
+            answer: 'Here are all 4 contacts on file...',
+            status: 'ok',
+          },
+        }),
+        createMockLog({
+          id: 4,
+          ts: '2024-01-15T10:30:06.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(709e)',
+            answer: 'true',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const { roots } = buildActionTree(logs);
+
+      expect(roots).toHaveLength(1);
+      expect(roots[0].status).toBe('completed');
+      expect(roots[0].content).toBe('Here are all 4 contacts on file...');
+      expect(roots[0].endTime).toBe('2024-01-15T10:30:06.000Z');
+    }
+  );
 });
 
 // =============================================================================
@@ -891,6 +1258,336 @@ describe('mergeNewEvents', () => {
       expect(result.roots[0].id).toBe('existing-1');
       expect(result.roots[0].status).toBe('completed');
       expect(result.roots[1].id).toBe('new-1');
+    }
+  );
+
+  it(
+    'deduplicates incoming events with same callingId (SSE + polling overlap)',
+    {
+      meta: {
+        alias: 'MergeEvents-Dedup',
+        scenario: 'Same incoming event arrives via both SSE and polling',
+        behavior: 'No duplicate node created, original preserved',
+      },
+    },
+    () => {
+      // Simulate: event first arrived via SSE and is already in the tree
+      const existingNode: ActionNode = {
+        id: 'call-dup',
+        type: 'manager',
+        label: 'Checking Contact Book',
+        displayLabel: 'Checking Contact Book',
+        hierarchy: ['CodeActActor.act', 'ContactManager.ask'],
+        hierarchyLabel: 'CodeActActor.act->ContactManager.ask(d001)',
+        status: 'running',
+        startTime: '2024-01-15T10:30:00.000Z',
+        children: [],
+      };
+      const rootNode: ActionNode = {
+        id: 'root-1',
+        type: 'manager',
+        label: 'CodeActActor.act',
+        hierarchy: ['CodeActActor.act'],
+        hierarchyLabel: 'CodeActActor.act(r001)',
+        status: 'running',
+        startTime: '2024-01-15T10:29:59.000Z',
+        children: [existingNode],
+      };
+      const roots: ActionNode[] = [rootNode];
+      const nodeMap = new Map<string, ActionNode>([
+        ['root-1', rootNode],
+        ['call-dup', existingNode],
+      ]);
+
+      // Same event arrives again via polling
+      const newLogs = [
+        createMockLog({
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'incoming',
+            callingId: 'call-dup',
+            hierarchy: ['CodeActActor.act', 'ContactManager.ask'],
+            hierarchyLabel: 'CodeActActor.act->ContactManager.ask(d001)',
+            question: 'Find John',
+            status: 'ok',
+            displayLabel: 'Checking Contact Book',
+          },
+        }),
+      ];
+
+      const result = mergeNewEvents(roots, nodeMap, newLogs);
+
+      // Should NOT create a duplicate — still 1 root with 1 child
+      expect(result.roots).toHaveLength(1);
+      expect(result.roots[0].children).toHaveLength(1);
+      expect(result.roots[0].children[0].id).toBe('call-dup');
+      expect(result.nodeMap.size).toBe(2);
+    }
+  );
+
+  it(
+    'preserves meaningful content when duplicate outgoing arrives',
+    {
+      meta: {
+        alias: 'MergeEvents-DedupOutgoing',
+        scenario: 'Same outgoing event arrives for already-completed node',
+        behavior: 'Node status and content remain unchanged',
+      },
+    },
+    () => {
+      const existingNode: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'ContactManager.ask',
+        hierarchy: ['ContactManager.ask'],
+        hierarchyLabel: 'ContactManager.ask(c001)',
+        status: 'completed',
+        startTime: '2024-01-15T10:30:00.000Z',
+        endTime: '2024-01-15T10:30:05.000Z',
+        content: 'Found 3 contacts',
+        children: [],
+      };
+      const roots: ActionNode[] = [existingNode];
+      const nodeMap = new Map<string, ActionNode>([['call-1', existingNode]]);
+
+      // Same outgoing arrives again (duplicate from polling + SSE)
+      const newLogs = [
+        createMockLog({
+          ts: '2024-01-15T10:30:05.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(c001)',
+            answer: 'Found 3 contacts',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const result = mergeNewEvents(roots, nodeMap, newLogs);
+
+      expect(result.roots[0].status).toBe('completed');
+      expect(result.roots[0].content).toBe('Found 3 contacts');
+    }
+  );
+
+  it(
+    'updates content from later outgoing with meaningful answer (multi-outgoing)',
+    {
+      meta: {
+        alias: 'MergeEvents-MultiOutgoing',
+        scenario:
+          'Unity sends multiple outgoing events: first with trivial answer, then real answer',
+        behavior: 'Content is updated to the real answer, trivial values are skipped',
+      },
+    },
+    () => {
+      const existingNode: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'ContactManager.ask',
+        hierarchy: ['ContactManager.ask'],
+        hierarchyLabel: 'ContactManager.ask(c001)',
+        status: 'running',
+        startTime: '2024-01-15T10:30:00.000Z',
+        children: [],
+      };
+      const roots: ActionNode[] = [existingNode];
+      const nodeMap = new Map<string, ActionNode>([['call-1', existingNode]]);
+
+      // First outgoing: loop-continuation signal
+      const firstOutgoing = [
+        createMockLog({
+          ts: '2024-01-15T10:30:03.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(c001)',
+            answer: 'false',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const afterFirst = mergeNewEvents(roots, nodeMap, firstOutgoing);
+
+      // Trivial outgoing keeps node running (loop-control signal, not completion)
+      expect(afterFirst.roots[0].status).toBe('running');
+      expect(afterFirst.roots[0].content).toBeUndefined();
+
+      // Second outgoing: the real answer
+      const secondOutgoing = [
+        createMockLog({
+          ts: '2024-01-15T10:30:05.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(c001)',
+            answer: 'Here are all 4 contacts on file...',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const afterSecond = mergeNewEvents(afterFirst.roots, afterFirst.nodeMap, secondOutgoing);
+
+      // Content should now have the real answer
+      expect(afterSecond.roots[0].status).toBe('completed');
+      expect(afterSecond.roots[0].content).toBe('Here are all 4 contacts on file...');
+
+      // Third outgoing: completion signal "true" — should NOT overwrite
+      const thirdOutgoing = [
+        createMockLog({
+          ts: '2024-01-15T10:30:06.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(c001)',
+            answer: 'true',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const afterThird = mergeNewEvents(afterSecond.roots, afterSecond.nodeMap, thirdOutgoing);
+
+      // Content should still be the real answer
+      expect(afterThird.roots[0].content).toBe('Here are all 4 contacts on file...');
+      // endTime should be from the latest outgoing
+      expect(afterThird.roots[0].endTime).toBe('2024-01-15T10:30:06.000Z');
+    }
+  );
+
+  it(
+    'does not clear toolLoopSteps on subsequent outgoing events',
+    {
+      meta: {
+        alias: 'MergeEvents-ToolLoopPreserved',
+        scenario: 'Node already completed, toolLoopSteps reloaded, then another outgoing arrives',
+        behavior: 'toolLoopSteps not cleared again',
+      },
+    },
+    () => {
+      const existingNode: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'ContactManager.ask',
+        hierarchy: ['ContactManager.ask'],
+        hierarchyLabel: 'ContactManager.ask(c001)',
+        status: 'completed',
+        startTime: '2024-01-15T10:30:00.000Z',
+        endTime: '2024-01-15T10:30:05.000Z',
+        content: 'Found 3 contacts',
+        children: [],
+        toolLoopSteps: [{ id: 'step-1', type: 'llm', content: 'Thinking...' }],
+        isToolLoopLoaded: true,
+      };
+      const roots: ActionNode[] = [existingNode];
+      const nodeMap = new Map<string, ActionNode>([['call-1', existingNode]]);
+
+      const newLogs = [
+        createMockLog({
+          ts: '2024-01-15T10:30:06.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.ask(c001)',
+            answer: 'true',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const result = mergeNewEvents(roots, nodeMap, newLogs);
+
+      // toolLoopSteps should be preserved (not cleared on subsequent outgoings)
+      expect(result.roots[0].toolLoopSteps).toBeDefined();
+      expect(result.roots[0].isToolLoopLoaded).toBe(true);
+    }
+  );
+
+  it(
+    'replaces boundary with real node when parent incoming arrives after child (out-of-order SSE)',
+    {
+      meta: {
+        alias: 'MergeEvents-BoundaryReplacement',
+        scenario:
+          'Child incoming (ContactManager.ask) arrives via SSE before parent incoming (ContactManager.update). ' +
+          'A boundary node is created for the parent. When the real parent incoming arrives, it should adopt the ' +
+          "boundary's children and remove the boundary.",
+        behavior: 'Child is nested under real parent; boundary is removed',
+      },
+    },
+    () => {
+      // Step 1: child incoming arrives first — creates boundary for parent
+      const childIncoming = [
+        createMockLog({
+          ts: '2024-01-15T10:30:31.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'ask',
+            phase: 'incoming',
+            callingId: 'child-1',
+            hierarchy: ['ContactManager.update', 'ContactManager.ask'],
+            hierarchyLabel: 'ContactManager.update->ContactManager.ask(aa4e)',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const step1 = mergeNewEvents([], new Map(), childIncoming);
+
+      // Should have one root — the boundary placeholder for ContactManager.update
+      expect(step1.roots).toHaveLength(1);
+      expect(step1.roots[0].type).toBe('boundary');
+      expect(step1.roots[0].hierarchy).toEqual(['ContactManager.update']);
+      expect(step1.roots[0].children).toHaveLength(1);
+      expect(step1.roots[0].children[0].id).toBe('child-1');
+
+      // Step 2: real parent incoming arrives
+      const parentIncoming = [
+        createMockLog({
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'ContactManager',
+            method: 'update',
+            phase: 'incoming',
+            callingId: 'parent-1',
+            hierarchy: ['ContactManager.update'],
+            hierarchyLabel: 'ContactManager.update(bb5f)',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const step2 = mergeNewEvents(step1.roots, step1.nodeMap, parentIncoming);
+
+      // Boundary should be replaced — only the real parent should be at root
+      expect(step2.roots).toHaveLength(1);
+      expect(step2.roots[0].id).toBe('parent-1');
+      expect(step2.roots[0].type).toBe('manager');
+      expect(step2.roots[0].label).toBe('Updating Contact Book');
+
+      // Child should be adopted under the real parent
+      expect(step2.roots[0].children).toHaveLength(1);
+      expect(step2.roots[0].children[0].id).toBe('child-1');
     }
   );
 });
