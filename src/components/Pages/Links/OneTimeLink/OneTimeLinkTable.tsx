@@ -129,7 +129,7 @@ export function OneTimeLinkTable({
       <TableHead className="w-[12%] min-w-[90px] text-center">Credits</TableHead>
       <TableHead className="w-[18%] min-w-[120px] text-center">Expires At</TableHead>
       <TableHead className="w-[12%] min-w-[90px] text-center">Status</TableHead>
-      <TableHead className="w-[23%] min-w-[150px]">Claimed By (Email)</TableHead>
+      <TableHead className="w-[23%] min-w-[150px]">Claimed By</TableHead>
       <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
     </TableRow>
   );

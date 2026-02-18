@@ -123,9 +123,9 @@ export function GenerateOneTimeLinkButton({
               value={creditAmount}
               onChange={(e) => setCreditAmount(e.target.value)}
               className="col-span-2 h-9"
-              min="0.01"
-              step="0.01"
-              placeholder="Default"
+              min="1"
+              step="1"
+              placeholder="Default 10 USD"
             />
             <span className="text-body-muted col-span-1">USD</span>
           </div>
