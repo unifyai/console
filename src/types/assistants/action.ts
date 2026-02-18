@@ -44,8 +44,11 @@ export interface ActionNode {
   /** Type of node */
   type: ActionNodeType;
 
-  /** Display label (last segment of hierarchy, e.g., "ContactManager.ask") */
+  /** Display label — prefers displayLabel (human-readable), falls back to hierarchy segment */
   label: string;
+
+  /** User-facing alias from Unity (e.g., "Checking Contact Book"). Absent on boundary nodes. */
+  displayLabel?: string;
 
   /** Full hierarchy path as array */
   hierarchy: string[];
@@ -100,6 +103,14 @@ export interface ManagerMethodLogEntries {
   error?: string;
   /** Action/progress indicator (e.g., "done", "next_clarification") */
   action?: string;
+  /** User-facing alias defined in Unity (e.g., "Checking Contact Book") */
+  displayLabel?: string;
+  /** Globally unique event identifier, used for SSE/poll deduplication */
+  eventId?: string;
+  /** Error class name (e.g., "TimeoutError") — present when status="error" */
+  errorType?: string;
+  /** Full traceback string — present when status="error" */
+  traceback?: string;
 }
 
 /**
@@ -126,6 +137,14 @@ export interface ParsedManagerMethodEvent {
   status: 'ok' | 'error';
   content?: string;
   error?: string;
+  /** User-facing alias from Unity (e.g., "Checking Contact Book") */
+  displayLabel?: string;
+  /** Globally unique event identifier */
+  eventId?: string;
+  /** Error class name — present when status="error" */
+  errorType?: string;
+  /** Full traceback — present when status="error" */
+  traceback?: string;
 }
 
 /**
@@ -137,7 +156,7 @@ export interface ParsedManagerMethodEvent {
  */
 export interface ToolLoopLogEntries {
   message: {
-    role: 'assistant' | 'tool' | 'user';
+    role: 'system' | 'assistant' | 'tool' | 'user';
     content?: string | Array<{ type: string; text: string }>;
     toolCalls?: Array<{
       id: string;
