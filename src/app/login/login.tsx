@@ -63,23 +63,29 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
       </div>
       <div className="hidden w-[1px] bg-[var(--border-light)] lg:block" />
       <div className="flex flex-col gap-[60px] text-xl lg:flex-[2]">
-        <div className="text-branding-grey">Your Unify account lets you:</div>
+        <div className="text-branding-grey"></div>
         <div className="flex flex-col gap-[40px]">
           <div className="flex gap-[30px] font-medium items-center">
             <User className="h-fit text-green-500" />
-            <span className="font-bold">Hire</span> your own personal assistants to handle any work for you.
+            <p>
+            <span className="font-bold">Hire</span> personal assistants to handle your work.
+            </p>
           </div>
           <div className="flex gap-[30px] font-medium items-center">
             <ClipboardList className="h-fit text-green-500" />
-            <span className="font-bold">Delegate.</span> Call your assistants and let them pick up emails and tasks.
+            <p>
+            <span className="font-bold">Delegate</span> tasks naturally via call, email or message.
+            </p>
           </div>
           <div className="flex gap-[30px] font-medium items-center">
             <LayoutDashboard className="h-fit text-green-500" />
-            <span className="font-bold">Monitor.</span> Watch your assistants complete tasks and provide timely updates.
+            <p>
+            <span className="font-bold">Monitor</span> progress and provide feedback in real time.
+            </p>
           </div>
         </div>
-        <div className="text-right">
-          {'Got any questions? Contact us at '}
+        <div className="text-right text-body pt-10">
+          {'Contact us at '}
           <a
             href="mailto:hello@unify.ai"
             className="bg-gradient-to-br from-[var(--near-black)] to-[var(--brand-green)] bg-clip-text font-semibold text-transparent"
