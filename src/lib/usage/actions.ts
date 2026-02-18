@@ -321,6 +321,44 @@ export const setMemberSpendingLimitAction = async (apiKey: string) => {
 };
 
 /**
+ * Set assistant spending limit
+ */
+export const setAssistantSpendingLimitAction = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    limit: number | null
+  ): Promise<SpendingLimitInfo | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending-limit`,
+        {
+          method: 'PUT',
+          headers: { apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monthlySpendingCap: limit }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || 'Failed to set assistant spending limit' };
+      }
+
+      return {
+        type: 'assistant',
+        limit: data.effectiveLimit ?? data.monthlySpendingCap ?? null,
+        label: 'Assistant Limit',
+      };
+    } catch (error) {
+      console.error('[usage/actions] Error setting assistant spending limit:', error);
+      return { detail: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+};
+
+/**
  * Type for the usage actions object passed to client components
  */
 export interface UsageActions {
@@ -346,6 +384,10 @@ export interface UsageActions {
     userId: string,
     limit: number | null
   ) => Promise<SpendingLimitInfo | ResponseProps>;
+  setAssistantSpendingLimit: (
+    assistantId: string,
+    limit: number | null
+  ) => Promise<SpendingLimitInfo | ResponseProps>;
 }
 
 /**
@@ -364,5 +406,6 @@ export async function createUsageActions(apiKey: string): Promise<UsageActions> 
     setUserSpendingLimit: await setUserSpendingLimitAction(apiKey),
     setOrgSpendingLimit: await setOrgSpendingLimitAction(apiKey),
     setMemberSpendingLimit: await setMemberSpendingLimitAction(apiKey),
+    setAssistantSpendingLimit: await setAssistantSpendingLimitAction(apiKey),
   };
 }

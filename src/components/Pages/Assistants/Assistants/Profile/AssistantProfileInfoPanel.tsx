@@ -14,7 +14,6 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 import { Button } from '@/components/UI/button';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
-import { AssistantSpendingSection } from './AssistantSpendingSection';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 interface AssistantProfileInfoPanelProps {
@@ -231,24 +230,6 @@ export function AssistantProfileInfoPanel({
           </div>
         </div>
 
-        {/* Spending Section (only shown if spending actions are provided) */}
-        {spendingActions && (
-          <div className="pt-2">
-            <AssistantSpendingSection
-              assistantId={assistant.agentId}
-              assistantFirstName={assistant.firstName}
-              display={spendingData.display}
-              currentLimit={spendingData.limit?.monthlySpendingCap ?? null}
-              currentMonth={spendingData.currentMonth}
-              isLoading={spendingData.isLoading}
-              isRefreshing={spendingData.isRefreshing}
-              error={spendingData.error}
-              onUpdateLimit={spendingData.updateLimit}
-              onRefresh={spendingData.refreshAll}
-              canEdit={canWrite}
-            />
-          </div>
-        )}
       </ScrollArea>
     </div>
   );

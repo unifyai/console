@@ -210,6 +210,40 @@ export function UsageMain({
     [usageActions, orgId, activeMemberId]
   );
 
+  // Save handler for assistant spending limit
+  const handleSaveAssistantLimit = React.useCallback(
+    async (newLimit: number | null): Promise<{ success: boolean; error?: string }> => {
+      if (filters.assistantId === 'all') {
+        return { success: false, error: 'No assistant selected' };
+      }
+      try {
+        const result = await usageActions.setAssistantSpendingLimit(
+          filters.assistantId,
+          newLimit
+        );
+        if ('detail' in result) {
+          return { success: false, error: (result as { detail: string }).detail };
+        }
+        toast.success('Assistant spending limit updated');
+        setLimitRefreshKey((k) => k + 1);
+        return { success: true };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to update assistant spending limit';
+        toast.error(message);
+        return { success: false, error: message };
+      }
+    },
+    [usageActions, filters.assistantId]
+  );
+
+  // Get the selected assistant's name for the limit label
+  const selectedAssistantName = React.useMemo(() => {
+    if (filters.assistantId === 'all') return null;
+    const assistant = assistants.find((a) => a.agentId === filters.assistantId);
+    return assistant ? `${assistant.firstName}'s Limit` : 'Assistant Limit';
+  }, [filters.assistantId, assistants]);
+
   // Fetch spending limits based on current context
   // In org context: always show org limit + current user's member limit
   // In personal workspace: show user limit only
@@ -254,11 +288,18 @@ export function UsageMain({
           }
         }
 
-        // If filtering by specific assistant, also fetch assistant limit
+        // If filtering by specific assistant, also fetch assistant limit (editable)
         if (filters.assistantId !== 'all') {
           const assistantResult = await usageActions.getAssistantSpendingLimit(filters.assistantId);
           if (assistantResult && isSpendingLimit(assistantResult)) {
-            limits.push(assistantResult);
+            // In personal workspace: user can edit; in org workspace: only admins can edit
+            const canEditAssistantLimit = orgId ? isAdmin : true;
+            limits.push({
+              ...assistantResult,
+              label: selectedAssistantName || assistantResult.label,
+              canEdit: canEditAssistantLimit,
+              onSave: canEditAssistantLimit ? handleSaveAssistantLimit : undefined,
+            });
           }
         }
 
@@ -284,6 +325,8 @@ export function UsageMain({
     handleSaveOrgLimit,
     handleSaveMemberLimit,
     handleSaveUserLimit,
+    handleSaveAssistantLimit,
+    selectedAssistantName,
   ]);
 
   return (
