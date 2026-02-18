@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCustomerPortalSession, resolveTestCustomer } from '@/lib/user/billing/stripe/stripe';
+import { createCustomerPortalSession } from '@/lib/user/billing/stripe/stripe';
 import { getBillingAccountInfo } from '@/lib/user/billing/billing';
 import { getWorkspaceBillingContext } from '../../_utils/auth';
 
@@ -9,9 +9,6 @@ import { getWorkspaceBillingContext } from '../../_utils/auth';
  * Resolves the current workspace (personal or organization) from the session
  * cookie, fetches the Stripe customer ID from the billing account, and creates
  * a Stripe billing portal session.
- *
- * In staging, uses `resolveTestCustomer` so the portal opens for the correct
- * test-mode customer.
  *
  * @param request - The NextRequest object.
  * @returns A JSON response containing the customer portal session URL or an error message.
@@ -31,9 +28,7 @@ export async function GET(request: NextRequest) {
         : { userId: ctx.userId }
     );
 
-    // In staging, resolve a test-mode customer; in prod, use the DB value directly.
-    const testCustomerId = await resolveTestCustomer(billingInfo.billingAccountId);
-    const customerID = testCustomerId ?? billingInfo.stripeCustomerId;
+    const customerID = billingInfo.stripeCustomerId;
 
     if (!customerID) {
       return NextResponse.json(

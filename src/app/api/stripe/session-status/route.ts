@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/user/billing/stripe/stripe-instance';
-import { resolveTestCustomer } from '@/lib/user/billing/stripe/stripe';
 import { getBillingAccountInfo } from '@/lib/user/billing/billing';
 import { getWorkspaceBillingContext } from '../../_utils/auth';
 
@@ -10,9 +9,6 @@ import { getWorkspaceBillingContext } from '../../_utils/auth';
  * Context-aware: resolves the billing account for the active workspace
  * (personal or organization) and verifies the session belongs to that
  * billing account's Stripe customer.
- *
- * In staging, uses `resolveTestCustomer` so the ownership check compares
- * against the correct test-mode customer ID.
  */
 export async function GET(request: NextRequest) {
   const ctx = await getWorkspaceBillingContext();
@@ -38,9 +34,7 @@ export async function GET(request: NextRequest) {
         : { userId: ctx.userId }
     );
 
-    // In staging, resolve a test-mode customer; in prod, use the DB value directly.
-    const testCustomerId = await resolveTestCustomer(billingInfo.billingAccountId);
-    const customerID = testCustomerId ?? billingInfo.stripeCustomerId;
+    const customerID = billingInfo.stripeCustomerId;
 
     const session = await stripeClient.checkout.sessions.retrieve(sessionId);
 
