@@ -70,6 +70,10 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     status: entries.status,
     content,
     error: entries.error,
+    displayLabel: entries.displayLabel,
+    eventId: entries.eventId,
+    errorType: entries.errorType,
+    traceback: entries.traceback,
   };
 }
 
@@ -90,14 +94,17 @@ function getNodeType(label: string): ActionNodeType {
 
 /**
  * Creates an ActionNode from a parsed incoming event.
+ * Uses the Unity-provided displayLabel (human-readable) when available,
+ * falling back to the raw hierarchy segment (e.g., "ContactManager.ask").
  */
 export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
-  const label = event.hierarchy[event.hierarchy.length - 1];
+  const rawLabel = event.hierarchy[event.hierarchy.length - 1];
 
   return {
     id: event.callingId,
-    type: getNodeType(label),
-    label,
+    type: getNodeType(rawLabel),
+    label: event.displayLabel || rawLabel,
+    displayLabel: event.displayLabel,
     hierarchy: event.hierarchy,
     hierarchyLabel: event.hierarchyLabel,
     status: 'running',
@@ -128,21 +135,62 @@ function createBoundaryNode(label: string, hierarchy: string[], timestamp: strin
 // =============================================================================
 
 /**
+ * Returns true when content is a real answer — not a boolean loop-control
+ * signal ("true"/"false") emitted by Unity at each iteration boundary.
+ */
+export function isMeaningfulContent(content: string | undefined): boolean {
+  if (!content) return false;
+  const trimmed = content.trim().toLowerCase();
+  return (
+    trimmed.length > 0 &&
+    trimmed !== 'true' &&
+    trimmed !== 'false' &&
+    trimmed !== 'null' &&
+    trimmed !== 'undefined'
+  );
+}
+
+/**
  * Applies an outgoing event to a node, updating its status and content.
+ *
+ * Unity emits many outgoing events per calling_id: trivial loop-control
+ * signals (answer="false"/"true") after each tool-loop iteration, plus the
+ * real answer once the operation actually finishes. We must NOT mark the
+ * node as completed on a trivial signal — otherwise the parent appears done
+ * while its children are still running.
+ *
+ * Status transitions:
+ *  - Error → always mark as 'error' (regardless of content)
+ *  - Meaningful content → mark as 'completed'
+ *  - Trivial content + already completed → keep 'completed', update endTime
+ *  - Trivial content + still running → keep 'running', update endTime
  */
 export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
-  node.status = event.status === 'ok' ? 'completed' : 'error';
+  const wasRunning = node.status === 'running';
+
   node.endTime = event.timestamp;
 
-  // Update content with answer if available
-  if (event.content) {
-    node.content = event.content;
+  // The outgoing event's hierarchyLabel carries the same suffix as ToolLoop
+  // events (the incoming event's suffix diverges). Storing it here lets the
+  // UI run a perfectly scoped ToolLoop query without fragile time filters.
+  if (event.hierarchyLabel) {
+    node.hierarchyLabel = event.hierarchyLabel;
   }
 
-  // Clear tool loop steps when node completes (memory optimization)
-  // This always runs since outgoing events always complete the node
-  node.toolLoopSteps = undefined;
-  node.isToolLoopLoaded = false;
+  if (event.status !== 'ok') {
+    node.status = 'error';
+    if (event.content) node.content = event.content;
+  } else if (isMeaningfulContent(event.content)) {
+    node.status = 'completed';
+    node.content = event.content;
+  }
+  // Trivial outgoing (answer: "true"/"false"): don't change status.
+
+  // Clear tool loop steps only on the first transition out of 'running'
+  if (wasRunning && node.status !== 'running') {
+    node.toolLoopSteps = undefined;
+    node.isToolLoopLoaded = false;
+  }
 }
 
 /**
@@ -225,6 +273,11 @@ function findOrCreateParent(
 
 /**
  * Inserts a node at the correct position in the tree based on its hierarchy.
+ *
+ * When SSE events arrive out of order (child before parent), a boundary node
+ * is created as a placeholder parent. When the real parent's incoming event
+ * arrives later, we need to replace the boundary: adopt its children and
+ * remove it from the tree.
  */
 function insertNodeAtHierarchy(
   roots: ActionNode[],
@@ -233,7 +286,22 @@ function insertNodeAtHierarchy(
 ): void {
   const { siblings } = findOrCreateParent(roots, node.hierarchy, node.startTime);
 
-  // Add to parent's children or to roots
+  // Check if there's a boundary placeholder with the same hierarchy that
+  // this real node should replace (out-of-order SSE delivery).
+  const boundaryIdx = siblings.findIndex(
+    (n) =>
+      n.type === 'boundary' &&
+      n.hierarchy.length === node.hierarchy.length &&
+      n.hierarchy.every((h, idx) => h === node.hierarchy[idx])
+  );
+
+  if (boundaryIdx !== -1) {
+    const boundary = siblings[boundaryIdx];
+    node.children.push(...boundary.children);
+    siblings.splice(boundaryIdx, 1);
+    nodeMap.delete(boundary.id);
+  }
+
   siblings.push(node);
   nodeMap.set(node.id, node);
 }
@@ -319,13 +387,12 @@ export function mergeNewEvents(
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
     } else {
-      // outgoing
+      // outgoing — Unity sends multiple outgoings per calling_id;
+      // applyOutgoingEvent is safe to call repeatedly (content is only
+      // overwritten when the new value is meaningful).
       const existingNode = nodeMap.get(event.callingId);
       if (existingNode) {
-        // Only update if still running
-        if (existingNode.status === 'running') {
-          applyOutgoingEvent(existingNode, event);
-        }
+        applyOutgoingEvent(existingNode, event);
       } else {
         // Store for later matching
         orphanOutgoing.push(event);
@@ -399,9 +466,11 @@ export function formatDuration(ms: number): string {
 
 /**
  * Builds a timestamp filter for querying events from a specific time.
+ * Uses Orchestra's system-level `created_at` field (not `ts`, which
+ * doesn't support filter expressions).
  */
 export function buildTimestampFilter(startTime: string): string {
-  return `ts >= '${startTime}'`;
+  return `created_at >= '${startTime}'`;
 }
 
 // =============================================================================
@@ -503,12 +572,10 @@ export interface ActionNodeCounts {
 }
 
 /**
- * Counts action nodes by status across the entire tree.
+ * Counts root-level action nodes by status.
  *
- * Recursively traverses all nodes at all levels and counts them by status.
- *
- * @param roots - The root nodes of the action tree
- * @returns Counts of running, completed, and error nodes
+ * Only counts top-level nodes so the footer matches the visible items
+ * in the action tree.
  */
 export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
   const counts: ActionNodeCounts = {
@@ -517,9 +584,8 @@ export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
     error: 0,
   };
 
-  function countNode(node: ActionNode): void {
-    // Count this node
-    switch (node.status) {
+  for (const root of roots) {
+    switch (root.status) {
       case 'running':
         counts.running++;
         break;
@@ -530,16 +596,6 @@ export function countActionNodes(roots: ActionNode[]): ActionNodeCounts {
         counts.error++;
         break;
     }
-
-    // Count children recursively
-    for (const child of node.children) {
-      countNode(child);
-    }
-  }
-
-  // Count all roots and their descendants
-  for (const root of roots) {
-    countNode(root);
   }
 
   return counts;
@@ -600,12 +656,11 @@ export function formatRelativeTime(timestamp: Date | string): string {
  */
 export function areAllNodesExpanded(roots: ActionNode[], expandedNodeIds: Set<string>): boolean {
   function checkNode(node: ActionNode): boolean {
-    // A node with children needs to be expanded
-    if (node.children.length > 0 && !expandedNodeIds.has(node.id)) {
+    // Manager nodes are expandable (ToolLoop content), as are nodes with children
+    if ((node.children.length > 0 || node.type === 'manager') && !expandedNodeIds.has(node.id)) {
       return false;
     }
 
-    // Check all children recursively
     return node.children.every(checkNode);
   }
 
@@ -640,7 +695,8 @@ export function getExpandableNodeIds(roots: ActionNode[]): Set<string> {
   const ids = new Set<string>();
 
   function collectExpandable(node: ActionNode): void {
-    if (node.children.length > 0) {
+    // Manager nodes are expandable (ToolLoop content), as are nodes with children
+    if (node.children.length > 0 || node.type === 'manager') {
       ids.add(node.id);
     }
     node.children.forEach(collectExpandable);
