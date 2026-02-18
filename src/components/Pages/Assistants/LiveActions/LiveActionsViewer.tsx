@@ -25,6 +25,7 @@ import {
   areAllNodesExpanded,
   getExpandableNodeIds,
 } from '@/utils/assistants/assistant-actions';
+import type { SectionToggleSignal } from './ActionNodeItem';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -47,6 +48,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   const [isVisible, setIsVisible] = React.useState(true);
+  const [sectionToggleSignal, setSectionToggleSignal] = React.useState<SectionToggleSignal>({ open: false, gen: 0 });
 
   // Store expand state before search for restoration
   const preSearchExpandedRef = React.useRef<Set<string> | null>(null);
@@ -156,10 +158,12 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
 
   const handleExpandAll = React.useCallback(() => {
     setExpandedNodeIds(new Set(expandableNodeIds));
+    setSectionToggleSignal((prev) => ({ open: true, gen: prev.gen + 1 }));
   }, [expandableNodeIds]);
 
   const handleCollapseAll = React.useCallback(() => {
     setExpandedNodeIds(new Set());
+    setSectionToggleSignal((prev) => ({ open: false, gen: prev.gen + 1 }));
   }, []);
 
   const handleAutoCollapseChange = React.useCallback((enabled: boolean) => {
@@ -262,6 +266,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
         onLoadMore={handleLoadMore}
         expandedNodeIds={expandedNodeIds}
         onExpandedChange={handleExpandedChange}
+        sectionToggleSignal={sectionToggleSignal}
         className="flex-1"
       />
 

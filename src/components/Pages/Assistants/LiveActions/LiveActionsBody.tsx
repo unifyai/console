@@ -15,6 +15,7 @@ import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
 import { filterActionTree } from '@/utils/assistants/assistant-actions';
+import type { SectionToggleSignal } from './ActionNodeItem';
 import type { ActionNode, GetToolLoopEventsFn } from '@/types/assistants/action';
 
 export interface LiveActionsBodyProps {
@@ -46,6 +47,8 @@ export interface LiveActionsBodyProps {
   onExpandedChange?: (nodeId: string, expanded: boolean) => void;
   /** Set of currently expanded node IDs */
   expandedNodeIds?: Set<string>;
+  /** Signal to force-expand/collapse all ToolLoop step sections */
+  sectionToggleSignal?: SectionToggleSignal;
   /** Additional class names */
   className?: string;
 }
@@ -65,6 +68,7 @@ export function LiveActionsBody({
   onLoadMore,
   expandedNodeIds,
   onExpandedChange,
+  sectionToggleSignal,
   className,
 }: LiveActionsBodyProps) {
   // Filter tree based on search term
@@ -219,6 +223,7 @@ export function LiveActionsBody({
           defaultExpanded={!autoCollapse}
           expandedNodeIds={expandedNodeIds}
           onExpandedChange={onExpandedChange}
+          sectionToggleSignal={sectionToggleSignal}
         />
       </div>
 

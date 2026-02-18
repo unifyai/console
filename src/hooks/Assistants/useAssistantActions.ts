@@ -2,7 +2,7 @@
  * Hook for fetching and managing assistant action events.
  *
  * This hook handles:
- * - Initial loading of ManagerMethod events from Orchestra (last hour)
+ * - Initial loading of ManagerMethod events from Orchestra (last 3 hours)
  * - Live streaming of new events via SSE from Pub/Sub
  * - Automatic fallback to Orchestra polling when SSE is unavailable
  * - Building and maintaining the action tree structure
@@ -14,6 +14,7 @@ import {
   buildActionTree,
   mergeNewEvents,
   hasActiveRootAction,
+  ACTION_LOOKBACK_MS,
 } from '@/utils/assistants/assistant-actions';
 import type {
   ActionNode,
@@ -35,7 +36,7 @@ export interface UseAssistantActionsOptions {
   /** Polling interval in milliseconds (used as fallback). Default: 10000 */
   pollingInterval?: number;
 
-  /** Time window for initial load in milliseconds. Default: 1 hour */
+  /** Time window for initial load in milliseconds. Default: ACTION_LOOKBACK_MS (3 hours) */
   initialLookbackMs?: number;
 
   /** @deprecated Use initialLookbackMs instead */
@@ -76,9 +77,8 @@ export interface UseAssistantActionsResult {
 // =============================================================================
 
 const DEFAULT_POLLING_INTERVAL = 10000;
-const DEFAULT_INITIAL_LOOKBACK_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_EVENT_LIMIT = 100;
-const LOAD_MORE_LOOKBACK_MS = 60 * 60 * 1000; // Load 1 hour more each time
+const LOAD_MORE_LOOKBACK_MS = ACTION_LOOKBACK_MS;
 
 // =============================================================================
 // Hook Implementation
@@ -97,7 +97,7 @@ export function useAssistantActions(
   } = options;
 
   // Support both option names (initialLookbackMs takes precedence)
-  const lookbackMs = initialLookbackMs ?? initialTimeWindow ?? DEFAULT_INITIAL_LOOKBACK_MS;
+  const lookbackMs = initialLookbackMs ?? initialTimeWindow ?? ACTION_LOOKBACK_MS;
 
   // State
   const [roots, setRoots] = React.useState<ActionNode[]>([]);

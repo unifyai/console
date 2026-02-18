@@ -16,6 +16,9 @@ import { StatusIndicator } from './StatusIndicator';
 import { formatDuration, getNodeDuration } from '@/utils/assistants/assistant-actions';
 import type { ActionNode, GetToolLoopEventsFn, ToolLoopLog } from '@/types/assistants/action';
 
+/** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
+export type SectionToggleSignal = { open: boolean; gen: number };
+
 export interface ActionNodeItemProps {
   /** The action node to display */
   node: ActionNode;
@@ -31,6 +34,8 @@ export interface ActionNodeItemProps {
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
   getToolLoopEvents?: GetToolLoopEventsFn;
+  /** Signal to force-expand/collapse all ToolLoop step sections */
+  sectionToggleSignal?: SectionToggleSignal;
   /** Additional class names */
   className?: string;
 }
@@ -92,7 +97,7 @@ function ContentArea({
     <div
       className="relative min-w-0"
       style={{
-        paddingLeft: depth > 0 ? `${depth * 12 + 36}px` : '36px',
+        paddingLeft: `${28 + depth * 12}px`,
         maxWidth: `calc(100% - ${depth * 12 + 16}px)`,
       }}
     >
@@ -121,7 +126,7 @@ function ContentArea({
         <div
           className="pointer-events-none absolute bottom-0 left-0 right-0 h-4"
           style={{
-            paddingLeft: depth > 0 ? `${depth * 12 + 36}px` : '36px',
+            paddingLeft: `${28 + depth * 12}px`,
             background: 'linear-gradient(to bottom, transparent, var(--background))',
           }}
         />
@@ -143,7 +148,7 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     if (!content) return null;
     return (
       <div className="flex gap-2">
-        <span className="shrink-0 font-medium text-blue-500/60">user</span>
+        <span className="shrink-0 font-medium text-blue-500/60">request</span>
         <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
       </div>
     );
@@ -163,7 +168,7 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     if (!content) return null;
     return (
       <div className="flex gap-2">
-        <span className="shrink-0 font-medium text-green-500/60">llm</span>
+        <span className="shrink-0 font-medium text-green-500/60">response</span>
         <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
       </div>
     );
@@ -242,13 +247,79 @@ function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: num
 }
 
 /**
+ * Collapsible wrapper for a ToolLoop segment (pre-child or post-child).
+ * Uses a subtle toggle bar that is visually distinct from the bolder child-node
+ * chevrons — thin text, muted colors, dashed left accent when collapsed.
+ */
+function CollapsibleToolLoopSection({
+  logs,
+  depth,
+  defaultOpen = false,
+  sectionToggleSignal,
+}: {
+  logs: ToolLoopLog[];
+  depth: number;
+  defaultOpen?: boolean;
+  sectionToggleSignal?: SectionToggleSignal;
+}) {
+  const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
+  const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
+  const lastSignalGenRef = React.useRef(sectionToggleSignal?.gen ?? 0);
+
+  React.useEffect(() => {
+    if (!sectionToggleSignal) return;
+    if (sectionToggleSignal.gen !== lastSignalGenRef.current) {
+      lastSignalGenRef.current = sectionToggleSignal.gen;
+      setIsOpen(sectionToggleSignal.open);
+    }
+  }, [sectionToggleSignal]);
+
+  const pad = `${28 + depth * 12}px`;
+
+  return (
+    <div className="min-w-0">
+      {/* Toggle bar */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'group flex w-full items-center gap-1 py-0.5 text-[11px]',
+          'text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors duration-150'
+        )}
+        style={{ paddingLeft: pad }}
+      >
+        <ChevronRight
+          className={cn(
+            'h-2.5 w-2.5 transition-transform duration-150',
+            isOpen && 'rotate-90'
+          )}
+        />
+        <span>{logs.length} {logs.length === 1 ? 'step' : 'steps'}</span>
+        {/* Subtle trailing line */}
+        <div className="bg-border/30 ml-1.5 h-px flex-1" />
+      </button>
+
+      {/* Content */}
+      <div
+        className={cn(
+          'overflow-hidden transition-all duration-200 ease-out',
+          isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+        )}
+      >
+        <ToolLoopConversation logs={logs} depth={depth} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Loading placeholder with spinner, shown while ToolLoop events are being fetched.
  */
 function ToolLoopLoading({ depth }: { depth: number }) {
   return (
     <div
       className="text-muted-foreground/50 flex items-center gap-1.5 py-2 text-[11px]"
-      style={{ paddingLeft: depth > 0 ? `${depth * 12 + 36}px` : '36px' }}
+      style={{ paddingLeft: `${28 + depth * 12}px` }}
     >
       <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
       <span>Loading steps…</span>
@@ -264,6 +335,7 @@ export function ActionNodeItem({
   onExpandedChange,
   assistantId,
   getToolLoopEvents,
+  sectionToggleSignal,
   className,
 }: ActionNodeItemProps) {
   // Determine if we're in controlled mode
@@ -286,8 +358,8 @@ export function ActionNodeItem({
 
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
-  // Manager nodes are always expandable (can show ToolLoop conversation)
-  const isExpandable = hasChildren || canLoadToolLoop;
+  // Expandable if: has children, OR is running and can show live thinking
+  const isExpandable = hasChildren || (node.status === 'running' && canLoadToolLoop);
 
   // Calculate duration
   const duration = getNodeDuration(node);
@@ -394,7 +466,7 @@ export function ActionNodeItem({
       } catch {
         // Silently fail
       } finally {
-        if (!isCancelled) setIsToolLoopLoading(false);
+        setIsToolLoopLoading(false);
       }
     };
 
@@ -435,12 +507,74 @@ export function ActionNodeItem({
   }, [node.status]);
 
   // Determine what to render in the detail area.
-  // Manager nodes show a loader while fetching, then the ToolLoop conversation.
-  // Non-manager nodes fall back to inline content.
   const showToolLoopLoading = isExpanded && canLoadToolLoop && isToolLoopLoading;
-  const showToolLoopConversation = isExpanded && completedToolLoopLogs.length > 0;
   const showRunningThinking = isExpanded && node.status === 'running' && !!latestThinking;
   const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
+  const hasToolLoopData = completedToolLoopLogs.length > 0;
+
+  // Build a strictly chronological timeline that interleaves ToolLoop segments
+  // and children. Each child's startTime is used as a split point so that
+  // ToolLoop events before a child render above it, events after render below.
+  // This handles any number of children at arbitrary positions in the stream.
+  type TimelineSegment =
+    | { kind: 'steps'; logs: ToolLoopLog[]; key: string }
+    | { kind: 'child'; node: ActionNode };
+
+  const timeline = React.useMemo((): TimelineSegment[] => {
+    if (!hasToolLoopData && !hasChildren) return [];
+
+    // No ToolLoop data yet — just list children in order
+    if (!hasToolLoopData) {
+      return node.children.map((c) => ({ kind: 'child' as const, node: c }));
+    }
+
+    // No children — single steps block
+    if (!hasChildren) {
+      return [{ kind: 'steps' as const, logs: completedToolLoopLogs, key: 'all' }];
+    }
+
+    // Interleave: walk through ToolLoop logs and children together,
+    // splitting ToolLoop logs at each child's startTime.
+    const sortedChildren = [...node.children].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+    const result: TimelineSegment[] = [];
+    let logIdx = 0;
+
+    for (const child of sortedChildren) {
+      const childStart = new Date(child.startTime).getTime();
+      const segment: ToolLoopLog[] = [];
+
+      while (logIdx < completedToolLoopLogs.length) {
+        if (new Date(completedToolLoopLogs[logIdx].ts).getTime() < childStart) {
+          segment.push(completedToolLoopLogs[logIdx]);
+          logIdx++;
+        } else {
+          break;
+        }
+      }
+
+      if (segment.length > 0) {
+        result.push({ kind: 'steps', logs: segment, key: `pre-${child.id}` });
+      }
+      result.push({ kind: 'child', node: child });
+    }
+
+    // Remaining logs after the last child
+    if (logIdx < completedToolLoopLogs.length) {
+      result.push({
+        kind: 'steps',
+        logs: completedToolLoopLogs.slice(logIdx),
+        key: 'post',
+      });
+    }
+
+    return result;
+  }, [hasToolLoopData, hasChildren, completedToolLoopLogs, node.children]);
+
+  // Whether to use the interleaved timeline renderer (ToolLoop data loaded)
+  const useTimeline = isExpanded && hasToolLoopData;
 
   return (
     <div
@@ -490,6 +624,7 @@ export function ActionNodeItem({
         <span
           className={cn('min-w-0 flex-1 truncate text-sm', getLabelStyles(node.type))}
           title={node.displayLabel ? node.hierarchy[node.hierarchy.length - 1] : undefined}
+          style={depth > 0 ? { fontSize: '0.7875rem' } : undefined}
         >
           {node.label}
         </span>
@@ -500,33 +635,59 @@ export function ActionNodeItem({
         </span>
       </div>
 
-      {/* Detail area — only visible when expanded */}
+      {/* Running thinking hint — live status indicator */}
       {showRunningThinking && (
         <ContentArea content={latestThinking!} depth={depth} maxHeight={120} />
       )}
-      {showToolLoopLoading && <ToolLoopLoading depth={depth} />}
-      {showToolLoopConversation && (
-        <ToolLoopConversation logs={completedToolLoopLogs} depth={depth} />
-      )}
-      {showFallbackContent && (
-        <ContentArea content={fallbackContent!} depth={depth} maxHeight={160} />
-      )}
 
-      {/* Children (with animation) */}
-      {hasChildren && (
+      {/* ToolLoop loading spinner */}
+      {showToolLoopLoading && <ToolLoopLoading depth={depth} />}
+
+      {/* Interleaved timeline: ToolLoop segments + children in strict chronological order.
+          Used once ToolLoop data has loaded for a completed node. */}
+      {useTimeline &&
+        timeline.map((segment) =>
+          segment.kind === 'steps' ? (
+            <CollapsibleToolLoopSection
+              key={segment.key}
+              logs={segment.logs}
+              depth={depth}
+              sectionToggleSignal={sectionToggleSignal}
+            />
+          ) : (
+            <div key={segment.node.id} className="relative">
+              <div
+                className="absolute bottom-0 left-[7px] top-0 w-px bg-border"
+                style={{ marginLeft: depth > 0 ? `${depth * 12 + 16}px` : '0' }}
+              />
+              <ActionNodeItem
+                node={segment.node}
+                depth={depth + 1}
+                defaultExpanded={defaultExpanded}
+                expandedNodeIds={expandedNodeIds}
+                onExpandedChange={onExpandedChange}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
+                sectionToggleSignal={sectionToggleSignal}
+              />
+            </div>
+          )
+        )}
+
+      {/* Standard children rendering — while running (no ToolLoop yet) or
+          for completed nodes without ToolLoop data.
+          Hidden during ToolLoop loading to preserve chronological ordering. */}
+      {!useTimeline && hasChildren && !showToolLoopLoading && (
         <div
           className={cn(
             'relative overflow-hidden transition-all duration-200 ease-out',
             isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
-          {/* Vertical line connector */}
           <div
             className="absolute bottom-2 left-[7px] top-0 w-px bg-border"
             style={{ marginLeft: depth > 0 ? `${depth * 12 + 16}px` : '0' }}
           />
-
-          {/* Child nodes */}
           {node.children.map((child) => (
             <ActionNodeItem
               key={child.id}
@@ -537,9 +698,15 @@ export function ActionNodeItem({
               onExpandedChange={onExpandedChange}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
+              sectionToggleSignal={sectionToggleSignal}
             />
           ))}
         </div>
+      )}
+
+      {/* Fallback content for non-manager leaf nodes */}
+      {showFallbackContent && (
+        <ContentArea content={fallbackContent!} depth={depth} maxHeight={160} />
       )}
     </div>
   );
