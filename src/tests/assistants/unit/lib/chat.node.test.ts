@@ -64,13 +64,7 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn(
-          'OwnerContext',
-          'AssistantContext',
-          'user@example.com',
-          OWNER_ID,
-          ASSISTANT_ID
-        );
+        const result = await getContactFn('user@example.com', OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toBe(5);
@@ -100,13 +94,7 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        await getContactFn(
-          'OwnerContext',
-          'AssistantContext',
-          'user@example.com',
-          'test-owner-id',
-          'test-assistant-id'
-        );
+        await getContactFn('user@example.com', 'test-owner-id', 'test-assistant-id');
 
         // Assert - URL should contain security filters
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -134,13 +122,7 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn(
-          'OwnerContext',
-          'AssistantContext',
-          'unknown@example.com',
-          OWNER_ID,
-          ASSISTANT_ID
-        );
+        const result = await getContactFn('unknown@example.com', OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toBeNull();
@@ -166,13 +148,7 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn(
-          'OwnerContext',
-          'AssistantContext',
-          'unknown@example.com',
-          OWNER_ID,
-          ASSISTANT_ID
-        );
+        const result = await getContactFn('unknown@example.com', OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toBeNull();
@@ -200,13 +176,7 @@ describe('chat.ts', () => {
 
         // Act
         const getContactFn = await getContactIdByEmail(TEST_API_KEY);
-        const result = await getContactFn(
-          'OwnerContext',
-          'AssistantContext',
-          'user@example.com',
-          OWNER_ID,
-          ASSISTANT_ID
-        );
+        const result = await getContactFn('user@example.com', OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toBeNull();
@@ -247,7 +217,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -281,7 +251,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        await getTranscriptsFn('Owner', 'Assistant', 1, 'test-owner-id', 'test-assistant-id');
+        await getTranscriptsFn(1, 'test-owner-id', 'test-assistant-id');
 
         // Assert - URL should contain security filters
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -317,7 +287,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect((result as any[])[0].role).toBe('assistant');
@@ -351,7 +321,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 5, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(5, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect((result as any[])[0].role).toBe('user');
@@ -377,7 +347,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(result).toEqual([]);
@@ -424,7 +394,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -468,7 +438,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         const message = (result as any[])[0];
@@ -524,7 +494,7 @@ describe('chat.ts', () => {
 
         // Act
         const getTranscriptsFn = await getTranscripts(TEST_API_KEY);
-        const result = await getTranscriptsFn('Owner', 'Assistant', 1, OWNER_ID, ASSISTANT_ID);
+        const result = await getTranscriptsFn(1, OWNER_ID, ASSISTANT_ID);
 
         // Assert
         const message = (result as any[])[0];

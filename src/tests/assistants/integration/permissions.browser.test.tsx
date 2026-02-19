@@ -169,7 +169,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
 
   describe('AssistantSecretsManager - canWrite prop', () => {
     const mockSecretActions = {
-      get: vi.fn(async (_context: string, _assistantId: string) => [
+      get: vi.fn(async (_assistantId: string) => [
         { logId: 1, name: 'API_KEY', value: 'secret123', description: 'Test key' },
       ]),
       create: vi.fn(async () => ({ info: 'Created' })),

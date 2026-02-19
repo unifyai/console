@@ -127,7 +127,6 @@ export function createMockTaskActions(options: MockTaskActionsOptions = {}): Tas
   return {
     get: vi.fn(
       async (
-        _context: string,
         _assistantId: string | null,
         _filterExpression: string | null,
         _limit: number | null,
@@ -152,13 +151,11 @@ export function createMockTaskActions(options: MockTaskActionsOptions = {}): Tas
         };
       }
     ),
-    update: vi.fn(
-      async (_context: string, _logs: number[], _entries: LogItemProps): Promise<ResponseProps> => {
-        await maybeDelay();
-        if (!updateSuccess) return { detail: errorMessage };
-        return { info: 'Task updated' };
-      }
-    ),
+    update: vi.fn(async (_logs: number[], _entries: LogItemProps): Promise<ResponseProps> => {
+      await maybeDelay();
+      if (!updateSuccess) return { detail: errorMessage };
+      return { info: 'Task updated' };
+    }),
   };
 }
 
@@ -169,7 +166,6 @@ export function createPendingTaskActions(): TaskActions {
   return {
     get: vi.fn(
       (
-        _context: string,
         _assistantId: string | null,
         _filterExpression: string | null,
         _limit: number | null,
@@ -177,8 +173,7 @@ export function createPendingTaskActions(): TaskActions {
       ): Promise<LogsResponseProps | ResponseProps> => new Promise(() => {}) // Never resolves
     ),
     update: vi.fn(
-      (_context: string, _logs: number[], _entries: LogItemProps): Promise<ResponseProps> =>
-        new Promise(() => {})
+      (_logs: number[], _entries: LogItemProps): Promise<ResponseProps> => new Promise(() => {})
     ),
   };
 }
@@ -193,11 +188,7 @@ export interface TaskTestHarnessProps {
   /** The assistant for context */
   assistant?: Assistant;
   /** Callback when task is updated */
-  updateTask?: (
-    context: string,
-    logIds: number[],
-    updates: Partial<Task>
-  ) => Promise<ResponseProps>;
+  updateTask?: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
   /** Callback after task update */
   onTaskUpdate?: (logId: number, updates: Partial<Task>) => void;
   /** Whether the user can edit this task */
@@ -262,11 +253,7 @@ export interface TasksListTestHarnessProps {
   /** The assistant for context */
   assistant?: Assistant;
   /** Callback when a task is updated */
-  updateTask?: (
-    context: string,
-    logIds: number[],
-    updates: Partial<Task>
-  ) => Promise<ResponseProps>;
+  updateTask?: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
   /** Callback after task update */
   onTaskUpdate?: (logId: number, updates: Partial<Task>) => void;
   /** Whether the user can edit tasks */
