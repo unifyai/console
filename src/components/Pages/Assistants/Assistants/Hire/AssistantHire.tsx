@@ -145,6 +145,7 @@ export function AssistantHire({
   const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
 
   const handlePresetSelect = (preset: AssistantPreset) => {
+    if (isHireSubmitting || isCheckingBalance) return;
     const originalOnPresetSelect = (presetsPanel as React.ReactElement<any>).props.onPresetSelect;
     if (originalOnPresetSelect) {
       originalOnPresetSelect(preset);
@@ -307,7 +308,7 @@ export function AssistantHire({
                             size="icon"
                             className="h-8 w-8"
                             onClick={handleRandomizePreset}
-                            disabled={isPrimaryActionDisabled}
+                            disabled={isOverallDialogBusy}
                           >
                             <Shuffle className="h-4 w-4" />
                           </Button>

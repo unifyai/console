@@ -232,23 +232,33 @@ export function useAssistantProfileChat(
           setIsRetryingContactId(false);
           contactIdRetryAttemptsRef.current.delete(currentAssistantId);
 
-          // Fetch transcripts now that we have a contact_id
-          const historyResult = await assistantActions.chat.getTranscripts(
-            ownerContext,
-            assistantContext,
-            contactId,
-            currentAssistant.userId,
-            currentAssistantId
-          );
-
-          if (!('detail' in historyResult)) {
-            const history = (historyResult as ChatMessage[]).reverse();
-            recordTranscriptTimestamp(currentAssistantId, history);
-            setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
-            if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
-              setHasMoreMessages(false);
-            }
+          // If this assistant was just hired (first view processed), pre-hire messages
+          // are already loaded into history. Skip the transcript fetch to avoid
+          // overwriting them — there can't be any server transcripts yet since chat
+          // was unavailable before the contact_id was resolved.
+          // SSE will pick up any new messages going forward.
+          if (firstViewProcessed.current) {
+            firstViewProcessed.current = false;
             setHistoryLoadedForAssistantId(currentAssistantId);
+          } else {
+            // Fetch transcripts now that we have a contact_id
+            const historyResult = await assistantActions.chat.getTranscripts(
+              ownerContext,
+              assistantContext,
+              contactId,
+              currentAssistant.userId,
+              currentAssistantId
+            );
+
+            if (!('detail' in historyResult)) {
+              const history = (historyResult as ChatMessage[]).reverse();
+              recordTranscriptTimestamp(currentAssistantId, history);
+              setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
+              if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
+                setHasMoreMessages(false);
+              }
+              setHistoryLoadedForAssistantId(currentAssistantId);
+            }
           }
         } else {
           // Still no contact_id, schedule next retry
@@ -454,7 +464,9 @@ export function useAssistantProfileChat(
       if (historyLoadedForAssistantId !== assistantId) {
         setHistoryLoadedForAssistantId(assistantId);
       }
-      if (!isFirstView) {
+      // Only reset firstViewProcessed after contactId is resolved, so that
+      // retryContactIdLookup can skip transcript fetch for first-view assistants.
+      if (!isFirstView && contactIdCache.has(assistantId)) {
         firstViewProcessed.current = false;
       }
     }

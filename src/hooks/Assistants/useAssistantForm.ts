@@ -32,7 +32,6 @@ export function useAssistantForm(
   onUpdateSuccess?: (updatedPayload: Partial<AssistantUpdatePayload>) => void,
   isDialogOpen?: boolean
 ) {
-  const toastIdRef = React.useRef<string | number | undefined>(undefined);
   // Ref to prevent double submissions (avoids stale closure issues)
   const isSubmittingRef = React.useRef(false);
   // Ref to track preset selection operations and ignore stale video downloads
@@ -443,8 +442,6 @@ export function useAssistantForm(
     setIsSubmitting(true);
     clearErrors();
 
-    toastIdRef.current = toast.loading('Updating assistant...', { id: toastIdRef.current });
-
     try {
       // Construct payload with only changed fields
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
@@ -506,20 +503,16 @@ export function useAssistantForm(
         if ((updateResult as ResponseProps).detail) {
           throw new Error((updateResult as ResponseProps).detail);
         }
-        toast.success(`Assistant ${data.firstName} updated!`, { id: toastIdRef.current });
+        toast.success(`Assistant ${data.firstName} updated!`);
       } else {
-        toast.info('No changes to save.', { id: toastIdRef.current });
+        toast.info('No changes to save.');
       }
 
-      toastIdRef.current = undefined;
       if (onUpdateSuccess) onUpdateSuccess(payload);
     } catch (error: any) {
       // Show specific error message if available, otherwise show generic message
       const errorMessage = error?.message || 'An error occurred while updating. Please try again.';
-      toast.error(errorMessage, {
-        id: toastIdRef.current,
-      });
-      toastIdRef.current = undefined;
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -531,8 +524,6 @@ export function useAssistantForm(
   const submitAssistantData = async (data: AssistantFormData, chatHistory?: ChatMessage[]) => {
     setIsSubmitting(true);
     clearErrors();
-
-    toastIdRef.current = toast.loading('Hiring assistant...', { id: toastIdRef.current });
 
     try {
       // Input validity checks
@@ -665,10 +656,7 @@ export function useAssistantForm(
         formattedPreHireChat
       );
       if ('assistant' in assistantCreationResult && assistantCreationResult.assistant) {
-        toast.success(`Assistant ${data.firstName} ${data.surname} hired!`, {
-          id: toastIdRef.current,
-        });
-        toastIdRef.current = undefined;
+        toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
         resetFormAndHints();
         if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, finalChatHistory);
       } else {
@@ -687,13 +675,8 @@ export function useAssistantForm(
       );
 
       if (!isRHFError) {
-        toast.error(`An error occurred during the hiring process. Please try again.`, {
-          id: toastIdRef.current,
-        });
-      } else {
-        if (toastIdRef.current) toast.dismiss(toastIdRef.current);
+        toast.error(`An error occurred during the hiring process. Please try again.`);
       }
-      toastIdRef.current = undefined;
     } finally {
       setIsSubmitting(false);
     }
@@ -714,14 +697,12 @@ export function useAssistantForm(
 
     setIsCheckingBalance(true);
     setShowInsufficientFundsHint(false);
-    toastIdRef.current = toast.loading('Checking your balance...');
 
     try {
       const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE);
 
       if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
-        toast.error('Failed to check balance.', { id: toastIdRef.current });
-        toastIdRef.current = undefined;
+        toast.error('Failed to check balance.');
         setIsCheckingBalance(false);
         return;
       }
@@ -729,14 +710,11 @@ export function useAssistantForm(
       const hasSufficientFunds = hiringFundsResponse as AssistantHiringSufficientFunds;
       if (!hasSufficientFunds.sufficient) {
         setShowInsufficientFundsHint(true);
-        if (toastIdRef.current) toast.dismiss(toastIdRef.current);
-        toastIdRef.current = undefined;
       } else {
         await RHFSubmitHandler(chatHistory)();
       }
     } catch (error) {
-      toast.error('Error during balance check process.', { id: toastIdRef.current });
-      toastIdRef.current = undefined;
+      toast.error('Error during balance check process.');
     } finally {
       setIsCheckingBalance(false);
     }

@@ -1705,6 +1705,131 @@ describe('Assistant Profile Chat', () => {
         expect(getTranscriptsMock).not.toHaveBeenCalled();
       }
     );
+
+    it(
+      'preserves pre-hire messages when contact_id is not found initially and requires retry',
+      {
+        meta: {
+          alias: 'History-Preserve-Greeting-ContactRetry',
+          scenario:
+            'New assistant hired. Profile opens with isFirstView=true and pre-hire chat. ' +
+            'getContactId returns null initially (contact not yet created on backend). ' +
+            'After retry delay, getContactId returns a valid contact_id.',
+          behavior:
+            'Pre-hire messages remain visible throughout the contact_id retry. ' +
+            'getTranscripts is NOT called because pre-hire messages are already loaded.',
+        },
+      },
+      async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+
+        const assistant = createMockAssistant({
+          agentId: 'new-hire-retry-id',
+          firstName: 'New',
+          surname: 'Retry',
+        });
+
+        const preHireMessages: ChatMessage[] = [
+          {
+            id: 'pre-hire-1',
+            role: 'assistant',
+            content: 'Hi! Nice to meet you before hiring.',
+            timestamp: new Date(),
+          },
+          {
+            id: 'pre-hire-2',
+            role: 'user',
+            content: 'Hello! Tell me about yourself.',
+            timestamp: new Date(),
+          },
+          {
+            id: 'pre-hire-3',
+            role: 'assistant',
+            content: 'I am a helpful assistant ready to work!',
+            timestamp: new Date(),
+          },
+        ];
+
+        const getTranscriptsMock = vi.fn(async () => []);
+        let contactIdCallCount = 0;
+        const getContactIdMock = vi.fn(async () => {
+          contactIdCallCount++;
+          // Return null for first 2 calls (simulating contact not yet created)
+          if (contactIdCallCount <= 2) return null;
+          // Third call returns valid contact_id
+          return 42;
+        });
+
+        const actionsOverride = {
+          ...mockAssistantActions,
+          chat: {
+            getContactId: getContactIdMock,
+            getTranscripts: getTranscriptsMock,
+            message: vi.fn(),
+            getAssistantOwnerById: vi.fn(async () => null),
+          },
+        };
+
+        const TransitionContainer = () => {
+          const [isFirstView, setIsFirstView] = React.useState(true);
+          const [histories, setHistories] = React.useState<Record<string, ChatMessage[]>>({});
+          return (
+            <AssistantProfilePanel
+              assistant={assistant}
+              assistantActions={actionsOverride}
+              chatHistories={histories}
+              setChatHistories={setHistories}
+              userEmail="test@example.com"
+              isFirstView={isFirstView}
+              preHireChat={isFirstView ? preHireMessages : undefined}
+              onFirstViewCompleted={() => setIsFirstView(false)}
+              onClose={vi.fn()}
+              onEdit={vi.fn()}
+              onOpenContactManager={vi.fn()}
+              onStartCall={vi.fn()}
+              activeCallAssistantId={null}
+              isCallConnected={false}
+              isConnectingCall={false}
+            />
+          );
+        };
+
+        render(<TransitionContainer />);
+
+        // Pre-hire messages should be visible immediately
+        expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
+        expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
+        expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
+
+        // Wait for the first getContactId call (returns null) and the retry to start
+        await waitFor(() => {
+          expect(getContactIdMock).toHaveBeenCalled();
+        });
+
+        // Messages should still be there
+        expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
+
+        // Advance past two retry intervals (5s each) so the third call succeeds
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(12000);
+        });
+
+        // Wait for the contact_id to be resolved
+        await waitFor(() => {
+          expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+        });
+
+        // Pre-hire messages should STILL be visible after contact_id is resolved
+        expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
+        expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
+        expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
+
+        // getTranscripts should NOT have been called — pre-hire messages were preserved
+        expect(getTranscriptsMock).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
+      }
+    );
   });
 
   // =========================================================================

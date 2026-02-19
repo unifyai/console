@@ -58,6 +58,8 @@ export interface HireFormProps {
   mode?: 'hire' | 'edit';
   /** Callback to open the Stripe side panel for payment setup */
   onAddPaymentMethod?: () => void;
+  /** Whether the user has explicitly selected/changed a preset (not the initial auto-select) */
+  userHasChangedPreset?: boolean;
 }
 
 export function HireForm({
@@ -75,6 +77,7 @@ export function HireForm({
   assistants,
   mode = 'hire',
   onAddPaymentMethod,
+  userHasChangedPreset = false,
 }: HireFormProps) {
   const {
     register,
@@ -263,8 +266,13 @@ export function HireForm({
     setPlayedVideoUrls((prev) => new Set(prev).add(url));
   }, []);
 
+  // Only autoplay when the user has explicitly selected/changed a preset,
+  // not on the initial auto-select when the dialog opens.
   const shouldAutoplayVideo =
-    !!videoPreviewUrl && !playedVideoUrls.has(videoPreviewUrl) && !isEditMode;
+    !!videoPreviewUrl &&
+    !playedVideoUrls.has(videoPreviewUrl) &&
+    !isEditMode &&
+    userHasChangedPreset;
 
   React.useEffect(() => {
     const isPristine = getValues('isPresetPristine');
@@ -315,8 +323,7 @@ export function HireForm({
             'profileVideoUrl',
             `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.firstName}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`
           );
-          // Prevent autoplay by adding the new URL to the played list
-          setPlayedVideoUrls((prev) => new Set(prev).add(res.signedUrl!));
+          // Allow autoplay: do NOT add to playedVideoUrls so it auto-plays on canPlay
         }
       });
   }, [fastMode, getValues, setValue, assistantActions.photo, allDisplayableVoices]);

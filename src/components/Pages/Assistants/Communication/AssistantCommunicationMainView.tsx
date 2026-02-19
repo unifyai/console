@@ -100,38 +100,49 @@ export function AssistantCommunicationMainView({
   return (
     <div
       className={cn(
-        'relative flex flex-col items-center justify-center text-center',
+        'flex flex-col items-center justify-center text-center',
         className || 'h-48 w-48'
       )}
     >
-      {/* Pulsating Circle */}
-      <div
-        className={`absolute aspect-square h-full rounded-full border-2 border-primary transition-all duration-300 ${isSpeaking ? 'scale-110 animate-pulse' : 'scale-100 opacity-50'}`}
-      />
-      <div
-        className={`bg-primary/10 absolute aspect-square h-[90%] rounded-full transition-all duration-300 ${isSpeaking ? 'animate-pulse' : ''}`}
-      />
+      {/* Inner container: sized to avatar + margin, constrains the pulsating circles */}
+      <div className="relative flex items-center justify-center">
+        {/* Pulsating Circle — sized relative to avatar, not the outer container */}
+        <div
+          className={cn(
+            'absolute aspect-square rounded-full border-2 border-primary transition-all duration-300',
+            avatarContainerClassName || 'h-32 w-32',
+            isSpeaking ? 'scale-[1.25] animate-pulse' : 'scale-[1.15] opacity-50'
+          )}
+        />
+        <div
+          className={cn(
+            'bg-primary/10 absolute aspect-square rounded-full transition-all duration-300',
+            avatarContainerClassName || 'h-32 w-32',
+            isSpeaking ? 'scale-[1.1] animate-pulse' : 'scale-105'
+          )}
+        />
 
-      {/* Video or Avatar */}
-      <div
-        className={cn(
-          'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
-          avatarContainerClassName || 'h-32 w-32'
-        )}
-      >
-        {videoTrack &&
-        videoTrack.publication &&
-        videoTrack.publication.isSubscribed &&
-        videoTrack.publication.track?.kind === 'video' ? (
-          <VideoTrack trackRef={videoTrack} className="h-full w-full object-cover" />
-        ) : (
-          <Avatar className="h-full w-full">
-            <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-            <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-              {fallback}
-            </AvatarFallback>
-          </Avatar>
-        )}
+        {/* Video or Avatar */}
+        <div
+          className={cn(
+            'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
+            avatarContainerClassName || 'h-32 w-32'
+          )}
+        >
+          {videoTrack &&
+          videoTrack.publication &&
+          videoTrack.publication.isSubscribed &&
+          videoTrack.publication.track?.kind === 'video' ? (
+            <VideoTrack trackRef={videoTrack} className="h-full w-full object-cover" />
+          ) : (
+            <Avatar className="h-full w-full">
+              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                {fallback}
+              </AvatarFallback>
+            </Avatar>
+          )}
+        </div>
       </div>
     </div>
   );

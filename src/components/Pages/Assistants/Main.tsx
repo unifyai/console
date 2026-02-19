@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   Assistant,
   AssistantActions,
+  AssistantPreset,
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
@@ -540,6 +541,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Callbacks for UI interaction ---
   // Track whether we need to auto-select a preset when presets become available
   const [needsPresetSelection, setNeedsPresetSelection] = React.useState(false);
+  const [userHasChangedPreset, setUserHasChangedPreset] = React.useState(false);
 
   const handleOpenHireDialog = React.useCallback(() => {
     resetHireFormInternal();
@@ -552,6 +554,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
     // Mark that we need to select a preset once they're loaded
     setNeedsPresetSelection(true);
+    setUserHasChangedPreset(false);
 
     // Open the dialog - this triggers lazy loading of presets
     setIsHireDialogOpen(true);
@@ -594,9 +597,18 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       toast.info('No presets match filters.');
       return;
     }
+    setUserHasChangedPreset(true);
     const randomIndex = Math.floor(Math.random() * currentFilteredPresets.length);
     selectPresetForHireForm(currentFilteredPresets[randomIndex]);
   };
+
+  const handleUserPresetSelect = React.useCallback(
+    (preset: AssistantPreset) => {
+      setUserHasChangedPreset(true);
+      selectPresetForHireForm(preset);
+    },
+    [selectPresetForHireForm]
+  );
 
   const handleDeleteVoice = async (voice: VoiceOption) => {
     const deletedId = await deleteUserVoice(voice);
@@ -826,10 +838,11 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             onNewMediaReady={onNewMediaReady}
             mode="hire"
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+            userHasChangedPreset={userHasChangedPreset}
           />
           <PresetsPanel
             displayedPresets={displayedPresets}
-            onPresetSelect={selectPresetForHireForm}
+            onPresetSelect={handleUserPresetSelect}
             onClose={() => setIsAssistantPresetsOpen(false)}
             onLoadMore={loadMorePresets}
             canLoadMore={canLoadMorePresets}
