@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main, staging]
   schedule:
-    # Run weekly on Monday at 9am UTC
     - cron: '0 9 * * 1'
 
 jobs:
@@ -62,3 +61,29 @@ jobs:
           if [ "$HIGH" -gt 0 ]; then
             echo "::warning::Found $HIGH high vulnerabilities - see audit output above for details"
           fi
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    # Requires Code Security to be enabled in repo settings first
+    if: false
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
