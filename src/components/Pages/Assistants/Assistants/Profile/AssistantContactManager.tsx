@@ -44,6 +44,7 @@ import { WhatsApp } from '@mui/icons-material';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({
   assistantActions,
@@ -507,6 +508,40 @@ export function AssistantContactManager({
       e.preventDefault();
     }
   };
+
+  // In non-staging environments, show a "Coming Soon" placeholder instead of the full manager.
+  const { isStaging } = useEnvironment();
+  if (!isStaging) {
+    const handleDialogClose = (open: boolean) => {
+      if (!open) onClose();
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-title">Contact Channels</DialogTitle>
+            <DialogDescription className="text-subtitle">
+              Manage contact details for {assistant.firstName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-4 flex items-center gap-3 text-muted-foreground">
+              <Mail className="h-6 w-6" />
+              <Phone className="h-6 w-6" />
+              <WhatsApp sx={{ fontSize: '24px' }} />
+            </div>
+            <h3 className="text-h2 mb-2">Coming Soon</h3>
+            <p className="text-body mx-auto max-w-sm text-muted-foreground">
+              Email, phone, and WhatsApp contact channels for your assistants will be available
+              soon.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
