@@ -48,7 +48,7 @@ describe('Context Switch Cache Invalidation - Regression Test', () => {
       tileId: 'tile-123',
       tabId: 'tab-456',
       projectId: 'RepairsAgent',
-      context: 'DefaultUser/DefaultAssistant/Files/Local/0/Tables/July_2025',
+      context: 'default/default-assistant/Files/Local/0/Tables/July_2025',
       columnContext: null,
       filterExpression: null,
       sortingExpression: null,
@@ -64,7 +64,7 @@ describe('Context Switch Cache Invalidation - Regression Test', () => {
     expect(queryKey[2]).toBe('tile-123');
     expect(queryKey[3]).toBe('tab-456');
     expect(queryKey[4]).toBe('RepairsAgent');
-    expect(queryKey[5]).toBe('DefaultUser/DefaultAssistant/Files/Local/0/Tables/July_2025');
+    expect(queryKey[5]).toBe('default/default-assistant/Files/Local/0/Tables/July_2025');
   });
 
   /**
@@ -87,7 +87,7 @@ describe('Context Switch Cache Invalidation - Regression Test', () => {
       tileId,
       tabId: 'tab-456',
       projectId: 'RepairsAgent',
-      context: 'DefaultUser/DefaultAssistant/Files/Local/0/Tables/July_2025',
+      context: 'default/default-assistant/Files/Local/0/Tables/July_2025',
       columnContext: null,
       filterExpression: null,
       sortingExpression: null,

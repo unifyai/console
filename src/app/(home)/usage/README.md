@@ -93,21 +93,11 @@ User Interaction
 
 ### 1. ID-Based Filtering (Not Name-Based)
 
-**Problem**: Using concatenated names in context paths (e.g., `JohnDoe/AssistantBot/Events/LLM`) is fragile:
-
-- Two users could have the same concatenated name
-- Names can change
-- Special characters in names cause issues
-
 **Solution**: Always use `All/Events/LLM` as the context path and filter via `_user_id` and `_assistant_id` fields in the filter expression.
 
 ```typescript
-// Before (fragile):
-contextPath = `${userName}/${assistantName}/Events/LLM`;
-
-// After (robust):
 contextPath = 'All/Events/LLM';
-filterExpression = "... and _user_id == 'user_123' and _assistant_id == 'asst_456'";
+filterExpression = "... and _user_id == 'user_123' and _assistant_id == '456'";
 ```
 
 These `_user_id` and `_assistant_id` fields are injected by Unity's `log_utils._inject_private_fields()` when logging LLM events.

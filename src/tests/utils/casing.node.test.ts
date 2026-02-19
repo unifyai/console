@@ -160,17 +160,17 @@ describe('casing utilities', () => {
       // Unity/Orchestra private fields start with underscore
       /* eslint-disable @typescript-eslint/naming-convention */
       const input = {
-        _user: 'JohnDoe',
+        _user: 'user-123',
         _user_id: 'user-123',
-        _assistant: 'AdaLovelace',
-        _assistant_id: 'asst-456',
+        _assistant: '456',
+        _assistant_id: '456',
         regular_field: 'value',
       };
       const expected = {
-        _user: 'JohnDoe',
+        _user: 'user-123',
         _userId: 'user-123',
-        _assistant: 'AdaLovelace',
-        _assistantId: 'asst-456',
+        _assistant: '456',
+        _assistantId: '456',
         regularField: 'value',
       };
       /* eslint-enable @typescript-eslint/naming-convention */

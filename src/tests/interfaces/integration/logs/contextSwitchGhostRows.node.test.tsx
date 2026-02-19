@@ -584,7 +584,7 @@ describe('Context Switch Stale Fields - Bug #8 Regression Test', () => {
 
     // Also set the fields query for context B (simulating what buildServerData does)
     queryClient.setQueryData(
-      ['fields', 'project-1', 'DefaultUser/DefaultAssistant/Files/Local/1/Tables/Raised'],
+      ['fields', 'project-1', 'default/default-assistant/Files/Local/1/Tables/Raised'],
       contextBFields
     );
 
@@ -732,7 +732,7 @@ describe('Context Switch Stale Fields - Bug #8 Regression Test', () => {
     // Step 2: Context B fields are ALREADY in the cache (pre-fetched)
     // This simulates what buildServerData does when fields are fetched
     queryClient.setQueryData(
-      ['fields', 'project-1', 'DefaultUser/DefaultAssistant/Files/Local/1/Tables/Raised'],
+      ['fields', 'project-1', 'default/default-assistant/Files/Local/1/Tables/Raised'],
       contextBFields
     );
 
@@ -763,7 +763,7 @@ describe('Context Switch Stale Fields - Bug #8 Regression Test', () => {
     const cachedContextBFields = queryClient.getQueryData([
       'fields',
       'project-1',
-      'DefaultUser/DefaultAssistant/Files/Local/1/Tables/Raised',
+      'default/default-assistant/Files/Local/1/Tables/Raised',
     ]);
 
     console.log('[TEST] Bug #10 - Column selector empty:', {

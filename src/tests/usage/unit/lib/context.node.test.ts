@@ -31,12 +31,12 @@ describe('context', () => {
       expect(isValidContextPath('All/Events/LLM')).toBe(true);
     });
 
-    it('returns true for valid user context (legacy)', () => {
-      expect(isValidContextPath('JohnDoe/All/Events/LLM')).toBe(true);
+    it('returns true for valid user context', () => {
+      expect(isValidContextPath('user-123/All/Events/LLM')).toBe(true);
     });
 
-    it('returns true for valid assistant context (legacy)', () => {
-      expect(isValidContextPath('JohnDoe/MyAssistant/Events/LLM')).toBe(true);
+    it('returns true for valid assistant context', () => {
+      expect(isValidContextPath('user-123/42/Events/LLM')).toBe(true);
     });
 
     it('returns false for empty string', () => {
