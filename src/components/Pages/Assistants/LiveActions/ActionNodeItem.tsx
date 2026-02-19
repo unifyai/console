@@ -13,8 +13,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { StatusIndicator } from './StatusIndicator';
-import { formatDuration, getNodeDuration } from '@/utils/assistants/assistant-actions';
-import type { ActionNode, GetToolLoopEventsFn, ToolLoopLog } from '@/types/assistants/action';
+import type { ActionInteraction, ActionNode, GetToolLoopEventsFn, ToolLoopLog } from '@/types/assistants/action';
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
 export type SectionToggleSignal = { open: boolean; gen: number };
@@ -51,6 +50,58 @@ function getLabelStyles(type: ActionNode['type']): string {
     default:
       return 'text-foreground font-medium';
   }
+}
+
+/**
+ * Format a timestamp string to a short local time (HH:MM:SS).
+ */
+function formatEventTime(ts: string): string {
+  const d = new Date(ts.endsWith('Z') || ts.includes('+') || ts.includes('-', 10) ? ts : ts + 'Z');
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+/**
+ * Format a millisecond duration to a compact human-readable string.
+ * Gracefully escalates: ms → s → m → h → d.
+ */
+function formatCompactDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const sec = ms / 1000;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const min = sec / 60;
+  if (min < 60) return `${min.toFixed(1)}m`;
+  const hrs = min / 60;
+  if (hrs < 24) return `${hrs.toFixed(1)}h`;
+  const days = hrs / 24;
+  return `${days.toFixed(1)}d`;
+}
+
+/**
+ * Live-ticking duration badge. Ticks every second while running,
+ * shows static duration when completed/errored.
+ */
+function LiveDuration({ node }: { node: ActionNode }) {
+  const [now, setNow] = React.useState(Date.now);
+
+  React.useEffect(() => {
+    if (node.status !== 'running') return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [node.status]);
+
+  const startMs = node.startTime ? new Date(node.startTime).getTime() : 0;
+  if (!startMs) return null;
+
+  const endMs = node.status === 'running'
+    ? now
+    : node.endTime ? new Date(node.endTime).getTime() : startMs;
+  const elapsed = Math.max(0, endMs - startMs);
+
+  return (
+    <span className="text-muted-foreground/40 ml-1.5 shrink-0 tabular-nums text-[10px]">
+      {formatCompactDuration(elapsed)}
+    </span>
+  );
 }
 
 /**
@@ -136,12 +187,17 @@ function ContentArea({
 }
 
 /**
- * Renders a single ToolLoop message with a role tag and content.
+ * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
 function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   const { message } = log.entries;
+  const time = formatEventTime(log.ts);
 
   if (message.role === 'system') return null;
+
+  const timeLabel = (
+    <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums text-[10px]">{time}</span>
+  );
 
   if (message.role === 'user') {
     const content = extractTextContent(message.content);
@@ -149,7 +205,8 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-blue-500/60">request</span>
-        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        {timeLabel}
       </div>
     );
   }
@@ -160,7 +217,8 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
       return (
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
-          <span className="text-muted-foreground/50">{toolName}()</span>
+          <span className="text-muted-foreground/50 min-w-0 flex-1">{toolName}()</span>
+          {timeLabel}
         </div>
       );
     }
@@ -169,7 +227,8 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-green-500/60">response</span>
-        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        {timeLabel}
       </div>
     );
   }
@@ -180,7 +239,8 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-purple-500/60">result</span>
-        <span className="text-muted-foreground/50 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        {timeLabel}
       </div>
     );
   }
@@ -276,6 +336,14 @@ function CollapsibleToolLoopSection({
 
   const pad = `${28 + depth * 12}px`;
 
+  const sectionDuration = React.useMemo(() => {
+    if (logs.length < 2) return '';
+    const first = new Date(logs[0].ts).getTime();
+    const last = new Date(logs[logs.length - 1].ts).getTime();
+    const ms = last - first;
+    return ms > 0 ? formatCompactDuration(ms) : '';
+  }, [logs]);
+
   return (
     <div className="min-w-0">
       {/* Toggle bar */}
@@ -294,7 +362,10 @@ function CollapsibleToolLoopSection({
             isOpen && 'rotate-90'
           )}
         />
-        <span>{logs.length} {logs.length === 1 ? 'step' : 'steps'}</span>
+        <span>
+          {logs.length} {logs.length === 1 ? 'step' : 'steps'}
+          {sectionDuration && <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>}
+        </span>
         {/* Subtle trailing line */}
         <div className="bg-border/30 ml-1.5 h-px flex-1" />
       </button>
@@ -308,6 +379,46 @@ function CollapsibleToolLoopSection({
       >
         <ToolLoopConversation logs={logs} depth={depth} />
       </div>
+    </div>
+  );
+}
+
+const INTERACTION_LABELS: Record<string, { label: string; color: string }> = {
+  interject: { label: 'interjected', color: 'text-amber-500/70' },
+  stop: { label: 'stopped', color: 'text-red-500/70' },
+  pause: { label: 'paused', color: 'text-yellow-500/70' },
+  resume: { label: 'resumed', color: 'text-green-500/70' },
+  ask: { label: 'asked', color: 'text-blue-500/70' },
+  answer_clarification: { label: 'clarified', color: 'text-violet-500/70' },
+};
+
+/**
+ * Renders a mid-flight interaction annotation (e.g. "interjected", "stopped").
+ */
+function InteractionEvent({
+  interaction,
+  depth,
+}: {
+  interaction: ActionInteraction;
+  depth: number;
+}) {
+  const config = INTERACTION_LABELS[interaction.action] ?? {
+    label: interaction.action,
+    color: 'text-muted-foreground/70',
+  };
+
+  return (
+    <div
+      className="flex items-baseline gap-2 py-0.5 text-[11px]"
+      style={{ paddingLeft: `${28 + depth * 12}px` }}
+    >
+      <span className={cn('shrink-0 font-medium', config.color)}>{config.label}</span>
+      {interaction.content && (
+        <span className="text-muted-foreground/70 min-w-0 flex-1 truncate">{interaction.content}</span>
+      )}
+      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums text-[10px]">
+        {formatEventTime(interaction.timestamp)}
+      </span>
     </div>
   );
 }
@@ -358,13 +469,7 @@ export function ActionNodeItem({
 
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
-  // Expandable if: has children, OR is running and can show live thinking
   const isExpandable = hasChildren || (node.status === 'running' && canLoadToolLoop);
-
-  // Calculate duration
-  const duration = getNodeDuration(node);
-  const durationText =
-    node.status === 'running' ? `${formatDuration(duration)}...` : formatDuration(duration);
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -446,9 +551,12 @@ export function ActionNodeItem({
   }, [node.status, node.hierarchy, canLoadToolLoop, assistantId, getToolLoopEvents]);
 
   // Load full ToolLoop conversation for completed nodes when expanded.
-  // Uses the node's hierarchyLabel (updated from the outgoing event) which
-  // carries the same suffix as ToolLoop events, giving an exact scope to
-  // this specific invocation without any fragile time filtering.
+  // The hierarchy_label suffix is generated independently by ManagerMethod
+  // events and ToolLoop events (see: LoopConfig vs publish_manager_method_event),
+  // so we can't rely on node.hierarchyLabel for an exact match. Instead, use
+  // "hierarchy.join('->') + '('" as the prefix: this matches all ToolLoop events
+  // at this exact hierarchy level (the "(" ensures we don't match nested levels
+  // like "CodeActActor.act->execute_code(...)").
   React.useEffect(() => {
     if (node.status === 'running' || !canLoadToolLoop || !isExpanded) return;
     if (toolLoopFetchedRef.current) return;
@@ -459,7 +567,8 @@ export function ActionNodeItem({
 
     const load = async () => {
       try {
-        const response = await getToolLoopEvents(assistantId!, node.hierarchyLabel, null);
+        const hierarchyPrefix = node.hierarchy.join('->') + '(';
+        const response = await getToolLoopEvents(assistantId!, hierarchyPrefix, null);
         if (isCancelled || 'detail' in response) return;
         const logs = (response.logs || []) as ToolLoopLog[];
         setCompletedToolLoopLogs(logs.filter((l) => l.entries.message.role !== 'system'));
@@ -480,7 +589,8 @@ export function ActionNodeItem({
     canLoadToolLoop,
     assistantId,
     getToolLoopEvents,
-    node.hierarchyLabel,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    node.hierarchy.join('->'),
   ]);
 
   // Clear thinking & reset ToolLoop state when node starts running
@@ -511,43 +621,81 @@ export function ActionNodeItem({
   const showRunningThinking = isExpanded && node.status === 'running' && !!latestThinking;
   const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
   const hasToolLoopData = completedToolLoopLogs.length > 0;
+  const hasInteractions = (node.interactions?.length ?? 0) > 0;
 
-  // Build a strictly chronological timeline that interleaves ToolLoop segments
-  // and children. Each child's startTime is used as a split point so that
-  // ToolLoop events before a child render above it, events after render below.
-  // This handles any number of children at arbitrary positions in the stream.
+  // Enrich interactions with content extracted from ToolLoop data.
+  // interject() injects a message into the existing loop queue — the next
+  // ToolLoop "user" message IS the interjection text. Show it inline.
+  const enrichedInteractions = React.useMemo(() => {
+    if (!node.interactions?.length || !completedToolLoopLogs.length) return node.interactions;
+    return node.interactions.map((interaction) => {
+      if (interaction.content || interaction.action !== 'interject') return interaction;
+      const interactionTime = new Date(interaction.timestamp).getTime();
+      const nextUserMsg = completedToolLoopLogs.find((log) => {
+        const logTime = new Date(log.ts).getTime();
+        return logTime >= interactionTime && log.entries.message.role === 'user';
+      });
+      if (nextUserMsg) {
+        const content = extractTextContent(nextUserMsg.entries.message.content);
+        if (content) return { ...interaction, content };
+      }
+      return interaction;
+    });
+  }, [node.interactions, completedToolLoopLogs]);
+
+  // Build a strictly chronological timeline that interleaves ToolLoop segments,
+  // child nodes, and interaction annotations. Each child/interaction timestamp
+  // acts as a split point so ToolLoop events before it render above, after below.
   type TimelineSegment =
     | { kind: 'steps'; logs: ToolLoopLog[]; key: string }
-    | { kind: 'child'; node: ActionNode };
+    | { kind: 'child'; node: ActionNode }
+    | { kind: 'interaction'; interaction: ActionInteraction };
+
+  type TimelineEvent =
+    | { kind: 'child'; node: ActionNode; time: number }
+    | { kind: 'interaction'; interaction: ActionInteraction; time: number };
 
   const timeline = React.useMemo((): TimelineSegment[] => {
-    if (!hasToolLoopData && !hasChildren) return [];
+    if (!hasToolLoopData && !hasChildren && !hasInteractions) return [];
 
-    // No ToolLoop data yet — just list children in order
+    // Merge children and interactions into a unified chronological event list
+    const timelineEvents: TimelineEvent[] = [
+      ...node.children.map((c) => ({
+        kind: 'child' as const,
+        node: c,
+        time: new Date(c.startTime).getTime(),
+      })),
+      ...(enrichedInteractions ?? []).map((i) => ({
+        kind: 'interaction' as const,
+        interaction: i,
+        time: new Date(i.timestamp).getTime(),
+      })),
+    ].sort((a, b) => a.time - b.time);
+
+    // No ToolLoop data — just list events in chronological order
     if (!hasToolLoopData) {
-      return node.children.map((c) => ({ kind: 'child' as const, node: c }));
+      return timelineEvents.map((evt) =>
+        evt.kind === 'child'
+          ? { kind: 'child' as const, node: evt.node }
+          : { kind: 'interaction' as const, interaction: evt.interaction }
+      );
     }
 
-    // No children — single steps block
-    if (!hasChildren) {
+    // No events — single steps block
+    if (timelineEvents.length === 0) {
       return [{ kind: 'steps' as const, logs: completedToolLoopLogs, key: 'all' }];
     }
 
-    // Interleave: walk through ToolLoop logs and children together,
-    // splitting ToolLoop logs at each child's startTime.
-    const sortedChildren = [...node.children].sort(
-      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
-
+    // Interleave: walk through ToolLoop logs and events together,
+    // splitting ToolLoop logs at each event's timestamp.
     const result: TimelineSegment[] = [];
     let logIdx = 0;
 
-    for (const child of sortedChildren) {
-      const childStart = new Date(child.startTime).getTime();
+    for (const evt of timelineEvents) {
       const segment: ToolLoopLog[] = [];
 
       while (logIdx < completedToolLoopLogs.length) {
-        if (new Date(completedToolLoopLogs[logIdx].ts).getTime() < childStart) {
+        if (new Date(completedToolLoopLogs[logIdx].ts).getTime() < evt.time) {
           segment.push(completedToolLoopLogs[logIdx]);
           logIdx++;
         } else {
@@ -555,13 +703,19 @@ export function ActionNodeItem({
         }
       }
 
+      const evtKey = evt.kind === 'child' ? evt.node.id : `int-${evt.interaction.id}`;
       if (segment.length > 0) {
-        result.push({ kind: 'steps', logs: segment, key: `pre-${child.id}` });
+        result.push({ kind: 'steps', logs: segment, key: `pre-${evtKey}` });
       }
-      result.push({ kind: 'child', node: child });
+
+      if (evt.kind === 'child') {
+        result.push({ kind: 'child', node: evt.node });
+      } else {
+        result.push({ kind: 'interaction', interaction: evt.interaction });
+      }
     }
 
-    // Remaining logs after the last child
+    // Remaining logs after the last event
     if (logIdx < completedToolLoopLogs.length) {
       result.push({
         kind: 'steps',
@@ -570,11 +724,33 @@ export function ActionNodeItem({
       });
     }
 
-    return result;
-  }, [hasToolLoopData, hasChildren, completedToolLoopLogs, node.children]);
+    // When an interject interaction already shows its content inline,
+    // drop the duplicate ToolLoop user message from the steps segment
+    // that immediately follows it (interject() injects the message into
+    // the loop queue, so it appears as the first user turn in the next
+    // steps block — showing it twice is redundant).
+    for (let i = 0; i < result.length; i++) {
+      const seg = result[i];
+      if (
+        seg.kind === 'interaction' &&
+        seg.interaction.action === 'interject' &&
+        seg.interaction.content
+      ) {
+        const next = result[i + 1];
+        if (next?.kind === 'steps' && next.logs.length > 0) {
+          const first = next.logs[0];
+          if (first.entries.message.role === 'user') {
+            next.logs = next.logs.slice(1);
+          }
+        }
+      }
+    }
 
-  // Whether to use the interleaved timeline renderer (ToolLoop data loaded)
-  const useTimeline = isExpanded && hasToolLoopData;
+    return result;
+  }, [hasToolLoopData, hasChildren, hasInteractions, completedToolLoopLogs, node.children, enrichedInteractions]);
+
+  // Whether to use the interleaved timeline renderer
+  const useTimeline = isExpanded && (hasToolLoopData || hasInteractions);
 
   return (
     <div
@@ -620,18 +796,14 @@ export function ActionNodeItem({
         {/* Status indicator */}
         <StatusIndicator status={node.status} size="sm" />
 
-        {/* Label — shows displayLabel (human-readable) with raw hierarchy on hover */}
+        {/* Label + inline duration */}
         <span
-          className={cn('min-w-0 flex-1 truncate text-sm', getLabelStyles(node.type))}
+          className={cn('flex min-w-0 items-baseline gap-0 text-sm', getLabelStyles(node.type))}
           title={node.displayLabel ? node.hierarchy[node.hierarchy.length - 1] : undefined}
           style={depth > 0 ? { fontSize: '0.7875rem' } : undefined}
         >
-          {node.label}
-        </span>
-
-        {/* Duration */}
-        <span className="text-caption ml-2 flex-shrink-0 tabular-nums text-muted-foreground">
-          {durationText}
+          <span className="truncate">{node.label}</span>
+          <LiveDuration node={node} />
         </span>
       </div>
 
@@ -643,18 +815,30 @@ export function ActionNodeItem({
       {/* ToolLoop loading spinner */}
       {showToolLoopLoading && <ToolLoopLoading depth={depth} />}
 
-      {/* Interleaved timeline: ToolLoop segments + children in strict chronological order.
-          Used once ToolLoop data has loaded for a completed node. */}
+      {/* Interleaved timeline: ToolLoop segments, children, and interactions
+          in strict chronological order. */}
       {useTimeline &&
-        timeline.map((segment) =>
-          segment.kind === 'steps' ? (
-            <CollapsibleToolLoopSection
-              key={segment.key}
-              logs={segment.logs}
-              depth={depth}
-              sectionToggleSignal={sectionToggleSignal}
-            />
-          ) : (
+        timeline.map((segment) => {
+          if (segment.kind === 'steps') {
+            return (
+              <CollapsibleToolLoopSection
+                key={segment.key}
+                logs={segment.logs}
+                depth={depth}
+                sectionToggleSignal={sectionToggleSignal}
+              />
+            );
+          }
+          if (segment.kind === 'interaction') {
+            return (
+              <InteractionEvent
+                key={`int-${segment.interaction.id}`}
+                interaction={segment.interaction}
+                depth={depth}
+              />
+            );
+          }
+          return (
             <div key={segment.node.id} className="relative">
               <div
                 className="absolute bottom-0 left-[7px] top-0 w-px bg-border"
@@ -671,8 +855,8 @@ export function ActionNodeItem({
                 sectionToggleSignal={sectionToggleSignal}
               />
             </div>
-          )
-        )}
+          );
+        })}
 
       {/* Standard children rendering — while running (no ToolLoop yet) or
           for completed nodes without ToolLoop data.

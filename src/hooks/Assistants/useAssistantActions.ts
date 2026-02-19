@@ -15,6 +15,7 @@ import {
   mergeNewEvents,
   hasActiveRootAction,
   ACTION_LOOKBACK_MS,
+  isUserFacingAction,
 } from '@/utils/assistants/assistant-actions';
 import type {
   ActionNode,
@@ -200,7 +201,7 @@ export function useAssistantActions(
             eventId: orphan.eventId,
             manager: orphan.manager,
             method: orphan.method,
-            phase: orphan.phase,
+            phase: orphan.phase as 'incoming' | 'outgoing' | null,
             hierarchy: orphan.hierarchy,
             hierarchyLabel: orphan.hierarchyLabel,
             displayLabel: orphan.displayLabel,
@@ -228,6 +229,12 @@ export function useAssistantActions(
 
   /**
    * Performs the initial load of events from Orchestra.
+   *
+   * Phase 1: Fetch all events in the lookback window (no limit — the 3-hour
+   *          time window already bounds the data).
+   * Phase 2: If any root nodes were promoted from boundary placeholders
+   *          (their incoming event was outside the time window), do a targeted
+   *          backfill using their calling_id to retrieve the missing incoming.
    */
   const initialLoad = React.useCallback(async () => {
     if (!isMountedRef.current) return;
@@ -239,11 +246,12 @@ export function useAssistantActions(
     setError(null);
 
     try {
+      // Phase 1: Fetch all events in the lookback window (no limit)
       const startTime = new Date(Date.now() - lookbackMs).toISOString();
       const response = await actions.getManagerMethodEvents(
         assistantId,
         startTime,
-        DEFAULT_EVENT_LIMIT
+        null
       );
 
       if (!isMountedRef.current) return;
@@ -258,21 +266,48 @@ export function useAssistantActions(
         `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra`
       );
 
-      const result = buildActionTree(logs);
-      setRoots(result.roots);
-      setNodeMap(result.nodeMap);
+      let result = buildActionTree(logs);
 
       // TODO: Remove debug logging
       console.log(
-        `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} total node(s)`
+        `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} total node(s), ${result.promotedCallingIds.length} promoted`
       );
+
+      // Phase 2: Targeted backfill for promoted boundaries (headless trees)
+      if (result.promotedCallingIds.length > 0 && actions.backfillByCallingIds) {
+        // TODO: Remove debug logging
+        console.log(
+          `[DEBUG][useAssistantActions] Backfilling ${result.promotedCallingIds.length} promoted node(s): ${result.promotedCallingIds.join(', ')}`
+        );
+
+        const backfillResponse = await actions.backfillByCallingIds(
+          assistantId,
+          result.promotedCallingIds
+        );
+
+        if (!isMountedRef.current) return;
+
+        if (!('detail' in backfillResponse)) {
+          const backfillLogs = (backfillResponse.logs || []) as ManagerMethodLog[];
+          if (backfillLogs.length > 0) {
+            // TODO: Remove debug logging
+            console.log(
+              `[DEBUG][useAssistantActions] Backfill returned ${backfillLogs.length} incoming event(s)`
+            );
+            result = mergeNewEvents(result.roots, result.nodeMap, backfillLogs);
+          }
+        }
+      }
+
+      setRoots(result.roots);
+      setNodeMap(result.nodeMap);
 
       if (logs.length > 0) {
         const latestLog = logs[logs.length - 1];
         const oldestLog = logs[0];
         lastSeenTimestampRef.current = latestLog.ts;
         oldestTimestampRef.current = oldestLog.ts;
-        setHasMore(logs.length >= DEFAULT_EVENT_LIMIT);
+        setHasMore(true);
       } else {
         lastSeenTimestampRef.current = startTime;
         oldestTimestampRef.current = startTime;
@@ -354,9 +389,17 @@ export function useAssistantActions(
     }
   }, []);
 
+  // Track SSE error count to decide when to give up and fall back to polling
+  const sseErrorCountRef = React.useRef(0);
+  const SSE_MAX_ERRORS = 5;
+
   /**
    * Opens an SSE connection to the actions stream endpoint.
-   * Falls back to polling on error.
+   *
+   * The browser's EventSource auto-reconnects on transient errors (with
+   * exponential backoff).  We only close and fall back to polling after
+   * SSE_MAX_ERRORS consecutive failures, which indicates a persistent problem
+   * (e.g., missing Pub/Sub subscription, auth failure).
    */
   const connectSSE = React.useCallback(() => {
     // Close any existing SSE connection
@@ -364,6 +407,8 @@ export function useAssistantActions(
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+
+    sseErrorCountRef.current = 0;
 
     const sseUrl = `/api/assistant/${assistantId}/actions/stream`;
     // TODO: Remove debug logging
@@ -378,6 +423,7 @@ export function useAssistantActions(
       console.log(
         `[DEBUG][useAssistantActions] SSE CONNECTED (readyState=${eventSource.readyState})`
       );
+      sseErrorCountRef.current = 0;
       setConnectionStatus('streaming');
       // SSE is active — stop polling if it was running as fallback
       stopPolling();
@@ -399,11 +445,16 @@ export function useAssistantActions(
         if (!parsed?.data) return;
 
         if (parsed.type === 'ManagerMethod') {
-          // Skip phase=null (progress) events — they are not used for tree building
-          if (entries?.phase !== 'incoming' && entries?.phase !== 'outgoing') {
+          // Allow incoming, outgoing, and user-facing action events through.
+          // Discard infrastructure noise (done, result, next_notification, etc.)
+          const isLifecycleEvent =
+            entries?.phase === 'incoming' || entries?.phase === 'outgoing';
+          const isActionEvent = isUserFacingAction(entries?.action);
+
+          if (!isLifecycleEvent && !isActionEvent) {
             // TODO: Remove debug logging
             console.log(
-              `[DEBUG][useAssistantActions] Skipping phase=${entries?.phase} event (progress event)`
+              `[DEBUG][useAssistantActions] Skipping phase=${entries?.phase} action=${entries?.action} event (infrastructure noise)`
             );
             return;
           }
@@ -434,24 +485,35 @@ export function useAssistantActions(
       }
     };
 
-    eventSource.onerror = (err) => {
+    eventSource.onerror = () => {
       if (!isMountedRef.current) return;
 
+      sseErrorCountRef.current++;
       // TODO: Remove debug logging
       console.warn(
-        `[DEBUG][useAssistantActions] SSE ERROR (readyState=${eventSource.readyState}). Falling back to polling.`,
-        err
+        `[DEBUG][useAssistantActions] SSE ERROR #${sseErrorCountRef.current} (readyState=${eventSource.readyState})`
       );
 
-      // Close the failed SSE connection
-      eventSource.close();
-      eventSourceRef.current = null;
+      if (sseErrorCountRef.current >= SSE_MAX_ERRORS) {
+        // Persistent failure — give up on SSE and fall back to polling
+        console.warn(
+          `[useAssistantActions] SSE failed ${SSE_MAX_ERRORS} times consecutively — falling back to polling`
+        );
+        eventSource.close();
+        eventSourceRef.current = null;
+        if (isInitialLoadDoneRef.current) {
+          startPolling();
+        } else {
+          setConnectionStatus('error');
+        }
+        return;
+      }
 
-      // Fall back to polling
-      if (isInitialLoadDoneRef.current) {
+      // Transient error — let EventSource auto-reconnect.
+      // Start polling as a bridge so we don't miss events during reconnection.
+      setConnectionStatus('polling');
+      if (isInitialLoadDoneRef.current && !pollingIntervalRef.current) {
         startPolling();
-      } else {
-        setConnectionStatus('error');
       }
     };
   }, [assistantId, mergeLogsIntoTree, startPolling, stopPolling]);
@@ -598,6 +660,12 @@ export function useAssistantActions(
   // the initial load finishes, without re-triggering on every SSE message.
   const [isInitialLoadDone, setIsInitialLoadDone] = React.useState(false);
 
+  // Keep connectSSE ref in sync so the health-check interval always has the latest version
+  const connectSSERef = React.useRef(connectSSE);
+  React.useEffect(() => {
+    connectSSERef.current = connectSSE;
+  }, [connectSSE]);
+
   React.useEffect(() => {
     if (!enabled || !isInitialLoadDone) return;
 
@@ -605,9 +673,26 @@ export function useAssistantActions(
     console.log(`[DEBUG][useAssistantActions] Starting SSE (once) for assistant=${assistantId}`);
 
     // Try SSE first; it falls back to polling on error
-    connectSSE();
+    connectSSERef.current();
+
+    // Health-check: detect dead connections (e.g., after HMR kills the server
+    // but the effect doesn't re-run because its deps are unchanged) and
+    // reconnect automatically.
+    const healthCheckInterval = setInterval(() => {
+      if (!isMountedRef.current) return;
+
+      const es = eventSourceRef.current;
+      if (!es || es.readyState === EventSource.CLOSED) {
+        // TODO: Remove debug logging
+        console.log(
+          `[DEBUG][useAssistantActions] Health check: SSE is dead (readyState=${es?.readyState ?? 'null'}), reconnecting...`
+        );
+        connectSSERef.current();
+      }
+    }, 15000);
 
     return () => {
+      clearInterval(healthCheckInterval);
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -616,8 +701,9 @@ export function useAssistantActions(
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
+      setConnectionStatus('idle');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- connectSSE is stable; only re-run on enable/assistant change
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connectSSERef avoids stale closure; only re-run on enable/assistant change
   }, [enabled, assistantId, isInitialLoadDone]);
 
   return {
