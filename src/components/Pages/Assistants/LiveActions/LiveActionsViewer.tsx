@@ -16,7 +16,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { LiveActionsHeader } from './LiveActionsHeader';
+import { LiveActionsHeader, TIME_WINDOW_PRESETS, DEFAULT_TIME_WINDOW_KEY } from './LiveActionsHeader';
 import { LiveActionsBody } from './LiveActionsBody';
 import { LiveActionsFooter } from './LiveActionsFooter';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
@@ -49,6 +49,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   const [isVisible, setIsVisible] = React.useState(true);
   const [sectionToggleSignal, setSectionToggleSignal] = React.useState<SectionToggleSignal>({ open: false, gen: 0 });
+  const [timeWindowKey, setTimeWindowKey] = React.useState(DEFAULT_TIME_WINDOW_KEY);
 
   // Store expand state before search for restoration
   const preSearchExpandedRef = React.useRef<Set<string> | null>(null);
@@ -84,6 +85,12 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Only poll when visible AND assistant is selected
   const shouldPoll = hasAssistant && isVisible;
 
+  // Compute the lookback ms from the selected preset (dynamic for Today/Yesterday)
+  const lookbackMs = React.useMemo(() => {
+    const preset = TIME_WINDOW_PRESETS.find((p) => p.key === timeWindowKey);
+    return preset ? preset.getMs() : 3 * 3_600_000;
+  }, [timeWindowKey]);
+
   const { roots, hasActiveAction, isLoading, error, refresh, loadMore, hasMore, connectionStatus } =
     useAssistantActions(
       hasAssistant ? assistant.agentId : '',
@@ -91,6 +98,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       {
         enabled: shouldPoll,
         pollingInterval: 10000,
+        initialLookbackMs: lookbackMs,
       }
     );
 
@@ -172,6 +180,21 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     setAutoCollapse(enabled);
   }, []);
 
+  // When the time window preset changes, re-fetch with the new window.
+  const isFirstRenderRef = React.useRef(true);
+  const handleTimeWindowChange = React.useCallback((key: string) => {
+    setTimeWindowKey(key);
+  }, []);
+
+  React.useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookbackMs]);
+
   const handleExpandedChange = React.useCallback((nodeId: string, expanded: boolean) => {
     setExpandedNodeIds((prev) => {
       const next = new Set(prev);
@@ -224,6 +247,8 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     setExpandedNodeIds(new Set());
     setLastUpdated(null);
     preSearchExpandedRef.current = null;
+    setTimeWindowKey(DEFAULT_TIME_WINDOW_KEY);
+    isFirstRenderRef.current = true;
   }, [assistant?.agentId]);
 
   // ==========================================================================
@@ -247,6 +272,8 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           expandCollapseDisabled={expandableNodeIds.size === 0}
           autoCollapse={autoCollapse}
           onAutoCollapseChange={handleAutoCollapseChange}
+          timeWindowKey={timeWindowKey}
+          onTimeWindowChange={handleTimeWindowChange}
         />
       )}
 
