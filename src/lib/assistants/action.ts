@@ -142,7 +142,9 @@ export const getToolLoopEvents = async (apiKey: string) => {
   return async (
     assistantId: string,
     hierarchyLabelPrefix: string,
-    limit: number | null
+    limit: number | null,
+    startTime?: string,
+    endTime?: string
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
 
@@ -158,8 +160,14 @@ export const getToolLoopEvents = async (apiKey: string) => {
       // Build filter expression
       const filters: string[] = [
         buildAssistantIdFilter(assistantId),
-        `hierarchy_label.startswith('${hierarchyLabelPrefix}')`,
+        `hierarchy_label.startswith('${escapeFilterValue(hierarchyLabelPrefix)}')`,
       ];
+      if (startTime) {
+        filters.push(`created_at >= '${escapeFilterValue(startTime)}'`);
+      }
+      if (endTime) {
+        filters.push(`created_at <= '${escapeFilterValue(endTime)}'`);
+      }
       const filterExpr = combineFilters(filters);
       if (filterExpr) {
         url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
@@ -286,8 +294,7 @@ export const backfillByCallingIds = async (apiKey: string) => {
       }
 
       if (!response.ok) {
-        const errorMessage =
-          data.detail || `Failed to backfill events: ${response.statusText}`;
+        const errorMessage = data.detail || `Failed to backfill events: ${response.statusText}`;
         return { detail: errorMessage };
       }
 
