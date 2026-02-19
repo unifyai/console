@@ -167,8 +167,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
           getLimit: await getOrgSpendingLimit(apiKey),
         }
       : undefined,
-    // Pass org ID for spending gate context
-    orgId,
     // Actions panel - live action events
     actions: {
       getManagerMethodEvents: await getManagerMethodEvents(apiKey),
@@ -181,7 +179,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     update: await updateTask(apiKey),
   };
 
-  const userMeta = { image: user.image, timezone: user.timezone, email: user.email };
+  const userMeta = { image: user.image, timezone: user.timezone, email: user.email, orgId };
 
   return (
     <div className="h-full w-full">

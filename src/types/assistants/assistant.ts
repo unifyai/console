@@ -496,8 +496,6 @@ export interface AssistantActions {
       orgId: number
     ) => Promise<import('@/types/organization').OrgSpendingLimitResponse | ResponseProps>;
   };
-  /** Organization ID if in org context (null for personal workspace) */
-  orgId?: number | null;
   /** Actions panel - live action events */
   actions?: import('@/types/assistants/action').AssistantActionActions;
 }

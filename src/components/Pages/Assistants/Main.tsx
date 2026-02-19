@@ -53,7 +53,12 @@ interface MainProps {
   taskActions: TaskActions;
   assistantActions: AssistantActions;
   oneTimeToken?: string | null;
-  userMeta: { image: string | null | undefined; timezone?: string | null; email?: string | null };
+  userMeta: {
+    image: string | null | undefined;
+    timezone?: string | null;
+    email?: string | null;
+    orgId?: number | null;
+  };
 }
 
 export default function Main({ taskActions, assistantActions, oneTimeToken, userMeta }: MainProps) {
@@ -320,7 +325,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // Org spending (only in org context)
   const orgSpendingConfig = React.useMemo(() => {
-    if (!assistantActions.orgSpending || !assistantActions.orgId) {
+    if (!assistantActions.orgSpending || !userMeta.orgId) {
       return {
         orgId: 0,
         getSpendAction: disabledAction,
@@ -329,7 +334,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         enablePolling: false,
       };
     }
-    const orgId = assistantActions.orgId;
+    const orgId = userMeta.orgId;
     return {
       orgId,
       getSpendAction: assistantActions.orgSpending.getSpend,
@@ -337,7 +342,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       setLimitAction: disabledAction,
       enablePolling: true,
     };
-  }, [assistantActions.orgSpending, assistantActions.orgId, disabledAction]);
+  }, [assistantActions.orgSpending, userMeta.orgId, disabledAction]);
 
   const orgSpendingData = useOrgSpending(orgSpendingConfig);
 
