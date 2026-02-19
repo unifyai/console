@@ -31,16 +31,27 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
   };
 };
 
-export const getSecrets = async (apiKey: string, userId: string) => {
+/**
+ * Factory for getSecrets server action.
+ *
+ * @param isOrgContext - When true, skip _user_id filtering since org members should see all secrets.
+ *                       The API key scopes data to the organization, preventing cross-org leaks.
+ *                       In personal workspaces, _user_id filtering prevents same-name user leaks.
+ */
+export const getSecrets = async (apiKey: string, userId: string, isOrgContext: boolean) => {
   return async (assistantId: string): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
       const context = `All${CONTEXT_SUFFIX}`;
-      // Add _user_id and _assistant_id filters for security (prevents data leaks if two users have same name)
-      const securityFilter = combineFilters([
-        buildUserIdFilter(userId),
-        buildAssistantIdFilter(assistantId),
-      ]);
+      // Build security filters based on workspace context
+      // - Org workspace: API key scopes to org, all members see all secrets, no _user_id filter needed
+      // - Personal workspace: Filter by _user_id to prevent same-name user data leaks
+      const securityFilters: string[] = [];
+      if (!isOrgContext) {
+        securityFilters.push(buildUserIdFilter(userId));
+      }
+      securityFilters.push(buildAssistantIdFilter(assistantId));
+      const securityFilter = combineFilters(securityFilters);
       const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey } });
@@ -64,11 +75,14 @@ export const getSecrets = async (apiKey: string, userId: string) => {
   };
 };
 
-export const createSecret = async (apiKey: string, userId: string) => {
-  return async (
-    assistantId: string,
-    payload: SecretPayload
-  ): Promise<ResponseProps> => {
+/**
+ * Factory for createSecret server action.
+ *
+ * The `_user_id` field is always included in the log entry for audit purposes
+ * (tracking who created the secret), regardless of workspace context.
+ */
+export const createSecret = async (apiKey: string, userId: string, _isOrgContext: boolean) => {
+  return async (assistantId: string, payload: SecretPayload): Promise<ResponseProps> => {
     'use server';
     try {
       const context = `All${CONTEXT_SUFFIX}`;

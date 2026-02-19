@@ -84,7 +84,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
 
   describe('getSecrets', () => {
     it('@real should retrieve secrets list (may be empty)', realTestOptions, async () => {
-      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID);
+      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID, false);
       const result = await getSecretsAction(TEST_ASSISTANT_ID);
 
       // Should return an array (might be empty) or error object
@@ -106,7 +106,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
       const secretName = uniqueName('test-secret');
       const secretValue = 'test-value-12345';
 
-      const createAction = await createSecret(API_KEY, TEST_USER_ID);
+      const createAction = await createSecret(API_KEY, TEST_USER_ID, false);
       const result = await createAction(TEST_ASSISTANT_ID, {
         name: secretName,
         value: secretValue,
@@ -117,7 +117,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
       expect((result as { info: string }).info).toContain('successfully');
 
       // Verify the secret was created by fetching secrets
-      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID);
+      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID, false);
       const secrets = await getSecretsAction(TEST_ASSISTANT_ID);
 
       if (!isError(secrets) && Array.isArray(secrets)) {
@@ -136,7 +136,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
       const secretValue = 'secret-value-with-desc';
       const secretDescription = 'This is a test secret for integration testing';
 
-      const createAction = await createSecret(API_KEY, TEST_USER_ID);
+      const createAction = await createSecret(API_KEY, TEST_USER_ID, false);
       const result = await createAction(TEST_ASSISTANT_ID, {
         name: secretName,
         value: secretValue,
@@ -147,7 +147,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
       expect(result).toHaveProperty('info');
 
       // Verify the secret was created with description
-      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID);
+      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID, false);
       const secrets = await getSecretsAction(TEST_ASSISTANT_ID);
 
       if (!isError(secrets) && Array.isArray(secrets)) {
@@ -164,14 +164,14 @@ describe('@real secret.ts - Orchestra Integration', () => {
     it('@real should delete an existing secret', realTestOptions, async () => {
       // First create a secret to delete
       const secretName = uniqueName('delete-me-secret');
-      const createAction = await createSecret(API_KEY, TEST_USER_ID);
+      const createAction = await createSecret(API_KEY, TEST_USER_ID, false);
       await createAction(TEST_ASSISTANT_ID, {
         name: secretName,
         value: 'to-be-deleted',
       });
 
       // Get the secret ID
-      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID);
+      const getSecretsAction = await getSecrets(API_KEY, TEST_USER_ID, false);
       const secrets = await getSecretsAction(TEST_ASSISTANT_ID);
 
       if (isError(secrets) || !Array.isArray(secrets)) {

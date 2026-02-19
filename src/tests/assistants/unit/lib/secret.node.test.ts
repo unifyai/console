@@ -56,7 +56,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        // Act - isOrgContext=false for personal workspace
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
         const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
@@ -69,12 +70,12 @@ describe('secret.ts', () => {
     );
 
     it(
-      'builds correct context path and includes security filters',
+      'builds correct context path and includes _user_id filter in personal workspace',
       {
         meta: {
-          alias: 'GetSecrets-ContextPath',
-          scenario: 'Verify URL contains correct context and _user_id/_assistant_id filters',
-          behavior: 'URL includes All/Secrets context with security filterExpr',
+          alias: 'GetSecrets-ContextPath-Personal',
+          scenario: 'Verify URL contains _user_id and _assistant_id filters in personal context',
+          behavior: 'URL includes All/Secrets context with both security filters',
         },
       },
       async () => {
@@ -87,15 +88,45 @@ describe('secret.ts', () => {
           })
         );
 
-        // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id');
+        // Act - isOrgContext=false for personal workspace
+        const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', false);
         await getSecretsFn('test-assistant-id');
 
-        // Assert - URL should contain All/Secrets context and security filters
+        // Assert - URL should contain All/Secrets context and both security filters
         expect(capturedUrl).toContain('All/Secrets');
-        // Check for security filter parameters (URL encoded)
         const decodedUrl = decodeURIComponent(capturedUrl);
         expect(decodedUrl).toContain("_user_id == 'test-user-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
+      }
+    );
+
+    it(
+      'skips _user_id filter in organization workspace (API key scopes to org)',
+      {
+        meta: {
+          alias: 'GetSecrets-ContextPath-Org',
+          scenario: 'Verify URL omits _user_id filter in org context',
+          behavior: 'URL includes _assistant_id but NOT _user_id filter',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ logs: [] });
+          })
+        );
+
+        // Act - isOrgContext=true for organization workspace
+        const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', true);
+        await getSecretsFn('test-assistant-id');
+
+        // Assert - URL should contain _assistant_id but NOT _user_id
+        expect(capturedUrl).toContain('All/Secrets');
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).not.toContain("_user_id == 'test-user-id'");
         expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
@@ -118,7 +149,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
         const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
@@ -152,7 +183,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
         const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
@@ -179,7 +210,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
         const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
@@ -205,7 +236,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
         const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
@@ -233,7 +264,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
         const result = await createFn(ASSISTANT_ID, {
           name: 'NEW_SECRET',
           value: 'secret-value',
@@ -265,7 +296,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, 'test-user-id');
+        const createFn = await createSecret(TEST_API_KEY, 'test-user-id', false);
         await createFn('test-assistant-id', {
           name: 'API_KEY',
           value: 'secret123',
@@ -305,7 +336,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
         const result = await createFn(ASSISTANT_ID, {
           name: 'EXISTING',
           value: 'value',
@@ -334,7 +365,7 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
         const result = await createFn(ASSISTANT_ID, {
           name: 'SECRET',
           value: 'value',

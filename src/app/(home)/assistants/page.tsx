@@ -133,8 +133,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       verifySocialAccount: await verifySocialAccount(adminKey),
     },
     secret: {
-      get: await getSecrets(apiKey, user.id),
-      create: await createSecret(apiKey, user.id),
+      get: await getSecrets(apiKey, user.id, isOrgContext),
+      create: await createSecret(apiKey, user.id, isOrgContext),
       delete: await deleteSecret(apiKey),
     },
     approval: {
