@@ -35,6 +35,18 @@ export interface ToolLoopStep {
 }
 
 /**
+ * A mid-flight interaction on a running node (e.g. user interjected, stopped, paused).
+ * These come from ManagerMethod events with phase=null and a user-facing action field.
+ */
+export interface ActionInteraction {
+  id: number;
+  timestamp: string;
+  action: string;
+  content?: string;
+  eventId?: string;
+}
+
+/**
  * A node in the action tree representing a manager invocation or boundary.
  */
 export interface ActionNode {
@@ -71,6 +83,9 @@ export interface ActionNode {
   /** Child nodes */
   children: ActionNode[];
 
+  /** Mid-flight interactions (interject, stop, pause, resume, ask, etc.) */
+  interactions?: ActionInteraction[];
+
   /** Lazy-loaded tool loop steps */
   toolLoopSteps?: ToolLoopStep[];
 
@@ -99,6 +114,8 @@ export interface ManagerMethodLogEntries {
   status: 'ok' | 'error';
   question?: string;
   instructions?: string;
+  /** The user's original input — used by CodeActActor.act incoming events where question/instructions are null */
+  request?: string;
   answer?: string;
   error?: string;
   /** Action/progress indicator (e.g., "done", "next_clarification") */
@@ -130,13 +147,15 @@ export interface ParsedManagerMethodEvent {
   timestamp: string;
   manager: string;
   method: string;
-  phase: 'incoming' | 'outgoing';
+  phase: 'incoming' | 'outgoing' | 'action';
   callingId: string;
   hierarchy: string[];
   hierarchyLabel: string;
   status: 'ok' | 'error';
   content?: string;
   error?: string;
+  /** The action type for phase='action' events (e.g. "interject", "stop") */
+  action?: string;
   /** User-facing alias from Unity (e.g., "Checking Contact Book") */
   displayLabel?: string;
   /** Globally unique event identifier */
@@ -214,11 +233,22 @@ export type GetToolLoopEventsFn = (
 ) => Promise<ActionsLogsResponse | ResponseProps>;
 
 /**
+ * Function signature for targeted backfill of missing incoming events.
+ * Fetches events by specific calling_ids (no time constraint) so we can
+ * retrieve root incoming events that fell outside the initial time window.
+ */
+export type BackfillByCallingIdsFn = (
+  assistantId: string,
+  callingIds: string[]
+) => Promise<ActionsLogsResponse | ResponseProps>;
+
+/**
  * Actions interface for the useAssistantActions hook.
  */
 export interface AssistantActionActions {
   getManagerMethodEvents: GetManagerMethodEventsFn;
   getToolLoopEvents?: GetToolLoopEventsFn;
+  backfillByCallingIds?: BackfillByCallingIdsFn;
 }
 
 // =============================================================================
@@ -237,4 +267,12 @@ export interface ActionTreeResult {
 
   /** Orphan outgoing events that haven't been matched yet */
   orphanOutgoing: ParsedManagerMethodEvent[];
+
+  /**
+   * calling_ids of nodes that were promoted from boundary placeholders.
+   * These nodes exist because outgoing events matched a boundary by hierarchy,
+   * but the original incoming event was not in the fetch window.
+   * Used to trigger a targeted backfill fetch.
+   */
+  promotedCallingIds: string[];
 }

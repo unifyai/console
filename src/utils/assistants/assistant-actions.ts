@@ -9,12 +9,32 @@
  */
 
 import type {
+  ActionInteraction,
   ActionNode,
   ActionNodeType,
   ActionTreeResult,
   ManagerMethodLog,
   ParsedManagerMethodEvent,
 } from '@/types/assistants/action';
+
+/**
+ * User-facing actions from phase=null events that should be rendered
+ * as interaction annotations on nodes. Everything else is infrastructure
+ * noise and gets discarded.
+ */
+const USER_FACING_ACTIONS = new Set([
+  'interject',
+  'stop',
+  'pause',
+  'resume',
+  'ask',
+  'answer_clarification',
+]);
+
+/** Returns true if the given action string is a user-facing action that should be rendered. */
+export function isUserFacingAction(action: string | null | undefined): boolean {
+  return !!action && USER_FACING_ACTIONS.has(action);
+}
 
 // =============================================================================
 // Constants
@@ -29,12 +49,16 @@ export const ACTION_LOOKBACK_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Parses a raw ManagerMethod log entry into a structured event.
- * Returns null if the log is missing required fields OR if it's a progress event.
+ * Returns null if the log is missing required fields or is infrastructure noise.
  *
- * Event types:
- * - phase='incoming' - START of a manager method call (creates node)
- * - phase='outgoing' - END of a manager method call (closes node)
- * - phase=null with action - PROGRESS event (ignored for tree building)
+ * Three categories of events are accepted:
+ * - phase='incoming'  — operation started (creates a tree node)
+ * - phase='outgoing'  — operation returned a value (updates a tree node)
+ * - phase=null + user-facing action — mid-flight interaction (e.g. interject,
+ *   stop, pause, resume, ask, answer_clarification). Returned with phase='action'.
+ *
+ * Infrastructure noise (phase=null with action in done, result,
+ * next_notification, next_clarification) is discarded.
  */
 export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMethodEvent | null {
   const { entries } = log;
@@ -51,10 +75,26 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     return null;
   }
 
-  // Only process 'incoming' and 'outgoing' events for tree building
-  // Skip progress events (phase=null with action like 'done', 'next_clarification', etc.)
+  // Handle phase=null events: only keep user-facing actions
   if (entries.phase !== 'incoming' && entries.phase !== 'outgoing') {
-    return null;
+    if (!entries.action || !USER_FACING_ACTIONS.has(entries.action)) {
+      return null;
+    }
+    return {
+      id: log.id,
+      timestamp: log.ts,
+      manager: entries.manager,
+      method: entries.method,
+      phase: 'action',
+      callingId: entries.callingId,
+      hierarchy: entries.hierarchy,
+      hierarchyLabel: entries.hierarchyLabel,
+      status: entries.status,
+      action: entries.action,
+      content: entries.question || entries.instructions || entries.request,
+      displayLabel: entries.displayLabel,
+      eventId: entries.eventId,
+    };
   }
 
   // Determine content based on phase
@@ -62,7 +102,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
   if (entries.phase === 'outgoing') {
     content = entries.answer;
   } else {
-    content = entries.question || entries.instructions;
+    content = entries.question || entries.instructions || entries.request;
   }
 
   return {
@@ -151,17 +191,29 @@ export function isMeaningfulContent(content: string | undefined): boolean {
 }
 
 /**
- * Returns true ONLY for explicit boolean loop-control signals
- * ("true"/"false") emitted by Unity at each tool-loop iteration boundary.
+ * Returns true for values that should NOT change a node's status.
  *
- * Crucially returns false for null/undefined content — a null answer means
- * "this operation completed with nothing to report" (e.g. execute_code),
- * which is NOT a loop signal and SHOULD complete the node.
+ * The _LoggedHandle proxy polls handle.done() repeatedly — each poll
+ * publishes an outgoing ManagerMethod event with the coerced boolean.
+ * These are infrastructure noise and must not trigger completion:
+ *
+ * - "false": handle.done() returned False — loop still running.
+ * - "true":  handle.done() returned True — terminal loop signal. The
+ *            real answer arrives as a separate outgoing with meaningful
+ *            content (e.g. the pricing table). "true" is just a bookkeeping
+ *            artifact from the proxy.
+ * - "null":  Python None serialized via json.dumps(None). Means "no result"
+ *            from a polling call, not an actual completion.
+ *
+ * Returns false for JS null/undefined (field absent from payload) — that
+ * means a boundary wrapper operation (execute_code/execute_function)
+ * completed with answer=null (field omitted), which IS a legitimate
+ * completion.
  */
 function isTrivialLoopSignal(content: string | undefined): boolean {
   if (content == null) return false;
   const trimmed = content.trim().toLowerCase();
-  return trimmed === 'true' || trimmed === 'false';
+  return trimmed === 'true' || trimmed === 'false' || trimmed === 'null';
 }
 
 /**
@@ -218,6 +270,108 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
 }
 
 /**
+ * Applies a user-facing action event (phase=null with a meaningful action)
+ * as an interaction annotation on the node.
+ */
+function applyActionEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
+  if (!event.action) return;
+
+  const interaction: ActionInteraction = {
+    id: event.id,
+    timestamp: event.timestamp,
+    action: event.action,
+    content: event.content,
+    eventId: event.eventId,
+  };
+
+  if (!node.interactions) {
+    node.interactions = [];
+  }
+
+  // Deduplicate by eventId or id
+  const isDuplicate = node.interactions.some(
+    (i) => (event.eventId && i.eventId === event.eventId) || i.id === event.id
+  );
+  if (!isDuplicate) {
+    node.interactions.push(interaction);
+  }
+}
+
+/**
+ * Searches the tree for a boundary placeholder whose hierarchy exactly matches
+ * the given hierarchy. Used when an outgoing event's calling_id doesn't match
+ * any node in the nodeMap — the node might exist as a boundary created by
+ * findOrCreateParent when a child arrived before the parent's incoming event.
+ */
+function findBoundaryByHierarchy(
+  nodes: ActionNode[],
+  hierarchy: string[]
+): ActionNode | null {
+  for (const node of nodes) {
+    if (
+      node.type === 'boundary' &&
+      node.hierarchy.length === hierarchy.length &&
+      node.hierarchy.every((h, idx) => h === hierarchy[idx])
+    ) {
+      return node;
+    }
+    const found = findBoundaryByHierarchy(node.children, hierarchy);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Enriches an already-existing node with data from its backfilled incoming
+ * event. When a node was promoted from a boundary, it has the calling_id,
+ * displayLabel, and status from outgoing events — but it's missing the true
+ * startTime and the content (question/instructions) that only the incoming
+ * event carries.
+ */
+function applyBackfilledIncoming(node: ActionNode, event: ParsedManagerMethodEvent): void {
+  const incomingTime = new Date(event.timestamp).getTime();
+  const existingTime = new Date(node.startTime).getTime();
+  if (incomingTime < existingTime) {
+    node.startTime = event.timestamp;
+  }
+  if (!node.content && event.content) {
+    node.content = event.content;
+  }
+  if (event.displayLabel) {
+    node.label = event.displayLabel;
+    node.displayLabel = event.displayLabel;
+  }
+}
+
+/**
+ * Promotes a boundary placeholder to a real manager node using data from an
+ * outgoing event. Updates the nodeMap so subsequent events can find it by
+ * calling_id directly.
+ *
+ * This handles the case where the initial fetch from Orchestra doesn't
+ * include the incoming event (it's older than the fetch window), but does
+ * include outgoing events and child nodes that caused the boundary to be
+ * created.
+ */
+function promoteBoundaryNode(
+  node: ActionNode,
+  event: ParsedManagerMethodEvent,
+  nodeMap: Map<string, ActionNode>
+): void {
+  nodeMap.delete(node.id);
+
+  node.id = event.callingId;
+  node.type = 'manager';
+
+  if (event.displayLabel) {
+    node.label = event.displayLabel;
+    node.displayLabel = event.displayLabel;
+  }
+
+  nodeMap.set(node.id, node);
+}
+
+/**
  * Finds a node by its calling_id in the tree.
  */
 export function findNodeByCallingId(roots: ActionNode[], callingId: string): ActionNode | null {
@@ -271,12 +425,24 @@ function findOrCreateParent(
     const segment = parentHierarchy[i];
     const targetHierarchy = parentHierarchy.slice(0, i + 1);
 
-    // Look for existing node with matching hierarchy
-    let found = current.find(
-      (n) =>
+    // Look for existing node with matching hierarchy.
+    // When multiple nodes share the same hierarchy (e.g. two separate act()
+    // invocations), prefer the one that's still running — a new child belongs
+    // to the active invocation, not a previously-completed one. Fall back to
+    // the last match (most recent chronologically).
+    let found: ActionNode | undefined;
+    for (const n of current) {
+      if (
         n.hierarchy.length === targetHierarchy.length &&
         n.hierarchy.every((h, idx) => h === targetHierarchy[idx])
-    );
+      ) {
+        if (n.status === 'running') {
+          found = n;
+          break;
+        }
+        found = n;
+      }
+    }
 
     if (!found) {
       // Create boundary node for missing segment
@@ -354,8 +520,13 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
     .filter((e): e is ParsedManagerMethodEvent => e !== null)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+  const promotedCallingIds: string[] = [];
+
   for (const event of events) {
     if (event.phase === 'incoming') {
+      // Skip duplicate incoming events (same calling_id already processed)
+      if (nodeMap.has(event.callingId)) continue;
+
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
 
@@ -366,19 +537,33 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
         applyOutgoingEvent(node, orphan);
         orphanOutgoing.splice(orphanIndex, 1);
       }
+    } else if (event.phase === 'action') {
+      const existingNode = nodeMap.get(event.callingId);
+      if (existingNode) {
+        applyActionEvent(existingNode, event);
+      }
     } else {
       // outgoing
       const existingNode = nodeMap.get(event.callingId);
       if (existingNode) {
         applyOutgoingEvent(existingNode, event);
       } else {
-        // Store for later matching
-        orphanOutgoing.push(event);
+        // The incoming event might be outside the fetch window, causing
+        // findOrCreateParent to have created a boundary placeholder.
+        // Try to match by hierarchy and promote the boundary.
+        const boundaryNode = findBoundaryByHierarchy(roots, event.hierarchy);
+        if (boundaryNode) {
+          promoteBoundaryNode(boundaryNode, event, nodeMap);
+          promotedCallingIds.push(event.callingId);
+          applyOutgoingEvent(boundaryNode, event);
+        } else {
+          orphanOutgoing.push(event);
+        }
       }
     }
   }
 
-  return { roots, nodeMap, orphanOutgoing };
+  return { roots, nodeMap, orphanOutgoing, promotedCallingIds };
 }
 
 /**
@@ -394,6 +579,7 @@ export function mergeNewEvents(
   const roots = [...existingRoots];
   const nodeMap = new Map(existingNodeMap);
   const orphanOutgoing: ParsedManagerMethodEvent[] = [];
+  const promotedCallingIds: string[] = [];
 
   // Parse and sort new events
   const events = newLogs
@@ -403,13 +589,22 @@ export function mergeNewEvents(
 
   for (const event of events) {
     if (event.phase === 'incoming') {
-      // Skip if we already have this node
-      if (nodeMap.has(event.callingId)) {
+      const existing = nodeMap.get(event.callingId);
+      if (existing) {
+        // Node already exists (promoted from boundary or from a prior batch).
+        // Backfill it with data only the incoming event carries: the true
+        // startTime, content (question/instructions), and displayLabel.
+        applyBackfilledIncoming(existing, event);
         continue;
       }
 
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
+    } else if (event.phase === 'action') {
+      const existingNode = nodeMap.get(event.callingId);
+      if (existingNode) {
+        applyActionEvent(existingNode, event);
+      }
     } else {
       // outgoing — Unity sends multiple outgoings per calling_id;
       // applyOutgoingEvent is safe to call repeatedly (content is only
@@ -418,13 +613,19 @@ export function mergeNewEvents(
       if (existingNode) {
         applyOutgoingEvent(existingNode, event);
       } else {
-        // Store for later matching
-        orphanOutgoing.push(event);
+        const boundaryNode = findBoundaryByHierarchy(roots, event.hierarchy);
+        if (boundaryNode) {
+          promoteBoundaryNode(boundaryNode, event, nodeMap);
+          promotedCallingIds.push(event.callingId);
+          applyOutgoingEvent(boundaryNode, event);
+        } else {
+          orphanOutgoing.push(event);
+        }
       }
     }
   }
 
-  return { roots, nodeMap, orphanOutgoing };
+  return { roots, nodeMap, orphanOutgoing, promotedCallingIds };
 }
 
 // =============================================================================
