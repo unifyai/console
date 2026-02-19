@@ -8,10 +8,10 @@ import { camelToSnakeObject } from '@/utils/casing';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assistantId, livekitAgentName, roomName } = body;
+    const { assistantId, roomName } = body;
 
-    if (!assistantId || !livekitAgentName || !roomName) {
-      return badRequest('assistantId, livekitAgentName, and roomName are required');
+    if (!assistantId || !roomName) {
+      return badRequest('assistantId and roomName are required');
     }
 
     // Hardcode the base URL as requested
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Transform camelCase to snake_case for external API
     const dispatchPayload = camelToSnakeObject({
       assistantId,
-      livekitAgentName,
+      livekitAgentName: roomName,
       roomName,
     });
 

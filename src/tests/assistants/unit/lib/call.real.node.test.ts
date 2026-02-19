@@ -83,7 +83,6 @@ describe('@real call.ts - Orchestra Integration', () => {
 
         const res = await callApi.dispatch(
           assistantId,
-          assistantName,
           `test-room-${Date.now()}`,
           API_KEY
         );

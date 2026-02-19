@@ -7,6 +7,10 @@ const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 
+function makeRoomName(assistantId: string, medium: string): string {
+  return `unity_${assistantId}_${medium}`;
+}
+
 export const getCallConnectionDetails = async (apiKey: string) => {
   return async (
     assistantId: string,
@@ -32,7 +36,7 @@ export const getCallConnectionDetails = async (apiKey: string) => {
         return { detail: 'assistantId and assistantName are required' };
       }
 
-      const roomName = `assistant-call-${assistantId}-${Date.now()}`;
+      const roomName = makeRoomName(assistantId, 'meet');
       const participantName = user.name || 'User';
       const participantIdentity = `user-${user.id}-${Math.random().toString(36).substring(7)}`;
 
@@ -70,21 +74,16 @@ export const getCallConnectionDetails = async (apiKey: string) => {
 };
 
 export const dispatchAssistantToCall = async (apiKey: string) => {
-  return async (
-    assistantId: string,
-    livekitAgentName: string,
-    roomName: string
-  ): Promise<ResponseProps> => {
+  return async (assistantId: string, roomName: string): Promise<ResponseProps> => {
     'use server';
     try {
-      // This function correctly calls its own separate API route, so its logic remains.
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/call/dispatch`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ assistantId, livekitAgentName, roomName }),
+        body: JSON.stringify({ assistantId, roomName }),
       });
 
       const data = await response.json();

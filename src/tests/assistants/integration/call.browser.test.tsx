@@ -1231,7 +1231,6 @@ describe('Assistant Call', () => {
         await waitFor(() => {
           expect(mockAssistantActions.call.dispatchToCall).toHaveBeenCalledWith(
             targetAssistant.agentId,
-            `${targetAssistant.firstName}${targetAssistant.surname}`,
             expect.any(String) // roomName
           );
         });

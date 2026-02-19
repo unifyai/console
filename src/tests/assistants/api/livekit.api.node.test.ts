@@ -66,7 +66,6 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            livekitAgentName: 'Jane',
             roomName: 'test-room-123',
           }),
         });
@@ -141,7 +140,6 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: 'nonexistent',
-            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -177,7 +175,6 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -213,7 +210,6 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -265,14 +261,11 @@ describe('LiveKit API Routes', () => {
         },
       },
       () => {
-        // Note: Room name generation is in lib/assistants/call.ts
-        // This test verifies the expected format
-
+        // Room names use the centralized make_room_name(assistantId, medium) format
         const assistantId = 'assistant-123';
-        const timestamp = Date.now();
-        const roomName = `assistant-call-${assistantId}-${timestamp}`;
+        const roomName = `unity_${assistantId}_meet`;
 
-        expect(roomName).toContain('assistant-call-');
+        expect(roomName).toBe('unity_assistant-123_meet');
         expect(roomName).toContain(assistantId);
       }
     );
@@ -306,7 +299,6 @@ describe('LiveKit API Routes', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });
@@ -346,7 +338,6 @@ describe('LiveKit API Routes', () => {
           },
           body: JSON.stringify({
             assistantId: TEST_ASSISTANT_ID,
-            livekitAgentName: 'Jane',
             roomName: 'test-room',
           }),
         });

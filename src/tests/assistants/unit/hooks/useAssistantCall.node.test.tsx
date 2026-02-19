@@ -404,7 +404,6 @@ describe('useAssistantCall', () => {
         // Assert
         expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith(
           'agent-123',
-          expect.any(String),
           'test-room'
         );
       }

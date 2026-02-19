@@ -128,7 +128,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             // Step 2: Dispatch the assistant to join the room
             const dispatchResult = await assistantActions.call.dispatchToCall(
               assistant.agentId,
-              assistantName,
               connDetails.roomName
             );
             if (isStaleAttempt()) return;
@@ -352,7 +351,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       try {
         const dispatchResult = await assistantActions.call.dispatchToCall(
           activeCallAssistant.agentId,
-          assistantName,
           connectionDetails.roomName
         );
 

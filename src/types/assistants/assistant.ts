@@ -452,11 +452,7 @@ export interface AssistantActions {
       assistantId: string,
       assistantName: string
     ) => Promise<ConnectionDetails | ResponseProps>;
-    dispatchToCall: (
-      assistantId: string,
-      livekitAgentName: string,
-      roomName: string
-    ) => Promise<ResponseProps>;
+    dispatchToCall: (assistantId: string, roomName: string) => Promise<ResponseProps>;
   };
   desktop: {
     getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;

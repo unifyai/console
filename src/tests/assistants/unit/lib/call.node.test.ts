@@ -61,7 +61,7 @@ describe('call.ts', () => {
 
         // Act
         const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
-        const result = await dispatchFn('assistant-123', 'Jane', 'room-abc');
+        const result = await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
         expect(result).toHaveProperty('info', 'Assistant dispatched to call');
@@ -74,7 +74,7 @@ describe('call.ts', () => {
         meta: {
           alias: 'DispatchCall-Payload',
           scenario: 'Verify request body structure',
-          behavior: 'Request contains assistantId, livekitAgentName, roomName',
+          behavior: 'Request contains assistantId and roomName',
         },
       },
       async () => {
@@ -89,12 +89,11 @@ describe('call.ts', () => {
 
         // Act
         const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
-        await dispatchFn('assistant-123', 'Jane', 'room-abc');
+        await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
         expect(capturedBody).toEqual({
           assistantId: 'assistant-123',
-          livekitAgentName: 'Jane',
           roomName: 'room-abc',
         });
       }
@@ -121,7 +120,7 @@ describe('call.ts', () => {
 
         // Act
         const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
-        await dispatchFn('assistant-123', 'Jane', 'room-abc');
+        await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
         expect(capturedApiKey).toBe(TEST_API_KEY);
@@ -147,7 +146,7 @@ describe('call.ts', () => {
 
         // Act
         const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
-        const result = await dispatchFn('assistant-123', 'Jane', 'room-abc');
+        const result = await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
         expect(result).toHaveProperty('detail', 'Room not found');
@@ -173,7 +172,7 @@ describe('call.ts', () => {
 
         // Act
         const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
-        const result = await dispatchFn('assistant-123', 'Jane', 'room-abc');
+        const result = await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
         expect(result).toHaveProperty('detail');
