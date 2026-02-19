@@ -46,8 +46,6 @@ let chatMocks: ReturnType<typeof setupChatMocks>;
  */
 const createMockChatActions = (
   getTranscriptsMock?: (
-    ownerContext: string,
-    assistantContext: string,
     contactId: number,
     ownerId: string,
     assistantId: string,
@@ -64,8 +62,6 @@ const createMockChatActions = (
 // --- Helper: Real Fetch Implementation for Tests ---
 // This mimics the server action src/lib/assistants/chat.ts to hit the MSW handlers
 const fetchTranscriptsViaApi = async (
-  ownerContext: string,
-  assistantContext: string,
   contactId: number,
   _ownerId: string,
   _assistantId: string,
@@ -79,7 +75,7 @@ const fetchTranscriptsViaApi = async (
 
   const params = new URLSearchParams({
     project: 'Assistants',
-    context: `${assistantContext}/Transcripts`,
+    context: 'All/Transcripts',
     limit: limit.toString(),
     filterExpr: filterExpr,
   });
@@ -1140,15 +1136,13 @@ describe('Assistant Profile Chat', () => {
         // Mock Transcripts for A
         const getTranscriptsMock = vi.fn(
           async (
-            _ownerContext: string,
-            assistantContext: string,
             _contactId: number,
             _ownerId: string,
-            _assistantId: string,
+            assistantId: string,
             _beforeMessageId?: number
           ) => {
-            // Use lowercase check since formatContextName lowercases the name
-            if (assistantContext.toLowerCase().includes('assistanta')) {
+            // Filter by assistant ID
+            if (assistantId === 'assistant-a') {
               return [
                 {
                   id: 'msg-transcript',
@@ -1483,8 +1477,6 @@ describe('Assistant Profile Chat', () => {
         let paginationAttempt = 0;
         const getTranscriptsMock = vi.fn(
           async (
-            _ownerContext: string,
-            _assistantContext: string,
             _contactId: number,
             _ownerId: string,
             _assistantId: string,
@@ -2120,7 +2112,7 @@ describe('Assistant Profile Chat', () => {
         meta: {
           alias: 'Context-Direct',
           scenario: 'Assistant has userFirstName and userLastName fields populated',
-          behavior: 'getTranscripts is called with correct ownerContext path',
+          behavior: 'getTranscripts is called with correct parameters via All/Transcripts',
         },
       },
       async () => {
@@ -2153,8 +2145,6 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(getContactIdMock).toHaveBeenCalledWith(
-            'JohnDoe', // ownerContext from userFirstName + userLastName
-            'AdaLovelace', // assistantContext
             'test@example.com', // userEmail
             expect.any(String), // ownerId
             expect.any(String) // assistantId
@@ -2163,8 +2153,6 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
-            'JohnDoe', // ownerContext
-            'AdaLovelace', // assistantContext
             1, // contactId returned by getContactIdMock
             expect.any(String), // ownerId
             expect.any(String) // assistantId
@@ -2221,8 +2209,6 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(getContactIdMock).toHaveBeenCalledWith(
-            'JaneSmith', // ownerContext from getAssistantOwnerById result
-            'AdaLovelace',
             'test@example.com',
             expect.any(String), // ownerId
             expect.any(String) // assistantId
@@ -2286,7 +2272,7 @@ describe('Assistant Profile Chat', () => {
         meta: {
           alias: 'ContactId-Init',
           scenario: 'Chat panel opens for an assistant',
-          behavior: 'getContactId is called with ownerContext, assistantContext, and userEmail',
+          behavior: 'getContactId is called with userEmail, ownerId, and assistantId',
         },
       },
       async () => {
@@ -2309,9 +2295,9 @@ describe('Assistant Profile Chat', () => {
         await waitFor(() => {
           expect(getContactIdMock).toHaveBeenCalled();
           const callArgs = getContactIdMock.mock.calls[0] as unknown as [string, string, string];
-          expect(callArgs[0]).toBe('TestOwner'); // ownerContext from mock data
-          expect(callArgs[1]).toBe('StressTest'); // assistantContext: firstName + surname
-          expect(callArgs[2]).toBe('test@example.com'); // userEmail
+          expect(callArgs[0]).toBe('test@example.com'); // userEmail
+          expect(callArgs[1]).toEqual(expect.any(String)); // ownerId
+          expect(callArgs[2]).toEqual(expect.any(String)); // assistantId
         });
       }
     );
@@ -4478,8 +4464,6 @@ describe('Assistant Profile Chat', () => {
         const getTranscriptsCalls: Array<{ assistantId: string; contactId: number }> = [];
         const getTranscriptsMock = vi.fn(
           async (
-            _ownerContext: string,
-            _assistantContext: string,
             contactId: number,
             _ownerId: string,
             assistantId: string

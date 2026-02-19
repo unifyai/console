@@ -15,7 +15,6 @@ import { FormProvider } from 'react-hook-form';
 interface AssistantSecretsManagerProps {
   isOpen: boolean;
   onClose: () => void;
-  assistantContext: string | null;
   assistantId: string | null;
   secretActions: SecretActions;
   /** Whether the current user can create/edit/delete secrets */
@@ -33,7 +32,6 @@ const SecretsListSkeleton = () => (
 export function AssistantSecretsManager({
   isOpen,
   onClose,
-  assistantContext,
   assistantId,
   secretActions,
   canWrite = true,
@@ -48,7 +46,7 @@ export function AssistantSecretsManager({
     handleNewSecret,
     handleDeleteSecret,
     onSubmit,
-  } = useAssistantSecrets(assistantContext, assistantId, secretActions);
+  } = useAssistantSecrets(assistantId, secretActions);
 
   // This state is crucial to differentiate the initial empty state from the "creating a new secret" state.
   const [isCreating, setIsCreating] = React.useState(false);

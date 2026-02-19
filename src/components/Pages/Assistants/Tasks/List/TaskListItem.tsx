@@ -15,7 +15,6 @@ import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { toast } from 'sonner';
-import { formatAssistantContext } from '@/utils/assistants/context-utils';
 
 interface TaskListItemProps {
   task: Task;
@@ -119,8 +118,7 @@ export function TaskListItem({
     const toastId = toast.loading('Saving description...');
 
     try {
-      const context = formatAssistantContext(assistant.firstName, assistant.surname);
-      const response = await updateTask(context, [task.logId], { description: description });
+      const response = await updateTask([task.logId], { description: description });
 
       if (response && (response.message || response.detail)) {
         throw new Error(

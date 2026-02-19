@@ -116,7 +116,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
 
   return {
     get: vi.fn(
-      async (_context: string, _assistantId: string): Promise<Secret[] | { detail: string }> => {
+      async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
         await maybeDelay();
         if (!getSuccess) return { detail: errorMessage };
         return secrets;
@@ -124,7 +124,6 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
     ),
     create: vi.fn(
       async (
-        _context: string,
         _assistantId: string,
         _secret: { name: string; value: string; description?: string }
       ): Promise<{ info?: string; detail?: string }> => {
@@ -134,7 +133,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
       }
     ),
     delete: vi.fn(
-      async (_context: string, _logId: number): Promise<{ info?: string; detail?: string }> => {
+      async (_logId: number): Promise<{ info?: string; detail?: string }> => {
         await maybeDelay();
         if (!deleteSuccess) return { detail: errorMessage };
         return { info: 'Secret deleted' };
@@ -148,7 +147,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
  */
 export function createPendingSecretActions(): SecretActions {
   return {
-    get: vi.fn((_context: string, _assistantId: string) => new Promise<Secret[]>(() => {})), // Never resolves
+    get: vi.fn((_assistantId: string) => new Promise<Secret[]>(() => {})), // Never resolves
     create: vi.fn(() => new Promise<{ info: string }>(() => {})),
     delete: vi.fn(() => new Promise<{ info: string }>(() => {})),
   };
@@ -163,8 +162,8 @@ export interface SecretsTestHarnessProps {
   isOpen?: boolean;
   /** Callback when dialog is closed */
   onClose?: () => void;
-  /** Assistant context identifier */
-  assistantContext?: string;
+  /** User ID for security filtering */
+  userId?: string;
   /** Assistant ID for security filtering */
   assistantId?: string;
   /** Secret actions implementation */
@@ -179,7 +178,7 @@ export interface SecretsTestHarnessProps {
 export function SecretsTestHarness({
   isOpen = true,
   onClose,
-  assistantContext = 'TestAssistant',
+  userId = 'test-user-id',
   assistantId = 'test-assistant-id',
   secretActions,
   canWrite = true,
@@ -190,7 +189,6 @@ export function SecretsTestHarness({
     <AssistantSecretsManager
       isOpen={isOpen}
       onClose={onClose ?? vi.fn()}
-      assistantContext={assistantContext}
       assistantId={assistantId}
       secretActions={actions}
       canWrite={canWrite}

@@ -10,7 +10,6 @@ import {
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { toast } from 'sonner';
 import { Assistant } from '@/types/assistants/assistant';
-import { formatAssistantContext } from '@/utils/assistants/context-utils';
 
 const TASK_PAGE_LIMIT = 20;
 
@@ -171,8 +170,8 @@ export function useTasks(
             return;
           }
 
-          // Pass null for assistantId when using "All" context (filter by _user_id only)
-          const response = await taskActions.get('All', null, expr, TASK_PAGE_LIMIT, offset);
+          // Pass null for assistantId when fetching all tasks (filter by _user_id only)
+          const response = await taskActions.get(null, expr, TASK_PAGE_LIMIT, offset);
 
           // Check if this operation is stale after async call
           if (isStaleOperation()) return;
@@ -214,14 +213,13 @@ export function useTasks(
           }
 
           const promises = assistantsToFetch.map((assistant) => {
-            const context = formatAssistantContext(assistant.firstName, assistant.surname);
             const offset = isInitialLoad ? 0 : perAssistantData.get(assistant.agentId)?.offset || 0;
             // Don't fetch more for an assistant that already has no more tasks
             if (!isInitialLoad && !perAssistantData.get(assistant.agentId)?.hasMore) {
               return Promise.resolve(null);
             }
             // Pass assistantId for per-assistant filtering (security filter by _user_id and _assistant_id)
-            return taskActions.get(context, assistant.agentId, expr, TASK_PAGE_LIMIT, offset);
+            return taskActions.get(assistant.agentId, expr, TASK_PAGE_LIMIT, offset);
           });
 
           const responses = await Promise.all(promises);

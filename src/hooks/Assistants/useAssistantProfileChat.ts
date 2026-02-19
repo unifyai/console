@@ -9,7 +9,6 @@ import {
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { formatUserContext, formatAssistantContext } from '@/utils/assistants/context-utils';
 import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 
 export function useAssistantProfileChat(
@@ -62,9 +61,6 @@ export function useAssistantProfileChat(
   const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
   const [canChat, setCanChat] = React.useState<boolean>(true);
   const [isRetryingContactId, setIsRetryingContactId] = React.useState<boolean>(false);
-
-  // Owner context cache: maps assistant_id -> owner context string
-  const ownerContextCacheRef = React.useRef<Map<string, string>>(new Map());
 
   // Auto-retry for contact_id resolution
   const contactIdRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -142,49 +138,6 @@ export function useAssistantProfileChat(
   }, []);
 
   /**
-   * Resolves the owner context string from an assistant.
-   * Uses userFirstName/userLastName if available.
-   * Falls back to fetching user details via getAssistantOwnerById if names are missing.
-   * Caches results to avoid repeated lookups.
-   */
-  const resolveOwnerContext = React.useCallback(
-    async (currentAssistant: Assistant): Promise<string | null> => {
-      // Check cache first
-      const cached = ownerContextCacheRef.current.get(currentAssistant.agentId);
-      if (cached) return cached;
-
-      // Try direct names from assistant object
-      if (currentAssistant.userFirstName && currentAssistant.userLastName) {
-        const context = formatUserContext(
-          currentAssistant.userFirstName,
-          currentAssistant.userLastName
-        );
-        ownerContextCacheRef.current.set(currentAssistant.agentId, context);
-        return context;
-      }
-
-      // Fallback: fetch user details via server action
-      if (currentAssistant.userId) {
-        try {
-          const userDetails = await assistantActions.chat.getAssistantOwnerById(
-            currentAssistant.userId
-          );
-          if (userDetails && userDetails.firstName) {
-            const context = formatUserContext(userDetails.firstName, userDetails.lastName || '');
-            ownerContextCacheRef.current.set(currentAssistant.agentId, context);
-            return context;
-          }
-        } catch (error) {
-          /* no-op */
-        }
-      }
-
-      return null;
-    },
-    [assistantActions.chat]
-  );
-
-  /**
    * Retries getting the contact_id for an assistant.
    * Called automatically when contact_id is not found initially.
    */
@@ -200,26 +153,8 @@ export function useAssistantProfileChat(
         return;
       }
 
-      // Resolve owner context
-      const ownerContext = await resolveOwnerContext(currentAssistant);
-      if (!ownerContext) {
-        // Schedule next retry
-        contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
-        contactIdRetryTimeoutRef.current = setTimeout(() => {
-          retryContactIdLookup(currentAssistantId, currentAssistant);
-        }, CONTACT_ID_RETRY_DELAY);
-        return;
-      }
-
-      const assistantContext = formatAssistantContext(
-        currentAssistant.firstName,
-        currentAssistant.surname
-      );
-
       try {
         const contactId = await assistantActions.chat.getContactId(
-          ownerContext,
-          assistantContext,
           userEmail || '',
           currentAssistant.userId,
           currentAssistantId
@@ -243,8 +178,6 @@ export function useAssistantProfileChat(
           } else {
             // Fetch transcripts now that we have a contact_id
             const historyResult = await assistantActions.chat.getTranscripts(
-              ownerContext,
-              assistantContext,
               contactId,
               currentAssistant.userId,
               currentAssistantId
@@ -277,7 +210,6 @@ export function useAssistantProfileChat(
     },
     [
       assistantActions.chat,
-      resolveOwnerContext,
       userEmail,
       recordTranscriptTimestamp,
       setChatHistories,
@@ -286,10 +218,9 @@ export function useAssistantProfileChat(
 
   /**
    * Initializes chat for an assistant:
-   * 1. Resolves owner context (uses userFirstName/userLastName from assistant, or falls back to getAssistantOwnerById)
-   * 2. Looks up user's contact_id
-   * 3. Fetches transcripts if contact_id found
-   * 4. Sets canChat=false and starts retry if contact_id not found
+   * 1. Looks up user's contact_id via All/Contacts context with id filters
+   * 2. Fetches transcripts if contact_id found
+   * 3. Sets canChat=false and starts retry if contact_id not found
    */
   const fetchInitialHistory = React.useCallback(
     async (currentAssistantId: string, currentAssistant: Assistant) => {
@@ -298,20 +229,6 @@ export function useAssistantProfileChat(
 
       // Check if we already have a cached contact_id
       const cachedContactId = contactIdCache.get(currentAssistantId);
-
-      // Resolve owner context (async with fallback)
-      const ownerContext = await resolveOwnerContext(currentAssistant);
-      if (!ownerContext) {
-        setCanChat(false);
-        setIsInitialLoading(false);
-        setInitialLoadError(true);
-        return;
-      }
-
-      const assistantContext = formatAssistantContext(
-        currentAssistant.firstName,
-        currentAssistant.surname
-      );
 
       try {
         let contactId: number;
@@ -328,8 +245,6 @@ export function useAssistantProfileChat(
           }
 
           const lookedUpContactId = await assistantActions.chat.getContactId(
-            ownerContext,
-            assistantContext,
             userEmail,
             currentAssistant.userId,
             currentAssistantId
@@ -359,8 +274,6 @@ export function useAssistantProfileChat(
 
         // Fetch transcripts with the contact_id
         const historyResult = await assistantActions.chat.getTranscripts(
-          ownerContext,
-          assistantContext,
           contactId,
           currentAssistant.userId,
           currentAssistantId
@@ -390,7 +303,6 @@ export function useAssistantProfileChat(
       setChatHistories,
       userEmail,
       contactIdCache,
-      resolveOwnerContext,
       retryContactIdLookup,
     ]
   );
@@ -428,18 +340,7 @@ export function useAssistantProfileChat(
         const currentAssistant = assistant;
         const currentAssistantId = assistantId;
         (async () => {
-          const ownerContext = await resolveOwnerContext(currentAssistant);
-          if (!ownerContext) {
-            setCanChat(false);
-            return;
-          }
-          const assistantContext = formatAssistantContext(
-            currentAssistant.firstName,
-            currentAssistant.surname
-          );
           const contactId = await assistantActions.chat.getContactId(
-            ownerContext,
-            assistantContext,
             userEmail,
             currentAssistant.userId,
             currentAssistantId
@@ -478,7 +379,6 @@ export function useAssistantProfileChat(
     onFirstViewCompleted,
     userEmail,
     contactIdCache,
-    resolveOwnerContext,
     assistantActions.chat,
   ]);
 
@@ -503,20 +403,10 @@ export function useAssistantProfileChat(
       return;
     }
 
-    // Use cached owner context (should be available since initial load succeeded)
-    const ownerContext = await resolveOwnerContext(assistant);
-    if (!ownerContext) {
-      setLoadMoreError(true);
-      return;
-    }
-
     setLoadMoreError(false);
     setIsLoadingMore(true);
-    const assistantContext = formatAssistantContext(assistant.firstName, assistant.surname);
     try {
       const result = await assistantActions.chat.getTranscripts(
-        ownerContext,
-        assistantContext,
         contactId,
         assistant.userId,
         assistantId,

@@ -179,7 +179,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
     const defaultSecretsProps = {
       isOpen: true,
       onClose: vi.fn(),
-      assistantContext: 'TestAssistant',
+      userId: 'test-user-id',
       assistantId: 'test-assistant-id',
       secretActions: mockSecretActions,
     };

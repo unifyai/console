@@ -3,7 +3,6 @@ import { Laptop, KeyRound, Check, Contact, Download } from 'lucide-react';
 import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { formatAssistantContext } from '@/utils/assistants/context-utils';
 
 interface AssistantResourcesManagerProps {
   assistant: Assistant;
@@ -77,7 +76,6 @@ export function AssistantResourcesManager({
   canWrite = true,
 }: AssistantResourcesManagerProps) {
   const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
-  const assistantContext = formatAssistantContext(assistant.firstName, assistant.surname);
 
   return (
     <>
@@ -117,7 +115,6 @@ export function AssistantResourcesManager({
         <AssistantSecretsManager
           isOpen={isSecretsManagerOpen}
           onClose={() => setIsSecretsManagerOpen(false)}
-          assistantContext={assistantContext}
           assistantId={assistant.agentId}
           secretActions={assistantActions.secret}
           canWrite={canWrite}

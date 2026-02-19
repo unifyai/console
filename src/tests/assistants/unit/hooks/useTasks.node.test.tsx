@@ -24,10 +24,6 @@ vi.mock('sonner', () => ({
   },
 }));
 
-// Mock context utils
-vi.mock('@/utils/assistants/context-utils', () => ({
-  formatAssistantContext: (firstName: string, surname: string) => `${firstName} ${surname}`,
-}));
 
 // Create mock task actions
 const mockGetAction = vi.fn();

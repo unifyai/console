@@ -31,14 +31,11 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
   };
 };
 
-export const getSecrets = async (apiKey: string, userContext: string, userId: string) => {
-  return async (
-    assistantContext: string,
-    assistantId: string
-  ): Promise<Secret[] | ResponseProps> => {
+export const getSecrets = async (apiKey: string, userId: string) => {
+  return async (assistantId: string): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
-      const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
+      const context = `All${CONTEXT_SUFFIX}`;
       // Add _user_id and _assistant_id filters for security (prevents data leaks if two users have same name)
       const securityFilter = combineFilters([
         buildUserIdFilter(userId),
@@ -67,15 +64,14 @@ export const getSecrets = async (apiKey: string, userContext: string, userId: st
   };
 };
 
-export const createSecret = async (apiKey: string, userContext: string, userId: string) => {
+export const createSecret = async (apiKey: string, userId: string) => {
   return async (
-    assistantContext: string,
     assistantId: string,
     payload: SecretPayload
   ): Promise<ResponseProps> => {
     'use server';
     try {
-      const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
+      const context = `All${CONTEXT_SUFFIX}`;
       // Include all private fields that Unity's log_utils would inject
       // (Unity injects these automatically, but console creates logs directly via API)
       // See: unity/unity/common/log_utils.py _inject_private_fields
@@ -83,9 +79,7 @@ export const createSecret = async (apiKey: string, userContext: string, userId: 
       /* eslint-disable @typescript-eslint/naming-convention */
       const entriesWithPrivateFields = {
         ...payload,
-        _user: userContext,
         _user_id: userId,
-        _assistant: assistantContext,
         _assistant_id: assistantId,
       };
       /* eslint-enable @typescript-eslint/naming-convention */
@@ -110,11 +104,11 @@ export const createSecret = async (apiKey: string, userContext: string, userId: 
   };
 };
 
-export const deleteSecret = async (apiKey: string, userContext: string) => {
-  return async (assistantContext: string, logId: number): Promise<ResponseProps> => {
+export const deleteSecret = async (apiKey: string) => {
+  return async (logId: number): Promise<ResponseProps> => {
     'use server';
     try {
-      const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
+      const context = `All${CONTEXT_SUFFIX}`;
       const url = `${process.env.NEXTAUTH_URL}/api/logs`;
       const body = {
         projectName: PROJECT,

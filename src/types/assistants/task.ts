@@ -71,11 +71,10 @@ export interface Task {
 
 export interface TaskActions {
   get: (
-    context: string,
     assistantId: string | null,
     filterExpression: string | null,
     limit: number | null,
     offset: number | null
   ) => Promise<LogsResponseProps | ResponseProps>;
-  update: (context: string, logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  update: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
 }

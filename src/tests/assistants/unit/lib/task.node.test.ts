@@ -17,7 +17,6 @@ const MOCK_BASE_URL = 'http://localhost:3000';
 
 describe('task.ts', () => {
   const TEST_API_KEY = 'test-api-key';
-  const USER_CONTEXT = 'user-123';
   const USER_ID = 'user-id-456';
   const ASSISTANT_ID = 'assistant-id-789';
 
@@ -55,8 +54,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        const result = await getTasksFn(ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('logs');
@@ -70,7 +69,7 @@ describe('task.ts', () => {
         meta: {
           alias: 'GetTasks-ContextPath',
           scenario: 'Verify URL contains correct context and _user_id/_assistant_id filters',
-          behavior: 'URL includes userContext/assistantContext/Tasks with security filterExpr',
+          behavior: 'URL includes All/Tasks context with security filterExpr',
         },
       },
       async () => {
@@ -84,11 +83,11 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', false);
-        await getTasksFn('agent-ctx', 'test-assistant-id', null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', false);
+        await getTasksFn('test-assistant-id', null, null, null);
 
-        // Assert - URL should contain context path and security filters
-        expect(capturedUrl).toContain('owner-ctx/agent-ctx/Tasks');
+        // Assert - URL should contain All/Tasks context and security filters
+        expect(capturedUrl).toContain('All/Tasks');
         // Check for security filter parameters (URL encoded)
         const decodedUrl = decodeURIComponent(capturedUrl);
         expect(decodedUrl).toContain("_user_id == 'test-user-id'");
@@ -116,8 +115,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', false);
-        await getTasksFn('All', null, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', false);
+        await getTasksFn(null, null, null, null);
 
         // Assert - URL should contain only _user_id filter
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -146,8 +145,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=true for organization workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', true);
-        await getTasksFn('All', null, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', true);
+        await getTasksFn(null, null, null, null);
 
         // Assert - URL should NOT contain _user_id filter (org members see all tasks)
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -178,8 +177,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=true for organization workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, 'owner-ctx', 'test-user-id', true);
-        await getTasksFn('agent-ctx', 'test-assistant-id', null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', true);
+        await getTasksFn('test-assistant-id', null, null, null);
 
         // Assert - URL should contain only _assistant_id filter
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -208,8 +207,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        await getTasksFn('assistant-ctx', ASSISTANT_ID, 'status = "pending"', null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        await getTasksFn(ASSISTANT_ID, 'status = "pending"', null, null);
 
         // Assert - should contain both security filter and user filter
         const decodedUrl = decodeURIComponent(capturedUrl);
@@ -239,8 +238,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        await getTasksFn('assistant-ctx', ASSISTANT_ID, null, 25, 50);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        await getTasksFn(ASSISTANT_ID, null, 25, 50);
 
         // Assert
         expect(capturedUrl).toContain('limit=25');
@@ -268,8 +267,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        const result = await getTasksFn(ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -295,8 +294,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        const result = await getTasksFn(ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Access denied');
@@ -321,8 +320,8 @@ describe('task.ts', () => {
         );
 
         // Act - isOrgContext=false for personal workspace
-        const getTasksFn = await getTasks(TEST_API_KEY, USER_CONTEXT, USER_ID, false);
-        const result = await getTasksFn('assistant-ctx', ASSISTANT_ID, null, null, null);
+        const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
+        const result = await getTasksFn(ASSISTANT_ID, null, null, null);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -349,8 +348,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY, USER_CONTEXT);
-        const result = await updateFn('assistant-ctx', [1, 2], { status: 'completed' });
+        const updateFn = await updateTask(TEST_API_KEY);
+        const result = await updateFn([1, 2], { status: 'completed' });
 
         // Assert
         expect(result).toHaveProperty('info');
@@ -377,13 +376,13 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY, 'owner-ctx');
-        await updateFn('agent-ctx', [1, 2, 3], { status: 'failed', reason: 'timeout' });
+        const updateFn = await updateTask(TEST_API_KEY);
+        await updateFn([1, 2, 3], { status: 'failed', reason: 'timeout' });
 
         // Assert
         expect(capturedBody).toHaveProperty('logs', [1, 2, 3]);
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'owner-ctx/agent-ctx/Tasks');
+        expect(capturedBody).toHaveProperty('context', 'All/Tasks');
         expect(capturedBody.entries).toHaveProperty('status', 'failed');
         expect(capturedBody.entries).toHaveProperty('reason', 'timeout');
         expect(capturedBody).toHaveProperty('overwrite', true);
@@ -410,8 +409,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY, USER_CONTEXT);
-        const result = await updateFn('assistant-ctx', [1], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY);
+        const result = await updateFn([1], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -437,8 +436,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY, USER_CONTEXT);
-        const result = await updateFn('assistant-ctx', [999], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY);
+        const result = await updateFn([999], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail', 'Tasks not found');
@@ -463,8 +462,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY, USER_CONTEXT);
-        const result = await updateFn('assistant-ctx', [1], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY);
+        const result = await updateFn([1], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail');

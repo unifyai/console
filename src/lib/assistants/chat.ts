@@ -35,8 +35,6 @@ export interface UnifyMessageWithAttachments extends UnifyMessage {
  */
 export const getContactIdByEmail = async (apiKey: string) => {
   return async (
-    ownerContext: string,
-    assistantContext: string,
     userEmail: string,
     ownerId: string,
     assistantId: string
@@ -44,7 +42,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerContext}/${assistantContext}/Contacts`;
+      const context = 'All/Contacts';
       // Combine email filter with security filters (_user_id and _assistant_id)
       const emailFilter = `email_address == "${userEmail}"`;
       const securityFilter = combineFilters([
@@ -99,9 +97,9 @@ export const getContactIdByEmail = async (apiKey: string) => {
 /**
  * Fetches chat transcripts for a specific user's conversation with an assistant.
  *
- * @param ownerContext - The owner's context name (e.g., "JohnDoe")
- * @param assistantContext - The assistant's context name (e.g., "AdaLovelace")
  * @param contactId - The current user's contact_id (used for filtering)
+ * @param ownerId - The owner's user ID (used in security filter)
+ * @param assistantId - The assistant's ID (used in security filter)
  * @param beforeMessageId - Optional message ID for pagination
  *
  * Filter: Shows messages sent by the current user OR assistant responses to the current user.
@@ -109,8 +107,6 @@ export const getContactIdByEmail = async (apiKey: string) => {
  */
 export const getTranscripts = async (apiKey: string) => {
   return async (
-    ownerContext: string,
-    assistantContext: string,
     contactId: number,
     ownerId: string,
     assistantId: string,
@@ -119,7 +115,7 @@ export const getTranscripts = async (apiKey: string) => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerContext}/${assistantContext}/Transcripts`;
+      const context = 'All/Transcripts';
       const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
       // Filter: messages sent BY this contact OR assistant responses TO this contact
       let messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
@@ -186,7 +182,7 @@ export const getTranscripts = async (apiKey: string) => {
         .filter((msg): msg is ChatMessage => msg !== null);
       return mappedMessages;
     } catch (error) {
-      console.error(`[getTranscripts] CATCH block error for context '${assistantContext}':`, error);
+      console.error(`[getTranscripts] CATCH block error for assistant '${assistantId}':`, error);
       const message = error instanceof Error ? error.message : 'Unknown error getting history.';
       return { detail: message };
     }

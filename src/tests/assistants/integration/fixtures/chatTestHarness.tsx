@@ -183,8 +183,6 @@ export interface MockChatActionsOptions {
   contactId?: number;
   /** Mock implementation for getTranscripts */
   getTranscripts?: (
-    ownerContext: string,
-    assistantContext: string,
     contactId: number,
     ownerId: string,
     assistantId: string,
@@ -224,8 +222,6 @@ export function createMockChatActions(
   return {
     getContactId: vi.fn(
       async (
-        _ownerContext: string,
-        _assistantContext: string,
         _userEmail: string,
         _ownerId: string,
         _assistantId: string
@@ -235,8 +231,6 @@ export function createMockChatActions(
       ? vi.fn(getTranscripts)
       : vi.fn(
           async (
-            _ownerContext: string,
-            _assistantContext: string,
             _contactId: number,
             _ownerId: string,
             _assistantId: string,

@@ -5,7 +5,6 @@ import { Secret, SecretPayload, SecretActions } from '@/types/assistants/secret'
 import { ResponseProps } from '@/types/common';
 
 export function useAssistantSecrets(
-  assistantContext: string | null,
   assistantId: string | null,
   secretActions: SecretActions
 ) {
@@ -21,11 +20,11 @@ export function useAssistantSecrets(
   const { reset, setValue } = formMethods;
 
   const fetchSecrets = React.useCallback(async () => {
-    if (!assistantContext || !assistantId) return;
+    if (!assistantId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const result = await secretActions.get(assistantContext, assistantId);
+      const result = await secretActions.get(assistantId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
       const sortedSecrets = (result as Secret[]).sort((a, b) => a.name.localeCompare(b.name));
       setSecrets(sortedSecrets);
@@ -36,13 +35,13 @@ export function useAssistantSecrets(
     } finally {
       setIsLoading(false);
     }
-  }, [assistantContext, assistantId, secretActions]);
+  }, [assistantId, secretActions]);
 
   React.useEffect(() => {
-    if (assistantContext) {
+    if (assistantId) {
       fetchSecrets();
     }
-  }, [assistantContext, fetchSecrets]);
+  }, [assistantId, fetchSecrets]);
 
   React.useEffect(() => {
     if (selectedSecret) {
@@ -66,10 +65,10 @@ export function useAssistantSecrets(
   };
 
   const handleDeleteSecret = async (secretToDelete: Secret) => {
-    if (!assistantContext) return;
+    if (!assistantId) return;
     const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
     try {
-      const result = await secretActions.delete(assistantContext, secretToDelete.logId);
+      const result = await secretActions.delete(secretToDelete.logId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
@@ -80,13 +79,13 @@ export function useAssistantSecrets(
   };
 
   const onSubmit = async (data: SecretPayload) => {
-    if (!assistantContext || !assistantId || selectedSecret) return; // Only allow creation
+    if (!assistantId || selectedSecret) return; // Only allow creation
 
     setIsSubmitting(true);
     const toastId = toast.loading('Creating secret...');
 
     try {
-      const result = await secretActions.create(assistantContext, assistantId, data);
+      const result = await secretActions.create(assistantId, data);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret created.', { id: toastId });

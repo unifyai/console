@@ -1,7 +1,6 @@
 import { getCurrentUser } from '@/lib/user/user';
 import Main from '@/components/Pages/Assistants/Main';
 import { getTasks, updateTask } from '@/lib/assistants/task';
-import { formatUserContext } from '@/utils/assistants/context-utils';
 import {
   listAssistants,
   createAssistant,
@@ -74,7 +73,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-  const userName = formatUserContext(user.name, user.lastName);
   const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
 
   // Determine org ID from workspace cookie (same pattern as usage page)
@@ -135,9 +133,9 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       verifySocialAccount: await verifySocialAccount(adminKey),
     },
     secret: {
-      get: await getSecrets(apiKey, userName, user.id),
-      create: await createSecret(apiKey, userName, user.id),
-      delete: await deleteSecret(apiKey, userName),
+      get: await getSecrets(apiKey, user.id),
+      create: await createSecret(apiKey, user.id),
+      delete: await deleteSecret(apiKey),
     },
     approval: {
       getProfile: await fetchCurrentUserHiringProfile(),
@@ -179,8 +177,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
   };
 
   const taskActions: TaskActions = {
-    get: await getTasks(apiKey, userName, user.id, isOrgContext),
-    update: await updateTask(apiKey, userName),
+    get: await getTasks(apiKey, user.id, isOrgContext),
+    update: await updateTask(apiKey),
   };
 
   const userMeta = { image: user.image, timezone: user.timezone, email: user.email };

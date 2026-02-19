@@ -103,13 +103,13 @@ export const mockAssistantActions: any = {
   },
   chat: {
     getContactId: vi.fn(
-      async (_ownerContext: string, _assistantContext: string, _userEmail: string) => 1
+      async (_userEmail: string, _ownerId: string, _assistantId: string) => 1
     ), // Default to owner contact_id
     getTranscripts: vi.fn(
       async (
-        _ownerContext: string,
-        _assistantContext: string,
         _contactId: number,
+        _ownerId: string,
+        _assistantId: string,
         _beforeMessageId?: number
       ) => []
     ),

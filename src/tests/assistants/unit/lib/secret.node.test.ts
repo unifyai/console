@@ -17,7 +17,6 @@ const MOCK_BASE_URL = 'http://localhost:3000';
 
 describe('secret.ts', () => {
   const TEST_API_KEY = 'test-api-key';
-  const USER_CONTEXT = 'user-123';
   const USER_ID = 'user-id-456';
   const ASSISTANT_ID = 'assistant-id-789';
 
@@ -57,8 +56,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await getSecretsFn('assistant-ctx', ASSISTANT_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -75,7 +74,7 @@ describe('secret.ts', () => {
         meta: {
           alias: 'GetSecrets-ContextPath',
           scenario: 'Verify URL contains correct context and _user_id/_assistant_id filters',
-          behavior: 'URL includes userContext/assistantContext/Secrets with security filterExpr',
+          behavior: 'URL includes All/Secrets context with security filterExpr',
         },
       },
       async () => {
@@ -89,11 +88,11 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, 'user-ctx', 'test-user-id');
-        await getSecretsFn('assistant-ctx', 'test-assistant-id');
+        const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id');
+        await getSecretsFn('test-assistant-id');
 
-        // Assert - URL should contain context path and security filters
-        expect(capturedUrl).toContain('user-ctx/assistant-ctx/Secrets');
+        // Assert - URL should contain All/Secrets context and security filters
+        expect(capturedUrl).toContain('All/Secrets');
         // Check for security filter parameters (URL encoded)
         const decodedUrl = decodeURIComponent(capturedUrl);
         expect(decodedUrl).toContain("_user_id == 'test-user-id'");
@@ -119,8 +118,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await getSecretsFn('new-assistant', ASSISTANT_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -153,8 +152,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await getSecretsFn('assistant-ctx', ASSISTANT_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
         expect(result).toHaveLength(1);
@@ -180,8 +179,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await getSecretsFn('assistant-ctx', ASSISTANT_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Database error');
@@ -206,8 +205,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await getSecretsFn('assistant-ctx', ASSISTANT_ID);
+        const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID);
+        const result = await getSecretsFn(ASSISTANT_ID);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -234,8 +233,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await createFn('assistant-ctx', ASSISTANT_ID, {
+        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const result = await createFn(ASSISTANT_ID, {
           name: 'NEW_SECRET',
           value: 'secret-value',
         });
@@ -266,8 +265,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, 'user-ctx', 'test-user-id');
-        await createFn('assistant-ctx', 'test-assistant-id', {
+        const createFn = await createSecret(TEST_API_KEY, 'test-user-id');
+        await createFn('test-assistant-id', {
           name: 'API_KEY',
           value: 'secret123',
           description: 'My API key',
@@ -275,16 +274,14 @@ describe('secret.ts', () => {
 
         // Assert
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'user-ctx/assistant-ctx/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'All/Secrets');
         expect(capturedBody.entries).toHaveLength(1);
         expect(capturedBody.entries[0]).toHaveProperty('name', 'API_KEY');
         expect(capturedBody.entries[0]).toHaveProperty('value', 'secret123');
         // Verify all private fields are included (matching Unity's log_utils injection)
-        // Note: These use Unity's underscore-prefixed naming convention (_user, _user_id, etc.)
+        // Note: These use Unity's underscore-prefixed naming convention (_user_id, _assistant_id)
         /* eslint-disable @typescript-eslint/naming-convention */
-        expect(capturedBody.entries[0]).toHaveProperty('_user', 'user-ctx');
         expect(capturedBody.entries[0]).toHaveProperty('_user_id', 'test-user-id');
-        expect(capturedBody.entries[0]).toHaveProperty('_assistant', 'assistant-ctx');
         expect(capturedBody.entries[0]).toHaveProperty('_assistant_id', 'test-assistant-id');
         /* eslint-enable @typescript-eslint/naming-convention */
       }
@@ -308,8 +305,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await createFn('assistant-ctx', ASSISTANT_ID, {
+        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const result = await createFn(ASSISTANT_ID, {
           name: 'EXISTING',
           value: 'value',
         });
@@ -337,8 +334,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, USER_CONTEXT, USER_ID);
-        const result = await createFn('assistant-ctx', ASSISTANT_ID, {
+        const createFn = await createSecret(TEST_API_KEY, USER_ID);
+        const result = await createFn(ASSISTANT_ID, {
           name: 'SECRET',
           value: 'value',
         });
@@ -368,8 +365,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_CONTEXT);
-        const result = await deleteFn('assistant-ctx', 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('info', 'Secret deleted successfully.');
@@ -396,12 +393,12 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, 'user-ctx');
-        await deleteFn('assistant-ctx', 42);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        await deleteFn(42);
 
         // Assert
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'user-ctx/assistant-ctx/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'All/Secrets');
         expect(capturedBody.idsAndFields).toEqual([[42, null]]);
       }
     );
@@ -424,8 +421,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_CONTEXT);
-        const result = await deleteFn('assistant-ctx', 999);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(999);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Secret not found');
@@ -450,8 +447,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_CONTEXT);
-        const result = await deleteFn('assistant-ctx', 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -476,8 +473,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_CONTEXT);
-        const result = await deleteFn('assistant-ctx', 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('detail');

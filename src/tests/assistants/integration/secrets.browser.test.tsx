@@ -369,7 +369,7 @@ describe('Assistant Secrets Manager', () => {
 
         await waitFor(() => {
           expect(actions.create).toHaveBeenCalledWith(
-            expect.any(String), // assistantContext
+            expect.any(String), // userId
             expect.any(String), // assistantId
             expect.objectContaining({
               name: 'NEW_SECRET',
@@ -572,7 +572,7 @@ describe('Assistant Secrets Manager', () => {
         });
         // Verify create was called with correct secret details
         expect(errorActions.create).toHaveBeenCalledWith(
-          'TestAssistant', // assistantContext
+          'test-user-id', // userId
           'test-assistant-id', // assistantId
           {
             name: 'TEST_SECRET',

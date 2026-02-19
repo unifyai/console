@@ -406,15 +406,11 @@ export interface AssistantActions {
   };
   chat: {
     getContactId: (
-      ownerContext: string,
-      assistantContext: string,
       userEmail: string,
       ownerId: string,
       assistantId: string
     ) => Promise<number | null>;
     getTranscripts: (
-      ownerContext: string,
-      assistantContext: string,
       contactId: number,
       ownerId: string,
       assistantId: string,

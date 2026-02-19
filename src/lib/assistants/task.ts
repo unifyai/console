@@ -15,12 +15,10 @@ import {
  */
 export const getTasks = async (
   apiKey: string,
-  userContext: string,
   userId: string,
   isOrgContext: boolean
 ) => {
   return async (
-    assistantContext: string,
     assistantId: string | null,
     filterExpression: string | null,
     limit: number | null,
@@ -29,7 +27,7 @@ export const getTasks = async (
     'use server';
 
     try {
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${userContext}/${assistantContext}/Tasks`;
+      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=All/Tasks`;
 
       // Build security filters based on workspace context
       // - Org workspace: API key scopes to org, all members see all tasks, no _user_id filter needed
@@ -92,9 +90,8 @@ export const getTasks = async (
   };
 };
 
-export const updateTask = async (apiKey: string, userContext: string) => {
+export const updateTask = async (apiKey: string) => {
   return async (
-    assistantContext: string,
     logs: number[],
     entries: LogItemProps
   ): Promise<ResponseProps> => {
@@ -110,7 +107,7 @@ export const updateTask = async (apiKey: string, userContext: string) => {
         body: JSON.stringify({
           logs: logs,
           projectName: 'Assistants',
-          context: `${userContext}/${assistantContext}/Tasks`,
+          context: 'All/Tasks',
           params: {},
           entries: entries,
           overwrite: true,
