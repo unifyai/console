@@ -321,7 +321,7 @@ export function HireForm({
           setValue('videoSourceVoiceId', voiceId);
           setValue(
             'profileVideoUrl',
-            `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.firstName}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`
+            `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME || process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.firstName}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`
           );
           // Allow autoplay: do NOT add to playedVideoUrls so it auto-plays on canPlay
         }

@@ -91,7 +91,9 @@ export const listMediaFiles = async () => {
   }> => {
     'use server';
 
-    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName =
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
     if (!bucketName) {
       console.error('[photo.ts listMediaFiles] GCS Bucket name environment variable is not set.');
       return { detail: 'Server configuration error: Bucket name missing.' };
@@ -155,7 +157,9 @@ export const downloadPhoto = async () => {
       return { detail: 'File path is missing or could not be determined.' };
     }
 
-    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName =
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
     if (!bucketName) {
       console.error('[photo.ts downloadPhoto] GCS Bucket name environment variable is not set.');
       return { detail: 'Server configuration error: Bucket name missing.' };
@@ -210,12 +214,15 @@ export const downloadPresetVideo = async () => {
     // Construct object path using firstName, lastName, and provider
     const objectPath = `preset_assistants/${firstName}_${lastName}_${provider.toLowerCase()}.mp4`;
 
-    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName =
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
     if (!bucketName) {
       console.error(
-        '[photo.ts downloadPresetVideo] GCS Bucket name environment variable is not set.'
+        '[photo.ts downloadPresetVideo] GCS Presets Bucket name environment variable is not set.'
       );
-      return { detail: 'Server configuration error: Bucket name missing.' };
+      return { detail: 'Server configuration error: Presets Bucket name missing.' };
     }
     if (!storage) {
       console.error('[photo.ts downloadPresetVideo] Storage client is not available.');
