@@ -170,7 +170,7 @@ export function createPendingTaskActions(): TaskActions {
         _filterExpression: string | null,
         _limit: number | null,
         _offset: number | null
-      ): Promise<LogsResponseProps | ResponseProps> => new Promise(() => {}) // Never resolves
+      ): Promise<LogsResponseProps | ResponseProps> => new Promise(() => {})
     ),
     update: vi.fn(
       (_logs: number[], _entries: LogItemProps): Promise<ResponseProps> => new Promise(() => {})
@@ -188,7 +188,7 @@ export interface TaskTestHarnessProps {
   /** The assistant for context */
   assistant?: Assistant;
   /** Callback when task is updated */
-  updateTask?: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  updateTask?: TaskActions['update'];
   /** Callback after task update */
   onTaskUpdate?: (logId: number, updates: Partial<Task>) => void;
   /** Whether the user can edit this task */
@@ -253,7 +253,7 @@ export interface TasksListTestHarnessProps {
   /** The assistant for context */
   assistant?: Assistant;
   /** Callback when a task is updated */
-  updateTask?: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  updateTask?: TaskActions['update'];
   /** Callback after task update */
   onTaskUpdate?: (logId: number, updates: Partial<Task>) => void;
   /** Whether the user can edit tasks */

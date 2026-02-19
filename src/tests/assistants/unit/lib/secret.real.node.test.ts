@@ -55,7 +55,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
 
   afterEach(async () => {
     // Cleanup any secrets created during tests
-    if (createdSecretIds.length > 0 && API_KEY && TEST_USER_CONTEXT && TEST_ASSISTANT_CONTEXT) {
+    if (createdSecretIds.length > 0 && API_KEY) {
       const deleteAction = await deleteSecret(API_KEY);
       for (const logId of createdSecretIds) {
         try {
@@ -70,7 +70,7 @@ describe('@real secret.ts - Orchestra Integration', () => {
 
   afterAll(async () => {
     // Final cleanup
-    if (createdSecretIds.length > 0 && API_KEY && TEST_USER_CONTEXT && TEST_ASSISTANT_CONTEXT) {
+    if (createdSecretIds.length > 0 && API_KEY) {
       const deleteAction = await deleteSecret(API_KEY);
       for (const logId of createdSecretIds) {
         try {
