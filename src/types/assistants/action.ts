@@ -225,11 +225,15 @@ export type GetManagerMethodEventsFn = (
 
 /**
  * Function signature for getToolLoopEvents server action.
+ * Optional startTime/endTime scope the query to a specific invocation window
+ * so events from other invocations with the same hierarchy don't bleed in.
  */
 export type GetToolLoopEventsFn = (
   assistantId: string,
   hierarchyLabelPrefix: string,
-  limit: number | null
+  limit: number | null,
+  startTime?: string,
+  endTime?: string
 ) => Promise<ActionsLogsResponse | ResponseProps>;
 
 /**
