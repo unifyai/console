@@ -185,12 +185,41 @@ describe('parseManagerMethodLog', () => {
   );
 
   it(
-    'returns null for events with phase: null (progress events)',
+    'returns null for infrastructure noise phase: null events',
     {
       meta: {
-        alias: 'ParseLog-NullPhase',
-        scenario: 'Log has phase: null with action field (progress events)',
-        behavior: 'Returns null — progress events are skipped for tree building',
+        alias: 'ParseLog-NullPhaseNoise',
+        scenario: 'Log has phase: null with infrastructure action (done, result, etc.)',
+        behavior: 'Returns null — infrastructure noise is discarded',
+      },
+    },
+    () => {
+      for (const action of ['done', 'result', 'next_notification', 'next_clarification']) {
+        const log = createMockLog({
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: null,
+            callingId: 'act-123',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(30d0)',
+            action,
+            status: 'ok',
+          },
+        });
+
+        expect(parseManagerMethodLog(log)).toBeNull();
+      }
+    }
+  );
+
+  it(
+    'parses user-facing phase: null events as action events',
+    {
+      meta: {
+        alias: 'ParseLog-UserFacingAction',
+        scenario: 'Log has phase: null with user-facing action (interject, stop, etc.)',
+        behavior: 'Returns parsed event with phase="action" and action field preserved',
       },
     },
     () => {
@@ -202,14 +231,52 @@ describe('parseManagerMethodLog', () => {
           callingId: 'act-123',
           hierarchy: ['CodeActActor.act'],
           hierarchyLabel: 'CodeActActor.act(30d0)',
-          action: 'done',
+          action: 'interject',
+          instructions: 'Focus on AAPL only',
           status: 'ok',
+          displayLabel: 'Taking Action',
         },
       });
 
       const result = parseManagerMethodLog(log);
 
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.phase).toBe('action');
+      expect(result!.action).toBe('interject');
+      expect(result!.content).toBe('Focus on AAPL only');
+      expect(result!.callingId).toBe('act-123');
+    }
+  );
+
+  it(
+    'parses all six user-facing action types',
+    {
+      meta: {
+        alias: 'ParseLog-AllUserFacingActions',
+        scenario: 'Each user-facing action type is parsed correctly',
+        behavior: 'All six return parsed events with phase="action"',
+      },
+    },
+    () => {
+      for (const action of ['interject', 'stop', 'pause', 'resume', 'ask', 'answer_clarification']) {
+        const log = createMockLog({
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: null,
+            callingId: 'act-123',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(30d0)',
+            action,
+            status: 'ok',
+          },
+        });
+
+        const result = parseManagerMethodLog(log);
+        expect(result).not.toBeNull();
+        expect(result!.phase).toBe('action');
+        expect(result!.action).toBe(action);
+      }
     }
   );
 
@@ -733,6 +800,51 @@ describe('applyOutgoingEvent', () => {
       expect(node.status).toBe('completed');
       expect(node.content).toBeUndefined();
       expect(node.endTime).toBe('2024-01-15T10:30:45.000Z');
+    }
+  );
+
+  it(
+    'keeps node running when answer is string "null" (void handle interaction)',
+    {
+      meta: {
+        alias: 'ApplyOutgoing-StringNullKeepsRunning',
+        scenario: 'Running node receives outgoing with answer "null" (from stop/pause/resume/interject)',
+        behavior:
+          'Status stays running — string "null" is a void-returning handle interaction, not a completion',
+      },
+    },
+    () => {
+      const node: ActionNode = {
+        id: 'call-1',
+        type: 'manager',
+        label: 'Taking Action',
+        hierarchy: ['CodeActActor.act'],
+        hierarchyLabel: 'CodeActActor.act(a1b2)',
+        status: 'running',
+        startTime: '2024-01-15T10:30:00.000Z',
+        children: [],
+      };
+
+      const outgoingEvent = parseManagerMethodLog(
+        createMockLog({
+          ts: '2024-01-15T10:30:03.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'outgoing',
+            callingId: 'call-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(a1b2)',
+            answer: 'null',
+            status: 'ok',
+          },
+        })
+      )!;
+
+      applyOutgoingEvent(node, outgoingEvent);
+
+      expect(node.status).toBe('running');
+      expect(node.endTime).toBe('2024-01-15T10:30:03.000Z');
     }
   );
 });
@@ -1329,6 +1441,91 @@ describe('buildActionTree', () => {
       expect(nodeMap.has('child-1')).toBe(true);
       expect(nodeMap.has('child-2')).toBe(true);
       expect(nodeMap.has('child-3')).toBe(true);
+    }
+  );
+
+  it(
+    'attaches user-facing action events as interactions on the matching node',
+    {
+      meta: {
+        alias: 'BuildTree-ActionInteractions',
+        scenario: 'Log stream includes an interject and a stop action event for a running node',
+        behavior: 'Interactions are attached to the node, infrastructure noise is discarded',
+      },
+    },
+    () => {
+      const logs = [
+        createMockLog({
+          id: 1,
+          ts: '2024-01-15T10:30:00.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: 'incoming',
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r001)',
+            displayLabel: 'Taking Action',
+            status: 'ok',
+          },
+        }),
+        // Infrastructure noise — should be discarded
+        createMockLog({
+          id: 2,
+          ts: '2024-01-15T10:30:01.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: null,
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r001)',
+            action: 'done',
+            status: 'ok',
+          },
+        }),
+        // User-facing interject — should be captured
+        createMockLog({
+          id: 3,
+          ts: '2024-01-15T10:30:10.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: null,
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r001)',
+            action: 'interject',
+            instructions: 'Focus on AAPL only',
+            status: 'ok',
+          },
+        }),
+        // User-facing stop — should be captured
+        createMockLog({
+          id: 4,
+          ts: '2024-01-15T10:30:20.000Z',
+          entries: {
+            manager: 'CodeActActor',
+            method: 'act',
+            phase: null,
+            callingId: 'root-1',
+            hierarchy: ['CodeActActor.act'],
+            hierarchyLabel: 'CodeActActor.act(r001)',
+            action: 'stop',
+            status: 'ok',
+          },
+        }),
+      ];
+
+      const { roots } = buildActionTree(logs);
+
+      expect(roots).toHaveLength(1);
+      const root = roots[0];
+      expect(root.interactions).toBeDefined();
+      expect(root.interactions).toHaveLength(2);
+      expect(root.interactions![0].action).toBe('interject');
+      expect(root.interactions![0].content).toBe('Focus on AAPL only');
+      expect(root.interactions![1].action).toBe('stop');
     }
   );
 });
