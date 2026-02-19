@@ -27,8 +27,8 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
   return (
     <div className="flex flex-wrap gap-16">
       <div className="flex flex-1 flex-col gap-[40px]">
-        <h1 className="text-center text-4xl leading-tight text-gray-800 sm:text-5xl lg:text-left">
-          Hire <span className="font-bold">AIs</span>
+        <h1 className="text-center text-4xl leading-tight text-gray-800 dark:text-white sm:text-5xl lg:text-left">
+          Hire <span className="font-bold">AI</span>
           <br />
           not <span className="font-bold">APIs</span>
         </h1>
