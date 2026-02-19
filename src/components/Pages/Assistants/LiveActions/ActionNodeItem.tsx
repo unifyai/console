@@ -13,7 +13,12 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { StatusIndicator } from './StatusIndicator';
-import type { ActionInteraction, ActionNode, GetToolLoopEventsFn, ToolLoopLog } from '@/types/assistants/action';
+import type {
+  ActionInteraction,
+  ActionNode,
+  GetToolLoopEventsFn,
+  ToolLoopLog,
+} from '@/types/assistants/action';
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
 export type SectionToggleSignal = { open: boolean; gen: number };
@@ -57,7 +62,12 @@ function getLabelStyles(type: ActionNode['type']): string {
  */
 function formatEventTime(ts: string): string {
   const d = new Date(ts.endsWith('Z') || ts.includes('+') || ts.includes('-', 10) ? ts : ts + 'Z');
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
 }
 
 /**
@@ -92,13 +102,12 @@ function LiveDuration({ node }: { node: ActionNode }) {
   const startMs = node.startTime ? new Date(node.startTime).getTime() : 0;
   if (!startMs) return null;
 
-  const endMs = node.status === 'running'
-    ? now
-    : node.endTime ? new Date(node.endTime).getTime() : startMs;
+  const endMs =
+    node.status === 'running' ? now : node.endTime ? new Date(node.endTime).getTime() : startMs;
   const elapsed = Math.max(0, endMs - startMs);
 
   return (
-    <span className="text-muted-foreground/40 ml-1.5 shrink-0 tabular-nums text-[10px]">
+    <span className="text-muted-foreground/40 ml-1.5 shrink-0 text-[10px] tabular-nums">
       {formatCompactDuration(elapsed)}
     </span>
   );
@@ -196,7 +205,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   if (message.role === 'system') return null;
 
   const timeLabel = (
-    <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums text-[10px]">{time}</span>
+    <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+      {time}
+    </span>
   );
 
   if (message.role === 'user') {
@@ -205,7 +216,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-blue-500/60">request</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
+          {content}
+        </span>
         {timeLabel}
       </div>
     );
@@ -227,7 +240,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-green-500/60">response</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
+          {content}
+        </span>
         {timeLabel}
       </div>
     );
@@ -239,7 +254,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-purple-500/60">result</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">{content}</span>
+        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
+          {content}
+        </span>
         {timeLabel}
       </div>
     );
@@ -357,14 +374,13 @@ function CollapsibleToolLoopSection({
         style={{ paddingLeft: pad }}
       >
         <ChevronRight
-          className={cn(
-            'h-2.5 w-2.5 transition-transform duration-150',
-            isOpen && 'rotate-90'
-          )}
+          className={cn('h-2.5 w-2.5 transition-transform duration-150', isOpen && 'rotate-90')}
         />
         <span>
           {logs.length} {logs.length === 1 ? 'step' : 'steps'}
-          {sectionDuration && <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>}
+          {sectionDuration && (
+            <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>
+          )}
         </span>
         {/* Subtle trailing line */}
         <div className="bg-border/30 ml-1.5 h-px flex-1" />
@@ -389,7 +405,7 @@ const INTERACTION_LABELS: Record<string, { label: string; color: string }> = {
   pause: { label: 'paused', color: 'text-yellow-500/70' },
   resume: { label: 'resumed', color: 'text-green-500/70' },
   ask: { label: 'asked', color: 'text-blue-500/70' },
-  answer_clarification: { label: 'clarified', color: 'text-violet-500/70' },
+  answerClarification: { label: 'clarified', color: 'text-violet-500/70' },
 };
 
 /**
@@ -414,9 +430,11 @@ function InteractionEvent({
     >
       <span className={cn('shrink-0 font-medium', config.color)}>{config.label}</span>
       {interaction.content && (
-        <span className="text-muted-foreground/70 min-w-0 flex-1 truncate">{interaction.content}</span>
+        <span className="text-muted-foreground/70 min-w-0 flex-1 truncate">
+          {interaction.content}
+        </span>
       )}
-      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 tabular-nums text-[10px]">
+      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
         {formatEventTime(interaction.timestamp)}
       </span>
     </div>
@@ -551,12 +569,10 @@ export function ActionNodeItem({
   }, [node.status, node.hierarchy, canLoadToolLoop, assistantId, getToolLoopEvents]);
 
   // Load full ToolLoop conversation for completed nodes when expanded.
-  // The hierarchy_label suffix is generated independently by ManagerMethod
-  // events and ToolLoop events (see: LoopConfig vs publish_manager_method_event),
-  // so we can't rely on node.hierarchyLabel for an exact match. Instead, use
-  // "hierarchy.join('->') + '('" as the prefix: this matches all ToolLoop events
-  // at this exact hierarchy level (the "(" ensures we don't match nested levels
-  // like "CodeActActor.act->execute_code(...)").
+  // Uses hierarchy prefix + time bounds to scope results to this specific
+  // invocation. Without time bounds, CodeActActor.act( would match ToolLoop
+  // events from ALL invocations (yesterday's AAPL task, today's Logitech task,
+  // etc.) — producing a garbled interleaved timeline.
   React.useEffect(() => {
     if (node.status === 'running' || !canLoadToolLoop || !isExpanded) return;
     if (toolLoopFetchedRef.current) return;
@@ -568,7 +584,13 @@ export function ActionNodeItem({
     const load = async () => {
       try {
         const hierarchyPrefix = node.hierarchy.join('->') + '(';
-        const response = await getToolLoopEvents(assistantId!, hierarchyPrefix, null);
+        const response = await getToolLoopEvents(
+          assistantId!,
+          hierarchyPrefix,
+          null,
+          node.startTime || undefined,
+          node.endTime || undefined
+        );
         if (isCancelled || 'detail' in response) return;
         const logs = (response.logs || []) as ToolLoopLog[];
         setCompletedToolLoopLogs(logs.filter((l) => l.entries.message.role !== 'system'));
@@ -589,8 +611,9 @@ export function ActionNodeItem({
     canLoadToolLoop,
     assistantId,
     getToolLoopEvents,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    node.hierarchy.join('->'),
+    node.startTime,
+    node.endTime,
+    node.hierarchy,
   ]);
 
   // Clear thinking & reset ToolLoop state when node starts running
@@ -747,7 +770,14 @@ export function ActionNodeItem({
     }
 
     return result;
-  }, [hasToolLoopData, hasChildren, hasInteractions, completedToolLoopLogs, node.children, enrichedInteractions]);
+  }, [
+    hasToolLoopData,
+    hasChildren,
+    hasInteractions,
+    completedToolLoopLogs,
+    node.children,
+    enrichedInteractions,
+  ]);
 
   // Whether to use the interleaved timeline renderer
   const useTimeline = isExpanded && (hasToolLoopData || hasInteractions);
