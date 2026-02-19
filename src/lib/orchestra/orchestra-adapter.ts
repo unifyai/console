@@ -4,17 +4,17 @@ import { OrchestraAdminClient } from './orchestra-client';
 export function OrchestraAdapter(): Adapter {
   return {
     async createUser(user: Omit<AdapterUser, 'id'>): Promise<AdapterUser> {
-      const response = await OrchestraAdminClient.post<AdapterUser>('/auth-user', user);
+      const response = await OrchestraAdminClient.post<AdapterUser>('/user', user);
       return response.data;
     },
     async getUser(id: string): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>(`/auth-user`, {
+      const response = await OrchestraAdminClient.get<AdapterUser>(`/user`, {
         params: { userId: id },
       });
       return response.data;
     },
     async getUserByEmail(email: string): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>('/auth-user/by-email', {
+      const response = await OrchestraAdminClient.get<AdapterUser>('/user/by-email', {
         params: { email: email },
       });
       return response.data;
@@ -26,17 +26,17 @@ export function OrchestraAdapter(): Adapter {
       providerAccountId: string;
       provider: string;
     }): Promise<AdapterUser | null> {
-      const response = await OrchestraAdminClient.get<AdapterUser>('/auth-user/by-account', {
+      const response = await OrchestraAdminClient.get<AdapterUser>('/user/by-account', {
         params: { providerAccountId: providerAccountId, provider: provider },
       });
       return response.data;
     },
     async updateUser(user: Partial<AdapterUser>): Promise<AdapterUser> {
-      const response = await OrchestraAdminClient.put<AdapterUser>(`/auth-user/${user.id}`, user);
+      const response = await OrchestraAdminClient.put<AdapterUser>(`/user/${user.id}`, user);
       return response.data;
     },
     async deleteUser(userId: string): Promise<void> {
-      await OrchestraAdminClient.delete('/auth-user', { params: { userId: userId } });
+      await OrchestraAdminClient.delete('/user', { params: { userId: userId } });
     },
     async linkAccount(account: AdapterAccount): Promise<void> {
       // Transform NextAuth's camelCase fields to orchestra's snake_case

@@ -34,7 +34,7 @@ async function getCheckoutData(ctx: CheckoutContext) {
     const userResponse = await OrchestraAdminClient.get('/user/by-user-id', {
       params: { user_id: ctx.userId },
     });
-    console.log('[Checkout] admin auth-user response:', userResponse.data);
+    console.log('[Checkout] admin user response:', userResponse.data);
 
     // Fetch eligibility from the correct entity (org or user)
     const eligibilityParams: Record<string, string> = {};
@@ -74,7 +74,7 @@ async function getCheckoutData(ctx: CheckoutContext) {
     // Fall back to user-level values for personal context or if org fetch failed
     if (!ctx.organizationId || (!taxId && !billingName)) {
       taxId = taxId || (userResponse.data?.tax_id as string | undefined);
-      taxIdType = taxIdType || (userResponse.data?.tax_id_type || 'eu_vat');
+      taxIdType = taxIdType || userResponse.data?.tax_id_type || 'eu_vat';
       billingName = billingName || (userResponse.data?.name as string | undefined);
     }
 
@@ -237,7 +237,7 @@ export async function createCheckoutSession(
   if (!priceId) {
     throw new Error(
       `Stripe price ID not configured for ${ctx.organizationId ? 'business' : 'personal'} workspace. ` +
-      'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
+        'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
     );
   }
 
@@ -279,7 +279,7 @@ export async function createCheckoutSession(
         },
       },
     ],
-    payment_method_types: ['card'],  // Explicitly card-only; excludes Link / "Save my info" checkbox
+    payment_method_types: ['card'], // Explicitly card-only; excludes Link / "Save my info" checkbox
     automatic_tax: { enabled: true },
     client_reference_id: ctx.userId,
     success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
@@ -385,7 +385,7 @@ export async function createEmbeddedCheckoutSession(
   if (!priceId) {
     throw new Error(
       `Stripe price ID not configured for ${ctx.organizationId ? 'business' : 'personal'} workspace. ` +
-      'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
+        'Check STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL / _BUSINESS env vars.'
     );
   }
 
@@ -427,7 +427,7 @@ export async function createEmbeddedCheckoutSession(
         },
       },
     ],
-    payment_method_types: ['card'],  // Card-only; excludes Link / its "Save my info" checkbox
+    payment_method_types: ['card'], // Card-only; excludes Link / its "Save my info" checkbox
     automatic_tax: { enabled: true },
     client_reference_id: ctx.userId,
     return_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
@@ -520,7 +520,7 @@ function isStripeModeConflict(error: unknown): boolean {
 async function prefillCustomerFields(
   stripeClient: NonNullable<typeof stripe>,
   customerId: string,
-  fields: { email?: string; name?: string },
+  fields: { email?: string; name?: string }
 ) {
   try {
     const customer = await stripeClient.customers.retrieve(customerId);

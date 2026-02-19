@@ -21,7 +21,7 @@ import { User, UserUpdateRequest } from '@/types/user';
  * @returns The user with the given ID.
  */
 export async function getUserByID(userId: string) {
-  const response = (await OrchestraAdminClient.get('/auth-user/by-user-id', {
+  const response = (await OrchestraAdminClient.get('/user/by-user-id', {
     params: { userId: userId },
   })) as { data: unknown };
   return snakeToCamelObject<User>(response.data as Record<string, unknown>);
@@ -34,7 +34,7 @@ export async function getUserByID(userId: string) {
  * @returns The user associated with the given email address.
  */
 export async function getUserByEmail(email: string) {
-  const response = (await OrchestraAdminClient.get('/auth-user/by-email', {
+  const response = (await OrchestraAdminClient.get('/user/by-email', {
     params: { email },
   })) as { data: unknown };
   return snakeToCamelObject<User>(response.data as Record<string, unknown>);
@@ -49,7 +49,7 @@ export async function getUserByEmail(email: string) {
  */
 export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> {
   const apiPayload = camelToSnakeObject(updatedUser);
-  const response = (await OrchestraAdminClient.put('/auth-user', apiPayload)) as { data: unknown };
+  const response = (await OrchestraAdminClient.put('/user', apiPayload)) as { data: unknown };
   return snakeToCamelObject<User>(response.data as Record<string, unknown>);
 }
 
@@ -59,7 +59,7 @@ export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> 
  * @returns The response message.
  */
 export async function deleteUser(userID: string) {
-  const response = (await OrchestraAdminClient.delete('/auth-user', {
+  const response = (await OrchestraAdminClient.delete('/user', {
     params: { userId: userID },
   })) as { data: string };
   return response.data;

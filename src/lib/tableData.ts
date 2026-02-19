@@ -245,7 +245,7 @@ export async function fetchTableData(
     // Step 2: Fetch user data and extract the appropriate API key
     // ========================================================================
     console.log('[tableData] Step 2: Fetching user data...');
-    const userUrl = `${ORCHESTRA_URL}/v0/admin/auth-user/by-user-id?user_id=${encodeURIComponent(tableViewConfig.userId)}`;
+    const userUrl = `${ORCHESTRA_URL}/v0/admin/user/by-user-id?user_id=${encodeURIComponent(tableViewConfig.userId)}`;
     console.log('[tableData] User URL:', userUrl);
     const userRes = await fetchWithTimeout(
       userUrl,

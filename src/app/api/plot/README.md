@@ -327,7 +327,7 @@ Admin endpoint to retrieve plot including user_metadata. Used by console to fetc
    ├─▶ Admin: GET /admin/logs/plot?token={token}
    │   └─▶ Returns config, project_config, user_id, organization_id
    │
-   ├─▶ Admin: GET /admin/auth-user/by-user-id?user_id={user_id}
+   ├─▶ Admin: GET /admin/user/by-user-id?user_id={user_id}
    │   └─▶ Returns user's API keys (personal + org)
    │
    ├─▶ Select correct API key based on organization_id

@@ -368,7 +368,7 @@ export const checkUserOrganizationAction = async () => {
     'use server';
     try {
       const result = (await safeFetch(
-        `${backendUrl}/admin/auth-user/by-email?email=${encodeURIComponent(email)}`,
+        `${backendUrl}/admin/user/by-email?email=${encodeURIComponent(email)}`,
         {
           method: 'GET',
           headers: {
