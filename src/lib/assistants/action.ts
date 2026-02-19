@@ -9,7 +9,11 @@
  */
 
 import { ResponseProps } from '@/types/common';
-import { buildAssistantIdFilter, combineFilters } from '@/utils/assistants/filterExpressions';
+import {
+  buildAssistantIdFilter,
+  combineFilters,
+  escapeFilterValue,
+} from '@/utils/assistants/filterExpressions';
 import { buildTimestampFilter } from '@/utils/assistants/assistant-actions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
@@ -204,6 +208,105 @@ export const getToolLoopEvents = async (apiKey: string) => {
       return data as ActionsLogsResponse;
     } catch (error) {
       console.error(`[action.ts getToolLoopEvents] Error fetching events:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
+};
+
+/**
+ * Factory for backfillByCallingIds server action.
+ *
+ * Fetches the incoming ManagerMethod events for specific calling_ids.
+ * Used after the initial load when a root incoming event fell outside
+ * the time window. The filter is fully targeted:
+ *
+ *   _assistant_id == 'X' and calling_id == 'Y' and phase == 'incoming'
+ *
+ * No time constraint — this reaches back as far as Orchestra stores data
+ * to guarantee the root is found.
+ */
+export const backfillByCallingIds = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    callingIds: string[]
+  ): Promise<ActionsLogsResponse | ResponseProps> => {
+    'use server';
+
+    if (callingIds.length === 0) {
+      return { logs: [], count: 0 };
+    }
+
+    try {
+      const context = 'All/Events/ManagerMethod';
+      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+
+      // Build filter: _assistant_id AND calling_id IN (...) AND phase == 'incoming'
+      const callingIdConditions = callingIds
+        .map((id) => `calling_id == '${escapeFilterValue(id)}'`)
+        .join(' or ');
+      const callingIdFilter =
+        callingIds.length === 1 ? callingIdConditions : `(${callingIdConditions})`;
+
+      const filters: string[] = [
+        buildAssistantIdFilter(assistantId),
+        callingIdFilter,
+        `phase == 'incoming'`,
+      ];
+
+      const filterExpr = combineFilters(filters);
+      if (filterExpr) {
+        url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+      }
+
+      // One incoming event per calling_id
+      url += `&limit=${callingIds.length}`;
+
+      console.log(`[DEBUG][action.ts] backfillByCallingIds URL: ${url}`);
+
+      const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
+
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.error(
+            `[action.ts backfillByCallingIds] Received non-JSON response with status ${response.status}`
+          );
+          return { detail: 'Received an invalid response from the server.' };
+        }
+      } catch (parseError) {
+        console.error(
+          `[action.ts backfillByCallingIds] Failed to parse JSON response ${parseError}`
+        );
+        return { detail: 'Received an invalid response from the server.' };
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          data.detail || `Failed to backfill events: ${response.statusText}`;
+        return { detail: errorMessage };
+      }
+
+      if (data?.logs) {
+        data.logs = data.logs
+          .map((log: any) => ({
+            ...log,
+            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+          }))
+          .sort((a: any, b: any) => a.id - b.id);
+      }
+
+      console.log(
+        `[DEBUG][action.ts] backfillByCallingIds: fetched ${data?.logs?.length ?? 0} incoming event(s) for ${callingIds.length} calling_id(s)`
+      );
+
+      return data as ActionsLogsResponse;
+    } catch (error) {
+      console.error(`[action.ts backfillByCallingIds] Error:`, error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown server error occurred.';
       return { detail: errorMessage };

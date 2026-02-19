@@ -82,7 +82,9 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
         status: camelEvent.status,
         question: camelEvent.question,
         instructions: camelEvent.instructions,
+        request: camelEvent.request,
         answer: camelEvent.answer,
+        action: camelEvent.action,
         error: camelEvent.error,
         errorType: camelEvent.errorType,
         traceback: camelEvent.traceback,
@@ -163,7 +165,13 @@ function startPullLoop(
           );
         }
 
-        if (receivedMessages.length === 0) continue;
+        if (receivedMessages.length === 0) {
+          // TODO: Remove debug logging
+          console.log(
+            `[DEBUG][Actions SSE] Empty pull response for assistant=${assistantId} (subscription is alive, waiting for messages)`
+          );
+          continue;
+        }
 
         // Collect ackIds for batch ACK
         const ackIds: string[] = [];

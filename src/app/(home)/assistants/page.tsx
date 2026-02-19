@@ -60,7 +60,11 @@ import {
   getAssistantSpendingLimit,
   setAssistantSpendingLimit,
 } from '@/lib/assistants/spending';
-import { getManagerMethodEvents, getToolLoopEvents } from '@/lib/assistants/action';
+import {
+  getManagerMethodEvents,
+  getToolLoopEvents,
+  backfillByCallingIds,
+} from '@/lib/assistants/action';
 import { getUserSpend, getUserSpendingLimit } from '@/lib/user/spending';
 import { getOrgSpend, getOrgSpendingLimit } from '@/lib/organizations/spending';
 import { cookies } from 'next/headers';
@@ -171,6 +175,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     actions: {
       getManagerMethodEvents: await getManagerMethodEvents(apiKey),
       getToolLoopEvents: await getToolLoopEvents(apiKey),
+      backfillByCallingIds: await backfillByCallingIds(apiKey),
     },
   };
 
