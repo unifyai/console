@@ -22,8 +22,8 @@ export interface Assistant {
   agentId: string;
   userId: string; // ID of the user who created/owns the assistant - used for permission checks
   organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
-  userFirstName?: string | null; // Owner's first name - used for transcript context resolution
-  userLastName?: string | null; // Owner's last name - used for transcript context resolution
+  userFirstName?: string | null; // Owner's first name
+  userLastName?: string | null; // Owner's last name
   firstName: string;
   surname: string;
   profilePhoto: string | null;

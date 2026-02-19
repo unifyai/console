@@ -44,7 +44,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetrics(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13' and event_timestamp < '2026-01-20'"
       );
@@ -62,7 +62,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetrics(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_hour',
         "event_timestamp >= '2026-01-19'"
       );
@@ -80,7 +80,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetrics(
         'invalid-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'"
       );
@@ -140,7 +140,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetrics(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'"
       );
@@ -157,7 +157,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetrics(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'"
       );
@@ -178,14 +178,14 @@ describe('Usage API', () => {
 
       await getUsageMetrics(
         'test-api-key',
-        'TestUser/MyAssistant/Events/LLM',
+        'test-user/test-assistant/Events/LLM',
         'time_hour',
         "event_timestamp >= '2026-01-15'"
       );
 
       expect(capturedUrl).not.toBeNull();
       expect(capturedUrl!.searchParams.get('projectName')).toBe('Assistants');
-      expect(capturedUrl!.searchParams.get('context')).toBe('TestUser/MyAssistant/Events/LLM');
+      expect(capturedUrl!.searchParams.get('context')).toBe('test-user/test-assistant/Events/LLM');
       expect(capturedUrl!.searchParams.get('key')).toBe('billed_cost');
       expect(capturedUrl!.searchParams.get('groupBy')).toBe('time_hour');
       expect(capturedUrl!.searchParams.get('filterExpr')).toBe("event_timestamp >= '2026-01-15'");
@@ -203,7 +203,7 @@ describe('Usage API', () => {
 
       await getUsageMetrics(
         'my-secret-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'"
       );
@@ -223,7 +223,7 @@ describe('Usage API', () => {
       const actions = createUsageActions('test-api-key');
 
       const result = await actions.getMetrics(
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'"
       );
@@ -261,7 +261,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetricsWithRetry(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'",
         2
@@ -286,7 +286,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetricsWithRetry(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'",
         2
@@ -308,7 +308,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetricsWithRetry(
         'invalid-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'",
         2
@@ -352,7 +352,7 @@ describe('Usage API', () => {
 
       const result = await getUsageMetricsWithRetry(
         'test-api-key',
-        'TestUser/All/Events/LLM',
+        'test-user/All/Events/LLM',
         'time_day',
         "event_timestamp >= '2026-01-13'",
         2

@@ -47,7 +47,7 @@ describe('@real task.ts - Orchestra Integration', () => {
     const assistant = await getTestAssistant(API_KEY);
     TEST_USER_CONTEXT = 'test-user';
     TEST_USER_ID = 'test-user-id'; // Placeholder for real tests
-    TEST_ASSISTANT_CONTEXT = `${assistant.firstName}_${assistant.surname}`;
+    TEST_ASSISTANT_CONTEXT = String(assistant.agentId);
     TEST_ASSISTANT_ID = String(assistant.agentId);
   }, 30000);
 

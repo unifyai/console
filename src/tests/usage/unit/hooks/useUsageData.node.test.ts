@@ -75,7 +75,7 @@ function createMockUsageActions(): UsageActions {
 describe('useUsageData', () => {
   const defaultProps = {
     usageActions: createMockUsageActions(),
-    contextPath: 'TestUser/All/Events/LLM',
+    contextPath: 'test-user/All/Events/LLM',
     granularity: 'time_day' as const,
     filterExpression: "event_timestamp >= '2026-01-13' and event_timestamp < '2026-01-20'",
     enabled: true,
@@ -326,17 +326,17 @@ describe('useUsageData', () => {
 
       const { result, rerender } = renderHook(
         ({ contextPath }) => useUsageData({ ...defaultProps, contextPath }),
-        { initialProps: { contextPath: 'UserA/All/Events/LLM' } }
+        { initialProps: { contextPath: 'user-a/All/Events/LLM' } }
       );
 
       await waitFor(() => {
-        expect(capturedContext).toBe('UserA/All/Events/LLM');
+        expect(capturedContext).toBe('user-a/All/Events/LLM');
       });
 
-      rerender({ contextPath: 'UserB/All/Events/LLM' });
+      rerender({ contextPath: 'user-b/All/Events/LLM' });
 
       await waitFor(() => {
-        expect(capturedContext).toBe('UserB/All/Events/LLM');
+        expect(capturedContext).toBe('user-b/All/Events/LLM');
       });
     });
 
