@@ -126,11 +126,28 @@ export async function createCustomerPortalSession(customerID: string) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
   const stripeClient = stripe as NonNullable<typeof stripe>;
-  const billingPortalSession = await stripeClient.billingPortal.sessions.create({
-    customer: customerID,
-  });
 
-  return billingPortalSession.url;
+  try {
+    const billingPortalSession = await stripeClient.billingPortal.sessions.create({
+      customer: customerID,
+    });
+    return billingPortalSession.url;
+  } catch (error) {
+    // A live-mode customer can't open a portal with a test-mode key. Surface
+    // a clear error so the API route can return a user-friendly message.
+    if (isStripeModeConflict(error)) {
+      console.warn(
+        `[Stripe] Customer ${customerID} belongs to a different Stripe mode; ` +
+        'cannot create portal session. The customer must complete a new ' +
+        'checkout to get a valid customer ID for this environment.',
+      );
+      throw new Error(
+        'Your billing profile was created in a different environment. ' +
+        'Please purchase credits first to set up billing in this environment.',
+      );
+    }
+    throw error;
+  }
 }
 
 /**
@@ -143,7 +160,23 @@ export async function getCustomerDefaultPaymentMethod(customerID: string) {
     throw new Error('Stripe is not initialized. Check your environment variables.');
   }
   const stripeClient = stripe as NonNullable<typeof stripe>;
-  const customer = await stripeClient.customers.retrieve(customerID);
+
+  let customer: Stripe.Customer | Stripe.DeletedCustomer;
+  try {
+    customer = await stripeClient.customers.retrieve(customerID);
+  } catch (error) {
+    // A live-mode customer can't be retrieved with a test-mode key (or vice
+    // versa). Return null so the UI treats this as "no payment method on
+    // file" — the next successful checkout will overwrite the stale ID.
+    if (isStripeModeConflict(error)) {
+      console.warn(
+        `[Stripe] Customer ${customerID} belongs to a different Stripe mode; ` +
+        'treating as no default payment method.',
+      );
+      return null;
+    }
+    throw error;
+  }
 
   if ('deleted' in customer && customer.deleted) {
     return null;
@@ -271,7 +304,30 @@ export async function createCheckoutSession(
     if (email) sessionParams.customer_email = email;
   }
 
-  const checkoutSession = await stripeClient.checkout.sessions.create(sessionParams);
+  let checkoutSession: Stripe.Checkout.Session;
+  try {
+    checkoutSession = await stripeClient.checkout.sessions.create(sessionParams);
+  } catch (error) {
+    // If the stored customer ID belongs to a different Stripe mode (e.g. a
+    // live-mode ID used with a test-mode key), drop it and retry so Stripe
+    // creates a fresh customer. The webhook will persist the new ID and
+    // overwrite the stale one in Orchestra.
+    if (customerID && isStripeModeConflict(error)) {
+      console.warn(
+        `[Stripe] Customer ${customerID} is from a different Stripe mode. ` +
+        'Retrying checkout without customer ID so a new one is created.',
+      );
+      const { customer: _c, customer_update: _u, ...rest } = sessionParams;
+      const retryParams: Stripe.Checkout.SessionCreateParams = {
+        ...rest,
+        customer_creation: 'always',
+        ...(email ? { customer_email: email } : {}),
+      };
+      checkoutSession = await stripeClient.checkout.sessions.create(retryParams);
+    } else {
+      throw error;
+    }
+  }
 
   if (!checkoutSession.url) {
     throw new Error('Failed to create checkout session URL');
@@ -395,7 +451,30 @@ export async function createEmbeddedCheckoutSession(
     if (email) sessionParams.customer_email = email;
   }
 
-  const session = await stripeClient.checkout.sessions.create(sessionParams);
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripeClient.checkout.sessions.create(sessionParams);
+  } catch (error) {
+    // If the stored customer ID belongs to a different Stripe mode (e.g. a
+    // live-mode ID used with a test-mode key), drop it and retry so Stripe
+    // creates a fresh customer. The webhook will persist the new ID and
+    // overwrite the stale one in Orchestra.
+    if (customerID && isStripeModeConflict(error)) {
+      console.warn(
+        `[Stripe] Customer ${customerID} is from a different Stripe mode. ` +
+        'Retrying embedded checkout without customer ID so a new one is created.',
+      );
+      const { customer: _c, customer_update: _u, ...rest } = sessionParams;
+      const retryParams: Stripe.Checkout.SessionCreateParams = {
+        ...rest,
+        customer_creation: 'always',
+        ...(email ? { customer_email: email } : {}),
+      };
+      session = await stripeClient.checkout.sessions.create(retryParams);
+    } else {
+      throw error;
+    }
+  }
 
   if (!session.client_secret) {
     throw new Error('Failed to create embedded checkout session: no client_secret returned');
@@ -407,6 +486,27 @@ export async function createEmbeddedCheckoutSession(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Detects whether a Stripe API error is caused by a live-mode / test-mode
+ * key mismatch — e.g. a live-mode customer ID being used with a test-mode
+ * secret key (or vice versa).
+ *
+ * Stripe returns an `StripeInvalidRequestError` whose message contains both
+ * "live mode" and "test mode" in this case.
+ */
+function isStripeModeConflict(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'type' in error) {
+    const stripeErr = error as { type: string; message?: string };
+    return (
+      stripeErr.type === 'StripeInvalidRequestError' &&
+      typeof stripeErr.message === 'string' &&
+      stripeErr.message.includes('live mode') &&
+      stripeErr.message.includes('test mode')
+    );
+  }
+  return false;
+}
 
 /**
  * Best-effort update of an existing Stripe customer's email and name so that
