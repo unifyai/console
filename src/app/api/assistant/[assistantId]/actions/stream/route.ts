@@ -4,11 +4,11 @@
  * Streams ManagerMethod and ToolLoop events from the assistant's
  * `*-actions-sub` Pub/Sub subscription to the browser via Server-Sent Events.
  *
- * Key design decisions:
- * - Server-side ACK (no client-side ack needed — Orchestra is the durable store)
- * - In-process BroadcastManager fans out a single Pub/Sub pull loop to N SSE clients
+ * Architecture:
+ * - Per-connection pull loop inside `async start` (industry-standard SSE pattern)
+ * - Server-side ACK (Orchestra is the durable store; client polls on catch-up)
  * - snake_case → camelCase transformation via shared casing utilities
- * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match ManagerMethodLog / ToolLoopLog
+ * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match ManagerMethodLog
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,10 +17,9 @@ import fs from 'fs';
 import { snakeToCamelObject } from '@/utils/casing';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
 
 // =============================================================================
-// Auth (same pattern as existing chat SSE)
+// Auth
 // =============================================================================
 
 async function getAuthClient() {
@@ -53,6 +52,8 @@ async function getAuthClient() {
 // =============================================================================
 // Pub/Sub Payload → Frontend Log Shape
 // =============================================================================
+
+const encoder = new TextEncoder();
 
 /**
  * Reshapes a camelCased Pub/Sub event payload into the { id, ts, entries }
@@ -88,254 +89,10 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
         error: camelEvent.error,
         errorType: camelEvent.errorType,
         traceback: camelEvent.traceback,
-        // ToolLoop-specific fields
         message: camelEvent.message,
       },
     },
   };
-}
-
-// =============================================================================
-// BroadcastManager — server-side fan-out singleton
-// =============================================================================
-
-interface BroadcastGroup {
-  controllers: Set<ReadableStreamDefaultController>;
-  pullAbort: AbortController;
-  refCount: number;
-}
-
-const broadcastGroups = new Map<string, BroadcastGroup>();
-
-/**
- * Starts a Pub/Sub pull loop for the given assistant. Pulled messages are
- * ACKed immediately server-side and broadcast to all registered SSE controllers.
- */
-function startPullLoop(
-  assistantId: string,
-  subscriptionUrl: string,
-  authClient: any,
-  group: BroadcastGroup
-) {
-  const { signal } = group.pullAbort;
-
-  const loop = async () => {
-    // TODO: Remove debug logging
-    console.log(
-      `[DEBUG][Actions SSE] Pull loop STARTED for assistant=${assistantId}, refCount=${group.refCount}`
-    );
-
-    while (!signal.aborted && group.refCount > 0) {
-      try {
-        const res = await authClient.request({
-          url: `${subscriptionUrl}:pull`,
-          method: 'POST',
-          data: { maxMessages: 10, returnImmediately: false },
-        });
-
-        if (signal.aborted) break;
-
-        if (res.status !== 200) {
-          if (res.status === 404) {
-            console.error(`[Actions SSE] Subscription not found: ${subscriptionUrl}`);
-            // TODO: Remove debug logging
-            console.error(
-              `[DEBUG][Actions SSE] 404 — subscription does not exist yet (needs Orchestra provisioning)`
-            );
-            break;
-          }
-          // TODO: Remove debug logging
-          console.warn(`[DEBUG][Actions SSE] Pull returned status=${res.status}, retrying in 2s`);
-          await new Promise((r) => setTimeout(r, 2000));
-          continue;
-        }
-
-        const responseData = res.data as {
-          receivedMessages?: Array<{
-            ackId: string;
-            message?: { data: string; messageId: string; publishTime: string };
-          }>;
-        };
-        const receivedMessages = responseData.receivedMessages || [];
-
-        // TODO: Remove debug logging
-        if (receivedMessages.length > 0) {
-          console.log(
-            `[DEBUG][Actions SSE] Pulled ${receivedMessages.length} message(s) for assistant=${assistantId}`
-          );
-        }
-
-        if (receivedMessages.length === 0) {
-          // TODO: Remove debug logging
-          console.log(
-            `[DEBUG][Actions SSE] Empty pull response for assistant=${assistantId} (subscription is alive, waiting for messages)`
-          );
-          continue;
-        }
-
-        // Collect ackIds for batch ACK
-        const ackIds: string[] = [];
-
-        for (const item of receivedMessages) {
-          const { ackId, message } = item;
-          if (!message) continue;
-
-          ackIds.push(ackId);
-
-          try {
-            const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
-            const payload = JSON.parse(rawData);
-
-            // TODO: Remove debug logging
-            console.log(
-              `[DEBUG][Actions SSE] Raw Pub/Sub payload:`,
-              JSON.stringify(payload).slice(0, 500)
-            );
-
-            // The Pub/Sub message has { thread, event: { ...snake_case fields } }
-            const eventPayload = payload.event || payload;
-
-            // Transform snake_case → camelCase using shared utility
-            const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
-
-            // TODO: Remove debug logging
-            console.log(
-              `[DEBUG][Actions SSE] camelCase event: type=${camelEvent.type}, manager=${camelEvent.manager}, method=${camelEvent.method}, phase=${camelEvent.phase}, callingId=${camelEvent.callingId}`
-            );
-
-            // Reshape into { type, data: { id, ts, entries } } for the frontend
-            const shaped = reshapeToLogEntry(camelEvent);
-
-            // TODO: Remove debug logging
-            console.log(
-              `[DEBUG][Actions SSE] Shaped frame: type=${shaped.type}, id=${shaped.data.id}, ts=${shaped.data.ts}, label=${shaped.data.entries.displayLabel || shaped.data.entries.manager}`
-            );
-
-            // Broadcast to all connected SSE controllers
-            const frame = `data: ${JSON.stringify(shaped)}\n\n`;
-            // TODO: Remove debug logging
-            console.log(
-              `[DEBUG][Actions SSE] Broadcasting to ${group.controllers.size} controller(s)`
-            );
-            for (const controller of Array.from(group.controllers)) {
-              try {
-                controller.enqueue(frame);
-              } catch {
-                // Controller may have been closed — clean up happens on disconnect
-              }
-            }
-          } catch (err) {
-            console.warn('[Actions SSE] Failed to process message:', err);
-          }
-        }
-
-        // Server-side ACK — batch acknowledge all pulled messages
-        if (ackIds.length > 0) {
-          try {
-            await authClient.request({
-              url: `${subscriptionUrl}:acknowledge`,
-              method: 'POST',
-              data: { ackIds },
-            });
-            // TODO: Remove debug logging
-            console.log(`[DEBUG][Actions SSE] ACKed ${ackIds.length} message(s)`);
-          } catch (err) {
-            console.warn('[Actions SSE] Failed to ACK messages:', err);
-          }
-        }
-      } catch (error: any) {
-        if (!signal.aborted) {
-          console.error('[Actions SSE] Pull loop error:', error.message);
-          // TODO: Remove debug logging
-          console.error(`[DEBUG][Actions SSE] Pull loop error detail:`, error);
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-      }
-    }
-
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][Actions SSE] Pull loop ENDED for assistant=${assistantId}`);
-
-    // Cleanup when loop ends
-    broadcastGroups.delete(assistantId);
-  };
-
-  loop();
-}
-
-/**
- * Registers a new SSE controller for an assistant. Creates a BroadcastGroup
- * with a Pub/Sub pull loop on first connection, joins an existing group for
- * subsequent connections.
- */
-function joinBroadcastGroup(
-  assistantId: string,
-  subscriptionUrl: string,
-  authClient: any,
-  controller: ReadableStreamDefaultController
-) {
-  let group = broadcastGroups.get(assistantId);
-
-  const isNew = !group;
-
-  if (!group) {
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][Actions SSE] Creating NEW broadcast group for assistant=${assistantId}`);
-    group = {
-      controllers: new Set(),
-      pullAbort: new AbortController(),
-      refCount: 0,
-    };
-    broadcastGroups.set(assistantId, group);
-  } else {
-    // TODO: Remove debug logging
-    console.log(
-      `[DEBUG][Actions SSE] Joining EXISTING broadcast group for assistant=${assistantId}, current refCount=${group.refCount}`
-    );
-  }
-
-  // Register controller and increment refCount BEFORE starting pull loop
-  // so the loop's while(refCount > 0) condition is satisfied
-  group.controllers.add(controller);
-  group.refCount++;
-
-  // TODO: Remove debug logging
-  console.log(
-    `[DEBUG][Actions SSE] Group refCount now=${group.refCount} for assistant=${assistantId}`
-  );
-
-  // Start pull loop after refCount is incremented (only for new groups)
-  if (isNew) {
-    startPullLoop(assistantId, subscriptionUrl, authClient, group);
-  }
-
-  return group;
-}
-
-/**
- * Deregisters an SSE controller. Cleans up the BroadcastGroup when the last
- * connection for an assistant closes.
- */
-function leaveBroadcastGroup(assistantId: string, controller: ReadableStreamDefaultController) {
-  const group = broadcastGroups.get(assistantId);
-  if (!group) return;
-
-  group.controllers.delete(controller);
-  group.refCount--;
-
-  // TODO: Remove debug logging
-  console.log(
-    `[DEBUG][Actions SSE] Client disconnected. refCount now=${group.refCount} for assistant=${assistantId}`
-  );
-
-  if (group.refCount <= 0) {
-    // TODO: Remove debug logging
-    console.log(
-      `[DEBUG][Actions SSE] Last client left — aborting pull loop for assistant=${assistantId}`
-    );
-    group.pullAbort.abort();
-    broadcastGroups.delete(assistantId);
-  }
 }
 
 // =============================================================================
@@ -367,54 +124,129 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
     // TODO: Remove debug logging
     console.log(`[DEBUG][Actions SSE] Auth OK. Subscription: ${subscriptionName}`);
-    console.log(`[DEBUG][Actions SSE] Full URL: ${subscriptionUrl}`);
   } catch (error: any) {
-    // TODO: Remove debug logging
-    console.error(`[DEBUG][Actions SSE] Auth FAILED:`, error.message);
-    console.error('[Actions SSE] Setup error:', error);
+    console.error('[Actions SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
     });
   }
 
-  const capturedAuthClient = authClient;
-  const capturedSubscriptionUrl = subscriptionUrl;
-
   const stream = new ReadableStream({
-    start(controller) {
-      // Send initial connection comment
-      try {
-        controller.enqueue(': connected\n\n');
-      } catch {
-        // Controller may already be closed
-      }
+    async start(controller) {
+      // TODO: Remove debug logging
+      console.log(`[DEBUG][Actions SSE] Stream started for assistant=${assistantId}`);
 
-      // Keep-alive to prevent load balancer timeouts
+      controller.enqueue(encoder.encode(': connected\n\n'));
+
       const keepAliveInterval = setInterval(() => {
         if (request.signal.aborted) {
           clearInterval(keepAliveInterval);
           return;
         }
         try {
-          controller.enqueue(': keep-alive\n\n');
+          controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
           clearInterval(keepAliveInterval);
         }
       }, 15000);
 
-      // Join the broadcast group (starts pull loop if first connection)
-      joinBroadcastGroup(assistantId, capturedSubscriptionUrl, capturedAuthClient, controller);
-
-      // Cleanup on client disconnect
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
-        leaveBroadcastGroup(assistantId, controller);
+      // --- MAIN PULL LOOP ---
+      while (!request.signal.aborted) {
         try {
-          controller.close();
-        } catch {
-          // Already closed
+          const res = await authClient.request({
+            url: `${subscriptionUrl}:pull`,
+            method: 'POST',
+            data: { maxMessages: 10, returnImmediately: false },
+          });
+
+          if (request.signal.aborted) break;
+
+          if (res.status !== 200) {
+            if (res.status === 404) {
+              console.error(`[Actions SSE] Subscription not found: ${subscriptionUrl}`);
+              break;
+            }
+            console.warn(`[Actions SSE] Pull returned status=${res.status}, retrying in 2s`);
+            await new Promise((r) => setTimeout(r, 2000));
+            continue;
+          }
+
+          const responseData = res.data as {
+            receivedMessages?: Array<{
+              ackId: string;
+              message?: { data: string; messageId: string; publishTime: string };
+            }>;
+          };
+          const receivedMessages = responseData.receivedMessages || [];
+
+          if (receivedMessages.length === 0) {
+            // TODO: Remove debug logging
+            console.log(
+              `[DEBUG][Actions SSE] Empty pull for assistant=${assistantId} (subscription alive, waiting)`
+            );
+            continue;
+          }
+
+          // TODO: Remove debug logging
+          console.log(
+            `[DEBUG][Actions SSE] Pulled ${receivedMessages.length} message(s) for assistant=${assistantId}`
+          );
+
+          const ackIds: string[] = [];
+
+          for (const item of receivedMessages) {
+            const { ackId, message } = item;
+            if (!message) continue;
+
+            ackIds.push(ackId);
+
+            try {
+              const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
+              const payload = JSON.parse(rawData);
+              const eventPayload = payload.event || payload;
+              const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
+              const shaped = reshapeToLogEntry(camelEvent);
+
+              // TODO: Remove debug logging
+              console.log(
+                `[DEBUG][Actions SSE] Event: type=${shaped.type}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
+              );
+
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
+            } catch (err) {
+              console.warn('[Actions SSE] Failed to process message:', err);
+            }
+          }
+
+          // Server-side ACK — Orchestra is the durable store
+          if (ackIds.length > 0) {
+            try {
+              await authClient.request({
+                url: `${subscriptionUrl}:acknowledge`,
+                method: 'POST',
+                data: { ackIds },
+              });
+            } catch (err) {
+              console.warn('[Actions SSE] Failed to ACK messages:', err);
+            }
+          }
+        } catch (error: any) {
+          if (!request.signal.aborted) {
+            console.error('[Actions SSE] Pull loop error:', error.message);
+            await new Promise((r) => setTimeout(r, 1000));
+          }
         }
-      });
+      }
+
+      // Cleanup
+      clearInterval(keepAliveInterval);
+      // TODO: Remove debug logging
+      console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
+      try {
+        controller.close();
+      } catch {
+        // Already closed
+      }
     },
   });
 
@@ -424,7 +256,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
-      'Content-Encoding': 'none',
     },
   });
 }
