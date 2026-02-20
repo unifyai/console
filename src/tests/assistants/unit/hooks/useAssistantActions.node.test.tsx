@@ -4,10 +4,11 @@
  * Tests cover:
  * - Initial loading of ManagerMethod events
  * - Tree building from events
- * - Polling behavior when enabled
- * - Incremental event fetching
- * - Auto-clear on new root action
+ * - SSE-primary architecture (no continuous polling)
+ * - Active action detection
  * - Error handling
+ * - Cleanup on unmount
+ * - Load more pagination
  *
  * @group unit
  */
@@ -307,14 +308,14 @@ describe('useAssistantActions', () => {
     );
   });
 
-  describe('Polling', () => {
+  describe('SSE-Primary Architecture', () => {
     it(
-      'polls for new events at configured interval',
+      'does not continuously poll after initial load',
       {
         meta: {
-          alias: 'Actions-Polling',
+          alias: 'Actions-NoContinuousPolling',
           scenario: 'Hook is enabled and time passes',
-          behavior: 'Fetches new events periodically',
+          behavior: 'Only the initial load fires, no continuous polling',
         },
       },
       async () => {
@@ -326,7 +327,6 @@ describe('useAssistantActions', () => {
         renderHook(() =>
           useAssistantActions(TEST_ASSISTANT_ID, mockActions, {
             enabled: true,
-            pollingInterval: 2000,
           })
         );
 
@@ -335,23 +335,23 @@ describe('useAssistantActions', () => {
           expect(mockGetEvents).toHaveBeenCalledTimes(1);
         });
 
-        // Advance past polling interval
+        // Advance well past any hypothetical polling interval
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(2500);
+          await vi.advanceTimersByTimeAsync(30000);
         });
 
-        // Assert - should have polled at least once more
-        expect(mockGetEvents.mock.calls.length).toBeGreaterThanOrEqual(2);
+        // Assert - should still only have the initial fetch
+        expect(mockGetEvents).toHaveBeenCalledTimes(1);
       }
     );
 
     it(
-      'stops polling when disabled',
+      'stops fetching when disabled',
       {
         meta: {
-          alias: 'Actions-StopPolling',
+          alias: 'Actions-StopOnDisable',
           scenario: 'enabled changes to false',
-          behavior: 'Stops polling for events',
+          behavior: 'No further fetches occur',
         },
       },
       async () => {
@@ -364,7 +364,6 @@ describe('useAssistantActions', () => {
           ({ enabled }) =>
             useAssistantActions(TEST_ASSISTANT_ID, mockActions, {
               enabled,
-              pollingInterval: 1000,
             }),
           { initialProps: { enabled: true } }
         );
@@ -550,12 +549,12 @@ describe('useAssistantActions', () => {
 
   describe('Cleanup', () => {
     it(
-      'stops polling on unmount',
+      'stops fetching on unmount',
       {
         meta: {
           alias: 'Actions-CleanupOnUnmount',
-          scenario: 'Hook unmounts while polling',
-          behavior: 'Polling stops, no memory leaks',
+          scenario: 'Hook unmounts',
+          behavior: 'No further fetches, no memory leaks',
         },
       },
       async () => {
@@ -567,7 +566,6 @@ describe('useAssistantActions', () => {
         const { unmount } = renderHook(() =>
           useAssistantActions(TEST_ASSISTANT_ID, mockActions, {
             enabled: true,
-            pollingInterval: 1000,
           })
         );
 
