@@ -249,9 +249,7 @@ export function AssistantEdit({
               onClick={onSubmit}
               disabled={isPrimaryActionDisabled || isDeleting}
             >
-              {(isPrimaryActionDisabled || isDeleting) && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isPrimaryActionDisabled && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {submitButtonLabel()}
             </Button>
           </div>
