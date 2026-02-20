@@ -372,7 +372,7 @@ export interface AssistantActions {
       firstName: string,
       lastName: string,
       provider: string
-    ) => Promise<{ signedUrl?: string; detail?: string }>;
+    ) => Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
     animate: (formData: FormData) => Promise<ReplicatePredictionResponse | ResponseProps>;

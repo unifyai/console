@@ -796,7 +796,7 @@ export const photoApiExtended = {
     surname: string,
     provider: string,
     apiKey?: string
-  ): Promise<{ signedUrl?: string; detail?: string }> {
+  ): Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }> {
     const params = new URLSearchParams({ firstName, surname, provider });
     const endpoint = `/api/assistant/video/preset?${params.toString()}`;
     const res = await apiFetch(endpoint, {}, apiKey);
@@ -1037,10 +1037,7 @@ export const adminApi = {
   /**
    * List credit grant links (requires admin key)
    */
-  async listCreditGrantLinks(
-    limit?: number,
-    offset?: number
-  ): Promise<CreditGrantLink[]> {
+  async listCreditGrantLinks(limit?: number, offset?: number): Promise<CreditGrantLink[]> {
     const adminKey = getAdminApiKey();
     const params = new URLSearchParams();
     if (limit) params.set('limit', limit.toString());
@@ -1065,11 +1062,7 @@ export const adminApi = {
     if (creditAmount != null) {
       body.creditAmount = creditAmount;
     }
-    const res = await apiFetch(
-      endpoint,
-      { method: 'POST', body: JSON.stringify(body) },
-      adminKey
-    );
+    const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) }, adminKey);
     return parseResponse<CreditGrantLink>(res, endpoint);
   },
 

@@ -157,9 +157,18 @@ export const downloadPhoto = async () => {
       return { detail: 'File path is missing or could not be determined.' };
     }
 
-    const bucketName =
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    // Preset videos (paths starting with preset_assistants/) live in the
+    // presets bucket, not the regular media bucket.  This also handles the
+    // legacy gs://bucket/preset_assistants/… URLs that were stored when
+    // the NEXT_PUBLIC bucket env vars were not yet set.
+    const isPresetPath = objectPath.startsWith('preset_assistants/');
+    const bucketName = isPresetPath
+      ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
+        process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME
+      : process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+
     if (!bucketName) {
       console.error('[photo.ts downloadPhoto] GCS Bucket name environment variable is not set.');
       return { detail: 'Server configuration error: Bucket name missing.' };
@@ -208,7 +217,7 @@ export const downloadPresetVideo = async () => {
     firstName: string,
     lastName: string,
     provider: string
-  ): Promise<{ signedUrl?: string; detail?: string }> => {
+  ): Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }> => {
     'use server';
 
     // Construct object path using firstName, lastName, and provider
@@ -238,7 +247,7 @@ export const downloadPresetVideo = async () => {
 
       const [url] = await storage.bucket(bucketName).file(objectPath).getSignedUrl(options);
 
-      return { signedUrl: url };
+      return { signedUrl: url, gcsUrl: `gs://${bucketName}/${objectPath}` };
     } catch (error) {
       console.error(
         `[photo.ts downloadPresetVideo] FAILED to generate signed URL for object path "${objectPath}" in bucket "${bucketName}":`,

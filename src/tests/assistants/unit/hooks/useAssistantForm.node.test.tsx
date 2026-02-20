@@ -93,7 +93,10 @@ const createMockAssistantActions = (): AssistantActions => ({
     upload: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/photo.jpg' }),
     uploadVideo: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/video.mp4' }),
     download: vi.fn(),
-    downloadPresetVideo: vi.fn().mockResolvedValue({ signedUrl: 'https://signed.url/video.mp4' }),
+    downloadPresetVideo: vi.fn().mockResolvedValue({
+      signedUrl: 'https://signed.url/video.mp4',
+      gcsUrl: 'gs://bucket/preset_assistants/test.mp4',
+    }),
     generate: vi.fn(),
     edit: vi.fn(),
     animate: vi.fn(),

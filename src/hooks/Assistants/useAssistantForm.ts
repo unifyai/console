@@ -303,10 +303,9 @@ export function useAssistantForm(
           if (res.signedUrl) {
             setValue('videoPreviewUrl', res.signedUrl);
             setValue('videoSourceVoiceId', providerSpecificVoiceId);
-            setValue(
-              'profileVideoUrl',
-              `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME || process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME || process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.firstName}_${preset.surname}_${finalProvider.toLowerCase()}.mp4`
-            );
+            if (res.gcsUrl) {
+              setValue('profileVideoUrl', res.gcsUrl);
+            }
           } else {
             setValue('isPresetPristine', false);
           }

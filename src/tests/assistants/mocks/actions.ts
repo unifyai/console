@@ -37,7 +37,10 @@ export const mockAssistantActions: any = {
     upload: vi.fn(async () => ({ gcs_url: 'gs://bucket/photo.jpg' })),
     uploadVideo: vi.fn(async () => ({ gcs_url: 'gs://bucket/video.mp4' })),
     download: vi.fn(async () => ({ signedUrl: 'https://signed.url/photo.jpg' })),
-    downloadPresetVideo: vi.fn(async () => ({ signedUrl: 'https://signed.url/video.mp4' })),
+    downloadPresetVideo: vi.fn(async () => ({
+      signedUrl: 'https://signed.url/video.mp4',
+      gcsUrl: 'gs://bucket/preset_assistants/test.mp4',
+    })),
     generate: vi.fn(async () => ({ url: 'https://generated.photo/image.jpg' })),
     edit: vi.fn(async () => ({ url: 'https://edited.photo/image.jpg' })),
     animate: vi.fn(async () => ({
@@ -102,9 +105,7 @@ export const mockAssistantActions: any = {
     })),
   },
   chat: {
-    getContactId: vi.fn(
-      async (_userEmail: string, _ownerId: string, _assistantId: string) => 1
-    ), // Default to owner contact_id
+    getContactId: vi.fn(async (_userEmail: string, _ownerId: string, _assistantId: string) => 1), // Default to owner contact_id
     getTranscripts: vi.fn(
       async (
         _contactId: number,
