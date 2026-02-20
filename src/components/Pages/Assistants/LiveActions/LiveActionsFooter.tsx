@@ -38,8 +38,6 @@ function getConnectionIndicator(status: ActionConnectionStatus): {
   switch (status) {
     case 'streaming':
       return { color: 'bg-green-500', label: 'Live' };
-    case 'polling':
-      return { color: 'bg-yellow-500', label: 'Polling' };
     case 'error':
       return { color: 'bg-red-500', label: 'Disconnected' };
     case 'idle':

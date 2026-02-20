@@ -16,7 +16,11 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { LiveActionsHeader, TIME_WINDOW_PRESETS, DEFAULT_TIME_WINDOW_KEY } from './LiveActionsHeader';
+import {
+  LiveActionsHeader,
+  TIME_WINDOW_PRESETS,
+  DEFAULT_TIME_WINDOW_KEY,
+} from './LiveActionsHeader';
 import { LiveActionsBody } from './LiveActionsBody';
 import { LiveActionsFooter } from './LiveActionsFooter';
 import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
@@ -48,7 +52,10 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   const [isVisible, setIsVisible] = React.useState(true);
-  const [sectionToggleSignal, setSectionToggleSignal] = React.useState<SectionToggleSignal>({ open: false, gen: 0 });
+  const [sectionToggleSignal, setSectionToggleSignal] = React.useState<SectionToggleSignal>({
+    open: false,
+    gen: 0,
+  });
   const [timeWindowKey, setTimeWindowKey] = React.useState(DEFAULT_TIME_WINDOW_KEY);
 
   // Store expand state before search for restoration
@@ -97,7 +104,6 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
       {
         enabled: shouldPoll,
-        pollingInterval: 10000,
         initialLookbackMs: lookbackMs,
       }
     );
@@ -180,7 +186,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     setAutoCollapse(enabled);
   }, []);
 
-  // When the time window preset changes, re-fetch with the new window.
+  // When the time window preset changes, clear events and re-fetch with the new window.
   const isFirstRenderRef = React.useRef(true);
   const handleTimeWindowChange = React.useCallback((key: string) => {
     setTimeWindowKey(key);
@@ -191,9 +197,22 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       isFirstRenderRef.current = false;
       return;
     }
-    refresh();
+    // Clear tree so the loading state shows while re-fetching
+    refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookbackMs]);
+
+  // Manual refresh handler (polls from Orchestra on demand)
+  const [isManualRefreshing, setIsManualRefreshing] = React.useState(false);
+  const handleManualRefresh = React.useCallback(async () => {
+    if (isManualRefreshing) return;
+    setIsManualRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [refresh, isManualRefreshing]);
 
   const handleExpandedChange = React.useCallback((nodeId: string, expanded: boolean) => {
     setExpandedNodeIds((prev) => {
@@ -274,6 +293,8 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           onAutoCollapseChange={handleAutoCollapseChange}
           timeWindowKey={timeWindowKey}
           onTimeWindowChange={handleTimeWindowChange}
+          onRefresh={handleManualRefresh}
+          isRefreshing={isManualRefreshing}
         />
       )}
 

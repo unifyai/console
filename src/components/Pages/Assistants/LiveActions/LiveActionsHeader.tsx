@@ -15,7 +15,7 @@ import { Button } from '@/components/UI/button';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Label } from '@/components/UI/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
-import { Search, X, ChevronsUpDown, ChevronsDownUp, Clock, Check } from 'lucide-react';
+import { Search, X, ChevronsUpDown, ChevronsDownUp, Clock, Check, RefreshCw } from 'lucide-react';
 
 // ─── Time Window Presets ─────────────────────────────────────────────────────
 
@@ -73,6 +73,10 @@ export interface LiveActionsHeaderProps {
   timeWindowKey: string;
   /** Callback when time window changes */
   onTimeWindowChange: (key: string) => void;
+  /** Callback to manually refresh (poll Orchestra) */
+  onRefresh?: () => void;
+  /** Whether a refresh is in progress */
+  isRefreshing?: boolean;
   /** Additional class names */
   className?: string;
 }
@@ -88,6 +92,8 @@ export function LiveActionsHeader({
   onAutoCollapseChange,
   timeWindowKey,
   onTimeWindowChange,
+  onRefresh,
+  isRefreshing = false,
   className,
 }: LiveActionsHeaderProps) {
   const [timeWindowOpen, setTimeWindowOpen] = React.useState(false);
@@ -108,7 +114,10 @@ export function LiveActionsHeader({
 
   return (
     <div
-      className={cn('flex flex-wrap items-center gap-2 border-b bg-background px-4 py-2.5', className)}
+      className={cn(
+        'flex flex-wrap items-center gap-2 border-b bg-background px-4 py-2.5',
+        className
+      )}
       data-testid="live-actions-header"
     >
       {/* Time Window Picker */}
@@ -118,6 +127,7 @@ export function LiveActionsHeader({
             variant="outline"
             size="sm"
             className="gap-1.5 whitespace-nowrap"
+            title="History time window"
             data-testid="live-actions-time-window"
           >
             <Clock className="h-3.5 w-3.5" />
@@ -138,7 +148,7 @@ export function LiveActionsHeader({
                   'flex items-center justify-between rounded-sm px-2 py-1.5 text-xs transition-colors',
                   'hover:bg-accent hover:text-accent-foreground',
                   preset.key === timeWindowKey
-                    ? 'bg-accent/50 text-foreground font-medium'
+                    ? 'bg-accent/50 font-medium text-foreground'
                     : 'text-muted-foreground'
                 )}
               >
@@ -149,6 +159,21 @@ export function LiveActionsHeader({
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Manual Refresh Button */}
+      {onRefresh && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="gap-1.5 whitespace-nowrap"
+          title="Poll recent events"
+          data-testid="live-actions-refresh"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+        </Button>
+      )}
 
       {/* Search Input */}
       <div className="relative min-w-0 flex-1">
