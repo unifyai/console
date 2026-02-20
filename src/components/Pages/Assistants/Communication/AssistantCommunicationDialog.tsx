@@ -109,6 +109,23 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       .catch(console.error);
   }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
 
+  // Fire system events when user webcam state changes.
+  const prevCamEnabledRef = React.useRef(camToggle.enabled);
+  React.useEffect(() => {
+    const wasOn = prevCamEnabledRef.current;
+    const isOn = camToggle.enabled;
+    prevCamEnabledRef.current = isOn;
+    if (wasOn === isOn || !assistant) return;
+
+    assistantActions.desktop
+      .sendSystemEvent(
+        assistant.agentId,
+        isOn ? 'user_webcam_started' : 'user_webcam_stopped',
+        isOn ? 'User enabled their webcam' : 'User disabled their webcam'
+      )
+      .catch(console.error);
+  }, [camToggle.enabled, assistant, assistantActions.desktop]);
+
   const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
   const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
   const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);

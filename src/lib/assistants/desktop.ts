@@ -120,7 +120,9 @@ export type SystemEventType =
   | 'user_screen_share_started'
   | 'user_screen_share_stopped'
   | 'user_remote_control_started'
-  | 'user_remote_control_stopped';
+  | 'user_remote_control_stopped'
+  | 'user_webcam_started'
+  | 'user_webcam_stopped';
 
 export const sendSystemEvent = async () => {
   return async (
