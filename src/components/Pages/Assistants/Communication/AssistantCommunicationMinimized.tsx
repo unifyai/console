@@ -19,7 +19,7 @@ import { Track, Room } from 'livekit-client';
 import { RoomContext, useTrackToggle, useVoiceAssistant } from '@livekit/components-react';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { cn } from '@/lib/utils';
-import { motion, PanInfo } from 'framer-motion';
+import { motion, PanInfo, useMotionValue } from 'framer-motion';
 
 const MIN_WIDTH = 200;
 const MIN_HEIGHT = 160;
@@ -216,21 +216,39 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
 export function AssistantCommunicationMinimized(props: AssistantCommunicationMinimizedProps) {
   const [size, setSize] = React.useState({ width: 256, height: 192 });
   const [isResizing, setIsResizing] = React.useState(false);
+  const sizeRef = React.useRef(size);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
 
   const handleCornerResize = React.useCallback(
     (corner: 'tl' | 'tr' | 'bl' | 'br') =>
       (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         setIsResizing(true);
-        setSize((prev) => {
-          const dx = corner === 'tl' || corner === 'bl' ? -info.delta.x : info.delta.x;
-          const dy = corner === 'tl' || corner === 'tr' ? -info.delta.y : info.delta.y;
-          return {
-            width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + dx)),
-            height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + dy)),
-          };
-        });
+
+        const prev = sizeRef.current;
+        const dx = corner === 'tl' || corner === 'bl' ? -info.delta.x : info.delta.x;
+        const dy = corner === 'tl' || corner === 'tr' ? -info.delta.y : info.delta.y;
+
+        const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + dx));
+        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + dy));
+
+        const actualDw = newWidth - prev.width;
+        const actualDh = newHeight - prev.height;
+
+        // The element is CSS-anchored at bottom-right, so changing size moves the
+        // top-left corner by default. Compensate by shifting the element's
+        // transform so the corner opposite to the one being dragged stays fixed.
+        if (corner === 'tr' || corner === 'br') {
+          x.set(x.get() + actualDw);
+        }
+        if (corner === 'bl' || corner === 'br') {
+          y.set(y.get() + actualDh);
+        }
+
+        sizeRef.current = { width: newWidth, height: newHeight };
+        setSize({ width: newWidth, height: newHeight });
       },
-    []
+    [x, y]
   );
 
   const handleResizeEnd = React.useCallback(() => {
@@ -246,7 +264,7 @@ export function AssistantCommunicationMinimized(props: AssistantCommunicationMin
       dragMomentum={false}
       whileDrag={isResizing ? undefined : { scale: 1.02 }}
       className="bg-background/80 group fixed bottom-5 right-5 z-50 flex cursor-grab flex-col items-center justify-center rounded-lg border p-4 shadow-2xl backdrop-blur-md active:cursor-grabbing"
-      style={{ width: size.width, height: size.height }}
+      style={{ width: size.width, height: size.height, x, y }}
     >
       {/* Resize handles on corners */}
       {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
