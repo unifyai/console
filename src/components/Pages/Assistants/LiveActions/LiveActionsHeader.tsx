@@ -77,6 +77,8 @@ export interface LiveActionsHeaderProps {
   onRefresh?: () => void;
   /** Whether a refresh is in progress */
   isRefreshing?: boolean;
+  /** Whether actions are currently loading */
+  isLoading?: boolean;
   /** Additional class names */
   className?: string;
 }
@@ -94,6 +96,7 @@ export function LiveActionsHeader({
   onTimeWindowChange,
   onRefresh,
   isRefreshing = false,
+  isLoading = false,
   className,
 }: LiveActionsHeaderProps) {
   const [timeWindowOpen, setTimeWindowOpen] = React.useState(false);
@@ -126,7 +129,8 @@ export function LiveActionsHeader({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 whitespace-nowrap"
+            disabled={isLoading}
+            className={cn('gap-1.5 whitespace-nowrap', isLoading && 'opacity-50')}
             title="History time window"
             data-testid="live-actions-time-window"
           >
