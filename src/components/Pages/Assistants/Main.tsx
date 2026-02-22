@@ -47,7 +47,8 @@ import { AssistantCommunicationMinimized } from './Communication/AssistantCommun
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
-import { SpendingDisplayProps } from '@/types/assistants/spending';
+import { SpendingDisplayProps, formatSpendAmount } from '@/types/assistants/spending';
+import { AlertTriangle } from 'lucide-react';
 
 interface MainProps {
   taskActions: TaskActions;
@@ -697,6 +698,45 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
               Add a payment method
             </button>{' '}
             to claim your credits.
+          </p>
+        </div>
+      )}
+
+      {/* Spending limit reached banner */}
+      {spendingGateStatus.isBlocked && !spendingGateStatus.isLoading && (
+        <div
+          className="flex items-center justify-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950"
+          data-testid="spending-limit-banner"
+        >
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            <span className="font-medium">
+              {spendingGateStatus.blockReason === 'org_limit'
+                ? 'Organization spending limit reached'
+                : spendingGateStatus.blockReason === 'user_limit'
+                  ? 'Your spending limit reached'
+                  : 'Assistant spending limit reached'}
+            </span>
+            {' — '}
+            {(() => {
+              const limit =
+                spendingGateStatus.blockReason === 'org_limit'
+                  ? spendingGateStatus.limits.org
+                  : spendingGateStatus.blockReason === 'user_limit'
+                    ? spendingGateStatus.limits.user
+                    : spendingGateStatus.limits.assistant;
+              if (limit?.limit != null) {
+                return `${formatSpendAmount(limit.currentSpend)} of ${formatSpendAmount(limit.limit)} used. `;
+              }
+              return '';
+            })()}
+            {spendingGateStatus.blockReason === 'org_limit'
+              ? 'An organization owner or admin can increase the limit on the '
+              : 'You can update your limit on the '}
+            <a href="/usage" className="font-medium underline underline-offset-2">
+              Usage page
+            </a>
+            .
           </p>
         </div>
       )}

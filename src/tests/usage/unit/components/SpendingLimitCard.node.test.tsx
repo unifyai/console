@@ -55,14 +55,30 @@ import { SpendingLimitCard, SpendingLimitData } from '@/components/Pages/Usage/S
 
 const mockSave = vi.fn().mockResolvedValue({ success: true });
 
-const userLimit: SpendingLimitData = { type: 'user', limit: 100, label: 'My Limit' };
-const orgLimit: SpendingLimitData = { type: 'org', limit: 500, label: 'Org Limit' };
+const userLimit: SpendingLimitData = {
+  type: 'user',
+  limit: 100,
+  label: 'My Limit',
+  currentSpend: 50,
+};
+const orgLimit: SpendingLimitData = {
+  type: 'org',
+  limit: 500,
+  label: 'Org Limit',
+  currentSpend: 200,
+};
 const assistantLimit: SpendingLimitData = {
   type: 'assistant',
   limit: 50,
   label: 'Assistant Limit',
+  currentSpend: 30,
 };
-const unlimitedLimit: SpendingLimitData = { type: 'user', limit: null, label: 'My Limit' };
+const unlimitedLimit: SpendingLimitData = {
+  type: 'user',
+  limit: null,
+  label: 'My Limit',
+  currentSpend: 30,
+};
 
 const editableUserLimit: SpendingLimitData = { ...userLimit, canEdit: true, onSave: mockSave };
 const editableOrgLimit: SpendingLimitData = { ...orgLimit, canEdit: true, onSave: mockSave };
@@ -71,7 +87,7 @@ const editableOrgLimit: SpendingLimitData = { ...orgLimit, canEdit: true, onSave
 
 describe('SpendingLimitCard', () => {
   it('renders spending limit with progress bar', () => {
-    render(<SpendingLimitCard currentSpending={50} spendingLimits={[userLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[userLimit]} />);
 
     expect(screen.getByTestId('spending-limit-card')).toBeTruthy();
     expect(screen.getByText('Current Month Limits')).toBeTruthy();
@@ -79,20 +95,20 @@ describe('SpendingLimitCard', () => {
   });
 
   it('renders multiple limits', () => {
-    render(<SpendingLimitCard currentSpending={30} spendingLimits={[userLimit, assistantLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[userLimit, assistantLimit]} />);
 
     expect(screen.getByText('My Limit')).toBeTruthy();
     expect(screen.getByText('Assistant Limit')).toBeTruthy();
   });
 
   it('shows "No limits configured" when all limits are null', () => {
-    render(<SpendingLimitCard currentSpending={30} spendingLimits={[unlimitedLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[unlimitedLimit]} />);
 
     expect(screen.getByText('No limits configured')).toBeTruthy();
   });
 
   it('does NOT render when no limits and none are editable', () => {
-    const { container } = render(<SpendingLimitCard currentSpending={0} spendingLimits={[]} />);
+    const { container } = render(<SpendingLimitCard spendingLimits={[]} />);
 
     expect(container.innerHTML).toBe('');
   });
@@ -100,9 +116,15 @@ describe('SpendingLimitCard', () => {
   it('renders when no limits but a limit is editable (user can set a limit)', () => {
     render(
       <SpendingLimitCard
-        currentSpending={0}
         spendingLimits={[
-          { type: 'user', limit: null, label: 'My Limit', canEdit: true, onSave: mockSave },
+          {
+            type: 'user',
+            limit: null,
+            label: 'My Limit',
+            currentSpend: 0,
+            canEdit: true,
+            onSave: mockSave,
+          },
         ]}
       />
     );
@@ -111,25 +133,19 @@ describe('SpendingLimitCard', () => {
   });
 
   it('shows edit button when limit has canEdit=true and onSave', () => {
-    render(<SpendingLimitCard currentSpending={50} spendingLimits={[editableUserLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[editableUserLimit]} />);
 
     expect(screen.getByTestId('edit-user-limit-button')).toBeTruthy();
   });
 
   it('hides edit button when canEdit is false', () => {
-    render(<SpendingLimitCard currentSpending={50} spendingLimits={[userLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[userLimit]} />);
 
     expect(screen.queryByTestId('edit-user-limit-button')).toBeNull();
   });
 
   it('hides edit button while loading', () => {
-    render(
-      <SpendingLimitCard
-        currentSpending={50}
-        spendingLimits={[editableUserLimit]}
-        isLoading={true}
-      />
-    );
+    render(<SpendingLimitCard spendingLimits={[editableUserLimit]} isLoading={true} />);
 
     expect(screen.queryByTestId('edit-user-limit-button')).toBeNull();
   });
@@ -137,7 +153,7 @@ describe('SpendingLimitCard', () => {
   it('opens SpendingLimitDialog when edit button is clicked', async () => {
     const user = userEvent.setup();
 
-    render(<SpendingLimitCard currentSpending={50} spendingLimits={[editableUserLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[editableUserLimit]} />);
 
     // Dialog should not be visible initially
     expect(screen.queryByTestId('spending-limit-dialog')).toBeNull();
@@ -157,10 +173,7 @@ describe('SpendingLimitCard', () => {
     const saveFn = vi.fn().mockResolvedValue({ success: true });
 
     render(
-      <SpendingLimitCard
-        currentSpending={50}
-        spendingLimits={[{ ...userLimit, canEdit: true, onSave: saveFn }]}
-      />
+      <SpendingLimitCard spendingLimits={[{ ...userLimit, canEdit: true, onSave: saveFn }]} />
     );
 
     await user.click(screen.getByTestId('edit-user-limit-button'));
@@ -172,7 +185,7 @@ describe('SpendingLimitCard', () => {
   it('closes dialog after save', async () => {
     const user = userEvent.setup();
 
-    render(<SpendingLimitCard currentSpending={50} spendingLimits={[editableUserLimit]} />);
+    render(<SpendingLimitCard spendingLimits={[editableUserLimit]} />);
 
     await user.click(screen.getByTestId('edit-user-limit-button'));
     expect(screen.getByTestId('spending-limit-dialog')).toBeTruthy();
@@ -187,12 +200,7 @@ describe('SpendingLimitCard', () => {
     const user = userEvent.setup();
 
     // Both org and assistant limits — click the org edit button
-    render(
-      <SpendingLimitCard
-        currentSpending={200}
-        spendingLimits={[editableOrgLimit, assistantLimit]}
-      />
-    );
+    render(<SpendingLimitCard spendingLimits={[editableOrgLimit, assistantLimit]} />);
 
     await user.click(screen.getByTestId('edit-org-limit-button'));
 

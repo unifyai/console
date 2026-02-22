@@ -11,9 +11,12 @@
 
 import { UsageMetricsResponse, UsageApiError, TimeGranularity } from '@/types/usage';
 import { ResponseProps } from '@/types/common';
+import { getCurrentMonth } from '@/types/assistants/spending';
 
 /**
- * Spending limit information for display in the usage page
+ * Spending limit information for display in the usage page.
+ * Includes the actual cumulative spend for the current month so progress
+ * bars reflect the real monthly spend (not the date-range filtered total).
  */
 export interface SpendingLimitInfo {
   /** Type of limit (user, org, member, assistant) */
@@ -22,6 +25,8 @@ export interface SpendingLimitInfo {
   limit: number | null;
   /** Label to display */
   label: string;
+  /** Actual cumulative spend for the current billing month */
+  currentSpend: number;
 }
 
 /**
@@ -78,29 +83,48 @@ export const getUsageMetrics = async (apiKey: string) => {
 };
 
 /**
- * Fetch user spending limit for personal workspace
+ * Fetch user spending limit for personal workspace.
+ * Also fetches the user's cumulative spend for the current month so the
+ * progress bar reflects the real monthly spend (not the date-range total).
  */
 export const getUserSpendingLimitAction = async (apiKey: string) => {
   return async (): Promise<SpendingLimitInfo | ResponseProps> => {
     'use server';
 
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/user/spending-limit`, {
-        method: 'GET',
-        headers: { apiKey },
-        cache: 'no-store',
-      });
+      const month = getCurrentMonth();
 
-      const data = await response.json();
+      // Fetch limit and cumulative spend in parallel
+      const [limitRes, spendRes] = await Promise.all([
+        fetch(`${process.env.NEXTAUTH_URL}/api/user/spending-limit`, {
+          method: 'GET',
+          headers: { apiKey },
+          cache: 'no-store',
+        }),
+        fetch(`${process.env.NEXTAUTH_URL}/api/user/spending?month=${month}`, {
+          method: 'GET',
+          headers: { apiKey },
+          cache: 'no-store',
+        }),
+      ]);
 
-      if (!response.ok) {
-        return { detail: data.detail || 'Failed to fetch user spending limit' };
+      const limitData = await limitRes.json();
+
+      if (!limitRes.ok) {
+        return { detail: limitData.detail || 'Failed to fetch user spending limit' };
+      }
+
+      let currentSpend = 0;
+      if (spendRes.ok) {
+        const spendData = await spendRes.json();
+        currentSpend = spendData.cumulativeSpend ?? 0;
       }
 
       return {
         type: 'user',
-        limit: data.monthlySpendingCap ?? null,
+        limit: limitData.monthlySpendingCap ?? null,
         label: 'My Limit',
+        currentSpend,
       };
     } catch (error) {
       console.error('[usage/actions] Error fetching user spending limit:', error);
@@ -110,32 +134,46 @@ export const getUserSpendingLimitAction = async (apiKey: string) => {
 };
 
 /**
- * Fetch organization spending limit
+ * Fetch organization spending limit.
+ * Also fetches the org's cumulative spend for the current month.
  */
 export const getOrgSpendingLimitAction = async (apiKey: string) => {
   return async (orgId: number): Promise<SpendingLimitInfo | ResponseProps> => {
     'use server';
 
     try {
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/spending-limit`,
-        {
+      const month = getCurrentMonth();
+
+      const [limitRes, spendRes] = await Promise.all([
+        fetch(`${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/spending-limit`, {
           method: 'GET',
           headers: { apiKey },
           cache: 'no-store',
-        }
-      );
+        }),
+        fetch(`${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/spending?month=${month}`, {
+          method: 'GET',
+          headers: { apiKey },
+          cache: 'no-store',
+        }),
+      ]);
 
-      const data = await response.json();
+      const limitData = await limitRes.json();
 
-      if (!response.ok) {
-        return { detail: data.detail || 'Failed to fetch org spending limit' };
+      if (!limitRes.ok) {
+        return { detail: limitData.detail || 'Failed to fetch org spending limit' };
+      }
+
+      let currentSpend = 0;
+      if (spendRes.ok) {
+        const spendData = await spendRes.json();
+        currentSpend = spendData.cumulativeSpend ?? 0;
       }
 
       return {
         type: 'org',
-        limit: data.monthlySpendingCap ?? null,
+        limit: limitData.monthlySpendingCap ?? null,
         label: 'Org Limit',
+        currentSpend,
       };
     } catch (error) {
       console.error('[usage/actions] Error fetching org spending limit:', error);
@@ -145,32 +183,52 @@ export const getOrgSpendingLimitAction = async (apiKey: string) => {
 };
 
 /**
- * Fetch member spending limit within an organization
+ * Fetch member spending limit within an organization.
+ * Also fetches the member's cumulative spend for the current month.
  */
 export const getMemberSpendingLimitAction = async (apiKey: string) => {
   return async (orgId: number, userId: string): Promise<SpendingLimitInfo | ResponseProps> => {
     'use server';
 
     try {
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending-limit`,
-        {
-          method: 'GET',
-          headers: { apiKey },
-          cache: 'no-store',
-        }
-      );
+      const month = getCurrentMonth();
 
-      const data = await response.json();
+      const [limitRes, spendRes] = await Promise.all([
+        fetch(
+          `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending-limit`,
+          {
+            method: 'GET',
+            headers: { apiKey },
+            cache: 'no-store',
+          }
+        ),
+        fetch(
+          `${process.env.NEXTAUTH_URL}/api/organizations/${orgId}/members/${encodeURIComponent(userId)}/spending?month=${month}`,
+          {
+            method: 'GET',
+            headers: { apiKey },
+            cache: 'no-store',
+          }
+        ),
+      ]);
 
-      if (!response.ok) {
-        return { detail: data.detail || 'Failed to fetch member spending limit' };
+      const limitData = await limitRes.json();
+
+      if (!limitRes.ok) {
+        return { detail: limitData.detail || 'Failed to fetch member spending limit' };
+      }
+
+      let currentSpend = 0;
+      if (spendRes.ok) {
+        const spendData = await spendRes.json();
+        currentSpend = spendData.cumulativeSpend ?? 0;
       }
 
       return {
         type: 'member',
-        limit: data.monthlySpendingCap ?? null,
+        limit: limitData.monthlySpendingCap ?? null,
         label: 'Member Limit',
+        currentSpend,
       };
     } catch (error) {
       console.error('[usage/actions] Error fetching member spending limit:', error);
@@ -180,32 +238,46 @@ export const getMemberSpendingLimitAction = async (apiKey: string) => {
 };
 
 /**
- * Fetch assistant spending limit
+ * Fetch assistant spending limit.
+ * Also fetches the assistant's cumulative spend for the current month.
  */
 export const getAssistantSpendingLimitAction = async (apiKey: string) => {
   return async (assistantId: string): Promise<SpendingLimitInfo | ResponseProps> => {
     'use server';
 
     try {
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending-limit`,
-        {
+      const month = getCurrentMonth();
+
+      const [limitRes, spendRes] = await Promise.all([
+        fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending-limit`, {
           method: 'GET',
           headers: { apiKey },
           cache: 'no-store',
-        }
-      );
+        }),
+        fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending?month=${month}`, {
+          method: 'GET',
+          headers: { apiKey },
+          cache: 'no-store',
+        }),
+      ]);
 
-      const data = await response.json();
+      const limitData = await limitRes.json();
 
-      if (!response.ok) {
-        return { detail: data.detail || 'Failed to fetch assistant spending limit' };
+      if (!limitRes.ok) {
+        return { detail: limitData.detail || 'Failed to fetch assistant spending limit' };
+      }
+
+      let currentSpend = 0;
+      if (spendRes.ok) {
+        const spendData = await spendRes.json();
+        currentSpend = spendData.cumulativeSpend ?? 0;
       }
 
       return {
         type: 'assistant',
-        limit: data.effectiveLimit ?? data.monthlySpendingCap ?? null,
+        limit: limitData.effectiveLimit ?? limitData.monthlySpendingCap ?? null,
         label: 'Assistant Limit',
+        currentSpend,
       };
     } catch (error) {
       console.error('[usage/actions] Error fetching assistant spending limit:', error);
@@ -238,6 +310,7 @@ export const setUserSpendingLimitAction = async (apiKey: string) => {
         type: 'user',
         limit: data.monthlySpendingCap ?? null,
         label: 'My Limit',
+        currentSpend: 0, // Will be refreshed on next limit fetch
       };
     } catch (error) {
       console.error('[usage/actions] Error setting user spending limit:', error);
@@ -250,7 +323,10 @@ export const setUserSpendingLimitAction = async (apiKey: string) => {
  * Set organization spending limit
  */
 export const setOrgSpendingLimitAction = async (apiKey: string) => {
-  return async (orgId: number, limit: number | null): Promise<SpendingLimitInfo | ResponseProps> => {
+  return async (
+    orgId: number,
+    limit: number | null
+  ): Promise<SpendingLimitInfo | ResponseProps> => {
     'use server';
 
     try {
@@ -273,6 +349,7 @@ export const setOrgSpendingLimitAction = async (apiKey: string) => {
         type: 'org',
         limit: data.monthlySpendingCap ?? null,
         label: 'Org Limit',
+        currentSpend: 0, // Will be refreshed on next limit fetch
       };
     } catch (error) {
       console.error('[usage/actions] Error setting org spending limit:', error);
@@ -312,6 +389,7 @@ export const setMemberSpendingLimitAction = async (apiKey: string) => {
         type: 'member',
         limit: data.monthlySpendingCap ?? null,
         label: 'My Limit',
+        currentSpend: 0, // Will be refreshed on next limit fetch
       };
     } catch (error) {
       console.error('[usage/actions] Error setting member spending limit:', error);
@@ -350,6 +428,7 @@ export const setAssistantSpendingLimitAction = async (apiKey: string) => {
         type: 'assistant',
         limit: data.effectiveLimit ?? data.monthlySpendingCap ?? null,
         label: 'Assistant Limit',
+        currentSpend: 0, // Will be refreshed on next limit fetch
       };
     } catch (error) {
       console.error('[usage/actions] Error setting assistant spending limit:', error);

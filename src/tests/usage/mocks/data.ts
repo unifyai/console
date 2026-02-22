@@ -291,13 +291,29 @@ export function createMockUsageActions(
     setMemberSpendingLimit: async () => ({ detail: 'Member spending limit set' }),
     setAssistantSpendingLimit: async () => ({ detail: 'Assistant spending limit set' }),
     getMetrics: async () => responseData,
-    getUserSpendingLimit: async () => ({ type: 'user', limit: 100, label: 'My Limit' }),
-    getOrgSpendingLimit: async () => ({ type: 'org', limit: 500, label: 'Org Limit' }),
-    getMemberSpendingLimit: async () => ({ type: 'member', limit: 200, label: 'Member Limit' }),
+    getUserSpendingLimit: async () => ({
+      type: 'user',
+      limit: 100,
+      label: 'My Limit',
+      currentSpend: 45,
+    }),
+    getOrgSpendingLimit: async () => ({
+      type: 'org',
+      limit: 500,
+      label: 'Org Limit',
+      currentSpend: 200,
+    }),
+    getMemberSpendingLimit: async () => ({
+      type: 'member',
+      limit: 200,
+      label: 'Member Limit',
+      currentSpend: 80,
+    }),
     getAssistantSpendingLimit: async () => ({
       type: 'assistant',
       limit: 50,
       label: 'Assistant Limit',
+      currentSpend: 15,
     }),
   };
 }

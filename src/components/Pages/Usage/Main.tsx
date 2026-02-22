@@ -11,7 +11,8 @@ import * as React from 'react';
 import { UsageFiltersBar } from './Filters';
 import { UsageSummaryCards } from './UsageSummaryCards';
 import { UsageChart } from './UsageChart';
-import { SpendingLimitCard, type SpendingLimitData } from './SpendingLimitCard';
+import { SpendingLimitCard } from './SpendingLimitCard';
+import type { SpendingLimitData } from './SpendingLimitCard';
 import { useUsageFilters } from '@/hooks/Usage/useUsageFilters';
 import { useUsageData } from '@/hooks/Usage/useUsageData';
 import { useUsageSummary } from '@/hooks/Usage/useUsageSummary';
@@ -217,10 +218,7 @@ export function UsageMain({
         return { success: false, error: 'No assistant selected' };
       }
       try {
-        const result = await usageActions.setAssistantSpendingLimit(
-          filters.assistantId,
-          newLimit
-        );
+        const result = await usageActions.setAssistantSpendingLimit(filters.assistantId, newLimit);
         if ('detail' in result) {
           return { success: false, error: (result as { detail: string }).detail };
         }
@@ -379,7 +377,6 @@ export function UsageMain({
             inline={true}
           />
           <SpendingLimitCard
-            currentSpending={summary.total}
             spendingLimits={spendingLimits}
             isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
           />

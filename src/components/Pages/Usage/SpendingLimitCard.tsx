@@ -28,6 +28,8 @@ export interface SpendingLimitData {
   limit: number | null;
   /** Label for the limit type */
   label: string;
+  /** Actual cumulative spend for the current billing month */
+  currentSpend: number;
   /** Whether this specific limit is editable */
   canEdit?: boolean;
   /** Callback to save this specific limit */
@@ -35,8 +37,6 @@ export interface SpendingLimitData {
 }
 
 interface SpendingLimitCardProps {
-  /** Current total spending for the selected period */
-  currentSpending: number;
   /** Array of spending limits to display (can be multiple) */
   spendingLimits: SpendingLimitData[];
   /** Whether data is loading */
@@ -87,10 +87,10 @@ function getSpendingStatus(current: number, limit: number | null) {
 /**
  * Get the most severe status from all limits
  */
-function getOverallStatus(limits: SpendingLimitData[], currentSpending: number) {
+function getOverallStatus(limits: SpendingLimitData[]) {
   const statuses = limits
     .filter((l) => l.limit !== null)
-    .map((l) => getSpendingStatus(currentSpending, l.limit));
+    .map((l) => getSpendingStatus(l.currentSpend, l.limit));
 
   if (statuses.some((s) => s.status === 'exceeded')) {
     return { status: 'exceeded', color: 'text-destructive', bgColor: 'bg-destructive/10' };
@@ -107,16 +107,8 @@ function getOverallStatus(limits: SpendingLimitData[], currentSpending: number) 
 /**
  * Single limit row with mini progress bar and optional edit button
  */
-function LimitRow({
-  limit,
-  currentSpending,
-  onEditClick,
-}: {
-  limit: SpendingLimitData;
-  currentSpending: number;
-  onEditClick?: () => void;
-}) {
-  const status = getSpendingStatus(currentSpending, limit.limit);
+function LimitRow({ limit, onEditClick }: { limit: SpendingLimitData; onEditClick?: () => void }) {
+  const status = getSpendingStatus(limit.currentSpend, limit.limit);
 
   return (
     <div className="space-y-1">
@@ -160,11 +152,7 @@ function LimitRow({
   );
 }
 
-export function SpendingLimitCard({
-  currentSpending,
-  spendingLimits,
-  isLoading = false,
-}: SpendingLimitCardProps) {
+export function SpendingLimitCard({ spendingLimits, isLoading = false }: SpendingLimitCardProps) {
   const [editingLimit, setEditingLimit] = React.useState<SpendingLimitData | null>(null);
 
   // Filter out limits that are null (unlimited) for display purposes
@@ -173,7 +161,7 @@ export function SpendingLimitCard({
   const hasAnyEditable = spendingLimits.some((l) => l.canEdit);
 
   // Get overall status for the icon
-  const overall = getOverallStatus(spendingLimits, currentSpending);
+  const overall = getOverallStatus(spendingLimits);
   const StatusIcon =
     overall.status === 'exceeded' || overall.status === 'warning' ? AlertTriangle : CheckCircle2;
 
@@ -203,11 +191,8 @@ export function SpendingLimitCard({
                     <LimitRow
                       key={limit.type}
                       limit={limit}
-                      currentSpending={currentSpending}
                       onEditClick={
-                        limit.canEdit && limit.onSave
-                          ? () => setEditingLimit(limit)
-                          : undefined
+                        limit.canEdit && limit.onSave ? () => setEditingLimit(limit) : undefined
                       }
                     />
                   ))}
@@ -216,7 +201,7 @@ export function SpendingLimitCard({
             ) : (
               <div className="mt-1">
                 <p className="text-display text-bold text-foreground">
-                  {formatCostForDisplay(currentSpending)}
+                  {formatCostForDisplay(spendingLimits[0]?.currentSpend ?? 0)}
                 </p>
                 <p className="text-caption text-muted-foreground">No limits configured</p>
               </div>
@@ -248,7 +233,7 @@ export function SpendingLimitCard({
             if (!open) setEditingLimit(null);
           }}
           currentLimit={editingLimit.limit}
-          currentSpend={currentSpending}
+          currentSpend={editingLimit.currentSpend}
           onSave={editingLimit.onSave}
         />
       )}
