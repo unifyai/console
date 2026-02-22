@@ -18,6 +18,7 @@ import {
   HistoricalAttachmentList,
   createAttachment,
   validateFile,
+  ChatMarkdown,
 } from '@/components/Chat';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
@@ -63,6 +64,9 @@ const ChatMessageBubble = ({
           <RenderContentWithEmbeds content={message} expandedHeight={300} />
         </div>
       );
+    }
+    if (!isUser) {
+      return <ChatMarkdown content={message} />;
     }
     return <div className="whitespace-pre-wrap">{message}</div>;
   };

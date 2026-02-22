@@ -33,3 +33,5 @@ export {
   truncateFilename,
   createAttachment,
 } from './attachmentUtils';
+
+export { ChatMarkdown } from './ChatMarkdown';

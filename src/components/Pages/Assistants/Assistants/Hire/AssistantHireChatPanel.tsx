@@ -10,7 +10,7 @@ import { Textarea } from '@/components/UI/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
-import { RenderContentWithEmbeds, containsEmbedUrl } from '@/components/Chat';
+import { RenderContentWithEmbeds, containsEmbedUrl, ChatMarkdown } from '@/components/Chat';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
 interface AssistantHireChatPanelProps {
@@ -82,6 +82,9 @@ const ChatMessageBubble = ({
           <RenderContentWithEmbeds content={message} expandedHeight={300} />
         </div>
       );
+    }
+    if (!isUser) {
+      return <ChatMarkdown content={message} />;
     }
     return <div className="whitespace-pre-wrap">{renderContentWithLinks(message)}</div>;
   };
