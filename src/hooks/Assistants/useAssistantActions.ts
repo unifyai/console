@@ -4,7 +4,7 @@
  * This hook handles:
  * - Initial loading of ManagerMethod events from Orchestra
  * - Live streaming of new events via SSE from Pub/Sub (primary real-time channel)
- * - One-shot catch-up poll from Orchestra on SSE reconnect or tab visibility change
+ * - On-demand refresh via explicit user action (refresh button)
  * - Building and maintaining the action tree structure
  * - Detecting active actions
  */
@@ -106,7 +106,6 @@ export function useAssistantActions(
 
   // Refs
   const nodeMapRef = React.useRef<Map<string, ActionNode>>(new Map());
-  const lastSeenTimestampRef = React.useRef<string | null>(null);
   const oldestTimestampRef = React.useRef<string | null>(null);
   const eventSourceRef = React.useRef<EventSource | null>(null);
   const isMountedRef = React.useRef(true);
@@ -269,13 +268,10 @@ export function useAssistantActions(
       setNodeMap(result.nodeMap);
 
       if (logs.length > 0) {
-        const latestLog = logs[logs.length - 1];
         const oldestLog = logs[0];
-        lastSeenTimestampRef.current = latestLog.ts;
         oldestTimestampRef.current = oldestLog.ts;
         setHasMore(true);
       } else {
-        lastSeenTimestampRef.current = startTime;
         oldestTimestampRef.current = startTime;
         setHasMore(false);
       }
@@ -293,42 +289,6 @@ export function useAssistantActions(
       }
     }
   }, [actions, assistantId, lookbackMs]);
-
-  // ===========================================================================
-  // One-shot catch-up poll (used on SSE reconnect & tab visibility)
-  // ===========================================================================
-
-  const catchUpPoll = React.useCallback(async () => {
-    if (!isMountedRef.current || !isInitialLoadDoneRef.current) return;
-    if (!lastSeenTimestampRef.current) return;
-
-    try {
-      const response = await actions.getManagerMethodEvents(
-        assistantId,
-        lastSeenTimestampRef.current,
-        DEFAULT_EVENT_LIMIT
-      );
-
-      if (!isMountedRef.current) return;
-
-      if ('detail' in response) {
-        console.warn('[useAssistantActions] Catch-up poll error:', response.detail);
-        return;
-      }
-
-      const logs = (response.logs || []) as ManagerMethodLog[];
-      if (logs.length === 0) return;
-
-      const latestLog = logs[logs.length - 1];
-      lastSeenTimestampRef.current = latestLog.ts;
-
-      mergeLogsIntoTree(logs);
-      // TODO: Remove debug logging
-      console.log(`[DEBUG][useAssistantActions] Catch-up poll merged ${logs.length} event(s)`);
-    } catch (err) {
-      console.warn('[useAssistantActions] Catch-up poll error:', err);
-    }
-  }, [actions, assistantId, mergeLogsIntoTree]);
 
   // ===========================================================================
   // SSE Connection
@@ -356,9 +316,6 @@ export function useAssistantActions(
         `[DEBUG][useAssistantActions] SSE CONNECTED (readyState=${eventSource.readyState})`
       );
       setConnectionStatus('streaming');
-
-      // Catch up on any events missed while disconnected
-      catchUpPoll();
     };
 
     eventSource.onmessage = (event) => {
@@ -430,9 +387,8 @@ export function useAssistantActions(
       }
 
       // Transient error — EventSource auto-reconnects.
-      // onopen will fire a catch-up poll when it reconnects.
     };
-  }, [assistantId, mergeLogsIntoTree, catchUpPoll]);
+  }, [assistantId, mergeLogsIntoTree]);
 
   // ===========================================================================
   // Load more (pagination)
@@ -500,7 +456,6 @@ export function useAssistantActions(
   const refresh = React.useCallback(
     async (clearTree = false) => {
       isInitialLoadDoneRef.current = false;
-      lastSeenTimestampRef.current = null;
       oldestTimestampRef.current = null;
       setHasMore(true);
       if (clearTree) {
@@ -545,7 +500,6 @@ export function useAssistantActions(
       setConnectionStatus('idle');
       isInitialLoadDoneRef.current = false;
       setIsInitialLoadDone(false);
-      lastSeenTimestampRef.current = null;
 
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -559,7 +513,6 @@ export function useAssistantActions(
       }
     } else {
       isInitialLoadDoneRef.current = false;
-      lastSeenTimestampRef.current = null;
       setConnectionStatus('idle');
 
       if (eventSourceRef.current) {
@@ -605,29 +558,6 @@ export function useAssistantActions(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, assistantId, isInitialLoadDone]);
-
-  // Visibility-based catch-up: when the tab regains focus, do a one-shot
-  // poll from Orchestra to fill any SSE messages missed while hidden
-  // (handles multi-tab message splitting and background tab gaps).
-  const catchUpPollRef = React.useRef(catchUpPoll);
-  React.useEffect(() => {
-    catchUpPollRef.current = catchUpPoll;
-  }, [catchUpPoll]);
-
-  React.useEffect(() => {
-    if (!enabled || !isInitialLoadDone) return;
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isInitialLoadDoneRef.current) {
-        // TODO: Remove debug logging
-        console.log(`[DEBUG][useAssistantActions] Tab became visible — running catch-up poll`);
-        catchUpPollRef.current();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [enabled, isInitialLoadDone]);
 
   return {
     roots,
