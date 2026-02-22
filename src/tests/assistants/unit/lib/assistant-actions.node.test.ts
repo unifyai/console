@@ -258,7 +258,14 @@ describe('parseManagerMethodLog', () => {
       },
     },
     () => {
-      for (const action of ['interject', 'stop', 'pause', 'resume', 'ask', 'answer_clarification']) {
+      for (const action of [
+        'interject',
+        'stop',
+        'pause',
+        'resume',
+        'ask',
+        'answer_clarification',
+      ]) {
         const log = createMockLog({
           entries: {
             manager: 'CodeActActor',
@@ -753,7 +760,7 @@ describe('applyOutgoingEvent', () => {
 
       expect(node.status).toBe('running');
       expect(node.content).toBe('List all contacts');
-      expect(node.endTime).toBe('2024-01-15T10:30:03.000Z');
+      expect(node.endTime).toBeUndefined();
     }
   );
 
@@ -808,7 +815,8 @@ describe('applyOutgoingEvent', () => {
     {
       meta: {
         alias: 'ApplyOutgoing-StringNullKeepsRunning',
-        scenario: 'Running node receives outgoing with answer "null" (from stop/pause/resume/interject)',
+        scenario:
+          'Running node receives outgoing with answer "null" (from stop/pause/resume/interject)',
         behavior:
           'Status stays running — string "null" is a void-returning handle interaction, not a completion',
       },
@@ -844,7 +852,7 @@ describe('applyOutgoingEvent', () => {
       applyOutgoingEvent(node, outgoingEvent);
 
       expect(node.status).toBe('running');
-      expect(node.endTime).toBe('2024-01-15T10:30:03.000Z');
+      expect(node.endTime).toBeUndefined();
     }
   );
 });
@@ -1286,8 +1294,7 @@ describe('buildActionTree', () => {
     {
       meta: {
         alias: 'BuildTree-MultipleSiblingChildren',
-        scenario:
-          'Three execute_code children under CodeActActor.act with different callingIds',
+        scenario: 'Three execute_code children under CodeActActor.act with different callingIds',
         behavior:
           'All three are preserved as separate siblings, not replaced by boundary-matching logic',
       },

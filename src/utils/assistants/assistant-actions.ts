@@ -239,24 +239,19 @@ function isTrivialLoopSignal(content: string | undefined): boolean {
 export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
   const wasRunning = node.status === 'running';
 
-  node.endTime = event.timestamp;
-
-  // The outgoing event's hierarchyLabel carries the same suffix as ToolLoop
-  // events (the incoming event's suffix diverges). Storing it here lets the
-  // UI run a perfectly scoped ToolLoop query without fragile time filters.
   if (event.hierarchyLabel) {
     node.hierarchyLabel = event.hierarchyLabel;
   }
 
   if (event.status !== 'ok') {
     node.status = 'error';
+    node.endTime = event.timestamp;
     if (event.content) node.content = event.content;
   } else if (isTrivialLoopSignal(event.content)) {
-    // Boolean loop-control signal: don't change status.
+    // Boolean loop-control signal: don't change status or endTime.
   } else {
-    // Either meaningful content OR no content at all (operation completed
-    // with nothing to report, e.g. execute_code with answer: null).
     node.status = 'completed';
+    node.endTime = event.timestamp;
     if (isMeaningfulContent(event.content)) {
       node.content = event.content;
     }
@@ -303,10 +298,7 @@ function applyActionEvent(node: ActionNode, event: ParsedManagerMethodEvent): vo
  * any node in the nodeMap — the node might exist as a boundary created by
  * findOrCreateParent when a child arrived before the parent's incoming event.
  */
-function findBoundaryByHierarchy(
-  nodes: ActionNode[],
-  hierarchy: string[]
-): ActionNode | null {
+function findBoundaryByHierarchy(nodes: ActionNode[], hierarchy: string[]): ActionNode | null {
   for (const node of nodes) {
     if (
       node.type === 'boundary' &&
@@ -918,7 +910,7 @@ export function getExpandableNodeIds(roots: ActionNode[]): Set<string> {
   const ids = new Set<string>();
 
   function collectExpandable(node: ActionNode): void {
-    if (node.children.length > 0) {
+    if (node.children.length > 0 || node.type === 'manager') {
       ids.add(node.id);
     }
     node.children.forEach(collectExpandable);

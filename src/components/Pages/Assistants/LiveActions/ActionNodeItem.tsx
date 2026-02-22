@@ -12,6 +12,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Loader2 } from 'lucide-react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { StatusIndicator } from './StatusIndicator';
 import type {
   ActionInteraction,
@@ -58,16 +60,39 @@ function getLabelStyles(type: ActionNode['type']): string {
 }
 
 /**
+ * Parse a timestamp string, ensuring UTC interpretation.
+ */
+function parseTs(ts: string): Date {
+  return new Date(ts.endsWith('Z') || ts.includes('+') || ts.includes('-', 10) ? ts : ts + 'Z');
+}
+
+/**
  * Format a timestamp string to a short local time (HH:MM:SS).
  */
 function formatEventTime(ts: string): string {
-  const d = new Date(ts.endsWith('Z') || ts.includes('+') || ts.includes('-', 10) ? ts : ts + 'Z');
-  return d.toLocaleTimeString([], {
+  return parseTs(ts).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
   });
+}
+
+/**
+ * Format a timestamp as mm/dd/yy · HH:MM:SS for root-level nodes.
+ */
+function formatEventDateTime(ts: string): string {
+  const d = parseTs(ts);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  const time = d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  return `${month}/${day}/${year} · ${time}`;
 }
 
 /**
@@ -108,7 +133,7 @@ function LiveDuration({ node }: { node: ActionNode }) {
 
   return (
     <span className="text-muted-foreground/40 ml-1.5 shrink-0 text-[10px] tabular-nums">
-      {formatCompactDuration(elapsed)}
+      · {formatCompactDuration(elapsed)}
     </span>
   );
 }
@@ -128,6 +153,89 @@ function extractTextContent(
       .join('\n');
   }
   return undefined;
+}
+
+/**
+ * Detects if a string is likely JSON (object or array).
+ */
+function isLikelyJson(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length < 2) return false;
+  return (
+    (trimmed[0] === '{' && trimmed[trimmed.length - 1] === '}') ||
+    (trimmed[0] === '[' && trimmed[trimmed.length - 1] === ']')
+  );
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const markdownComponents = {
+  p: ({ children }: any) => <p className="my-0.5 whitespace-pre-wrap break-words">{children}</p>,
+  pre: ({ children }: any) => (
+    <pre className="bg-muted/50 my-1 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0">
+      {children}
+    </pre>
+  ),
+  code: ({ children, ...props }: any) => (
+    <code className="bg-muted/50 rounded px-1 py-0.5 text-[10px]" {...props}>
+      {children}
+    </code>
+  ),
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500/70 underline">
+      {children}
+    </a>
+  ),
+  ul: ({ children }: any) => <ul className="my-0.5 list-disc pl-4">{children}</ul>,
+  ol: ({ children }: any) => <ol className="my-0.5 list-decimal pl-4">{children}</ol>,
+  li: ({ children }: any) => <li className="my-0">{children}</li>,
+  h1: ({ children }: any) => <strong className="block text-xs">{children}</strong>,
+  h2: ({ children }: any) => <strong className="block text-xs">{children}</strong>,
+  h3: ({ children }: any) => <strong className="block text-[11px]">{children}</strong>,
+  table: ({ children }: any) => (
+    <div className="my-1 overflow-x-auto">
+      <table className="border-muted/30 border-collapse border text-[10px]">{children}</table>
+    </div>
+  ),
+  th: ({ children }: any) => (
+    <th className="bg-muted/30 border-muted/30 border px-1.5 py-0.5 text-left font-medium">
+      {children}
+    </th>
+  ),
+  td: ({ children }: any) => <td className="border-muted/30 border px-1.5 py-0.5">{children}</td>,
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-muted-foreground/20 my-0.5 border-l-2 pl-2 italic">
+      {children}
+    </blockquote>
+  ),
+};
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+const remarkPlugins = [remarkGfm];
+
+/**
+ * Renders content as formatted markdown or pretty-printed JSON.
+ * Auto-detects JSON objects/arrays and formats them; everything else
+ * goes through react-markdown with GFM support.
+ */
+function RichContent({ content }: { content: string }) {
+  if (isLikelyJson(content)) {
+    try {
+      const formatted = JSON.stringify(JSON.parse(content), null, 2);
+      return (
+        <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+          <code>{formatted}</code>
+        </pre>
+      );
+    } catch {
+      /* not valid JSON, fall through to markdown */
+    }
+  }
+
+  return (
+    <Markdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+      {content}
+    </Markdown>
+  );
 }
 
 /**
@@ -178,7 +286,7 @@ function ContentArea({
           (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
         }}
       >
-        <span className="whitespace-pre-wrap break-words">{content}</span>
+        <RichContent content={content} />
       </div>
 
       {/* Subtle fade at bottom when overflowing */}
@@ -216,9 +324,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-blue-500/60">request</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
-          {content}
-        </span>
+        <div className="text-muted-foreground/50 min-w-0 flex-1">
+          <RichContent content={content} />
+        </div>
         {timeLabel}
       </div>
     );
@@ -226,11 +334,11 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
 
   if (message.role === 'assistant') {
     if (message.toolCalls && message.toolCalls.length > 0) {
-      const toolName = message.toolCalls[0].function.name;
+      const toolNames = message.toolCalls.map((tc) => `${tc.function.name}()`).join(', ');
       return (
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
-          <span className="text-muted-foreground/50 min-w-0 flex-1">{toolName}()</span>
+          <span className="text-muted-foreground/50 min-w-0 flex-1">{toolNames}</span>
           {timeLabel}
         </div>
       );
@@ -240,9 +348,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-green-500/60">response</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
-          {content}
-        </span>
+        <div className="text-muted-foreground/50 min-w-0 flex-1">
+          <RichContent content={content} />
+        </div>
         {timeLabel}
       </div>
     );
@@ -254,9 +362,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-purple-500/60">result</span>
-        <span className="text-muted-foreground/50 min-w-0 flex-1 whitespace-pre-wrap break-words">
-          {content}
-        </span>
+        <div className="text-muted-foreground/50 min-w-0 flex-1">
+          <RichContent content={content} />
+        </div>
         {timeLabel}
       </div>
     );
@@ -487,7 +595,7 @@ export function ActionNodeItem({
 
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
-  const isExpandable = hasChildren || (node.status === 'running' && canLoadToolLoop);
+  const isExpandable = hasChildren || canLoadToolLoop;
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -530,7 +638,7 @@ export function ActionNodeItem({
       isCurrentlyLoading = true;
 
       try {
-        const hierarchyPrefix = node.hierarchy.join('->');
+        const hierarchyPrefix = node.hierarchyLabel;
         const response = await getToolLoopEvents(assistantId!, hierarchyPrefix, 5);
 
         if (isCancelled) return;
@@ -543,7 +651,8 @@ export function ActionNodeItem({
 
           let content: string | undefined;
           if (message.toolCalls && message.toolCalls.length > 0) {
-            content = `Calling ${message.toolCalls[0].function.name}...`;
+            const names = message.toolCalls.map((tc) => tc.function.name).join(', ');
+            content = `Calling ${names}...`;
           } else {
             content = extractTextContent(message.content);
           }
@@ -566,7 +675,7 @@ export function ActionNodeItem({
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [node.status, node.hierarchy, canLoadToolLoop, assistantId, getToolLoopEvents]);
+  }, [node.status, node.hierarchyLabel, canLoadToolLoop, assistantId, getToolLoopEvents]);
 
   // Load full ToolLoop conversation for completed nodes when expanded.
   // Uses hierarchy prefix + time bounds to scope results to this specific
@@ -583,7 +692,7 @@ export function ActionNodeItem({
 
     const load = async () => {
       try {
-        const hierarchyPrefix = node.hierarchy.join('->') + '(';
+        const hierarchyPrefix = node.hierarchyLabel;
         const response = await getToolLoopEvents(
           assistantId!,
           hierarchyPrefix,
@@ -613,7 +722,7 @@ export function ActionNodeItem({
     getToolLoopEvents,
     node.startTime,
     node.endTime,
-    node.hierarchy,
+    node.hierarchyLabel,
   ]);
 
   // Clear thinking & reset ToolLoop state when node starts running
@@ -835,6 +944,13 @@ export function ActionNodeItem({
           <span className="truncate">{node.label}</span>
           <LiveDuration node={node} />
         </span>
+
+        {/* Right-aligned start time */}
+        {node.startTime && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {depth === 0 ? formatEventDateTime(node.startTime) : formatEventTime(node.startTime)}
+          </span>
+        )}
       </div>
 
       {/* Running thinking hint — live status indicator */}

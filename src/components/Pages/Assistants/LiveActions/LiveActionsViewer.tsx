@@ -200,7 +200,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     // Clear tree so the loading state shows while re-fetching
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lookbackMs]);
+  }, [timeWindowKey]);
 
   // Manual refresh handler (polls from Orchestra on demand)
   const [isManualRefreshing, setIsManualRefreshing] = React.useState(false);
@@ -246,12 +246,14 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     };
     collectRunning(roots);
 
+    const rootIds = new Set(roots.map((r) => r.id));
+
     setExpandedNodeIds((prev) => {
       const next = new Set(prev);
       currentRunning.forEach((id) => next.add(id));
       if (autoCollapse) {
         prevRunningRef.current.forEach((id) => {
-          if (!currentRunning.has(id)) next.delete(id);
+          if (!currentRunning.has(id) && !rootIds.has(id)) next.delete(id);
         });
       }
       return next;
@@ -267,7 +269,6 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     setLastUpdated(null);
     preSearchExpandedRef.current = null;
     setTimeWindowKey(DEFAULT_TIME_WINDOW_KEY);
-    isFirstRenderRef.current = true;
   }, [assistant?.agentId]);
 
   // ==========================================================================
@@ -295,6 +296,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           onTimeWindowChange={handleTimeWindowChange}
           onRefresh={handleManualRefresh}
           isRefreshing={isManualRefreshing}
+          isLoading={isLoading}
         />
       )}
 
