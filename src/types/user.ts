@@ -37,6 +37,7 @@ export interface User {
 export interface UserOrganization {
   id: number;
   name: string;
+  ownerId: string;
   roleId: number;
   roleName: string;
   apiKey: string;

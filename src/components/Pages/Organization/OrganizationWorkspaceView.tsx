@@ -531,7 +531,7 @@ const OrganizationWorkspaceView = ({
                           roles={roles}
                           currentUserId={currentUserId}
                           canManageMembers={canManageMembers}
-                          isOrgOwner={organization.ownerId === member.userId}
+                          isOrgOwner={organization.ownerId === currentUserId}
                           onRemove={onRemoveMember}
                           onUpdateRole={onUpdateRole}
                           onTransferOwnership={onTransferOwnership}

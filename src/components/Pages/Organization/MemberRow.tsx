@@ -354,10 +354,10 @@ const MemberRow = ({
                         </DropdownMenuItem>
                       )}
 
-                      {isOrgOwner && (
+                      {isOrgOwner && !isTargetOwner && (
                         <DropdownMenuItem onClick={() => setIsTransferDialogOpen(true)}>
                           <User className="mr-2 h-4 w-4" />
-                          <span>Set as Owner</span>
+                          <span>Transfer Ownership</span>
                         </DropdownMenuItem>
                       )}
 
@@ -384,8 +384,9 @@ const MemberRow = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Transfer Ownership</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to transfer ownership of your organization to{' '}
-              <strong>{member.name}</strong>. All billing will be managed from their account.
+              You are about to transfer ownership of this organization to{' '}
+              <strong>{member.name}</strong>. They will become the new Owner and you will be
+              reassigned to the Admin role. Organization billing and credits will remain unchanged.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

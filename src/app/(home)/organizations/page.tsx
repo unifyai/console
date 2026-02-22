@@ -22,6 +22,7 @@ const OrganizationPage = async () => {
     user.organizations?.map((org: any) => ({
       id: org.id,
       name: org.name,
+      ownerId: org.ownerId,
       roleId: org.roleId,
       roleName: org.roleName,
       apiKey: org.apiKey,
