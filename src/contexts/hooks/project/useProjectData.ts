@@ -26,108 +26,102 @@ export interface ProjectDataActions {
  */
 export function useProjectData(projectIdOrName: string | null) {
   // Use the meta hook to get common project info
-  const { 
-    projectId, 
-    projectExists 
-  } = useProjectMeta(projectIdOrName);
+  const { projectId, projectExists } = useProjectMeta(projectIdOrName);
 
   // Granular subscriptions to Data properties using useShallow for arrays and objects
-  const description = useStoreContext(state => {
+  const description = useStoreContext((state) => {
     if (!projectExists || !projectId) return '';
     return state.projectsById[projectId].description;
   });
-  
+
   const contexts = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!projectExists || !projectId) return EMPTY_CONTEXTS;
       return state.projectsById[projectId].contexts;
     })
   );
-  
+
   const interfaceIds = useStoreContext(
-    useShallow(state => {
+    useShallow((state) => {
       if (!projectExists || !projectId) return EMPTY_INTERFACE_IDS;
       return state.projectsById[projectId].interfaceIds;
     })
   );
 
   // Get store actions for data management
-  const storeUpdateProject = useStoreContext(state => state.updateProject);
-  const storeInitInterface = useStoreContext(state => state.initInterface);
-  const storeRemoveInterface = useStoreContext(state => state.removeInterface);
+  const storeUpdateProject = useStoreContext((state) => state.updateProject);
+  const storeInitInterface = useStoreContext((state) => state.initInterface);
+  const storeRemoveInterface = useStoreContext((state) => state.removeInterface);
 
   // Memoize the data object to prevent unnecessary rerenders
   const data = useMemo<Partial<ProjectData> | null>(() => {
     if (!projectExists) return null;
-    
+
     return {
       description,
       contexts,
-      interfaceIds
+      interfaceIds,
     };
   }, [projectExists, description, contexts, interfaceIds]);
 
   // Memoize the data actions to prevent unnecessary re-renders
-  const dataActions = useMemo<ProjectDataActions>(() => ({
-    setDescription: (description) => {
-      if (projectId) {
-        storeUpdateProject(projectId, { description });
-      }
-    },
-    
-    setContexts: (contexts) => {
-      if (projectId) {
-        storeUpdateProject(projectId, { contexts });
-      }
-    },
-    
-    addInterfaceId: (interfaceName) => {
-      if (projectId && interfaceIds) {
-        // Create the interface with the hierarchical ID pattern
-        const interfaceId = `${projectId}>${interfaceName}`;
-        
-        // Initialize the interface
-        storeInitInterface(projectId, interfaceId, {
-          id: interfaceId,
-          name: interfaceName,
-          projectId: projectId
-        });
-        
-        // Add the interface ID to the project's interfaceIds array
-        if (!interfaceIds.includes(interfaceId)) {
-          const newInterfaceIds = [...interfaceIds, interfaceId];
+  const dataActions = useMemo<ProjectDataActions>(
+    () => ({
+      setDescription: (description) => {
+        if (projectId) {
+          storeUpdateProject(projectId, { description });
+        }
+      },
+
+      setContexts: (contexts) => {
+        if (projectId) {
+          storeUpdateProject(projectId, { contexts });
+        }
+      },
+
+      addInterfaceId: (interfaceName) => {
+        if (projectId && interfaceIds) {
+          // Create the interface with the hierarchical ID pattern
+          const interfaceId = `${projectId}>${interfaceName}`;
+
+          // Initialize the interface
+          storeInitInterface(projectId, interfaceId, {
+            id: interfaceId,
+            name: interfaceName,
+            projectId: projectId,
+          });
+
+          // Add the interface ID to the project's interfaceIds array
+          if (!interfaceIds.includes(interfaceId)) {
+            const newInterfaceIds = [...interfaceIds, interfaceId];
+            storeUpdateProject(projectId, { interfaceIds: newInterfaceIds });
+          }
+        }
+      },
+
+      removeInterfaceId: (interfaceName) => {
+        if (projectId && interfaceIds) {
+          // Check if the interface ID is already hierarchical
+          const interfaceId = interfaceName.includes('>')
+            ? interfaceName
+            : `${projectId}>${interfaceName}`;
+
+          // Remove the interface from the store
+          storeRemoveInterface(projectId, interfaceId);
+
+          // Remove the interface ID from the project's interfaceIds array
+          const newInterfaceIds = interfaceIds.filter((id) => id !== interfaceId);
           storeUpdateProject(projectId, { interfaceIds: newInterfaceIds });
         }
-      }
-    },
-    
-    removeInterfaceId: (interfaceName) => {
-      if (projectId && interfaceIds) {
-        // Check if the interface ID is already hierarchical
-        const interfaceId = interfaceName.includes('>')
-          ? interfaceName
-          : `${projectId}>${interfaceName}`;
-        
-        // Remove the interface from the store
-        storeRemoveInterface(projectId, interfaceId);
-        
-        // Remove the interface ID from the project's interfaceIds array
-        const newInterfaceIds = interfaceIds.filter(id => id !== interfaceId);
-        storeUpdateProject(projectId, { interfaceIds: newInterfaceIds });
-      }
-    }
-  }), [
-    projectId, 
-    interfaceIds, 
-    storeUpdateProject, 
-    storeInitInterface, 
-    storeRemoveInterface
-  ]);
+      },
+    }),
+    [projectId, interfaceIds, storeUpdateProject, storeInitInterface, storeRemoveInterface]
+  );
 
   return {
     data,
     dataActions,
     interfaceIds,
-    contexts
+    contexts,
   };
-} 
+}

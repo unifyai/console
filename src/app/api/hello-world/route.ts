@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
-  return NextResponse.json({ message: 'Hello World' })
+  return NextResponse.json({ message: 'Hello World' });
 }
 
 export async function POST(req: NextRequest) {
-  return NextResponse.json({ message: 'Hello World from POST' })
+  return NextResponse.json({ message: 'Hello World from POST' });
 }

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useTransition, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { TabUIActions } from "@/contexts/hooks/tab";
+import { useTransition, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { TabUIActions } from '@/contexts/hooks/tab';
 
 type RefreshOpts = {
   /** Clear pending state after the transition */
@@ -23,13 +23,11 @@ type RefreshOpts = {
  * The hook internally reference-counts concurrent refreshes, so if
  * multiple refreshes run in parallel, flags are cleared
  * only after the very last one completes.
- * 
- * NOTE: UI states are now set BEFORE server mutations in the wrapper 
+ *
+ * NOTE: UI states are now set BEFORE server mutations in the wrapper
  * functions, rather than as part of the router refresh.
  */
-export function useTabRouterRefresh(
-  uiActions: TabUIActions | null
-) {
+export function useTabRouterRefresh(uiActions: TabUIActions | null) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -38,15 +36,15 @@ export function useTabRouterRefresh(
 
   /** call inside a setter */
   const refreshRouter = useCallback(
-    (opts: RefreshOpts = { clearPending: true, clearDataPending: true, externalPendingSetters: [] }) => {
-      const { 
-        clearPending = true, 
-        clearDataPending = true, 
-        externalPendingSetters = [] 
-      } = opts;
-      
-      console.log('[useTabRouterRefresh] ⚠️ Router refresh disabled - using optimistic updates only');
-      
+    (
+      opts: RefreshOpts = { clearPending: true, clearDataPending: true, externalPendingSetters: [] }
+    ) => {
+      const { clearPending = true, clearDataPending = true, externalPendingSetters = [] } = opts;
+
+      console.log(
+        '[useTabRouterRefresh] ⚠️ Router refresh disabled - using optimistic updates only'
+      );
+
       // DISABLED: router.refresh() triggers expensive RSC refetches
       // With optimistic updates + React Query, we don't need server re-renders
       // Just clear the pending states immediately
@@ -64,4 +62,4 @@ export function useTabRouterRefresh(
   );
 
   return refreshRouter;
-} 
+}

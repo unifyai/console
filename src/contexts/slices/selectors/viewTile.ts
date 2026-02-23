@@ -7,38 +7,31 @@ export interface ViewTileMeta {
   // Meta properties
 }
 
-// View tile data - business data 
+// View tile data - business data
 export interface ViewTileData {
-  base_index?: string | null;     // Base index for the table
+  baseIndex?: string | null; // Base index for the table
 }
 
 // View tile UI - UI-related state
-export interface ViewTileUI {
-}
+export interface ViewTileUI {}
 
 // Combined View tile type
 export type ViewTile = ViewTileMeta & ViewTileData & ViewTileUI;
 
-
 // viewKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a ViewTile into a TileProps
-export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
+export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ['baseIndex'];
 
 // viewTileKeys: all fields for ViewTile
-export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [
-  ...VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS,
-];
-
+export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [...VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS];
 
 /**
  * Initialize a new view tile
  */
-export function initViewTile(
-  initialState: Partial<ViewTile> = {}
-): ViewTile {
+export function initViewTile(initialState: Partial<ViewTile> = {}): ViewTile {
   return {
     // Data
-    base_index: initialState.base_index !== undefined ? initialState.base_index : null,
+    baseIndex: initialState.baseIndex !== undefined ? initialState.baseIndex : null,
 
     ...initialState,
   } as ViewTile;
@@ -47,10 +40,7 @@ export function initViewTile(
 /**
  * Update a view tile
  */
-export function updateViewTile(
-  viewTile: ViewTile,
-  updates: Partial<ViewTile>
-): ViewTile {
+export function updateViewTile(viewTile: ViewTile, updates: Partial<ViewTile>): ViewTile {
   return {
     ...viewTile,
     ...updates,

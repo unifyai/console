@@ -58,7 +58,7 @@ describe('useInfiniteLogsQuery (flaky backend scenarios via fetchLogsCore)', () 
       groupingExpression: null,
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions,
       updateLogs: vi.fn(),
       enabled: true,
@@ -87,7 +87,3 @@ describe('useInfiniteLogsQuery (flaky backend scenarios via fetchLogsCore)', () 
     fetchSpy.mockRestore();
   });
 });
-
-
-
-

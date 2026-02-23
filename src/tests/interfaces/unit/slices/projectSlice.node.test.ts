@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createStore, IStoreState } from '@/contexts/store';
 
-const createTestStore = (initialState?: Partial<IStoreState>) =>
-  createStore(initialState);
+const createTestStore = (initialState?: Partial<IStoreState>) => createStore(initialState);
 
 describe('projectSlice', () => {
   it('initProject creates a project and adds it to the projects list without duplicates', () => {
@@ -93,5 +92,3 @@ describe('projectSlice', () => {
     expect(nextState.activeTabId).toBeNull();
   });
 });
-
-

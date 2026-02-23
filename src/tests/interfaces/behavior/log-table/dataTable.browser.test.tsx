@@ -3,7 +3,7 @@
  *
  * Tests the REAL DataTable component using the reusable test harness.
  * This provides actual coverage of the production code.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - A: Log Table - Basic (A1-A12)
  * - B: Log Table - Advanced (B1-B17)
@@ -18,7 +18,6 @@ import { renderDataTable, createTestData } from '../fixtures/dataTableTestHarnes
 // =============================================================================
 
 describe('P1-A: Log Table - Basic', () => {
-  
   // =========================================================================
   // A1: Display logs
   // =========================================================================
@@ -45,7 +44,7 @@ describe('P1-A: Log Table - Basic', () => {
       // Check for expected column headers
       const headers = screen.getAllByRole('columnheader');
       const headerTexts = headers.map((h) => h.textContent);
-      
+
       expect(headerTexts.some((t) => t?.includes('Message'))).toBe(true);
       expect(headerTexts.some((t) => t?.includes('Status'))).toBe(true);
       expect(headerTexts.some((t) => t?.includes('User'))).toBe(true);
@@ -74,7 +73,7 @@ describe('P1-A: Log Table - Basic', () => {
 
   // =========================================================================
   // A2 & A3: Pagination
-  // Note: Full pagination testing requires the pagination controls to be 
+  // Note: Full pagination testing requires the pagination controls to be
   // rendered by DataTable. The harness verifies pagination state is correctly
   // passed to the component. Actual button clicks would require the real
   // pagination UI which is in a parent component (LogsTable).
@@ -103,9 +102,9 @@ describe('P1-A: Log Table - Basic', () => {
       // The harness generates data based on offset, so row 21 should be visible
       // (Log message 21 instead of Log message 1)
       const cells = screen.getAllByRole('cell');
-      const hasOffsetData = cells.some((c) => 
-        c.textContent?.includes('Log message 21') || 
-        c.textContent?.includes('Log message 22')
+      const hasOffsetData = cells.some(
+        (c) =>
+          c.textContent?.includes('Log message 21') || c.textContent?.includes('Log message 22')
       );
       expect(hasOffsetData).toBe(true);
     });
@@ -120,9 +119,7 @@ describe('P1-A: Log Table - Basic', () => {
 
       // Should see data starting from log 51
       const cells = screen.getAllByRole('cell');
-      const hasCorrectOffset = cells.some((c) => 
-        c.textContent?.includes('Log message 51')
-      );
+      const hasCorrectOffset = cells.some((c) => c.textContent?.includes('Log message 51'));
       expect(hasCorrectOffset).toBe(true);
     });
   });
@@ -402,8 +399,8 @@ describe('P1-A: Log Table - Basic', () => {
       const initialHeaders = screen.getAllByRole('columnheader');
       const initialCount = initialHeaders.length;
 
-      setColumnVisibility({ 
-        'entries/status': false, 
+      setColumnVisibility({
+        'entries/status': false,
         'entries/user': false,
         'entries/score': false,
       });
@@ -422,7 +419,7 @@ describe('P1-A: Log Table - Basic', () => {
     it('calls onCellSelect callback when cell is clicked', async () => {
       const user = userEvent.setup();
       const onCellSelect = vi.fn();
-      
+
       renderDataTable({
         callbacks: { onCellSelect },
       });
@@ -780,7 +777,6 @@ describe('P1-A: Log Table - Basic', () => {
 // =============================================================================
 
 describe('P1-B: Log Table - Advanced', () => {
-
   // =========================================================================
   // B4: Multi-select - Ctrl
   // =========================================================================
@@ -1306,7 +1302,7 @@ describe('P1-B: Log Table - Advanced', () => {
     it('supports custom derived columns', async () => {
       const derivedColumn = {
         id: 'derived/combined',
-        accessorFn: (row: { entries?: { message?: string; status?: string } }) => 
+        accessorFn: (row: { entries?: { message?: string; status?: string } }) =>
           `${row.entries?.message} - ${row.entries?.status}`,
         header: 'Combined',
       };
@@ -1332,11 +1328,13 @@ describe('P1-B: Log Table - Advanced', () => {
   describe('B16: Derived column edit', () => {
     it('can update derived column definition via rerender', async () => {
       const { rerender } = renderDataTable({
-        customColumns: [{
-          id: 'derived/formula',
-          accessorFn: () => 'original',
-          header: 'Formula Result',
-        }],
+        customColumns: [
+          {
+            id: 'derived/formula',
+            accessorFn: () => 'original',
+            header: 'Formula Result',
+          },
+        ],
       });
 
       await waitFor(() => {
@@ -1349,7 +1347,10 @@ describe('P1-B: Log Table - Advanced', () => {
 
       // Rerender with updated formula
       rerender(
-        <div data-testid="datatable-test-container" style={{ height: '600px', width: '100%', overflow: 'auto' }}>
+        <div
+          data-testid="datatable-test-container"
+          style={{ height: '600px', width: '100%', overflow: 'auto' }}
+        >
           {/* Note: In a real scenario, the parent would pass new customColumns */}
         </div>
       );
@@ -1446,11 +1447,11 @@ describe('P1-B: Log Table - Advanced', () => {
         expect(screen.getByRole('table')).toBeInTheDocument();
       });
 
-      // Our mock data includes: message (string), status (string), 
-      // user (string), score (number), latency_ms (number), 
-      // is_active (boolean), created_at (timestamp)
+      // Our mock data includes: message (string), status (string),
+      // user (string), score (number), latency_ms (number),
+      // is_active (boolean), createdAt (timestamp)
       const cells = screen.getAllByRole('cell');
-      
+
       // Should have cells with different data types
       expect(cells.some((c) => c.textContent?.includes('Log message'))).toBe(true); // string
       expect(cells.some((c) => c.textContent?.match(/^\d+$/))).toBe(true); // number

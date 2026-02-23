@@ -1,15 +1,11 @@
-"use client"
+'use client';
 
-import React, { useState, useMemo } from 'react'
-import { cn } from '@/utils/misc/cn'
-import { 
-  ChevronsUpDown,
-  Check,
-  Loader2,
-} from 'lucide-react'
-import { Button } from '@/components/UI/button'
-import { ScrollArea } from '@/components/UI/scroll-area'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover'
+import React, { useState, useMemo } from 'react';
+import { cn } from '@/utils/misc/cn';
+import { ChevronsUpDown, Check, Loader2 } from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { ScrollArea } from '@/components/UI/scroll-area';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
 import {
   Command,
   CommandEmpty,
@@ -17,9 +13,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/UI/command"
-import Tooltip from '@/components/Common/Misc/Tooltip'
-import { renderSidebarIcon } from './utils'
+} from '@/components/UI/command';
+import Tooltip from '@/components/Common/Misc/Tooltip';
+import { renderSidebarIcon } from './utils';
 
 // ============================================================================
 // Types
@@ -67,7 +63,7 @@ export function InterfacePicker({
   onOpenChange,
 }: InterfacePickerProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  
+
   // Support both controlled and uncontrolled modes
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange || setInternalOpen;
@@ -84,7 +80,7 @@ export function InterfacePicker({
       const bIsSelected = b.name === selectedInterface?.name;
       const aIsTransitioning = a.name === transitioningToInterface;
       const bIsTransitioning = b.name === transitioningToInterface;
-      
+
       // Transitioning item first, then selected, then rest alphabetically
       if (aIsTransitioning && !bIsTransitioning) return -1;
       if (bIsTransitioning && !aIsTransitioning) return 1;
@@ -95,8 +91,8 @@ export function InterfacePicker({
   }, [interfaces, selectedInterface?.name, transitioningToInterface]);
 
   // Determine what to show in the trigger
-  const displayInterface = transitioningToInterface 
-    ? interfaces.find(i => i.name === transitioningToInterface) 
+  const displayInterface = transitioningToInterface
+    ? interfaces.find((i) => i.name === transitioningToInterface)
     : selectedInterface;
   const displayName = displayInterface?.name || transitioningToInterface;
 
@@ -107,22 +103,22 @@ export function InterfacePicker({
           variant="outline"
           role="combobox"
           aria-expanded={isOpen}
-          className="flex-1 min-w-0 justify-between h-8"
+          className="h-8 min-w-0 flex-1 justify-between"
           data-testid="interface-picker-trigger"
         >
-          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
             {isChangingInterface ? (
               <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
             ) : (
-              renderSidebarIcon(displayInterface?.icon, "h-3.5 w-3.5 flex-shrink-0", "interface")
+              renderSidebarIcon(displayInterface?.icon, 'h-3.5 w-3.5 flex-shrink-0', 'interface')
             )}
-            <span className="truncate text-xs">{displayName || "Select interface"}</span>
+            <span className="text-label truncate">{displayName || 'Select interface'}</span>
           </div>
           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-[var(--radix-popover-trigger-width)] max-w-[20rem] p-0 overflow-hidden" 
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] max-w-[20rem] overflow-hidden p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
         data-testid="interface-picker-content"
         side="bottom"
@@ -132,49 +128,70 @@ export function InterfacePicker({
         collisionPadding={{ top: 100, bottom: 100, left: 16, right: 16 }}
       >
         <Command>
-          <CommandInput placeholder="Search interfaces..." className="text-xs" data-testid="interface-search-input" />
+          <CommandInput
+            placeholder="Search interfaces..."
+            className="text-label"
+            data-testid="interface-search-input"
+          />
           <CommandList className="max-h-[300px] overflow-hidden p-0">
             <ScrollArea className="h-[250px]">
               {!isLoading && !isFetching && interfaces.length > 0 && (
-                <CommandEmpty className="text-xs py-3 px-2">No interface found.</CommandEmpty>
+                <CommandEmpty className="text-label px-2 py-3">No interface found.</CommandEmpty>
               )}
               <CommandGroup>
-                {(isLoading || isFetching) ? (
-                  <div className="p-4 flex flex-col items-center justify-center gap-2" data-testid="interface-picker-loading">
+                {isLoading || isFetching ? (
+                  <div
+                    className="flex flex-col items-center justify-center gap-2 p-4"
+                    data-testid="interface-picker-loading"
+                  >
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    <div className="text-xs text-muted-foreground">Loading interfaces...</div>
+                    <div className="text-caption">Loading interfaces...</div>
                   </div>
                 ) : interfaces.length === 0 ? (
-                  <div className="p-3 text-center text-xs text-muted-foreground" data-testid="interface-picker-empty">
-                    <svg className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                  <div
+                    className="text-caption p-3 text-center"
+                    data-testid="interface-picker-empty"
+                  >
+                    <svg
+                      className="text-muted-foreground/50 mx-auto mb-2 h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+                      />
                     </svg>
                     No interfaces in this project
                   </div>
                 ) : (
                   sortedInterfaces.map((iface) => {
                     const isSelected = selectedInterface?.name === iface.name;
-                    const isInterfaceLoading = isChangingInterface && transitioningToInterface === iface.name;
+                    const isInterfaceLoading =
+                      isChangingInterface && transitioningToInterface === iface.name;
                     return (
                       <CommandItem
                         key={iface.name}
                         value={iface.name}
                         onSelect={() => handleSelect(iface.name)}
                         className={cn(
-                          "text-xs max-w-full overflow-hidden",
-                          isSelected && !isInterfaceLoading && "bg-accent"
+                          'text-label max-w-full overflow-hidden',
+                          isSelected && !isInterfaceLoading && 'bg-accent'
                         )}
                         data-testid={`interface-option-${iface.name}`}
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
                           {isInterfaceLoading ? (
                             <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
                           ) : isSelected ? (
                             <Check className="h-3.5 w-3.5 flex-shrink-0" />
                           ) : (
-                            renderSidebarIcon(iface.icon, "h-3.5 w-3.5 flex-shrink-0", "interface")
+                            renderSidebarIcon(iface.icon, 'h-3.5 w-3.5 flex-shrink-0', 'interface')
                           )}
-                          <div className="flex-1 w-0 min-w-0 overflow-hidden">
+                          <div className="w-0 min-w-0 flex-1 overflow-hidden">
                             <Tooltip content={iface.name} side="right">
                               <div className="truncate text-left">{iface.name}</div>
                             </Tooltip>

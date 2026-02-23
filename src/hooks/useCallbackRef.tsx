@@ -1,4 +1,4 @@
-import { useState, useCallback, RefObject } from "react";
+import { useState, useCallback, RefObject } from 'react';
 
 export function useCallbackRef() {
   const [ref, setRef] = useState<RefObject<HTMLElement> | null>(null);

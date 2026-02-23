@@ -1,26 +1,29 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useId, useState, useMemo } from "react";
+import { useEffect, useRef, useId, useState, useMemo } from 'react';
 import {
   LogsActions,
   FieldsActions,
   GranularTileActions,
   ContextActions,
   ProjectsActions,
-} from "@/types/interfaces/grid";
-import { clearFixedTooltip } from "@/utils/interfaces/plots/tooltip";
-import { useTile, useTileItem } from "@/contexts/hooks/tile";
-import { useTab } from "@/contexts/hooks/tab";
-import PlotSettings from "./Sidebar";
-import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Interfaces/Query/usePlotDataQuery";
-import { usePlotTileSync } from "@/contexts/hooks/tile/sync/usePlotTileSync";
-import { PlotArguments } from "@/types/interfaces/logs";
-import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
-import { Button } from "@/components/UI/button";
-import { useQueryClient } from "@tanstack/react-query";
-import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpdateQuery";
-import { PlotCanvas } from "@/components/Common/Plot/PlotCanvas";
+} from '@/types/interfaces/grid';
+import { clearFixedTooltip } from '@/utils/interfaces/plots/tooltip';
+import { useTile, useTileItem } from '@/contexts/hooks/tile';
+import { useTab } from '@/contexts/hooks/tab';
+import PlotSettings from './Sidebar';
+import {
+  usePlotArgumentsQuery,
+  usePlotDataQueryWithTracking,
+} from '@/hooks/Interfaces/Query/usePlotDataQuery';
+import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
+import { PlotArguments } from '@/types/interfaces/logs';
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
+import { Button } from '@/components/UI/button';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePlotAutoUpdateQuery } from '@/hooks/Interfaces/Query/usePlotAutoUpdateQuery';
+import { PlotCanvas } from '@/components/Common/Plot/PlotCanvas';
 
 const LogsPlot = ({
   tileId,
@@ -101,22 +104,17 @@ const LogsPlot = ({
   );
 
   // Init logs and handle local updates
-  const { plotLogs: logs, plotFields: fields, preAggregatedBarData } = useMemo(
-    () => plotDataItem,
-    [plotDataItem]
-  );
+  const {
+    plotLogs: logs,
+    plotFields: fields,
+    preAggregatedBarData,
+  } = useMemo(() => plotDataItem, [plotDataItem]);
 
   // Show error UI flags if data fetch failed (rendered later, after all hooks)
   const plotError = (plotDataItem as any)?.error as any;
-  const showPlotError = !!(
-    plotError &&
-    typeof plotError === "string" &&
-    !isPlotDataLoading
-  );
+  const showPlotError = !!(plotError && typeof plotError === 'string' && !isPlotDataLoading);
   const isTimeout =
-    typeof plotError === "string" &&
-    (plotError.includes("timeout") || plotError.includes("504"));
-  
+    typeof plotError === 'string' && (plotError.includes('timeout') || plotError.includes('504'));
 
   // Initialize shared refs
   let svgRef = useRef<SVGSVGElement>(null);
@@ -124,32 +122,32 @@ const LogsPlot = ({
   let settingsRef = useRef<HTMLDivElement>(null);
 
   // Plot settings
-  let plotType = item?.plot_type;
-  plotType = plotType ? plotType : "Scatter Plot";
+  let plotType = item?.plotType;
+  plotType = plotType ? plotType : 'Scatter Plot';
 
-  let metric = item?.metric ? item?.metric : "mean";
-  let aggregateProperty = item?.plot_aggregate;
+  let metric = item?.metric ? item?.metric : 'mean';
+  let aggregateProperty = item?.plotAggregate;
   const groupings = Object.fromEntries(
     Object.entries(args as PlotArguments)
       .filter(([_, tableArgs]) => tableArgs.grouping)
-      .map(([table, tableArgs]) => [table, tableArgs.grouping.split(",")])
+      .map(([table, tableArgs]) => [table, tableArgs.grouping.split(',')])
   );
 
-  let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
+  let binCount = item?.binCount ? parseFloat(item?.binCount) : 10;
   const [binCounts, setBinCounts] = useState([1, 100]);
-  let showRegression = item?.regression_line === "true" ? "true" : "false";
+  let showRegression = item?.regressionLine === 'true' ? 'true' : 'false';
 
-  let scaleX = item?.plot_scale_x;
-  let scaleY = item?.plot_scale_y;
+  let scaleX = item?.plotScaleX;
+  let scaleY = item?.plotScaleY;
   const [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
   const [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
-  scaleX = scaleX ? scaleX : "linear";
-  scaleY = scaleY ? scaleY : "linear";
+  scaleX = scaleX ? scaleX : 'linear';
+  scaleY = scaleY ? scaleY : 'linear';
 
   // Axes and grouping selected on the plot
-  const selectedXAxisProperty = item?.x_axis;
-  const selectedYAxisProperty = item?.y_axis;
-  const groupByProperty = item?.plot_group_by;
+  const selectedXAxisProperty = item?.xAxis;
+  const selectedYAxisProperty = item?.yAxis;
+  const groupByProperty = item?.plotGroupBy;
   const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
 
   useEffect(() => {
@@ -160,7 +158,7 @@ const LogsPlot = ({
   }, [isGroupingKeyMinimized, setIsGroupingKeyMinimized]);
 
   // Sort bars for bar chart
-  const [sortBars, setSortBars] = useState("asc");
+  const [sortBars, setSortBars] = useState('asc');
 
   // Fixed tooltip states
   const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
@@ -183,15 +181,25 @@ const LogsPlot = ({
 
   if (showPlotError) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-          <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full">
+          <svg
+            className="h-6 w-6 text-destructive"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
         </div>
         <div>
           <h3 className="text-h4 mb-2">Failed to Load Plot Data</h3>
-          <p className="text-body text-muted-foreground max-w-md">
+          <p className="text-body max-w-md text-muted-foreground">
             {isTimeout
               ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
               : String(plotError)}
@@ -209,9 +217,9 @@ const LogsPlot = ({
   }
 
   return (
-    <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
+    <div className="flex h-full min-h-0 w-full flex-row items-stretch overflow-hidden">
       {/* Chart Container - Uses PlotCanvas with shared refs */}
-      <div className="flex flex-1 h-full relative overflow-hidden">
+      <div className="relative flex h-full flex-1 overflow-hidden">
         <PlotCanvas
           logs={logs}
           fields={fields}

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * APIError component displays an error message when something goes wrong while managing the API key.

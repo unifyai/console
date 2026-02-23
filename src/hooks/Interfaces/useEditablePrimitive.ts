@@ -1,5 +1,5 @@
-import React from "react";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
+import React from 'react';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
 
 export function useEditablePrimitive<T>(
   initial: T,
@@ -19,7 +19,7 @@ export function useEditablePrimitive<T>(
     if (validate) {
       const res = validate(draft);
       if (res !== true) {
-        showErrorToast(typeof res === "string" ? res : "Invalid value");
+        showErrorToast(typeof res === 'string' ? res : 'Invalid value');
         // Removed verbose debug logging – validation errors are still surfaced via toast
         return;
       }
@@ -29,7 +29,7 @@ export function useEditablePrimitive<T>(
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         // Removed verbose debug logging – keydown enter
         if (e.shiftKey) {
           // Allow newline inside textarea when Shift+Enter
@@ -38,7 +38,7 @@ export function useEditablePrimitive<T>(
         e.preventDefault();
         handleCommit();
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         // Removed verbose debug logging – keydown escape
         setDraft(initial); // revert
       }
@@ -48,11 +48,12 @@ export function useEditablePrimitive<T>(
 
   const inputProps = {
     value: draft as any,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft((e.target as any).value as any),
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setDraft((e.target as any).value as any),
     onKeyDown: handleKeyDown,
   } as const;
 
   const hasChanged = draft !== initialRef.current;
 
   return { draft, setDraft, inputProps, commit: handleCommit, hasChanged };
-} 
+}

@@ -1,7 +1,13 @@
-import { Context, ContextActions, FieldsActions, ProjectsActions, TileData } from "@/types/interfaces/grid";
-import { LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { QueryClient } from "@tanstack/react-query";
-import { dedupedJson } from "@/lib/requestDeduper";
+import {
+  Context,
+  ContextActions,
+  FieldsActions,
+  ProjectsActions,
+  TileData,
+} from '@/types/interfaces/grid';
+import { LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { QueryClient } from '@tanstack/react-query';
+import { dedupedJson } from '@/lib/requestDeduper';
 
 /**
  * Debug flag for performance logging
@@ -19,130 +25,130 @@ const perfLog = (...args: any[]) => {
 };
 
 /*
-* Builds the projects and contexts for a tab
-* either from the cache or from the server based
-* on the fetchProjects and fetchContexts flags
-*/
+ * Builds the projects and contexts for a tab
+ * either from the cache or from the server based
+ * on the fetchProjects and fetchContexts flags
+ */
 export async function fetchOrBuildProjectsAndContexts(
   queryClient: QueryClient,
   projectId: string,
   refetchProjects: boolean,
   refetchContexts: boolean,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ) {
-    let projects: string[] = [];
-    let contexts: Context[] = [];
+  let projects: string[] = [];
+  let contexts: Context[] = [];
 
-    if (refetchProjects) {
-        const tProjects = performance.now();
-        await queryClient.fetchQuery({
-            queryKey: ["projects"],
-            queryFn: async ({ signal }) => {
-              // Call API route directly instead of server action
-              const res = await fetch('/api/projects', {
-                method: 'GET',
-                signal: signal as AbortSignal,
-                cache: 'no-store',
-              });
-              if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ detail: `Projects ${res.status}` }));
-                throw new Error(errorData.detail || `Failed to fetch projects: ${res.status}`);
-              }
-              return res.json();
-            },
-        });
-        perfLog(
-          `[perf] fetchOrBuildProjectsAndContexts – fetchProjects: ${(
-            performance.now() - tProjects
-          ).toFixed(2)} ms`
-        );
-    } 
-
-    if (refetchContexts) {
-        const tContexts = performance.now();
-        await queryClient.fetchQuery({
-            queryKey: ["contexts", projectId],
-            queryFn: async ({ signal: querySignal }) => {
-              // Call API route directly instead of server action
-              const res = await fetch(`/api/context/${encodeURIComponent(projectId)}`, {
-                method: 'GET',
-                signal: signal || querySignal as AbortSignal,
-                cache: 'no-store',
-              });
-              if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ detail: `Contexts ${res.status}` }));
-                throw new Error(errorData.detail || `Failed to fetch contexts: ${res.status}`);
-              }
-              return res.json();
-            },
-        });
-        perfLog(
-          `[perf] fetchOrBuildProjectsAndContexts – fetchContexts: ${(
-            performance.now() - tContexts
-          ).toFixed(2)} ms`
-        );
-    }
-
+  if (refetchProjects) {
     const tProjects = performance.now();
-    projects = queryClient.getQueryData<string[]>(["projects"]) || [];
+    await queryClient.fetchQuery({
+      queryKey: ['projects'],
+      queryFn: async ({ signal }) => {
+        // Call API route directly instead of server action
+        const res = await fetch('/api/projects', {
+          method: 'GET',
+          signal: signal as AbortSignal,
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ detail: `Projects ${res.status}` }));
+          throw new Error(errorData.detail || `Failed to fetch projects: ${res.status}`);
+        }
+        return res.json();
+      },
+    });
     perfLog(
-      `[perf] fetchOrBuildProjectsAndContexts – getProjects: ${(
+      `[perf] fetchOrBuildProjectsAndContexts – fetchProjects: ${(
         performance.now() - tProjects
       ).toFixed(2)} ms`
     );
+  }
+
+  if (refetchContexts) {
     const tContexts = performance.now();
-    contexts = queryClient.getQueryData<Context[]>(["contexts", projectId]) || [];
+    await queryClient.fetchQuery({
+      queryKey: ['contexts', projectId],
+      queryFn: async ({ signal: querySignal }) => {
+        // Call API route directly instead of server action
+        const res = await fetch(`/api/context/${encodeURIComponent(projectId)}`, {
+          method: 'GET',
+          signal: signal || (querySignal as AbortSignal),
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ detail: `Contexts ${res.status}` }));
+          throw new Error(errorData.detail || `Failed to fetch contexts: ${res.status}`);
+        }
+        return res.json();
+      },
+    });
     perfLog(
-      `[perf] fetchOrBuildProjectsAndContexts – getContexts: ${(
+      `[perf] fetchOrBuildProjectsAndContexts – fetchContexts: ${(
         performance.now() - tContexts
       ).toFixed(2)} ms`
     );
-    return {
-        projects: projects,
-        contexts: contexts,
-    };
+  }
+
+  const tProjects = performance.now();
+  projects = queryClient.getQueryData<string[]>(['projects']) || [];
+  perfLog(
+    `[perf] fetchOrBuildProjectsAndContexts – getProjects: ${(
+      performance.now() - tProjects
+    ).toFixed(2)} ms`
+  );
+  const tContexts = performance.now();
+  contexts = queryClient.getQueryData<Context[]>(['contexts', projectId]) || [];
+  perfLog(
+    `[perf] fetchOrBuildProjectsAndContexts – getContexts: ${(
+      performance.now() - tContexts
+    ).toFixed(2)} ms`
+  );
+  return {
+    projects: projects,
+    contexts: contexts,
+  };
 }
 
 /*
-* Builds the fields for all table tiles in a tab
-* either from the cache or from the server based
-* on the fetchFields flag
-*/
+ * Builds the fields for all table tiles in a tab
+ * either from the cache or from the server based
+ * on the fetchFields flag
+ */
 export async function fetchOrBuildFields(
   queryClient: QueryClient,
   tiles: TileData[],
   projectId: string,
   refetchFields: boolean,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ) {
   if (refetchFields) {
     const tFields = performance.now();
-    
+
     // Deduplicate contexts - multiple tiles may use the same context
     // This prevents multiple parallel fetches for the same context
-    const uniqueContexts = Array.from(new Set(tiles.map(tile => tile.context ?? null)));
-    
+    const uniqueContexts = Array.from(new Set(tiles.map((tile) => tile.context ?? null)));
+
     await Promise.all(
-      uniqueContexts.map(async context => {
+      uniqueContexts.map(async (context) => {
         const tField = performance.now();
         await queryClient.ensureQueryData({
-          queryKey: ["fields", projectId, context],
+          queryKey: ['fields', projectId, context],
           queryFn: async () => {
-            // Use dedupedJson for request coalescing - if multiple tiles/tabs request 
+            // Use dedupedJson for request coalescing - if multiple tiles/tabs request
             // the same context's fields simultaneously, only one fetch is made
-            const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
+            const url = `/api/logs/fields?projectName=${encodeURIComponent(projectId)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
             const result = await dedupedJson(url, {
               method: 'GET',
               cache: 'no-store',
             });
-            
+
             // Handle 404 gracefully - context doesn't exist, return empty fields
             // This prevents endless retries for deleted contexts
             if (result.status === 404) {
               console.warn(`[fetchOrBuildFields] Context not found: ${context} (404)`);
               return { __contextNotFound: true }; // Return marker for missing context
             }
-            
+
             if (!result.ok) {
               const errorData = result.json || { detail: `Fields ${result.status}` };
               throw new Error(errorData.detail || `Failed to fetch fields: ${result.status}`);
@@ -159,22 +165,25 @@ export async function fetchOrBuildFields(
       })
     );
     perfLog(
-      `[perf] fetchOrBuildFields – fetchFields: ${(
-        performance.now() - tFields
-      ).toFixed(2)} ms`
+      `[perf] fetchOrBuildFields – fetchFields: ${(performance.now() - tFields).toFixed(2)} ms`
     );
   }
 
-  return tiles.map(tile =>
-    queryClient.getQueryData(["fields", projectId, tile.context ?? null]) as LogFieldsResponseProps
+  return tiles.map(
+    (tile) =>
+      queryClient.getQueryData([
+        'fields',
+        projectId,
+        tile.context ?? null,
+      ]) as LogFieldsResponseProps
   );
 }
 
 /*
-* Builds the projects, contexts, and fields for all table tiles in a tab
-* either from the cache or from the server based
-* on the fetchProjects, fetchContexts, and fetchFields flags
-*/
+ * Builds the projects, contexts, and fields for all table tiles in a tab
+ * either from the cache or from the server based
+ * on the fetchProjects, fetchContexts, and fetchFields flags
+ */
 export async function fetchOrBuildProjectsContextsFields(
   queryClient: QueryClient,
   tiles: TileData[],
@@ -182,7 +191,7 @@ export async function fetchOrBuildProjectsContextsFields(
   refetchProjects: boolean,
   refetchContexts: boolean,
   refetchFields: boolean,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ) {
   const tStart = performance.now();
   const { projects, contexts } = await fetchOrBuildProjectsAndContexts(
@@ -211,9 +220,9 @@ export async function fetchOrBuildProjectsContextsFields(
     ).toFixed(2)} ms`
   );
   perfLog(
-    `[perf] fetchOrBuildProjectsContextsFields – total: ${(
-      performance.now() - tStart
-    ).toFixed(2)} ms`
+    `[perf] fetchOrBuildProjectsContextsFields – total: ${(performance.now() - tStart).toFixed(
+      2
+    )} ms`
   );
 
   return { projects, contexts, fields: fieldsArray };

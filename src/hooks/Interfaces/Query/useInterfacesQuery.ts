@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { dedupedJson } from '@/lib/requestDeduper';
 import { GranularInterfaceActions, InterfaceData } from '@/types/interfaces/grid';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * Hook to fetch all interfaces for a project
@@ -12,21 +12,33 @@ export function useListInterfacesQuery(
   projectId: string | null,
   actions: GranularInterfaceActions
 ) {
-  const eTagByProject = (useListInterfacesQuery as any)._etag || ((useListInterfacesQuery as any)._etag = new Map<string, string>());
+  const eTagByProject =
+    (useListInterfacesQuery as any)._etag ||
+    ((useListInterfacesQuery as any)._etag = new Map<string, string>());
   return useQuery({
     queryKey: ['interfaces', projectId],
     queryFn: async ({ signal, queryKey, meta }) => {
       if (!projectId) return [];
-      // Prefer API route on the client to avoid server action round-trips (RSC fetches)
+
+      // Use dedupedJson for request deduplication and ETag caching
+      // Note: actions.list is intentionally NOT used here - see optimisations-devlog.md
       const headers: HeadersInit = {};
       const et = eTagByProject.get(projectId);
       if (et) (headers as any)['If-None-Match'] = et;
-      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
-        method: 'GET',
-        signal: signal as AbortSignal,
-        cache: 'no-store',
-        headers,
-      });
+      const {
+        status,
+        ok,
+        headers: resHeaders,
+        json,
+      } = await dedupedJson(
+        `/api/interface?projectName=${encodeURIComponent(projectId)}&checkpoint=false`,
+        {
+          method: 'GET',
+          signal: signal as AbortSignal,
+          cache: 'no-store',
+          headers,
+        }
+      );
       const etag = resHeaders?.etag;
       if (etag) eTagByProject.set(projectId, etag);
       if (status === 304) {
@@ -41,7 +53,7 @@ export function useListInterfacesQuery(
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000, // 5 minutes - prevents duplicate fetches
-    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     retry: 2, // Retry twice on failure
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -84,7 +96,7 @@ export function useGetInterfaceByIdQuery(
     },
     enabled: !!interfaceId,
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
-    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }
 
@@ -103,20 +115,16 @@ export function useGetInterfaceUnifiedQuery(
   const { interfaceId, projectId, name, checkpoint } = params;
   const usingId = !!interfaceId;
   const usingPath = !!projectId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['interface-by-id', interfaceId, checkpoint] 
+    queryKey: usingId
+      ? ['interface-by-id', interfaceId, checkpoint]
       : ['interface', projectId, name, checkpoint],
     queryFn: async () => {
       if (usingId) {
         return actions.getById(interfaceId as string, checkpoint);
       } else if (usingPath) {
-        return actions.getByName(
-          projectId as string, 
-          name as string, 
-          checkpoint
-        );
+        return actions.getByName(projectId as string, name as string, checkpoint);
       }
       return null;
     },
@@ -152,17 +160,17 @@ export function useGetInterfaceWithTabsQuery(
  */
 export function useCreateInterfaceQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
+    mutationFn: async ({
+      projectId,
       name,
       ...interfaceData
-    }: { 
-      projectId: string; 
+    }: {
+      projectId: string;
       name: string;
       color?: string;
-      active_tab_id?: string;
+      activeTabId?: string;
       actions: GranularInterfaceActions;
     }) => {
       const { actions, ...restData } = interfaceData;
@@ -170,8 +178,8 @@ export function useCreateInterfaceQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate interfaces query to refetch the list
-      queryClient.invalidateQueries({ 
-        queryKey: ['interfaces', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['interfaces', variables.projectId],
       });
     },
   });
@@ -182,32 +190,32 @@ export function useCreateInterfaceQuery() {
  */
 export function useUpdateInterfaceQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      interfaceName, 
-      data, 
-      actions 
-    }: { 
-      projectId: string; 
+    mutationFn: async ({
+      projectId,
+      interfaceName,
+      data,
+      actions,
+    }: {
+      projectId: string;
       interfaceName: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>; 
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>;
       actions: GranularInterfaceActions;
     }) => {
       return actions.updateByName(projectId, interfaceName, data);
     },
     onSuccess: (_, variables) => {
       // Invalidate specific interface and interfaces list
-      queryClient.invalidateQueries({ 
-        queryKey: ['interface', variables.projectId, variables.interfaceName] 
+      queryClient.invalidateQueries({
+        queryKey: ['interface', variables.projectId, variables.interfaceName],
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ['interfaces', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['interfaces', variables.projectId],
       });
       // Also invalidate interface with tabs
-      queryClient.invalidateQueries({ 
-        queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName] 
+      queryClient.invalidateQueries({
+        queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName],
       });
     },
   });
@@ -218,15 +226,15 @@ export function useUpdateInterfaceQuery() {
  */
 export function useUpdateInterfaceByIdQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      interfaceId, 
-      data, 
-      actions 
-    }: { 
+    mutationFn: async ({
+      interfaceId,
+      data,
+      actions,
+    }: {
       interfaceId: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>; 
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>;
       actions: GranularInterfaceActions;
     }) => {
       return actions.updateById(interfaceId, data);
@@ -234,14 +242,14 @@ export function useUpdateInterfaceByIdQuery() {
     onSuccess: (result) => {
       if (result && 'id' in result) {
         // Invalidate the interface by ID
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-by-id', result.id],
         });
-        
-        // If we know the project_id, we can invalidate related queries
-        if ('project_id' in result && result.project_id) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['interfaces', result.project_id] 
+
+        // If we know the projectId, we can invalidate related queries
+        if ('projectId' in result && result.projectId) {
+          queryClient.invalidateQueries({
+            queryKey: ['interfaces', result.projectId],
           });
         }
       }
@@ -254,66 +262,65 @@ export function useUpdateInterfaceByIdQuery() {
  */
 export function useUpdateInterfaceUnifiedQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       interfaceId,
       projectId,
       name,
       data,
       checkpoint,
-      actions 
-    }: { 
+      actions,
+    }: {
       interfaceId?: string;
       projectId?: string;
       name?: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>;
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>;
       checkpoint?: boolean;
       actions: GranularInterfaceActions;
     }) => {
-
       if (interfaceId) {
         return actions.updateById(interfaceId, data, checkpoint);
       } else if (projectId && name) {
         return actions.updateByName(projectId, name, data, checkpoint);
       }
-      
-      throw new Error("Missing required parameters to identify the interface");
+
+      throw new Error('Missing required parameters to identify the interface');
     },
     onSuccess: (result, variables) => {
       const { interfaceId, projectId, name } = variables;
-      
+
       // Invalidate based on the parameters used
       if (interfaceId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-by-id', interfaceId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-by-id', interfaceId],
         });
       }
-      
+
       if (projectId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', projectId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interfaces', projectId],
         });
-        
+
         if (name) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['interface', projectId, name] 
+          queryClient.invalidateQueries({
+            queryKey: ['interface', projectId, name],
           });
-          queryClient.invalidateQueries({ 
-            queryKey: ['interface-with-tabs', projectId, name] 
+          queryClient.invalidateQueries({
+            queryKey: ['interface-with-tabs', projectId, name],
           });
         }
       }
-      
+
       // Also try to invalidate based on the result data
       if (result && typeof result === 'object' && 'id' in result) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interface-by-id', result.id] 
+        queryClient.invalidateQueries({
+          queryKey: ['interface-by-id', result.id],
         });
-        
-        if ('project_id' in result && result.project_id) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['interfaces', result.project_id] 
+
+        if ('projectId' in result && result.projectId) {
+          queryClient.invalidateQueries({
+            queryKey: ['interfaces', result.projectId],
           });
         }
       }
@@ -326,14 +333,14 @@ export function useUpdateInterfaceUnifiedQuery() {
  */
 export function useDeleteInterfaceQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      interfaceName, 
-      actions 
-    }: { 
-      projectId: string; 
+    mutationFn: async ({
+      projectId,
+      interfaceName,
+      actions,
+    }: {
+      projectId: string;
       interfaceName: string;
       actions: GranularInterfaceActions;
     }) => {
@@ -341,15 +348,15 @@ export function useDeleteInterfaceQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate interfaces list
-      queryClient.invalidateQueries({ 
-        queryKey: ['interfaces', variables.projectId] 
+      queryClient.invalidateQueries({
+        queryKey: ['interfaces', variables.projectId],
       });
       // Remove the deleted interface from cache
-      queryClient.removeQueries({ 
-        queryKey: ['interface', variables.projectId, variables.interfaceName] 
+      queryClient.removeQueries({
+        queryKey: ['interface', variables.projectId, variables.interfaceName],
       });
-      queryClient.removeQueries({ 
-        queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName] 
+      queryClient.removeQueries({
+        queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName],
       });
     },
   });
@@ -360,14 +367,14 @@ export function useDeleteInterfaceQuery() {
  */
 export function useDeleteInterfaceByIdQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       interfaceId,
       projectId, // Optional, for cache invalidation
       interfaceName, // Optional, for cache invalidation
-      actions 
-    }: { 
+      actions,
+    }: {
       interfaceId: string;
       projectId?: string;
       interfaceName?: string;
@@ -377,22 +384,22 @@ export function useDeleteInterfaceByIdQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate by ID
-      queryClient.removeQueries({ 
-        queryKey: ['interface-by-id', variables.interfaceId] 
+      queryClient.removeQueries({
+        queryKey: ['interface-by-id', variables.interfaceId],
       });
-      
+
       // If we have project info, invalidate those queries too
       if (variables.projectId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', variables.projectId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interfaces', variables.projectId],
         });
-        
+
         if (variables.interfaceName) {
-          queryClient.removeQueries({ 
-            queryKey: ['interface', variables.projectId, variables.interfaceName] 
+          queryClient.removeQueries({
+            queryKey: ['interface', variables.projectId, variables.interfaceName],
           });
-          queryClient.removeQueries({ 
-            queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName] 
+          queryClient.removeQueries({
+            queryKey: ['interface-with-tabs', variables.projectId, variables.interfaceName],
           });
         }
       }
@@ -405,12 +412,12 @@ export function useDeleteInterfaceByIdQuery() {
  */
 export function useDeleteInterfaceUnifiedQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       params,
-      actions 
-    }: { 
+      actions,
+    }: {
       params: {
         interfaceId?: string;
         projectId?: string;
@@ -419,36 +426,36 @@ export function useDeleteInterfaceUnifiedQuery() {
       actions: GranularInterfaceActions;
     }) => {
       const { interfaceId, projectId, name } = params;
-      
+
       if (interfaceId) {
         return actions.deleteById(interfaceId);
       } else if (projectId && name) {
         return actions.deleteByName(projectId, name);
       }
-      
-      throw new Error("Missing required parameters to identify the interface");
+
+      throw new Error('Missing required parameters to identify the interface');
     },
     onSuccess: (_, variables) => {
       const { interfaceId, projectId, name } = variables.params;
-      
+
       // Invalidate based on the parameters used
       if (interfaceId) {
-        queryClient.removeQueries({ 
-          queryKey: ['interface-by-id', interfaceId] 
+        queryClient.removeQueries({
+          queryKey: ['interface-by-id', interfaceId],
         });
       }
-      
+
       if (projectId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', projectId] 
+        queryClient.invalidateQueries({
+          queryKey: ['interfaces', projectId],
         });
-        
+
         if (name) {
-          queryClient.removeQueries({ 
-            queryKey: ['interface', projectId, name] 
+          queryClient.removeQueries({
+            queryKey: ['interface', projectId, name],
           });
-          queryClient.removeQueries({ 
-            queryKey: ['interface-with-tabs', projectId, name] 
+          queryClient.removeQueries({
+            queryKey: ['interface-with-tabs', projectId, name],
           });
         }
       }
@@ -461,15 +468,15 @@ export function useDeleteInterfaceUnifiedQuery() {
  */
 export function useCreateInterfaceCheckpointQuery() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      projectId, 
+    mutationFn: async ({
+      projectId,
       interfaceName,
       description,
-      actions 
-    }: { 
-      projectId: string; 
+      actions,
+    }: {
+      projectId: string;
       interfaceName: string;
       description: string;
       actions: GranularInterfaceActions;
@@ -478,8 +485,8 @@ export function useCreateInterfaceCheckpointQuery() {
     },
     onSuccess: (_, variables) => {
       // Invalidate checkpoints query to refetch data
-      queryClient.invalidateQueries({ 
-        queryKey: ['interfaces', variables.projectId, true] 
+      queryClient.invalidateQueries({
+        queryKey: ['interfaces', variables.projectId, true],
       });
     },
   });
@@ -534,18 +541,18 @@ export function useGetInterfaceCheckpointUnifiedQuery(
   const { interfaceId, projectId, name } = params;
   const usingId = !!interfaceId;
   const usingPath = !!projectId && !!name;
-  
+
   return useQuery({
-    queryKey: usingId 
-      ? ['interface-checkpoint-by-id', interfaceId] 
+    queryKey: usingId
+      ? ['interface-checkpoint-by-id', interfaceId]
       : ['interface-checkpoint-by-name', projectId, name],
     queryFn: async () => {
       return actions.getCheckpoint({
-        interface_id: interfaceId as string,
+        interfaceId: interfaceId as string,
         projectId: projectId as string,
-        name: name as string
+        name: name as string,
       });
     },
     enabled: usingId || usingPath,
   });
-} 
+}

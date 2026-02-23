@@ -19,4 +19,4 @@ export function useGlobalUIMode() {
     toggleEditMode: () => setGlobalEditMode(!globalEditMode),
     toggleDashboardMode: () => setGlobalDashboardMode(!globalDashboardMode),
   };
-} 
+}

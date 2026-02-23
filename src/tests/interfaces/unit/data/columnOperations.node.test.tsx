@@ -88,13 +88,8 @@ describe('columnOperations helpers', () => {
       } as any,
     ];
 
-    const result = flattenColumnIDs(cols);
-    expect(result).toEqual([
-      'root',
-      'root/child1',
-      'root/child2',
-      'root/child2/grandchild',
-    ]);
+    const result = flattenColumnIDs(cols as any);
+    expect(result).toEqual(['root', 'root/child1', 'root/child2', 'root/child2/grandchild']);
   });
 
   it('getAllChildColumns returns all descendants for parent columns', () => {
@@ -132,7 +127,7 @@ describe('columnOperations helpers', () => {
     });
 
     // Start with all hidden, toggle child1 to true then child2 to true
-    let vis = {
+    let vis: Record<string, boolean> = {
       parent: false,
       'parent/child1': false,
       'parent/child2': false,
@@ -147,5 +142,3 @@ describe('columnOperations helpers', () => {
     expect(vis.parent).toBe(true);
   });
 });
-
-

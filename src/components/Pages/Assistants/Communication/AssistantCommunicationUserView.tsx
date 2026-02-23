@@ -10,93 +10,116 @@ import { Participant } from 'livekit-client';
 import { cn } from '@/lib/utils';
 
 interface AssistantCommunicationUserViewProps {
-    imageUrl: string | null | undefined;
-    trackRef?: TrackReference;
-    isCameraOn: boolean;
-    participant: Participant;
-    onMinimize: () => void;
-    onMaximize?: () => void;
-    maximized?: boolean;
+  imageUrl: string | null | undefined;
+  trackRef?: TrackReference;
+  isCameraOn: boolean;
+  participant: Participant;
+  onMinimize: () => void;
+  onMaximize?: () => void;
+  maximized?: boolean;
 }
 
-export function AssistantCommunicationUserView({ imageUrl, trackRef, isCameraOn, participant, onMinimize, onMaximize, maximized = false }: AssistantCommunicationUserViewProps) {
-    const isSpeaking = useIsSpeaking(participant);
+export function AssistantCommunicationUserView({
+  imageUrl,
+  trackRef,
+  isCameraOn,
+  participant,
+  onMinimize,
+  onMaximize,
+  maximized = false,
+}: AssistantCommunicationUserViewProps) {
+  const isSpeaking = useIsSpeaking(participant);
 
-    if (maximized) {
-        return (
-             <div className="w-full h-full bg-black rounded-lg relative group">
-                {isCameraOn && trackRef ? (
-                    <VideoTrack trackRef={trackRef} className="w-full h-full object-contain" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        No video feed available.
-                    </div>
-                )}
-                <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost" size="icon"
-                                className="absolute top-2 right-2 h-7 w-7 text-white bg-black/30 hover:bg-black/60"
-                                onClick={onMinimize}
-                            >
-                                <Minimize className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom"><p>Minimize view</p></TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        )
-    }
-
+  if (maximized) {
     return (
-        <div className={cn("w-48 h-32 bg-muted rounded-lg shadow-2xl border overflow-hidden relative group transition-all duration-300", isSpeaking && "ring-2 ring-offset-2 ring-offset-background ring-primary")}>
-            <div className="w-full h-full flex items-center justify-center">
-                {isCameraOn && trackRef ? (
-                    <VideoTrack
-                        trackRef={trackRef}
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <Avatar className="w-full h-full rounded-none">
-                        <AvatarImage src={imageUrl ?? undefined} alt="Your video feed" className="object-cover" />
-                        <AvatarFallback className="bg-muted text-muted-foreground rounded-none text-3xl">
-                            <User className="w-10 h-10" />
-                        </AvatarFallback>
-                    </Avatar>
-                )}
-            </div>
-            <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <TooltipProvider delayDuration={100}>
-                    {onMaximize && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost" size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-background/50"
-                                    onClick={onMaximize}
-                                >
-                                    <Maximize className="h-3 w-3" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top"><p>Maximize</p></TooltipContent>
-                        </Tooltip>
-                    )}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost" size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-background/50"
-                                onClick={onMinimize}
-                            >
-                                <Minus className="h-3 w-3" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top"><p>Minimize self-view</p></TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        </div>
+      <div className="group relative h-full w-full rounded-lg bg-black">
+        {isCameraOn && trackRef ? (
+          <VideoTrack trackRef={trackRef} className="h-full w-full object-contain" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            No video feed available.
+          </div>
+        )}
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-2 h-7 w-7 bg-black/30 text-white hover:bg-black/60"
+                onClick={onMinimize}
+              >
+                <Minimize className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Minimize view</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     );
+  }
+
+  return (
+    <div
+      className={cn(
+        'group relative h-32 w-48 overflow-hidden rounded-lg border bg-muted shadow-2xl transition-all duration-300',
+        isSpeaking && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+      )}
+    >
+      <div className="flex h-full w-full items-center justify-center">
+        {isCameraOn && trackRef ? (
+          <VideoTrack trackRef={trackRef} className="h-full w-full object-cover" />
+        ) : (
+          <Avatar className="h-full w-full rounded-none">
+            <AvatarImage
+              src={imageUrl ?? undefined}
+              alt="Your video feed"
+              className="object-cover"
+            />
+            <AvatarFallback className="rounded-none bg-muted text-3xl text-muted-foreground">
+              <User className="h-10 w-10" />
+            </AvatarFallback>
+          </Avatar>
+        )}
+      </div>
+      <div className="absolute right-1 top-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <TooltipProvider delayDuration={100}>
+          {onMaximize && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-background/50 h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={onMaximize}
+                >
+                  <Maximize className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Maximize</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-background/50 h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={onMinimize}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Minimize self-view</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+  );
 }

@@ -31,6 +31,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# API call logs
+api-calls.log
+.log-filter
+
 # local env files
 .env
 .env.development
@@ -47,3 +51,8 @@ next-env.d.ts
 # auth files
 application_default_credentials.json
 .idea/
+
+# Local plans and credentials
+plans/
+.credentials/
+.cursorrules

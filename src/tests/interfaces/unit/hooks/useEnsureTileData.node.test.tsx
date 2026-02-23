@@ -49,9 +49,9 @@ function EnsureTableFastPathTest({
       totalCount: 42,
       error: undefined,
       entriesProperties: [],
-      paramsProperties: [],
+
       logs: [],
-      params: [],
+
       isLoading: false,
     };
     queryClient.setQueryData(['tableDataItem', tableTileId], tableDataItem);
@@ -171,7 +171,7 @@ describe('useEnsureTableTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -194,9 +194,9 @@ describe('useEnsureTableTileData', () => {
       totalCount: 10,
       error: undefined,
       entriesProperties: [],
-      paramsProperties: [],
+
       logs: [],
-      params: [],
+
       isLoading: false,
     };
 
@@ -281,7 +281,7 @@ describe('useEnsureTableTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -400,7 +400,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -408,7 +408,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -471,7 +471,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -479,7 +479,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -537,7 +537,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -545,7 +545,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -579,11 +579,7 @@ describe('useEnsurePlotTileData', () => {
     });
 
     await waitFor(() => {
-      const state = queryClient.getQueryState([
-        'ensurePlotTileData',
-        plotTileId,
-        projectId,
-      ]);
+      const state = queryClient.getQueryState(['ensurePlotTileData', plotTileId, projectId]);
       expect(state?.status).toBe('error');
       const error = state?.error as Error;
       expect(error).toBeInstanceOf(Error);
@@ -595,4 +591,3 @@ describe('useEnsurePlotTileData', () => {
     buildOptimisticPlotDataItemSpy.mockRestore();
   });
 });
-

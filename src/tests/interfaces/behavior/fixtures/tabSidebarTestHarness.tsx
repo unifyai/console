@@ -1,18 +1,18 @@
 /**
  * Tab Sidebar Test Harness
- * 
+ *
  * A reusable wrapper that provides all the mocking and state management
  * needed to test tab management behaviors in isolation.
- * 
+ *
  * Uses REAL components:
  * - TabList component from @/components/Pages/Interfaces/Interface/Nav/TabList
  * - Zustand store for tab state management
  * - useInterfaceData hook for tab operations (addTab, removeTab, renameTab)
  * - Store actions for direct state manipulation
- * 
+ *
  * Usage:
  *   import { renderTabSidebar, createMockTabs } from '../fixtures/tabSidebarTestHarness';
- *   
+ *
  *   it('switches tabs', async () => {
  *     const onTabClick = vi.fn();
  *     renderTabSidebar({ callbacks: { onTabClick } });
@@ -170,11 +170,11 @@ function TabSidebarWrapper({
   // Use REAL hooks for interface data and tab operations
   const { dataActions: interfaceDataActions, tabNames, tabIds } = useInterfaceData(interfaceId);
   const storeApi = useStoreApiContext();
-  
+
   // Get store state directly for tab details
-  const tabsById = useStoreContext(state => state.tabsById);
-  const activeTabIdFromStore = useStoreContext(state => state.activeTabId);
-  
+  const tabsById = useStoreContext((state) => state.tabsById);
+  const activeTabIdFromStore = useStoreContext((state) => state.activeTabId);
+
   // Local state
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -185,10 +185,10 @@ function TabSidebarWrapper({
   const [renameValue, setRenameValue] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tabToDelete, setTabToDelete] = useState<TabItem | null>(null);
-  
+
   // Build tabs array from store state
   const tabs = useMemo<TabItem[]>(() => {
-    return tabIds.map(id => {
+    return tabIds.map((id) => {
       const tab = tabsById[id];
       return {
         id: tab?.id || id,
@@ -198,7 +198,7 @@ function TabSidebarWrapper({
       };
     });
   }, [tabIds, tabsById]);
-  
+
   // Get active tab name
   const activeTabName = useMemo(() => {
     if (!activeTabIdFromStore) return null;
@@ -210,10 +210,13 @@ function TabSidebarWrapper({
   // Handlers (Using REAL store actions)
   // ==========================================================================
 
-  const handleTabClick = useCallback((tab: TabItem) => {
-    storeApi.getState().setActiveTab(interfaceId, tab.id);
-    callbacks.onTabClick?.(tab.id);
-  }, [callbacks, storeApi, interfaceId]);
+  const handleTabClick = useCallback(
+    (tab: TabItem) => {
+      storeApi.getState().setActiveTab(interfaceId, tab.id);
+      callbacks.onTabClick?.(tab.id);
+    },
+    [callbacks, storeApi, interfaceId]
+  );
 
   const handleCreateTab = useCallback(() => {
     setCreateDialogOpen(true);
@@ -221,13 +224,13 @@ function TabSidebarWrapper({
 
   const handleSubmitCreate = useCallback(() => {
     if (!newTabName.trim()) return;
-    
+
     const trimmedName = newTabName.trim();
     const newTabId = `tab-${Date.now()}`;
-    
+
     interfaceDataActions.addTab(trimmedName, { id: newTabId });
     storeApi.getState().setActiveTab(interfaceId, newTabId);
-    
+
     setNewTabName('');
     setCreateDialogOpen(false);
     callbacks.onCreateTab?.(trimmedName);
@@ -252,7 +255,7 @@ function TabSidebarWrapper({
       setRenameDialogOpen(false);
       return;
     }
-    
+
     // Use store directly to ensure rename works
     storeApi.getState().renameTab(interfaceId, selectedTab.name, renameValue.trim());
     callbacks.onRenameTab?.(selectedTab.id, renameValue.trim());
@@ -260,13 +263,19 @@ function TabSidebarWrapper({
     setSelectedTab(null);
   }, [selectedTab, renameValue, callbacks, interfaceId, storeApi]);
 
-  const handleChangeTabIcon = useCallback((tab: TabItem) => {
-    callbacks.onChangeTabIcon?.(tab.id, '📊');
-  }, [callbacks]);
+  const handleChangeTabIcon = useCallback(
+    (tab: TabItem) => {
+      callbacks.onChangeTabIcon?.(tab.id, '📊');
+    },
+    [callbacks]
+  );
 
-  const handleChangeTabColor = useCallback((tab: TabItem) => {
-    callbacks.onChangeTabColor?.(tab.id, '#ff0000');
-  }, [callbacks]);
+  const handleChangeTabColor = useCallback(
+    (tab: TabItem) => {
+      callbacks.onChangeTabColor?.(tab.id, '#ff0000');
+    },
+    [callbacks]
+  );
 
   const handleSetTabContext = useCallback((tab: TabItem) => {
     // Mock set context action
@@ -279,57 +288,73 @@ function TabSidebarWrapper({
 
   const handleConfirmDelete = useCallback(() => {
     if (!tabToDelete) return;
-    
+
     interfaceDataActions.removeTab(tabToDelete.name);
-    
+
     // If deleting active tab, switch to first available
-    const remainingTabs = tabs.filter(t => t.id !== tabToDelete.id);
+    const remainingTabs = tabs.filter((t) => t.id !== tabToDelete.id);
     if (activeTabIdFromStore === tabToDelete.id && remainingTabs.length > 0) {
       storeApi.getState().setActiveTab(interfaceId, remainingTabs[0].id);
     }
-    
+
     callbacks.onDeleteTab?.(tabToDelete.id);
     setDeleteDialogOpen(false);
     setTabToDelete(null);
-  }, [tabToDelete, tabs, activeTabIdFromStore, callbacks, interfaceDataActions, storeApi, interfaceId]);
+  }, [
+    tabToDelete,
+    tabs,
+    activeTabIdFromStore,
+    callbacks,
+    interfaceDataActions,
+    storeApi,
+    interfaceId,
+  ]);
 
-  const handleTabReorder = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = tabs.findIndex((t) => t.id === active.id);
-      const newIndex = tabs.findIndex((t) => t.id === over.id);
-      const reorderedTabs = arrayMove(tabs, oldIndex, newIndex);
-      
-      interfaceDataActions.setTabIds(reorderedTabs.map(t => t.id));
-      interfaceDataActions.setTabNames(reorderedTabs.map(t => t.name));
-      
-      callbacks.onReorderTabs?.(reorderedTabs);
-    }
-  }, [tabs, callbacks, interfaceDataActions]);
+  const handleTabReorder = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+        const oldIndex = tabs.findIndex((t) => t.id === active.id);
+        const newIndex = tabs.findIndex((t) => t.id === over.id);
+        const reorderedTabs = arrayMove(tabs, oldIndex, newIndex);
+
+        interfaceDataActions.setTabIds(reorderedTabs.map((t) => t.id));
+        interfaceDataActions.setTabNames(reorderedTabs.map((t) => t.name));
+
+        callbacks.onReorderTabs?.(reorderedTabs);
+      }
+    },
+    [tabs, callbacks, interfaceDataActions]
+  );
 
   // ==========================================================================
   // Expose state to test via ref
   // ==========================================================================
 
-  useStateContainer(stateContainerRef, () => ({
-    getTabs: () => tabs,
-    getActiveTabId: () => activeTabIdFromStore,
-    getActiveTabName: () => activeTabName,
-    getTabOrder: () => tabs.map((t) => t.id),
-    setActiveTab: (tabId: string) => storeApi.getState().setActiveTab(interfaceId, tabId),
-    addTab: (tab: MockTab) => interfaceDataActions.addTab(tab.name, { id: tab.id, color: tab.color }),
-    removeTab: (tabId: string) => {
-      const tab = tabs.find(t => t.id === tabId);
-      if (tab) interfaceDataActions.removeTab(tab.name);
-    },
-  }), [tabs, activeTabIdFromStore, activeTabName, storeApi, interfaceId, interfaceDataActions]);
+  useStateContainer(
+    stateContainerRef,
+    () => ({
+      getTabs: () => tabs,
+      getActiveTabId: () => activeTabIdFromStore,
+      getActiveTabName: () => activeTabName,
+      getTabOrder: () => tabs.map((t) => t.id),
+      setActiveTab: (tabId: string) => storeApi.getState().setActiveTab(interfaceId, tabId),
+      addTab: (tab: MockTab) =>
+        interfaceDataActions.addTab(tab.name, { id: tab.id, color: tab.color }),
+      removeTab: (tabId: string) => {
+        const tab = tabs.find((t) => t.id === tabId);
+        if (tab) interfaceDataActions.removeTab(tab.name);
+      },
+    }),
+    [tabs, activeTabIdFromStore, activeTabName, storeApi, interfaceId, interfaceDataActions]
+  );
 
   // ==========================================================================
   // Render with REAL TabList component
   // ==========================================================================
 
   return (
-    <div data-testid="tab-sidebar-container" className="w-64 bg-white border-r">
+    <div data-testid="tab-sidebar-container" className="w-64 border-r bg-white">
       {/* REAL TabList Component */}
       <TabList
         tabs={tabs}
@@ -348,7 +373,10 @@ function TabSidebarWrapper({
         onChangeTabColor={handleChangeTabColor}
         onSetTabContext={handleSetTabContext}
         onDeleteTab={handleDeleteTab}
-        onRetry={() => { setIsLoading(true); setTimeout(() => setIsLoading(false), 100); }}
+        onRetry={() => {
+          setIsLoading(true);
+          setTimeout(() => setIsLoading(false), 100);
+        }}
       />
 
       {/* Create Tab Dialog */}
@@ -367,8 +395,12 @@ function TabSidebarWrapper({
             }}
             autoFocus
           />
-          <button data-testid="create-tab-submit" onClick={handleSubmitCreate}>Create</button>
-          <button data-testid="create-tab-cancel" onClick={() => setCreateDialogOpen(false)}>Cancel</button>
+          <button data-testid="create-tab-submit" onClick={handleSubmitCreate}>
+            Create
+          </button>
+          <button data-testid="create-tab-cancel" onClick={() => setCreateDialogOpen(false)}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -387,8 +419,12 @@ function TabSidebarWrapper({
             }}
             autoFocus
           />
-          <button data-testid="rename-tab-submit" onClick={handleSubmitRename}>Rename</button>
-          <button data-testid="rename-tab-cancel" onClick={() => setRenameDialogOpen(false)}>Cancel</button>
+          <button data-testid="rename-tab-submit" onClick={handleSubmitRename}>
+            Rename
+          </button>
+          <button data-testid="rename-tab-cancel" onClick={() => setRenameDialogOpen(false)}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -397,16 +433,32 @@ function TabSidebarWrapper({
         <div data-testid="delete-tab-dialog" role="alertdialog">
           <h3>Delete Tab</h3>
           <p>Are you sure you want to delete &quot;{tabToDelete.name}&quot;?</p>
-          <button data-testid="delete-tab-confirm" onClick={handleConfirmDelete}>Delete</button>
-          <button data-testid="delete-tab-cancel" onClick={() => setDeleteDialogOpen(false)}>Cancel</button>
+          <button data-testid="delete-tab-confirm" onClick={handleConfirmDelete}>
+            Delete
+          </button>
+          <button data-testid="delete-tab-cancel" onClick={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </button>
         </div>
       )}
 
       {/* Test controls */}
       <div data-testid="test-controls" style={{ display: 'none' }}>
-        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>Set Loading</button>
-        <button data-testid="set-error" onClick={() => setIsError(true)}>Set Error</button>
-        <button data-testid="clear-states" onClick={() => { setIsLoading(false); setIsError(false); }}>Clear</button>
+        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>
+          Set Loading
+        </button>
+        <button data-testid="set-error" onClick={() => setIsError(true)}>
+          Set Error
+        </button>
+        <button
+          data-testid="clear-states"
+          onClick={() => {
+            setIsLoading(false);
+            setIsError(false);
+          }}
+        >
+          Clear
+        </button>
       </div>
     </div>
   );
@@ -427,7 +479,7 @@ function createInitialStoreState(
   const tabIds: string[] = [];
   const tabNames: string[] = [];
 
-  initialTabs.forEach(mockTab => {
+  initialTabs.forEach((mockTab) => {
     const tab = initTab(mockTab.id, {
       name: mockTab.name,
       color: mockTab.color,
@@ -465,17 +517,17 @@ function createInitialStoreState(
       },
     },
     activeProjectId: projectId,
-    
+
     // Interface state
     interfacesById: {
       [interfaceId]: interfaceState,
     },
     activeInterfaceId: interfaceId,
-    
+
     // Tab state
     tabsById,
     activeTabId: initialActiveTabId || tabIds[0] || null,
-    
+
     // Empty tiles
     tilesById: {},
   };
@@ -487,7 +539,7 @@ function createInitialStoreState(
 
 /**
  * Renders a tab sidebar component with the REAL TabList component.
- * 
+ *
  * Uses REAL Zustand store for tab state management and the
  * REAL TabList component from the Nav directory.
  */
@@ -512,12 +564,12 @@ export function renderTabSidebar(options: TabSidebarTestOptions = {}): TabSideba
 
   const renderResult = render(
     <TestProviders initialState={initialState}>
-      <TabSidebarWrapper 
-        {...innerOptions} 
+      <TabSidebarWrapper
+        {...innerOptions}
         initialTabs={initialTabs}
         initialActiveTabId={initialActiveTabId}
         interfaceId={interfaceId}
-        stateContainerRef={stateContainerRef} 
+        stateContainerRef={stateContainerRef}
       />
     </TestProviders>
   );
@@ -532,32 +584,33 @@ export function renderTabSidebar(options: TabSidebarTestOptions = {}): TabSideba
     setActiveTab: (tabId) => stateContainerRef.current?.setActiveTab(tabId),
     addTab: (tab) => stateContainerRef.current?.addTab(tab),
     removeTab: (tabId) => stateContainerRef.current?.removeTab(tabId),
-    
+
     // UI interactions - use tab ID for test IDs
     clickTab: async (tabId: string) => {
       const button = screen.getByTestId(`tab-button-${tabId}`);
       await user.click(button);
     },
-    
+
     clickCreateButton: async () => {
-      const button = screen.queryByTestId('create-tab-button') || 
-                     screen.queryByTestId('create-tab-button-collapsed');
+      const button =
+        screen.queryByTestId('create-tab-button') ||
+        screen.queryByTestId('create-tab-button-collapsed');
       if (button) await user.click(button);
     },
-    
+
     openTabMenu: async (tabId: string) => {
       const menuButton = screen.getByTestId(`tab-menu-${tabId}`);
       await user.click(menuButton);
     },
-    
+
     isLoading: () => screen.queryByTestId('tab-list-loading') !== null,
     isEmpty: () => screen.queryByTestId('tab-list-empty') !== null,
-    
+
     getVisibleTabs: () => {
       const tabList = screen.queryByTestId('tab-list');
       if (!tabList) return [];
       const tabs = within(tabList).queryAllByTestId(/^tab-item-/);
-      return tabs.map(tab => {
+      return tabs.map((tab) => {
         const testId = tab.getAttribute('data-testid') || '';
         return testId.replace('tab-item-', '');
       });

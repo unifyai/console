@@ -1,52 +1,65 @@
-import React from "react";
-import { Metadata } from "next";
-import OnPrem from "@/components/Shared/OnPrem";
-import Main from "@/components/Pages/Billing/Main";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import { Suspense } from "react";
-import { getCurrentUser } from "@/lib/user/user";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import React from 'react';
+import { Metadata } from 'next';
+import OnPrem from '@/components/Shared/OnPrem';
+import Main from '@/components/Pages/Billing/Main';
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import { Suspense } from 'react';
+import { getCurrentUser } from '@/lib/user/user';
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
-  title: "Billing",
+  title: 'Billing',
 };
 
 const BillingPage: React.FC = async () => {
-
-  const user = await getCurrentUser();  
+  const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
   }
   const onPrem = process.env.ON_PREM;
   if (onPrem) {
     return (
-        <div className="w-full h-full p-1 overflow-auto">
-            <Suspense fallback={<SkeletonLoader />}>
-                <OnPrem />
-            </Suspense>
-        </div>
-    )
+      <div className="h-full w-full overflow-auto p-1">
+        <Suspense fallback={<SkeletonLoader />}>
+          <OnPrem />
+        </Suspense>
+      </div>
+    );
   }
 
-  const cookieStore = cookies();
-  const workspaceId = cookieStore.get("unify_workspace_id")?.value;
+  const cookieStore = await cookies();
+  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
+
+  // Determine organization context
+  let orgContext: {
+    orgId: number;
+    orgName: string;
+    canEdit: boolean;
+  } | null = null;
+
   if (workspaceId && workspaceId !== 'personal') {
-    const activeOrg = user.organizations?.find(o => o.id.toString() === workspaceId);    
+    const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
     if (activeOrg) {
-        const roleName = activeOrg.role_name?.toLowerCase();
-        if (roleName !== 'owner' && roleName !== 'admin') {
-            redirect('/profile');
-        }
-    } else {
+      const roleName = activeOrg.roleName?.toLowerCase();
+      // Only admins and owners can access billing in org context
+      if (roleName !== 'owner' && roleName !== 'admin') {
         redirect('/profile');
+      }
+      orgContext = {
+        orgId: activeOrg.id,
+        orgName: activeOrg.name,
+        canEdit: roleName === 'owner' || roleName === 'admin',
+      };
+    } else {
+      redirect('/profile');
     }
   }
 
   return (
-    <div className="w-full h-full p-1 overflow-auto">
+    <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
-        <Main />
+        <Main orgContext={orgContext} />
       </Suspense>
     </div>
   );

@@ -1,69 +1,58 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function GET(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.GET('/v0/assistant/voice');
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/assistant/voice`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-            }
-        },
-    );
+
+    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API
+    const responseData = data && typeof data === 'object' && 'info' in data ? data.info : data;
+    return NextResponse.json(responseData, { status: response.status });
+  } catch {
+    return NextResponse.json({ detail: 'Failed to fetch voices' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+  const requestBody = await request.json();
+
+  try {
+    const { data, error, response } = await client.POST('/v0/assistant/voice', {
+      body: requestBody,
+    });
+
+    if (error) {
+      console.error(`Unify API Error (${response.status}):`, error);
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    const requestBody = await request.json();
 
-    try {
-        const response = await fetch(
-            `${process.env.ORCHESTRA_URL}/v0/assistant/voice`,
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "accept": "application/json"
-                },
-                body: JSON.stringify(requestBody)
-            }
-        );
-
-        const responseClone = response.clone();
-        const responseData = await responseClone.json().catch(e => {
-            console.error("Failed to parse JSON response from Unify API", e);
-            return { error: "Invalid JSON response from backend API", status: response.status };
-        });
-
-        if (!response.ok) {
-             console.error(`Unify API Error (${response.status}):`, responseData);
-             return NextResponse.json(responseData, { status: response.status });
-        }
-
-        return response;
-
-    } catch (error: any) {
-        console.error("Error fetching Unify API in /api/assistant/voice POST:", error);
-        return NextResponse.json({ error: "Failed to connect to backend API", details: error.message }, { status: 500 });
-    }
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    console.error('Error fetching Unify API in /api/assistant/voice POST:', e);
+    return NextResponse.json(
+      {
+        error: 'Failed to connect to backend API',
+        details: e instanceof Error ? e.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }

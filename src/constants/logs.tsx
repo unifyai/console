@@ -1,25 +1,40 @@
-import { ChartLine, Code, Eye, Focus, Folder, FolderTree, ListRestart, Plus, Save, Table, Trash, Upload, X, Terminal as TerminalIcon } from "lucide-react";
-import { InterfaceData, TabData, TileData } from "@/types/interfaces/grid";
-import { getLogsParameters } from "@/types/interfaces/logs";
-import mathsAssistant from "./demos/maths_assistant";
-import contextDemo from "./demos/context-demo";
-import derivedColumnsDemo from "./demos/derived-columns-demo";
-import filteringDemo from "./demos/filtering-demo";
-import groupingDemo from "./demos/grouping-demo";
-import diffsDemo from "./demos/diffs-demo";
-import hiddenColumnsDemo from "./demos/hidden-columns-demo";
-import viewPaneDemo from "./demos/view-pane-demo";
-import barDemo from "./demos/bar-demo";
-import histogramDemo from "./demos/histogram-demo";
-import lineDemo from "./demos/line-demo";
-import lineDemo2 from "./demos/line-demo2";
-import lineDemo3 from "./demos/line-demo3";
-import scatterDemo from "./demos/scatter-demo";
-import scatterDemo2 from "./demos/scatter-demo2";
-import scatterDemo3 from "./demos/scatter-demo3";
-import markingAssistant from "./demos/marking_assistant";
+import {
+  ChartLine,
+  Code,
+  Eye,
+  Focus,
+  Folder,
+  FolderTree,
+  ListRestart,
+  Plus,
+  Save,
+  Table,
+  Trash,
+  Upload,
+  X,
+  Terminal as TerminalIcon,
+} from 'lucide-react';
+import { InterfaceData, TabData, TileData } from '@/types/interfaces/grid';
+import { GetLogsParameters } from '@/types/interfaces/logs';
+import mathsAssistant from './demos/maths_assistant';
+import contextDemo from './demos/context-demo';
+import derivedColumnsDemo from './demos/derived-columns-demo';
+import filteringDemo from './demos/filtering-demo';
+import groupingDemo from './demos/grouping-demo';
+import diffsDemo from './demos/diffs-demo';
+import hiddenColumnsDemo from './demos/hidden-columns-demo';
+import viewPaneDemo from './demos/view-pane-demo';
+import barDemo from './demos/bar-demo';
+import histogramDemo from './demos/histogram-demo';
+import lineDemo from './demos/line-demo';
+import lineDemo2 from './demos/line-demo2';
+import lineDemo3 from './demos/line-demo3';
+import scatterDemo from './demos/scatter-demo';
+import scatterDemo2 from './demos/scatter-demo2';
+import scatterDemo3 from './demos/scatter-demo3';
+import markingAssistant from './demos/marking_assistant';
 
-export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "median", "mode"];
+export const metrics = ['mean', 'count', 'sum', 'var', 'std', 'min', 'max', 'median', 'mode'];
 
 // export const defaultItems = [
 //     {
@@ -31,7 +46,7 @@ export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "med
 //         "minW": undefined,
 //         "minH": undefined,
 //         "tab": "Table",
-//         "table_type": "Data Table"
+//         "tableType": "Data Table"
 //     },
 //     {
 //         "i": "View",
@@ -51,123 +66,123 @@ export const defaultNewCounter = 0;
 
 // Default interface and tab templates for new projects
 export const defaultInterface: InterfaceData = {
-  name: "interface1",
+  name: 'interface1',
 };
 
 export const defaultTab: TabData = {
-  name: "tab1",
+  name: 'tab1',
   visible: true,
   active: true,
   order: 0,
 };
 
 export const defaultTiles: TileData[] = [
-    {
-        name: "Table",
-        type: "Table",
-        position: {
-            x: 0.0,
-            y: 0.0,
-            width: 7.0,
-            height: 8.0
-        },
-        table_tile: {
-            table_type: "Data Table",
-        }
+  {
+    name: 'Table',
+    type: 'Table',
+    position: {
+      x: 0.0,
+      y: 0.0,
+      width: 7.0,
+      height: 8.0,
     },
-    {
-        name: "View",
-        type: "View",
-        position: {
-            x: 7.0,
-            y: 0.0,
-            width: 5.0,
-            height: 8.0
-        },
-        table: "Table",
-        view_tile: {}
-    }
+    tableTile: {
+      tableType: 'Data Table',
+    },
+  },
+  {
+    name: 'View',
+    type: 'View',
+    position: {
+      x: 7.0,
+      y: 0.0,
+      width: 5.0,
+      height: 8.0,
+    },
+    table: 'Table',
+    viewTile: {},
+  },
 ];
 
 export const icons = {
-    "Table": <Table />,
-    "View": <Eye />,
-    "Plot": <ChartLine />,
-    "Editor": <Code />,
-    "Terminal": <TerminalIcon />
+  Table: <Table />,
+  View: <Eye />,
+  Plot: <ChartLine />,
+  Editor: <Code />,
+  Terminal: <TerminalIcon />,
 };
 
-export const tabTypes = ["Table", "Plot", "View", "Editor", "Terminal"];
+export const tabTypes = ['Table', 'Plot', 'View'];
 
 export const fileTypes: { [key: string]: string } = {
-    "py": "python",
-    "txt": "text",
-    "json": "json",
-    "js": "javascript",
-    "ts": "typescript",
-    "jsx": "javascript",
-    "tsx": "typescript",
-    "html": "html",
-    "css": "css",
-    "scss": "scss",
-    "md": "markdown",
-    "yaml": "yaml",
-    "yml": "yaml",
-    "xml": "xml",
-    "toml": "toml",
-    "ini": "ini",
-    "conf": "conf",
-    "sql": "sql",
-    "sh": "bash"
-}
+  py: 'python',
+  txt: 'text',
+  json: 'json',
+  js: 'javascript',
+  ts: 'typescript',
+  jsx: 'javascript',
+  tsx: 'typescript',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  md: 'markdown',
+  yaml: 'yaml',
+  yml: 'yaml',
+  xml: 'xml',
+  toml: 'toml',
+  ini: 'ini',
+  conf: 'conf',
+  sql: 'sql',
+  sh: 'bash',
+};
 
 export const demos: {
-    [key: string]: {
-        new_counter: number,
-        code: string,
-        gif: string,
-        link: string,
-        description: string,
-        derived_columns?: {
-            project: string,
-            context?: string | undefined,
-            key: string,
-            equation: string,
-            referenced_logs: { [table_name: string]: getLogsParameters },
-        },
-        // New granular interface structure
-        interface?: InterfaceData;
-        tab?: TabData;
-        tiles?: TileData[];
-    }
+  [key: string]: {
+    newCounter: number;
+    code: string;
+    gif: string;
+    link: string;
+    description: string;
+    derivedColumns?: {
+      project: string;
+      context?: string | undefined;
+      key: string;
+      equation: string;
+      referencedLogs: { [table_name: string]: GetLogsParameters };
+    };
+    // New granular interface structure
+    interface?: InterfaceData;
+    tab?: TabData;
+    tiles?: TileData[];
+  };
 } = {
-    "Basics/Quickstart": mathsAssistant,
-    "Basics/Context": contextDemo,
-    "Tables/Derived Columns": derivedColumnsDemo,
-    "Tables/Filtering": filteringDemo,
-    "Tables/Grouping": groupingDemo,
-    "Views/Diffs": diffsDemo,
-    "Views/Hidden Columns": hiddenColumnsDemo,
-    "Views/View Pane": viewPaneDemo,
-    "Plots/Bar Plot": barDemo,
-    "Plots/Histogram": histogramDemo,
-    "Plots/Line Plot/Simple": lineDemo,
-    "Plots/Line Plot/Model Speed": lineDemo2,
-    "Plots/Line Plot/Endpoint Speed": lineDemo3,
-    "Plots/Scatter Plot/Simple": scatterDemo,
-    "Plots/Scatter Plot/Gender Grouping": scatterDemo2,
-    "Plots/Scatter Plot/Derived Grouping": scatterDemo3,
-    "Case Study/Marking Assistant": markingAssistant,
-}
+  'Basics/Quickstart': mathsAssistant,
+  'Basics/Context': contextDemo,
+  'Tables/Derived Columns': derivedColumnsDemo,
+  'Tables/Filtering': filteringDemo,
+  'Tables/Grouping': groupingDemo,
+  'Views/Diffs': diffsDemo,
+  'Views/Hidden Columns': hiddenColumnsDemo,
+  'Views/View Pane': viewPaneDemo,
+  'Plots/Bar Plot': barDemo,
+  'Plots/Histogram': histogramDemo,
+  'Plots/Line Plot/Simple': lineDemo,
+  'Plots/Line Plot/Model Speed': lineDemo2,
+  'Plots/Line Plot/Endpoint Speed': lineDemo3,
+  'Plots/Scatter Plot/Simple': scatterDemo,
+  'Plots/Scatter Plot/Gender Grouping': scatterDemo2,
+  'Plots/Scatter Plot/Derived Grouping': scatterDemo3,
+  'Case Study/Marking Assistant': markingAssistant,
+};
 
 export const iconMap: Record<string, React.ReactNode> = {
-    "Plus": <Plus className="mr-2" />,
-    "X": <X className="mr-2" />,
-    "Trash": <Trash className="mr-2" />,
-    "Folder": <Folder className="mr-2" />,
-    "Upload": <Upload className="mr-2" />,
-    "Focus": <Focus className="mr-2" />,
-    "FolderTree": <FolderTree className="mr-2" />,
-    "Save": <Save className="mr-2" />,
-    "ListRestart": <ListRestart className="mr-2" />
+  Plus: <Plus className="mr-2" />,
+  X: <X className="mr-2" />,
+  Trash: <Trash className="mr-2" />,
+  Folder: <Folder className="mr-2" />,
+  Upload: <Upload className="mr-2" />,
+  Focus: <Focus className="mr-2" />,
+  FolderTree: <FolderTree className="mr-2" />,
+  Save: <Save className="mr-2" />,
+  ListRestart: <ListRestart className="mr-2" />,
 };

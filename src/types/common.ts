@@ -1,29 +1,29 @@
-/** 
+/**
  * Base FastAPI response format for endpoints that don't
  * explicitly return data. Can be:
  * { info : success_message } for successful responses, or
- * { detail: error_message } for unsuccessful responses
-*/
+ * { detail: errorMessage } for unsuccessful responses
+ */
 export interface ResponseProps {
-    [key: string]: string | any
+  [key: string]: string | any;
 }
 
 export interface FileProps {
-    path: string,
-    type?: string,
-    data?: any
+  path: string;
+  type?: string;
+  data?: any;
 }
 
 export interface NodeProps {
-    name: string;
-    path: string;
-    type?: string;
-    data?: any;
-    nodes?: NodeProps[];
+  name: string;
+  path: string;
+  type?: string;
+  data?: any;
+  nodes?: NodeProps[];
 }
 
 export interface TreeNode {
-    path: string;
-    children: { [key: string]: TreeNode };
-    isComplete: boolean;
+  path: string;
+  children: { [key: string]: TreeNode };
+  isComplete: boolean;
 }

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setAutoRechargeThreshold } from '@/lib/user/billing/billing';
-import { getCurrentUser } from '@/lib/user/user';
+import { getWorkspaceBillingContext } from '../../../_utils/auth';
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
+  const ctx = await getWorkspaceBillingContext();
 
-  if (!user) {
+  if (!ctx) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
@@ -19,7 +19,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid threshold value' }, { status: 400 });
     }
 
-    await setAutoRechargeThreshold(user.id, thresholdValue);
+    const entityParams =
+      ctx.type === 'organization'
+        ? { organizationId: ctx.organizationId }
+        : { userId: ctx.userId };
+
+    await setAutoRechargeThreshold(thresholdValue, entityParams);
 
     return NextResponse.json({ message: 'Auto-recharge threshold updated successfully' });
   } catch (error) {

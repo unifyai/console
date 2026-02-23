@@ -1,57 +1,33 @@
-import { ResponseProps } from "./common";
+import { ResponseProps } from './common';
 
 export const ADMIN_TABLE_PAGE_SIZE = 30;
 
-export interface UserApprovalEntry {
-  id: string;
-  email: string;
-  name?: string | null;
-  assistant_hiring_approval?: string | null;
-  created_at: string; // ISO date string
-  has_claimed_approval_link?: boolean;
-}
-
-export interface OneTimeLinkResponse { // Used for generation response
+export interface OneTimeLinkResponse {
+  // Used for generation response
   id: string;
   token: string;
-  expires_at: string; // ISO date string
-  claimed_at?: string | null; // ISO date string
-  user_id?: string | null;
+  expiresAt: string; // ISO date string
+  claimedAt?: string | null; // ISO date string
+  userId?: string | null;
+  creditAmount?: number | null;
 }
 
-export interface OneTimeLinkEntry { // Used for listing links
+export interface OneTimeLinkEntry {
+  // Used for listing links
   id: string;
   token: string;
-  expires_at: string; // ISO date string
-  claimed_at?: string | null;
-  user_id?: string | null;
-  claimed_by_email?: string | null; // Added for displaying email
+  expiresAt: string; // ISO date string
+  claimedAt?: string | null;
+  userId?: string | null;
+  claimedByEmail?: string | null; // Added for displaying email
+  creditAmount?: number | null;
 }
 
-
-export const ASSISTANT_HIRING_APPROVAL_ACTIONS = {
-    APPROVE: "approved",
-    REJECT: "rejected",
-    PENDING: "pending",
-    REVOKE: "revoked",
-} as const;
-
-export type AssistantHiringApprovalAction = typeof ASSISTANT_HIRING_APPROVAL_ACTIONS[keyof typeof ASSISTANT_HIRING_APPROVAL_ACTIONS];
-
-export const ASSISTANT_HIRING_APPROVAL_DISPLAY: Record<AssistantHiringApprovalAction | 'none' | 'all', string> = {
-    [ASSISTANT_HIRING_APPROVAL_ACTIONS.APPROVE]: "Approved",
-    [ASSISTANT_HIRING_APPROVAL_ACTIONS.REJECT]: "Rejected",
-    [ASSISTANT_HIRING_APPROVAL_ACTIONS.PENDING]: "Pending",
-    [ASSISTANT_HIRING_APPROVAL_ACTIONS.REVOKE]: "Revoked",
-    "none": "None (Not Set)",
-    "all": "All Statuses"
-};
-
-export interface AdminApprovalActions {
-  listUsers: (statusFilter: string | null, limit: number, offset: number) => Promise<UserApprovalEntry[] | ResponseProps>;
-  updateUserStatus: (userId: string, status: string) => Promise<ResponseProps>;
-  
-  generateOneTimeLink: (expiresInDays?: number) => Promise<OneTimeLinkResponse | ResponseProps>;
+export interface AdminCreditGrantActions {
+  generateOneTimeLink: (
+    expiresInDays?: number,
+    creditAmount?: number | null
+  ) => Promise<OneTimeLinkResponse | ResponseProps>;
   listOneTimeLinks: (limit: number, offset: number) => Promise<OneTimeLinkEntry[] | ResponseProps>;
   deleteOneTimeLink: (linkId: string) => Promise<ResponseProps>;
 }

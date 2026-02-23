@@ -1,83 +1,93 @@
-import { NextRequest, NextResponse } from "next/server";
-import { withCacheHeaders } from "../../_utils/cacheResponse";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { buildCacheControl } from '../../_utils/cacheResponse';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+export async function GET(request: NextRequest, { params }: { params: { projectName: string } }) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
-) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.GET('/v0/project/{project_name}/contexts', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    const upstreamResponse = await fetch(
-        `${baseUrl}/project/${params.projectName}/contexts`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            }
-        },
-    );
-    
+
     // Cache contexts list for 5 minutes - rarely changes
-    return withCacheHeaders(upstreamResponse, 'LONG');
+    const cacheControl = buildCacheControl('LONG');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+    return NextResponse.json(data, { status: 200, headers });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
-) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.POST('/v0/project/{project_name}/contexts', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+      body: body,
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/project/${params.projectName}/contexts`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
-        },
-    );
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }
 
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { projectName: string } }
+  request: NextRequest,
+  { params }: { params: { projectName: string } }
 ) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
+    const { data, error, response } = await client.DELETE('/v0/project/{project_name}/contexts', {
+      params: {
+        path: { project_name: params.projectName },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
     }
-    
-    return await fetch(
-        `${baseUrl}/project/${params.projectName}/contexts`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            }
-        },
-    );
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status: 502 });
+  }
 }

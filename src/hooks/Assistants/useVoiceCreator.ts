@@ -1,200 +1,316 @@
 import * as React from 'react';
-import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesignGeneratePreviewsRequest, AssistantFormData } from '@/types/assistants/assistant';
+import {
+  Voice,
+  AssistantActions,
+  VoiceOption,
+  VoiceDesignPreviewItem,
+  VoiceDesignGeneratePreviewsRequest,
+  AssistantFormData,
+} from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
+import {
+  PRIMARY_VOICE_PROVIDER,
+  DESIGN_VOICE_DESC_MIN_LENGTH,
+  DESIGN_VOICE_DESC_MAX_LENGTH,
+  DESIGN_SAMPLE_TEXT_MIN_LENGTH,
+  DESIGN_SAMPLE_TEXT_MAX_LENGTH,
+} from '@/constants/assistants/settings';
 import { useFormContext } from 'react-hook-form';
 
 type CreateMode = 'clone' | 'design';
 
 export function useVoiceCreator(
-    assistantVoiceActions: AssistantActions['voice'],
-    onVoiceCreatedAndSelected?: (voice: VoiceOption) => void,
-    fetchUserVoices?: () => void
+  assistantVoiceActions: AssistantActions['voice'],
+  onVoiceCreatedAndSelected?: (voice: VoiceOption) => void,
+  fetchUserVoices?: () => void
 ) {
-    const [createMode, setCreateMode] = React.useState<CreateMode>('clone');
-    const { getValues } = useFormContext<AssistantFormData>();
+  const [createMode, setCreateMode] = React.useState<CreateMode>('clone');
+  const { getValues } = useFormContext<AssistantFormData>();
 
-    // Clone state
-    const [cloneFile, setCloneFile] = React.useState<File | null>(null);
-    const [cloneFileName, setCloneFileName] = React.useState<string | null>(null);
-    const [cloneName, setCloneName] = React.useState('');
-    const [cloneDescription, setCloneDescription] = React.useState('');
+  // Clone state
+  const [cloneFile, setCloneFile] = React.useState<File | null>(null);
+  const [cloneFileName, setCloneFileName] = React.useState<string | null>(null);
+  const [cloneName, setCloneName] = React.useState('');
+  const [cloneDescription, setCloneDescription] = React.useState('');
 
-    // Design state
-    const [designVoiceDescription, setDesignVoiceDescription] = React.useState('');
-    const [designSampleText, setDesignSampleText] = React.useState('');
-    const [designPreviews, setDesignPreviews] = React.useState<VoiceDesignPreviewItem[]>([]);
-    const [selectedPreviewId, setSelectedPreviewId] = React.useState<string | null>(null);
-    const [isGeneratingPreviews, setIsGeneratingPreviews] = React.useState(false);
-    const [designFinalVoiceName, setDesignFinalVoiceName] = React.useState(''); 
+  // Design state
+  const [designVoiceDescription, setDesignVoiceDescription] = React.useState('');
+  const [designSampleText, setDesignSampleText] = React.useState('');
+  const [designPreviews, setDesignPreviews] = React.useState<VoiceDesignPreviewItem[]>([]);
+  const [selectedPreviewId, setSelectedPreviewId] = React.useState<string | null>(null);
+  const [isGeneratingPreviews, setIsGeneratingPreviews] = React.useState(false);
+  const [designFinalVoiceName, setDesignFinalVoiceName] = React.useState('');
 
-    const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
+  const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
 
-    const resetCreateForm = React.useCallback(() => { 
-        setCloneFile(null); setCloneFileName(null); setCloneName(''); setCloneDescription('');
-        setDesignVoiceDescription(''); setDesignSampleText(''); 
-        setDesignPreviews([]); setSelectedPreviewId(null);
-        setDesignFinalVoiceName('');
-    }, []);
+  // Operation ID tracking to ignore stale operations
+  const previewOperationIdRef = React.useRef(0);
+  const createOperationIdRef = React.useRef(0);
+  // Refs for current state to avoid stale closures
+  const isGeneratingPreviewsRef = React.useRef(false);
+  const isProcessingCreateRef = React.useRef(false);
+  const createModeRef = React.useRef<CreateMode>(createMode);
 
-    const handleGenerateDesignPreviews = async () => {
-        
+  // Keep refs in sync with state
+  React.useEffect(() => {
+    isGeneratingPreviewsRef.current = isGeneratingPreviews;
+  }, [isGeneratingPreviews]);
+
+  React.useEffect(() => {
+    isProcessingCreateRef.current = isProcessingCreate;
+  }, [isProcessingCreate]);
+
+  React.useEffect(() => {
+    createModeRef.current = createMode;
+  }, [createMode]);
+
+  const resetCreateForm = React.useCallback(() => {
+    // Increment operation IDs to invalidate any in-flight operations
+    previewOperationIdRef.current += 1;
+    createOperationIdRef.current += 1;
+    setCloneFile(null);
+    setCloneFileName(null);
+    setCloneName('');
+    setCloneDescription('');
+    setDesignVoiceDescription('');
+    setDesignSampleText('');
+    setDesignPreviews([]);
+    setSelectedPreviewId(null);
+    setDesignFinalVoiceName('');
+  }, []);
+
+  const handleGenerateDesignPreviews = async () => {
+    if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
+      toast.error('Voice design is only available for the ElevenLabs provider.');
+      return;
+    }
+
+    // Prevent concurrent preview generation
+    if (isGeneratingPreviewsRef.current) {
+      return;
+    }
+
+    const includeBio = getValues('designIncludeBio');
+    const bioText = getValues('about');
+    const trimmedVoiceDesc = designVoiceDescription.trim();
+    const trimmedSampleText = designSampleText.trim();
+
+    if (
+      !includeBio &&
+      (trimmedVoiceDesc.length < DESIGN_VOICE_DESC_MIN_LENGTH ||
+        trimmedVoiceDesc.length > DESIGN_VOICE_DESC_MAX_LENGTH)
+    ) {
+      toast.error(
+        `Voice description must be between ${DESIGN_VOICE_DESC_MIN_LENGTH} and ${DESIGN_VOICE_DESC_MAX_LENGTH} characters.`
+      );
+      return;
+    }
+    if (includeBio && !bioText?.trim()) {
+      toast.error("Profile bio cannot be empty when 'Include profile bio' is checked.");
+      return;
+    }
+    if (
+      trimmedSampleText.length > 0 &&
+      (trimmedSampleText.length < DESIGN_SAMPLE_TEXT_MIN_LENGTH ||
+        trimmedSampleText.length > DESIGN_SAMPLE_TEXT_MAX_LENGTH)
+    ) {
+      toast.error(
+        `If sample text is provided, it must be between ${DESIGN_SAMPLE_TEXT_MIN_LENGTH} and ${DESIGN_SAMPLE_TEXT_MAX_LENGTH} characters.`
+      );
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    previewOperationIdRef.current += 1;
+    const thisOperationId = previewOperationIdRef.current;
+
+    setIsGeneratingPreviews(true);
+    setDesignPreviews([]);
+    setSelectedPreviewId(null);
+
+    const toastId = toast.loading('Generating voice design previews...');
+    try {
+      const payload: VoiceDesignGeneratePreviewsRequest = {};
+      if (includeBio) {
+        payload.bio = bioText;
+        if (trimmedVoiceDesc) {
+          payload.voiceDescription = trimmedVoiceDesc;
+        }
+      } else {
+        payload.voiceDescription = trimmedVoiceDesc;
+      }
+      if (trimmedSampleText.length > 0) {
+        payload.text = trimmedSampleText;
+      } else {
+        payload.autoGenerateText = true;
+      }
+
+      const result = await assistantVoiceActions.preview(payload);
+
+      // Check if this operation is still current and mode hasn't changed
+      if (previewOperationIdRef.current !== thisOperationId || createModeRef.current !== 'design') {
+        toast.dismiss(toastId);
+        return;
+      }
+
+      if ('detail' in result) {
+        toast.error('Failed to generate previews.', { id: toastId });
+      } else {
+        setDesignPreviews(result.previews || []);
+        if ((result.previews || []).length === 0) {
+          toast.info('No previews were generated. Try a different description.', { id: toastId });
+        } else {
+          toast.success('Previews generated!', { id: toastId });
+        }
+      }
+    } catch (error: any) {
+      // Only show error if this operation is still current
+      if (previewOperationIdRef.current === thisOperationId && createModeRef.current === 'design') {
+        toast.error(`Preview generation failed.`, { id: toastId });
+      }
+    } finally {
+      // Only update state if this operation is still current
+      if (previewOperationIdRef.current === thisOperationId) {
+        setIsGeneratingPreviews(false);
+      }
+    }
+  };
+
+  const handleCreateAndSelect = async () => {
+    // Prevent concurrent create operations
+    if (isProcessingCreateRef.current) {
+      return;
+    }
+
+    // Increment operation ID to track this specific operation
+    createOperationIdRef.current += 1;
+    const thisOperationId = createOperationIdRef.current;
+    // Capture the mode at call time
+    const modeAtStart = createMode;
+
+    setIsProcessingCreate(true);
+    let backendResponse: (Voice & { info?: string; isPreset?: boolean }) | ResponseProps | null =
+      null;
+    const toastId = toast.loading(`Creating voice via ${createMode} mode...`);
+
+    try {
+      if (createMode === 'clone') {
+        if (!cloneFile || !cloneName) {
+          toast.error('Audio file and Voice Name are required for cloning.', { id: toastId });
+          setIsProcessingCreate(false);
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', cloneFile);
+        formData.append('name', cloneName);
+        if (cloneDescription) formData.append('description', cloneDescription);
+        formData.append('provider', PRIMARY_VOICE_PROVIDER);
+        backendResponse = await assistantVoiceActions.clone(formData);
+      } else if (createMode === 'design') {
         if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
-            toast.error("Voice design is only available for the ElevenLabs provider.");
-            return;
+          toast.error('Design mode is only available for ElevenLabs provider.', { id: toastId });
+          setIsProcessingCreate(false);
+          return;
         }
-        
-        const includeBio = getValues("design_include_bio");
-        const bioText = getValues("about");
-        const trimmedVoiceDesc = designVoiceDescription.trim();
-        const trimmedSampleText = designSampleText.trim();
-        
-        if (!includeBio && (trimmedVoiceDesc.length < DESIGN_VOICE_DESC_MIN_LENGTH || trimmedVoiceDesc.length > DESIGN_VOICE_DESC_MAX_LENGTH)) {
-            toast.error(`Voice description must be between ${DESIGN_VOICE_DESC_MIN_LENGTH} and ${DESIGN_VOICE_DESC_MAX_LENGTH} characters.`);
-            return;
-        }
-        if (includeBio && !bioText?.trim()) {
-            toast.error("Profile bio cannot be empty when 'Include profile bio' is checked.");
-            return;
-        }
-        if (trimmedSampleText.length > 0 && (trimmedSampleText.length < DESIGN_SAMPLE_TEXT_MIN_LENGTH || trimmedSampleText.length > DESIGN_SAMPLE_TEXT_MAX_LENGTH)) {
-            toast.error(`If sample text is provided, it must be between ${DESIGN_SAMPLE_TEXT_MIN_LENGTH} and ${DESIGN_SAMPLE_TEXT_MAX_LENGTH} characters.`);
-            return;
+        if (!selectedPreviewId || !designFinalVoiceName.trim()) {
+          toast.error('A preview must be selected and a final voice name is required.', {
+            id: toastId,
+          });
+          setIsProcessingCreate(false);
+          return;
         }
 
-        setIsGeneratingPreviews(true);
-        setDesignPreviews([]); 
-        setSelectedPreviewId(null);
-        
-        const toastId = toast.loading("Generating voice design previews...");
-        try {
-            const payload: VoiceDesignGeneratePreviewsRequest = {};
-            if (includeBio) {
-                payload.bio = bioText;
-                if (trimmedVoiceDesc) {
-                    payload.voice_description = trimmedVoiceDesc;
-                }
-            } else {
-                payload.voice_description = trimmedVoiceDesc;
-            }
-            if (trimmedSampleText.length > 0) {
-                payload.text = trimmedSampleText;
-            } else {
-                payload.auto_generate_text = true;
-            }
+        const selectedPreview = designPreviews.find(
+          (p) => p.generatedVoiceId === selectedPreviewId
+        );
+        backendResponse = await assistantVoiceActions.design({
+          generatedVoiceId: selectedPreviewId,
+          voiceName: designFinalVoiceName,
+          voiceDescription: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
+          audioBase64: selectedPreview?.audioBase64 || null,
+          mediaType: selectedPreview?.mediaType || null,
+          // labels: {} // Optional labels
+        });
+      } else {
+        toast.error('Invalid voice creation mode.', { id: toastId });
+        setIsProcessingCreate(false);
+        return;
+      }
 
-            const result = await assistantVoiceActions.preview(payload);
-            if ('detail' in result) {
-                toast.error("Failed to generate previews.", { id: toastId });
-            } else { 
-                setDesignPreviews(result.previews || []);
-                if ((result.previews || []).length === 0) {
-                    toast.info("No previews were generated. Try a different description.", { id: toastId });
-                } else {
-                    toast.success("Previews generated!", { id: toastId });
-                }
-            }
-        } catch (error: any) {
-            toast.error(`Preview generation failed.`, { id: toastId });
-        } finally {
-            setIsGeneratingPreviews(false);
-        }
-    };
-    
-    const handleCreateAndSelect = async () => {
-        setIsProcessingCreate(true);
-        let backendResponse: (Voice & { info?: string; is_preset?: boolean }) | ResponseProps | null = null;
-        const toastId = toast.loading(`Creating voice via ${createMode} mode...`);
-        
-        try {
-            if (createMode === 'clone') {
-                if (!cloneFile || !cloneName) {
-                    toast.error("Audio file and Voice Name are required for cloning.", { id: toastId });
-                    setIsProcessingCreate(false); return;
-                }
-                const formData = new FormData();
-                formData.append('file', cloneFile);
-                formData.append('name', cloneName);
-                if (cloneDescription) formData.append('description', cloneDescription);
-                formData.append('provider', PRIMARY_VOICE_PROVIDER);
-                backendResponse = await assistantVoiceActions.clone(formData);
-            } 
-            
-            else if (createMode === 'design') {
-                if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
-                    toast.error("Design mode is only available for ElevenLabs provider.", { id: toastId });
-                    setIsProcessingCreate(false); return;
-                }
-                if (!selectedPreviewId || !designFinalVoiceName.trim()) {
-                    toast.error("A preview must be selected and a final voice name is required.", { id: toastId });
-                    setIsProcessingCreate(false); return;
-                }
-                
-                const selectedPreview = designPreviews.find(p => p.generated_voice_id === selectedPreviewId);
-                backendResponse = await assistantVoiceActions.design({
-                    generated_voice_id: selectedPreviewId,
-                    voice_name: designFinalVoiceName,
-                    voice_description: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
-                    audio_base_64: selectedPreview?.audio_base_64 || null,
-                    media_type: selectedPreview?.media_type || null
-                    // labels: {} // Optional labels
-                });
-            } 
-            
-            else {
-                toast.error("Invalid voice creation mode.", { id: toastId });
-                setIsProcessingCreate(false); return;
-            }
-            
-            if (backendResponse && (backendResponse as ResponseProps).detail) {
-                const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
-                toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
-            }
+      // Check if this operation is still current and mode hasn't changed
+      if (
+        createOperationIdRef.current !== thisOperationId ||
+        createModeRef.current !== modeAtStart
+      ) {
+        toast.dismiss(toastId);
+        return;
+      }
 
-            else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
-                const voiceDataFromBackend = backendResponse as VoiceOption;
-                const fullNewVoice: VoiceOption = {
-                    ...voiceDataFromBackend,
-                    provider: voiceDataFromBackend.provider || PRIMARY_VOICE_PROVIDER, 
-                    isUserVoiceInOrchestra: true, 
-                    is_preset: voiceDataFromBackend.is_preset ?? false,
-                };
-                toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
-                if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
-                if (fetchUserVoices) fetchUserVoices(); 
-                resetCreateForm();
-            }
+      if (backendResponse && (backendResponse as ResponseProps).detail) {
+        const errorDetail =
+          (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
+        toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
+      } else if (
+        backendResponse &&
+        (backendResponse as Voice).voiceId &&
+        (backendResponse as Voice).name
+      ) {
+        const voiceDataFromBackend = backendResponse as VoiceOption;
+        const fullNewVoice: VoiceOption = {
+          ...voiceDataFromBackend,
+          provider: voiceDataFromBackend.provider || PRIMARY_VOICE_PROVIDER,
+          isUserVoiceInOrchestra: true,
+          isPreset: voiceDataFromBackend.isPreset ?? false,
+        };
+        toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
+        if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
+        if (fetchUserVoices) fetchUserVoices();
+        resetCreateForm();
+      } else {
+        toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
+      }
+    } catch (error: any) {
+      // Only show error if this operation is still current
+      if (createOperationIdRef.current === thisOperationId) {
+        toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
+      }
+    } finally {
+      // Only update state if this operation is still current
+      if (createOperationIdRef.current === thisOperationId) {
+        setIsProcessingCreate(false);
+      }
+    }
+  };
 
-            else { 
-                toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
-            }
-
-        } catch (error: any) {
-            toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
-        } finally {
-            setIsProcessingCreate(false);
-        }
-    };
-
-    return {
-        createMode, setCreateMode,
-        // Clone
-        cloneFile, setCloneFile,
-        cloneFileName, setCloneFileName,
-        cloneName, setCloneName,
-        cloneDescription, setCloneDescription,
-        // Design
-        designVoiceDescription, setDesignVoiceDescription,
-        designSampleText, setDesignSampleText,
-        designPreviews, setDesignPreviews,
-        selectedPreviewId, setSelectedPreviewId,
-        isGeneratingPreviews,
-        handleGenerateDesignPreviews,
-        designFinalVoiceName, setDesignFinalVoiceName,
-        // Common
-        isProcessingCreate,
-        handleCreateAndSelect,
-        resetCreateForm,
-    };
+  return {
+    createMode,
+    setCreateMode,
+    // Clone
+    cloneFile,
+    setCloneFile,
+    cloneFileName,
+    setCloneFileName,
+    cloneName,
+    setCloneName,
+    cloneDescription,
+    setCloneDescription,
+    // Design
+    designVoiceDescription,
+    setDesignVoiceDescription,
+    designSampleText,
+    setDesignSampleText,
+    designPreviews,
+    setDesignPreviews,
+    selectedPreviewId,
+    setSelectedPreviewId,
+    isGeneratingPreviews,
+    handleGenerateDesignPreviews,
+    designFinalVoiceName,
+    setDesignFinalVoiceName,
+    // Common
+    isProcessingCreate,
+    handleCreateAndSelect,
+    resetCreateForm,
+  };
 }

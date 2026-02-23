@@ -9,14 +9,14 @@ export interface InterfaceMeta {
 // Interface data - business data and relationships
 export interface InterfaceData {
   tabNames: string[];
-  tabIds: string[];  // References to tabs instead of containing them directly
+  tabIds: string[]; // References to tabs instead of containing them directly
 }
 
 // Interface UI state - UI-related state
 export interface InterfaceUI {
   projectId: string | null;
   activeTabId: string | null;
-  pending?: boolean;  // Pending state for async operations
+  pending?: boolean; // Pending state for async operations
 }
 
 // Combined Interface state definition
@@ -25,23 +25,26 @@ export interface Interface extends InterfaceMeta, InterfaceData, InterfaceUI {}
 /**
  * Initialize a new interface
  */
-export function initInterface(interfaceId: string, initialState: Partial<Interface> = {}): Interface {
+export function initInterface(
+  interfaceId: string,
+  initialState: Partial<Interface> = {}
+): Interface {
   return {
     // Meta
     id: interfaceId,
-    name: initialState.name || "New Interface",
+    name: initialState.name || 'New Interface',
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
-    
+
     // Data
     tabNames: initialState.tabNames || [],
     tabIds: initialState.tabIds || [],
-    
+
     // UI
     projectId: initialState.projectId || null,
     activeTabId: initialState.activeTabId || null,
     pending: initialState.pending || false,
-    
+
     ...initialState,
   };
 }
@@ -61,8 +64,8 @@ export function updateInterface(iface: Interface, updates: Partial<Interface>): 
  * Set a specific property of an interface
  */
 export function setInterfaceProperty<K extends keyof Interface>(
-  iface: Interface, 
-  property: K, 
+  iface: Interface,
+  property: K,
   value: Interface[K]
 ): Interface {
   return {
@@ -95,16 +98,16 @@ export function addTab(iface: Interface, tabId: string, tabName: string): Interf
  */
 export function removeTab(iface: Interface, tabId: string, tabName: string): Interface {
   // Filter out the tab ID and name to remove
-  const tabIds = iface.tabIds.filter(id => id !== tabId);
-  const tabNames = iface.tabNames.filter(name => name !== tabName);
-  
+  const tabIds = iface.tabIds.filter((id) => id !== tabId);
+  const tabNames = iface.tabNames.filter((name) => name !== tabName);
+
   // Update the active tab if needed
   let activeTabId = iface.activeTabId;
   if (iface.activeTabId === tabId) {
     // Set to last available tab ID if any remain, otherwise null
     activeTabId = tabIds.length > 0 ? tabIds[tabIds.length - 1] : null;
   }
-  
+
   // Return the updated interface
   return {
     ...iface,

@@ -1,33 +1,28 @@
-"use client";
+'use client';
 
-import React from "react";
-import { LogComparisonProps } from "../types";
+import React from 'react';
+import { LogComparisonProps } from '../types';
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/UI/accordion";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/UI/tabs";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import RowBadge from "../RowBadge";
-import MarkdownRenderer from "../Markdown/MarkdownRenderer";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
-import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
-import Image from "next/image";
+} from '@/components/UI/accordion';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import RowBadge from '../RowBadge';
+import MarkdownRenderer from '../Markdown/MarkdownRenderer';
+import DiffViewer from '@/components/Common/Misc/DiffViewer';
+import { MessageSquare, BarChart2, FileText, Component } from 'lucide-react';
+import Image from 'next/image';
 
-import DictionaryView from "../DictionaryView";
-import ListView from "../ListView";
-import ImageView from "../ImageView";
-import MatrixView from "../MatrixView";
-import StringView from "../StringView";
-import NumberView from "../NumberView";
-import TimestampView from "../TimestampView";
+import DictionaryView from '../DictionaryView';
+import ListView from '../ListView';
+import ImageView from '../ImageView';
+import MatrixView from '../MatrixView';
+import StringView from '../StringView';
+import NumberView from '../NumberView';
+import TimestampView from '../TimestampView';
 
 import {
   isDict,
@@ -38,16 +33,16 @@ import {
   isTimestamp,
   isAudio,
   AudioPlayer,
-} from "@/utils/interfaces/selection/selection";
-import { LogsActions } from "@/types/interfaces/grid";
-import { LogProps } from "@/types/interfaces/logs";
+} from '@/utils/interfaces/selection/selection';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogProps } from '@/types/interfaces/logs';
 
 /******************************************************************************
  * A tiny helper to capitalize the role for display.
  */
 function formatRole(role: string) {
   if (!role) {
-    return "Assistant";
+    return 'Assistant';
   }
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
@@ -61,18 +56,18 @@ function pickDataView(
   comparables: any[],
   baseLogIndex: number,
   compLogIndexes: number[],
-  diffMode: LogComparisonProps["diffMode"],
+  diffMode: LogComparisonProps['diffMode'],
   splitView: boolean,
-  displayMode: LogComparisonProps["displayMode"],
+  displayMode: LogComparisonProps['displayMode'],
   fieldName: string,
   context: string | null,
   baseLog: LogProps | undefined,
   comparisonLogs: LogProps[] | undefined,
   logsActions?: LogsActions,
   cellEditMode?: boolean,
-  onSaveEdit?: LogComparisonProps["onSaveEdit"],
+  onSaveEdit?: LogComparisonProps['onSaveEdit'],
   onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
-  isImmutable?: boolean,
+  isImmutable?: boolean
 ) {
   // Decide which specialized view to use.
 
@@ -82,23 +77,43 @@ function pickDataView(
   }
 
   const commonProps = {
-      value: baseValue,
-      comparables: comparables,
-      baseLogIndex: baseLogIndex,
-      comparisonLogsIndex: compLogIndexes,
-      diffMode: diffMode,
-      splitView: splitView,
-      displayMode: displayMode,
-      cellEditMode: cellEditMode,
-      onSaveEdit: onSaveEdit, // Pass single save
-      onGroupSaveEdit: onGroupSaveEdit, 
-  }
+    value: baseValue,
+    comparables: comparables,
+    baseLogIndex: baseLogIndex,
+    comparisonLogsIndex: compLogIndexes,
+    diffMode: diffMode,
+    splitView: splitView,
+    displayMode: displayMode,
+    cellEditMode: cellEditMode,
+    onSaveEdit: onSaveEdit, // Pass single save
+    onGroupSaveEdit: onGroupSaveEdit,
+  };
 
   if (isDict(finalValue)) {
-    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <DictionaryView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isList(finalValue)) {
-    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
+    return (
+      <ListView
+        {...commonProps}
+        isImmutable={isImmutable}
+        logsActions={logsActions}
+        context={context}
+        baseLog={baseLog}
+        comparisonLogs={comparisonLogs}
+        fieldName={fieldName}
+      />
+    );
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
@@ -107,52 +122,57 @@ function pickDataView(
     return <AudioPlayer {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
-    return <MatrixView {...commonProps}/>;
+    return <MatrixView {...commonProps} />;
   }
   if (isNumber(finalValue)) {
-    return <NumberView {...commonProps} isImmutable={isImmutable}/>;
+    return <NumberView {...commonProps} isImmutable={isImmutable} />;
   }
   if (isTimestamp(finalValue)) {
-    return <TimestampView {...commonProps} isImmutable={isImmutable}/>;
+    return <TimestampView {...commonProps} isImmutable={isImmutable} />;
   }
 
   // fallback => string
-  return <StringView {...commonProps} isImmutable={isImmutable}/>;
+  return <StringView {...commonProps} isImmutable={isImmutable} />;
 }
 
 /******************************************************************************
  * renderMessageContent => handles text arrays, images, etc.
  ******************************************************************************/
 function renderMessageContent(content: unknown): JSX.Element {
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return <MarkdownRenderer>{content}</MarkdownRenderer>;
   }
   if (Array.isArray(content)) {
     return (
       <>
         {content.map((chunk, i) => {
-          if (typeof chunk === "string") {
+          if (typeof chunk === 'string') {
             return <MarkdownRenderer key={i}>{chunk}</MarkdownRenderer>;
           }
-          if (chunk && typeof chunk === "object") {
-            if (chunk.type === "text" && typeof chunk.text === "string") {
+          if (chunk && typeof chunk === 'object') {
+            if (chunk.type === 'text' && typeof chunk.text === 'string') {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
-            } else if (
-              chunk.type === "image_url" &&
-              chunk.image_url?.url
-            ) {
-              return <Image key={i} src={chunk.image_url.url} alt={`Image ${i}`} width={200} height={200} />;
+            } else if (chunk.type === 'imageUrl' && chunk.imageUrl?.url) {
+              return (
+                <Image
+                  key={i}
+                  src={chunk.imageUrl.url}
+                  alt={`Image ${i}`}
+                  width={200}
+                  height={200}
+                />
+              );
             }
             // default => JSON
             return (
-              <pre key={i} className="bg-background p-2 text-caption rounded">
+              <pre key={i} className="text-caption rounded bg-background p-2">
                 {JSON.stringify(chunk, null, 2)}
               </pre>
             );
           }
           // fallback => JSON
           return (
-            <pre key={i} className="bg-background p-2 text-caption rounded">
+            <pre key={i} className="text-caption rounded bg-background p-2">
               {JSON.stringify(chunk, null, 2)}
             </pre>
           );
@@ -162,9 +182,7 @@ function renderMessageContent(content: unknown): JSX.Element {
   }
   // fallback => JSON
   return (
-    <pre className="bg-background p-2 text-caption rounded">
-      {JSON.stringify(content, null, 2)}
-    </pre>
+    <pre className="text-caption rounded bg-background p-2">{JSON.stringify(content, null, 2)}</pre>
   );
 }
 
@@ -193,9 +211,9 @@ export default function ChatInView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  displayMode = "markdown",
+  displayMode = 'markdown',
   isImmutable,
   cellEditMode = false,
   onSaveEdit,
@@ -207,25 +225,25 @@ export default function ChatInView({
   comparisonLogs,
   logsActions,
 }: LogComparisonProps & {
-  isImmutable?: boolean,
-  fieldName: string,
-  context: string | null,
-  baseLog: LogProps | undefined,
-  comparisonLogs: LogProps[] | undefined,
-  logsActions?: LogsActions,
+  isImmutable?: boolean;
+  fieldName: string;
+  context: string | null;
+  baseLog: LogProps | undefined;
+  comparisonLogs: LogProps[] | undefined;
+  logsActions?: LogsActions;
 }) {
   //
   // 1) SINGLE MODE => just a vertical list
   //
   const singleMode = !comparables || comparables.length === 0;
   if (singleMode) {
-    const chatObj = (value && typeof value === "object") ? value : {};
+    const chatObj = value && typeof value === 'object' ? value : {};
     const messages = Array.isArray(chatObj.messages) ? chatObj.messages : [];
     const usage = chatObj.usage;
     const leftover: Record<string, any> = { ...chatObj };
     delete leftover.messages;
     delete leftover.usage;
-    const model = leftover.model ?? "";
+    const model = leftover.model ?? '';
     delete leftover.model;
 
     // Build path for child views
@@ -233,38 +251,55 @@ export default function ChatInView({
     const metadataPath = [...path]; // Use base path for leftover items
 
     return (
-      <div className="space-y-4 w-full">
+      <div className="w-full space-y-4">
         {/* Update the chat messages accordion to match others */}
-        <Accordion type="multiple" defaultValue={["chat"]} className="space-y-2">
+        <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
           {messages.length > 0 && (
             <AccordionItem value="chat">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   <span>Chat</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1 space-y-4">
+                <div className="ml-4 space-y-4 border-l pl-1">
                   {messages.map((m: any, idx: number) => {
-                    const role = m.role ?? "assistant";
+                    const role = m.role ?? 'assistant';
                     const label = formatRole(role);
                     const messagePath = [...path, 'messages', idx, 'content']; // Path to message content
 
                     return (
                       <div
                         key={idx}
-                        className="border border-muted bg-background p-4 rounded shadow-sm w-full"
+                        className="w-full rounded border border-muted bg-background p-4 shadow-sm"
                       >
                         <div className="mb-2 flex items-center justify-between">
                           <p className="text-title">{label}</p>
                           <CopyButton
-                            content={JSON.stringify(m.content ?? "")}
+                            content={JSON.stringify(m.content ?? '')}
                             copyMessage="Copied!"
                           />
                         </div>
                         {/* Pass edit props down to potentially editable content */}
-                        {pickDataView(m.content, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                        {pickDataView(
+                          m.content,
+                          [],
+                          baseLogIndex,
+                          [],
+                          'none',
+                          false,
+                          displayMode,
+                          fieldName,
+                          context,
+                          baseLog,
+                          comparisonLogs,
+                          logsActions,
+                          cellEditMode,
+                          onSaveEdit,
+                          onGroupSaveEdit,
+                          isImmutable
+                        )}
                       </div>
                     );
                   })}
@@ -276,14 +311,14 @@ export default function ChatInView({
           {/* Model + usage + metadata sections */}
           {model && (
             <AccordionItem value="model">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <Component className="h-4 w-4 text-primary" />
                   <span>Model</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   <StringView
                     value={model}
                     comparables={[]}
@@ -304,15 +339,32 @@ export default function ChatInView({
 
           {usage !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-primary" />
                   <span>Usage</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                <div className="ml-4 border-l pl-1">
+                  {pickDataView(
+                    usage,
+                    [],
+                    baseLogIndex,
+                    [],
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -320,15 +372,32 @@ export default function ChatInView({
 
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
                   <span>Metadata</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                <div className="ml-4 border-l pl-1">
+                  {pickDataView(
+                    leftover,
+                    [],
+                    baseLogIndex,
+                    [],
+                    diffMode,
+                    splitView,
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -341,16 +410,12 @@ export default function ChatInView({
   //
   // 2) MULTI-MODE => unify messages + do multi-object diffs
   //
-  const baseObj = (value && typeof value === "object") ? value : {};
-  const compObjs = (comparables ?? []).map((co) =>
-    co && typeof co === "object" ? co : {}
-  );
+  const baseObj = value && typeof value === 'object' ? value : {};
+  const compObjs = (comparables ?? []).map((co) => (co && typeof co === 'object' ? co : {}));
 
   // (a) unify main messages
   const baseArr = Array.isArray(baseObj.messages) ? baseObj.messages : [];
-  const compArrs = compObjs.map((co) =>
-    Array.isArray(co.messages) ? co.messages : []
-  );
+  const compArrs = compObjs.map((co) => (Array.isArray(co.messages) ? co.messages : []));
 
   // (b) gather usage + leftover from each object => do multi-diffs
   const baseUsage = baseObj.usage;
@@ -358,7 +423,7 @@ export default function ChatInView({
   let leftover: Record<string, any> = { ...baseObj };
   delete leftover.messages;
   delete leftover.usage;
-  const baseModel = leftover.model ?? "";
+  const baseModel = leftover.model ?? '';
   delete leftover.model;
 
   const leftoverComparables = compObjs.map((co) => {
@@ -368,7 +433,7 @@ export default function ChatInView({
     delete cObj.model;
     return cObj;
   });
-  const compModels = compObjs.map((co) => co.model ?? "");
+  const compModels = compObjs.map((co) => co.model ?? '');
 
   // unify them
   const unified = unifyMessages(baseArr, compArrs);
@@ -386,7 +451,7 @@ export default function ChatInView({
     }[] = [];
 
     if (idxData.baseMsg) {
-      const bRole = idxData.baseMsg.role ?? "assistant";
+      const bRole = idxData.baseMsg.role ?? 'assistant';
       out.push({
         isBase: true,
         role: bRole,
@@ -398,15 +463,15 @@ export default function ChatInView({
     idxData.compMsgs.forEach((cm, i) => {
       if (!cm) {
         // If missing, create an empty message with a fallback role
-        const fallbackRole = idxData.baseMsg ? idxData.baseMsg.role ?? "assistant" : "assistant";
+        const fallbackRole = idxData.baseMsg ? (idxData.baseMsg.role ?? 'assistant') : 'assistant';
         out.push({
           isBase: false,
           role: fallbackRole,
           rowIndex: comparisonLogsIndex[i],
-          content: "",
+          content: '',
         });
       } else {
-        const role = cm.role ?? "assistant";
+        const role = cm.role ?? 'assistant';
         out.push({
           isBase: false,
           role,
@@ -419,53 +484,47 @@ export default function ChatInView({
   }
 
   // (c) If diffMode === "none", use tab approach for messages
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     return (
-      <div className="space-y-4 w-full">
-        <Accordion
-          type="multiple"
-          defaultValue={["chat"]}
-          className="space-y-2"
-        >
+      <div className="w-full space-y-4">
+        <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
           <AccordionItem value="chat">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-primary" />
                 <span>Chat Comparison</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-6 w-full">
+              <div className="w-full space-y-6">
                 {unified.map((block, i) => {
                   const msgs = gatherAll(block);
                   if (!msgs.length) return null;
 
                   // Filter out cases where all messages are empty
-                  const allEmpty = msgs.every(m =>
-                    !m.content ||
-                    (typeof m.content === 'string' && m.content.trim() === '') ||
-                    (typeof m.content === 'object' && Object.keys(m.content).length === 0)
+                  const allEmpty = msgs.every(
+                    (m) =>
+                      !m.content ||
+                      (typeof m.content === 'string' && m.content.trim() === '') ||
+                      (typeof m.content === 'object' && Object.keys(m.content).length === 0)
                   );
                   if (allEmpty) return null;
 
                   // We'll keep the existing logic of "userParts" vs. "non-userParts",
                   // but the role label is now generic.
-                  const userParts = msgs.filter((m) => m.role === "user");
-                  const asstParts = msgs.filter((m) => m.role !== "user");
+                  const userParts = msgs.filter((m) => m.role === 'user');
+                  const asstParts = msgs.filter((m) => m.role !== 'user');
 
                   return (
-                    <div key={i} className="flex flex-col gap-6 w-full">
+                    <div key={i} className="flex w-full flex-col gap-6">
                       {/* Assistant side => everything that's not user */}
                       {asstParts.length > 0 && (
-                        <div className="flex flex-col w-full">
+                        <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(asstParts[0].rowIndex)}>
-                            <div className="flex items-center justify-start text-sm mb-2 w-full">
+                            <div className="text-body mb-2 flex w-full items-center justify-start">
                               <TabsList className="justify-start">
                                 {asstParts.map((m) => (
-                                  <TabsTrigger
-                                    key={m.rowIndex}
-                                    value={String(m.rowIndex)}
-                                  >
+                                  <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
                                     Row {m.rowIndex}
                                   </TabsTrigger>
                                 ))}
@@ -480,16 +539,33 @@ export default function ChatInView({
                                   value={String(m.rowIndex)}
                                   className="w-full"
                                 >
-                                  <div className="border border-mutedbg-background p-4 rounded shadow-sm w-full">
+                                  <div className="border-mutedbg-background w-full rounded border p-4 shadow-sm">
                                     <div className="mb-2 flex items-center justify-between">
                                       <p className="text-title">{label}</p>
                                       <CopyButton
-                                        content={JSON.stringify(m.content ?? "")}
+                                        content={JSON.stringify(m.content ?? '')}
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                     {/* Pass edit props down */}
-                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {/* Pass edit props down */}
+                                    {pickDataView(
+                                      m.content,
+                                      [],
+                                      m.rowIndex,
+                                      [],
+                                      'none',
+                                      false,
+                                      displayMode,
+                                      fieldName,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      logsActions,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
+                                      isImmutable
+                                    )}
                                   </div>
                                 </TabsContent>
                               );
@@ -500,15 +576,12 @@ export default function ChatInView({
 
                       {/* User side => those exactly with role==="user" */}
                       {userParts.length > 0 && (
-                        <div className="flex flex-col w-full">
+                        <div className="flex w-full flex-col">
                           <Tabs defaultValue={String(userParts[0].rowIndex)}>
-                            <div className="flex items-center justify-between text-sm mb-2 w-full">
+                            <div className="text-body mb-2 flex w-full items-center justify-between">
                               <TabsList className="justify-end">
                                 {userParts.map((m) => (
-                                  <TabsTrigger
-                                    key={m.rowIndex}
-                                    value={String(m.rowIndex)}
-                                  >
+                                  <TabsTrigger key={m.rowIndex} value={String(m.rowIndex)}>
                                     Row {m.rowIndex + 1}
                                   </TabsTrigger>
                                 ))}
@@ -522,16 +595,33 @@ export default function ChatInView({
                                   value={String(m.rowIndex)}
                                   className="w-full"
                                 >
-                                  <div className="border border-muted bg-background p-4 rounded shadow-sm w-full">
+                                  <div className="w-full rounded border border-muted bg-background p-4 shadow-sm">
                                     <div className="mb-2 flex items-center justify-between">
                                       <p className="text-title">{label}</p>
                                       <CopyButton
-                                        content={JSON.stringify(m.content ?? "")}
+                                        content={JSON.stringify(m.content ?? '')}
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                     {/* Pass edit props down */}
-                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+                                    {/* Pass edit props down */}
+                                    {pickDataView(
+                                      m.content,
+                                      [],
+                                      m.rowIndex,
+                                      [],
+                                      'none',
+                                      false,
+                                      displayMode,
+                                      fieldName,
+                                      context,
+                                      baseLog,
+                                      comparisonLogs,
+                                      logsActions,
+                                      cellEditMode,
+                                      onSaveEdit,
+                                      onGroupSaveEdit,
+                                      isImmutable
+                                    )}
                                   </div>
                                 </TabsContent>
                               );
@@ -546,14 +636,14 @@ export default function ChatInView({
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="model">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <Component className="h-4 w-4 text-primary" />
                 <span>Model</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 <StringView
                   value={baseModel}
                   comparables={compModels}
@@ -563,22 +653,22 @@ export default function ChatInView({
                   splitView={splitView}
                   cellEditMode={cellEditMode}
                   onSaveEdit={onSaveEdit}
-                  onGroupSaveEdit={onGroupSaveEdit} 
-                  path={[...path, 'model']} 
+                  onGroupSaveEdit={onGroupSaveEdit}
+                  path={[...path, 'model']}
                 />
               </div>
             </AccordionContent>
           </AccordionItem>
           {baseUsage !== undefined && (
             <AccordionItem value="usage">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-primary" />
                   <span>Usage</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   {pickDataView(
                     baseUsage,
                     usageComparables,
@@ -587,15 +677,15 @@ export default function ChatInView({
                     diffMode,
                     splitView,
                     displayMode,
-                    fieldName, 
-                    context, 
-                    baseLog, 
-                    comparisonLogs, 
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
                     logsActions,
                     cellEditMode,
                     onSaveEdit,
-                    onGroupSaveEdit, 
-                    isImmutable 
+                    onGroupSaveEdit,
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -603,14 +693,14 @@ export default function ChatInView({
           )}
           {Object.keys(leftover).length > 0 && (
             <AccordionItem value="metadata">
-              <AccordionTrigger className="relative group flex items-center justify-between">
+              <AccordionTrigger className="group relative flex items-center justify-between">
                 <span className="inline-flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
                   <span>Metadata</span>
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border-l ml-4 pl-1">
+                <div className="ml-4 border-l pl-1">
                   {pickDataView(
                     leftover,
                     leftoverComparables,
@@ -627,7 +717,7 @@ export default function ChatInView({
                     cellEditMode,
                     onSaveEdit,
                     onGroupSaveEdit,
-                    isImmutable 
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -642,30 +732,27 @@ export default function ChatInView({
   // 3) diffMode !== "none" => show diffs for messages + leftover
   //
   return (
-    <div className="space-y-4 w-full">
-      <Accordion
-        type="multiple"
-        defaultValue={["chat"]}
-        className="space-y-2"
-      >
+    <div className="w-full space-y-4">
+      <Accordion type="multiple" defaultValue={['chat']} className="space-y-2">
         <AccordionItem value="chat">
-          <AccordionTrigger className="relative group flex items-center justify-between">
+          <AccordionTrigger className="group relative flex items-center justify-between">
             <span className="inline-flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
               <span>Chat Comparison</span>
             </span>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-6 w-full">
+            <div className="w-full space-y-6">
               {unified.map((block, i) => {
                 const msgs = gatherAll(block);
                 if (!msgs.length) return null;
 
                 // Filter out cases where all messages are empty
-                const allEmpty = msgs.every(m =>
-                  !m.content ||
-                  (typeof m.content === 'string' && m.content.trim() === '') ||
-                  (typeof m.content === 'object' && Object.keys(m.content).length === 0)
+                const allEmpty = msgs.every(
+                  (m) =>
+                    !m.content ||
+                    (typeof m.content === 'string' && m.content.trim() === '') ||
+                    (typeof m.content === 'object' && Object.keys(m.content).length === 0)
                 );
                 if (allEmpty) return null;
 
@@ -673,7 +760,7 @@ export default function ChatInView({
                 const roles = Array.from(new Set(msgs.map((m) => m.role)));
 
                 return (
-                  <div key={i} className="space-y-4 w-full">
+                  <div key={i} className="w-full space-y-4">
                     {roles.map((role) => {
                       const roleMsgs = msgs.filter((m) => m.role === role);
                       if (!roleMsgs.length) return null;
@@ -681,59 +768,46 @@ export default function ChatInView({
                       const baseMsg = roleMsgs.find((m) => m.isBase);
                       const compMsgs = roleMsgs.filter((m) => !m.isBase);
 
-                      const baseStr = baseMsg
-                        ? JSON.stringify(baseMsg.content ?? "", null, 2)
-                        : "";
+                      const baseStr = baseMsg ? JSON.stringify(baseMsg.content ?? '', null, 2) : '';
 
                       const label = formatRole(role);
 
                       return (
                         <div
                           key={`${i}-${role}`}
-                          className="border border-muted bg-background p-4 rounded shadow-sm w-full"
+                          className="w-full rounded border border-muted bg-background p-4 shadow-sm"
                         >
                           <div className="mb-2 flex items-center justify-between">
                             <p className="text-title">{label}</p>
-                            <CopyButton
-                              content={baseStr}
-                              copyMessage="Copied!"
-                            />
+                            <CopyButton content={baseStr} copyMessage="Copied!" />
                           </div>
 
                           {/* Compare each comp against the base */}
                           {compMsgs.length > 0 ? (
                             compMsgs.map((cm, idx2) => {
-                              const cStr = JSON.stringify(
-                                cm.content ?? "",
-                                null,
-                                2
-                              );
+                              const cStr = JSON.stringify(cm.content ?? '', null, 2);
                               const same = cStr === baseStr;
-                              const baseBadge = same ? "none" : "delete";
-                              const compBadge = same ? "none" : "insert";
+                              const baseBadge = same ? 'none' : 'delete';
+                              const compBadge = same ? 'none' : 'insert';
 
                               return (
                                 <div
                                   key={idx2}
-                                  className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted"
+                                  className="text-caption relative mt-4 space-y-2 rounded border border-muted bg-background p-2"
                                 >
-                                  <div className="flex gap-2 text-xxs">
+                                  <div className="text-xxs flex gap-2">
                                     {baseMsg && (
-                                      <RowBadge
-                                        rowNumbers={[baseMsg.rowIndex]}
-                                        mode={baseBadge}
-                                      />
+                                      <RowBadge rowNumbers={[baseMsg.rowIndex]} mode={baseBadge} />
                                     )}
-                                    <RowBadge
-                                      rowNumbers={[cm.rowIndex]}
-                                      mode={compBadge}
-                                    />
+                                    <RowBadge rowNumbers={[cm.rowIndex]} mode={compBadge} />
                                   </div>
                                   <DiffViewer
                                     oldValue={baseStr}
                                     newValue={cStr}
                                     splitView={splitView}
-                                    hideLineNumbers={!baseStr.includes('\n') && !cStr.includes('\n')}
+                                    hideLineNumbers={
+                                      !baseStr.includes('\n') && !cStr.includes('\n')
+                                    }
                                     mode={diffMode}
                                   />
                                 </div>
@@ -741,13 +815,10 @@ export default function ChatInView({
                             })
                           ) : (
                             /* No comparables => compare with empty */
-                            <div className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted">
-                              <div className="flex gap-2 text-xxs">
+                            <div className="text-caption relative mt-4 space-y-2 rounded border border-muted bg-background p-2">
+                              <div className="text-xxs flex gap-2">
                                 {baseMsg && (
-                                  <RowBadge
-                                    rowNumbers={[baseMsg.rowIndex]}
-                                    mode="delete"
-                                  />
+                                  <RowBadge rowNumbers={[baseMsg.rowIndex]} mode="delete" />
                                 )}
                                 <RowBadge rowNumbers={[-1]} mode="insert" />
                               </div>
@@ -770,14 +841,14 @@ export default function ChatInView({
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="model">
-          <AccordionTrigger className="relative group flex items-center justify-between">
+          <AccordionTrigger className="group relative flex items-center justify-between">
             <span className="inline-flex items-center gap-2">
               <Component className="h-4 w-4 text-primary" />
               <span>Model</span>
             </span>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="border-l ml-4 pl-1">
+            <div className="ml-4 border-l pl-1">
               <StringView
                 value={baseModel}
                 comparables={compModels}
@@ -788,22 +859,22 @@ export default function ChatInView({
                 displayMode={displayMode}
                 cellEditMode={cellEditMode}
                 onSaveEdit={onSaveEdit}
-                onGroupSaveEdit={onGroupSaveEdit} 
-                path={[...path, 'model']} 
+                onGroupSaveEdit={onGroupSaveEdit}
+                path={[...path, 'model']}
               />
             </div>
           </AccordionContent>
         </AccordionItem>
         {baseUsage !== undefined && (
           <AccordionItem value="usage">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <BarChart2 className="h-4 w-4 text-primary" />
                 <span>Usage</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 {pickDataView(
                   baseUsage,
                   usageComparables,
@@ -820,7 +891,7 @@ export default function ChatInView({
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,
-                  isImmutable 
+                  isImmutable
                 )}
               </div>
             </AccordionContent>
@@ -828,14 +899,14 @@ export default function ChatInView({
         )}
         {Object.keys(leftover).length > 0 && (
           <AccordionItem value="metadata">
-            <AccordionTrigger className="relative group flex items-center justify-between">
+            <AccordionTrigger className="group relative flex items-center justify-between">
               <span className="inline-flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
                 <span>Metadata</span>
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="border-l ml-4 pl-1">
+              <div className="ml-4 border-l pl-1">
                 {pickDataView(
                   leftover,
                   leftoverComparables,
@@ -852,7 +923,7 @@ export default function ChatInView({
                   cellEditMode,
                   onSaveEdit,
                   onGroupSaveEdit,
-                  isImmutable 
+                  isImmutable
                 )}
               </div>
             </AccordionContent>

@@ -88,7 +88,7 @@ function createInitialStoreState(options: ProjectSelectionTestOptions): Partial<
 
   // Build projectsById - use project name as the key (matching real app behavior)
   const projectsById: Record<string, any> = {};
-  projects.forEach(p => {
+  projects.forEach((p) => {
     projectsById[p.name] = {
       id: p.name,
       name: p.name,
@@ -102,8 +102,8 @@ function createInitialStoreState(options: ProjectSelectionTestOptions): Partial<
 
   // Build interfaces for projects that have them
   const interfacesById: Record<string, any> = {};
-  projects.forEach(p => {
-    (p.interfaceIds || []).forEach(ifaceId => {
+  projects.forEach((p) => {
+    (p.interfaceIds || []).forEach((ifaceId) => {
       interfacesById[ifaceId] = {
         id: ifaceId,
         name: `Interface for ${p.name}`,
@@ -116,7 +116,7 @@ function createInitialStoreState(options: ProjectSelectionTestOptions): Partial<
   });
 
   return {
-    projects: projects.map(p => p.name),
+    projects: projects.map((p) => p.name),
     projectsById,
     activeProjectId: options.activeProjectId ?? null,
     interfacesById,
@@ -152,7 +152,7 @@ interface ProjectSelectionInnerProps {
 function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps) {
   const storeApi = useStoreApiContext();
   const store = useStore(storeApi);
-  
+
   // Local state for UI
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -168,13 +168,15 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
   const projectsById = store.projectsById || {};
   const activeProjectId = store.activeProjectId;
 
-  const projectItems: ProjectItem[] = projects.map(name => ({
-    project: name,
+  const projectItems: ProjectItem[] = projects.map((name) => ({
+    projectName: name,
     icon: (projectsById[name] as any)?.icon,
     favorite: (projectsById[name] as any)?.favorite,
   }));
 
-  const selectedProjectIcon = activeProjectId ? (projectsById[activeProjectId] as any)?.icon : undefined;
+  const selectedProjectIcon = activeProjectId
+    ? (projectsById[activeProjectId] as any)?.icon
+    : undefined;
 
   // Expose state container
   useEffect(() => {
@@ -184,7 +186,12 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
       getProjectById: (id) => {
         const p = store.projectsById[id];
         if (!p) return null;
-        return { id: p.id || '', name: p.name || '', icon: (p as any).icon, interfaceIds: p.interfaceIds };
+        return {
+          id: p.id || '',
+          name: p.name || '',
+          icon: (p as any).icon,
+          interfaceIds: p.interfaceIds,
+        };
       },
       selectProject: (projectId) => {
         store.setActiveProject(projectId);
@@ -199,13 +206,14 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
         store.updateProject(projectId, { name: newName });
       },
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
   const handleSelectProject = async (projectId: string) => {
     setIsChangingProject(true);
     setTransitioningToProject(projectId);
     // Simulate async operation
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 50));
     store.setActiveProject(projectId);
     setIsChangingProject(false);
     setTransitioningToProject(null);
@@ -258,15 +266,12 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
 
       {/* Action buttons (outside the picker) */}
       <div data-testid="project-actions">
-        <button
-          data-testid="create-project-button"
-          onClick={() => setCreateDialogOpen(true)}
-        >
+        <button data-testid="create-project-button" onClick={() => setCreateDialogOpen(true)}>
           Create Project
         </button>
-        
+
         {/* Delete buttons for each project */}
-        {projects.map(projectName => (
+        {projects.map((projectName) => (
           <button
             key={projectName}
             data-testid={`project-delete-${projectName}`}
@@ -294,10 +299,13 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
           <button data-testid="create-project-submit" onClick={handleCreateProject}>
             Create
           </button>
-          <button data-testid="create-project-cancel" onClick={() => {
-            setCreateDialogOpen(false);
-            setNewProjectName('');
-          }}>
+          <button
+            data-testid="create-project-cancel"
+            onClick={() => {
+              setCreateDialogOpen(false);
+              setNewProjectName('');
+            }}
+          >
             Cancel
           </button>
         </div>
@@ -311,27 +319,38 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
           <button data-testid="delete-project-confirm" onClick={handleDeleteProject}>
             Delete
           </button>
-          <button data-testid="delete-project-cancel" onClick={() => {
-            setDeleteDialogOpen(false);
-            setProjectToDelete(null);
-          }}>
+          <button
+            data-testid="delete-project-cancel"
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setProjectToDelete(null);
+            }}
+          >
             Cancel
           </button>
         </div>
       )}
 
       {/* Active Project Display */}
-      {activeProjectId && (
-        <div data-testid="active-project-display">
-          Active: {activeProjectId}
-        </div>
-      )}
+      {activeProjectId && <div data-testid="active-project-display">Active: {activeProjectId}</div>}
 
       {/* Error/Loading state buttons for testing */}
       <div data-testid="test-controls" style={{ display: 'none' }}>
-        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>Set Loading</button>
-        <button data-testid="set-error" onClick={() => setIsError(true)}>Set Error</button>
-        <button data-testid="clear-states" onClick={() => { setIsLoading(false); setIsError(false); }}>Clear</button>
+        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>
+          Set Loading
+        </button>
+        <button data-testid="set-error" onClick={() => setIsError(true)}>
+          Set Error
+        </button>
+        <button
+          data-testid="clear-states"
+          onClick={() => {
+            setIsLoading(false);
+            setIsError(false);
+          }}
+        >
+          Clear
+        </button>
       </div>
     </div>
   );
@@ -417,7 +436,7 @@ export function renderProjectSelection(
           }
         });
       }
-      
+
       const input = screen.getByTestId('project-search-input');
       await user.clear(input);
       if (query) {
@@ -428,10 +447,10 @@ export function renderProjectSelection(
     getVisibleProjects: () => {
       const content = screen.queryByTestId('project-picker-content');
       if (!content) return [];
-      
+
       // Find all project options
       const options = within(content).queryAllByTestId(/^project-option-/);
-      return options.map(opt => {
+      return options.map((opt) => {
         const testId = opt.getAttribute('data-testid') || '';
         return testId.replace('project-option-', '');
       });
@@ -448,7 +467,7 @@ export function renderProjectSelection(
           }
         });
       }
-      
+
       const option = screen.getByTestId(`project-option-${projectName}`);
       await user.click(option);
     },

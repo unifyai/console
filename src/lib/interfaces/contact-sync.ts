@@ -1,18 +1,18 @@
-"use server";
+'use server';
 
-import { ResponseProps } from "@/types/common";
-import { 
-  SyncableLogEntry, 
-  ContactSyncUserPayload, 
-  ContactSyncAssistantPayload 
-} from "@/types/assistants/contact-sync";
+import { ResponseProps } from '@/types/common';
+import {
+  SyncableLogEntry,
+  ContactSyncUserPayload,
+  ContactSyncAssistantPayload,
+} from '@/types/assistants/contact-sync';
 
 /**
  * Fields that trigger contact sync when updated.
  * - "timezone": Syncs user/assistant timezone
  * - "bio": Syncs user bio or assistant "about" field
  */
-const SYNCABLE_FIELDS = ["timezone", "bio"] as const;
+const SYNCABLE_FIELDS = ['timezone', 'bio'] as const;
 
 /**
  * Sync user profile fields via the admin API.
@@ -20,22 +20,19 @@ const SYNCABLE_FIELDS = ["timezone", "bio"] as const;
  */
 async function syncUserContact(payload: ContactSyncUserPayload): Promise<ResponseProps> {
   try {
-    const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/admin/contact-sync/user`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-sync/user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
     const data = await response.json();
     if (!response.ok) {
       return { detail: data.detail || `User sync failed: ${response.status}` };
     }
-    return { info: "User contact synced" };
+    return { info: 'User contact synced' };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return { detail: `User sync error: ${message}` };
   }
 }
@@ -49,22 +46,19 @@ async function syncAssistantContact(
   payload: ContactSyncAssistantPayload
 ): Promise<ResponseProps> {
   try {
-    const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/admin/contact-sync/assistant`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assistant_id: assistantId, ...payload }),
-      }
-    );
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-sync/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assistantId: assistantId, ...payload }),
+    });
 
     const data = await response.json();
     if (!response.ok) {
       return { detail: data.detail || `Assistant sync failed: ${response.status}` };
     }
-    return { info: "Assistant contact synced" };
+    return { info: 'Assistant contact synced' };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return { detail: `Assistant sync error: ${message}` };
   }
 }
@@ -89,24 +83,20 @@ export async function maybeSyncContactFields(
   project: string,
   context: string | null,
   entriesUpdate: Record<string, any>,
-  paramsUpdate: Record<string, any>,
   affectedLogs: SyncableLogEntry[]
 ): Promise<void> {
   // Guard: Only for project="Assistants"
-  if (project !== "Assistants") {
+  if (project !== 'Assistants') {
     return;
   }
 
   // Guard: Only for context matching ".../.../Contacts"
-  if (!context || !context.endsWith("/Contacts")) {
+  if (!context || !context.endsWith('/Contacts')) {
     return;
   }
 
   // Determine which syncable fields are being updated
-  const updatedFields = [
-    ...Object.keys(entriesUpdate || {}),
-    ...Object.keys(paramsUpdate || {}),
-  ];
+  const updatedFields = Object.keys(entriesUpdate || {});
 
   const fieldsToSync = updatedFields.filter((f) =>
     (SYNCABLE_FIELDS as readonly string[]).includes(f)
@@ -117,8 +107,8 @@ export async function maybeSyncContactFields(
   }
 
   // Collect sync targets with batching:
-  // - assistantSyncs: Map<assistant_id, payload>
-  // - userSyncs: Map<"assistant_id:email", payload>
+  // - assistantSyncs: Map<assistantId, payload>
+  // - userSyncs: Map<"assistantId:email", payload>
   const assistantSyncs = new Map<number, ContactSyncAssistantPayload>();
   const userSyncs = new Map<string, ContactSyncUserPayload>();
 
@@ -130,32 +120,33 @@ export async function maybeSyncContactFields(
       continue;
     }
 
-    // Get assistant_id - support both "_assistant_id" and "assistant_id" field names
+    // Get assistantId - support both "_assistantId" and "assistantId" field names
     // Also support both number and string types
-    const rawAssistantId = entries._assistant_id ?? entries.assistant_id;
-    const assistantId = typeof rawAssistantId === "number" 
-      ? rawAssistantId 
-      : typeof rawAssistantId === "string" 
-        ? parseInt(rawAssistantId, 10) 
-        : NaN;
-    
+    const rawAssistantId = entries._assistantId ?? entries.assistantId;
+    const assistantId =
+      typeof rawAssistantId === 'number'
+        ? rawAssistantId
+        : typeof rawAssistantId === 'string'
+          ? parseInt(rawAssistantId, 10)
+          : NaN;
+
     if (isNaN(assistantId)) {
-      console.warn("[ContactSync] Missing or invalid _assistant_id/assistant_id in log", log.id);
+      console.warn('[ContactSync] Missing or invalid _assistantId/assistantId in log', log.id);
       continue;
     }
 
     // Support both "id" and "contact_id" field names
-    const contactId = entries.contact_id ?? entries.id;
+    const contactId = entries.contactId ?? entries.id;
 
     if (contactId === 0) {
       // Sync to assistant
       const existing = assistantSyncs.get(assistantId) || {};
 
       for (const field of fieldsToSync) {
-        const newValue = entriesUpdate[field] ?? paramsUpdate[field];
-        if (field === "timezone") {
+        const newValue = entriesUpdate[field];
+        if (field === 'timezone') {
           existing.timezone = newValue;
-        } else if (field === "bio") {
+        } else if (field === 'bio') {
           existing.about = newValue; // bio → about for assistant
         }
       }
@@ -163,23 +154,23 @@ export async function maybeSyncContactFields(
       assistantSyncs.set(assistantId, existing);
     } else {
       // Sync to user - need email from entries
-      const email = (entries.email ?? entries.email_address) as string | undefined;
+      const email = (entries.email ?? entries.emailAddress) as string | undefined;
       if (!email) {
-        console.warn("[ContactSync] Missing email for user sync in log", log.id);
+        console.warn('[ContactSync] Missing email for user sync in log', log.id);
         continue;
       }
 
       const key = `${assistantId}:${email}`;
       const existing = userSyncs.get(key) || {
-        assistant_id: assistantId,
-        target_user_email: email,
+        assistantId: assistantId,
+        targetUserEmail: email,
       };
 
       for (const field of fieldsToSync) {
-        const newValue = entriesUpdate[field] ?? paramsUpdate[field];
-        if (field === "timezone") {
+        const newValue = entriesUpdate[field];
+        if (field === 'timezone') {
           existing.timezone = newValue;
-        } else if (field === "bio") {
+        } else if (field === 'bio') {
           existing.bio = newValue;
         }
       }
@@ -203,7 +194,7 @@ export async function maybeSyncContactFields(
   userSyncs.forEach((payload) => {
     syncPromises.push(
       syncUserContact(payload).catch((err) => {
-        console.error(`[ContactSync] Failed to sync user ${payload.target_user_email}:`, err);
+        console.error(`[ContactSync] Failed to sync user ${payload.targetUserEmail}:`, err);
         return { detail: String(err) };
       })
     );
@@ -219,4 +210,3 @@ export async function maybeSyncContactFields(
     }
   }
 }
-

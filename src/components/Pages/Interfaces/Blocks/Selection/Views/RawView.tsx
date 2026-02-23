@@ -1,20 +1,20 @@
-"use client";
+'use client';
 
-import React from "react";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
-import RowBadge from "./RowBadge";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import { LogComparisonProps } from "./types";
-import { useEditablePrimitive } from "@/hooks/Interfaces/useEditablePrimitive";
+import React from 'react';
+import DiffViewer from '@/components/Common/Misc/DiffViewer';
+import RowBadge from './RowBadge';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import { LogComparisonProps } from './types';
+import { useEditablePrimitive } from '@/hooks/Interfaces/useEditablePrimitive';
 
 /**
  * Convert unknown => string with JSON if object.
  */
 function toRawString(val: unknown): string {
-  if (val == null) return "";
-  if (typeof val === "string") return val;
+  if (val == null) return '';
+  if (typeof val === 'string') return val;
   // For arrays/objects, we show them as JSON text:
-  if (typeof val === "object") {
+  if (typeof val === 'object') {
     try {
       return JSON.stringify(val, null, 2);
     } catch {
@@ -30,7 +30,7 @@ const EditableRawField = ({
   logIndices, // Pass all log indices for this group
   path,
   onGroupSave, // Use a group-aware save handler
-  originalValue // Pass the original pre-stringified value for type coercion
+  originalValue, // Pass the original pre-stringified value for type coercion
 }: {
   initialValue: string;
   logIndices: number[]; // Indices sharing this value
@@ -38,42 +38,46 @@ const EditableRawField = ({
   onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
   originalValue: any; // Original value before stringification
 }) => {
-  const { draft, inputProps } = useEditablePrimitive<string>(
-    initialValue,
-    (newVal) => {
-      // Attempt to coerce back to original type
-      let finalVal: any = newVal;
-      if (originalValue !== null && typeof originalValue === "object") {
-        try { finalVal = JSON.parse(newVal); } catch { /* Keep as string */ }
-      } else if (typeof originalValue === "number") {
-        const maybeNum = Number(newVal);
-        if (!Number.isNaN(maybeNum)) { finalVal = maybeNum; }
-      } else if (typeof originalValue === 'boolean') {
-        if (newVal.toLowerCase() === 'true') finalVal = true;
-        else if (newVal.toLowerCase() === 'false') finalVal = false;
-        // else keep as string if not clearly boolean
-      }
-      // Check if effectively unchanged before saving
+  const { draft, inputProps } = useEditablePrimitive<string>(initialValue, (newVal) => {
+    // Attempt to coerce back to original type
+    let finalVal: any = newVal;
+    if (originalValue !== null && typeof originalValue === 'object') {
       try {
-        const unchanged = JSON.stringify(finalVal) === JSON.stringify(originalValue);
-        if (unchanged) return;
-      } catch { /* Continue */ }
-
-      onGroupSave({ logIndices, path, newValue: finalVal });
+        finalVal = JSON.parse(newVal);
+      } catch {
+        /* Keep as string */
+      }
+    } else if (typeof originalValue === 'number') {
+      const maybeNum = Number(newVal);
+      if (!Number.isNaN(maybeNum)) {
+        finalVal = maybeNum;
+      }
+    } else if (typeof originalValue === 'boolean') {
+      if (newVal.toLowerCase() === 'true') finalVal = true;
+      else if (newVal.toLowerCase() === 'false') finalVal = false;
+      // else keep as string if not clearly boolean
     }
-  );
+    // Check if effectively unchanged before saving
+    try {
+      const unchanged = JSON.stringify(finalVal) === JSON.stringify(originalValue);
+      if (unchanged) return;
+    } catch {
+      /* Continue */
+    }
 
-   // Always render a textarea to comfortably edit potentially long JSON
+    onGroupSave({ logIndices, path, newValue: finalVal });
+  });
+
+  // Always render a textarea to comfortably edit potentially long JSON
   return (
     <textarea
-      rows={Math.min(12, Math.max(4, draft.split("\n").length))}
-      className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
+      rows={Math.min(12, Math.max(4, draft.split('\n').length))}
+      className="text-body w-full rounded border bg-input p-1 font-mono text-foreground"
       {...inputProps}
       value={draft} // Use the draft value directly
     />
   );
 };
-
 
 /**
  * If diffMode === "none," we group identical raw strings among base/comparables.
@@ -87,10 +91,10 @@ function groupAllRowsByValue(
   // Store original values alongside stringified versions for edit coercion
   const allData = [
     { val: baseVal, str: toRawString(baseVal), idx: baseRow },
-    ...(comparables ?? []).map((c, i) => ({ val: c, str: toRawString(c), idx: compRows[i] }))
+    ...(comparables ?? []).map((c, i) => ({ val: c, str: toRawString(c), idx: compRows[i] })),
   ];
 
-  const map = new Map<string, { originalValue: any, rows: number[] }>();
+  const map = new Map<string, { originalValue: any; rows: number[] }>();
   for (const item of allData) {
     if (!map.has(item.str)) {
       // Store the first encountered original value for this string representation
@@ -136,10 +140,7 @@ function groupVersionsForRows(
 ) {
   const map = new Map<string, number[]>();
   rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    const verStr = r === baseLogIndex ? baseVer : (compVers[compLogIndexes.indexOf(r)] ?? '');
     if (!map.has(verStr)) {
       map.set(verStr, []);
     }
@@ -156,62 +157,66 @@ export default function RawView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
+  version = '',
   comparableVersions = [],
   cellEditMode = false,
   onSaveEdit,
-  onGroupSaveEdit, 
+  onGroupSaveEdit,
   path = [],
 }: LogComparisonProps) {
-
   // ────────────────────────────────────────────────────────────────────────
   // Edit-mode – allow user to edit the raw string directly
   // ────────────────────────────────────────────────────────────────────────
   if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
-      const rawGroups = groupAllRowsByValue(
-          value,
-          comparables,
-          baseLogIndex,
-          comparisonLogsIndex
-      );
+    const rawGroups = groupAllRowsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
-      // Define the handler that will be called by EditableRawField's onSave
-      const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
-          if (onGroupSaveEdit) {
-              // Call the group save handler directly with all indices
-              onGroupSaveEdit({ logIndices, path, newValue });
-          } else if (onSaveEdit && logIndices.length > 0) {
-              // Fallback: Call single save for the first index if group save handler is not provided
-              console.warn("Using single onSaveEdit for grouped raw field. Consider implementing onGroupSaveEdit.");
-              onSaveEdit({ logIndex: logIndices[0], path, newValue });
-          }
-      };
+    // Define the handler that will be called by EditableRawField's onSave
+    const handleGroupSave = ({
+      logIndices,
+      path,
+      newValue,
+    }: {
+      logIndices: number[];
+      path: (string | number)[];
+      newValue: any;
+    }) => {
+      if (onGroupSaveEdit) {
+        // Call the group save handler directly with all indices
+        onGroupSaveEdit({ logIndices, path, newValue });
+      } else if (onSaveEdit && logIndices.length > 0) {
+        // Fallback: Call single save for the first index if group save handler is not provided
+        console.warn(
+          'Using single onSaveEdit for grouped raw field. Consider implementing onGroupSaveEdit.'
+        );
+        onSaveEdit({ logIndex: logIndices[0], path, newValue });
+      }
+    };
 
-      return (
-          <div className="space-y-3">
-              {rawGroups.map((group, index) => (
-                  <div key={index}>
-                      {/* Display RowBadges for the logs sharing this value */}
-                      <div className="flex items-center gap-1 mb-1">
-                          <RowBadge rowNumbers={group.rows} mode="none" />
-                          <span className="text-caption text-muted-foreground">
-                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
-                          </span>
-                      </div>
-                      {/* Render a single editable field for this group */}
-                      <EditableRawField
-                          initialValue={group.rawText}
-                          logIndices={group.rows} // Pass the indices associated with this group
-                          path={path}
-                          onGroupSave={handleGroupSave} // Pass the group save handler
-                          originalValue={group.originalValue} // Pass original value for type coercion
-                      />
-                  </div>
-              ))}
+    return (
+      <div className="space-y-3">
+        {rawGroups.map((group, index) => (
+          <div key={index}>
+            {/* Display RowBadges for the logs sharing this value */}
+            <div className="mb-1 flex items-center gap-1">
+              <RowBadge rowNumbers={group.rows} mode="none" />
+              <span className="text-caption text-muted-foreground">
+                {group.rows.length > 1 ? `(${group.rows.length} logs)` : ''}
+              </span>
+            </div>
+            {/* Render a single editable field for this group */}
+            <EditableRawField
+              initialValue={group.rawText}
+              logIndices={group.rows} // Pass the indices associated with this group
+              path={path}
+              onGroupSave={handleGroupSave} // Pass the group save handler
+              originalValue={group.originalValue} // Pass original value for type coercion
+            />
           </div>
-      );
+        ))}
+      </div>
+    );
   }
 
   //----------------------------------------------------------------------
@@ -220,10 +225,9 @@ export default function RawView({
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = toRawString(value);
   const compStrs = (comparables ?? []).map(toRawString);
-  const baseVer = version || "";
+  const baseVer = version || '';
   const compVers = comparableVersions || [];
   const versionEmpty = !baseVer && compVers.every((s) => !s);
-
 
   //----------------------------------------------------------------------
   // SINGLE MODE => just show the base raw text + param version if present
@@ -236,34 +240,32 @@ export default function RawView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="flex border rounded p-2 relative group">
-                <div className="mt-1 mb-1">
+              <div className="group relative flex rounded border p-2">
+                <div className="mb-1 mt-1">
                   <p className="text-body whitespace-pre-wrap">{baseVer}</p>
                 </div>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         {/* Main raw block */}
         <div className="space-y-2">
-          {!versionEmpty && (
-            <p className="font-semibold">Value</p>
-          )}
-          <div className="flex border rounded p-2 relative group">
-            <div className="mt-1 mb-1">
+          {!versionEmpty && <p className="font-semibold">Value</p>}
+          <div className="group relative flex rounded border p-2">
+            <div className="mb-1 mt-1">
               <p className="text-body whitespace-pre-wrap">{baseStr}</p>
             </div>
             <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               content={baseStr}
               copyMessage="Copied!"
               tooltipContent="Copy raw text"
@@ -277,12 +279,12 @@ export default function RawView({
   //----------------------------------------------------------------------
   // MULTI MODE
   //----------------------------------------------------------------------
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     // Group identical raw text among base + comps
     const groups = groupAllRowsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
     // Filter out groups with empty raw text
-    const filteredGroups = groups.filter(group => group.rawText.trim() !== "");
+    const filteredGroups = groups.filter((group) => group.rawText.trim() !== '');
 
     return (
       <div className="space-y-4">
@@ -299,7 +301,7 @@ export default function RawView({
           );
 
           return (
-            <div key={i} className="p-3 space-y-4">
+            <div key={i} className="space-y-4 p-3">
               {/* Param version block if not all empty */}
               {!versionEmpty && (
                 <div className="space-y-2">
@@ -307,10 +309,10 @@ export default function RawView({
                   {versionGroups.map((vg, idx) => {
                     const vStr = vg.verText;
                     return (
-                      <div key={idx} className="space-y-2 border rounded p-2 relative group">
+                      <div key={idx} className="group relative space-y-2 rounded border p-2">
                         <RowBadge rowNumbers={vg.rows} mode="none" />
                         <CopyButton
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                           content={vStr}
                           copyMessage="Copied!"
                           tooltipContent="Copy version"
@@ -320,9 +322,7 @@ export default function RawView({
                             <p className="text-body whitespace-pre-wrap">{vStr}</p>
                           </div>
                         ) : (
-                          <p className="italic text-body text-muted-foreground">
-                            No version
-                          </p>
+                          <p className="text-body italic text-muted-foreground">No version</p>
                         )}
                       </div>
                     );
@@ -332,13 +332,11 @@ export default function RawView({
 
               {/* Raw text block */}
               <div className="space-y-2">
-                {!versionEmpty && (
-                  <p className="font-semibold">Value</p>
-                )}
-                <div className="border rounded p-2 relative group">
+                {!versionEmpty && <p className="font-semibold">Value</p>}
+                <div className="group relative rounded border p-2">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={g.rawText}
                     copyMessage="Copied!"
                     tooltipContent="Copy raw text"
@@ -365,8 +363,8 @@ export default function RawView({
     <div className="space-y-4">
       {compGroups.map((block, i) => {
         const same = block.text === baseStr;
-        const oldMode = same ? "none" : "delete";
-        const newMode = same ? "none" : "insert";
+        const oldMode = same ? 'none' : 'delete';
+        const newMode = same ? 'none' : 'insert';
 
         // Merge base row + these comp rows for version listing
         const combinedRows = [baseLogIndex, ...block.rows];
@@ -386,23 +384,29 @@ export default function RawView({
                 <p className="font-semibold">Version</p>
                 {verGroups.map((vg, j) => {
                   const textVal = vg.verText;
-                  const changed = textVal !== baseVer && vg.rows.some(r => r !== baseLogIndex);
+                  const changed = textVal !== baseVer && vg.rows.some((r) => r !== baseLogIndex);
                   const baseRowPresent = vg.rows.includes(baseLogIndex);
-                  const baseBadge = changed && baseRowPresent ? "delete" : "none";
-                  const compBadge = changed && !baseRowPresent ? "insert" : "none";
+                  const baseBadge = changed && baseRowPresent ? 'delete' : 'none';
+                  const compBadge = changed && !baseRowPresent ? 'insert' : 'none';
 
                   // If multiple comp rows, we just unify them as "insert"
                   // for any that differ from base
                   return (
                     <div key={j} className="borderspace-y-2">
-                      <div className="border rounded p-2">
-                        <div className="flex items-centergap-2 gap-2 text-caption">
-                          {baseRowPresent && <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadge} />}
-                          <RowBadge rowNumbers={vg.rows.filter(r => r !== baseLogIndex)} mode={changed ? "insert" : "none"} />
+                      <div className="rounded border p-2">
+                        <div className="items-centergap-2 text-caption flex gap-2">
+                          {baseRowPresent && (
+                            <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadge} />
+                          )}
+                          <RowBadge
+                            rowNumbers={vg.rows.filter((r) => r !== baseLogIndex)}
+                            mode={changed ? 'insert' : 'none'}
+                          />
                         </div>
                         <div>
                           {(() => {
-                            const singleLineDiff = !baseVer.includes('\n') && !textVal.includes('\n');
+                            const singleLineDiff =
+                              !baseVer.includes('\n') && !textVal.includes('\n');
                             return (
                               <DiffViewer
                                 oldValue={baseVer}
@@ -424,11 +428,9 @@ export default function RawView({
 
             {/* Diff of raw text itself */}
             <div className="space-y-2">
-              {!versionEmpty && (
-                <p className="font-semibold">Raw Diff</p>
-              )}
-              <div className="border rounded p-2">
-                <div className="flex items-center gap-2 text-caption">
+              {!versionEmpty && <p className="font-semibold">Raw Diff</p>}
+              <div className="rounded border p-2">
+                <div className="text-caption flex items-center gap-2">
                   <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />
                   <RowBadge rowNumbers={block.rows} mode={newMode} />
                 </div>

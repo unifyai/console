@@ -1,5 +1,5 @@
-import { Tab, TabMeta, TabData as TabSliceData, TabUI } from "@/contexts/slices/selectors/tab";
-import { TabData } from "@/types/interfaces/grid";
+import { Tab, TabMeta, TabData as TabSliceData, TabUI } from '@/contexts/slices/selectors/tab';
+import { TabData } from '@/types/interfaces/grid';
 
 /**
  * Build tab state from API-returned tab data
@@ -12,9 +12,9 @@ export function buildTabState(
   tileNames: string[] = []
 ): Tab {
   if (!tabData || !tabData.id) {
-    throw new Error("Invalid tab data provided");
+    throw new Error('Invalid tab data provided');
   }
-  
+
   // Create tab meta
   const tabMeta: TabMeta = {
     id: tabData.id,
@@ -23,7 +23,7 @@ export function buildTabState(
     active: isActive,
     order: tabData.order ?? 1,
   };
-  
+
   // Create tab data - initially empty tile collections
   // These will be populated as tiles are added to the store
   const tabSliceData: TabSliceData = {
@@ -32,10 +32,10 @@ export function buildTabState(
     globalContext: tabData.context,
     itemsNeedRecompute: false,
   };
-  
+
   // Create tab UI
   const tabUI: TabUI = {
-    interfaceId: tabData.interface_id || null,
+    interfaceId: tabData.interfaceId || null,
     focusedTileNames: [undefined, undefined],
     resetting: false,
     edit: false,
@@ -48,7 +48,7 @@ export function buildTabState(
     dataPending: false,
     pending: false,
   };
-  
+
   return {
     ...tabMeta,
     ...tabSliceData,
@@ -59,16 +59,12 @@ export function buildTabState(
 /**
  * Add a tile to a tab state
  */
-export function addTileToTab(
-  tabState: Tab, 
-  tileId: string,
-  tileName: string
-): Tab {
+export function addTileToTab(tabState: Tab, tileId: string, tileName: string): Tab {
   // Don't duplicate tile IDs
   if (tabState.tileIds.includes(tileId)) {
     return tabState;
   }
-  
+
   return {
     ...tabState,
     tileIds: [...tabState.tileIds, tileId],
@@ -79,13 +75,9 @@ export function addTileToTab(
 /**
  * Update a tab with project and interface IDs
  */
-export function updateTabParentReferences(
-  tabState: Tab,
-  interfaceId: string | null
-): Tab {
+export function updateTabParentReferences(tabState: Tab, interfaceId: string | null): Tab {
   return {
     ...tabState,
     interfaceId,
   } as Tab;
 }
-  

@@ -14,12 +14,7 @@
 import { describe, it, expect, afterEach, afterAll } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { renderPlotCanvas, createPlotTestSetup } from '../fixtures/plotCanvasTestHarness';
-import {
-  getActiveScales,
-  ScaleOption,
-  PlotConfig,
-  DataTypeConfig,
-} from '../fixtures/configs';
+import { getActiveScales, ScaleOption, PlotConfig, DataTypeConfig } from '../fixtures/configs';
 
 // =============================================================================
 // Setup
@@ -62,9 +57,9 @@ function countDomElements(container: HTMLElement): number {
 
 // Default data type config for benchmarks
 const defaultDataTypeConfig: DataTypeConfig = {
-  x_axis_type: 'float',
-  y_axis_type: 'float',
-  group_by_type: 'str',
+  xAxisType: 'float',
+  yAxisType: 'float',
+  groupByType: 'str',
 };
 
 // =============================================================================
@@ -75,12 +70,12 @@ describe('Scatter Plot Rendering Performance', () => {
   const activeScales = getActiveScales();
   const baseConfig: PlotConfig = {
     type: 'scatter',
-    x_axis: 'table1.x_value',
-    y_axis: 'table1.y_value',
-    scale_x: 'linear',
-    scale_y: 'linear',
-    show_regression: false,
-    bin_count: 10,
+    xAxis: 'table1.x_value',
+    yAxis: 'table1.y_value',
+    scaleX: 'linear',
+    scaleY: 'linear',
+    showRegression: false,
+    binCount: 10,
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -115,7 +110,7 @@ describe('Scatter Plot Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const configWithRegression = { ...baseConfig, show_regression: true };
+        const configWithRegression = { ...baseConfig, showRegression: true };
         const testSetup = createPlotTestSetup(configWithRegression, defaultDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -142,7 +137,7 @@ describe('Scatter Plot Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const configWithGrouping = { ...baseConfig, group_by: 'table1.category' };
+        const configWithGrouping = { ...baseConfig, groupBy: 'table1.category' };
         const testSetup = createPlotTestSetup(configWithGrouping, defaultDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -169,7 +164,7 @@ describe('Scatter Plot Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const configWithLog = { ...baseConfig, scale_x: 'log' as const, scale_y: 'log' as const };
+        const configWithLog = { ...baseConfig, scaleX: 'log' as const, scaleY: 'log' as const };
         const testSetup = createPlotTestSetup(configWithLog, defaultDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -201,17 +196,17 @@ describe('Bar Chart Rendering Performance', () => {
   const activeScales = getActiveScales();
   const baseConfig: PlotConfig = {
     type: 'bar',
-    x_axis: 'table1.category',
-    y_axis: 'table1.value',
-    scale_x: 'linear',
-    scale_y: 'linear',
-    show_regression: false,
-    bin_count: 10,
+    xAxis: 'table1.category',
+    yAxis: 'table1.value',
+    scaleX: 'linear',
+    scaleY: 'linear',
+    showRegression: false,
+    binCount: 10,
   };
   const barDataTypeConfig: DataTypeConfig = {
-    x_axis_type: 'str',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'str',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -245,7 +240,7 @@ describe('Bar Chart Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const configWithGrouping = { ...baseConfig, group_by: 'table1.status' };
+        const configWithGrouping = { ...baseConfig, groupBy: 'table1.status' };
         const testSetup = createPlotTestSetup(configWithGrouping, barDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -277,11 +272,11 @@ describe('Histogram Rendering Performance', () => {
   const activeScales = getActiveScales();
   const baseConfig: PlotConfig = {
     type: 'histogram',
-    x_axis: 'table1.x_value',
-    scale_x: 'linear',
-    scale_y: 'linear',
-    show_regression: false,
-    bin_count: 20,
+    xAxis: 'table1.x_value',
+    scaleX: 'linear',
+    scaleY: 'linear',
+    showRegression: false,
+    binCount: 20,
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -316,7 +311,7 @@ describe('Histogram Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const config100Bins = { ...baseConfig, bin_count: 100 };
+        const config100Bins = { ...baseConfig, binCount: 100 };
         const testSetup = createPlotTestSetup(config100Bins, defaultDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -348,12 +343,12 @@ describe('Line Chart Rendering Performance', () => {
   const activeScales = getActiveScales();
   const baseConfig: PlotConfig = {
     type: 'line',
-    x_axis: 'table1.x_value',
-    y_axis: 'table1.y_value',
-    scale_x: 'linear',
-    scale_y: 'linear',
-    show_regression: false,
-    bin_count: 10,
+    xAxis: 'table1.x_value',
+    yAxis: 'table1.y_value',
+    scaleX: 'linear',
+    scaleY: 'linear',
+    showRegression: false,
+    binCount: 10,
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -387,7 +382,7 @@ describe('Line Chart Rendering Performance', () => {
       async () => {
         const start = performance.now();
 
-        const configWithGrouping = { ...baseConfig, group_by: 'table1.category' };
+        const configWithGrouping = { ...baseConfig, groupBy: 'table1.category' };
         const testSetup = createPlotTestSetup(configWithGrouping, defaultDataTypeConfig, scale);
         const result = renderPlotCanvas(testSetup);
 
@@ -422,12 +417,15 @@ afterAll(() => {
     console.log('========================================');
 
     // Group by plot type
-    const byPlotType = benchmarkResults.reduce((acc, r) => {
-      const key = r.plotType;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(r);
-      return acc;
-    }, {} as Record<string, BenchmarkResult[]>);
+    const byPlotType = benchmarkResults.reduce(
+      (acc, r) => {
+        const key = r.plotType;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(r);
+        return acc;
+      },
+      {} as Record<string, BenchmarkResult[]>
+    );
 
     for (const [plotType, results] of Object.entries(byPlotType)) {
       console.log(`\n${plotType.toUpperCase()}:`);

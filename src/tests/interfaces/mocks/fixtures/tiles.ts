@@ -15,12 +15,12 @@ export const mockTile: Tile = {
   // Data
   context: 'default',
   table: 'logs',
-  auto_update: 'true',
+  autoUpdate: 'true',
   freeze: null,
   filters: null,
-  common_filter: null,
+  commonFilter: null,
   metric: null,
-  column_context: null,
+  columnContext: null,
   grouping: null,
 
   // UI
@@ -37,26 +37,22 @@ export const mockTile: Tile = {
 
   // Type-specific data
   tableTile: {
-    table_type: undefined,
+    tableType: undefined,
     limit: 20,
     offset: 0,
-    group_limit: 20,
-    group_offset: 0,
-    page_number: undefined,
-    column_order: undefined,
-    hidden_columns: undefined,
-    default_hidden_columns: false,
+    groupLimit: 20,
+    groupOffset: 0,
+    pageNumber: undefined,
+    columnOrder: undefined,
+    hiddenColumns: undefined,
+    defaultHiddenColumns: false,
     sorting: undefined,
-    group_sorting: undefined,
-    columns_pin_left: undefined,
-    columns_pin_right: undefined,
+    groupSorting: undefined,
+    columnsPinLeft: undefined,
+    columnsPinRight: undefined,
     selected: undefined,
     infiniteQueryKeys: [],
   },
   plotTile: null,
   viewTile: null,
-  editorTile: null,
-  terminalTile: null,
 };
-
-

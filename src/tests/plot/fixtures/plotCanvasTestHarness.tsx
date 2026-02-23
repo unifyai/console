@@ -12,16 +12,20 @@
  */
 
 import React, { useRef, useState, useCallback } from 'react';
-import { render, RenderResult, screen, waitFor } from '@testing-library/react';
+import { render, RenderResult, waitFor } from '@/tests/render';
 import { PlotCanvas, PlotCanvasProps } from '../../../components/Common/Plot/PlotCanvas';
 import type { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import type { DataTypeConfig, PlotConfig } from './configs';
 import type { MockScaleOption } from './mockData';
+import { createMockLogs, createMockFields, createDeterministicMockLogs } from './mockData';
 import {
-  createMockLogs,
-  createMockFields,
-  createDeterministicMockLogs,
-} from './mockData';
+  getConfig,
+  updateConfig,
+  resetConfig,
+  type ScatterConfig,
+} from '@/utils/interfaces/plots/plot-scatter/config';
+import type { RenderMode } from '@/utils/interfaces/plots/plot-scatter/types';
+import { determineRenderMode } from '@/utils/interfaces/plots/plot-scatter/orchestrator';
 
 // Re-export for convenience
 export type ScaleOption = MockScaleOption;
@@ -80,6 +84,48 @@ export interface PlotCanvasTestOptions {
    * expected pixel positions.
    */
   deterministic?: boolean;
+  /**
+   * Force a specific render mode for scatter plots.
+   * By default, the render mode is automatically determined based on data size.
+   * Set this to test specific rendering paths regardless of data size.
+   */
+  forceRenderMode?: RenderMode;
+  /**
+   * Custom scatter config overrides for testing different thresholds.
+   * Will be reset after the test via resetConfig().
+   */
+  scatterConfigOverrides?: Partial<ScatterConfig>;
+
+  // === Axis Customization ===
+  /** Whether to show X axis label (default: true) */
+  showXAxisLabel?: boolean;
+  /** Whether to show Y axis label (default: true) */
+  showYAxisLabel?: boolean;
+  /** Custom label for X axis */
+  xAxisLabel?: string;
+  /** Custom label for Y axis */
+  yAxisLabel?: string;
+  /** Function to format X axis tick values */
+  xTickFormatter?: (value: unknown) => string;
+  /** Function to format Y axis tick values */
+  yTickFormatter?: (value: unknown) => string;
+  /** Custom label for group by field */
+  groupByLabel?: string;
+  /** Custom label for aggregate field */
+  aggregateLabel?: string;
+
+  // === Drawer Integration ===
+  /** Callback when groups are computed */
+  onGroupsChange?: (groups: Array<{ key: string; color: string }>) => void;
+  /** Callback when a datapoint is clicked/pinned */
+  onDatapointPin?: (datapoint: {
+    id: string;
+    x: { label: string; value: string | number };
+    y: { label: string; value: string | number };
+    group?: { label: string; value: string };
+  }) => void;
+  /** Highlight target for bidirectional hover highlighting */
+  highlightTarget?: import('@/types/interfaces/plot').HighlightTarget;
 }
 
 export interface PlotCanvasTestResult extends RenderResult {
@@ -87,7 +133,7 @@ export interface PlotCanvasTestResult extends RenderResult {
   getSvg: () => SVGSVGElement | null;
   /** Get the plot data group element */
   getPlotDataGroup: () => SVGGElement | null;
-  /** Get all scatter points */
+  /** Get all scatter points (SVG mode only) */
   getScatterPoints: () => SVGCircleElement[];
   /** Get all bar rectangles */
   getBars: () => SVGRectElement[];
@@ -113,6 +159,44 @@ export interface PlotCanvasTestResult extends RenderResult {
   waitForPlot: () => Promise<void>;
   /** Get current props */
   getProps: () => PlotCanvasTestOptions;
+
+  // === WebGL Rendering Support ===
+
+  /** Get the WebGL canvas element (for scatter plots in WebGL mode) */
+  getWebGLCanvas: () => HTMLCanvasElement | null;
+  /** Check if the scatter plot is using WebGL rendering */
+  isWebGLMode: () => boolean;
+  /** Check if the scatter plot is using SVG rendering */
+  isSVGMode: () => boolean;
+  /** Get the current render mode for scatter plots */
+  getRenderMode: () => RenderMode | 'not-scatter';
+  /** Get expected render mode based on data size */
+  getExpectedRenderMode: () => RenderMode | 'not-scatter';
+  /** Reset scatter config to defaults (call in afterEach) */
+  resetScatterConfig: () => void;
+  /** Get current scatter config */
+  getScatterConfig: () => ScatterConfig;
+
+  // === Drawer & Highlight Support ===
+
+  /** Get bar opacities for highlight testing */
+  getBarOpacities: () => number[];
+  /** Get scatter point opacities for highlight testing */
+  getScatterPointOpacities: () => number[];
+  /** Get histogram bin opacities for highlight testing */
+  getHistogramBinOpacities: () => number[];
+  /** Get unique groups from grouped bars */
+  getBarGroups: () => string[];
+  /** Get bars filtered by group key */
+  getBarsByGroup: (groupKey: string) => SVGRectElement[];
+  /** Simulate group highlight by updating props with highlightTarget */
+  simulateGroupHighlight: (groupKey: string) => void;
+  /** Simulate datapoint highlight by updating props with highlightTarget */
+  simulateDatapointHighlight: (datapointId: string) => void;
+  /** Clear any active highlight */
+  clearHighlight: () => void;
+  /** Wait for highlight transition to complete (200ms + buffer) */
+  waitForHighlightTransition: () => Promise<void>;
 }
 
 // =============================================================================
@@ -148,22 +232,47 @@ interface PlotCanvasWrapperProps {
   } | null>;
 }
 
-function PlotCanvasWrapper({
-  initialOptions,
-  onPropsRef,
-}: PlotCanvasWrapperProps) {
+function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProps) {
   const [options, setOptions] = useState(initialOptions);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  const updateProps = useCallback(
-    (newProps: Partial<PlotCanvasTestOptions>) => {
-      setOptions((prev) => ({ ...prev, ...newProps }));
-    },
-    []
-  );
+  const updateProps = useCallback((newProps: Partial<PlotCanvasTestOptions>) => {
+    setOptions((prev) => ({ ...prev, ...newProps }));
+  }, []);
+
+  // Apply scatter config overrides on mount and when options change
+  React.useEffect(() => {
+    if (options.scatterConfigOverrides) {
+      updateConfig(options.scatterConfigOverrides);
+    }
+    // If forceRenderMode is set, adjust thresholds to force that mode
+    if (options.forceRenderMode) {
+      const dataCount = options.logs?.length ?? options.scale?.count ?? 100;
+
+      switch (options.forceRenderMode) {
+        case 'svg':
+          // Set svgMax above the data count
+          updateConfig({ svgMax: dataCount + 1000 });
+          break;
+        case 'webgl':
+          // Set svgMax below data count, webglMax above
+          updateConfig({ svgMax: Math.max(1, dataCount - 1), webglMax: dataCount + 1000000 });
+          break;
+        case 'webgl-sampled':
+          // Set both thresholds below data count
+          updateConfig({ svgMax: 1, webglMax: Math.max(1, dataCount - 1) });
+          break;
+      }
+    }
+  }, [
+    options.scatterConfigOverrides,
+    options.forceRenderMode,
+    options.logs?.length,
+    options.scale?.count,
+  ]);
 
   // Expose methods via ref
   React.useEffect(() => {
@@ -175,50 +284,43 @@ function PlotCanvasWrapper({
 
   // Generate mock data if not provided
   const dataTypeConfigToUse = options.dataTypeConfig ?? {
-    x_axis_type: 'float',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'float',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
   const scaleToUse = options.scale ?? { name: 'small', count: 100, skip: false, timeout: 5000 };
 
   const logs =
     options.logs ??
     (options.deterministic
-      ? (createDeterministicMockLogs(dataTypeConfigToUse, scaleToUse.count).logs as unknown as LogProps[])
+      ? (createDeterministicMockLogs(dataTypeConfigToUse, scaleToUse.count)
+          .logs as unknown as LogProps[])
       : (createMockLogs({
           dataTypeConfig: dataTypeConfigToUse,
           scale: scaleToUse,
           deterministic: false,
         }) as unknown as LogProps[]));
 
-  const fields =
-    options.fields ?? createMockFields(dataTypeConfigToUse);
+  const fields = options.fields ?? createMockFields(dataTypeConfigToUse);
 
   const { width = 800, height = 600 } = options.containerDimensions ?? {};
 
   return (
-    <div
-      data-testid="plot-canvas-container"
-      style={{ width, height, position: 'relative' }}
-    >
+    <div data-testid="plot-canvas-container" style={{ width, height, position: 'relative' }}>
       <PlotCanvas
         logs={logs}
         fields={fields}
-        plotType={
-          options.plotType ?? mapPlotType(options.plotConfig?.type ?? 'scatter')
-        }
-        xAxis={options.xAxis ?? options.plotConfig?.x_axis ?? 'table1.x_value'}
-        yAxis={options.yAxis ?? options.plotConfig?.y_axis ?? 'table1.y_value'}
-        groupBy={options.groupBy ?? options.plotConfig?.group_by}
+        plotType={options.plotType ?? mapPlotType(options.plotConfig?.type ?? 'scatter')}
+        xAxis={options.xAxis ?? options.plotConfig?.xAxis ?? 'table1.x_value'}
+        yAxis={options.yAxis ?? options.plotConfig?.yAxis ?? 'table1.y_value'}
+        groupBy={options.groupBy ?? options.plotConfig?.groupBy}
         aggregate={options.aggregate ?? options.plotConfig?.aggregate}
-        scaleX={options.scaleX ?? options.plotConfig?.scale_x ?? 'linear'}
-        scaleY={options.scaleY ?? options.plotConfig?.scale_y ?? 'linear'}
+        scaleX={options.scaleX ?? options.plotConfig?.scaleX ?? 'linear'}
+        scaleY={options.scaleY ?? options.plotConfig?.scaleY ?? 'linear'}
         metric={options.metric ?? 'sum'}
-        binCount={options.binCount ?? options.plotConfig?.bin_count ?? 10}
+        binCount={options.binCount ?? options.plotConfig?.binCount ?? 10}
         showRegression={
-          (options.showRegression ?? options.plotConfig?.show_regression ?? false)
-            ? 'true'
-            : 'false'
+          (options.showRegression ?? options.plotConfig?.showRegression ?? false) ? 'true' : 'false'
         }
         colors={options.colors ?? null}
         interactive={options.interactive ?? true}
@@ -227,6 +329,19 @@ function PlotCanvasWrapper({
         svgRef={svgRef as React.RefObject<SVGSVGElement>}
         containerRef={containerRef as React.RefObject<HTMLDivElement>}
         settingsRef={settingsRef as React.RefObject<HTMLDivElement>}
+        // Axis customization props
+        showXAxisLabel={options.showXAxisLabel}
+        showYAxisLabel={options.showYAxisLabel}
+        xAxisLabel={options.xAxisLabel}
+        yAxisLabel={options.yAxisLabel}
+        xTickFormatter={options.xTickFormatter}
+        yTickFormatter={options.yTickFormatter}
+        groupByLabel={options.groupByLabel}
+        aggregateLabel={options.aggregateLabel}
+        // Drawer integration props
+        onGroupsChange={options.onGroupsChange}
+        onDatapointPin={options.onDatapointPin}
+        highlightTarget={options.highlightTarget}
       />
     </div>
   );
@@ -242,23 +357,17 @@ function PlotCanvasWrapper({
  * @param options - Configuration options for the plot
  * @returns Test utilities for interacting with the rendered plot
  */
-export function renderPlotCanvas(
-  options: PlotCanvasTestOptions = {}
-): PlotCanvasTestResult {
+export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanvasTestResult {
   const propsRef: React.MutableRefObject<{
     getProps: () => PlotCanvasTestOptions;
     updateProps: (props: Partial<PlotCanvasTestOptions>) => void;
   } | null> = { current: null };
 
-  const renderResult = render(
-    <PlotCanvasWrapper initialOptions={options} onPropsRef={propsRef} />,
-  );
+  const renderResult = render(<PlotCanvasWrapper initialOptions={options} onPropsRef={propsRef} />);
 
   // Helper to get SVG
   const getSvg = (): SVGSVGElement | null => {
-    const container = renderResult.container.querySelector(
-      '[data-testid="plot-canvas-container"]'
-    );
+    const container = renderResult.container.querySelector('[data-testid="plot-canvas-container"]');
     return container?.querySelector('svg') ?? null;
   };
 
@@ -318,25 +427,70 @@ export function renderPlotCanvas(
   // Helper to get regression line
   const getRegressionLine = (): SVGLineElement | null => {
     const plotData = getPlotDataGroup();
-    return (
-      plotData?.querySelector('line.regression, line[data-regression]') ?? null
-    );
+    return plotData?.querySelector('line.regression, line[data-regression]') ?? null;
   };
 
   // Helper to get tooltip
   const getTooltip = (): HTMLDivElement | null => {
-    const container = renderResult.container.querySelector(
-      '[data-testid="plot-canvas-container"]'
-    );
+    const container = renderResult.container.querySelector('[data-testid="plot-canvas-container"]');
     return container?.querySelector('.plotTooltip') as HTMLDivElement | null;
   };
 
   // Helper to get legend
   const getLegend = (): HTMLElement | null => {
-    const container = renderResult.container.querySelector(
-      '[data-testid="plot-canvas-container"]'
-    );
+    const container = renderResult.container.querySelector('[data-testid="plot-canvas-container"]');
     return container?.querySelector('.legend, [data-testid="legend"]') ?? null;
+  };
+
+  // Helper to get WebGL canvas
+  const getWebGLCanvas = (): HTMLCanvasElement | null => {
+    const container = renderResult.container.querySelector('[data-testid="plot-canvas-container"]');
+    return container?.querySelector('canvas.webgl-scatter') as HTMLCanvasElement | null;
+  };
+
+  // Check if using WebGL mode
+  const isWebGLMode = (): boolean => {
+    return getWebGLCanvas() !== null;
+  };
+
+  // Check if using SVG mode
+  const isSVGMode = (): boolean => {
+    const points = getScatterPoints();
+    const webglCanvas = getWebGLCanvas();
+    // SVG mode: has SVG circles and no WebGL canvas (or canvas is hidden)
+    return points.length > 0 && (webglCanvas === null || webglCanvas.style.display === 'none');
+  };
+
+  // Get current render mode
+  const getRenderMode = (): RenderMode | 'not-scatter' => {
+    const currentProps = propsRef.current?.getProps() ?? options;
+    if (
+      currentProps.plotType !== 'Scatter Plot' &&
+      mapPlotType(currentProps.plotConfig?.type) !== 'Scatter Plot'
+    ) {
+      return 'not-scatter';
+    }
+
+    if (isWebGLMode()) {
+      const config = getConfig();
+      const dataCount = currentProps.logs?.length ?? currentProps.scale?.count ?? 100;
+      return dataCount > config.webglMax ? 'webgl-sampled' : 'webgl';
+    }
+    return 'svg';
+  };
+
+  // Get expected render mode based on data size
+  const getExpectedRenderMode = (): RenderMode | 'not-scatter' => {
+    const currentProps = propsRef.current?.getProps() ?? options;
+    if (
+      currentProps.plotType !== 'Scatter Plot' &&
+      mapPlotType(currentProps.plotConfig?.type) !== 'Scatter Plot'
+    ) {
+      return 'not-scatter';
+    }
+
+    const dataCount = currentProps.logs?.length ?? currentProps.scale?.count ?? 100;
+    return determineRenderMode(dataCount);
   };
 
   // Wait for plot to render (D3 updates are async)
@@ -346,24 +500,130 @@ export function renderPlotCanvas(
       () => {
         const svg = getSvg();
         const plotData = getPlotDataGroup();
-        
+        const webglCanvas = getWebGLCanvas();
+
         // Debug: log what we're seeing
         if (!plotData) {
           throw new Error('Plot not yet rendered: plotData group not found');
         }
-        if (plotData.children.length === 0) {
+
+        // For scatter plots, accept either SVG points or WebGL canvas
+        const currentProps = propsRef.current?.getProps() ?? options;
+        // Use plotType if set, otherwise fall back to mapped plotConfig.type
+        const effectivePlotType =
+          currentProps.plotType ?? mapPlotType(currentProps.plotConfig?.type);
+        const isScatter = effectivePlotType === 'Scatter Plot';
+
+        if (isScatter) {
+          const hasWebGL = webglCanvas !== null && webglCanvas.style.display !== 'none';
+          const hasSVGPoints = plotData.querySelectorAll('circle.data-point').length > 0;
+
+          if (!hasWebGL && !hasSVGPoints) {
+            throw new Error('Scatter plot not yet rendered: no SVG points or WebGL canvas');
+          }
+        } else if (plotData.children.length === 0) {
           // Check if SVG exists and has dimensions
           const svgWidth = svg?.getAttribute('width') || svg?.clientWidth;
           const svgHeight = svg?.getAttribute('height') || svg?.clientHeight;
-          throw new Error(`Plot not yet rendered: plotData is empty (svg: ${svgWidth}x${svgHeight})`);
+          throw new Error(
+            `Plot not yet rendered: plotData is empty (svg: ${svgWidth}x${svgHeight})`
+          );
         }
       },
       { timeout: 10000 }
     );
-    
+
     // Wait for D3 transitions to complete (histograms animate height over 500ms)
     // Add buffer time for transition completion
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  };
+
+  // === Drawer & Highlight Support ===
+
+  /**
+   * Get bar opacities for highlight testing
+   */
+  const getBarOpacities = (): number[] => {
+    const bars = getBars();
+    return bars.map((bar) => parseFloat(bar.style.opacity || '1'));
+  };
+
+  /**
+   * Get scatter point opacities for highlight testing
+   */
+  const getScatterPointOpacities = (): number[] => {
+    const points = getScatterPoints();
+    return points.map((point) => parseFloat(point.style.opacity || '1'));
+  };
+
+  /**
+   * Get histogram bin opacities for highlight testing
+   */
+  const getHistogramBinOpacities = (): number[] => {
+    const bins = getHistogramBins();
+    return bins.map((bin) => parseFloat(bin.style.opacity || '1'));
+  };
+
+  /**
+   * Get unique groups from grouped bars
+   */
+  const getBarGroups = (): string[] => {
+    const bars = getBars();
+    const groups = new Set<string>();
+
+    bars.forEach((bar) => {
+      const barData = (bar as any).__data__;
+      if (barData && barData[0]) {
+        groups.add(barData[0]);
+      }
+    });
+
+    return Array.from(groups);
+  };
+
+  /**
+   * Get bars filtered by group key
+   */
+  const getBarsByGroup = (groupKey: string): SVGRectElement[] => {
+    const bars = getBars();
+    return bars.filter((bar) => {
+      const barData = (bar as any).__data__;
+      return barData && barData[0] === groupKey;
+    });
+  };
+
+  /**
+   * Simulate group highlight by updating highlightTarget
+   */
+  const simulateGroupHighlight = (groupKey: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'group', groupKey },
+    } as any);
+  };
+
+  /**
+   * Simulate datapoint highlight by updating highlightTarget
+   */
+  const simulateDatapointHighlight = (datapointId: string): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'datapoint', datapointId },
+    } as any);
+  };
+
+  /**
+   * Clear any active highlight
+   */
+  const clearHighlight = (): void => {
+    propsRef.current?.updateProps({
+      highlightTarget: { type: 'none' },
+    } as any);
+  };
+
+  /**
+   * Wait for highlight transition to complete (200ms transition + 50ms buffer)
+   */
+  const waitForHighlightTransition = async (): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
   };
 
   return {
@@ -383,6 +643,24 @@ export function renderPlotCanvas(
     updateProps: (props) => propsRef.current?.updateProps(props),
     waitForPlot,
     getProps: () => propsRef.current?.getProps() ?? options,
+    // WebGL rendering support
+    getWebGLCanvas,
+    isWebGLMode,
+    isSVGMode,
+    getRenderMode,
+    getExpectedRenderMode,
+    resetScatterConfig: resetConfig,
+    getScatterConfig: getConfig,
+    // Drawer & highlight support
+    getBarOpacities,
+    getScatterPointOpacities,
+    getHistogramBinOpacities,
+    getBarGroups,
+    getBarsByGroup,
+    simulateGroupHighlight,
+    simulateDatapointHighlight,
+    clearHighlight,
+    waitForHighlightTransition,
   };
 }
 
@@ -408,21 +686,20 @@ export function createPlotTestSetup(
   scale: ScaleOption,
   options: PlotTestSetupOptions = {}
 ): PlotCanvasTestOptions {
-    
   return {
     plotConfig,
     dataTypeConfig,
     scale,
     plotType: mapPlotType(plotConfig.type),
-    xAxis: plotConfig.x_axis,
-    yAxis: plotConfig.y_axis,
-    groupBy: plotConfig.group_by,
+    xAxis: plotConfig.xAxis,
+    yAxis: plotConfig.yAxis,
+    groupBy: plotConfig.groupBy,
     aggregate: plotConfig.aggregate,
-    scaleX: plotConfig.scale_x as ScaleType,
-    scaleY: plotConfig.scale_y as ScaleType,
-    binCount: plotConfig.bin_count,
-    showRegression: plotConfig.show_regression,
-    sortBars: plotConfig.sort_order ?? 'asc',
+    scaleX: plotConfig.scaleX as ScaleType,
+    scaleY: plotConfig.scaleY as ScaleType,
+    binCount: plotConfig.binCount,
+    showRegression: plotConfig.showRegression,
+    sortBars: plotConfig.sortOrder ?? 'asc',
     deterministic: options.deterministic ?? false,
   };
 }
@@ -430,25 +707,17 @@ export function createPlotTestSetup(
 /**
  * Assert that a scatter plot has the expected number of points
  */
-export function assertScatterPointCount(
-  result: PlotCanvasTestResult,
-  expectedCount: number
-) {
+export function assertScatterPointCount(result: PlotCanvasTestResult, expectedCount: number) {
   const points = result.getScatterPoints();
   if (points.length !== expectedCount) {
-    throw new Error(
-      `Expected ${expectedCount} scatter points, got ${points.length}`
-    );
+    throw new Error(`Expected ${expectedCount} scatter points, got ${points.length}`);
   }
 }
 
 /**
  * Assert that a bar chart has the expected number of bars
  */
-export function assertBarCount(
-  result: PlotCanvasTestResult,
-  expectedCount: number
-) {
+export function assertBarCount(result: PlotCanvasTestResult, expectedCount: number) {
   const bars = result.getBars();
   if (bars.length !== expectedCount) {
     throw new Error(`Expected ${expectedCount} bars, got ${bars.length}`);
@@ -458,15 +727,10 @@ export function assertBarCount(
 /**
  * Assert that a histogram has the expected number of bins
  */
-export function assertHistogramBinCount(
-  result: PlotCanvasTestResult,
-  expectedBinCount: number
-) {
+export function assertHistogramBinCount(result: PlotCanvasTestResult, expectedBinCount: number) {
   const bins = result.getHistogramBins();
   if (bins.length !== expectedBinCount) {
-    throw new Error(
-      `Expected ${expectedBinCount} histogram bins, got ${bins.length}`
-    );
+    throw new Error(`Expected ${expectedBinCount} histogram bins, got ${bins.length}`);
   }
 }
 
@@ -484,3 +748,75 @@ export function assertAxesRendered(result: PlotCanvasTestResult) {
     throw new Error('Y axis not rendered');
   }
 }
+
+// =============================================================================
+// WebGL Rendering Assertions
+// =============================================================================
+
+/**
+ * Assert that a scatter plot is using SVG rendering mode
+ */
+export function assertSVGRenderMode(result: PlotCanvasTestResult) {
+  if (!result.isSVGMode()) {
+    const mode = result.getRenderMode();
+    throw new Error(`Expected SVG render mode, but got ${mode}`);
+  }
+}
+
+/**
+ * Assert that a scatter plot is using WebGL rendering mode
+ */
+export function assertWebGLRenderMode(result: PlotCanvasTestResult) {
+  if (!result.isWebGLMode()) {
+    const mode = result.getRenderMode();
+    throw new Error(`Expected WebGL render mode, but got ${mode}`);
+  }
+}
+
+/**
+ * Assert that the render mode matches what's expected based on data size
+ */
+export function assertExpectedRenderMode(result: PlotCanvasTestResult) {
+  const actual = result.getRenderMode();
+  const expected = result.getExpectedRenderMode();
+
+  if (actual !== expected) {
+    throw new Error(`Render mode mismatch: expected ${expected} based on data size, got ${actual}`);
+  }
+}
+
+/**
+ * Assert that WebGL canvas exists and is visible
+ */
+export function assertWebGLCanvasVisible(result: PlotCanvasTestResult) {
+  const canvas = result.getWebGLCanvas();
+  if (!canvas) {
+    throw new Error('WebGL canvas not found');
+  }
+  if (canvas.style.display === 'none') {
+    throw new Error('WebGL canvas exists but is hidden');
+  }
+}
+
+/**
+ * Assert that scatter plot is rendered (in any mode)
+ */
+export function assertScatterPlotRendered(result: PlotCanvasTestResult) {
+  const svgPoints = result.getScatterPoints();
+  const webglCanvas = result.getWebGLCanvas();
+
+  const hasSVG = svgPoints.length > 0;
+  const hasWebGL = webglCanvas !== null && webglCanvas.style.display !== 'none';
+
+  if (!hasSVG && !hasWebGL) {
+    throw new Error('Scatter plot not rendered: no SVG points or WebGL canvas found');
+  }
+}
+
+// =============================================================================
+// Re-exports for scatter config management in tests
+// =============================================================================
+
+export { updateConfig, resetConfig, getConfig } from '@/utils/interfaces/plots/plot-scatter/config';
+export type { ScatterConfig } from '@/utils/interfaces/plots/plot-scatter/config';
+export type { RenderMode } from '@/utils/interfaces/plots/plot-scatter/types';

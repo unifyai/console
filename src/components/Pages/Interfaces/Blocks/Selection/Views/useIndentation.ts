@@ -6,10 +6,10 @@
 export function getIndentClasses(nestingLevel: number) {
   if (nestingLevel === 0) {
     // Top-level items have no left border, but ensure content has padding to make space for icons
-    return "pl-0 border-l-0";
+    return 'pl-0 border-l-0';
   }
   // Children have a vertical line to show parent-child relationship
-  return "border-l border-l-muted ml-4 pl-3 relative";
+  return 'border-l border-l-muted ml-4 pl-3 relative';
 }
 
 /**
@@ -18,7 +18,7 @@ export function getIndentClasses(nestingLevel: number) {
  */
 export function getContentIndentClasses(nestingLevel: number) {
   // Always indent content to show parent-child relationship, regardless of level
-  return "border-l border-l-muted ml-4 pl-3 relative";
+  return 'border-l border-l-muted ml-4 pl-3 relative';
 }
 
 /**
@@ -29,5 +29,5 @@ export function getContentIndentClasses(nestingLevel: number) {
  */
 export function getSeparatorClasses(currentIndex: number, totalItems: number) {
   // Only add bottom border if not the last item
-  return currentIndex < totalItems - 1 ? "border-b border-muted pb-2 mb-2" : "pb-2";
-} 
+  return currentIndex < totalItems - 1 ? 'border-b border-muted pb-2 mb-2' : 'pb-2';
+}

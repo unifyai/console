@@ -1,145 +1,150 @@
-import { NextRequest, NextResponse } from "next/server";
-import { withCacheHeaders } from "../../_utils/cacheResponse";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { buildCacheControl } from '../../_utils/cacheResponse';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function GET(request: NextRequest) {
-    const url = new URL(request.url);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 60000); // 60s timeout - fields can be slow for large projects
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  // Support both 'project' and 'projectName' for backwards compatibility
+  const project = searchParams.get('projectName') || searchParams.get('project');
+  const context = searchParams.get('context');
+
+  try {
     const startedAt = Date.now();
-    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    
-    try {
-        const res = await fetch(
-            `${baseUrl}/logs/fields${url.search}`,
-            {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "accept": "application/json",
-                    "x-correlation-id": correlationId,
-                },
-                signal: controller.signal,
-            },
-        );
-        clearTimeout(ttl);
-        if (!res.ok) {
-            if (DEBUG_API) {
-                console.warn(JSON.stringify({ route: "/api/logs/fields", method: "GET", upstream: `${baseUrl}/logs/fields${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-            }
-        }
-        // Cache fields for 5 minutes - metadata changes infrequently
-        return withCacheHeaders(res, 'LONG');
-    } catch (e: any) {
-        clearTimeout(ttl);
-        const msg = e?.message || "Request failed";
-        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-        console.error(JSON.stringify({ route: "/api/logs/fields", method: "GET", upstream: `${baseUrl}/logs/fields${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.GET('/v0/logs/fields', {
+      params: {
+        query: {
+          project_name: project || '',
+          ...(context && { context }),
+        },
+      },
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/logs/fields',
+          method: 'GET',
+          endpoint: '/v0/logs/fields',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    // Cache fields for 5 minutes - metadata changes infrequently
+    const cacheControl = buildCacheControl('LONG');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+    return NextResponse.json(data, { status: 200, headers });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 60000);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
     const startedAt = Date.now();
-    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    
-    try {
-        const res = await fetch(
-            `${baseUrl}/logs/fields?delete_empty_logs=True`,
-            {
-                method: "DELETE",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "x-correlation-id": correlationId,
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-            },
-        );
-        clearTimeout(ttl);
-        if (!res.ok) {
-            if (DEBUG_API) {
-                console.warn(JSON.stringify({ route: "/api/logs/fields", method: "DELETE", upstream: `${baseUrl}/logs/fields?delete_empty_logs=True`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-            }
-        }
-        return res;
-    } catch (e: any) {
-        clearTimeout(ttl);
-        const msg = e?.message || "Request failed";
-        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-        console.error(JSON.stringify({ route: "/api/logs/fields", method: "DELETE", upstream: `${baseUrl}/logs/fields?delete_empty_logs=True`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.DELETE('/v0/logs/fields', {
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/logs/fields',
+          method: 'DELETE',
+          endpoint: '/v0/logs/fields',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 60000);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
     const startedAt = Date.now();
-    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    
-    try {
-        const res = await fetch(
-            `${baseUrl}/logs/rename_field`,
-            {
-                method: "PATCH",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "accept": "application/json",
-                    "x-correlation-id": correlationId,
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-            },
-        );
-        clearTimeout(ttl);
-        if (!res.ok) {
-            if (DEBUG_API) {
-                console.warn(JSON.stringify({ route: "/api/logs/fields", method: "PATCH", upstream: `${baseUrl}/logs/rename_field`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-            }
-        }
-        return res;
-    } catch (e: any) {
-        clearTimeout(ttl);
-        const msg = e?.message || "Request failed";
-        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-        console.error(JSON.stringify({ route: "/api/logs/fields", method: "PATCH", upstream: `${baseUrl}/logs/rename_field`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.PATCH('/v0/logs/rename_field', {
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/logs/fields',
+          method: 'PATCH',
+          endpoint: '/v0/logs/rename_field',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }

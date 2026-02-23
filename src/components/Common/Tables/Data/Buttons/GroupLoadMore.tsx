@@ -17,9 +17,9 @@ export interface GroupLoadMoreProps {
   groupingExpression: string | null;
   groupSortingExpression: string | null;
   limit: number;
-  group_limit: number;
+  groupLimit: number;
   logsActions: LogsActions;
-  
+
   // Group-specific parameters
   groupId: string | undefined; // Full group path like "column1:value1>column2:value2"
   dataTypes: { [key: string]: string };
@@ -27,11 +27,11 @@ export interface GroupLoadMoreProps {
 
   // isLoading flag from tableDataItem
   isTableDataLoading: boolean;
-  
+
   // Update function
   updateLogs?: (
     logsData: LogsResponseProps,
-    mode: "replace" | "append" | "prepend",
+    mode: 'replace' | 'append' | 'prepend',
     targetGroupId?: string | null,
     targetGroupFilters?: [string, string][],
     preConvertedLogs?: any[],
@@ -42,23 +42,23 @@ export interface GroupLoadMoreProps {
     },
     currentOffsets?: { globalOffset: number; groupOffset: number }
   ) => { globalOffset: number; groupOffset: number };
-  
+
   // UI parameters
   colSpan: number | undefined;
   interactive?: boolean;
-  
+
   // LoadMore component override
   LoadMoreComponent?: React.ComponentType<LoadMoreProps>;
 
   // Group-specific hasNextPage and hasPreviousPage calculation
   calculateGroupHasNextPage: (groupId: string | undefined) => boolean;
-  
+
   // Callback for reporting isFetchingNextPage state changes
   onFetchingStateChange?: (isFetchingNextPage: boolean) => void;
-  
+
   // Callback for reporting group offset changes
   onGroupOffsetChange?: (groupId: string | undefined, offset: number) => void;
-  
+
   // Bidirectional loading configuration
   bidirectionalEnabled?: boolean;
   bidirectionalConfig?: {
@@ -66,9 +66,9 @@ export interface GroupLoadMoreProps {
     enableBackwardLoading: boolean;
     enableForwardLoading: boolean;
   };
-  
+
   // Position indicator to determine what to render
-  position?: "before" | "after";
+  position?: 'before' | 'after';
 }
 
 /**
@@ -86,7 +86,7 @@ export default function GroupLoadMore({
   groupingExpression,
   groupSortingExpression,
   limit,
-  group_limit,
+  groupLimit,
   logsActions,
   groupId,
   dataTypes,
@@ -105,10 +105,10 @@ export default function GroupLoadMore({
     enableBackwardLoading: true,
     enableForwardLoading: true,
   },
-  position = "after", // Default to "after" for backward compatibility
+  position = 'after', // Default to "after" for backward compatibility
 }: GroupLoadMoreProps) {
   const { data: tileDataState } = useTileData(tileId, tabId);
-  const autoUpdate = tileDataState?.auto_update === "true";
+  const autoUpdate = tileDataState?.autoUpdate === 'true';
 
   const infiniteGroupQuery = useInfiniteGroupSpecificLogsQuery({
     tileId,
@@ -121,11 +121,11 @@ export default function GroupLoadMore({
     groupingExpression,
     groupSortingExpression,
     limit,
-    group_limit,
+    groupLimit,
     logsActions,
     updateLogs,
     onGroupOffsetChange,
-    groupId: groupId || "",
+    groupId: groupId || '',
     dataTypes,
     fields,
     enabled: !!groupId && !isTableDataLoading && !autoUpdate,
@@ -145,12 +145,12 @@ export default function GroupLoadMore({
   }, [infiniteGroupQuery.isFetchingNextPage, onFetchingStateChange]);
 
   // Handle Load Previous rendering
-  if (position === "before") {
+  if (position === 'before') {
     const hasPrevPage = infiniteGroupQuery.hasPreviousPage;
     if (!hasPrevPage && !infiniteGroupQuery.isFetchingPreviousPage) {
       return null;
     }
-    
+
     return (
       <LoadMoreComponent
         onLoadMore={infiniteGroupQuery.fetchPreviousPage}
@@ -185,4 +185,4 @@ export default function GroupLoadMore({
       disabled={autoUpdate}
     />
   );
-} 
+}

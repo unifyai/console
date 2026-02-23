@@ -86,10 +86,10 @@ describe('P3-K: File Operations (Real Component)', () => {
       // Component should render gracefully when project is undefined
       result = renderFileUpload({ projectId: undefined });
 
-      // Should still render the button  
+      // Should still render the button
       const buttons = screen.getAllByRole('button', { name: /upload logs/i });
       expect(buttons.length).toBeGreaterThan(0);
-      
+
       // The component renders - this test verifies graceful handling
       // Button disabling is handled by the ActionButton component internally
     });
@@ -113,9 +113,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       await result.dropFile(file);
 
       // Wait for file to be parsed and displayed
-      await waitFor(() => {
-        expect(result.getDisplayedFileName()).toBe('test-data.csv');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedFileName()).toBe('test-data.csv');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows column headers after file selection', async () => {
@@ -125,12 +128,15 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        const headers = result.getDisplayedHeaders();
-        expect(headers).toContain('name');
-        expect(headers).toContain('age');
-        expect(headers).toContain('city');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const headers = result.getDisplayedHeaders();
+          expect(headers).toContain('name');
+          expect(headers).toContain('age');
+          expect(headers).toContain('city');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows preview table with data', async () => {
@@ -141,10 +147,13 @@ describe('P3-K: File Operations (Real Component)', () => {
       await result.dropFile(file);
 
       // Wait for file to be parsed and table to appear
-      await waitFor(() => {
-        const dialog = screen.getByRole('dialog');
-        expect(within(dialog).getByRole('table')).toBeInTheDocument();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const dialog = screen.getByRole('dialog');
+          expect(within(dialog).getByRole('table')).toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows row count after file selection', async () => {
@@ -155,9 +164,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       await result.dropFile(file);
 
       // Wait for file to be parsed first
-      await waitFor(() => {
-        expect(result.getDisplayedFileName()).not.toBeNull();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedFileName()).not.toBeNull();
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('can remove selected file', async () => {
@@ -167,9 +179,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.getDisplayedFileName()).not.toBeNull();
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedFileName()).not.toBeNull();
+        },
+        { timeout: 2000 }
+      );
 
       await result.removeFile();
 
@@ -195,9 +210,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.getDisplayedFileName()).toBe('test-data.jsonl');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedFileName()).toBe('test-data.jsonl');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows column headers from JSONL', async () => {
@@ -207,12 +225,15 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        const headers = result.getDisplayedHeaders();
-        expect(headers).toContain('input');
-        expect(headers).toContain('output');
-        expect(headers).toContain('model');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const headers = result.getDisplayedHeaders();
+          expect(headers).toContain('input');
+          expect(headers).toContain('output');
+          expect(headers).toContain('model');
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('parses and displays JSON array file', async () => {
@@ -222,15 +243,21 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.getDisplayedFileName()).toBe('test-data.json');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedFileName()).toBe('test-data.json');
+        },
+        { timeout: 2000 }
+      );
 
-      await waitFor(() => {
-        const headers = result.getDisplayedHeaders();
-        expect(headers).toContain('input');
-        expect(headers).toContain('output');
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const headers = result.getDisplayedHeaders();
+          expect(headers).toContain('input');
+          expect(headers).toContain('output');
+        },
+        { timeout: 2000 }
+      );
     });
   });
 
@@ -239,8 +266,8 @@ describe('P3-K: File Operations (Real Component)', () => {
   // ==========================================================================
   describe('K4: Column type mapping', () => {
     const sampleData: ParsedRow[] = [
-      { user_id: 'u1', prompt: 'Hello', response: 'Hi' },
-      { user_id: 'u2', prompt: 'Bye', response: 'Goodbye' },
+      { userId: 'u1', prompt: 'Hello', response: 'Hi' },
+      { userId: 'u2', prompt: 'Bye', response: 'Goodbye' },
     ];
 
     it('defaults all columns to entry type (switch on)', async () => {
@@ -250,75 +277,21 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
+        },
+        { timeout: 2000 }
+      );
 
       // All columns should default to entry (switch checked)
-      expect(result.getColumnType('user_id')).toBe('entry');
+      expect(result.getColumnType('userId')).toBe('entry');
       expect(result.getColumnType('prompt')).toBe('entry');
       expect(result.getColumnType('response')).toBe('entry');
     });
 
-    it('can toggle column to param type', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(() => {
-        expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
-
-      // Toggle user_id to param
-      await result.toggleColumnType('user_id');
-
-      await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('param');
-      });
-    });
-
-    it('can toggle column back to entry type', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(() => {
-        expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
-
-      // Toggle to param
-      await result.toggleColumnType('user_id');
-      await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('param');
-      });
-
-      // Toggle back to entry
-      await result.toggleColumnType('user_id');
-      await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('entry');
-      });
-    });
-
-    it('shows column mapping section with switches', async () => {
-      result = renderFileUpload({ initiallyOpen: true });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(() => {
-        const dialog = screen.getByRole('dialog');
-        expect(within(dialog).getByText('Map Columns')).toBeInTheDocument();
-      }, { timeout: 2000 });
-
-      // Check that switches exist for each column
-      const switches = screen.getAllByRole('switch');
-      expect(switches.length).toBe(3); // user_id, prompt, response
-    });
+    // Note: Param column type toggle tests removed - param support has been removed from FileUpload
+    // All columns are now entries by default
   });
 
   // ==========================================================================
@@ -343,9 +316,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows uploading state during upload', async () => {
@@ -358,9 +334,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Start upload without waiting
       const uploadPromise = result.clickUploadButton();
@@ -383,9 +362,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       await result.clickUploadButton();
 
@@ -396,8 +378,9 @@ describe('P3-K: File Operations (Real Component)', () => {
 
       // Verify the call arguments
       const mock = result.getLogsActionsMock();
-      const [project, context, params, entries] = mock.create.mock.calls[0];
+      const [project, context, entries] = mock.create.mock.calls[0];
       expect(project).toBe('test-project');
+      expect(context).toBeNull(); // No context selected
       expect(entries.length).toBe(2);
       expect(entries[0]).toHaveProperty('input');
       expect(entries[0]).toHaveProperty('output');
@@ -414,9 +397,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       await result.clickUploadButton();
 
@@ -437,17 +423,23 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       await result.clickUploadButton();
 
       // Wait for error toast to be called (the component shows errors via toasts)
-      await waitFor(() => {
-        const toasts = result.getToastCalls();
-        expect(toasts.error.length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const toasts = result.getToastCalls();
+          expect(toasts.error.length).toBeGreaterThan(0);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('failed upload keeps dialog open', async () => {
@@ -460,16 +452,22 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       await result.clickUploadButton();
 
       // Wait for upload to complete
-      await waitFor(() => {
-        expect(result.isUploading()).toBe(false);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploading()).toBe(false);
+        },
+        { timeout: 2000 }
+      );
 
       // Dialog should still be open after failed upload
       expect(result.isDialogOpen()).toBe(true);
@@ -489,9 +487,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Verify context selector exists in the dialog
       const dialog = screen.getByRole('dialog');
@@ -510,9 +511,12 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       // Don't select any context
       await result.clickUploadButton();
@@ -528,44 +532,8 @@ describe('P3-K: File Operations (Real Component)', () => {
       expect(context).toBeNull();
     });
 
-    it('separates params and entries correctly when uploading', async () => {
-      result = renderFileUpload({
-        initiallyOpen: true,
-        uploadShouldSucceed: true,
-      });
-
-      const mockFile = createMockCSV(sampleData);
-      const file = createTestFile(mockFile);
-      await result.dropFile(file);
-
-      await waitFor(() => {
-        expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
-
-      // Set 'input' as param
-      await result.toggleColumnType('input');
-
-      await waitFor(() => {
-        expect(result.getColumnType('input')).toBe('param');
-      });
-
-      await result.clickUploadButton();
-
-      await waitFor(() => {
-        const mock = result.getLogsActionsMock();
-        expect(mock.create).toHaveBeenCalled();
-      });
-
-      // Verify params and entries are separated correctly
-      const mock = result.getLogsActionsMock();
-      const [, , params, entries] = mock.create.mock.calls[0];
-
-      expect(params[0]).toHaveProperty('input');
-      expect(params[0]).not.toHaveProperty('output');
-
-      expect(entries[0]).toHaveProperty('output');
-      expect(entries[0]).not.toHaveProperty('input');
-    });
+    // Note: "separates params and entries correctly when uploading" test removed
+    // Param support has been removed - all columns are now uploaded as entries
   });
 
   // ==========================================================================
@@ -585,10 +553,13 @@ describe('P3-K: File Operations (Real Component)', () => {
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        // Preview should be limited to 20 rows
-        expect(result.getPreviewRowCount()).toBeLessThanOrEqual(20);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          // Preview should be limited to 20 rows
+          expect(result.getPreviewRowCount()).toBeLessThanOrEqual(20);
+        },
+        { timeout: 2000 }
+      );
     });
 
     it('shows loading toast during upload', async () => {
@@ -598,24 +569,28 @@ describe('P3-K: File Operations (Real Component)', () => {
         uploadDelay: 200,
       });
 
-      const sampleData: ParsedRow[] = [
-        { input: 'Test', output: 'Result' },
-      ];
+      const sampleData: ParsedRow[] = [{ input: 'Test', output: 'Result' }];
       const mockFile = createMockCSV(sampleData);
       const file = createTestFile(mockFile);
       await result.dropFile(file);
 
-      await waitFor(() => {
-        expect(result.isUploadButtonEnabled()).toBe(true);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          expect(result.isUploadButtonEnabled()).toBe(true);
+        },
+        { timeout: 2000 }
+      );
 
       await result.clickUploadButton();
 
       // Wait for completion and check toast was shown
-      await waitFor(() => {
-        const toasts = result.getToastCalls();
-        expect(toasts.loading.length).toBeGreaterThan(0);
-      }, { timeout: 2000 });
+      await waitFor(
+        () => {
+          const toasts = result.getToastCalls();
+          expect(toasts.loading.length).toBeGreaterThan(0);
+        },
+        { timeout: 2000 }
+      );
     });
   });
 });

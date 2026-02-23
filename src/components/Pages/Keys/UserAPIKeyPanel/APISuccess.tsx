@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * APISuccess component displays a success message when something goes well while managing the API key.

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React from "react";
+import React from 'react';
 
 // Props can be added later as needed
 interface TileFooterProps {
@@ -12,9 +12,9 @@ const TileFooter: React.FC<TileFooterProps> = ({ tileId, tabId }) => {
   // Logic for footer content can be added here.
   // For now, it's an empty, optional component that renders nothing.
   // It could be used in the future to show status, last updated time, etc.
-  
+
   // Return null because there is no footer content yet.
-  return null; 
+  return null;
 
   /* Example of potential future content:
   return (

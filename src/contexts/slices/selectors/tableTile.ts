@@ -1,4 +1,4 @@
-import { TableDataItem } from "@/types/interfaces/grid";
+import { TableDataItem } from '@/types/interfaces/grid';
 
 // ( IMPORTANT )
 // NOTE: When adding new fields here,
@@ -6,32 +6,31 @@ import { TableDataItem } from "@/types/interfaces/grid";
 // Look at the plotTile and viewTile files for examples.
 
 // Table tile meta - metadata information
-export interface TableTileMeta {
-}
+export interface TableTileMeta {}
 
 // Table-specific fields from TileProps
 
 // Table tile data - business data
 export interface TableTileData {
-  table_type?: string | null;     // Type of table
-  column_order?: string | null;   // Column ordering information
-  hidden_columns?: string | null; // Hidden columns configuration
-  default_hidden_columns?: boolean | null; // Default hide underscore columns flag
-  sorting?: string | null;        // Sorting expression
-  group_sorting?: string | null;  // How groups are sorted
-  columns_pin_left?: string | null; // Columns pinned to the left
-  columns_pin_right?: string | null; // Columns pinned to the right
-  selected?: string | null;       // Selected items in the table
+  tableType?: string | null; // Type of table
+  columnOrder?: string | null; // Column ordering information
+  hiddenColumns?: string | null; // Hidden columns configuration
+  defaultHiddenColumns?: boolean | null; // Default hide underscore columns flag
+  sorting?: string | null; // Sorting expression
+  groupSorting?: string | null; // How groups are sorted
+  columnsPinLeft?: string | null; // Columns pinned to the left
+  columnsPinRight?: string | null; // Columns pinned to the right
+  selected?: string | null; // Selected items in the table
 }
 
 // Table tile UI - UI-related state
 export interface TableTileUI {
   limit?: number;
   offset?: number;
-  group_limit?: number;
-  group_offset?: number;
-  page_number?: string | null;    // Current page for pagination
-  infiniteQueryKeys?: string[];   // Track all infinite query keys for cleanup
+  groupLimit?: number;
+  groupOffset?: number;
+  pageNumber?: string | null; // Current page for pagination
+  infiniteQueryKeys?: string[]; // Track all infinite query keys for cleanup
 }
 
 // Combined Table tile type
@@ -40,15 +39,26 @@ export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 // tableKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
 // a TableTile into a TileProps
 export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
-  "table_type","column_order","hidden_columns","default_hidden_columns","sorting",
-  "group_sorting","columns_pin_left","columns_pin_right",
-  "selected","page_number"
+  'tableType',
+  'columnOrder',
+  'hiddenColumns',
+  'defaultHiddenColumns',
+  'sorting',
+  'groupSorting',
+  'columnsPinLeft',
+  'columnsPinRight',
+  'selected',
+  'pageNumber',
 ];
 
 // tableTileKeys: all fields for TableTile
 export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
   ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
-  "limit","offset","group_limit","group_offset","infiniteQueryKeys",
+  'limit',
+  'offset',
+  'groupLimit',
+  'groupOffset',
+  'infiniteQueryKeys',
 ];
 
 /**
@@ -59,20 +69,23 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     // UI
     limit: initialState.limit !== undefined ? initialState.limit : 20,
     offset: initialState.offset !== undefined ? initialState.offset : 0,
-    group_limit: initialState.group_limit !== undefined ? initialState.group_limit : 20,
-    group_offset: initialState.group_offset !== undefined ? initialState.group_offset : 0,
-    page_number: initialState.page_number !== undefined ? initialState.page_number : null,
-    infiniteQueryKeys: initialState.infiniteQueryKeys !== undefined ? initialState.infiniteQueryKeys : [],
+    groupLimit: initialState.groupLimit !== undefined ? initialState.groupLimit : 20,
+    groupOffset: initialState.groupOffset !== undefined ? initialState.groupOffset : 0,
+    pageNumber: initialState.pageNumber !== undefined ? initialState.pageNumber : null,
+    infiniteQueryKeys:
+      initialState.infiniteQueryKeys !== undefined ? initialState.infiniteQueryKeys : [],
 
     // Data
-    table_type: initialState.table_type !== undefined ? initialState.table_type : null,
-    column_order: initialState.column_order !== undefined ? initialState.column_order : null,
-    hidden_columns: initialState.hidden_columns !== undefined ? initialState.hidden_columns : null,
-    default_hidden_columns: initialState.default_hidden_columns !== undefined ? initialState.default_hidden_columns : null,
+    tableType: initialState.tableType !== undefined ? initialState.tableType : null,
+    columnOrder: initialState.columnOrder !== undefined ? initialState.columnOrder : null,
+    hiddenColumns: initialState.hiddenColumns !== undefined ? initialState.hiddenColumns : null,
+    defaultHiddenColumns:
+      initialState.defaultHiddenColumns !== undefined ? initialState.defaultHiddenColumns : null,
     sorting: initialState.sorting !== undefined ? initialState.sorting : null,
-    group_sorting: initialState.group_sorting !== undefined ? initialState.group_sorting : null,
-    columns_pin_left: initialState.columns_pin_left !== undefined ? initialState.columns_pin_left : null,
-    columns_pin_right: initialState.columns_pin_right !== undefined ? initialState.columns_pin_right : null,
+    groupSorting: initialState.groupSorting !== undefined ? initialState.groupSorting : null,
+    columnsPinLeft: initialState.columnsPinLeft !== undefined ? initialState.columnsPinLeft : null,
+    columnsPinRight:
+      initialState.columnsPinRight !== undefined ? initialState.columnsPinRight : null,
     selected: initialState.selected !== undefined ? initialState.selected : null,
 
     ...initialState,
@@ -101,7 +114,7 @@ export function updateTableDataItem<T extends TableDataItem>(
 ): T {
   return {
     ...tableDataItem,
-    ...updates
+    ...updates,
   };
 }
 
@@ -117,25 +130,25 @@ export function mergeUpdatesIntoTableDataItem<T extends TableDataItem>(
 ): T {
   // Create a new object to start with
   const result = { ...tableDataItem };
-  
+
   // Handle each update field individually
-  Object.keys(updates).forEach(key => {
+  Object.keys(updates).forEach((key) => {
     const updateKey = key as keyof T;
     const updateValue = updates[updateKey];
     const currentValue = tableDataItem[updateKey];
-    
+
     // If both values exist, merge them by spreading
     if (currentValue && updateValue) {
       // Merge by spreading the current value first, then the update
       result[updateKey] = {
         ...currentValue,
-        ...updateValue
+        ...updateValue,
       } as any;
     } else {
       // If either value is missing, use the update value
       result[updateKey] = updateValue as any;
     }
   });
-  
+
   return result;
 }

@@ -1,26 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { getUserBillingDetails } from '@/lib/user/billing/billing';
+import { getBillingAccountInfo } from '@/lib/user/billing/billing';
+import { getWorkspaceBillingContext } from '../../_utils/auth';
 
-
+/**
+ * Returns the credit balance for the active workspace's billing account.
+ *
+ * Resolves the current workspace (personal or organization) from the session
+ * cookie and returns the balance from the appropriate billing account.
+ */
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser()
+  const ctx = await getWorkspaceBillingContext();
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!ctx) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
+    const billingInfo = await getBillingAccountInfo(
+      ctx.type === 'organization'
+        ? { organizationId: ctx.organizationId }
+        : { userId: ctx.userId }
+    );
 
-    const billingDetails = await getUserBillingDetails(user.id as string)
+    const balance = billingInfo.credits.toFixed(2);
+    const fullBalance = billingInfo.credits;
 
-    const balance = billingDetails[0].credits.toFixed(2)
-    const fullBalance = billingDetails[0].credits
-
-    return NextResponse.json({ balance, fullBalance })
-    
+    return NextResponse.json({ balance, fullBalance });
   } catch (error) {
-    console.error('Error fetching billing details:', error);
+    console.error('Error fetching billing balance:', error);
     return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });
   }
 }

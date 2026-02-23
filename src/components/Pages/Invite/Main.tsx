@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef } from "react";
-import { Button } from "@/components/UI/button";
-import Link from "next/link";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { ResponseProps } from "@/types/common";
+import { useEffect, useState, useRef } from 'react';
+import { Button } from '@/components/UI/button';
+import Link from 'next/link';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ResponseProps } from '@/types/common';
 
 interface MainProps {
   token: string;
@@ -12,8 +12,8 @@ interface MainProps {
 }
 
 const Main = ({ token, onAccept }: MainProps) => {
-  const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [message, setMessage] = useState('');
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -25,15 +25,15 @@ const Main = ({ token, onAccept }: MainProps) => {
       try {
         const result = await onAccept(token);
 
-        if (result && typeof result === "object" && "detail" in result) {
-          setStatus("error");
+        if (result && typeof result === 'object' && 'detail' in result) {
+          setStatus('error');
           setMessage(result.detail as string);
         } else {
-          setStatus("success");
+          setStatus('success');
         }
       } catch (error) {
-        setStatus("error");
-        setMessage("An unexpected error occurred.");
+        setStatus('error');
+        setMessage('An unexpected error occurred.');
       }
     };
 
@@ -41,46 +41,48 @@ const Main = ({ token, onAccept }: MainProps) => {
   }, [token, onAccept]);
 
   return (
-    <div className="max-w-md w-full text-center space-y-6 p-8 rounded-xl border bg-card shadow-sm">
-      <div className="flex justify-center mb-4">
-        <span className="font-bold text-2xl">Unify</span>
+    <div className="w-full max-w-md space-y-6 rounded-xl border bg-card p-8 text-center shadow-sm">
+      <div className="mb-4 flex justify-center">
+        <span className="text-display text-bold">Unify</span>
       </div>
 
-      {status === "processing" && (
+      {status === 'processing' && (
         <>
-          <Loader2 className="h-16 w-16 text-primary mx-auto animate-spin" />
+          <Loader2 className="mx-auto h-16 w-16 animate-spin text-primary" />
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Joining Organization...</h1>
+            <h1 className="text-display text-bold">Joining Organization...</h1>
             <p className="text-muted-foreground">Please wait while we process your invitation.</p>
           </div>
         </>
       )}
 
-      {status === "success" && (
+      {status === 'success' && (
         <>
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+          <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Welcome!</h1>
+            <h1 className="text-display text-bold">Welcome!</h1>
             <p className="text-muted-foreground">You have successfully joined the organization.</p>
           </div>
           <div className="pt-4">
-            <Link href="/organizations">
-              <Button className="w-full">Go to Organizations</Button>
+            <Link href="/">
+              <Button className="w-full">Get Started</Button>
             </Link>
           </div>
         </>
       )}
 
-      {status === "error" && (
+      {status === 'error' && (
         <>
-          <XCircle className="h-16 w-16 text-destructive mx-auto" />
+          <XCircle className="mx-auto h-16 w-16 text-destructive" />
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Invitation Failed</h1>
+            <h1 className="text-display text-bold">Invitation Failed</h1>
             <p className="text-muted-foreground">{message}</p>
           </div>
           <div className="pt-4">
             <Link href="/">
-              <Button variant="outline" className="w-full">Return to Console</Button>
+              <Button variant="outline" className="w-full">
+                Return to Console
+              </Button>
             </Link>
           </div>
         </>

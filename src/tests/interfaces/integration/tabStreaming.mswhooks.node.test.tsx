@@ -12,18 +12,9 @@ import type {
   TabData,
 } from '@/types/interfaces/grid';
 import type { IStoreState } from '@/contexts/store';
-import {
-  mockProjectId,
-  mockProject,
-} from '@/tests/interfaces/mocks/fixtures/projects';
-import {
-  mockInterfaceId,
-  mockInterface,
-} from '@/tests/interfaces/mocks/fixtures/interfaces';
-import {
-  mockTabId,
-  mockTab,
-} from '@/tests/interfaces/mocks/fixtures/tabs';
+import { mockProjectId, mockProject } from '@/tests/interfaces/mocks/fixtures/projects';
+import { mockInterfaceId, mockInterface } from '@/tests/interfaces/mocks/fixtures/interfaces';
+import { mockTabId, mockTab } from '@/tests/interfaces/mocks/fixtures/tabs';
 import * as optimisticHook from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 import type { CompleteTabData } from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 
@@ -60,8 +51,8 @@ const makeInitialState = (): Partial<IStoreState> => ({
 const makeTabsForPrefetch = (): TabData[] => [
   {
     id: mockTabId,
-    name: mockTab.name,
-    interface_id: mockInterfaceId,
+    name: mockTab.name ?? 'Test Tab',
+    interfaceId: mockInterfaceId,
     visible: true,
     active: true,
     order: 0,
@@ -71,7 +62,7 @@ const makeTabsForPrefetch = (): TabData[] => [
   {
     id: 'tab-2',
     name: 'Tab 2',
-    interface_id: mockInterfaceId,
+    interfaceId: mockInterfaceId,
     visible: true,
     active: false,
     order: 1,
@@ -113,8 +104,8 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
     const singleTab: TabData[] = [
       {
         id: mockTabId,
-        name: mockTab.name,
-        interface_id: mockInterfaceId,
+        name: mockTab.name ?? 'Test Tab',
+        interfaceId: mockInterfaceId,
         visible: true,
         active: true,
         order: 0,
@@ -147,16 +138,16 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
       contextActions: {} as ContextActions,
     };
 
-    const buildCompleteTabData = vi.fn<[], Promise<CompleteTabData>>(
+    const buildCompleteTabData = vi.fn(
       async () =>
         ({
           tabData: {
             id: mockTabId,
-            name: mockTab.name,
+            name: mockTab.name ?? 'Test Tab',
             visible: true,
             active: true,
             order: 0,
-            interface_id: mockInterfaceId,
+            interfaceId: mockInterfaceId,
           } as unknown as TabData,
           tiles: [],
           tableTiles: [],
@@ -165,12 +156,12 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
           tableArguments: {} as any,
           plotArguments: {} as any,
           tileDataItems: {},
-        } satisfies CompleteTabData),
+        }) as unknown as CompleteTabData
     );
 
     const useTabDataOptimisticSpy = vi
       .spyOn(optimisticHook, 'useTabDataOptimistic')
-      .mockReturnValue({ buildCompleteTabData });
+      .mockReturnValue({ buildCompleteTabData } as any);
 
     const onResult = vi.fn();
 
@@ -182,20 +173,23 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
         actions={actions}
         onResult={onResult}
       />,
-      { initialState: makeInitialState() },
+      { initialState: makeInitialState() }
     );
 
-    await waitFor(() => {
-      expect(onResult).toHaveBeenCalled();
-      const latestState = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<
-        typeof useTabStreamingQuery
-      >;
-      expect(latestState.activeTab.data).not.toBeNull();
-      expect(latestState.activeTab.data?.tabData.name).toBe(mockTab.name);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(onResult).toHaveBeenCalled();
+        const latestState = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<
+          typeof useTabStreamingQuery
+        >;
+        expect(latestState.activeTab.data).not.toBeNull();
+        expect(latestState.activeTab.data?.tabData.name).toBe(mockTab.name);
+      },
+      { timeout: 5000 }
+    );
 
     expect(buildCompleteTabData).toHaveBeenCalledTimes(1);
-    const [, calledTabId] = buildCompleteTabData.mock.calls[0];
+    const [, calledTabId] = buildCompleteTabData.mock.calls[0] as any;
     expect(calledTabId).toBe(mockTabId);
 
     useTabDataOptimisticSpy.mockRestore();
@@ -228,7 +222,7 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
       contextActions: {} as ContextActions,
     };
 
-    const buildCompleteTabData = vi.fn<[], Promise<CompleteTabData>>(async () => ({
+    const buildCompleteTabData = vi.fn(async () => ({
       tabData: allTabs[1] as any,
       tiles: [],
       tableTiles: [],
@@ -241,7 +235,7 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
 
     const useTabDataOptimisticSpy = vi
       .spyOn(optimisticHook, 'useTabDataOptimistic')
-      .mockReturnValue({ buildCompleteTabData });
+      .mockReturnValue({ buildCompleteTabData } as any);
 
     const onResult = vi.fn();
 
@@ -253,26 +247,31 @@ describe('useTabStreamingQuery (integration-style, node/jsdom)', () => {
         actions={actions}
         onResult={onResult}
       />,
-      { initialState: makeInitialState() },
+      { initialState: makeInitialState() }
     );
 
     // Wait for tabs to be fetched and active tab to be loaded
-    await waitFor(() => {
-      expect(onResult).toHaveBeenCalled();
-      const latest = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<
-        typeof useTabStreamingQuery
-      >;
-      // allTabs should be populated from the fetch
-      expect(latest.allTabs.length).toBeGreaterThan(0);
-      // Active tab should be loaded
-      expect(latest.activeTab.data).not.toBeNull();
-    }, { timeout: 5000, interval: 100 });
+    await waitFor(
+      () => {
+        expect(onResult).toHaveBeenCalled();
+        const latest = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<
+          typeof useTabStreamingQuery
+        >;
+        // allTabs should be populated from the fetch
+        expect(latest.allTabs.length).toBeGreaterThan(0);
+        // Active tab should be loaded
+        expect(latest.activeTab.data).not.toBeNull();
+      },
+      { timeout: 5000, interval: 100 }
+    );
 
     // buildCompleteTabData should have been called for the active tab
     expect(buildCompleteTabData).toHaveBeenCalled();
 
     // Verify that allTabs includes both tabs
-    const latest = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<typeof useTabStreamingQuery>;
+    const latest = onResult.mock.calls[onResult.mock.calls.length - 1][0] as ReturnType<
+      typeof useTabStreamingQuery
+    >;
     expect(latest.allTabs).toHaveLength(2);
 
     useTabDataOptimisticSpy.mockRestore();

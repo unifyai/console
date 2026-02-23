@@ -1,8 +1,9 @@
-export default {
-    gif: "line_group_dark",
-    link: "interfaces/plots#line-graphs",
-    description: "Plot the speed of different models across time, which are being continually streamed.",
-    code: `import unify
+const lineDemo2 = {
+  gif: 'line_group_dark',
+  link: 'interfaces/plots#line-graphs',
+  description:
+    'Plot the speed of different models across time, which are being continually streamed.',
+  code: `import unify
 import random
 from datetime import datetime
 
@@ -21,49 +22,51 @@ for i in range(10):
             speed=speed+random.uniform(-3, 3)
         )
 `,
-    // Granular interface structure
-    interface: {
-        project_id: "line-demo2",
-        name: "interface1"
+  // Granular interface structure
+  interface: {
+    projectId: 'line-demo2',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'Plot',
+      type: 'Plot',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 6.0,
+        height: 8.0,
+      },
+      plotTile: {
+        plotType: 'Line Chart',
+        xAxis: 'Table.time',
+        yAxis: 'Table.speed',
+        plotGroupBy: 'Table.model',
+      },
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            table_tile: {
-                table_type: "Data Table"
-            }
-        },
-        {
-            name: "Plot",
-            type: "Plot",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 6.0,
-                height: 8.0
-            },
-            plot_tile: {
-                plot_type: "Line Chart",
-                x_axis: "Table.time",
-                y_axis: "Table.speed",
-                plot_group_by: "Table.model"
-            }
-        }
-    ],
-    new_counter: 2
-}
+  ],
+  newCounter: 2,
+};
+
+export default lineDemo2;

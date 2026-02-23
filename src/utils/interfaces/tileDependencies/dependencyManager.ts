@@ -1,23 +1,34 @@
-"use client";
+'use client';
 
 import { useMemo } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { Tile, TileType } from "@/contexts/slices/selectors/tile";
+import { Tile, TileType } from '@/contexts/slices/selectors/tile';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useShallow } from 'zustand/react/shallow';
-import { selectTileById, selectTilesForTab } from "@/contexts/selectors/tile";
+import { selectTileById, selectTilesForTab } from '@/contexts/selectors/tile';
 import { useEnsureTableTileData } from '@/hooks/Interfaces/Query/useEnsureTableTileData';
 import { useEnsurePlotTileData } from '@/hooks/Interfaces/Query/useEnsurePlotTileData';
-import { updateTabArguments, fetchProjectsContextsFields, OptimisticUpdateDependencies } from '@/utils/data/buildServerDataOptimistic';
-import { ContextActions, FieldsActions, GranularTileActions, LogsActions, ProjectsActions, TileData } from '@/types/interfaces/grid';
+import {
+  updateTabArguments,
+  fetchProjectsContextsFields,
+  OptimisticUpdateDependencies,
+} from '@/utils/data/buildServerDataOptimistic';
+import {
+  ContextActions,
+  FieldsActions,
+  GranularTileActions,
+  LogsActions,
+  ProjectsActions,
+  TileData,
+} from '@/types/interfaces/grid';
 import { TableArguments, PlotArguments } from '@/types/interfaces/logs';
-import { getTileBuildAndRenderConfig } from "./config";
-import { 
-  DependencyGraphResult, 
-  TileDependencyGraph, 
-  TileRenderState, 
+import { getTileBuildAndRenderConfig } from './config';
+import {
+  DependencyGraphResult,
+  TileDependencyGraph,
+  TileRenderState,
   DependencyManagerConfig,
-} from "./types";
+} from './types';
 
 /**
  * Debug flag for tile dependency logging
@@ -49,7 +60,7 @@ const debugWarn = (...args: any[]) => {
 const DEFAULT_CONFIG: DependencyManagerConfig = {
   enableCircularDependencyDetection: true,
   maxDependencyDepth: 10,
-  logDependencyChanges: true
+  logDependencyChanges: true,
 };
 
 /**
@@ -61,38 +72,38 @@ export function buildTileDependencyGraph(
   config: Partial<DependencyManagerConfig> = {}
 ): DependencyGraphResult {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  
+
   // Create dependency map
   const dependencyMap = new Map<string, TileDependencyGraph>();
   const tileByName = new Map<string, Tile>();
-  
+
   // Index tiles by ID and name
-  tiles.forEach(tile => {
+  tiles.forEach((tile) => {
     dependencyMap.set(tile.id, {
       tileId: tile.id,
       dependencies: new Set(),
-      dependents: new Set()
+      dependents: new Set(),
     });
-    
+
     if (tile.name) {
       tileByName.set(tile.name, tile);
     }
   });
-  
+
   // Build dependencies for each tile using unified config
-  tiles.forEach(tile => {
+  tiles.forEach((tile) => {
     const tileType = tile.type as TileType;
     if (!tileType) return;
-    
+
     const config = getTileBuildAndRenderConfig(tileType);
     const dependencies = config.getExternalDependencies(tile);
     const tileGraph = dependencyMap.get(tile.id)!;
-    
-    dependencies.forEach(depName => {
+
+    dependencies.forEach((depName) => {
       const depTile = tileByName.get(depName);
       if (depTile && depTile.id !== tile.id) {
         tileGraph.dependencies.add(depTile.id);
-        
+
         // Add reverse dependency
         const depGraph = dependencyMap.get(depTile.id);
         if (depGraph) {
@@ -101,54 +112,56 @@ export function buildTileDependencyGraph(
       }
     });
   });
-  
+
   // Detect circular dependencies
   const circularDependencies: string[][] = [];
   if (finalConfig.enableCircularDependencyDetection) {
-    circularDependencies.push(...detectCircularDependencies(dependencyMap, finalConfig.maxDependencyDepth));
+    circularDependencies.push(
+      ...detectCircularDependencies(dependencyMap, finalConfig.maxDependencyDepth)
+    );
   }
-  
+
   // Remove circular dependencies from the graph
-  circularDependencies.forEach(cycle => {
+  circularDependencies.forEach((cycle) => {
     for (let i = 0; i < cycle.length; i++) {
       const currentId = cycle[i];
       const nextId = cycle[(i + 1) % cycle.length];
-      
+
       const currentGraph = dependencyMap.get(currentId);
       const nextGraph = dependencyMap.get(nextId);
-      
+
       if (currentGraph && nextGraph) {
         currentGraph.dependencies.delete(nextId);
         nextGraph.dependents.delete(currentId);
       }
     }
   });
-  
+
   // Perform topological sort
   const sortedTileIds = topologicalSort(dependencyMap);
-  
+
   if (finalConfig.logDependencyChanges) {
-    const tileById = new Map(tiles.map(t => [t.id, t]));
-    debugLog(`[DependencyManager] Sorted ${sortedTileIds.length} tiles:`, 
-      sortedTileIds.map(id => {
+    const tileById = new Map(tiles.map((t) => [t.id, t]));
+    debugLog(
+      `[DependencyManager] Sorted ${sortedTileIds.length} tiles:`,
+      sortedTileIds.map((id) => {
         const tile = tileById.get(id);
         return `${tile?.name}(${tile?.type})`;
       })
     );
-    
+
     if (circularDependencies.length > 0) {
-      debugWarn(`[DependencyManager] Detected ${circularDependencies.length} circular dependencies:`, 
-        circularDependencies.map(cycle => 
-          cycle.map(id => tileById.get(id)?.name).join(' -> ')
-        )
+      debugWarn(
+        `[DependencyManager] Detected ${circularDependencies.length} circular dependencies:`,
+        circularDependencies.map((cycle) => cycle.map((id) => tileById.get(id)?.name).join(' -> '))
       );
     }
   }
-  
+
   return {
     sortedTileIds,
     dependencyMap,
-    circularDependencies
+    circularDependencies,
   };
 }
 
@@ -162,10 +175,10 @@ function detectCircularDependencies(
   const cycles: string[][] = [];
   const visited = new Set<string>();
   const recursionStack = new Set<string>();
-  
+
   function dfs(tileId: string, path: string[]): void {
     if (path.length > maxDepth) return;
-    
+
     if (recursionStack.has(tileId)) {
       // Found a cycle
       const cycleStart = path.indexOf(tileId);
@@ -175,28 +188,28 @@ function detectCircularDependencies(
       }
       return;
     }
-    
+
     if (visited.has(tileId)) return;
-    
+
     visited.add(tileId);
     recursionStack.add(tileId);
-    
+
     const tileGraph = dependencyMap.get(tileId);
     if (tileGraph) {
-      tileGraph.dependencies.forEach(depId => {
+      tileGraph.dependencies.forEach((depId) => {
         dfs(depId, [...path, tileId]);
       });
     }
-    
+
     recursionStack.delete(tileId);
   }
-  
+
   for (const tileId of Array.from(dependencyMap.keys())) {
     if (!visited.has(tileId)) {
       dfs(tileId, []);
     }
   }
-  
+
   return cycles;
 }
 
@@ -207,19 +220,19 @@ function topologicalSort(dependencyMap: Map<string, TileDependencyGraph>): strin
   const sorted: string[] = [];
   const visited = new Set<string>();
   const visiting = new Set<string>();
-  
+
   function visit(tileId: string): boolean {
     if (visiting.has(tileId)) {
       // Circular dependency - skip this edge
       return false;
     }
-    
+
     if (visited.has(tileId)) {
       return true;
     }
-    
+
     visiting.add(tileId);
-    
+
     const tileGraph = dependencyMap.get(tileId);
     if (tileGraph) {
       // Visit all dependencies first
@@ -235,19 +248,19 @@ function topologicalSort(dependencyMap: Map<string, TileDependencyGraph>): strin
         }
       }
     }
-    
+
     visiting.delete(tileId);
     visited.add(tileId);
     sorted.push(tileId);
-    
+
     return true;
   }
-  
+
   // Visit all tiles
-  Array.from(dependencyMap.keys()).forEach(tileId => {
+  Array.from(dependencyMap.keys()).forEach((tileId) => {
     visit(tileId);
   });
-  
+
   return sorted;
 }
 
@@ -260,14 +273,9 @@ export function useTileDependencyGraphForTab(
   config?: Partial<DependencyManagerConfig>
 ): DependencyGraphResult {
   // Use useShallow to prevent infinite loops from array recreation
-  const tiles = useStoreContext(
-    useShallow(state => selectTilesForTab(state, tabId))
-  );
-  
-  return useMemo(() => 
-    buildTileDependencyGraph(tiles, config),
-    [tiles, config]
-  );
+  const tiles = useStoreContext(useShallow((state) => selectTilesForTab(state, tabId)));
+
+  return useMemo(() => buildTileDependencyGraph(tiles, config), [tiles, config]);
 }
 
 /**
@@ -283,25 +291,20 @@ export function useDependencyAwareSortedTilesForTab(
 } {
   // Use useShallow to prevent infinite loops from array recreation
   // This does shallow comparison of array elements
-  const tiles = useStoreContext(
-    useShallow(state => selectTilesForTab(state, tabId))
-  );
-  
-  const dependencyGraph = useMemo(() => 
-    buildTileDependencyGraph(tiles, config),
-    [tiles, config]
-  );
-  
+  const tiles = useStoreContext(useShallow((state) => selectTilesForTab(state, tabId)));
+
+  const dependencyGraph = useMemo(() => buildTileDependencyGraph(tiles, config), [tiles, config]);
+
   const sortedTiles = useMemo(() => {
-    const tileById = new Map(tiles.map(t => [t.id, t]));
+    const tileById = new Map(tiles.map((t) => [t.id, t]));
     return dependencyGraph.sortedTileIds
-      .map(id => tileById.get(id))
+      .map((id) => tileById.get(id))
       .filter((tile): tile is Tile => !!tile);
   }, [tiles, dependencyGraph.sortedTileIds]);
-  
+
   return {
     sortedTiles,
-    dependencyGraph
+    dependencyGraph,
   };
 }
 
@@ -321,39 +324,39 @@ export function useEnsureTabArguments(
   }
 ) {
   const queryClient = useQueryClient();
-  
+
   return useQuery<{ tableArguments: TableArguments; plotArguments: PlotArguments }>({
-    queryKey: ["ensureTabArguments", tabId, projectId],
+    queryKey: ['ensureTabArguments', tabId, projectId],
     staleTime: Infinity,
     gcTime: Infinity,
     enabled: !!tabId && !!projectId,
     queryFn: async () => {
       debugLog(`[useEnsureTabArguments] Building arguments for tab ${tabId}`);
-      
+
       // Fast-path: check if both arguments already exist
-      const existingTableArgs = queryClient.getQueryData<TableArguments>(["tableArguments", tabId]);
-      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]);
-      
+      const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tabId]);
+      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]);
+
       if (existingTableArgs && existingPlotArgs) {
         debugLog(`[useEnsureTabArguments] Arguments already cached for tab ${tabId}`);
         return { tableArguments: existingTableArgs, plotArguments: existingPlotArgs };
       }
 
       // Get tiles for this tab
-      let tiles = queryClient.getQueryData<TileData[]>(["tiles", tabId]);
-      if (!tiles || (typeof tiles === "object" && Object.keys(tiles).includes("error"))) {
+      let tiles = queryClient.getQueryData<TileData[]>(['tiles', tabId]);
+      if (!tiles || (typeof tiles === 'object' && Object.keys(tiles).includes('error'))) {
         tiles = await actions.tileActions.list(tabId, undefined, false);
-        queryClient.setQueryData(["tiles", tabId], tiles);
+        queryClient.setQueryData(['tiles', tabId], tiles);
       }
 
       if (!tiles || tiles.length === 0) {
         // No tiles, set empty arguments
         const emptyTableArgs = {};
         const emptyPlotArgs = {};
-        
-        queryClient.setQueryData(["tableArguments", tabId], emptyTableArgs);
-        queryClient.setQueryData(["plotArguments", tabId], emptyPlotArgs);
-        
+
+        queryClient.setQueryData(['tableArguments', tabId], emptyTableArgs);
+        queryClient.setQueryData(['plotArguments', tabId], emptyPlotArgs);
+
         return { tableArguments: emptyTableArgs, plotArguments: emptyPlotArgs };
       }
 
@@ -365,25 +368,24 @@ export function useEnsureTabArguments(
       };
 
       // Get table tiles to fetch fields
-      const tableTiles = tiles.filter(t => t.type === "Table");
-      
+      const tableTiles = tiles.filter((t) => t.type === 'Table');
+
       if (tableTiles.length === 0) {
         // No table tiles, set empty arguments
         const emptyTableArgs = {};
         const emptyPlotArgs = {};
-        
-        queryClient.setQueryData(["tableArguments", tabId], emptyTableArgs);
-        queryClient.setQueryData(["plotArguments", tabId], emptyPlotArgs);
-        
+
+        queryClient.setQueryData(['tableArguments', tabId], emptyTableArgs);
+        queryClient.setQueryData(['plotArguments', tabId], emptyPlotArgs);
+
         return { tableArguments: emptyTableArgs, plotArguments: emptyPlotArgs };
       }
 
       // Fetch fields for table tiles
-      const { fieldsArray } = await fetchProjectsContextsFields(
-        dependencies,
-        tableTiles,
-        { refetchFields: true, updateCache: true }
-      );
+      const { fieldsArray } = await fetchProjectsContextsFields(dependencies, tableTiles, {
+        refetchFields: true,
+        updateCache: true,
+      });
 
       // Build and cache arguments
       const result = await updateTabArguments(
@@ -393,9 +395,11 @@ export function useEnsureTabArguments(
         { updateCache: true }
       );
 
-      debugLog(`[useEnsureTabArguments] Built arguments for tab ${tabId}:`, 
+      debugLog(
+        `[useEnsureTabArguments] Built arguments for tab ${tabId}:`,
         `tableArguments keys: ${Object.keys(result.tableArguments).length}`,
-        `plotArguments keys: ${Object.keys(result.plotArguments).length}`);
+        `plotArguments keys: ${Object.keys(result.plotArguments).length}`
+      );
 
       return result;
     },
@@ -413,59 +417,68 @@ function useExternalDependenciesQuery(
 ) {
   const storeApi = useStoreApiContext();
   const queryClient = useQueryClient();
-  
+
   return useQuery({
     queryKey: ['externalDependencies', tile?.id, tabId],
     queryFn: () => {
       if (!config.needsExternalDependencies || !tile) {
         return { isReady: true, missingDependencies: [] };
       }
-      
+
       const state = storeApi.getState();
       const allTiles = selectTilesForTab(state, tabId);
       const externalDependencyNames = config.getExternalDependencies(tile);
       const missingDependencies: string[] = [];
-      
-      debugLog(`🔍 [externalDependenciesQuery] Checking external dependencies for ${tile.name}: [${externalDependencyNames.join(', ')}]`);
-      
+
+      debugLog(
+        `🔍 [externalDependenciesQuery] Checking external dependencies for ${tile.name}: [${externalDependencyNames.join(', ')}]`
+      );
+
       for (const depName of externalDependencyNames) {
-        const depTile = allTiles.find(t => t.name === depName);
+        const depTile = allTiles.find((t) => t.name === depName);
         if (!depTile) {
-          debugWarn(`❌ [externalDependenciesQuery] Dependency tile "${depName}" not found for ${tile.name}`);
+          debugWarn(
+            `❌ [externalDependenciesQuery] Dependency tile "${depName}" not found for ${tile.name}`
+          );
           missingDependencies.push(`external: ${depName} (not found)`);
           continue;
         }
-        
+
         const depTileType = depTile.type as TileType;
         const depConfig = getTileBuildAndRenderConfig(depTileType);
         const depDataCheck = depConfig.checkInternalDataReadiness(depTile.id, tabId, queryClient);
-        
-        debugLog(`🔍 [externalDependenciesQuery] Dependency "${depName}" (${depTileType}) data check:`, {
-          isReady: depDataCheck.isReady,
-          missingData: depDataCheck.missingData,
-          tileId: depTile.id
-        });
-        
+
+        debugLog(
+          `🔍 [externalDependenciesQuery] Dependency "${depName}" (${depTileType}) data check:`,
+          {
+            isReady: depDataCheck.isReady,
+            missingData: depDataCheck.missingData,
+            tileId: depTile.id,
+          }
+        );
+
         if (!depDataCheck.isReady) {
-          debugLog(`⏳ [externalDependenciesQuery] External dependency "${depName}" not ready - missing: [${depDataCheck.missingData.join(', ')}]`);
+          debugLog(
+            `⏳ [externalDependenciesQuery] External dependency "${depName}" not ready - missing: [${depDataCheck.missingData.join(', ')}]`
+          );
           missingDependencies.push(`external: ${depName} (${depDataCheck.missingData.join(', ')})`);
         } else {
           debugLog(`✅ [externalDependenciesQuery] External dependency "${depName}" ready!`);
         }
       }
-      
+
       const result = {
         isReady: missingDependencies.length === 0,
-        missingDependencies
+        missingDependencies,
       };
-      
+
       debugLog(`🔍 [externalDependenciesQuery] Final result for ${tile.name}:`, result);
       return result;
     },
     enabled: !!tile && !!config.needsExternalDependencies,
     staleTime: 0, // Always check fresh
     refetchInterval: false, // Don't poll - use cache invalidation instead
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -481,17 +494,17 @@ function useInternalDataQuery(
   config: ReturnType<typeof getTileBuildAndRenderConfig>
 ) {
   const queryClient = useQueryClient();
-  
+
   return useQuery({
     queryKey: ['internalData', tileId, tabId],
     queryFn: () => {
       if (!tile) {
         return { isReady: true, missingData: [] };
       }
-      
+
       console.log(`[internalDataQuery] Running check for ${tile.name} (${tileId})`);
       const result = config.checkInternalDataReadiness(tileId, tabId, queryClient);
-      
+
       console.log(`[internalDataQuery] Result for ${tile.name}:`, result);
       return result;
     },
@@ -499,7 +512,7 @@ function useInternalDataQuery(
     staleTime: 0, // Always check fresh - VERY IMPORTANT for reactivity
     gcTime: 0, // Don't cache - always run fresh
     refetchInterval: false, // Don't poll - use cache invalidation instead
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -524,30 +537,36 @@ export function useEnsureTileDataBeforeRender(
   const state = storeApi.getState();
   const tile = selectTileById(state, tileId);
   const tileType = tile?.type as TileType;
-  
+
   // Get unified config for this tile type
   const config = getTileBuildAndRenderConfig(tileType);
-  
+
   // STEP 1: Check TAB-LEVEL PREREQUISITES (for building)
   const tabArgumentsQueryReady = useEnsureTabArguments(tabId, projectId, actions);
   const tabArgumentsQuery = config.needsTabArguments ? tabArgumentsQueryReady : null;
   const tabPrerequisitesReady = !config.needsTabArguments || !!tabArgumentsQuery?.data;
-  
+
   // STEP 2: Check EXTERNAL DEPENDENCIES - REACTIVE QUERY APPROACH
   const externalDependenciesQuery = useExternalDependenciesQuery(tile, tabId, config);
-  const externalDependenciesCheck = externalDependenciesQuery.data || { isReady: false, missingDependencies: [] };
-  
-  // STEP 3: Check INTERNAL DATA REQUIREMENTS - REACTIVE QUERY APPROACH  
+  const externalDependenciesCheck = externalDependenciesQuery.data || {
+    isReady: false,
+    missingDependencies: [],
+  };
+
+  // STEP 3: Check INTERNAL DATA REQUIREMENTS - REACTIVE QUERY APPROACH
   const internalDataQuery = useInternalDataQuery(tile, tileId, tabId, tileType, config);
   const internalDataCheck = internalDataQuery.data || { isReady: false, missingData: [] };
-  
+
   // STEP 4: Determine BUILD READINESS (when to start building data)
-  const shouldStartBuilding = config.shouldStartBuilding(tabPrerequisitesReady, externalDependenciesCheck.isReady);
-  
+  const shouldStartBuilding = config.shouldStartBuilding(
+    tabPrerequisitesReady,
+    externalDependenciesCheck.isReady
+  );
+
   // STEP 5: Determine RENDER READINESS (when to show content)
   const allDataReady = externalDependenciesCheck.isReady && internalDataCheck.isReady;
   const canRender = config.isIndependent ? internalDataCheck.isReady : allDataReady;
-  
+
   debugLog(`🎯 [useEnsureTileDataBeforeRender] SUMMARY for ${tile?.name} (${tileType}):`, {
     shouldStartBuilding,
     canRender,
@@ -556,40 +575,41 @@ export function useEnsureTileDataBeforeRender(
     internalDataReady: internalDataCheck.isReady,
     isIndependent: config.isIndependent,
     externalMissing: externalDependenciesCheck.missingDependencies,
-    internalMissing: internalDataCheck.missingData
+    internalMissing: internalDataCheck.missingData,
   });
-  
+
   // STEP 6: Call data building hooks with conditional enabling based on BUILD readiness
   const tableDataQuery = useEnsureTableTileData({
     interfaceId,
     tabId,
-    tileId: (tileType === 'Table' && shouldStartBuilding) ? tileId : '',
+    tileId: tileType === 'Table' && shouldStartBuilding ? tileId : '',
     projectId,
-    tableArguments: tabArgumentsQuery?.data?.tableArguments || {} as TableArguments,
-    actions
+    tableArguments: tabArgumentsQuery?.data?.tableArguments || ({} as TableArguments),
+    actions,
   });
 
   const plotDataQuery = useEnsurePlotTileData({
     interfaceId,
     tabId,
-    tileId: (tileType === 'Plot' && shouldStartBuilding) ? tileId : '',
+    tileId: tileType === 'Plot' && shouldStartBuilding ? tileId : '',
     projectId,
-    plotArguments: tabArgumentsQuery?.data?.plotArguments || {} as PlotArguments,
-    actions
+    plotArguments: tabArgumentsQuery?.data?.plotArguments || ({} as PlotArguments),
+    actions,
   });
 
   // STEP 7: Determine overall building status
-  const isBuilding = (tabArgumentsQuery?.isLoading) ||
-                    (tileType === 'Table' && tableDataQuery?.isLoading) || 
-                    (tileType === 'Plot' && plotDataQuery?.isLoading) ||
-                    externalDependenciesQuery.isLoading ||
-                    internalDataQuery.isLoading ||
-                    false;
+  const isBuilding =
+    tabArgumentsQuery?.isLoading ||
+    (tileType === 'Table' && tableDataQuery?.isLoading) ||
+    (tileType === 'Plot' && plotDataQuery?.isLoading) ||
+    externalDependenciesQuery.isLoading ||
+    internalDataQuery.isLoading ||
+    false;
 
   // STEP 8: Create render state with combined missing dependencies
   const allMissingItems = [
     ...externalDependenciesCheck.missingDependencies,
-    ...internalDataCheck.missingData.map(data => `internal: ${data}`)
+    ...internalDataCheck.missingData.map((data) => `internal: ${data}`),
   ];
 
   const renderState: TileRenderState = {
@@ -597,7 +617,7 @@ export function useEnsureTileDataBeforeRender(
     canRender,
     dependenciesReady: externalDependenciesCheck.isReady,
     isWaitingForDependencies: !config.isIndependent && !externalDependenciesCheck.isReady,
-    missingDependencies: allMissingItems
+    missingDependencies: allMissingItems,
   };
 
   return {
@@ -608,11 +628,11 @@ export function useEnsureTileDataBeforeRender(
     plotDataQuery: tileType === 'Plot' ? plotDataQuery : null,
     shouldStartBuilding,
     isBuilding,
-    
+
     // Rendering-related state (unified)
     renderState,
     canRender,
     internalDataReady: internalDataCheck.isReady,
-    externalDependenciesReady: externalDependenciesCheck.isReady
+    externalDependenciesReady: externalDependenciesCheck.isReady,
   };
 }

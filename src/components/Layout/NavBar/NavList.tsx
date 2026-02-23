@@ -1,10 +1,10 @@
-import { NavItem } from "@/types/navigation";
+import { NavItem } from '@/types/navigation';
 import {
   LayoutDashboard, // For Interfaces
-  Users,           // For Assistants
-  CreditCard,      // For Billing
-  ChartLine,       // For the static Usage project link (though defined in NavMenu)
-} from "lucide-react";
+  Users, // For Assistants
+  CreditCard, // For Billing
+  ChartLine, // For the static Usage project link (though defined in NavMenu)
+} from 'lucide-react';
 
 const NavList = (): NavItem[] => {
   // Defines the main navigation items that will be structured in NavMenu
@@ -16,14 +16,14 @@ const NavList = (): NavItem[] => {
     //   href: "/assistants",
     // },
     {
-      title: "Interfaces",
+      title: 'Interfaces',
       icon: LayoutDashboard, // This will be the main collapsible "Interfaces"
-      href: "/interfaces",
+      href: '/interfaces',
     },
     {
-      title: "Billing",
+      title: 'Billing',
       icon: CreditCard,
-      href: "/billing",
+      href: '/billing',
     },
     // Note: "Profile" is handled separately in NavMenu.
     // "Usage", "Chat", "Keys", "Endpoints" are removed as per requirements.

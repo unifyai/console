@@ -143,7 +143,7 @@ describe('tileSlice', () => {
       name: 'TableTile',
       type: 'Table',
       tabId: 'tab-1',
-      tableTile: { table_type: 'logs' },
+      tableTile: { tableType: 'logs' },
     } as any);
 
     // Seed a view tile that references the table tile via its table name
@@ -162,9 +162,9 @@ describe('tileSlice', () => {
     } as any);
     state.updateTile('tile-plot', {
       plotTile: {
-        x_axis: 'TableTile.value',
-        y_axis: 'TableTile.other',
-        plot_group_by: 'TableTile.group',
+        xAxis: 'TableTile.value',
+        yAxis: 'TableTile.other',
+        plotGroupBy: 'TableTile.group',
       },
     } as any);
 
@@ -173,15 +173,15 @@ describe('tileSlice', () => {
       const seeded = store.getState();
       expect(seeded.tilesById['tile-table']).toBeDefined();
       expect(seeded.tabsById['tab-1'].tileIds).toEqual(
-        expect.arrayContaining(['tile-table', 'tile-view', 'tile-plot']),
+        expect.arrayContaining(['tile-table', 'tile-view', 'tile-plot'])
       );
       expect(seeded.tabsById['tab-1'].tileNames).toEqual(
-        expect.arrayContaining(['TableTile', 'ViewTile', 'PlotTile']),
+        expect.arrayContaining(['TableTile', 'ViewTile', 'PlotTile'])
       );
       expect(seeded.tilesById['tile-view'].table).toBe('TableTile');
-      expect(seeded.tilesById['tile-plot'].plotTile?.x_axis).toBe('TableTile.value');
-      expect(seeded.tilesById['tile-plot'].plotTile?.y_axis).toBe('TableTile.other');
-      expect(seeded.tilesById['tile-plot'].plotTile?.plot_group_by).toBe('TableTile.group');
+      expect(seeded.tilesById['tile-plot'].plotTile?.xAxis).toBe('TableTile.value');
+      expect(seeded.tilesById['tile-plot'].plotTile?.yAxis).toBe('TableTile.other');
+      expect(seeded.tilesById['tile-plot'].plotTile?.plotGroupBy).toBe('TableTile.group');
     }
 
     // Act: remove the table tile from the tab
@@ -198,9 +198,9 @@ describe('tileSlice', () => {
 
     // Tiles that referenced the removed tile by name should have their references cleared
     expect(next.tilesById['tile-view'].table).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.x_axis).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.y_axis).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.plot_group_by).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.xAxis).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.yAxis).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.plotGroupBy).toBeNull();
 
     // Active project/interface/tab identifiers should remain valid
     expect(next.activeProjectId).toBe('project-1');
@@ -217,20 +217,20 @@ describe('tileSlice', () => {
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
 
     // Initialize a source tile with specific properties
-    state.initTile('tab-1', 'tile-source', { 
-      name: 'Source Tile', 
+    state.initTile('tab-1', 'tile-source', {
+      name: 'Source Tile',
       type: 'Table',
       tabId: 'tab-1',
-      filters: 'foo = bar'
+      filters: 'foo = bar',
     });
 
     // Perform paste
-    state.pasteCopiedTile('tab-1', 'tile-source', 'tile-copy', { 
-      name: 'Copied Tile' 
+    state.pasteCopiedTile('tab-1', 'tile-source', 'tile-copy', {
+      name: 'Copied Tile',
     });
 
     const next = store.getState();
-    
+
     // Check new tile existence and properties
     const copiedTile = next.tilesById['tile-copy'];
     expect(copiedTile).toBeDefined();
@@ -254,32 +254,32 @@ describe('tileSlice', () => {
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
 
     // Create a table tile
-    state.initTile('tab-1', 'tile-table', { 
-      name: 'OldName', 
+    state.initTile('tab-1', 'tile-table', {
+      name: 'OldName',
       type: 'Table',
-      tabId: 'tab-1' 
+      tabId: 'tab-1',
     });
 
     // Create a plot tile that references OldName
-    state.initTile('tab-1', 'tile-plot', { 
-      name: 'Plot', 
+    state.initTile('tab-1', 'tile-plot', {
+      name: 'Plot',
       type: 'Plot',
-      tabId: 'tab-1' 
+      tabId: 'tab-1',
     });
     state.updateTile('tile-plot', {
       plotTile: {
-        x_axis: 'OldName.value'
-      }
+        xAxis: 'OldName.value',
+      },
     } as any);
 
     // Rename the table tile
     state.renameTile('tab-1', 'tile-table', 'NewName');
 
     const next = store.getState();
-    
+
     // Check tile name update
     expect(next.tilesById['tile-table'].name).toBe('NewName');
-    
+
     // Check tab list update
     const tab = next.tabsById['tab-1'];
     expect(tab.tileNames).toContain('NewName');
@@ -287,7 +287,7 @@ describe('tileSlice', () => {
 
     // Check reference update in plot tile
     const plotTile = next.tilesById['tile-plot'];
-    expect(plotTile.plotTile?.x_axis).toBe('NewName.value');
+    expect(plotTile.plotTile?.xAxis).toBe('NewName.value');
   });
 
   it('registerTileRefs tracks ref counts', () => {

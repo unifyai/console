@@ -1,29 +1,37 @@
-import React from "react";
-import Script from "next/script";
-import { SessionProvider } from "./SessionProvider"; 
-import QueryProvider from "./QueryProvider";
-import { NextUIProvider } from "@nextui-org/react";
-import { SidebarProvider } from "@/components/UI/sidebar"
-import { WorkspaceProvider } from "./WorkspaceProvider"; 
-import { AuthErrorBoundary } from "@/components/Common/Auth/AuthErrorBoundary";
-import { getCurrentUser } from "@/lib/user/user";
+import React from 'react';
+import Script from 'next/script';
+import { SessionProvider } from './SessionProvider';
+import QueryProvider from './QueryProvider';
+import { NextUIProvider } from '@nextui-org/react';
+import { SidebarProvider } from '@/components/UI/sidebar';
+import { WorkspaceProvider } from './WorkspaceProvider';
+import { EnvironmentProvider } from './EnvironmentProvider';
+import { AuthErrorBoundary } from '@/components/Common/Auth/AuthErrorBoundary';
+import { getCurrentUser } from '@/lib/user/user';
 
 export default async function Providers({ children }: { children: React.ReactNode }) {
-
   const user = await getCurrentUser();
+
+  // Resolve environment config server-side where all env vars are available.
+  // This is then passed to the client-side EnvironmentProvider as a prop,
+  // because client components cannot read non-NEXT_PUBLIC_ env vars in
+  // production builds.
+  const envConfig = {
+    isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
+  };
 
   return (
     <>
-      <NextUIProvider className="flex flex-col h-full flex-1">
+      <NextUIProvider className="flex h-full flex-1 flex-col">
         <SidebarProvider>
           <SessionProvider>
-            <WorkspaceProvider user={user}> 
-              <QueryProvider>
-                <AuthErrorBoundary>
-                  {children}
-                </AuthErrorBoundary>
-              </QueryProvider>
-            </WorkspaceProvider>
+            <EnvironmentProvider config={envConfig}>
+              <WorkspaceProvider user={user}>
+                <QueryProvider>
+                  <AuthErrorBoundary>{children}</AuthErrorBoundary>
+                </QueryProvider>
+              </WorkspaceProvider>
+            </EnvironmentProvider>
           </SessionProvider>
         </SidebarProvider>
       </NextUIProvider>

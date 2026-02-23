@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { StoreProvider } from "@/contexts/providers/StoreProvider";
-import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
-import { IStoreState } from "@/contexts/store";
-import { ReactNode } from "react";
+import { StoreProvider } from '@/contexts/providers/StoreProvider';
+import { StoreSliceUpdater } from '@/contexts/providers/StoreSliceUpdater';
+import { IStoreState } from '@/contexts/store';
+import { ReactNode } from 'react';
 
 // Component that initializes the store with server data
-export function StoreInitializer({ 
+export function StoreInitializer({
   initialState,
-  children
-}: { 
+  children,
+}: {
   initialState: Partial<IStoreState>;
   children: ReactNode;
 }) {
@@ -20,4 +20,4 @@ export function StoreInitializer({
       {children}
     </StoreProvider>
   );
-} 
+}

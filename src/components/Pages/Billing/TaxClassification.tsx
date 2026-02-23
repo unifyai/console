@@ -1,21 +1,41 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../UI/card";
-import { Button } from "../../UI/button";
-import { Badge } from "../../UI/badge";
-import { Alert, AlertDescription } from "../../UI/alert";
-import { Separator } from "../../UI/separator";
-import { Edit, Building, User, MapPin, FileText, CheckCircle, AlertCircle } from "lucide-react";
-import TaxClassificationForm from "../TaxClassification/TaxClassificationForm";
-import { TaxClassificationFormData, UserBusinessStatusResponse } from "@/types/user";
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Card, CardContent } from '../../UI/card';
+import { Button } from '../../UI/button';
+import { Badge } from '../../UI/badge';
+import { Alert, AlertDescription } from '../../UI/alert';
+import { Separator } from '../../UI/separator';
+import {
+  Edit,
+  Building,
+  User,
+  MapPin,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
+import TaxClassificationForm from '../TaxClassification/TaxClassificationForm';
+import { TaxClassificationFormData, UserBusinessStatusResponse } from '@/types/user';
 
-const TaxClassification = () => {
-  const [editing, setEditing] = useState(false);
+interface TaxClassificationProps {
+  /** Whether the component is in editing mode (controlled externally) */
+  isEditing?: boolean;
+  /** Callback when edit mode changes */
+  onEditingChange?: (editing: boolean) => void;
+}
+
+const TaxClassification = ({ isEditing, onEditingChange }: TaxClassificationProps = {}) => {
+  const [internalEditing, setInternalEditing] = useState(false);
+
+  // Use external control if provided, otherwise use internal state
+  const editing = isEditing ?? internalEditing;
+  const setEditing = onEditingChange ?? setInternalEditing;
   const [businessStatus, setBusinessStatus] = useState<UserBusinessStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
   const formRef = useRef<{ submit: () => void } | null>(null);
 
@@ -61,24 +81,24 @@ const TaxClassification = () => {
     setAlert(null);
 
     try {
-      const accountTypePayload: any = { account_type: data.account_type };
-      if (data.account_type === 'business') {
-        accountTypePayload.business_info = {
-          business_name: data.business_name,
-          tax_id: data.tax_id || null,
-          business_type: data.business_type,
-          business_address: {
-            address_line1: data.business_address.address_line1,
-            address_line2: data.business_address.address_line2 || null,
-            city: data.business_address.city,
-            state: data.business_address.state || null,
+      const accountTypePayload: any = { accountType: data.accountType };
+      if (data.accountType === 'business') {
+        accountTypePayload.businessInfo = {
+          businessName: data.businessName,
+          taxId: data.taxId || null,
+          businessType: data.businessType,
+          businessAddress: {
+            addressLine1: data.businessAddress.addressLine1,
+            addressLine2: data.businessAddress.addressLine2 || null,
+            city: data.businessAddress.city,
+            state: data.businessAddress.state || null,
             country:
-              data.business_address.country.length === 2
-                ? data.business_address.country
-                : data.tax_country,
-            postal_code: data.business_address.postal_code || ''
+              data.businessAddress.country.length === 2
+                ? data.businessAddress.country
+                : data.taxCountry,
+            postalCode: data.businessAddress.postalCode || '',
           },
-          tax_exempt: data.tax_exempt,
+          taxExempt: data.taxExempt,
         };
       }
 
@@ -92,17 +112,17 @@ const TaxClassification = () => {
         throw new Error('Failed to update account type.');
       }
 
-      if (data.account_type === 'business') {
+      if (data.accountType === 'business') {
         const businessInfoResponse = await fetch('/api/user/business-info', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            business_name: data.business_name,
-            tax_id: data.tax_id,
-            business_type: data.business_type,
-            business_address: data.business_address,
-            tax_exempt: data.tax_exempt,
-            tax_jurisdiction: data.tax_country
+            businessName: data.businessName,
+            taxId: data.taxId,
+            businessType: data.businessType,
+            businessAddress: data.businessAddress,
+            taxExempt: data.taxExempt,
+            taxJurisdiction: data.taxCountry,
           }),
         });
         if (!businessInfoResponse.ok) {
@@ -114,8 +134,11 @@ const TaxClassification = () => {
       setEditing(false); // Exit editing mode
       setAlert({ type: 'success', message: 'Tax information updated successfully!' });
     } catch (error) {
-      console.error("Error saving tax information:", error);
-      setAlert({ type: 'error', message: (error as Error).message || 'Failed to update tax information.' });
+      console.error('Error saving tax information:', error);
+      setAlert({
+        type: 'error',
+        message: (error as Error).message || 'Failed to update tax information.',
+      });
     } finally {
       setSaving(false);
     }
@@ -124,44 +147,36 @@ const TaxClassification = () => {
   const initialData = useMemo(() => {
     if (!businessStatus) return undefined;
     return {
-      account_type: businessStatus.account_type,
-      business_name: businessStatus.business_name || '',
-      business_type: businessStatus.business_type || '',
-      tax_id: businessStatus.tax_id || '',
-      tax_country: businessStatus.tax_jurisdiction || '',
-      business_address: businessStatus.business_address || {
-        address_line1: '',
-        address_line2: '',
+      accountType: businessStatus.accountType,
+      businessName: businessStatus.businessName || '',
+      businessType: businessStatus.businessType || '',
+      taxId: businessStatus.taxId || '',
+      taxCountry: businessStatus.taxJurisdiction || '',
+      businessAddress: businessStatus.businessAddress || {
+        addressLine1: '',
+        addressLine2: '',
         city: '',
         state: '',
         country: '',
-        postal_code: ''
+        postalCode: '',
       },
-      tax_exempt: businessStatus.tax_exempt || false
+      taxExempt: businessStatus.taxExempt || false,
     };
   }, [businessStatus]);
 
   if (loading) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-h3">Tax Classification</CardTitle>
-          <CardDescription className="text-body">Loading tax information...</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="flex w-full items-center justify-center gap-2 py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <p className="text-body-muted">Loading...</p>
+      </div>
     );
   }
 
   if (editing) {
     return (
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-h3">Edit Tax Classification</CardTitle>
-          <CardDescription className="text-body">
-            Update your tax classification and business information
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <TaxClassificationForm
             onSubmit={handleSave}
             onValidationChange={(isValid) => setIsFormValid(isValid)}
@@ -170,18 +185,18 @@ const TaxClassification = () => {
             initialData={initialData}
             ref={formRef as any}
           />
-          
+
           {/* Save/Cancel Buttons */}
-          <div className="flex justify-end space-x-4 mt-6 pt-4 border-t">
-            <Button 
-              variant="outline" 
+          <div className="mt-6 flex justify-end space-x-4 border-t pt-4">
+            <Button
+              variant="outline"
               onClick={handleCancel}
               disabled={saving}
               className="text-body"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => formRef.current?.submit()}
               disabled={!isFormValid || saving}
               className="text-body"
@@ -196,20 +211,6 @@ const TaxClassification = () => {
 
   return (
     <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-h3">Tax Classification</CardTitle>
-            <CardDescription className="text-body">
-              Your account tax classification and business information
-            </CardDescription>
-          </div>
-          <Button variant="outline" onClick={handleEdit}>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-        </div>
-      </CardHeader>
       <CardContent>
         {alert && (
           <Alert variant={alert.type === 'error' ? 'destructive' : 'default'} className="mb-4">
@@ -222,80 +223,84 @@ const TaxClassification = () => {
           </Alert>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 pt-4">
           {/* Account Type */}
           <div className="flex items-center space-x-3">
-            {businessStatus?.account_type === 'business' ? (
-              <Building className="w-5 h-5 text-primary" />
+            {businessStatus?.accountType === 'business' ? (
+              <Building className="h-5 w-5 text-primary" />
             ) : (
-              <User className="w-5 h-5 text-primary" />
+              <User className="h-5 w-5 text-primary" />
             )}
             <div>
               <p className="text-label">Account Type</p>
               <div className="flex items-center space-x-2">
-                <Badge variant={businessStatus?.account_type === 'business' ? 'default' : 'secondary'}>
-                  {businessStatus?.account_type === 'business' ? 'Business' : 'Individual'}
+                <Badge
+                  variant={businessStatus?.accountType === 'business' ? 'default' : 'secondary'}
+                >
+                  {businessStatus?.accountType === 'business' ? 'Business' : 'Individual'}
                 </Badge>
-                {businessStatus?.tax_exempt && (
-                  <Badge variant="outline">Tax Exempt</Badge>
-                )}
+                {businessStatus?.taxExempt && <Badge variant="outline">Tax Exempt</Badge>}
               </div>
             </div>
           </div>
 
           {/* Business Information */}
-          {businessStatus?.account_type === 'business' && (
+          {businessStatus?.accountType === 'business' && (
             <>
               <Separator />
               <div className="space-y-3">
                 <h4 className="text-title">Business Information</h4>
-                
-                {businessStatus.business_name && (
+
+                {businessStatus.businessName && (
                   <div className="flex items-start space-x-3">
-                    <Building className="w-4 h-4 mt-1 text-muted-foreground" />
+                    <Building className="mt-1 h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Name</p>
-                      <p className="text-body text-strong">{businessStatus.business_name}</p>
+                      <p className="text-body text-strong">{businessStatus.businessName}</p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.business_type && (
+                {businessStatus.businessType && (
                   <div className="flex items-start space-x-3">
-                    <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
+                    <FileText className="mt-1 h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Type</p>
-                      <p className="text-body text-strong capitalize">{businessStatus.business_type.replace('_', ' ')}</p>
+                      <p className="text-body text-strong capitalize">
+                        {businessStatus.businessType.replace('_', ' ')}
+                      </p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.tax_id && businessStatus.tax_jurisdiction && (
+                {businessStatus.taxId && businessStatus.taxJurisdiction && (
                   <div className="flex items-start space-x-3">
-                    <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
+                    <FileText className="mt-1 h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-caption">Tax ID ({businessStatus.tax_jurisdiction})</p>
-                      <p className="text-body text-strong">{businessStatus.tax_id}</p>
+                      <p className="text-caption">Tax ID ({businessStatus.taxJurisdiction})</p>
+                      <p className="text-body text-strong">{businessStatus.taxId}</p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.business_address && (
+                {businessStatus.businessAddress && (
                   <div className="flex items-start space-x-3">
-                    <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
+                    <MapPin className="mt-1 h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Address</p>
                       <div className="text-body text-strong">
-                        <p>{businessStatus.business_address.address_line1}</p>
-                        {businessStatus.business_address.address_line2 && (
-                          <p>{businessStatus.business_address.address_line2}</p>
+                        <p>{businessStatus.businessAddress.addressLine1}</p>
+                        {businessStatus.businessAddress.addressLine2 && (
+                          <p>{businessStatus.businessAddress.addressLine2}</p>
                         )}
                         <p>
-                          {businessStatus.business_address.city}
-                          {businessStatus.business_address.state && `, ${businessStatus.business_address.state}`}
-                          {businessStatus.business_address.postal_code && ` ${businessStatus.business_address.postal_code}`}
+                          {businessStatus.businessAddress.city}
+                          {businessStatus.businessAddress.state &&
+                            `, ${businessStatus.businessAddress.state}`}
+                          {businessStatus.businessAddress.postalCode &&
+                            ` ${businessStatus.businessAddress.postalCode}`}
                         </p>
-                        <p>{businessStatus.business_address.country}</p>
+                        <p>{businessStatus.businessAddress.country}</p>
                       </div>
                     </div>
                   </div>
@@ -304,7 +309,7 @@ const TaxClassification = () => {
             </>
           )}
 
-          {!businessStatus?.account_type && (
+          {!businessStatus?.accountType && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
@@ -318,4 +323,4 @@ const TaxClassification = () => {
   );
 };
 
-export default TaxClassification; 
+export default TaxClassification;

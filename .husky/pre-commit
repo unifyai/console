@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Run TypeScript check (entire project)
+echo "🔍 Running TypeScript check..."
+npx tsc --noEmit || {
+  echo "❌ TypeScript errors found. Fix them before committing."
+  exit 1
+}
+
+# Run lint-staged (prettier, eslint, fonts, colors on staged files)
+npx lint-staged

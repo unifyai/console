@@ -1,19 +1,14 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTrigger,
-} from "@/components/UI/dialog";
-import { Input } from "@/components/UI/input";
-import PrimaryButton from "@/components/Common/Buttons/Primary";
-import SecondaryButton from "@/components/Common/Buttons/Secondary";
-import { UserPlus, AlertCircle, Loader2 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { Button } from "@/components/UI/button";
-import { OrganizationMember } from "@/types/organization";
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTrigger } from '@/components/UI/dialog';
+import { Input } from '@/components/UI/input';
+import PrimaryButton from '@/components/Common/Buttons/Primary';
+import SecondaryButton from '@/components/Common/Buttons/Secondary';
+import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { Button } from '@/components/UI/button';
+import { OrganizationMember } from '@/types/organization';
 
 interface InviteMemberDialogProps {
   onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -22,13 +17,15 @@ interface InviteMemberDialogProps {
 
 const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Clear error when email changes to improve UX
+  // error is intentionally omitted to prevent infinite loop - we only want to clear on email change
   useEffect(() => {
     if (error) setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email]);
 
   const validateEmail = (email: string) => {
@@ -42,13 +39,13 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
 
     // 1. Check for empty
     if (!trimmedEmail) {
-      setError("Email address is required.");
+      setError('Email address is required.');
       return;
     }
 
     // 2. Check format
     if (!validateEmail(trimmedEmail)) {
-      setError("Please enter a valid email address.");
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -58,7 +55,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
     );
 
     if (isAlreadyMember) {
-      setError("This user is already a member of the organization.");
+      setError('This user is already a member of the organization.');
       return;
     }
 
@@ -68,7 +65,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
       const result = await onInvite(trimmedEmail);
       if (result.success) {
         setOpen(false);
-        setEmail("");
+        setEmail('');
         setError(null);
       } else if (result.error) {
         setError(result.error);
@@ -79,12 +76,12 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
   };
 
   const handleOpenChange = (isOpen: boolean) => {
-      setOpen(isOpen);
-      if (!isOpen) {
-          setEmail("");
-          setError(null);
-      }
-  }
+    setOpen(isOpen);
+    if (!isOpen) {
+      setEmail('');
+      setError(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -92,7 +89,12 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 w-9 h-9" aria-label="Invite a new member">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 gap-2"
+                aria-label="Invite a new member"
+              >
                 <UserPlus className="h-8 w-8" />
               </Button>
             </DialogTrigger>
@@ -102,42 +104,45 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      
+
       <DialogContent className="sm:max-w-[425px]">
         <div className="flex flex-col gap-2">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4" noValidate>
-            
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4" noValidate>
             {/* Input Container with Error Message */}
             <div className="space-y-2">
-                <Input
-                    id="email"
-                    type="email"
-                    placeholder="colleague@organization.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoFocus
-                    className={error ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-                
-                {/* Validation Error Message */}
-                {error && (
-                    <div className="flex items-center text-destructive text-sm mt-1 animate-in slide-in-from-top-1 fade-in duration-200">
-                        <AlertCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
+              <Input
+                id="email"
+                type="email"
+                placeholder="colleague@organization.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+                className={error ? 'border-destructive focus-visible:ring-destructive' : ''}
+              />
+
+              {/* Validation Error Message */}
+              {error && (
+                <div className="text-body text-error mt-1 flex items-center duration-200 animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle className="mr-1.5 h-3 w-3 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2">
-                <SecondaryButton label="Cancel" onClick={() => handleOpenChange(false)} disabled={isSubmitting} />
-                <PrimaryButton 
-                  label={isSubmitting ? "Checking..." : "Invite"} 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  icon={isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
-                />
+              <SecondaryButton
+                label="Cancel"
+                onClick={() => handleOpenChange(false)}
+                disabled={isSubmitting}
+              />
+              <PrimaryButton
+                label={isSubmitting ? 'Checking...' : 'Invite'}
+                type="submit"
+                disabled={isSubmitting}
+                icon={isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+              />
             </div>
-            </form>
+          </form>
         </div>
       </DialogContent>
     </Dialog>

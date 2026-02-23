@@ -1,8 +1,8 @@
-export default {
-    gif: "string_diffs_dark",
-    link: "interfaces/views#diffs",
-    description: "The view pane supports very expressive diffs across cells.",
-    code: `import unify
+const diffsDemo = {
+  gif: 'string_diffs_dark',
+  link: 'interfaces/views#diffs',
+  description: 'The view pane supports very expressive diffs across cells.',
+  code: `import unify
 from datetime import datetime
 
 unify.activate("diffs-demo", overwrite=True)
@@ -35,46 +35,48 @@ unify.log(
     lst=[1, 2, 3, 4],
 )
 `,
-    // Granular interface structure
-    interface: {
-        project_id: "diffs-demo",
-        name: "interface1",
+  // Granular interface structure
+  interface: {
+    projectId: 'diffs-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Table',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 7.0,
+        height: 8.0,
+      },
+      tableTile: {
+        tableType: 'Data Table',
+        selected: '320993_Entries/msg,320992_Entries/msg,320991_Entries/msg',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'View',
+      type: 'View',
+      position: {
+        x: 7.0,
+        y: 0.0,
+        width: 5.0,
+        height: 8.0,
+      },
+      table: 'Table',
+      viewTile: {},
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Table",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 7.0,
-                height: 8.0
-            },
-            table_tile: {
-                table_type: "Data Table",
-                selected: "320993_Entries/msg,320992_Entries/msg,320991_Entries/msg"
-            }
-        },
-        {
-            name: "View",
-            type: "View",
-            position: {
-                x: 7.0,
-                y: 0.0,
-                width: 5.0,
-                height: 8.0
-            },
-            table: "Table",
-            view_tile: {}
-        }
-    ],
-    new_counter: 2
-}
+  ],
+  newCounter: 2,
+};
+
+export default diffsDemo;

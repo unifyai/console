@@ -1,47 +1,47 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Switch } from "../../UI/switch";
-import { Input } from "../../UI/input";
-import { Button } from "../../UI/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../UI/card";
-import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
-import { AlertCircle } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Switch } from '../../UI/switch';
+import { Input } from '../../UI/input';
+import { Button } from '../../UI/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../UI/card';
+import { Alert, AlertDescription, AlertTitle } from '../../UI/alert';
+import { AlertCircle } from 'lucide-react';
 
-interface BillingEligibility {
-  user_id: string;
-  total_spending: number;
-  can_enable_monthly_billing: boolean;
-  minimum_spend_required: number;
-  remaining_spend_needed: number;
+interface AutoRechargeEligibility {
+  userId: string;
+  totalSpending: number;
+  canEnableAutoRecharge: boolean;
+  minimumSpendRequired: number;
+  remainingSpendNeeded: number;
 }
 
 const AutomaticRefill = () => {
   const [isAutoRechargeEnabled, setIsAutoRechargeEnabled] = useState(false);
-  const [minBalance, setMinBalance] = useState("");
-  const [rechargeAmount, setRechargeAmount] = useState("");
-  const [initialMinBalance, setInitialMinBalance] = useState("");
-  const [initialRechargeAmount, setInitialRechargeAmount] = useState("");
+  const [minBalance, setMinBalance] = useState('');
+  const [rechargeAmount, setRechargeAmount] = useState('');
+  const [initialMinBalance, setInitialMinBalance] = useState('');
+  const [initialRechargeAmount, setInitialRechargeAmount] = useState('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [alertType, setAlertType] = useState<"success" | "error">("success");
-  const [billingEligibility, setBillingEligibility] = useState<BillingEligibility | null>(null);
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const [eligibility, setEligibility] = useState<AutoRechargeEligibility | null>(null);
 
   useEffect(() => {
-    const fetchBillingEligibility = async () => {
+    const fetchEligibility = async () => {
       try {
-        const response = await fetch("/api/billing/eligibility");
+        const response = await fetch('/api/billing/eligibility');
         if (response.ok) {
-          const eligibility = await response.json();
-          setBillingEligibility(eligibility);
+          const data = await response.json();
+          setEligibility(data);
         }
       } catch (error) {
-        console.error("Error fetching billing eligibility:", error);
+        console.error('Error fetching auto-recharge eligibility:', error);
       }
     };
 
     const fetchAutoRechargeSettings = async () => {
       try {
-        const response = await fetch("/api/billing/auto-recharge/settings",);
+        const response = await fetch('/api/billing/auto-recharge/settings');
         if (response.ok) {
           const data = await response.json();
           setIsAutoRechargeEnabled(data.autoRechargeEnabled);
@@ -51,22 +51,22 @@ const AutomaticRefill = () => {
           setInitialRechargeAmount(data.autoRechargeQty.toString());
         }
       } catch (error) {
-        console.error("Error fetching auto-recharge settings:", error);
+        console.error('Error fetching auto-recharge settings:', error);
       }
     };
 
     // Always fetch settings
-    fetchBillingEligibility();
+    fetchEligibility();
     fetchAutoRechargeSettings();
   }, []);
 
   const handleToggleAutoRecharge = async () => {
     // Only check eligibility when trying to ENABLE auto-recharge (not disable)
-    if (!isAutoRechargeEnabled && !billingEligibility?.can_enable_monthly_billing) {
+    if (!isAutoRechargeEnabled && !eligibility?.canEnableAutoRecharge) {
       setAlertMessage(
-        `You need to spend $${billingEligibility?.minimum_spend_required} to access automated top-ups. You've spent $${billingEligibility?.total_spending?.toFixed(2)}, spend $${billingEligibility?.remaining_spend_needed?.toFixed(2)} more to unlock this feature.`
+        `You need to spend $${eligibility?.minimumSpendRequired} to access automated top-ups. You've spent $${eligibility?.totalSpending?.toFixed(2)}, spend $${eligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.`
       );
-      setAlertType("error");
+      setAlertType('error');
       return;
     }
 
@@ -74,43 +74,41 @@ const AutomaticRefill = () => {
     setIsAutoRechargeEnabled(newStatus);
 
     try {
-      await fetch("/api/billing/auto-recharge/enable", {
-        method: "POST",
+      await fetch('/api/billing/auto-recharge/enable', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ enabled: newStatus }),
       });
-      setAlertMessage(
-        `Auto-recharge has been ${newStatus ? "enabled" : "disabled"}.`
-      );
-      setAlertType("success");
+      setAlertMessage(`Auto-recharge has been ${newStatus ? 'enabled' : 'disabled'}.`);
+      setAlertType('success');
     } catch (error) {
-      console.error("Error toggling auto-recharge:", error);
-      setAlertMessage("Failed to update auto-recharge status.");
-      setAlertType("error");
+      console.error('Error toggling auto-recharge:', error);
+      setAlertMessage('Failed to update auto-recharge status.');
+      setAlertType('error');
     }
   };
 
   const handleSaveSettings = async () => {
     if (Number(minBalance) <= 0 || Number(rechargeAmount) <= 0) {
-      setAlertMessage("Please enter valid amounts greater than zero.");
-      setAlertType("error");
+      setAlertMessage('Please enter valid amounts greater than zero.');
+      setAlertType('error');
       return;
     }
 
     // Strict $25 minimum enforcement for all modifications
     if (Number(rechargeAmount) < 25) {
-      setAlertMessage("Recharge amount must be at least $25 to save changes.");
-      setAlertType("error");
+      setAlertMessage('Recharge amount must be at least $25 to save changes.');
+      setAlertType('error');
       return;
     }
 
     try {
-      const response = await fetch("/api/billing/auto-recharge/settings", {
-        method: "POST",
+      const response = await fetch('/api/billing/auto-recharge/settings', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           autoRechargeEnabled: isAutoRechargeEnabled,
@@ -118,41 +116,39 @@ const AutomaticRefill = () => {
           autoRechargeQty: Number(rechargeAmount),
         }),
       });
-      
+
       if (!response.ok) {
         // Handle error response
         const errorData = await response.json();
-        setAlertMessage(errorData.error || "Failed to save auto-recharge settings.");
-        setAlertType("error");
+        setAlertMessage(errorData.error || 'Failed to save auto-recharge settings.');
+        setAlertType('error');
         return;
       }
-      
+
       // Success case
       setInitialMinBalance(minBalance);
       setInitialRechargeAmount(rechargeAmount);
-      setAlertMessage("Auto-recharge settings updated successfully.");
-      setAlertType("success");
+      setAlertMessage('Auto-recharge settings updated successfully.');
+      setAlertType('success');
     } catch (error) {
-      console.error("Error saving auto-recharge settings:", error);
-      setAlertMessage("Failed to save auto-recharge settings.");
-      setAlertType("error");
+      console.error('Error saving auto-recharge settings:', error);
+      setAlertMessage('Failed to save auto-recharge settings.');
+      setAlertType('error');
     }
   };
 
   const hasChanges = () => {
-    return (
-      minBalance !== initialMinBalance || rechargeAmount !== initialRechargeAmount
-    );
+    return minBalance !== initialMinBalance || rechargeAmount !== initialRechargeAmount;
   };
 
   return (
-    <Card className="w-full relative">
+    <Card className="relative w-full">
       <CardHeader>
         <CardTitle className="text-h3">Automatic Refill</CardTitle>
         <CardDescription className="text-body">
           Set up automatic refills to keep your account balance topped up.
         </CardDescription>
-        <div className="absolute top-4 right-4">
+        <div className="absolute right-4 top-4">
           <Switch
             checked={isAutoRechargeEnabled}
             onCheckedChange={handleToggleAutoRecharge}
@@ -162,19 +158,21 @@ const AutomaticRefill = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {billingEligibility && !billingEligibility.can_enable_monthly_billing && !isAutoRechargeEnabled && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="whitespace-normal break-words">
-                <div>
-                  <strong>Spend $100 to Access Automated Top-ups</strong>
-                  <br />
-                  You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills.
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-          
+          {eligibility &&
+            !eligibility.canEnableAutoRecharge &&
+            !isAutoRechargeEnabled && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="whitespace-normal break-words">
+                  <div>
+                    <strong>Spend ${eligibility.minimumSpendRequired ?? 0} to Access Automated Top-ups</strong>
+                    <br />
+                    ${eligibility.totalSpending ? `You've spent ${eligibility.totalSpending.toFixed(2)}, spend $${eligibility.remainingSpendNeeded?.toFixed(2)} more to unlock this feature.` : ''}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
           <div className="flex flex-col">
             <label htmlFor="minBalance" className="text-label">
               Minimum Balance
@@ -203,21 +201,18 @@ const AutomaticRefill = () => {
               disabled={!isAutoRechargeEnabled}
             />
             {isAutoRechargeEnabled && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Minimum recharge amount: $25
-              </p>
+              <p className="text-caption mt-1">Minimum recharge amount: $25</p>
             )}
           </div>
-          <Button
-            onClick={handleSaveSettings}
-            disabled={!hasChanges() || !isAutoRechargeEnabled}
-          >
+          <Button onClick={handleSaveSettings} disabled={!hasChanges() || !isAutoRechargeEnabled}>
             Save Changes
           </Button>
           {alertMessage && (
-            <Alert variant={alertType === "success" ? "default" : "destructive"}>
+            <Alert variant={alertType === 'success' ? 'default' : 'destructive'}>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="whitespace-normal break-words">{alertMessage}</AlertDescription>
+              <AlertDescription className="whitespace-normal break-words">
+                {alertMessage}
+              </AlertDescription>
             </Alert>
           )}
         </div>

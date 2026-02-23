@@ -1,4 +1,4 @@
-import BaseButton from "./Base";
+import BaseButton from './Base';
 
 /**
  * SecondaryButton is a secondary action button with a green background and white
@@ -12,10 +12,15 @@ import BaseButton from "./Base";
  * @param {string} label - The text to display on the button.
  * @param {string} [className] - Additional CSS classes to add to the button.
  */
-const SecondaryButton = ({ onClick, label, className, disabled=false }: {
+const SecondaryButton = ({
+  onClick,
+  label,
+  className,
+  disabled = false,
+}: {
   onClick: () => void;
   label: string;
-  className?: string;  
+  className?: string;
   disabled?: boolean;
 }) => {
   return (
@@ -23,7 +28,7 @@ const SecondaryButton = ({ onClick, label, className, disabled=false }: {
       type="button"
       onClick={onClick}
       variant="outline"
-      className={`px-3 py-1 w-fit ${className}`}
+      className={`w-fit px-3 py-1 ${className}`}
       text={label}
       disabled={disabled}
     />

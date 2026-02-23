@@ -2,12 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, updateUser } from '@/lib/user/user';
 import { syncStripeCustomer } from '@/lib/user/billing/stripe/customer-sync';
 import { UserUpdateRequest } from '@/types/user';
+import { unauthorized } from '../../_utils/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Update profile requires full user object for the update
     const user = await getCurrentUser();
+
+    // Check for API key header as fallback
+    const headerApiKey = request.headers.get('apiKey');
+
+    if (!user && !headerApiKey) {
+      return unauthorized();
+    }
+
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // With API key only, we can't update profile (need user object)
+      return NextResponse.json(
+        { error: 'Profile update requires session authentication' },
+        { status: 400 }
+      );
     }
 
     const body = await request.json();
@@ -16,13 +30,13 @@ export async function POST(request: NextRequest) {
     // Update user properties in db
     const userUpdateRequest: UserUpdateRequest = {
       email: user.email,
-      user_id: user.id,
+      userId: user.id,
       name,
-      last_name: lastName,
-      job_title: jobTitle,
+      lastName,
+      jobTitle,
       bio: bio,
       timezone: timezone || null,
-      image: null // We don't update image in onboarding
+      image: null, // We don't update image in onboarding
     };
 
     const response = await updateUser(userUpdateRequest);

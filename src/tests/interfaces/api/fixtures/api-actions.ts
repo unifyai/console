@@ -47,9 +47,9 @@ export async function isServerReachable(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(BASE_URL, { 
+    const response = await fetch(BASE_URL, {
       method: 'HEAD',
-      signal: controller.signal 
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response.ok || response.status === 307; // 307 is redirect to login
@@ -67,7 +67,7 @@ export async function skipIfServerNotReachable(): Promise<void> {
   if (!reachable) {
     throw new Error(
       `Server at ${BASE_URL} is not reachable. ` +
-      'Start the dev server with `npm run dev` before running @real tests.'
+        'Start the dev server with `npm run dev` before running @real tests.'
     );
   }
 }
@@ -109,10 +109,7 @@ export class TimeoutError extends Error {
 /**
  * Helper to make authenticated fetch requests
  */
-async function apiFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
+async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const apiKey = getTestApiKey();
   const url = `${BASE_URL}${endpoint}`;
 
@@ -148,8 +145,7 @@ function safeJsonParse(text: string, url: string): Record<string, unknown> {
     return text ? JSON.parse(text) : {};
   } catch {
     throw new Error(
-      `Invalid JSON response from ${url}. ` +
-        `Response started with: ${text.slice(0, 100)}...`
+      `Invalid JSON response from ${url}. ` + `Response started with: ${text.slice(0, 100)}...`
     );
   }
 }
@@ -157,10 +153,7 @@ function safeJsonParse(text: string, url: string): Record<string, unknown> {
 /**
  * Parse response with proper error handling
  */
-async function parseResponse<T>(
-  res: Response,
-  url: string = 'unknown'
-): Promise<T> {
+async function parseResponse<T>(res: Response, url: string = 'unknown'): Promise<T> {
   const text = await res.text();
   const body = safeJsonParse(text, url);
 
@@ -204,7 +197,7 @@ export interface CreateResponse {
 export interface InterfaceData {
   id: string;
   name: string;
-  project_id?: string;
+  projectId?: string;
   color?: string;
 }
 
@@ -215,7 +208,7 @@ export interface InterfaceListResponse {
 export interface TabData {
   id: string;
   name: string;
-  interface_id?: string;
+  interfaceId?: string;
   order?: number;
   color?: string;
 }
@@ -230,7 +223,7 @@ export interface TilePosition {
 export interface TileData {
   id: string;
   name: string;
-  tab_id?: string;
+  tabId?: string;
   type?: string;
   position?: TilePosition;
   visible?: boolean;
@@ -257,9 +250,9 @@ export interface TemplateExportResponse {
 }
 
 export interface TemplateImportResponse {
-  interface_id?: string;
-  tab_id?: string;
-  tile_id?: string;
+  interfaceId?: string;
+  tabId?: string;
+  tileId?: string;
 }
 
 export interface CheckpointResponse {
@@ -289,10 +282,7 @@ export const projectsApi = {
     return parseResponse<CreateResponse>(res, endpoint);
   },
 
-  async update(
-    name: string,
-    data: { icon?: string; name?: string }
-  ): Promise<{ info?: string }> {
+  async update(name: string, data: { icon?: string; name?: string }): Promise<{ info?: string }> {
     // Use /api/projects/[name] route which accepts apiKey header
     const endpoint = `/api/projects/${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
@@ -312,7 +302,7 @@ export const projectsApi = {
     const endpoint = `/api/projects/${encodeURIComponent(name)}?export_template=true`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ project: name }),
+      body: JSON.stringify({ projectName: name }),
     });
     return parseResponse(res, endpoint);
   },
@@ -324,43 +314,36 @@ export const projectsApi = {
 
 export const interfacesApi = {
   async list(project: string): Promise<InterfaceData[]> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}`;
+    const endpoint = `/api/interface?projectName=${encodeURIComponent(project)}`;
     const res = await apiFetch(endpoint);
     // Orchestra returns array directly
     return parseResponse(res, endpoint);
   },
 
   async getById(interfaceId: string): Promise<InterfaceData> {
-    const endpoint = `/api/interface?interface_id=${encodeURIComponent(interfaceId)}`;
+    const endpoint = `/api/interface?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
   async getByName(project: string, name: string): Promise<InterfaceData> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?projectName=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    project: string,
-    name: string,
-    color?: string
-  ): Promise<InterfaceData> {
+  async create(project: string, name: string, color?: string): Promise<InterfaceData> {
     const endpoint = '/api/interface';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      // Orchestra expects 'project' not 'project_id'
-      body: JSON.stringify({ project, name, color }),
+      // Orchestra expects 'projectName' not 'projectId'
+      body: JSON.stringify({ projectName: project, name, color }),
     });
     return parseResponse(res, endpoint);
   },
 
-  async updateById(
-    interfaceId: string,
-    data: Partial<InterfaceData>
-  ): Promise<InterfaceData> {
-    const endpoint = `/api/interface?interface_id=${encodeURIComponent(interfaceId)}`;
+  async updateById(interfaceId: string, data: Partial<InterfaceData>): Promise<InterfaceData> {
+    const endpoint = `/api/interface?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -373,7 +356,7 @@ export const interfacesApi = {
     name: string,
     data: Partial<InterfaceData>
   ): Promise<InterfaceData> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?projectName=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -382,22 +365,19 @@ export const interfacesApi = {
   },
 
   async deleteById(interfaceId: string): Promise<DeleteResponse> {
-    const endpoint = `/api/interface?interface_id=${encodeURIComponent(interfaceId)}`;
+    const endpoint = `/api/interface?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
 
   async deleteByName(project: string, name: string): Promise<DeleteResponse> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?projectName=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
 
-  async createCheckpoint(
-    interfaceId: string,
-    description: string
-  ): Promise<CheckpointResponse> {
-    const endpoint = `/api/interface/checkpoint?interface_id=${encodeURIComponent(interfaceId)}`;
+  async createCheckpoint(interfaceId: string, description: string): Promise<CheckpointResponse> {
+    const endpoint = `/api/interface/checkpoint?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({ description }),
@@ -406,7 +386,7 @@ export const interfacesApi = {
   },
 
   async getCheckpoint(interfaceId: string): Promise<CheckpointResponse> {
-    const endpoint = `/api/interface/checkpoint?interface_id=${encodeURIComponent(interfaceId)}`;
+    const endpoint = `/api/interface/checkpoint?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
@@ -415,7 +395,7 @@ export const interfacesApi = {
     const endpoint = '/api/interface?export_template=true';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ interface_id: interfaceId }),
+      body: JSON.stringify({ interfaceId: interfaceId }),
     });
     return parseResponse(res, endpoint);
   },
@@ -428,7 +408,7 @@ export const interfacesApi = {
     const endpoint = '/api/interface?import_template=true';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ project, template, new_interface_name: newName }),
+      body: JSON.stringify({ projectName: project, template, newInterfaceName: newName }),
     });
     return parseResponse(res, endpoint);
   },
@@ -440,39 +420,35 @@ export const interfacesApi = {
 
 export const tabsApi = {
   async list(interfaceId: string): Promise<TabData[]> {
-    const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}`;
+    const endpoint = `/api/tab?interfaceId=${encodeURIComponent(interfaceId)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
   async getById(tabId: string): Promise<TabData> {
-    const endpoint = `/api/tab?tab_id=${encodeURIComponent(tabId)}`;
+    const endpoint = `/api/tab?tabId=${encodeURIComponent(tabId)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
   async getByName(interfaceId: string, name: string): Promise<TabData> {
-    const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/tab?interfaceId=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    interfaceId: string,
-    name: string,
-    data: Partial<TabData> = {}
-  ): Promise<TabData> {
+  async create(interfaceId: string, name: string, data: Partial<TabData> = {}): Promise<TabData> {
     const endpoint = '/api/tab';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      // Orchestra expects 'interface_id' for tab creation
-      body: JSON.stringify({ interface_id: interfaceId, name, ...data }),
+      // Orchestra expects 'interfaceId' for tab creation
+      body: JSON.stringify({ interfaceId: interfaceId, name, ...data }),
     });
     return parseResponse(res, endpoint);
   },
 
   async updateById(tabId: string, data: Partial<TabData>): Promise<TabData> {
-    const endpoint = `/api/tab?tab_id=${encodeURIComponent(tabId)}`;
+    const endpoint = `/api/tab?tabId=${encodeURIComponent(tabId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -480,12 +456,8 @@ export const tabsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async updateByName(
-    interfaceId: string,
-    name: string,
-    data: Partial<TabData>
-  ): Promise<TabData> {
-    const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
+  async updateByName(interfaceId: string, name: string, data: Partial<TabData>): Promise<TabData> {
+    const endpoint = `/api/tab?interfaceId=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -494,7 +466,7 @@ export const tabsApi = {
   },
 
   async patchById(tabId: string, data: Partial<TabData>): Promise<TabData> {
-    const endpoint = `/api/tab?tab_id=${encodeURIComponent(tabId)}`;
+    const endpoint = `/api/tab?tabId=${encodeURIComponent(tabId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -503,16 +475,13 @@ export const tabsApi = {
   },
 
   async deleteById(tabId: string): Promise<DeleteResponse> {
-    const endpoint = `/api/tab?tab_id=${encodeURIComponent(tabId)}`;
+    const endpoint = `/api/tab?tabId=${encodeURIComponent(tabId)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
 
-  async deleteByName(
-    interfaceId: string,
-    name: string
-  ): Promise<DeleteResponse> {
-    const endpoint = `/api/tab?interface_id=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
+  async deleteByName(interfaceId: string, name: string): Promise<DeleteResponse> {
+    const endpoint = `/api/tab?interfaceId=${encodeURIComponent(interfaceId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
@@ -521,7 +490,7 @@ export const tabsApi = {
     const endpoint = '/api/tab?export_template=true';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ tab_id: tabId }),
+      body: JSON.stringify({ tabId: tabId }),
     });
     return parseResponse(res, endpoint);
   },
@@ -536,10 +505,10 @@ export const tabsApi = {
     const res = await apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        project,
-        interface_id: interfaceId,
+        projectName: project,
+        interfaceId: interfaceId,
         template,
-        new_tab_name: newName,
+        newTabName: newName,
       }),
     });
     return parseResponse(res, endpoint);
@@ -552,7 +521,7 @@ export const tabsApi = {
 
 export const tilesApi = {
   async list(tabId: string, type?: string): Promise<TileData[]> {
-    let endpoint = `/api/tile?tab_id=${encodeURIComponent(tabId)}`;
+    let endpoint = `/api/tile?tabId=${encodeURIComponent(tabId)}`;
     if (type) {
       endpoint += `&type=${encodeURIComponent(type)}`;
     }
@@ -561,13 +530,13 @@ export const tilesApi = {
   },
 
   async getById(tileId: string): Promise<TileData> {
-    const endpoint = `/api/tile?tile_id=${encodeURIComponent(tileId)}`;
+    const endpoint = `/api/tile?tileId=${encodeURIComponent(tileId)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 
   async getByName(tabId: string, name: string): Promise<TileData> {
-    const endpoint = `/api/tile?tab_id=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/tile?tabId=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
@@ -581,14 +550,14 @@ export const tilesApi = {
     const endpoint = '/api/tile';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      // Orchestra expects 'tab_id' for tile creation
-      body: JSON.stringify({ tab_id: tabId, name, position, ...data }),
+      // Orchestra expects 'tabId' for tile creation
+      body: JSON.stringify({ tabId: tabId, name, position, ...data }),
     });
     return parseResponse(res, endpoint);
   },
 
   async updateById(tileId: string, data: Partial<TileData>): Promise<TileData> {
-    const endpoint = `/api/tile?tile_id=${encodeURIComponent(tileId)}`;
+    const endpoint = `/api/tile?tileId=${encodeURIComponent(tileId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -596,12 +565,8 @@ export const tilesApi = {
     return parseResponse(res, endpoint);
   },
 
-  async updateByName(
-    tabId: string,
-    name: string,
-    data: Partial<TileData>
-  ): Promise<TileData> {
-    const endpoint = `/api/tile?tab_id=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
+  async updateByName(tabId: string, name: string, data: Partial<TileData>): Promise<TileData> {
+    const endpoint = `/api/tile?tabId=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -610,7 +575,7 @@ export const tilesApi = {
   },
 
   async patchById(tileId: string, data: Partial<TileData>): Promise<TileData> {
-    const endpoint = `/api/tile?tile_id=${encodeURIComponent(tileId)}`;
+    const endpoint = `/api/tile?tileId=${encodeURIComponent(tileId)}`;
     const res = await apiFetch(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -623,7 +588,7 @@ export const tilesApi = {
     tileType: string,
     data: Record<string, unknown>
   ): Promise<TileData> {
-    const endpoint = `/api/tile?tile_id=${encodeURIComponent(tileId)}&tile_type=${encodeURIComponent(tileType)}`;
+    const endpoint = `/api/tile?tileId=${encodeURIComponent(tileId)}&tile_type=${encodeURIComponent(tileType)}`;
     const res = await apiFetch(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -632,13 +597,13 @@ export const tilesApi = {
   },
 
   async deleteById(tileId: string): Promise<DeleteResponse> {
-    const endpoint = `/api/tile?tile_id=${encodeURIComponent(tileId)}`;
+    const endpoint = `/api/tile?tileId=${encodeURIComponent(tileId)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
 
   async deleteByName(tabId: string, name: string): Promise<DeleteResponse> {
-    const endpoint = `/api/tile?tab_id=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/tile?tabId=${encodeURIComponent(tabId)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
@@ -647,7 +612,7 @@ export const tilesApi = {
     const endpoint = '/api/tile?export_template=true';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ tile_id: tileId }),
+      body: JSON.stringify({ tileId: tileId }),
     });
     return parseResponse(res, endpoint);
   },
@@ -662,10 +627,10 @@ export const tilesApi = {
     const res = await apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        project,
-        tab_id: tabId,
+        projectName: project,
+        tabId: tabId,
         template,
-        new_tile_name: newName,
+        newTileName: newName,
       }),
     });
     return parseResponse(res, endpoint);
@@ -686,7 +651,7 @@ export const logsApi = {
       offset?: number;
     } = {}
   ): Promise<LogsResponse> {
-    const params = new URLSearchParams({ project });
+    const params = new URLSearchParams({ projectName: project });
     if (options.context) params.set('context', options.context);
     if (options.filter) params.set('filter_expression', options.filter);
     if (options.limit) params.set('limit', String(options.limit));
@@ -697,11 +662,8 @@ export const logsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async getLatestTimestamp(
-    project: string,
-    context?: string
-  ): Promise<{ timestamp?: string }> {
-    const params = new URLSearchParams({ project });
+  async getLatestTimestamp(project: string, context?: string): Promise<{ timestamp?: string }> {
+    const params = new URLSearchParams({ projectName: project });
     if (context) params.set('context', context);
 
     const endpoint = `/api/logs/latest_timestamp?${params.toString()}`;
@@ -718,7 +680,7 @@ export const logsApi = {
       filter?: string;
     } = {}
   ): Promise<Record<string, unknown>> {
-    const params = new URLSearchParams({ project, key: keyName });
+    const params = new URLSearchParams({ projectName: project, key: keyName });
     if (options.context) params.set('context', options.context);
     if (options.filter) params.set('filter_expression', options.filter);
 
@@ -737,7 +699,7 @@ export const logsApi = {
     const res = await apiFetch(endpoint, {
       method: 'POST',
       // Match the format expected by Orchestra
-      body: JSON.stringify({ project, params, entries }),
+      body: JSON.stringify({ projectName: project, params, entries }),
     });
     return parseResponse(res, endpoint);
   },
@@ -753,22 +715,34 @@ export const logsApi = {
     const endpoint = '/api/logs';
     const res = await apiFetch(endpoint, {
       method: 'PUT',
-      body: JSON.stringify({ project, context, logs, entries, params, overwrite }),
+      body: JSON.stringify({ projectName: project, context, logs, entries, params, overwrite }),
     });
     return parseResponse(res, endpoint);
   },
 
-  async delete(
-    project: string,
-    context: string | null,
-    ids: number[]
-  ): Promise<DeleteResponse> {
+  async delete(project: string, context: string | null, ids: number[]): Promise<DeleteResponse> {
     const endpoint = '/api/logs';
     const res = await apiFetch(endpoint, {
       method: 'DELETE',
-      // Orchestra expects ids_and_fields as a list of [id, field] tuples or just ids
-      body: JSON.stringify({ project, context, ids_and_fields: ids.map(id => [id, null]) }),
+      // Orchestra expects idsAndFields as a list of [id, field] tuples or just ids
+      body: JSON.stringify({
+        projectName: project,
+        context,
+        idsAndFields: ids.map((id) => [id, null]),
+      }),
     });
+    return parseResponse(res, endpoint);
+  },
+
+  async getFields(
+    project: string,
+    context?: string
+  ): Promise<Record<string, { dataType: string; fieldType: string; [key: string]: unknown }>> {
+    const params = new URLSearchParams({ projectName: project });
+    if (context) params.set('context', context);
+
+    const endpoint = `/api/logs/fields?${params.toString()}`;
+    const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
 };
@@ -784,11 +758,7 @@ export const contextsApi = {
     return parseResponse(res, endpoint);
   },
 
-  async create(
-    project: string,
-    name: string,
-    description?: string
-  ): Promise<{ info?: string }> {
+  async create(project: string, name: string, description?: string): Promise<{ info?: string }> {
     const endpoint = `/api/context/${encodeURIComponent(project)}`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
@@ -816,10 +786,7 @@ const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 /**
  * Helper to make authenticated fetch requests directly to Orchestra
  */
-async function orchestraFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
+async function orchestraFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const apiKey = getTestApiKey();
   const url = `${ORCHESTRA_URL}/v0${endpoint}`;
 
@@ -846,142 +813,6 @@ async function orchestraFetch(
     clearTimeout(timeoutId);
   }
 }
-
-export const endpointsApi = {
-  async listProviders(model?: string): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (model) params.append('model', model);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/providers${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async listModels(provider?: string): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (provider) params.append('provider', provider);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/models${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async listEndpoints(options?: {
-    provider?: string;
-    model?: string;
-  }): Promise<string[]> {
-    const params = new URLSearchParams();
-    if (options?.provider) params.append('provider', options.provider);
-    if (options?.model) params.append('model', options.model);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const endpoint = `/endpoints${query}`;
-    const res = await orchestraFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
-// Custom Keys API Actions
-// ============================================
-
-interface CustomKeyResponse {
-  name: string;
-  value: string;
-}
-
-export const customKeysApi = {
-  async list(): Promise<CustomKeyResponse[]> {
-    const endpoint = '/api/customKeys/list';
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async get(name: string): Promise<CustomKeyResponse> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async create(name: string, value: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, value });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async delete(name: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customKeys?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'DELETE',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async rename(name: string, newName: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, new_name: newName });
-    const endpoint = `/api/customKeys/rename?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
-// Custom Endpoints API Actions
-// ============================================
-
-interface CustomEndpointResponse {
-  name: string;
-  model_arg: string;
-  url: string;
-  key: string;
-}
-
-export const customEndpointsApi = {
-  async list(): Promise<CustomEndpointResponse[]> {
-    const endpoint = '/api/customEndpoints/list';
-    const res = await apiFetch(endpoint);
-    return parseResponse(res, endpoint);
-  },
-
-  async create(
-    name: string,
-    url: string,
-    keyName: string,
-    modelArg?: string
-  ): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, url, key_name: keyName });
-    if (modelArg) params.append('model_arg', modelArg);
-    const endpoint = `/api/customEndpoints?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async delete(name: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name });
-    const endpoint = `/api/customEndpoints?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'DELETE',
-    });
-    return parseResponse(res, endpoint);
-  },
-
-  async rename(name: string, newName: string): Promise<{ info?: string }> {
-    const params = new URLSearchParams({ name, new_name: newName });
-    const endpoint = `/api/customEndpoints/rename?${params.toString()}`;
-    const res = await apiFetch(endpoint, {
-      method: 'POST',
-    });
-    return parseResponse(res, endpoint);
-  },
-};
 
 // ============================================
 // Test Helpers

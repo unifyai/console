@@ -1,5 +1,5 @@
-import { ensureStripeCustomer } from "@/lib/user/billing/stripe/stripe";
-import { mapCountryToTaxIdType, toIsoCountryCode } from "@/utils/stripe/taxIdTypes";
+import { ensureStripeCustomer } from '@/lib/user/billing/stripe/stripe';
+import { mapCountryToTaxIdType, toIsoCountryCode } from '@/utils/stripe/taxIdTypes';
 
 interface BusinessAddress {
   address_line1: string;
@@ -19,7 +19,7 @@ interface BusinessInfo {
 
 interface SyncParams {
   user: { id: string; email: string; name: string };
-  accountType: "individual" | "business";
+  accountType: 'individual' | 'business';
   businessInfo?: BusinessInfo | null;
 }
 
@@ -29,7 +29,7 @@ interface SyncParams {
  * – For business accounts we store business name, address and tax ID.
  */
 export async function syncStripeCustomer({ user, accountType, businessInfo }: SyncParams) {
-  if (accountType === "individual") {
+  if (accountType === 'individual') {
     await ensureStripeCustomer({
       userId: user.id,
       email: user.email,
@@ -61,4 +61,4 @@ export async function syncStripeCustomer({ user, accountType, businessInfo }: Sy
     taxIdType: mapCountryToTaxIdType(countryCode),
     taxExempt: businessInfo.tax_exempt || undefined,
   });
-} 
+}

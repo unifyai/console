@@ -1,11 +1,11 @@
 /**
  * Tests for RefreshLogs component and all refresh pathways.
- * 
+ *
  * USE-CASE ERROR #1: Logs table data not loading
  * - Manual refresh button should trigger actual data fetch
  * - Context switch should populate data
  * - Auto-refresh should work when enabled
- * 
+ *
  * These tests verify the refresh button correctly triggers data fetching
  * regardless of auto-update state.
  */
@@ -47,9 +47,9 @@ vi.mock('@/contexts/providers/StoreProvider', () => ({
 vi.mock('@/contexts/hooks/tile/useTileData', () => ({
   useTileData: (tileId: string) => ({
     data: {
-      auto_update: 'false', // Default to auto-update OFF
+      autoUpdate: 'false', // Default to auto-update OFF
       context: null,
-      column_context: null,
+      columnContext: null,
       filters: null,
       sorting: null,
       grouping: null,
@@ -79,7 +79,7 @@ vi.mock('@/contexts/selectors/project', () => ({
 vi.mock('@/contexts/utils/sliceUtils', () => ({
   convertTileToTileData: () => ({
     context: null,
-    column_context: null,
+    columnContext: null,
     filters: null,
     sorting: null,
     grouping: null,
@@ -88,8 +88,11 @@ vi.mock('@/contexts/utils/sliceUtils', () => ({
 
 // Create mock logs actions (still needed for type compatibility but not used for fetching)
 function createMockLogsActions(): LogsActions {
-  const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
-  
+  const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, {
+    offset: 0,
+    totalCount: MOCK_LOGS_TOTAL_COUNT,
+  });
+
   return {
     create: vi.fn(),
     get: vi.fn(async () => allLogs), // Not used - fetchLogsCore uses direct fetch
@@ -110,8 +113,8 @@ function createWrapper() {
       },
     },
   });
-  
-  const Wrapper = ({ children }: { children: React.ReactNode }) => 
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
   Wrapper.displayName = 'QueryClientWrapper';
   return Wrapper;
@@ -120,39 +123,41 @@ function createWrapper() {
 describe('Refresh Logs Pathways', () => {
   let logsActions: LogsActions;
   let fetchCallCount: number;
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
     logsActions = createMockLogsActions();
     fetchCallCount = 0;
-    
+
     // Setup fetch mock
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
-    
+
     // Create mock response data
-    const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
-    
+    const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, {
+      offset: 0,
+      totalCount: MOCK_LOGS_TOTAL_COUNT,
+    });
+
     mockFetch.mockImplementation(async (url: string) => {
       fetchCallCount++;
-      
+
       if (url.includes('/api/logs')) {
         // Parse limit and offset from URL
         const urlObj = new URL(url, 'http://localhost');
         const limit = parseInt(urlObj.searchParams.get('limit') || '20');
         const offset = parseInt(urlObj.searchParams.get('offset') || '0');
-        
+
         // Return paginated logs
         const paginatedLogs = (allLogs.logs as LogProps[]).slice(offset, offset + limit);
-        
+
         return createMockResponse({
-          params: allLogs.params,
           logs: paginatedLogs,
           count: allLogs.count,
           groups: allLogs.groups || [],
         });
       }
-      
+
       return createMockResponse({}, 404);
     });
   });
@@ -165,30 +170,34 @@ describe('Refresh Logs Pathways', () => {
   describe('useInfiniteLogsQuery', () => {
     it('fetches logs on initial render when enabled', async () => {
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper }
       );
 
       // Wait for query to complete
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       // Verify fetch was called (fetchLogsCore uses direct fetch)
       expect(mockFetch).toHaveBeenCalled();
@@ -197,30 +206,34 @@ describe('Refresh Logs Pathways', () => {
 
     it('refetch() triggers a new data fetch', async () => {
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper }
       );
 
       // Wait for initial fetch
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       const initialCallCount = fetchCallCount;
 
@@ -235,30 +248,34 @@ describe('Refresh Logs Pathways', () => {
 
     it('fetches new data when context changes', async () => {
       const wrapper = createWrapper();
-      
+
       const { result, rerender } = renderHook(
-        ({ context }) => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        ({ context }) =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper, initialProps: { context: null as string | null } }
       );
 
       // Wait for initial fetch
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       const callsBeforeContextChange = fetchCallCount;
 
@@ -266,46 +283,50 @@ describe('Refresh Logs Pathways', () => {
       rerender({ context: 'new-context' });
 
       // Wait for new fetch with new context
-      await waitFor(() => {
-        // Verify fetch was called with new context
-        const calls = mockFetch.mock.calls;
-        const hasNewContextCall = calls.some((call: unknown[]) => {
-          const url = call[0] as string;
-          return url.includes('context=new-context');
-        });
-        expect(hasNewContextCall).toBe(true);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          // Verify fetch was called with new context
+          const calls = mockFetch.mock.calls;
+          const hasNewContextCall = calls.some((call: unknown[]) => {
+            const url = call[0] as string;
+            return url.includes('context=new-context');
+          });
+          expect(hasNewContextCall).toBe(true);
+        },
+        { timeout: 5000 }
+      );
     });
   });
 
   describe('useTableAutoUpdateQuery', () => {
-    it('is DISABLED when auto_update is false', async () => {
-      // Override mock to have auto_update = false
+    it('is DISABLED when autoUpdate is false', async () => {
+      // Override mock to have autoUpdate = false
       vi.doMock('@/contexts/hooks/tile/useTileData', () => ({
         useTileData: () => ({
-          data: { auto_update: 'false' },
+          data: { autoUpdate: 'false' },
         }),
       }));
 
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useTableAutoUpdateQuery(
-          'tile-1',
-          'tab-1',
-          'project-1',
-          false, // pending
-          logsActions,
-          {} as any, // projectsActions
-          {} as any, // contextActions
-          {} as any, // fieldsActions
-        ),
+        () =>
+          useTableAutoUpdateQuery(
+            'tile-1',
+            'tab-1',
+            'project-1',
+            false, // pending
+            logsActions,
+            {} as any, // projectsActions
+            {} as any, // contextActions
+            {} as any // fieldsActions
+          ),
         { wrapper }
       );
 
       // Query should be disabled (not fetching, no data)
       expect(result.current.isFetching).toBe(false);
-      
+
       // manualRefresh should be callable but may not trigger fetch on disabled query
       // This is the bug we're testing for!
     });
@@ -313,49 +334,50 @@ describe('Refresh Logs Pathways', () => {
     it('manualRefresh() behavior when query is disabled', async () => {
       /**
        * THIS TEST DOCUMENTS THE BEHAVIOR:
-       * When auto_update is OFF, useTableAutoUpdateQuery is disabled.
+       * When autoUpdate is OFF, useTableAutoUpdateQuery is disabled.
        * The query's refetch() still executes but with the hook's logic.
-       * 
+       *
        * THE FIX: RefreshLogs component now uses onRefresh callback
-       * (which calls infiniteLogsQuery.refetch()) when auto_update is OFF.
+       * (which calls infiniteLogsQuery.refetch()) when autoUpdate is OFF.
        * This bypasses the disabled useTableAutoUpdateQuery entirely.
-       * 
-       * See: RefreshLogs.tsx - onManualClick uses onRefresh when auto_update is OFF
+       *
+       * See: RefreshLogs.tsx - onManualClick uses onRefresh when autoUpdate is OFF
        */
-      
-      // Override mock to have auto_update = false
+
+      // Override mock to have autoUpdate = false
       vi.doMock('@/contexts/hooks/tile/useTileData', () => ({
         useTileData: () => ({
-          data: { auto_update: 'false' },
+          data: { autoUpdate: 'false' },
         }),
       }));
 
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useTableAutoUpdateQuery(
-          'tile-1',
-          'tab-1',
-          'project-1',
-          false, // pending
-          logsActions,
-          {} as any, // projectsActions
-          {} as any, // contextActions
-          {} as any, // fieldsActions
-        ),
+        () =>
+          useTableAutoUpdateQuery(
+            'tile-1',
+            'tab-1',
+            'project-1',
+            false, // pending
+            logsActions,
+            {} as any, // projectsActions
+            {} as any, // contextActions
+            {} as any // fieldsActions
+          ),
         { wrapper }
       );
 
       // Query should be disabled (not fetching initially)
       expect(result.current.isFetching).toBe(false);
-      
+
       // manualRefresh is callable - documenting current behavior
       await act(async () => {
         await result.current.manualRefresh();
       });
 
-      // The important fix is that RefreshLogs uses infiniteLogsQuery.refetch() 
-      // when auto_update is OFF, which DOES work
+      // The important fix is that RefreshLogs uses infiniteLogsQuery.refetch()
+      // when autoUpdate is OFF, which DOES work
     });
 
     it('isLoading state transitions correctly after context change', async () => {
@@ -365,38 +387,42 @@ describe('Refresh Logs Pathways', () => {
        * 2. Data is rebuilt
        * 3. isLoading becomes false
        * 4. infiniteLogsQuery re-enables and works
-       * 
+       *
        * BUG: If isLoading stays true, infiniteLogsQuery never re-enables
        */
       const wrapper = createWrapper();
-      
+
       // First render with initial context
       const { result, rerender } = renderHook(
-        (props) => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: props.context,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
-        { 
+        (props) =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: props.context,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
+        {
           wrapper,
-          initialProps: { context: 'context-A' }
+          initialProps: { context: 'context-A' },
         }
       );
 
       // Wait for initial fetch
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       const initialData = result.current.data;
       expect(initialData).toBeTruthy();
@@ -405,48 +431,58 @@ describe('Refresh Logs Pathways', () => {
       rerender({ context: 'context-B' });
 
       // Wait for new data to load
-      await waitFor(() => {
-        // Query should have refetched with new context
-        expect(result.current.data !== initialData || result.current.isFetching).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          // Query should have refetched with new context
+          expect(result.current.data !== initialData || result.current.isFetching).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       // Eventually should have data again
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess).toBe(true);
+        },
+        { timeout: 5000 }
+      );
     });
 
-    it('WORKAROUND: using infiniteLogsQuery.refetch() works when auto_update is OFF', async () => {
+    it('WORKAROUND: using infiniteLogsQuery.refetch() works when autoUpdate is OFF', async () => {
       /**
        * This test verifies the fix works:
-       * When auto_update is OFF, RefreshLogs uses onRefresh callback
+       * When autoUpdate is OFF, RefreshLogs uses onRefresh callback
        * which calls infiniteLogsQuery.refetch() - and that DOES work.
        */
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true, // This is enabled when auto_update is OFF
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true, // This is enabled when autoUpdate is OFF
+          }),
         { wrapper }
       );
 
       // Wait for initial fetch
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       const callsBefore = fetchCallCount;
 
@@ -459,8 +495,8 @@ describe('Refresh Logs Pathways', () => {
       expect(fetchCallCount).toBeGreaterThan(callsBefore);
     });
 
-    // Note: Testing auto_update=true behavior requires more complex mock setup
-    // The key finding is that when auto_update=false, manualRefresh doesn't work
+    // Note: Testing autoUpdate=true behavior requires more complex mock setup
+    // The key finding is that when autoUpdate=false, manualRefresh doesn't work
     // which is the bug we're documenting
   });
 
@@ -469,44 +505,48 @@ describe('Refresh Logs Pathways', () => {
      * These tests verify the complete flow of the refresh button.
      * The refresh button should:
      * 1. Trigger a data fetch when clicked
-     * 2. Work regardless of auto_update state
+     * 2. Work regardless of autoUpdate state
      * 3. Show feedback to the user
      */
 
-    it('clicking refresh should fetch data when auto_update is OFF', async () => {
+    it('clicking refresh should fetch data when autoUpdate is OFF', async () => {
       /**
        * This simulates the RefreshLogs component behavior.
        * The component uses useTableAutoUpdateQuery's manualRefresh(),
-       * but that's broken when auto_update is OFF.
-       * 
+       * but that's broken when autoUpdate is OFF.
+       *
        * The fix should ensure data is fetched either way.
        */
       const wrapper = createWrapper();
 
       // Render both hooks as the RefreshLogs component would use them
       const { result: infiniteResult } = renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true, // Enabled when auto_update is OFF
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true, // Enabled when autoUpdate is OFF
+          }),
         { wrapper }
       );
 
       // Wait for initial load
-      await waitFor(() => {
-        expect(infiniteResult.current.isSuccess || infiniteResult.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(infiniteResult.current.isSuccess || infiniteResult.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       const callsBefore = fetchCallCount;
 
@@ -520,42 +560,46 @@ describe('Refresh Logs Pathways', () => {
       expect(fetchCallCount).toBeGreaterThan(callsBefore);
     });
 
-    // Note: Testing auto_update=true scenarios requires running the component
+    // Note: Testing autoUpdate=true scenarios requires running the component
     // in a real browser environment or more sophisticated mocking.
-    // The critical path (auto_update=false with infiniteLogsQuery.refetch) is covered above.
+    // The critical path (autoUpdate=false with infiniteLogsQuery.refetch) is covered above.
   });
 
   describe('Context Switch', () => {
     it('switching context should trigger new data fetch', async () => {
       const wrapper = createWrapper();
-      
+
       const { result, rerender } = renderHook(
-        ({ context }) => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        ({ context }) =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper, initialProps: { context: 'context-A' as string | null } }
       );
 
       // Wait for initial fetch with context-A
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       // Get calls with context-A
-      const contextACalls = mockFetch.mock.calls.filter(
-        (call: unknown[]) => (call[0] as string).includes('context=context-A')
+      const contextACalls = mockFetch.mock.calls.filter((call: unknown[]) =>
+        (call[0] as string).includes('context=context-A')
       );
       expect(contextACalls.length).toBeGreaterThan(0);
 
@@ -563,12 +607,15 @@ describe('Refresh Logs Pathways', () => {
       rerender({ context: 'context-B' });
 
       // Wait for fetch with context-B
-      await waitFor(() => {
-        const contextBCalls = mockFetch.mock.calls.filter(
-          (call: unknown[]) => (call[0] as string).includes('context=context-B')
-        );
-        expect(contextBCalls.length).toBeGreaterThan(0);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const contextBCalls = mockFetch.mock.calls.filter((call: unknown[]) =>
+            (call[0] as string).includes('context=context-B')
+          );
+          expect(contextBCalls.length).toBeGreaterThan(0);
+        },
+        { timeout: 5000 }
+      );
     });
 
     it('fields should be fetched for NEW context when context changes', async () => {
@@ -577,39 +624,43 @@ describe('Refresh Logs Pathways', () => {
        * - fetchOrBuildFields was called with OLD tile data (context A)
        * - Then tried to get fields from cache for NEW context (B)
        * - Fields for context B were not in cache → empty {} → no columns!
-       * 
+       *
        * FIX: usePatchTileQueryOptimistic now fetches fields for new context
        * if they're not already in cache.
        */
       const wrapper = createWrapper();
-      
+
       // First render with context A
       const { result, rerender } = renderHook(
-        (props) => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: props.context,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
-        { 
+        (props) =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: props.context,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
+        {
           wrapper,
-          initialProps: { context: 'context-A' }
+          initialProps: { context: 'context-A' },
         }
       );
 
       // Wait for initial fetch with context A
-      await waitFor(() => {
-        expect(result.current.isSuccess || result.current.data).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess || result.current.data).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
       // Verify fetch was called
       expect(fetchCallCount).toBeGreaterThan(0);
@@ -621,9 +672,12 @@ describe('Refresh Logs Pathways', () => {
       rerender({ context: 'context-B' });
 
       // Wait for fetch with new context - the query key includes context so it should refetch
-      await waitFor(() => {
-        expect(fetchCallCount).toBeGreaterThan(callsBeforeChange);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(fetchCallCount).toBeGreaterThan(callsBeforeChange);
+        },
+        { timeout: 5000 }
+      );
 
       // Verify the new fetch happened
       expect(fetchCallCount).toBeGreaterThan(callsBeforeChange);
@@ -635,36 +689,40 @@ describe('Refresh Logs Pathways', () => {
        * This test verifies that actual log data is returned, not empty
        */
       const wrapper = createWrapper();
-      
+
       const { result, rerender } = renderHook(
-        ({ context }) => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        ({ context }) =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper, initialProps: { context: null as string | null } }
       );
 
       // Wait for initial fetch
-      await waitFor(() => {
-        expect(result.current.data?.pages?.[0]?.data).toBeDefined();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.data?.pages?.[0]?.data).toBeDefined();
+        },
+        { timeout: 5000 }
+      );
 
       // Verify initial data has actual content
       const initialData = result.current.data?.pages?.[0]?.data;
       expect(initialData).toBeDefined();
       expect(initialData?.length).toBeGreaterThan(0);
-      
+
       if (initialData && initialData.length > 0) {
         const firstLog = initialData[0] as LogProps;
         expect(firstLog.entries).toBeDefined();
@@ -675,11 +733,14 @@ describe('Refresh Logs Pathways', () => {
       rerender({ context: 'new-context' });
 
       // Wait for new data
-      await waitFor(() => {
-        const newData = result.current.data?.pages?.[0]?.data;
-        expect(newData).toBeDefined();
-        expect(newData?.length).toBeGreaterThan(0);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const newData = result.current.data?.pages?.[0]?.data;
+          expect(newData).toBeDefined();
+          expect(newData?.length).toBeGreaterThan(0);
+        },
+        { timeout: 5000 }
+      );
 
       // Verify new data also has actual content (not empty cells)
       const newData = result.current.data?.pages?.[0]?.data;
@@ -698,30 +759,34 @@ describe('Refresh Logs Pathways', () => {
        * This test verifies that initial data fetch returns actual log content
        */
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper }
       );
 
       // Wait for data to load
-      await waitFor(() => {
-        expect(result.current.data?.pages?.[0]?.data).toBeDefined();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.data?.pages?.[0]?.data).toBeDefined();
+        },
+        { timeout: 5000 }
+      );
 
       // Verify we got actual log data with content
       const logs = result.current.data?.pages?.[0]?.data;
@@ -740,31 +805,35 @@ describe('Refresh Logs Pathways', () => {
 
     it('fetch should be called on initial render', async () => {
       const wrapper = createWrapper();
-      
+
       renderHook(
-        () => useInfiniteLogsQuery({
-          tileId: 'tile-1',
-          tabId: 'tab-1',
-          projectId: 'project-1',
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          group_limit: 20,
-          logsActions,
-          enabled: true,
-        }),
+        () =>
+          useInfiniteLogsQuery({
+            tileId: 'tile-1',
+            tabId: 'tab-1',
+            projectId: 'project-1',
+            context: null,
+            columnContext: null,
+            filterExpression: null,
+            sortingExpression: null,
+            groupingExpression: null,
+            groupSortingExpression: null,
+            limit: 20,
+            groupLimit: 20,
+            logsActions,
+            enabled: true,
+          }),
         { wrapper }
       );
 
       // Wait and verify fetch was called
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled();
-        expect(fetchCallCount).toBeGreaterThan(0);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(mockFetch).toHaveBeenCalled();
+          expect(fetchCallCount).toBeGreaterThan(0);
+        },
+        { timeout: 5000 }
+      );
     });
   });
 });

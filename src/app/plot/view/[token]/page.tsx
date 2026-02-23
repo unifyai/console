@@ -1,15 +1,15 @@
 /**
  * Plot View Page
- * 
+ *
  * Public page that renders an interactive plot from a shared token.
  * No authentication required - the token provides access.
  */
 
-import { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { PlotViewer } from "@/components/Pages/Plot/PlotViewer";
-import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { PlotViewer } from '@/components/Pages/Plot/PlotViewer';
+import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
+import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 interface PageProps {
   params: { token: string };
@@ -32,14 +32,19 @@ interface PlotDataResponse {
     title?: string;
     xLabel?: string;
     yLabel?: string;
+    // Axis customization - xLabel/yLabel apply to both axis and tooltip
+    showXLabel?: boolean;
+    showYLabel?: boolean;
+    xTickFormat?: string;
+    yTickFormat?: string;
   };
   data: LogProps[];
   fields: LogFieldsResponseProps;
   metadata: {
     title?: string;
-    project_name: string;
-    created_at: string;
-    created_by?: string;
+    projectName: string;
+    createdAt: string;
+    createdBy?: string;
   };
   /** Pre-aggregated bar chart data from backend (optional) */
   preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
@@ -52,7 +57,7 @@ interface PlotDataError {
   expired?: boolean;
 }
 
-type PlotDataResult = 
+type PlotDataResult =
   | { success: true; data: PlotDataResponse }
   | { success: false; error: string; expired: boolean; status: number };
 
@@ -60,18 +65,30 @@ type PlotDataResult =
  * Fetch plot data from the API
  */
 async function getPlotData(token: string): Promise<PlotDataResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
   try {
     const res = await fetch(`${baseUrl}/api/plot/data/${token}`, {
-      cache: "no-store", // Always fresh
+      cache: 'no-store', // Always fresh
     });
 
     if (!res.ok) {
-      const errorData: PlotDataError = await res.json().catch(() => ({ error: "Unknown error" }));
+      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      // Handle both {error: string} and {detail: array} formats
+      let errorMessage = `HTTP ${res.status}`;
+      if (typeof errorData.error === 'string') {
+        errorMessage = errorData.error;
+      } else if (Array.isArray(errorData.detail)) {
+        errorMessage = errorData.detail
+          .map((d: { msg?: string }) => d.msg || 'Validation error')
+          .join(', ');
+      } else if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      }
       return {
         success: false,
-        error: errorData.error || `HTTP ${res.status}`,
+        error: errorMessage,
         expired: errorData.expired || res.status === 410,
         status: res.status,
       };
@@ -82,7 +99,7 @@ async function getPlotData(token: string): Promise<PlotDataResult> {
   } catch (error) {
     return {
       success: false,
-      error: "Failed to load plot",
+      error: 'Failed to load plot',
       expired: false,
       status: 500,
     };
@@ -91,17 +108,58 @@ async function getPlotData(token: string): Promise<PlotDataResult> {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const result = await getPlotData(params.token);
-  
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
+
   if (!result.success) {
     return {
-      title: "Plot Not Found",
-      description: "This plot is no longer available.",
+      title: 'Plot Not Found',
+      description: 'This plot is no longer available.',
     };
   }
 
+  const title = result.data.metadata?.title || 'Plot View';
+  const projectName = result.data.metadata?.projectName || 'project';
+  const plotType = result.data.config?.type || 'chart';
+  const dataPoints = result.data.data?.length || 0;
+  const description = `Interactive ${plotType} visualization with ${dataPoints.toLocaleString()} data points from ${projectName}`;
+  const ogImageUrl = `${baseUrl}/api/og/plot/${params.token}.png`;
+  const pageUrl = `${baseUrl}/plot/view/${params.token}`;
+
   return {
-    title: result.data.metadata?.title || "Plot View",
-    description: `Interactive visualization of ${result.data.metadata?.project_name || "project"} data`,
+    title,
+    description,
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: pageUrl,
+      siteName: 'Unify Console',
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Preview of ${title}`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl],
+    },
+    other: {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      'og:image:type': 'image/png',
+    },
+    alternates: {
+      types: {
+        'application/json+oembed': `${baseUrl}/api/oembed?url=${encodeURIComponent(pageUrl)}&format=json`,
+        'text/xml+oembed': `${baseUrl}/api/oembed?url=${encodeURIComponent(pageUrl)}&format=xml`,
+      },
+    },
   };
 }
 
@@ -110,11 +168,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 function PlotNotFoundMessage() {
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center max-w-md px-6">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+    <main className="flex min-h-screen items-center justify-center bg-background">
+      <div className="max-w-md px-6 text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <svg
-            className="w-8 h-8 text-muted-foreground"
+            className="h-8 w-8 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -127,10 +185,10 @@ function PlotNotFoundMessage() {
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold mb-2">Plot Not Found</h1>
+        <h1 className="text-display text-semibold mb-2">Plot Not Found</h1>
         <p className="text-muted-foreground">
-          This plot has been deleted or the link is invalid.
-          Please request a new link from the original source.
+          This plot has been deleted or the link is invalid. Please request a new link from the
+          original source.
         </p>
       </div>
     </main>
@@ -142,11 +200,11 @@ function PlotNotFoundMessage() {
  */
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center max-w-md px-6">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
+    <main className="flex min-h-screen items-center justify-center bg-background">
+      <div className="max-w-md px-6 text-center">
+        <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
           <svg
-            className="w-8 h-8 text-destructive"
+            className="h-8 w-8 text-destructive"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -159,7 +217,7 @@ function ErrorMessage({ message }: { message: string }) {
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold mb-2">Unable to Load Plot</h1>
+        <h1 className="text-display text-semibold mb-2">Unable to Load Plot</h1>
         <p className="text-muted-foreground">{message}</p>
       </div>
     </main>
@@ -180,9 +238,10 @@ export default async function PlotViewPage({ params }: PageProps) {
   const { data: plotData } = result;
 
   // Handle empty data - for bar charts with pre-aggregated data, check that too
-  const hasPreAggregatedBarData = plotData.preAggregatedBarData && plotData.preAggregatedBarData.length > 0;
+  const hasPreAggregatedBarData =
+    plotData.preAggregatedBarData && plotData.preAggregatedBarData.length > 0;
   const hasRawData = plotData.data && plotData.data.length > 0;
-  
+
   if (!hasRawData && !hasPreAggregatedBarData) {
     return (
       <ErrorMessage message="No data available for this plot. The project may be empty or the filters returned no results." />
@@ -190,7 +249,7 @@ export default async function PlotViewPage({ params }: PageProps) {
   }
 
   return (
-    <main className="h-screen bg-background overflow-hidden">
+    <main className="h-screen overflow-hidden bg-background">
       <PlotViewer
         config={plotData.config}
         data={plotData.data}

@@ -46,9 +46,7 @@ describe('P3-I: Context Management', () => {
     it('can set tab-level context', async () => {
       result = renderContextSelector({
         initialContexts: ['production', 'staging'],
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] }],
       });
 
       // Initially no context
@@ -64,9 +62,7 @@ describe('P3-I: Context Management', () => {
     it('interface context updates all tiles without overrides', async () => {
       result = renderContextSelector({
         initialContexts: ['global-ctx'],
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1', 'tile-2'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1', 'tile-2'] }],
         initialTiles: [
           { id: 'tile-1', name: 'Tile 1', context: null },
           { id: 'tile-2', name: 'Tile 2', context: null },
@@ -136,9 +132,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['interface-ctx', 'tab-ctx', 'tile-ctx'],
         interfaceContext: 'interface-ctx',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: 'tab-ctx', tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: 'tab-ctx', tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: null }],
       });
 
@@ -257,9 +251,7 @@ describe('P3-I: Context Management', () => {
     it('tile inherits from tab when no tile context set', async () => {
       result = renderContextSelector({
         initialContexts: ['tab-level'],
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: 'tab-level', tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: 'tab-level', tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: null }],
       });
 
@@ -272,9 +264,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['interface-level'],
         interfaceContext: 'interface-level',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: null }],
       });
 
@@ -314,9 +304,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['old-iface', 'new-iface'],
         interfaceContext: 'old-iface',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: null }],
       });
 
@@ -334,9 +322,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['inherited-ctx'],
         interfaceContext: 'inherited-ctx',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: null }],
       });
 
@@ -369,9 +355,7 @@ describe('P3-I: Context Management', () => {
     it('can clear tab context', async () => {
       result = renderContextSelector({
         initialContexts: ['tab-ctx'],
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: 'tab-ctx', tileIds: [] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: 'tab-ctx', tileIds: [] }],
       });
 
       // Initially has context
@@ -404,9 +388,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['fallback-ctx', 'tile-override'],
         interfaceContext: 'fallback-ctx',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: null, tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: 'tile-override' }],
       });
 
@@ -532,9 +514,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['shared-ctx', 'other-ctx'],
         interfaceContext: 'shared-ctx',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: 'shared-ctx', tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: 'shared-ctx', tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: 'shared-ctx' }],
       });
 
@@ -589,9 +569,7 @@ describe('P3-I: Context Management', () => {
       result = renderContextSelector({
         initialContexts: ['rename-me', 'other'],
         interfaceContext: 'rename-me',
-        initialTabs: [
-          { id: 'tab-1', name: 'Tab 1', context: 'rename-me', tileIds: ['tile-1'] },
-        ],
+        initialTabs: [{ id: 'tab-1', name: 'Tab 1', context: 'rename-me', tileIds: ['tile-1'] }],
         initialTiles: [{ id: 'tile-1', name: 'Tile 1', context: 'rename-me' }],
       });
 
@@ -610,4 +588,3 @@ describe('P3-I: Context Management', () => {
     });
   });
 });
-

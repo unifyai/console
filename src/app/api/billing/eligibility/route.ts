@@ -1,19 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
-import { getUserBillingEligibility } from '@/lib/user/billing/billing';
+import { getAutoRechargeEligibility } from '@/lib/user/billing/billing';
+import { getWorkspaceBillingContext } from '../../_utils/auth';
 
+/**
+ * Returns auto-recharge eligibility for the active workspace's billing account.
+ *
+ * Resolves the current workspace (personal or organization) from the session
+ * cookie and checks spending eligibility accordingly.
+ */
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
+  const ctx = await getWorkspaceBillingContext();
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!ctx) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
-    const eligibility = await getUserBillingEligibility(user.id as string);
+    const eligibility =
+      ctx.type === 'organization'
+        ? await getAutoRechargeEligibility(undefined, ctx.organizationId)
+        : await getAutoRechargeEligibility(ctx.userId);
+
     return NextResponse.json(eligibility);
   } catch (error) {
-    console.error('Error fetching billing eligibility:', error);
-    return NextResponse.json({ error: 'Error fetching billing eligibility' }, { status: 500 });
+    console.error('Error fetching auto-recharge eligibility:', error);
+    return NextResponse.json(
+      { error: 'Error fetching auto-recharge eligibility' },
+      { status: 500 }
+    );
   }
-} 
+}

@@ -1,6 +1,6 @@
-import { getQueryTags } from "@/lib/unify-api/logging/query";
-import { getCurrentUser } from "@/lib/user/user";
-import { NextResponse } from "next/server";
+import { getQueryTags } from '@/lib/unify-api/logging/query';
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 
 /**
  * GET /api/logging/getQueryTags
@@ -9,13 +9,23 @@ import { NextResponse } from "next/server";
  *
  * @returns A list of query tags.
  */
-export async function GET() {
-    const user = await getCurrentUser();
+export async function GET(request: NextRequest) {
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-    if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const tags = await getQueryTags(user.apiKey);
+  try {
+    const tags = await getQueryTags(apiKey);
     return NextResponse.json(tags);
+  } catch (error) {
+    console.error('Error fetching query tags:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch query tags',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }

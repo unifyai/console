@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@/tests/interfaces/utils/render-with-providers';
-import { useTabDataOptimistic, type CompleteTabData } from '@/hooks/Interfaces/Query/useTabDataOptimistic';
+import {
+  useTabDataOptimistic,
+  type CompleteTabData,
+} from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 import type {
   GranularTabActions,
   GranularTileActions,
@@ -13,18 +16,9 @@ import type {
   TileData,
 } from '@/types/interfaces/grid';
 import type { IStoreState } from '@/contexts/store';
-import {
-  mockProjectId,
-  mockProject,
-} from '@/tests/interfaces/mocks/fixtures/projects';
-import {
-  mockInterfaceId,
-  mockInterface,
-} from '@/tests/interfaces/mocks/fixtures/interfaces';
-import {
-  mockTabId,
-  mockTab,
-} from '@/tests/interfaces/mocks/fixtures/tabs';
+import { mockProjectId, mockProject } from '@/tests/interfaces/mocks/fixtures/projects';
+import { mockInterfaceId, mockInterface } from '@/tests/interfaces/mocks/fixtures/interfaces';
+import { mockTabId, mockTab } from '@/tests/interfaces/mocks/fixtures/tabs';
 
 // Mock fetch - useTabDataOptimistic now uses direct fetch to /api/tile
 const mockFetch = vi.fn();
@@ -59,7 +53,7 @@ const makeInitialState = (): Partial<IStoreState> => ({
 const makeTiles = (): TileData[] => [
   {
     id: 'tile-table',
-    tab_id: mockTabId,
+    tabId: mockTabId,
     name: 'Logs Table',
     type: 'Table',
     position: { x: 0, y: 0, width: 8, height: 8 },
@@ -72,29 +66,27 @@ const makeTiles = (): TileData[] => [
     color: undefined,
     context: 'default',
     table: 'logs',
-    auto_update: 'true',
-    freeze: null,
-    filters: null,
-    common_filter: null,
-    metric: null,
-    column_context: null,
-    grouping: null,
-    table_tile: {
-      table_type: 'logs',
+    autoUpdate: 'true',
+    freeze: undefined,
+    filters: undefined,
+    commonFilter: undefined,
+    metric: undefined,
+    columnContext: undefined,
+    grouping: undefined,
+    tableTile: {
+      tableType: 'logs',
       limit: 20,
       offset: 0,
-      group_limit: 20,
-      group_offset: 0,
-      page_number: '0',
+      groupLimit: 20,
+      groupOffset: 0,
+      pageNumber: '0',
     },
-    plot_tile: undefined,
-    view_tile: undefined,
-    editor_tile: undefined,
-    terminal_tile: undefined,
+    plotTile: undefined,
+    viewTile: undefined,
   },
   {
     id: 'tile-plot',
-    tab_id: mockTabId,
+    tabId: mockTabId,
     name: 'Logs Plot',
     type: 'Plot',
     position: { x: 8, y: 0, width: 8, height: 8 },
@@ -107,20 +99,18 @@ const makeTiles = (): TileData[] => [
     color: undefined,
     context: 'default',
     table: 'logs',
-    auto_update: 'true',
-    freeze: null,
-    filters: null,
-    common_filter: null,
-    metric: null,
-    column_context: null,
-    grouping: null,
-    table_tile: undefined,
-    plot_tile: {
-      plot_type: 'histogram',
+    autoUpdate: 'true',
+    freeze: undefined,
+    filters: undefined,
+    commonFilter: undefined,
+    metric: undefined,
+    columnContext: undefined,
+    grouping: undefined,
+    tableTile: undefined,
+    plotTile: {
+      plotType: 'histogram',
     },
-    view_tile: undefined,
-    editor_tile: undefined,
-    terminal_tile: undefined,
+    viewTile: undefined,
   },
 ];
 
@@ -162,7 +152,7 @@ describe('useTabDataOptimistic (lightweight integration, skipTileData)', () => {
     tiles = makeTiles();
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
-    
+
     // Setup fetch mock to return tiles
     mockFetch.mockImplementation(async (url: string) => {
       if (url.includes('/api/tile')) {
@@ -197,12 +187,12 @@ describe('useTabDataOptimistic (lightweight integration, skipTileData)', () => {
       <TestComponent
         interfaceId={mockInterfaceId}
         tabId={mockTabId}
-        tabName={mockTab.name}
+        tabName={mockTab.name ?? 'Test Tab'}
         projectId={mockProjectId}
         actions={actions}
         onComplete={onComplete}
       />,
-      { initialState: makeInitialState() },
+      { initialState: makeInitialState() }
     );
 
     // Verify fetch was called for tiles (implementation uses direct fetch)

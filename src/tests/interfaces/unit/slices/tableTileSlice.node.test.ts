@@ -7,7 +7,11 @@ describe('tableTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'tile-1', { name: 'Logs', type: 'Table' });
 
@@ -25,7 +29,11 @@ describe('tableTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'tile-1', { name: 'Logs', type: 'Table', tabId: 'tab-1' });
     state.initTableTile('tile-1', { limit: 20, sorting: null });
@@ -48,11 +56,15 @@ describe('tableTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'tile-1', { name: 'Logs', type: 'Table', tabId: 'tab-1' });
     state.initTableTile('tile-1', { limit: 20 });
-    
+
     const next = store.getState();
     // offset is not in TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS, so it shouldn't trigger recompute
     expect(next.tilesById['tile-1'].tableTile?.offset).toBe(0); // Default
@@ -68,7 +80,11 @@ describe('tableTileSlice', () => {
     const state = store.getState();
 
     state.initProject('project-1', { name: 'Project 1' });
-    state.initInterface('project-1', 'interface-1', { name: 'Interface 1', tabIds: [], tabNames: [] });
+    state.initInterface('project-1', 'interface-1', {
+      name: 'Interface 1',
+      tabIds: [],
+      tabNames: [],
+    });
     state.initTab('interface-1', 'tab-1', { name: 'Tab 1' });
     state.initTile('tab-1', 'tile-1', { name: 'Logs', type: 'Table' });
     state.initTableTile('tile-1', {});
@@ -100,4 +116,3 @@ describe('tableTileSlice', () => {
     expect(next.tilesById['tile-1'].tableTile?.infiniteQueryKeys).toHaveLength(0);
   });
 });
-

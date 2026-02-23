@@ -26,7 +26,11 @@ import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { StoreState } from '@/contexts/slices/slice';
 import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Interfaces/Query/useRestoreLastSavedTabWithTilesQuery';
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from '@/types/interfaces/grid';
+import {
+  GranularInterfaceActions,
+  GranularTabActions,
+  GranularTileActions,
+} from '@/types/interfaces/grid';
 
 // ============================================================================
 // Types
@@ -93,53 +97,63 @@ function createMockActions(
   const tabId = options.initialTab?.id || 'tab-1';
 
   const interfaceActions: GranularInterfaceActions = {
-    list: async () => [{ id: interfaceId, name: 'Test Interface', project_id: projectId }] as any,
-    getById: async (id: string) => ({
-      id,
-      name: 'Test Interface',
-      project_id: projectId,
-      active_tab_id: tabId,
-    }) as any,
-    getByName: async (projId: string, name: string) => ({
-      id: interfaceId,
-      name,
-      project_id: projId,
-      active_tab_id: tabId,
-    }) as any,
-    get: async (params: any) => ({
-      id: params.interface_id || interfaceId,
-      name: 'Test Interface',
-      project_id: params.projectId || projectId,
-      active_tab_id: tabId,
-    }) as any,
+    list: async () => [{ id: interfaceId, name: 'Test Interface', projectId: projectId }] as any,
+    getById: async (id: string) =>
+      ({
+        id,
+        name: 'Test Interface',
+        projectId: projectId,
+        activeTabId: tabId,
+      }) as any,
+    getByName: async (projId: string, name: string) =>
+      ({
+        id: interfaceId,
+        name,
+        projectId: projId,
+        activeTabId: tabId,
+      }) as any,
+    get: async (params: any) =>
+      ({
+        id: params.interfaceId || interfaceId,
+        name: 'Test Interface',
+        projectId: params.projectId || projectId,
+        activeTabId: tabId,
+      }) as any,
     getCheckpointById: async (id: string) => {
       if (checkpointStore.current?.interface) {
         return checkpointStore.current.interface;
       }
-      return { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId } as any;
+      return { id, name: 'Test Interface', projectId: projectId, activeTabId: tabId } as any;
     },
     getCheckpointByName: async (projId: string, name: string) => {
       if (checkpointStore.current?.interface) {
         return checkpointStore.current.interface;
       }
-      return { id: interfaceId, name, project_id: projId, active_tab_id: tabId } as any;
+      return { id: interfaceId, name, projectId: projId, activeTabId: tabId } as any;
     },
     getCheckpoint: async (params: any) => {
       if (checkpointStore.current?.interface) {
         return checkpointStore.current.interface;
       }
-      return { id: params.interface_id || interfaceId, name: 'Test Interface', project_id: projectId, active_tab_id: tabId } as any;
+      return {
+        id: params.interfaceId || interfaceId,
+        name: 'Test Interface',
+        projectId: projectId,
+        activeTabId: tabId,
+      } as any;
     },
-    create: async () => ({ id: interfaceId, name: 'Test Interface', project_id: projectId }) as any,
+    create: async () => ({ id: interfaceId, name: 'Test Interface', projectId: projectId }) as any,
     updateById: async (id: string, data: any) => ({ id, ...data }) as any,
-    updateByName: async (projId: string, name: string, data: any) => ({ id: interfaceId, name, project_id: projId, ...data }) as any,
-    update: async (params: any) => ({ id: params.interface_id || interfaceId, ...params.data }) as any,
+    updateByName: async (projId: string, name: string, data: any) =>
+      ({ id: interfaceId, name, projectId: projId, ...data }) as any,
+    update: async (params: any) =>
+      ({ id: params.interfaceId || interfaceId, ...params.data }) as any,
     deleteById: async () => ({ success: true }) as any,
     deleteByName: async () => ({ success: true }) as any,
     delete: async () => ({ success: true }) as any,
     checkpointById: async (id: string, description?: string) => {
       checkpointStore.current = {
-        interface: { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId },
+        interface: { id, name: 'Test Interface', projectId: projectId, activeTabId: tabId },
         tab: checkpointStore.current?.tab || null,
         tiles: checkpointStore.current?.tiles || [],
       };
@@ -147,7 +161,7 @@ function createMockActions(
     },
     checkpointByName: async (projId: string, name: string, description?: string) => {
       checkpointStore.current = {
-        interface: { id: interfaceId, name, project_id: projId, active_tab_id: tabId },
+        interface: { id: interfaceId, name, projectId: projId, activeTabId: tabId },
         tab: checkpointStore.current?.tab || null,
         tiles: checkpointStore.current?.tiles || [],
       };
@@ -155,7 +169,12 @@ function createMockActions(
     },
     checkpoint: async (params: any) => {
       checkpointStore.current = {
-        interface: { id: params.interface_id || interfaceId, name: 'Test Interface', project_id: projectId, active_tab_id: tabId },
+        interface: {
+          id: params.interfaceId || interfaceId,
+          name: 'Test Interface',
+          projectId: projectId,
+          activeTabId: tabId,
+        },
         tab: checkpointStore.current?.tab || null,
         tiles: checkpointStore.current?.tiles || [],
       };
@@ -166,64 +185,78 @@ function createMockActions(
   };
 
   const tabActions: GranularTabActions = {
-    list: async () => [{ id: tabId, name: options.initialTab?.name || 'Main Tab', interface_id: interfaceId }] as any,
-    getById: async (id: string) => ({
-      id,
-      name: options.initialTab?.name || 'Main Tab',
-      interface_id: interfaceId,
-      context: options.initialTab?.context,
-    }) as any,
-    getByName: async (intId: string, name: string) => ({
-      id: tabId,
-      name,
-      interface_id: intId,
-      context: options.initialTab?.context,
-    }) as any,
-    get: async (params: any) => ({
-      id: params.id || tabId,
-      name: options.initialTab?.name || 'Main Tab',
-      interface_id: params.interface_id || interfaceId,
-      context: options.initialTab?.context,
-    }) as any,
-    getTabWithTilesById: async (id: string) => ({
-      id,
-      name: options.initialTab?.name || 'Main Tab',
-      interface_id: interfaceId,
-      tiles: getCurrentState().tiles,
-    }) as any,
-    getTabWithTilesByName: async (intId: string, name: string) => ({
-      id: tabId,
-      name,
-      interface_id: intId,
-      tiles: getCurrentState().tiles,
-    }) as any,
-    getTabWithTiles: async (params: any) => ({
-      id: params.id || tabId,
-      name: options.initialTab?.name || 'Main Tab',
-      interface_id: params.interface_id || interfaceId,
-      tiles: getCurrentState().tiles,
-    }) as any,
+    list: async () =>
+      [
+        { id: tabId, name: options.initialTab?.name || 'Main Tab', interfaceId: interfaceId },
+      ] as any,
+    getById: async (id: string) =>
+      ({
+        id,
+        name: options.initialTab?.name || 'Main Tab',
+        interfaceId: interfaceId,
+        context: options.initialTab?.context,
+      }) as any,
+    getByName: async (intId: string, name: string) =>
+      ({
+        id: tabId,
+        name,
+        interfaceId: intId,
+        context: options.initialTab?.context,
+      }) as any,
+    get: async (params: any) =>
+      ({
+        id: params.id || tabId,
+        name: options.initialTab?.name || 'Main Tab',
+        interfaceId: params.interfaceId || interfaceId,
+        context: options.initialTab?.context,
+      }) as any,
+    getTabWithTilesById: async (id: string) =>
+      ({
+        id,
+        name: options.initialTab?.name || 'Main Tab',
+        interfaceId: interfaceId,
+        tiles: getCurrentState().tiles,
+      }) as any,
+    getTabWithTilesByName: async (intId: string, name: string) =>
+      ({
+        id: tabId,
+        name,
+        interfaceId: intId,
+        tiles: getCurrentState().tiles,
+      }) as any,
+    getTabWithTiles: async (params: any) =>
+      ({
+        id: params.id || tabId,
+        name: options.initialTab?.name || 'Main Tab',
+        interfaceId: params.interfaceId || interfaceId,
+        tiles: getCurrentState().tiles,
+      }) as any,
     getCheckpointById: async (id: string) => {
       if (checkpointStore.current?.tab) {
         return checkpointStore.current.tab;
       }
-      return { id, name: options.initialTab?.name || 'Main Tab', interface_id: interfaceId } as any;
+      return { id, name: options.initialTab?.name || 'Main Tab', interfaceId: interfaceId } as any;
     },
     getCheckpointByName: async (intId: string, name: string) => {
       if (checkpointStore.current?.tab) {
         return checkpointStore.current.tab;
       }
-      return { id: tabId, name, interface_id: intId } as any;
+      return { id: tabId, name, interfaceId: intId } as any;
     },
     getCheckpoint: async (params: any) => {
       if (checkpointStore.current?.tab) {
         return checkpointStore.current.tab;
       }
-      return { id: params.id || tabId, name: options.initialTab?.name || 'Main Tab', interface_id: interfaceId } as any;
+      return {
+        id: params.id || tabId,
+        name: options.initialTab?.name || 'Main Tab',
+        interfaceId: interfaceId,
+      } as any;
     },
-    create: async () => ({ id: tabId, name: 'New Tab', interface_id: interfaceId }) as any,
+    create: async () => ({ id: tabId, name: 'New Tab', interfaceId: interfaceId }) as any,
     updateById: async (id: string, data: any) => ({ id, ...data }) as any,
-    updateByName: async (intId: string, name: string, data: any) => ({ id: tabId, name, interface_id: intId, ...data }) as any,
+    updateByName: async (intId: string, name: string, data: any) =>
+      ({ id: tabId, name, interfaceId: intId, ...data }) as any,
     update: async (params: any) => ({ id: params.id || tabId, ...params.data }) as any,
     deleteById: async () => ({ success: true }) as any,
     deleteByName: async () => ({ success: true }) as any,
@@ -232,7 +265,7 @@ function createMockActions(
       const state = getCurrentState();
       checkpointStore.current = {
         interface: checkpointStore.current?.interface || null,
-        tab: { id, name: state.tab.name, interface_id: interfaceId, context: state.tab.context },
+        tab: { id, name: state.tab.name, interfaceId: interfaceId, context: state.tab.context },
         tiles: checkpointStore.current?.tiles || [],
       };
       return { info: 'Checkpoint created', detail: description } as any;
@@ -241,7 +274,7 @@ function createMockActions(
       const state = getCurrentState();
       checkpointStore.current = {
         interface: checkpointStore.current?.interface || null,
-        tab: { id: tabId, name, interface_id: intId, context: state.tab.context },
+        tab: { id: tabId, name, interfaceId: intId, context: state.tab.context },
         tiles: checkpointStore.current?.tiles || [],
       };
       return { info: 'Checkpoint created', detail: description } as any;
@@ -250,7 +283,12 @@ function createMockActions(
       const state = getCurrentState();
       checkpointStore.current = {
         interface: checkpointStore.current?.interface || null,
-        tab: { id: params.id || tabId, name: state.tab.name, interface_id: interfaceId, context: state.tab.context },
+        tab: {
+          id: params.id || tabId,
+          name: state.tab.name,
+          interfaceId: interfaceId,
+          context: state.tab.context,
+        },
         tiles: checkpointStore.current?.tiles || [],
       };
       return { info: 'Checkpoint created', detail: params.description } as any;
@@ -262,20 +300,20 @@ function createMockActions(
   const tileActions: GranularTileActions = {
     list: async (tId: string, type?: string, checkpoint?: boolean) => {
       if (checkpoint && checkpointStore.current?.tiles) {
-        return checkpointStore.current.tiles.map(tile => ({
+        return checkpointStore.current.tiles.map((tile) => ({
           id: tile.id,
           name: tile.name,
-          tab_id: tabId,
+          tabId: tabId,
           position: tile.position,
           type: tile.type,
           visible: true,
         })) as any;
       }
       const state = getCurrentState();
-      return state.tiles.map(tile => ({
+      return state.tiles.map((tile) => ({
         id: tile.id,
         name: tile.name,
-        tab_id: tabId,
+        tabId: tabId,
         position: tile.position,
         type: tile.type,
         visible: true,
@@ -283,68 +321,81 @@ function createMockActions(
     },
     getById: async (id: string) => {
       const state = getCurrentState();
-      const tile = state.tiles.find(t => t.id === id);
-      return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+      const tile = state.tiles.find((t) => t.id === id);
+      return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
     },
     getByName: async (tId: string, name: string) => {
       const state = getCurrentState();
-      const tile = state.tiles.find(t => t.name === name);
-      return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+      const tile = state.tiles.find((t) => t.name === name);
+      return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
     },
     get: async (params: any) => {
       const state = getCurrentState();
-      const tile = params.id 
-        ? state.tiles.find(t => t.id === params.id)
-        : state.tiles.find(t => t.name === params.name);
-      return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+      const tile = params.id
+        ? state.tiles.find((t) => t.id === params.id)
+        : state.tiles.find((t) => t.name === params.name);
+      return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
     },
     getCheckpointById: async (id: string) => {
       if (checkpointStore.current?.tiles) {
         const tile = checkpointStore.current.tiles.find((t: any) => t.id === id);
-        return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+        return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
       }
       return null;
     },
     getCheckpointByName: async (tId: string, name: string) => {
       if (checkpointStore.current?.tiles) {
         const tile = checkpointStore.current.tiles.find((t: any) => t.name === name);
-        return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+        return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
       }
       return null;
     },
     getCheckpoint: async (params: any) => {
       if (checkpointStore.current?.tiles) {
-        const tile = params.id 
+        const tile = params.id
           ? checkpointStore.current.tiles.find((t: any) => t.id === params.id)
           : checkpointStore.current.tiles.find((t: any) => t.name === params.name);
-        return tile ? { ...tile, tab_id: tabId, visible: true } as any : null;
+        return tile ? ({ ...tile, tabId: tabId, visible: true } as any) : null;
       }
       return null;
     },
-    create: async (tId: string, name: string, position: any, extra?: any, tile_id?: string, type?: string) => ({
-      id: tile_id || `tile-${Date.now()}`,
-      name,
-      tab_id: tId,
-      position,
-      type: type || 'Table',
-      visible: true,
-      ...extra,
-    }) as any,
+    create: async (
+      tId: string,
+      name: string,
+      position: any,
+      extra?: any,
+      tileId?: string,
+      type?: string
+    ) =>
+      ({
+        id: tileId || `tile-${Date.now()}`,
+        name,
+        tabId: tId,
+        position,
+        type: type || 'Table',
+        visible: true,
+        ...extra,
+      }) as any,
     updateById: async (id: string, data: any) => ({ id, ...data }) as any,
-    updateByName: async (tId: string, name: string, data: any) => ({ id: `tile-${name}`, name, ...data }) as any,
+    updateByName: async (tId: string, name: string, data: any) =>
+      ({ id: `tile-${name}`, name, ...data }) as any,
     update: async (params: any) => ({ id: params.id, ...params.data }) as any,
     patchById: async (id: string, data: any) => ({ id, ...data }) as any,
-    patchByName: async (tId: string, name: string, data: any) => ({ id: `tile-${name}`, name, ...data }) as any,
+    patchByName: async (tId: string, name: string, data: any) =>
+      ({ id: `tile-${name}`, name, ...data }) as any,
     patch: async (params: any) => ({ id: params.id, ...params.updateData }) as any,
-    patchSpecializedById: async (id: string, tileType: any, data: any) => ({ id, type: tileType, ...data }) as any,
-    patchSpecializedByName: async (tId: string, name: string, tileType: any, data: any) => ({ id: `tile-${name}`, name, type: tileType, ...data }) as any,
-    patchSpecialized: async (params: any) => ({ id: params.id, type: params.tileType, ...params.updateData }) as any,
+    patchSpecializedById: async (id: string, tileType: any, data: any) =>
+      ({ id, type: tileType, ...data }) as any,
+    patchSpecializedByName: async (tId: string, name: string, tileType: any, data: any) =>
+      ({ id: `tile-${name}`, name, type: tileType, ...data }) as any,
+    patchSpecialized: async (params: any) =>
+      ({ id: params.id, type: params.tileType, ...params.updateData }) as any,
     deleteById: async () => ({ success: true }) as any,
     deleteByName: async () => ({ success: true }) as any,
     delete: async () => ({ success: true }) as any,
     checkpointById: async (id: string, description?: string) => {
       const state = getCurrentState();
-      const tile = state.tiles.find(t => t.id === id);
+      const tile = state.tiles.find((t) => t.id === id);
       if (tile) {
         const existingTiles = checkpointStore.current?.tiles || [];
         const tileIndex = existingTiles.findIndex((t: any) => t.id === id);
@@ -363,7 +414,7 @@ function createMockActions(
     },
     checkpointByName: async (tId: string, name: string, description?: string) => {
       const state = getCurrentState();
-      const tile = state.tiles.find(t => t.name === name);
+      const tile = state.tiles.find((t) => t.name === name);
       if (tile) {
         const existingTiles = checkpointStore.current?.tiles || [];
         const tileIndex = existingTiles.findIndex((t: any) => t.name === name);
@@ -382,9 +433,9 @@ function createMockActions(
     },
     checkpoint: async (params: any) => {
       const state = getCurrentState();
-      const tile = params.id 
-        ? state.tiles.find(t => t.id === params.id)
-        : state.tiles.find(t => t.name === params.name);
+      const tile = params.id
+        ? state.tiles.find((t) => t.id === params.id)
+        : state.tiles.find((t) => t.name === params.name);
       if (tile) {
         const existingTiles = checkpointStore.current?.tiles || [];
         const tileIndex = existingTiles.findIndex((t: any) => t.id === tile.id);
@@ -449,14 +500,19 @@ function createInitialStoreState(options: CheckpointTestOptions): Partial<StoreS
     id: 'tab-1',
     name: 'Main Tab',
     tiles: [
-      { id: 'tile-1', name: 'Tile 1', position: { x: 0, y: 0, width: 4, height: 4 }, type: 'table' },
+      {
+        id: 'tile-1',
+        name: 'Tile 1',
+        position: { x: 0, y: 0, width: 4, height: 4 },
+        type: 'table',
+      },
       { id: 'tile-2', name: 'Tile 2', position: { x: 4, y: 0, width: 4, height: 4 }, type: 'plot' },
     ],
   };
 
   // Build tilesById
   const tilesById: Record<string, any> = {};
-  initialTab.tiles.forEach(tile => {
+  initialTab.tiles.forEach((tile) => {
     tilesById[tile.id] = {
       id: tile.id,
       name: tile.name,
@@ -503,8 +559,8 @@ function createInitialStoreState(options: CheckpointTestOptions): Partial<StoreS
         order: 0,
         // Data
         globalContext: initialTab.context,
-        tileIds: initialTab.tiles.map(t => t.id),
-        tileNames: initialTab.tiles.map(t => t.name),
+        tileIds: initialTab.tiles.map((t) => t.id),
+        tileNames: initialTab.tiles.map((t) => t.name),
         itemsNeedRecompute: false,
         // UI
         interfaceId,
@@ -563,10 +619,10 @@ interface CheckpointInnerProps {
   checkpointStore: React.MutableRefObject<{ interface: any; tab: any; tiles: any[] } | null>;
 }
 
-function CheckpointInner({ 
-  stateContainerRef, 
-  initialCheckpoint, 
-  tabId, 
+function CheckpointInner({
+  stateContainerRef,
+  initialCheckpoint,
+  tabId,
   interfaceId,
   projectId,
   interfaceActions,
@@ -576,24 +632,28 @@ function CheckpointInner({
 }: CheckpointInnerProps) {
   const storeApi = useStoreApiContext();
   const store = useStore(storeApi);
-  
+
   // Checkpoint state (local tracking for UI display)
   const [checkpoint, setCheckpoint] = useState<CheckpointData | null>(initialCheckpoint);
-  
+
   // Track last saved state - initialize from checkpoint if available
+  // Intentionally only compute on mount - initialCheckpoint is stable
   const initialSavedState = useMemo(() => {
     if (initialCheckpoint) {
       return JSON.stringify(initialCheckpoint.tabState);
     }
     return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [lastSavedState, setLastSavedState] = useState<string | null>(initialSavedState);
-  
+
   // Operation states
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [resetStatus, setResetStatus] = useState<'idle' | 'restoring' | 'success' | 'error'>('idle');
+  const [resetStatus, setResetStatus] = useState<'idle' | 'restoring' | 'success' | 'error'>(
+    'idle'
+  );
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  
+
   // Auto-save tracking
   const [autoSaveQueue, setAutoSaveQueue] = useState<string[]>([]);
 
@@ -608,19 +668,19 @@ function CheckpointInner({
 
   // Get current state from store
   const tabState = store.tabsById?.[tabId];
-  const tileIds = tabState?.tileIds || [];
-  const tilesById = store.tilesById || {};
+  const tileIds = useMemo(() => tabState?.tileIds || [], [tabState?.tileIds]);
+  const tilesById = useMemo(() => store.tilesById || {}, [store.tilesById]);
 
   // Initialize the REAL mutation hooks with our mock actions
-  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, "Manual save");
+  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, 'Manual save');
   const restoreTabWithTilesMutation = useRestoreLastSavedTabWithTilesQuery();
 
   // Build current tab state - memoized to avoid recreating on every render
   const getCurrentTabState = useCallback((): TabState => {
     const tiles: TileState[] = tileIds
-      .map(id => tilesById[id])
+      .map((id) => tilesById[id])
       .filter(Boolean)
-      .map(tile => ({
+      .map((tile) => ({
         id: tile.id,
         name: tile.name,
         position: tile.position,
@@ -646,13 +706,13 @@ function CheckpointInner({
   // Simulate auto-save (optimistic update) - memoized
   const simulateAutoSave = useCallback((operation: string) => {
     act(() => {
-      setAutoSaveQueue(prev => [...prev, operation]);
+      setAutoSaveQueue((prev) => [...prev, operation]);
     });
     // Simulate async save completing
     setTimeout(() => {
       if (isMountedRef.current) {
         act(() => {
-          setAutoSaveQueue(prev => prev.slice(1));
+          setAutoSaveQueue((prev) => prev.slice(1));
         });
       }
     }, 100);
@@ -666,7 +726,7 @@ function CheckpointInner({
       hasUnsavedChanges,
       isSaving: () => saveStatus === 'saving',
       isRestoring: () => resetStatus === 'restoring',
-      
+
       moveTile: (tileId, newPosition) => {
         const tile = tilesById[tileId];
         if (tile) {
@@ -678,7 +738,7 @@ function CheckpointInner({
           simulateAutoSave(`move:${tileId}`);
         }
       },
-      
+
       resizeTile: (tileId, newSize) => {
         const tile = tilesById[tileId];
         if (tile) {
@@ -690,7 +750,7 @@ function CheckpointInner({
           simulateAutoSave(`resize:${tileId}`);
         }
       },
-      
+
       addTile: (name, position) => {
         const newId = `tile-${Date.now()}`;
         act(() => {
@@ -698,21 +758,21 @@ function CheckpointInner({
         });
         simulateAutoSave(`add:${newId}`);
       },
-      
+
       removeTile: (tileId) => {
         act(() => {
           store.removeTile(tabId, tileId);
         });
         simulateAutoSave(`remove:${tileId}`);
       },
-      
+
       renameTile: (tileId, newName) => {
         act(() => {
           store.updateTile(tileId, { name: newName });
         });
         simulateAutoSave(`rename:${tileId}`);
       },
-      
+
       // Use the REAL saveTabWithTilesMutation hook
       saveCheckpoint: async (description = 'Manual save') => {
         act(() => {
@@ -724,29 +784,29 @@ function CheckpointInner({
           if (tileIds.length > 0) {
             // Call the real mutation with our mock actions
             await saveTabWithTilesMutation.mutateAsync({
-              tab_id: tabId,
-              interface_id: interfaceId,
-              tab_name: tabState?.name || 'Test Tab',
-              tile_ids: tileIds,
+              tabId: tabId,
+              interfaceId: interfaceId,
+              tabName: tabState?.name || 'Test Tab',
+              tileIds: tileIds,
             });
           } else {
             // For empty tabs, just checkpoint the tab itself via mock actions
             await tabActions.checkpointById(tabId, description);
           }
-          
+
           const currentState = getCurrentTabState();
           const newCheckpoint: CheckpointData = {
             timestamp: Date.now(),
             description,
             tabState: currentState,
           };
-          
+
           act(() => {
             setCheckpoint(newCheckpoint);
             setLastSavedState(JSON.stringify(currentState));
             setSaveStatus('success');
           });
-          
+
           // Reset status after delay
           setTimeout(() => {
             if (isMountedRef.current) {
@@ -768,38 +828,38 @@ function CheckpointInner({
           }, 2000);
         }
       },
-      
+
       // Use the REAL restoreTabWithTilesMutation hook
       restoreCheckpoint: async () => {
         if (!checkpoint) return;
-        
+
         act(() => {
           setResetStatus('restoring');
         });
         try {
           // Call the real mutation with our mock actions
           await restoreTabWithTilesMutation.mutateAsync({
-            interface_id: interfaceId,
-            project_id: projectId,
-            interface_actions: interfaceActions,
-            tab_actions: tabActions,
-            tile_actions: tileActions,
+            interfaceId: interfaceId,
+            projectId: projectId,
+            interfaceActions: interfaceActions,
+            tabActions: tabActions,
+            tileActions: tileActions,
           });
-          
+
           // After restore, update local Zustand state from checkpoint
           const checkpointTiles = checkpoint.tabState.tiles;
-          
+
           // Remove tiles not in checkpoint
           const currentTileIds = [...tileIds];
           act(() => {
-            currentTileIds.forEach(id => {
-              if (!checkpointTiles.find(t => t.id === id)) {
+            currentTileIds.forEach((id) => {
+              if (!checkpointTiles.find((t) => t.id === id)) {
                 store.removeTile(tabId, id);
               }
             });
-            
+
             // Update/add tiles from checkpoint
-            checkpointTiles.forEach(tile => {
+            checkpointTiles.forEach((tile) => {
               if (tilesById[tile.id]) {
                 store.updateTile(tile.id, {
                   name: tile.name,
@@ -817,10 +877,10 @@ function CheckpointInner({
                 });
               }
             });
-            
+
             setResetStatus('success');
           });
-          
+
           setTimeout(() => {
             if (isMountedRef.current) {
               act(() => {
@@ -841,11 +901,33 @@ function CheckpointInner({
           }, 2000);
         }
       },
-      
+
       getSaveStatus: () => saveStatus,
       getResetStatus: () => resetStatus,
     };
-  }, [store, tabId, interfaceId, projectId, checkpoint, lastSavedState, saveStatus, resetStatus, tileIds, tilesById, getCurrentTabState, hasUnsavedChanges, simulateAutoSave, saveTabWithTilesMutation, restoreTabWithTilesMutation, interfaceActions, tabActions, tileActions, tabState?.name]);
+    // stateContainerRef is stable and doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    store,
+    tabId,
+    interfaceId,
+    projectId,
+    checkpoint,
+    lastSavedState,
+    saveStatus,
+    resetStatus,
+    tileIds,
+    tilesById,
+    getCurrentTabState,
+    hasUnsavedChanges,
+    simulateAutoSave,
+    saveTabWithTilesMutation,
+    restoreTabWithTilesMutation,
+    interfaceActions,
+    tabActions,
+    tileActions,
+    tabState?.name,
+  ]);
 
   const handleSave = async () => {
     await stateContainerRef.current?.saveCheckpoint();
@@ -864,7 +946,7 @@ function CheckpointInner({
     setResetDialogOpen(false);
   };
 
-  const tiles = tileIds.map(id => tilesById[id]).filter(Boolean);
+  const tiles = tileIds.map((id) => tilesById[id]).filter(Boolean);
 
   return (
     <div data-testid="checkpoint-harness">
@@ -886,7 +968,9 @@ function CheckpointInner({
           <>
             <span data-testid="checkpoint-exists">Checkpoint exists</span>
             <span data-testid="checkpoint-description">{checkpoint.description}</span>
-            <span data-testid="checkpoint-time">{new Date(checkpoint.timestamp).toISOString()}</span>
+            <span data-testid="checkpoint-time">
+              {new Date(checkpoint.timestamp).toISOString()}
+            </span>
           </>
         ) : (
           <span data-testid="no-checkpoint">No checkpoint saved</span>
@@ -907,11 +991,7 @@ function CheckpointInner({
 
       {/* Action Buttons */}
       <div data-testid="action-buttons">
-        <button
-          data-testid="save-button"
-          onClick={handleSave}
-          disabled={saveStatus === 'saving'}
-        >
+        <button data-testid="save-button" onClick={handleSave} disabled={saveStatus === 'saving'}>
           {saveStatus === 'saving' ? 'Saving...' : 'Save Tab'}
         </button>
         <button
@@ -948,15 +1028,11 @@ function CheckpointInner({
       {saveStatus === 'success' && (
         <div data-testid="save-success-message">Tab saved successfully!</div>
       )}
-      {saveStatus === 'error' && (
-        <div data-testid="save-error-message">Failed to save tab</div>
-      )}
+      {saveStatus === 'error' && <div data-testid="save-error-message">Failed to save tab</div>}
       {resetStatus === 'success' && (
         <div data-testid="reset-success-message">Tab reset successfully!</div>
       )}
-      {resetStatus === 'error' && (
-        <div data-testid="reset-error-message">Failed to reset tab</div>
-      )}
+      {resetStatus === 'error' && <div data-testid="reset-error-message">Failed to reset tab</div>}
     </div>
   );
 }
@@ -965,25 +1041,29 @@ function CheckpointInner({
 // Render Function
 // ============================================================================
 
-export function renderCheckpoint(
-  options: CheckpointTestOptions = {}
-): CheckpointTestResult {
+export function renderCheckpoint(options: CheckpointTestOptions = {}): CheckpointTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
   const projectId = options.projectId || 'test-project';
   const interfaceId = options.interfaceId || 'test-interface';
   const tabId = options.initialTab?.id || 'tab-1';
 
   // Checkpoint store to simulate server-side checkpoint storage
-  const checkpointStore: React.MutableRefObject<{ interface: any; tab: any; tiles: any[] } | null> = { current: null };
+  const checkpointStore: React.MutableRefObject<{ interface: any; tab: any; tiles: any[] } | null> =
+    { current: null };
 
   // Initialize checkpoint store from initialCheckpoint if provided
   if (options.initialCheckpoint) {
     checkpointStore.current = {
-      interface: { id: interfaceId, name: 'Test Interface', project_id: projectId, active_tab_id: tabId },
-      tab: { id: tabId, name: options.initialCheckpoint.tabState.name, interface_id: interfaceId },
-      tiles: options.initialCheckpoint.tabState.tiles.map(tile => ({
+      interface: {
+        id: interfaceId,
+        name: 'Test Interface',
+        projectId: projectId,
+        activeTabId: tabId,
+      },
+      tab: { id: tabId, name: options.initialCheckpoint.tabState.name, interfaceId: interfaceId },
+      tiles: options.initialCheckpoint.tabState.tiles.map((tile) => ({
         ...tile,
-        tab_id: tabId,
+        tabId: tabId,
         visible: true,
       })),
     };
@@ -1009,7 +1089,11 @@ export function renderCheckpoint(
   function TestWrapper({ children }: { children: React.ReactNode }) {
     return (
       <TestProviders initialState={initialState}>
-        <StoreStateReader setGetCurrentState={(fn) => { getCurrentStateFromStore = fn; }}>
+        <StoreStateReader
+          setGetCurrentState={(fn) => {
+            getCurrentStateFromStore = fn;
+          }}
+        >
           {children}
         </StoreStateReader>
       </TestProviders>
@@ -1017,16 +1101,16 @@ export function renderCheckpoint(
   }
 
   // Helper component to read store state
-  function StoreStateReader({ 
-    children, 
-    setGetCurrentState 
-  }: { 
-    children: React.ReactNode; 
+  function StoreStateReader({
+    children,
+    setGetCurrentState,
+  }: {
+    children: React.ReactNode;
     setGetCurrentState: (fn: () => { tab: TabState; tiles: TileState[] }) => void;
   }) {
     const storeApi = useStoreApiContext();
     const store = useStore(storeApi);
-    
+
     useEffect(() => {
       setGetCurrentState(() => {
         const tabData = store.tabsById?.[tabId];
@@ -1041,7 +1125,7 @@ export function renderCheckpoint(
             type: tile.type || 'table',
             context: tile.context,
           }));
-        
+
         return {
           tab: {
             id: tabId,
@@ -1053,7 +1137,7 @@ export function renderCheckpoint(
         };
       });
     }, [store, setGetCurrentState]);
-    
+
     return <>{children}</>;
   }
 
@@ -1077,7 +1161,8 @@ export function renderCheckpoint(
     container,
 
     // State queries
-    getCurrentTabState: () => stateContainerRef.current?.getCurrentTabState() ?? { id: '', name: '', tiles: [] },
+    getCurrentTabState: () =>
+      stateContainerRef.current?.getCurrentTabState() ?? { id: '', name: '', tiles: [] },
     getCheckpoint: () => stateContainerRef.current?.getCheckpoint() ?? null,
     hasUnsavedChanges: () => stateContainerRef.current?.hasUnsavedChanges() ?? false,
     isSaving: () => stateContainerRef.current?.isSaving() ?? false,
@@ -1145,5 +1230,11 @@ export function renderCheckpoint(
 }
 
 // Export types
-export type { CheckpointTestOptions, CheckpointTestResult, CheckpointData, TabState, TileState, TilePosition };
-
+export type {
+  CheckpointTestOptions,
+  CheckpointTestResult,
+  CheckpointData,
+  TabState,
+  TileState,
+  TilePosition,
+};

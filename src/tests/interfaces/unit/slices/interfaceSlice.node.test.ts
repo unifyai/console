@@ -96,5 +96,3 @@ describe('interfaceSlice', () => {
     expect(next.interfacesById['interface-1'].name).toBe('New Name');
   });
 });
-
-

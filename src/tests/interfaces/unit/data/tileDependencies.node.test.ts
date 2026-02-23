@@ -48,7 +48,7 @@ describe('tileDependencies - buildTileDependencyGraph', () => {
     const { sortedTileIds, dependencyMap, circularDependencies } = buildTileDependencyGraph(
       [tileFoo, tileBar],
       // Keep defaults so circular detection and logging are enabled
-      {},
+      {}
     );
 
     // A single cycle Foo <-> Bar should be reported
@@ -73,14 +73,11 @@ describe('tileDependencies - buildTileDependencyGraph', () => {
     const tileFoo = makeTile('tile-foo', 'Foo', 'View', { table: 'Bar' });
     const tileBar = makeTile('tile-bar', 'Bar', 'View', { table: 'Foo' });
 
-    const { circularDependencies } = buildTileDependencyGraph(
-      [tileFoo, tileBar],
-      { maxDependencyDepth: 0 },
-    );
+    const { circularDependencies } = buildTileDependencyGraph([tileFoo, tileBar], {
+      maxDependencyDepth: 0,
+    });
 
     // With maxDepth = 0, DFS bails out immediately and does not record cycles
     expect(circularDependencies).toHaveLength(0);
   });
 });
-
-

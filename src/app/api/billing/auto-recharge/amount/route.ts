@@ -1,12 +1,12 @@
 import { setAutoRechargeQty } from '@/lib/user/billing/billing';
-import { getCurrentUser } from '@/lib/user/user';
+import { getWorkspaceBillingContext } from '../../../_utils/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
+  const ctx = await getWorkspaceBillingContext();
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!ctx) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
   try {
@@ -19,7 +19,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid amount value' }, { status: 400 });
     }
 
-    await setAutoRechargeQty(user.id, amountValue);
+    const entityParams =
+      ctx.type === 'organization'
+        ? { organizationId: ctx.organizationId }
+        : { userId: ctx.userId };
+
+    await setAutoRechargeQty(amountValue, entityParams);
 
     return NextResponse.json({ message: 'Auto-recharge amount updated successfully' });
   } catch (error) {

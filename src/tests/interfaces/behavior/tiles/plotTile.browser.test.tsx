@@ -3,7 +3,7 @@
  *
  * Tests plot/chart visualization behaviors including axis selection,
  * plot type changes, tooltips, and focus mode.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - F1: Plot renders
  * - F2: Hover data point
@@ -24,7 +24,6 @@ import { renderPlotTile, createMockPlotData } from '../fixtures/plotTileTestHarn
 // =============================================================================
 
 describe('P2-F: Plot Tile', () => {
-  
   // =========================================================================
   // F1: Plot renders
   // =========================================================================
@@ -514,7 +513,7 @@ describe('P2-F: Plot Tile', () => {
       // Try to set an axis that doesn't exist in columns
       // The harness should handle this gracefully
       setXAxis('nonexistent');
-      
+
       // Should either keep old value or update (depending on implementation)
       // But shouldn't crash
       expect(screen.getByTestId('plot-tile-container')).toBeInTheDocument();
@@ -596,5 +595,3 @@ describe('P2-F: Plot Tile', () => {
     });
   });
 });
-
-

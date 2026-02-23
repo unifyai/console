@@ -1,43 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
 
 // This route handles deleting a specific contact method from an assistant.
+// Note: We use direct fetch instead of openapi-fetch client.DELETE() because
+// openapi-fetch doesn't reliably send bodies for DELETE requests.
 export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { assistantId: string } }
+  request: NextRequest,
+  { params }: { params: { assistantId: string } }
 ) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  let requestBody;
+  try {
+    requestBody = await request.json();
+  } catch {
+    return badRequest('Invalid JSON body for contact deletion');
+  }
+
+  const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+  const assistantId = parseInt(params.assistantId, 10);
+
+  try {
+    // Use direct fetch for DELETE because openapi-fetch doesn't properly send body for DELETE requests
+    const response = await fetch(`${orchestraUrl}/v0/assistant/${assistantId}/contact`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
     }
 
-    let requestBody;
-    try {
-        requestBody = await request.json();
-    } catch (error) {
-        return NextResponse.json({ detail: "Invalid JSON body for contact deletion" }, { status: 400 });
-    }
-
-    // Proxying to the backend. The backend endpoint is assumed to be DELETE /assistant/{id}/contact
-    // This is a DELETE request with a body, which is supported by fetch and HTTP/1.1+.
-    const orchestraResponse = await fetch(
-        `${baseUrl}/assistant/${params.assistantId}/contact`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody)
-        }
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      {
+        detail: 'Failed to connect to backend',
+        error: e instanceof Error ? e.message : 'Unknown error',
+      },
+      { status: 500 }
     );
-
-    const responseData = await orchestraResponse.json().catch(() => ({ detail: "Invalid JSON response from backend" }));
-
-    return NextResponse.json(responseData, { status: orchestraResponse.status });
+  }
 }

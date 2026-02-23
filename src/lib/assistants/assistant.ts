@@ -1,281 +1,316 @@
-import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
-import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
+import { ResponseProps } from '@/types/common';
+import {
+  Assistant,
+  AssistantUpdatePayload,
+  AssistantStatus,
+  PreHireChatMessage,
+  DesktopMode,
+  VoiceProvider,
+  VoiceMode,
+  AssistantHiringSufficientFunds,
+} from '@/types/assistants/assistant';
+import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
+import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 
-export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
-    return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
-        "use server";
+export const listAssistants = async (
+  apiKey: string,
+  listAllOrg: boolean = false,
+  includeDemo: boolean = false
+) => {
+  return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
+    'use server';
 
-        try {
-            const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
-            if (listAllOrg) {
-                url.searchParams.set('list_all_org', 'true');
-            }
-            
-            const response = await fetch(
-                url.toString(),
-                {
-                    method: "GET",
-                    headers: { apiKey: apiKey },
-                }
-            );
+    try {
+      const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
+      if (listAllOrg) {
+        url.searchParams.set('list_all_org', 'true');
+      }
+      if (includeDemo) {
+        url.searchParams.set('demo', 'true');
+      }
 
-            let data;
-            try {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                data = await response.json();
-                } else {
-                    console.error(`[actions.ts listAssistants] Received non-JSON response with status ${response.status}`);
-                    return { detail: "Received an invalid response from the server." };
-                }
-            } catch (parseError) {
-                console.error(`[actions.ts listAssistants] Failed to parse JSON response ${parseError}`);
-                return { detail: "Received an invalid response from the server." };
-            }
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { apiKey: apiKey },
+      });
 
-            if (!response.ok) {
-                const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`
-                return { detail: errorMessage, status: response.status };
-            }
-
-            if ("info" in data) {   // In case data is nested inside an info property
-                return data.info as Assistant[]
-            }
-            return data as Assistant[]
-
-        } catch (error) {
-            console.error(`[actions.ts listAssistants] Error fetching assistants:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
-            return { detail: errorMessage };
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.error(
+            `[actions.ts listAssistants] Received non-JSON response with status ${response.status}`
+          );
+          return { detail: 'Received an invalid response from the server.' };
         }
+      } catch (parseError) {
+        console.error(`[actions.ts listAssistants] Failed to parse JSON response ${parseError}`);
+        return { detail: 'Received an invalid response from the server.' };
+      }
 
-    };
+      if (!response.ok) {
+        const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`;
+        return { detail: errorMessage, status: response.status };
+      }
+
+      if ('info' in data) {
+        // In case data is nested inside an info property
+        return snakeToCamelObject<Assistant[]>(data.info);
+      }
+      return snakeToCamelObject<Assistant[]>(data);
+    } catch (error) {
+      console.error(`[actions.ts listAssistants] Error fetching assistants:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
 };
 
 export const getAssistantStatus = async (apiKey: string) => {
-    return async (assistantId: string): Promise<(AssistantStatus & ResponseProps) | ResponseProps> => {
-        "use server";
+  return async (
+    assistantId: string
+  ): Promise<(AssistantStatus & ResponseProps) | ResponseProps> => {
+    'use server';
 
-        try {
-            const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/status`,
-                { method: "GET", headers: { apiKey: apiKey } }
-            );
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/status`,
+        { method: 'GET', headers: { apiKey: apiKey } }
+      );
 
-            const data = await response.json();
+      const data = await response.json();
 
-            if (!response.ok) {
-                return { detail: data.detail || `Failed to get status for assistant ${assistantId}: ${response.statusText}` };
-            }
+      if (!response.ok) {
+        return {
+          detail:
+            data.detail ||
+            `Failed to get status for assistant ${assistantId}: ${response.statusText}`,
+        };
+      }
 
-            if (data.info) {
-                return data.info as AssistantStatus;
-            }
+      if (data.info) {
+        return snakeToCamelObject<AssistantStatus>(data.info);
+      }
 
-            if ('running' in data) {
-                return data as AssistantStatus;
-            }
+      if ('running' in data) {
+        return snakeToCamelObject<AssistantStatus>(data);
+      }
 
-            return { detail: "Unexpected response format from status endpoint." };
-
-        } catch (error) {
-            console.error(`[assistant.ts getAssistantStatus] Error fetching status for assistant ${assistantId}:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
-            return { detail: errorMessage };
-        }
-    };
+      return { detail: 'Unexpected response format from status endpoint.' };
+    } catch (error) {
+      console.error(
+        `[assistant.ts getAssistantStatus] Error fetching status for assistant ${assistantId}:`,
+        error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
 };
 
 export const deleteAssistant = async (apiKey: string) => {
-    return async (assistantId: string): Promise<ResponseProps> => {
-        "use server";
+  return async (assistantId: string): Promise<ResponseProps> => {
+    'use server';
 
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`, {
+        method: 'DELETE',
+        headers: { apiKey: apiKey },
+      });
+
+      if (!response.ok) {
+        let errorData;
+        let errorMessage = `Failed to delete assistant: ${response.statusText} (Status: ${response.status})`;
         try {
-            const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
-                { method: "DELETE", headers: { apiKey: apiKey } }
-            );
-
-            if (!response.ok) {
-                let errorData;
-                let errorMessage = `Failed to delete assistant: ${response.statusText} (Status: ${response.status})`;
-                try {
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
-                        errorData = await response.json();
-                        errorMessage = errorData?.detail || errorMessage;
-                    }
-                } catch (parseError) {
-                    console.error(`[actions.ts deleteAssistant] Failed to parse error JSON response: ${parseError}`);
-                }
-                return { detail: errorMessage };
-            }
-            const data = await response.json();
-            return { info: data.info || `Assistant ${assistantId} deleted successfully.` };
-
-        } catch (error) {
-            console.error(`[actions.ts deleteAssistant] Error deleting assistant ${assistantId}:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
-            return { detail: errorMessage };
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+            errorMessage = errorData?.detail || errorMessage;
+          }
+        } catch (parseError) {
+          console.error(
+            `[actions.ts deleteAssistant] Failed to parse error JSON response: ${parseError}`
+          );
         }
-    };
+        return { detail: errorMessage };
+      }
+      const data = await response.json();
+      return { info: data.info || `Assistant ${assistantId} deleted successfully.` };
+    } catch (error) {
+      console.error(`[actions.ts deleteAssistant] Error deleting assistant ${assistantId}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
 };
 
 export const updateAssistant = async (apiKey: string) => {
-    return async (assistantId: string, payload: AssistantUpdatePayload): Promise<ResponseProps> => {
-        "use server";
+  return async (assistantId: string, payload: AssistantUpdatePayload): Promise<ResponseProps> => {
+    'use server';
 
-        try {
-            const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
-                {
-                    method: "PATCH",
-                    headers: {
-                         apiKey: apiKey,
-                         "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        ...payload,
-                        create_infra: true
-                    })
-                }
-            );
+    try {
+      // Convert camelCase payload to snake_case for API
+      const snakeCasePayload = camelToSnakeObject<Record<string, unknown>>(payload);
 
-            let data;
-            try {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                    data = await response.json();
-                } else {
-                    console.error(`[actions.ts updateAssistant] Received non-JSON response with status ${response.status}`);
-                    return { detail: "Received an invalid response from the server." };
-                }
-            } catch (parseError) {
-                console.error(`[actions.ts updateAssistant] Failed to parse JSON response ${parseError}`);
-                return { detail: "Received an invalid response from the server." };
-            }
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`, {
+        method: 'PATCH',
+        headers: {
+          apiKey: apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...snakeCasePayload,
+          createInfra: true,
+        }),
+      });
 
-            if (!response.ok) {
-                const errorMessage = data.detail || `Failed to update assistant: ${response.statusText}`;
-                return { detail: errorMessage };
-            }
-
-            const successMessage = data.info || `Assistant ${assistantId} updated successfully.`;
-            return { info: successMessage }
-
-        } catch (error) {
-            console.error(`[actions.ts updateAssistant] Error updating assistant ${assistantId}:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
-            return { detail: errorMessage };
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.error(
+            `[actions.ts updateAssistant] Received non-JSON response with status ${response.status}`
+          );
+          return { detail: 'Received an invalid response from the server.' };
         }
-    };
+      } catch (parseError) {
+        console.error(`[actions.ts updateAssistant] Failed to parse JSON response ${parseError}`);
+        return { detail: 'Received an invalid response from the server.' };
+      }
+
+      if (!response.ok) {
+        const errorMessage = data.detail || `Failed to update assistant: ${response.statusText}`;
+        return { detail: errorMessage };
+      }
+
+      const successMessage = data.info || `Assistant ${assistantId} updated successfully.`;
+      return { info: successMessage };
+    } catch (error) {
+      console.error(`[actions.ts updateAssistant] Error updating assistant ${assistantId}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
 };
 
 export const createAssistant = async (apiKey: string) => {
-    return async (
-        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, 
-        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
-        email: string | null, user_phone: string | null, phone_country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
-        pre_hire_chat?: PreHireChatMessage[]
-    ): Promise<ResponseProps & { assistant?: Assistant }> => {
-        "use server";
+  return async (
+    firstName: string,
+    surname: string,
+    age: number | null,
+    nationality: string | null,
+    timezone: string | null,
+    profilePhoto: string | null,
+    profileVideo: string | null,
+    about: string | null,
+    voiceId: string | null,
+    voiceProvider: VoiceProvider | null,
+    voiceMode: VoiceMode | null,
+    isUserDesktop: boolean,
+    desktopMode: DesktopMode | null,
+    preHireChat?: PreHireChatMessage[]
+  ): Promise<ResponseProps & { assistant?: Assistant }> => {
+    'use server';
 
-        try {
-            const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant`,
-                {
-                    method: "POST",
-                    headers: {
-                        apiKey: apiKey,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        first_name,
-                        surname,
-                        age,
-                        nationality,
-                        profile_photo,
-                        profile_video,
-                        about,
-                        voice_id,
-                        voice_provider,
-                        voice_mode,
-                        email,
-                        user_phone,
-                        phone_country,
-                        timezone,
-                        user_whatsapp_number,
-                        user_local_desktop,
-                        max_parallel: 10,
-                        weekly_limit: 40,
-                        create_infra: true,
-                        pre_hire_chat
-                    })
-                }
-            );
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant`, {
+        method: 'POST',
+        headers: {
+          apiKey: apiKey,
+          'Content-Type': 'application/json',
+        },
+        // API expects snake_case
+        body: JSON.stringify({
+          firstName: firstName,
+          surname,
+          age,
+          nationality,
+          profilePhoto: profilePhoto,
+          profileVideo: profileVideo,
+          about,
+          voiceId: voiceId,
+          voiceProvider: voiceProvider,
+          voiceMode: voiceMode,
+          timezone,
+          isUserDesktop: isUserDesktop,
+          desktopMode: desktopMode,
+          maxParallel: 10,
+          weeklyLimit: 40,
+          createInfra: true,
+          preHireChat: preHireChat,
+        }),
+      });
 
-            let data;
-            try {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                    data = await response.json();
-                } else {
-                    console.error(`[actions.ts createAssistant] Received non-JSON response with status ${response.status}`);
-                    return { detail: "Received an invalid response from the server." };
-                }
-            } catch (parseError) {
-                console.error(`[actions.ts createAssistant] Failed to parse JSON response ${parseError}`);
-                return { detail: "Received an invalid response from the server." };
-            }
-
-            if (!response.ok) {
-                const errorMessage = data.detail || `Failed to create assistant: ${response.statusText}`;
-                return { detail: errorMessage };
-            }
-
-            const successMessage = `Assistant created successfully.`;
-            const createdAssistant = data.info as Assistant;
-            return { info: successMessage, assistant: createdAssistant }
-
-        } catch (error) {
-            console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
-            return { detail: errorMessage };
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.error(
+            `[actions.ts createAssistant] Received non-JSON response with status ${response.status}`
+          );
+          return { detail: 'Received an invalid response from the server.' };
         }
-    };
+      } catch (parseError) {
+        console.error(`[actions.ts createAssistant] Failed to parse JSON response ${parseError}`);
+        return { detail: 'Received an invalid response from the server.' };
+      }
+
+      if (!response.ok) {
+        const errorMessage = data.detail || `Failed to create assistant: ${response.statusText}`;
+        return { detail: errorMessage };
+      }
+
+      const successMessage = `Assistant created successfully.`;
+      const createdAssistant = snakeToCamelObject<Assistant>(data.info);
+      return { info: successMessage, assistant: createdAssistant };
+    } catch (error) {
+      console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
 };
 
 export const checkHiringFunds = async (apiKey: string) => {
-    return async (hiringFee: number): Promise<AssistantHiringSufficientFunds | ResponseProps> => {
-        "use server";
-        try {
-            const orchestraUrl = process.env.ORCHESTRA_URL || "";
-            if (orchestraUrl.includes("staging")) return {sufficient: true};
+  return async (hiringFee: number): Promise<AssistantHiringSufficientFunds | ResponseProps> => {
+    'use server';
+    try {
+      const orchestraUrl = process.env.ORCHESTRA_URL || '';
+      if (orchestraUrl.includes('staging')) return { sufficient: true };
 
-            const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/billing/balance`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                cache: "no-store",
-            });
+      const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/billing/balance`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
 
-            if (!response.ok) return { detail: `Failed to fetch balance: ${response.statusText}` };
+      if (!response.ok) return { detail: `Failed to fetch balance: ${response.statusText}` };
 
-            const balanceData = await response.json() as { balance: string; fullBalance: number };
-            const currentBalance = typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
-            const fee = hiringFee ?? ASSISTANT_ONBOARDING_FEE;
-            if (currentBalance < fee) return {sufficient: false}
+      const balanceData = (await response.json()) as { balance: string; fullBalance: number };
+      const currentBalance =
+        typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
+      const fee = hiringFee ?? ASSISTANT_ONBOARDING_FEE;
+      if (currentBalance < fee) return { sufficient: false };
 
-            return {sufficient: true};
-        } catch (error) {
-            console.error("[Server Action checkHiringFunds] Error:", error);
-            const message = error instanceof Error ? error.message : "Unknown error checking balance.";
-            return { detail: message };
-        }
-    };
+      return { sufficient: true };
+    } catch (error) {
+      console.error('[Server Action checkHiringFunds] Error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error checking balance.';
+      return { detail: message };
+    }
+  };
 };

@@ -1,10 +1,15 @@
-"use client";
-import { useEffect, useState } from "react";
-import { Sigma, LoaderCircle, Workflow } from "lucide-react";
-import { LogProps } from "@/types/interfaces/logs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
-import { Button } from "@/components/UI/button";
-import Tooltip from "@/components/Common/Misc/Tooltip";
+'use client';
+import { useEffect, useState } from 'react';
+import { Sigma, LoaderCircle, Workflow } from 'lucide-react';
+import { LogProps } from '@/types/interfaces/logs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/UI/accordion';
+import { Button } from '@/components/UI/button';
+import Tooltip from '@/components/Common/Misc/Tooltip';
 
 const PlotAggregate = ({
   interactive = true,
@@ -21,13 +26,12 @@ const PlotAggregate = ({
   setAggregateProperty: ((x: string | undefined) => void) | undefined;
   logs: LogProps[] | undefined;
 }) => {
-
   /* Display loader when data updates */
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setLoading(false);
   }, [logs]);
-  
+
   // Only render aggregation selector if at least one table has group by applied
   if (!Object.values(groupings).length) {
     return null;
@@ -45,70 +49,73 @@ const PlotAggregate = ({
 
   const hasChoices = Object.keys(choices).length > 0;
 
-  
   return (
     <AccordionItem value="plot-aggregate" disabled={loading || !interactive}>
       <AccordionTrigger disabled={loading || !interactive}>
         <Tooltip content="Use aggregate metrics as data points." side="left">
           <div className="flex items-center gap-2">
             {loading ? <LoaderCircle className="animate-spin" size={20} /> : <Sigma size={20} />}
-            {`Aggregate: ${aggregateProperty ?? ""}`}
+            {`Aggregate: ${aggregateProperty ?? ''}`}
           </div>
         </Tooltip>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="max-h-60 overflow-y-auto command-scrollbar pr-2 space-y-1">
-           {/* Button for "None" option */}
-           <Button
-             key="none-aggregate"
-             variant={!aggregateProperty ? "primary" : "list_item"}
-             size="lg"
-             className="w-full justify-start h-auto py-1 text-md"
-             onClick={() => onSelect(undefined)}
-             disabled={loading || !interactive}
-           >
-             None
-           </Button>
+        <div className="command-scrollbar max-h-60 space-y-1 overflow-y-auto pr-2">
+          {/* Button for "None" option */}
+          <Button
+            key="none-aggregate"
+            variant={!aggregateProperty ? 'primary' : 'listItem'}
+            size="lg"
+            className="text-md h-auto w-full justify-start py-1"
+            onClick={() => onSelect(undefined)}
+            disabled={loading || !interactive}
+          >
+            None
+          </Button>
 
           {/* Accordion for Tables */}
           {hasChoices && (
             <Accordion type="multiple" className="w-full">
-                {Object.entries(choices).map(([table, columns]) => (
-                <AccordionItem key={`aggregate-${table}`} value={`aggregate-${table}`} className="border-b-0">
-                    {/* Table Name Trigger */}
-                    <AccordionTrigger
-                      className="text-label text-muted-foreground hover:no-underline justify-start py-1 px-1"
-                      disabled={loading || !interactive}
-                    >
-                      {table}
-                    </AccordionTrigger>
-                    {/* Content: Columns */}
-                    <AccordionContent className="pl-3 pb-1 space-y-1">
+              {Object.entries(choices).map(([table, columns]) => (
+                <AccordionItem
+                  key={`aggregate-${table}`}
+                  value={`aggregate-${table}`}
+                  className="border-b-0"
+                >
+                  {/* Table Name Trigger */}
+                  <AccordionTrigger
+                    className="text-label justify-start px-1 py-1 text-muted-foreground hover:no-underline"
+                    disabled={loading || !interactive}
+                  >
+                    {table}
+                  </AccordionTrigger>
+                  {/* Content: Columns */}
+                  <AccordionContent className="space-y-1 pb-1 pl-3">
                     {columns.map((column, index) => {
-                        const selection = `${table}.${column}`;
-                        return (
+                      const selection = `${table}.${column}`;
+                      return (
                         <Button
-                            key={selection}
-                            variant={selection === aggregateProperty ? "primary" : "list_item"}
-                            size="lg"
-                            className="flex flex-row gap-2 items-center w-full justify-start h-auto py-1 text-md"
-                            onClick={() => onSelect(selection)}
-                            disabled={loading || !interactive}
+                          key={selection}
+                          variant={selection === aggregateProperty ? 'primary' : 'listItem'}
+                          size="lg"
+                          className="text-md flex h-auto w-full flex-row items-center justify-start gap-2 py-1"
+                          onClick={() => onSelect(selection)}
+                          disabled={loading || !interactive}
                         >
-                            {index != 0 && <Workflow/>}
-                            {column}
+                          {index != 0 && <Workflow />}
+                          {column}
                         </Button>
-                        );
+                      );
                     })}
-                    </AccordionContent>
+                  </AccordionContent>
                 </AccordionItem>
-                ))}
+              ))}
             </Accordion>
-            )}
+          )}
 
           {/* Fallback if no property */}
           {!hasChoices && (
-            <p className="text-md text-muted-foreground px-2 py-1">
+            <p className="text-md px-2 py-1 text-muted-foreground">
               No properties available for aggregation.
             </p>
           )}

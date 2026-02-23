@@ -1,58 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
-import { processPhoneCountryCodes } from "@/utils/assistants/country-utils";
-import { getCurrentUser } from "@/lib/user/user";
-
-const baseUrl = `${process.env.COMMUNICATION_URL}`;
+import { NextRequest, NextResponse } from 'next/server';
+import { processPhoneCountryCodes } from '@/utils/assistants/country-utils';
+import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
+import {
+  createCommunicationClient,
+  getCommunicationErrorDetail,
+  getCommunicationErrorStatus,
+} from '@/lib/communication/client';
 
 export async function GET(request: NextRequest) {
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    try {
-        const response = await fetch(
-            `${baseUrl}/phone/available-countries`,
-            {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-            }
-        );
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
 
-        const responseText = await response.text();
-        let responseData;
+  try {
+    const client = createCommunicationClient(apiKey);
+    const { data } = await client.get('/phone/available-countries');
 
-        if (response.ok && responseText) {
-            try {
-                responseData = JSON.parse(responseText);
-            } catch (e: any) {
-                console.error(`[API /api/contact/phone/available-countries GET] - JSON parsing error:`, e.message);
-                return NextResponse.json({ error: "Invalid JSON response from backend", raw: responseText }, { status: 502 });
-            }
-
-            // Validate and transform backend data
-            const codes = responseData?.countries;
-            const processed = processPhoneCountryCodes(codes);
-            return NextResponse.json({ success: true, countries: processed }, { status: 200 });
-
-        } else if (!response.ok) {
-            try {
-                responseData = JSON.parse(responseText);
-            } catch (e) {
-                responseData = { detail: responseText || "Unknown error from backend API" };
-            }
-            console.error(`[API /api/contact/phone/available-countries GET] - Backend error (${response.status}):`, responseData);
-            return NextResponse.json(responseData, { status: response.status });
-        } else {
-            return NextResponse.json({ success: true, countries: [] }, { status: 200 });
-        }
-
-    } catch (error: any) {
-        console.error(`[API /api/contact/phone/available-countries GET] - Fetch error:`, error.message, error.stack);
-        return NextResponse.json({ error: "Failed to connect to backend API", details: error.message }, { status: 500 });
-    }
+    // Validate and transform backend data (response already converted to camelCase by client)
+    const codes = (data?.countries as string | undefined) ?? '';
+    const processed = processPhoneCountryCodes(codes);
+    return NextResponse.json({ success: true, countries: processed }, { status: 200 });
+  } catch (error) {
+    console.error(`[API /api/contact/phone/available-countries GET] - Error:`, error);
+    return NextResponse.json(
+      { detail: getCommunicationErrorDetail(error) },
+      { status: getCommunicationErrorStatus(error) }
+    );
+  }
 }

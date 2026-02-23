@@ -1,93 +1,91 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function POST(request: NextRequest) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 60000);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
     const startedAt = Date.now();
-    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    
-    try {
-        const res = await fetch(
-            `${baseUrl}/logs/derived`,
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "x-correlation-id": correlationId,
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-            },
-        );
-        clearTimeout(ttl);
-        if (!res.ok && DEBUG_API) {
-            console.warn(JSON.stringify({ route: "/api/logs/derived", method: "POST", upstream: `${baseUrl}/logs/derived`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-        }
-        return res;
-    } catch (e: any) {
-        clearTimeout(ttl);
-        const msg = e?.message || "Request failed";
-        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-        console.error(JSON.stringify({ route: "/api/logs/derived", method: "POST", upstream: `${baseUrl}/logs/derived`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.POST('/v0/logs/derived', {
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/logs/derived',
+          method: 'POST',
+          endpoint: '/v0/logs/derived',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function PUT(request: NextRequest) {
-    const body = await request.json();
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 60000);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  try {
     const startedAt = Date.now();
-    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    
-    try {
-        const res = await fetch(
-            `${baseUrl}/logs/derived`,
-            {
-                method: "PUT",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "x-correlation-id": correlationId,
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-            },
-        );
-        clearTimeout(ttl);
-        if (!res.ok && DEBUG_API) {
-            console.warn(JSON.stringify({ route: "/api/logs/derived", method: "PUT", upstream: `${baseUrl}/logs/derived`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-        }
-        return res;
-    } catch (e: any) {
-        clearTimeout(ttl);
-        const msg = e?.message || "Request failed";
-        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-        console.error(JSON.stringify({ route: "/api/logs/derived", method: "PUT", upstream: `${baseUrl}/logs/derived`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
-        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.PUT('/v0/logs/derived', {
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/logs/derived',
+          method: 'PUT',
+          endpoint: '/v0/logs/derived',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
+      );
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }

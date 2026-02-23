@@ -16,7 +16,7 @@
  * - Toast notifications
  */
 
-import React, { act } from 'react';
+import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, Mock } from 'vitest';
@@ -60,7 +60,7 @@ vi.mock('@/components/Common/Toasts/notifications', () => ({
 // Types
 // ============================================================================
 
-export type ColumnType = 'param' | 'entry';
+export type ColumnType = 'entry';
 
 export interface ParsedRow {
   [key: string]: string | number | boolean | null;
@@ -148,13 +148,17 @@ export function createMockCSV(rows: ParsedRow[], headers?: string[]): MockFile {
   const hdrs = headers || (rows.length > 0 ? Object.keys(rows[0]) : []);
   const csvContent = [
     hdrs.join(','),
-    ...rows.map(row => hdrs.map(h => {
-      const val = row[h];
-      if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
-        return `"${val.replace(/"/g, '""')}"`;
-      }
-      return val ?? '';
-    }).join(','))
+    ...rows.map((row) =>
+      hdrs
+        .map((h) => {
+          const val = row[h];
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+            return `"${val.replace(/"/g, '""')}"`;
+          }
+          return val ?? '';
+        })
+        .join(',')
+    ),
   ].join('\n');
 
   return {
@@ -165,7 +169,7 @@ export function createMockCSV(rows: ParsedRow[], headers?: string[]): MockFile {
 }
 
 export function createMockJSONL(rows: ParsedRow[]): MockFile {
-  const jsonlContent = rows.map(row => JSON.stringify(row)).join('\n');
+  const jsonlContent = rows.map((row) => JSON.stringify(row)).join('\n');
 
   return {
     name: 'test-data.jsonl',
@@ -189,12 +193,14 @@ export function createMockJSON(rows: ParsedRow[]): MockFile {
 // ============================================================================
 
 /**
- * Simulates file selection in react-dropzone by directly setting the 
- * file input value. This is the most reliable way to test file uploads.
+ * Simulates file selection in react-dropzone using userEvent.upload().
+ * This is the proper way to test file inputs in browser tests with
+ * @testing-library/user-event and works reliably with Playwright.
  */
 async function simulateFileInput(
   container: HTMLElement,
-  file: File
+  file: File,
+  user: ReturnType<typeof userEvent.setup>
 ): Promise<void> {
   // Find the hidden file input that react-dropzone creates
   const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -202,34 +208,16 @@ async function simulateFileInput(
     throw new Error('Could not find file input element');
   }
 
-  // Create a DataTransfer to hold the file
-  const dataTransfer = new DataTransfer();
-  dataTransfer.items.add(file);
-
-  // Set the files on the input
-  await act(async () => {
-    // We need to define files as a property since it's normally read-only
-    Object.defineProperty(fileInput, 'files', {
-      value: dataTransfer.files,
-      writable: false,
-    });
-
-    // Dispatch the change event
-    const changeEvent = new Event('change', { bubbles: true });
-    fileInput.dispatchEvent(changeEvent);
-  });
-
-  // Wait for file parsing to complete
-  await waitFor(() => {}, { timeout: 500 });
+  // Use userEvent.upload() which properly simulates file selection in browser tests
+  // This handles async event dispatching internally - no artificial delays needed
+  await user.upload(fileInput, file);
 }
 
 // ============================================================================
 // Render Function
 // ============================================================================
 
-export function renderFileUpload(
-  options: FileUploadTestOptions = {}
-): FileUploadTestResult {
+export function renderFileUpload(options: FileUploadTestOptions = {}): FileUploadTestResult {
   const {
     projectId = 'test-project',
     contexts = [
@@ -248,21 +236,22 @@ export function renderFileUpload(
 
   // Create mock logsActions
   const mockLogsActions: LogsActions = {
-    create: vi.fn(async (
-      project: string,
-      context: string | null,
-      params: Record<string, any>[],
-      entries: Record<string, any>[]
-    ): Promise<ResponseProps> => {
-      // Simulate network delay
-      await new Promise(r => setTimeout(r, uploadDelay));
+    create: vi.fn(
+      async (
+        project: string,
+        context: string | null,
+        entries: Record<string, any>[]
+      ): Promise<ResponseProps> => {
+        // Simulate network delay
+        await new Promise((r) => setTimeout(r, uploadDelay));
 
-      if (uploadShouldSucceed) {
-        return { info: uploadSuccessMessage };
-      } else {
-        return { detail: uploadErrorMessage };
+        if (uploadShouldSucceed) {
+          return { info: uploadSuccessMessage };
+        } else {
+          return { detail: uploadErrorMessage };
+        }
       }
-    }),
+    ),
     get: vi.fn(async () => ({ columns: [], logs: [], params: [], count: 0, groups: [] })),
     getLatest: vi.fn(async () => ''),
     getMetrics: vi.fn(async () => ({})),
@@ -329,17 +318,20 @@ export function renderFileUpload(
         await user.click(closeButton);
       }
       // Wait for dialog to close
-      await waitFor(() => {
-        if (screen.queryByRole('dialog')) {
-          throw new Error('Dialog did not close');
-        }
-      }, { timeout: 500 });
+      await waitFor(
+        () => {
+          if (screen.queryByRole('dialog')) {
+            throw new Error('Dialog did not close');
+          }
+        },
+        { timeout: 500 }
+      );
     },
 
     // File operations
     dropFile: async (file: File) => {
       const dialog = screen.getByRole('dialog');
-      await simulateFileInput(dialog, file);
+      await simulateFileInput(dialog, file, user);
     },
 
     getDisplayedFileName: () => {
@@ -355,39 +347,40 @@ export function renderFileUpload(
 
     // Column mapping
     getDisplayedHeaders: () => {
-      // Headers are shown as labels next to switches
+      // Headers are shown as labels in the "Map Columns" section
+      // Each column name label has a title attribute matching the header name
+      // (the "Entry" labels don't have title attributes)
       const dialog = screen.getByRole('dialog');
       const mapColumnsSection = within(dialog).queryByText('Map Columns');
       if (!mapColumnsSection) return [];
 
-      const container = mapColumnsSection.closest('div');
-      if (!container) return [];
+      // Find the parent container with the column list
+      const columnListContainer = mapColumnsSection.closest('div')?.parentElement;
+      if (!columnListContainer) return [];
 
-      // Find all labels that are column names (not Param/Entry labels)
-      const labels = within(container).queryAllByRole('switch');
-      return labels.map(sw => {
-        const id = sw.getAttribute('id');
-        if (id?.startsWith('switch-')) {
-          return id.replace('switch-', '');
-        }
-        return '';
-      }).filter(Boolean);
+      // Query labels with title attribute - only column name labels have this
+      const labels = columnListContainer.querySelectorAll('label[title]');
+      return Array.from(labels)
+        .map((label) => label.getAttribute('title'))
+        .filter((title): title is string => title !== null && title.length > 0);
     },
 
-    toggleColumnType: async (headerName: string) => {
-      const switchElement = screen.getByRole('switch', {
-        name: new RegExp(`mark ${headerName} as`, 'i'),
-      });
-      await user.click(switchElement);
+    toggleColumnType: async (_headerName: string) => {
+      // Param/entry toggle removed - all columns are now entries
+      // This is a no-op for backwards compatibility with existing tests
     },
 
     getColumnType: (headerName: string): ColumnType | null => {
-      const switchElement = screen.queryByRole('switch', {
-        name: new RegExp(`mark ${headerName} as`, 'i'),
-      });
-      if (!switchElement) return null;
-      // Switch checked = entry, unchecked = param
-      return switchElement.getAttribute('data-state') === 'checked' ? 'entry' : 'param';
+      // All columns are now entries (param support removed)
+      // Check if the column exists in the displayed headers by finding its label
+      const dialog = screen.queryByRole('dialog');
+      if (!dialog) return null;
+
+      // Find the specific label for this column in the "Map Columns" section
+      const label = dialog.querySelector(`label[for="switch-${headerName}"]`);
+      if (!label) return null;
+
+      return 'entry';
     },
 
     // Preview table
@@ -400,7 +393,8 @@ export function renderFileUpload(
       // Count rows in all rowgroups except header rows
       let count = 0;
       rowgroups.forEach((rg, index) => {
-        if (index > 0) { // Skip the first rowgroup (thead)
+        if (index > 0) {
+          // Skip the first rowgroup (thead)
           count += within(rg).queryAllByRole('row').length;
         }
       });
@@ -417,7 +411,7 @@ export function renderFileUpload(
       // First open the context selector
       const contextButton = screen.getByRole('combobox');
       await user.click(contextButton);
-      
+
       // Then select the context
       const option = await screen.findByRole('option', { name: contextName });
       await user.click(option);
@@ -428,18 +422,18 @@ export function renderFileUpload(
       const dialog = screen.getByRole('dialog');
       const contextButton = within(dialog).getByRole('combobox');
       await user.click(contextButton);
-      
+
       // Wait for the popover to open and find the input
       await waitFor(() => {
         if (!screen.queryByPlaceholderText(/search or type/i)) {
           throw new Error('Context search input not found');
         }
       });
-      
+
       const input = screen.getByPlaceholderText(/search or type/i);
       await user.clear(input);
       await user.type(input, contextName);
-      
+
       // Close the popover by clicking elsewhere or pressing escape
       await user.keyboard('{Escape}');
     },

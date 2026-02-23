@@ -1,9 +1,9 @@
 /**
  * P5-B: Tile Grid Performance Benchmarks
- * 
+ *
  * Performance tests for the tile grid component.
  * These tests measure render times, re-render counts, and memory usage.
- * 
+ *
  * Metrics tracked:
  * - Render time with varying tile counts
  * - Re-render count during interactions
@@ -69,7 +69,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
   describe('Render Time', () => {
     it('renders 10 tiles within acceptable time', async () => {
       const startTime = performance.now();
-      
+
       const { getTiles } = renderTileGrid({
         initialTiles: createMockTiles(10),
       });
@@ -79,17 +79,17 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
       });
 
       const renderTime = performance.now() - startTime;
-      
+
       // Should render 10 tiles in under 500ms
       expect(renderTime).toBeLessThan(500);
-      
+
       // Verify all tiles are in state
       expect(getTiles().length).toBe(10);
     });
 
     it('renders 25 tiles within acceptable time', async () => {
       const startTime = performance.now();
-      
+
       renderTileGrid({
         initialTiles: createMockTiles(25),
       });
@@ -99,14 +99,14 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
       });
 
       const renderTime = performance.now() - startTime;
-      
+
       // Should render 25 tiles in under 1000ms
       expect(renderTime).toBeLessThan(1000);
     });
 
     it('renders 50 tiles within acceptable time', async () => {
       const startTime = performance.now();
-      
+
       renderTileGrid({
         initialTiles: createMockTiles(50),
       });
@@ -116,7 +116,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
       });
 
       const renderTime = performance.now() - startTime;
-      
+
       // Should render 50 tiles in under 2000ms
       expect(renderTime).toBeLessThan(2000);
     });
@@ -129,7 +129,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
     it('toggling edit mode causes minimal re-renders', async () => {
       const user = userEvent.setup();
       let renderCount = 0;
-      
+
       // Wrap the component to track renders
       const originalRender = renderEditMode;
       const { isEditMode } = originalRender();
@@ -140,7 +140,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
 
       // Count re-renders by checking state changes
       const initialState = isEditMode();
-      
+
       await user.click(screen.getByTestId('edit-mode-toggle'));
 
       await waitFor(() => {
@@ -175,7 +175,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
         w: 3,
         h: 2,
         visible: true,
-      });
+      } as any);
 
       await waitFor(() => {
         expect(getTiles()).toHaveLength(initialCount + 1);
@@ -229,7 +229,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
 
       const startTime = performance.now();
       await user.click(screen.getByTestId('edit-mode-toggle'));
-      
+
       await waitFor(() => {
         expect(isEditMode()).toBe(true);
       });
@@ -342,7 +342,7 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
       const largeTileSet = createMockTiles(50);
 
       const startTime = performance.now();
-      
+
       const { getTiles } = renderTileGrid({
         initialTiles: largeTileSet,
       });
@@ -381,4 +381,3 @@ describe('P5-B: Tile Grid Performance Benchmarks', () => {
     });
   });
 });
-

@@ -1,69 +1,70 @@
-export default {
-    gif: "table_nested_contexts_dark",
-    link: "interfaces/basics#contexts",
-    description: "Contexts enable you to compartmentalize your data for different tables or for different tabs within your interface.",
-    // Granular interface structure
-    interface: {
-        project_id: "context-demo",
-        name: "interface1",
+const contextDemo = {
+  gif: 'table_nested_contexts_dark',
+  link: 'interfaces/basics#contexts',
+  description:
+    'Contexts enable you to compartmentalize your data for different tables or for different tabs within your interface.',
+  // Granular interface structure
+  interface: {
+    projectId: 'context-demo',
+    name: 'interface1',
+  },
+  // Tab structure
+  tab: {
+    name: 'tab1',
+    visible: true,
+    active: true,
+    order: 0,
+  },
+  // Tiles structure - matches the OpenAPI schemas
+  tiles: [
+    {
+      name: 'Tile_0',
+      type: 'Table',
+      position: {
+        x: 0.0,
+        y: 0.0,
+        width: 4.0,
+        height: 8.0,
+      },
+      context: 'Sciences/Maths',
+      columnContext: '',
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tab structure
-    tab: {
-        name: "tab1",
-        visible: true,
-        active: true,
-        order: 0
+    {
+      name: 'Tile_1',
+      type: 'Table',
+      position: {
+        x: 4.0,
+        y: 0.0,
+        width: 4.0,
+        height: 8.0,
+      },
+      context: 'Sciences/Physics',
+      columnContext: '',
+      tableTile: {
+        tableType: 'Data Table',
+      },
     },
-    // Tiles structure - matches the OpenAPI schemas
-    tiles: [
-        {
-            name: "Tile_0",
-            type: "Table",
-            position: {
-                x: 0.0,
-                y: 0.0,
-                width: 4.0,
-                height: 8.0
-            },
-            context: "Sciences/Maths",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
-            }
-        },
-        {
-            name: "Tile_1",
-            type: "Table",
-            position: {
-                x: 4.0,
-                y: 0.0,
-                width: 4.0,
-                height: 8.0
-            },
-            context: "Sciences/Physics",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
-            }
-        },
-        {
-            name: "Tile_2",
-            type: "Table",
-            position: {
-                x: 8.0,
-                y: 0.0,
-                width: 4.0,
-                height: 8.0
-            },
-            context: "Arts/Literature",
-            column_context: "",
-            table_tile: {
-                table_type: "Data Table",
-            }
-        }
-    ],
-    new_counter: 3,
-    code: `import unify
+    {
+      name: 'Tile_2',
+      type: 'Table',
+      position: {
+        x: 8.0,
+        y: 0.0,
+        width: 4.0,
+        height: 8.0,
+      },
+      context: 'Arts/Literature',
+      columnContext: '',
+      tableTile: {
+        tableType: 'Data Table',
+      },
+    },
+  ],
+  newCounter: 3,
+  code: `import unify
 
 unify.activate("context-demo", overwrite=True)
 
@@ -87,5 +88,7 @@ with unify.Context("Arts"):
             question="What does this sentence convey?",
             region="UK"
         )
-`
-}
+`,
+};
+
+export default contextDemo;

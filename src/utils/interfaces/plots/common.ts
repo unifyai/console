@@ -12,28 +12,26 @@ export const expandIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16"
  * @param {Element | null} node - The DOM element from which to retrieve the '--primary' color. Can be null.
  * @returns {string} The computed color string (e.g., "rgb(0, 0, 255)", "#0000FF") for the '--primary' property,
  *                   or the fallback value from the root element if not found on the node or if the node is null.
-*/
+ */
 export const getPrimaryColorFromNode = (node: Element | null): string => {
-    const fallback = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
-    if (node) {
-      const color = getComputedStyle(node).getPropertyValue('--primary').trim();
-      return color || fallback;
-    }
-    return fallback;
+  const fallback = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+  if (node) {
+    const color = getComputedStyle(node).getPropertyValue('--primary').trim();
+    return color || fallback;
+  }
+  return fallback;
 };
 
 /**
  * Resolves color hierarchy by returning the first available color from the provided hierarchy.
  * Returns the primary color if available, otherwise falls back to the secondary color.
  * If neither is available, falls back to the CSS --primary variable.
- * 
+ *
  * @param {string | null | undefined} primaryColor - The primary color value (e.g., tile color)
  * @param {string | null | undefined} secondaryColor - The fallback color value (e.g., tab color)
  * @returns {string} The resolved color value, with CSS --primary as ultimate fallback
  */
-export const resolveColorHierarchy = (
-  ...colors: (string | null | undefined)[]
-): string => {
+export const resolveColorHierarchy = (...colors: (string | null | undefined)[]): string => {
   for (const c of colors) {
     if (c && typeof c === 'string' && c.trim() !== '') {
       return c.trim();

@@ -35,9 +35,13 @@ export function assertPointsHaveValidPositions(points: SVGCircleElement[]) {
 
     // Positions should be within plot area
     expect(cxNum).toBeGreaterThanOrEqual(DEFAULT_DIMENSIONS.margins.left - POSITION_TOLERANCE);
-    expect(cxNum).toBeLessThanOrEqual(DEFAULT_DIMENSIONS.width - DEFAULT_DIMENSIONS.margins.right + POSITION_TOLERANCE);
+    expect(cxNum).toBeLessThanOrEqual(
+      DEFAULT_DIMENSIONS.width - DEFAULT_DIMENSIONS.margins.right + POSITION_TOLERANCE
+    );
     expect(cyNum).toBeGreaterThanOrEqual(DEFAULT_DIMENSIONS.margins.top - POSITION_TOLERANCE);
-    expect(cyNum).toBeLessThanOrEqual(DEFAULT_DIMENSIONS.height - DEFAULT_DIMENSIONS.margins.bottom + POSITION_TOLERANCE);
+    expect(cyNum).toBeLessThanOrEqual(
+      DEFAULT_DIMENSIONS.height - DEFAULT_DIMENSIONS.margins.bottom + POSITION_TOLERANCE
+    );
 
     // Radius should be positive
     if (r) {
@@ -50,10 +54,7 @@ export function assertPointsHaveValidPositions(points: SVGCircleElement[]) {
 /**
  * Assert exact point count matches expected data
  */
-export function assertExactPointCount(
-  result: PlotCanvasTestResult,
-  expectedCount: number
-) {
+export function assertExactPointCount(result: PlotCanvasTestResult, expectedCount: number) {
   const points = result.getScatterPoints();
   expect(points.length).toBe(expectedCount);
 }
@@ -126,13 +127,10 @@ export function assertPointPositionsMatchData(
 /**
  * Assert point dimensions (radius) are consistent and valid
  */
-export function assertPointDimensions(
-  result: PlotCanvasTestResult,
-  expectedRadius?: number
-) {
+export function assertPointDimensions(result: PlotCanvasTestResult, expectedRadius?: number) {
   const points = result.getScatterPoints();
 
-  const radii = points.map(p => parseFloat(p.getAttribute('r') || '0'));
+  const radii = points.map((p) => parseFloat(p.getAttribute('r') || '0'));
 
   for (const r of radii) {
     expect(Number.isFinite(r)).toBe(true);
@@ -148,7 +146,6 @@ export function assertPointDimensions(
   }
 
   // All radii should be consistent
-  const uniqueRadii = new Set(radii.map(r => Math.round(r * 10) / 10));
+  const uniqueRadii = new Set(radii.map((r) => Math.round(r * 10) / 10));
   expect(uniqueRadii.size).toBeLessThanOrEqual(3);
 }
-

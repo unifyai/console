@@ -1,20 +1,18 @@
-"use client";
-import React from "react";
-import DiffViewer from "@/components/Common/Misc/DiffViewer";
-import { LogComparisonProps } from "./types";
-import { MatrixDisplay } from "@/utils/interfaces/selection/selection";
-import RowBadge from "./RowBadge";
-import { CopyButton } from "@/components/Common/Buttons/Copy";
-import MarkdownRenderer from "./Markdown/MarkdownRenderer";
+'use client';
+import React from 'react';
+import DiffViewer from '@/components/Common/Misc/DiffViewer';
+import { LogComparisonProps } from './types';
+import { MatrixDisplay } from '@/utils/interfaces/selection/selection';
+import RowBadge from './RowBadge';
+import { CopyButton } from '@/components/Common/Buttons/Copy';
+import MarkdownRenderer from './Markdown/MarkdownRenderer';
 
 /**
  * Convert a matrix (array of arrays) into a single string for diffing or grouping.
  */
 function matrixToString(matrix: any[]): string {
-  if (!Array.isArray(matrix)) return "(invalid matrix)";
-  return matrix
-    .map((row) => (Array.isArray(row) ? row.join("  ") : String(row)))
-    .join("\n");
+  if (!Array.isArray(matrix)) return '(invalid matrix)';
+  return matrix.map((row) => (Array.isArray(row) ? row.join('  ') : String(row))).join('\n');
 }
 
 function isValidMatrix(val: any): boolean {
@@ -24,13 +22,10 @@ function isValidMatrix(val: any): boolean {
 /**
  * Gather row sets for the same text (just like string grouping).
  */
-function groupComparableMatrices(
-  comparables: any[],
-  compRowIndices: number[]
-) {
+function groupComparableMatrices(comparables: any[], compRowIndices: number[]) {
   const map = new Map<string, { rawMat: any; rows: number[] }>();
   comparables.forEach((mat, i) => {
-    const str = isValidMatrix(mat) ? matrixToString(mat) : "(invalid matrix)";
+    const str = isValidMatrix(mat) ? matrixToString(mat) : '(invalid matrix)';
     if (!map.has(str)) {
       map.set(str, { rawMat: mat, rows: [] });
     }
@@ -57,7 +52,7 @@ function groupAllMatricesByValue(
 
   const map = new Map<string, { rawMatrix: any; rows: number[] }>();
   allMatrices.forEach((mat: any, i) => {
-    const str = isValidMatrix(mat) ? matrixToString(mat) : "(invalid matrix)";
+    const str = isValidMatrix(mat) ? matrixToString(mat) : '(invalid matrix)';
     if (!map.has(str)) {
       map.set(str, { rawMatrix: mat, rows: [] });
     }
@@ -83,10 +78,7 @@ function groupVersionsForRows(
 ) {
   const map = new Map<string, number[]>();
   rows.forEach((r) => {
-    const verStr =
-      r === baseLogIndex
-        ? baseVer
-        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    const verStr = r === baseLogIndex ? baseVer : (compVers[compLogIndexes.indexOf(r)] ?? '');
     if (!map.has(verStr)) {
       map.set(verStr, []);
     }
@@ -103,17 +95,17 @@ export default function MatrixView({
   comparables,
   baseLogIndex,
   comparisonLogsIndex,
-  diffMode = "none",
+  diffMode = 'none',
   splitView = false,
-  version = "",
+  version = '',
   comparableVersions = [],
-  displayMode = "markdown",
+  displayMode = 'markdown',
 }: LogComparisonProps) {
   const multiMode = !!(comparables && comparables.length > 0);
   const baseStr = matrixToString(value);
   const baseVer = version.toString();
   const compVerStrs = comparableVersions.map((v) => v.toString());
-  const versionEmpty = baseVer === "" && compVerStrs.every((s) => s === "");
+  const versionEmpty = baseVer === '' && compVerStrs.every((s) => s === '');
 
   // SINGLE => no comparables
   if (!multiMode) {
@@ -128,27 +120,27 @@ export default function MatrixView({
           <div className="space-y-2">
             <p className="font-semibold">Version</p>
             {baseVer ? (
-              <div className="border rounded p-2 relative group">
+              <div className="group relative rounded border p-2">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
                 <CopyButton
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   content={baseVer}
                   copyMessage="Copied version!"
                   tooltipContent="Copy version"
                 />
               </div>
             ) : (
-              <p className="italic text-body text-muted-foreground">No version</p>
+              <p className="text-body italic text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         <div className="flex flex-col gap-2">
           <p className="font-semibold">Matrix</p>
-          <div className="space-y-2 border rounded p-2 relative group">
+          <div className="group relative space-y-2 rounded border p-2">
             <MatrixDisplay value={value} />
             <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               content={matrixStr}
               copyMessage="Copied matrix!"
               tooltipContent="Copy matrix"
@@ -160,17 +152,17 @@ export default function MatrixView({
   }
 
   // MULTI => we have base + comparables
-  if (diffMode === "none") {
+  if (diffMode === 'none') {
     const groups = groupAllMatricesByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
     // Filter out groups with invalid matrices or empty matrix strings
-    const filteredGroups = groups.filter(group => {
+    const filteredGroups = groups.filter((group) => {
       // Skip if the matrix string indicates an invalid matrix
-      if (group.str === "(invalid matrix)") return false;
-      
+      if (group.str === '(invalid matrix)') return false;
+
       // Skip if it's an empty matrix (after trimming whitespace)
-      if (group.str.trim() === "") return false;
-      
+      if (group.str.trim() === '') return false;
+
       return true;
     });
 
@@ -189,15 +181,15 @@ export default function MatrixView({
           );
 
           return (
-            <div key={idx} className="border rounded p-3 space-y-4">
+            <div key={idx} className="space-y-4 rounded border p-3">
               {!versionEmpty && (
                 <div className="space-y-2">
                   <p className="font-semibold">Param Version</p>
                   {verGroups.map((vg, j) => (
-                    <div key={j} className="border rounded p-2 relative group mb-2">
+                    <div key={j} className="group relative mb-2 rounded border p-2">
                       <RowBadge rowNumbers={vg.rows} mode="none" />
                       <CopyButton
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                         content={vg.text}
                         copyMessage="Copied version!"
                         tooltipContent="Copy version"
@@ -207,9 +199,7 @@ export default function MatrixView({
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-body text-muted-foreground">
-                          No version
-                        </p>
+                        <p className="text-body italic text-muted-foreground">No version</p>
                       )}
                     </div>
                   ))}
@@ -218,17 +208,17 @@ export default function MatrixView({
 
               <div className="space-y-2">
                 <p className="text-title">Matrix</p>
-                <div className="flex items-center gap-2 text-caption">
+                <div className="text-caption flex items-center gap-2">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                 </div>
-                <div className="border rounded p-2 relative group">
+                <div className="group relative rounded border p-2">
                   {isValidMatrix(mat) ? (
                     <MatrixDisplay value={mat} />
                   ) : (
                     <p className="text-destructive">(Invalid matrix)</p>
                   )}
                   <CopyButton
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                     content={matStr}
                     copyMessage="Copied matrix!"
                     tooltipContent="Copy matrix"
@@ -244,20 +234,17 @@ export default function MatrixView({
 
   // For lines/words/characters => we highlight differences with DiffViewer
   // Convert base + each comparable to a string, show diffs
-  const grouped = groupComparableMatrices(
-    comparables ?? [],
-    comparisonLogsIndex
-  );
+  const grouped = groupComparableMatrices(comparables ?? [], comparisonLogsIndex);
 
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="font-bold mb-2">Base Matrix (Row {baseLogIndex})</h4>
+        <h4 className="mb-2 font-bold">Base Matrix (Row {baseLogIndex})</h4>
         {isValidMatrix(value) ? (
-          <div className="relative group">
+          <div className="group relative">
             <MatrixDisplay value={value} />
             <CopyButton
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="absolute right-1 top-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               content={matrixToString(value)}
               copyMessage="Copied matrix!"
               tooltipContent="Copy matrix"
@@ -268,12 +255,13 @@ export default function MatrixView({
         )}
       </div>
 
-      <div className="space-y-4 border-l pl-4 mt-2">
+      <div className="mt-2 space-y-4 border-l pl-4">
         {grouped.map((grp, idx) => {
           const compStr = grp.str;
           const compMat = grp.rawMatrix;
           // If identical => no highlight
-          const highlight = compStr !== baseStr && baseStr !== "(invalid matrix)" && compStr !== "(invalid matrix)";
+          const highlight =
+            compStr !== baseStr && baseStr !== '(invalid matrix)' && compStr !== '(invalid matrix)';
 
           // For param versions, we gather rows combined with the base
           const combinedRows = [baseLogIndex, ...grp.rows];
@@ -291,15 +279,15 @@ export default function MatrixView({
                 <div className="space-y-2">
                   <p className="font-semibold">Param Version</p>
                   {verGroups.map((vg, j) => {
-                    const changed = (vg.rows.length > 1 && highlight);
-                    const oldMode: "none" | "delete" = changed ? "delete" : "none";
-                    const newMode: "none" | "insert" = changed ? "insert" : "none";
+                    const changed = vg.rows.length > 1 && highlight;
+                    const oldMode: 'none' | 'delete' = changed ? 'delete' : 'none';
+                    const newMode: 'none' | 'insert' = changed ? 'insert' : 'none';
                     const baseInRows = vg.rows.includes(baseLogIndex);
                     const compRows = vg.rows.filter((r) => r !== baseLogIndex);
 
                     return (
-                      <div key={j} className="p-3 space-y-2 border rounded">
-                        <div className="flex items-center gap-1 text-caption">
+                      <div key={j} className="space-y-2 rounded border p-3">
+                        <div className="text-caption flex items-center gap-1">
                           {baseInRows && <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />}
                           {!!compRows.length && <RowBadge rowNumbers={compRows} mode={newMode} />}
                         </div>
@@ -308,9 +296,7 @@ export default function MatrixView({
                             <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                           </div>
                         ) : (
-                          <p className="italic text-body text-muted-foreground">
-                            No version
-                          </p>
+                          <p className="text-body italic text-muted-foreground">No version</p>
                         )}
                       </div>
                     );
@@ -319,15 +305,9 @@ export default function MatrixView({
               )}
 
               <div className="diff-viewer-container space-y-2">
-                <div className="flex items-center gap-2 text-xs">
-                  <RowBadge
-                    rowNumbers={[baseLogIndex]}
-                    mode={highlight ? "delete" : "none"}
-                  />
-                  <RowBadge
-                    rowNumbers={grp.rows}
-                    mode={highlight ? "insert" : "none"}
-                  />
+                <div className="text-label flex items-center gap-2">
+                  <RowBadge rowNumbers={[baseLogIndex]} mode={highlight ? 'delete' : 'none'} />
+                  <RowBadge rowNumbers={grp.rows} mode={highlight ? 'insert' : 'none'} />
                 </div>
                 <DiffViewer
                   oldValue={baseStr}
@@ -343,12 +323,12 @@ export default function MatrixView({
                   <p className="text-caption text-strong">Side-by-side Details</p>
                   <div className="flex gap-8">
                     <div>
-                      <p className="text-caption italic mb-1">Base Matrix</p>
+                      <p className="text-caption mb-1 italic">Base Matrix</p>
                       <MatrixDisplay value={value} />
                     </div>
                     <div>
-                      <p className="text-caption italic mb-1">
-                        Comparison Matrix (Rows {grp.rows.join(", ")})
+                      <p className="text-caption mb-1 italic">
+                        Comparison Matrix (Rows {grp.rows.join(', ')})
                       </p>
                       <MatrixDisplay value={compMat} />
                     </div>

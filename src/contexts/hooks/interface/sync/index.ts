@@ -1,2 +1,2 @@
 // Export interface synchronization hooks
-export * from './useInterfaceSync'; 
+export * from './useInterfaceSync';

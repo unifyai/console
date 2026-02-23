@@ -1,5 +1,5 @@
-import { Interface } from "./interface";
-import { Context } from "@/types/interfaces/grid";
+import { Interface } from './interface';
+import { Context } from '@/types/interfaces/grid';
 
 // Project metadata - core identifying information
 export interface ProjectMeta {
@@ -34,15 +34,15 @@ export function initProject(projectId: string, initialState: Partial<Project> = 
     name: initialState.name || null,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
-    
+
     // Data
-    description: initialState.description || "",
+    description: initialState.description || '',
     contexts: initialState.contexts || [],
     interfaceIds: initialState.interfaceIds || [],
-    
+
     // UI
     activeInterfaceId: initialState.activeInterfaceId || null,
-    
+
     ...initialState,
   };
 }
@@ -62,8 +62,8 @@ export function updateProject(project: Project, updates: Partial<Project>): Proj
  * Set a specific property of a project
  */
 export function setProjectProperty<K extends keyof Project>(
-  project: Project, 
-  property: K, 
+  project: Project,
+  property: K,
   value: Project[K]
 ): Project {
   return {
@@ -81,10 +81,10 @@ export function addInterfaceId(project: Project, interfaceId: string): Project {
   if (project.interfaceIds.includes(interfaceId)) {
     return project;
   }
-  
+
   // Create a new array with the new interface ID
   const interfaceIds = [...project.interfaceIds, interfaceId];
-  
+
   // Return the updated project
   return {
     ...project,
@@ -98,14 +98,14 @@ export function addInterfaceId(project: Project, interfaceId: string): Project {
  */
 export function removeInterfaceId(project: Project, interfaceId: string): Project {
   // Filter out the interface ID to remove
-  const interfaceIds = project.interfaceIds.filter(id => id !== interfaceId);
-  
+  const interfaceIds = project.interfaceIds.filter((id) => id !== interfaceId);
+
   // Update the active interface if needed
   let activeInterfaceId = project.activeInterfaceId;
   if (project.activeInterfaceId === interfaceId) {
     activeInterfaceId = interfaceIds.length > 0 ? interfaceIds[0] : null;
   }
-  
+
   // Return the updated project
   return {
     ...project,
@@ -124,4 +124,4 @@ export function setActiveInterface(project: Project, interfaceId: string | null)
     activeInterfaceId: interfaceId,
     //updatedAt: new Date().toISOString()
   };
-} 
+}

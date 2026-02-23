@@ -1,202 +1,312 @@
-import { NextRequest, NextResponse } from "next/server";
-import { withCacheHeaders } from "../_utils/cacheResponse";
-import { getCurrentUser } from "@/lib/user/user";
+import { NextRequest, NextResponse } from 'next/server';
+import { buildCacheControl } from '../_utils/cacheResponse';
+import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { createOrchestraClient } from '@/lib/orchestra/client';
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function GET(request: NextRequest) {
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Check if we're getting interface by ID, by path components, or listing interfaces
-    const hasInterfaceId = searchParams.has('interface_id');
-    const hasProjectId = searchParams.has('project');
-    const hasName = searchParams.has('name');
-    
-    // Determine endpoint based on parameters
-    let endpoint = "/interfaces/";
-    
-    // If project is present but no name or id, we're listing
-    if (hasProjectId && !hasName && !hasInterfaceId) {
-        endpoint = "/interfaces/list";
-    }
-    
-    try {
-      const controller = new AbortController();
-      const ttl = setTimeout(() => controller.abort(), 60000);
-      const startedAt = Date.now();
-      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-      const res = await fetch(
-          `${baseUrl}${endpoint}${url.search}`,
-          {
-              method: "GET",
-              headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "accept": "application/json",
-                  "x-correlation-id": correlationId,
-              },
-              cache: "no-store",
-              signal: controller.signal,
-          },
-      );
-      clearTimeout(ttl);
-      if (!res.ok && DEBUG_API) {
-        console.warn(JSON.stringify({ route: "/api/interface", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  // Check if we're getting interface by ID, by path components, or listing interfaces
+  const interfaceId = searchParams.get('interfaceId');
+  const projectName = searchParams.get('projectName');
+  const name = searchParams.get('name');
+  const checkpoint = searchParams.get('checkpoint') === 'true';
+
+  try {
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    // Determine which endpoint to call based on parameters
+    if (projectName && !name && !interfaceId) {
+      // List interfaces for a project
+      const { data, error, response } = await client.GET('/v0/interfaces/list', {
+        params: {
+          query: { project_name: projectName },
+        },
+      });
+
+      if (DEBUG_API && !response.ok) {
+        console.warn(
+          JSON.stringify({
+            route: '/api/interface',
+            method: 'GET',
+            endpoint: '/v0/interfaces/list',
+            status: response.status,
+            latencyMs: Date.now() - startedAt,
+            correlationId,
+          })
+        );
       }
-      // Cache interface data for 60 seconds
-      return withCacheHeaders(res, 'MEDIUM');
-    } catch (e: any) {
-      const msg = e?.message || "Request failed";
-      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
-      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}${endpoint}${url.search}: ${msg}` }, { status });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
+    } else {
+      // Get specific interface by ID or by project name + name
+      // Use checkpoint endpoint if checkpoint=true
+      const endpoint = checkpoint ? '/v0/interfaces/checkpoint' : '/v0/interfaces/';
+      const { data, error, response } = await client.GET(endpoint, {
+        params: {
+          query: {
+            interface_id: interfaceId || undefined,
+            project_name: projectName || undefined,
+            name: name || undefined,
+          },
+        },
+      });
+
+      if (DEBUG_API && !response.ok) {
+        console.warn(
+          JSON.stringify({
+            route: '/api/interface',
+            method: 'GET',
+            endpoint,
+            status: response.status,
+            latencyMs: Date.now() - startedAt,
+            correlationId,
+          })
+        );
+      }
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      // Note: Orchestra already returns isCheckpoint (transformed from is_checkpoint) in the response
+
+      const cacheControl = buildCacheControl('MEDIUM');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (cacheControl) headers['Cache-Control'] = cacheControl;
+
+      return NextResponse.json(data, { status: 200, headers });
     }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function PUT(request: NextRequest) {
-    const body = await request.json();
-    const url = new URL(request.url);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    try {
-      const controller = new AbortController();
-      const ttl = setTimeout(() => controller.abort(), 60000);
-      const startedAt = Date.now();
-      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-      const res = await fetch(
-          `${baseUrl}/interfaces/${url.search}`,
-          {
-              method: "PUT",
-              headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "Content-Type": "application/json",
-                  "x-correlation-id": correlationId,
-              },
-              body: JSON.stringify(body),
-              signal: controller.signal,
-          },
+  const body = await request.json();
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  const interfaceId = searchParams.get('interfaceId');
+  const projectName = searchParams.get('projectName');
+  const name = searchParams.get('name');
+
+  try {
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.PUT('/v0/interfaces/', {
+      params: {
+        query: {
+          interface_id: interfaceId || undefined,
+          project_name: projectName || undefined,
+          name: name || undefined,
+        },
+      },
+      body: body,
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/interface',
+          method: 'PUT',
+          endpoint: '/v0/interfaces/',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
       );
-      clearTimeout(ttl);
-      if (!res.ok && DEBUG_API) {
-        console.warn(JSON.stringify({ route: "/api/interface", method: "PUT", upstream: `${baseUrl}/interfaces/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-      }
-      return res;
-    } catch (e: any) {
-      const msg = e?.message || "Request failed";
-      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
-      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}/interfaces/${url.search}: ${msg}` }, { status });
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function POST(request: NextRequest) {
-    const url = new URL(request.url);
-    const searchParams = new URLSearchParams(url.search);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    // Check if this is a template operation
-    const isExportTemplate = searchParams.has('export_template');
-    const isImportTemplate = searchParams.has('import_template');
-    
-    let endpoint = "/interfaces/";
-    
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+  const body = await request.json();
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  // Check if this is a template operation
+  const isExportTemplate = searchParams.has('export_template');
+  const isImportTemplate = searchParams.has('import_template');
+
+  try {
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
     if (isExportTemplate) {
-        endpoint = "/interfaces/export_template";
-    } else if (isImportTemplate) {
-        endpoint = "/interfaces/import_template";
-    }
-    
-    const body = await request.json();
-    
-    try {
-      // For POST, we always create a new resource, so the endpoint is fixed
-      const controller = new AbortController();
-      const ttl = setTimeout(() => controller.abort(), 60000);
-      const startedAt = Date.now();
-      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-      const res = await fetch(
-          `${baseUrl}${endpoint}`,
-          {
-              method: "POST",
-              headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "Content-Type": "application/json",
-                  "x-correlation-id": correlationId,
-              },
-              body: JSON.stringify(body),
-              signal: controller.signal,
-          },
-      );
-      clearTimeout(ttl);
-      if (!res.ok && DEBUG_API) {
-        console.warn(JSON.stringify({ route: "/api/interface", method: "POST", upstream: `${baseUrl}${endpoint}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      const { data, error, response } = await client.POST('/v0/interfaces/export_template', {
+        body: body,
+      });
+
+      if (DEBUG_API && !response.ok) {
+        console.warn(
+          JSON.stringify({
+            route: '/api/interface',
+            method: 'POST',
+            endpoint: '/v0/interfaces/export_template',
+            status: response.status,
+            latencyMs: Date.now() - startedAt,
+            correlationId,
+          })
+        );
       }
-      return res;
-    } catch (e: any) {
-      const msg = e?.message || "Request failed";
-      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
-      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}${endpoint}: ${msg}` }, { status });
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else if (isImportTemplate) {
+      const { data, error, response } = await client.POST('/v0/interfaces/import_template', {
+        body: body,
+      });
+
+      if (DEBUG_API && !response.ok) {
+        console.warn(
+          JSON.stringify({
+            route: '/api/interface',
+            method: 'POST',
+            endpoint: '/v0/interfaces/import_template',
+            status: response.status,
+            latencyMs: Date.now() - startedAt,
+            correlationId,
+          })
+        );
+      }
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
+    } else {
+      // Regular interface creation
+      const { data, error, response } = await client.POST('/v0/interfaces/', {
+        body: body,
+      });
+
+      if (DEBUG_API && !response.ok) {
+        console.warn(
+          JSON.stringify({
+            route: '/api/interface',
+            method: 'POST',
+            endpoint: '/v0/interfaces/',
+            status: response.status,
+            latencyMs: Date.now() - startedAt,
+            correlationId,
+          })
+        );
+      }
+
+      if (error) {
+        return NextResponse.json(error, { status: response.status });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-    const url = new URL(request.url);
-    
-    // Get API key from session (fallback to header for backwards compatibility)
-    const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
-    
-    if (!apiKey) {
-        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
-    }
-    
-    try {
-      // Pass all query parameters to allow both ID and path-based deletion
-      const controller = new AbortController();
-      const ttl = setTimeout(() => controller.abort(), 60000);
-      const startedAt = Date.now();
-      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-      const res = await fetch(
-          `${baseUrl}/interfaces/${url.search}`,
-          {
-              method: "DELETE",
-              headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "accept": "application/json",
-                  "x-correlation-id": correlationId,
-              },
-              signal: controller.signal,
-          },
+  const url = new URL(request.url);
+  const searchParams = new URLSearchParams(url.search);
+
+  const apiKey = await getApiKeyFromRequest(request);
+  if (!apiKey) {
+    return unauthorized();
+  }
+
+  const client = createOrchestraClient(apiKey);
+
+  const interfaceId = searchParams.get('interfaceId');
+  const projectName = searchParams.get('projectName');
+  const name = searchParams.get('name');
+
+  try {
+    const startedAt = Date.now();
+    const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+    const { data, error, response } = await client.DELETE('/v0/interfaces/', {
+      params: {
+        query: {
+          interface_id: interfaceId || undefined,
+          project_name: projectName || undefined,
+          name: name || undefined,
+        },
+      },
+    });
+
+    if (DEBUG_API && !response.ok) {
+      console.warn(
+        JSON.stringify({
+          route: '/api/interface',
+          method: 'DELETE',
+          endpoint: '/v0/interfaces/',
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+          correlationId,
+        })
       );
-      clearTimeout(ttl);
-      if (!res.ok && DEBUG_API) {
-        console.warn(JSON.stringify({ route: "/api/interface", method: "DELETE", upstream: `${baseUrl}/interfaces/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
-      }
-      return res;
-    } catch (e: any) {
-      const msg = e?.message || "Request failed";
-      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
-      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}/interfaces/${url.search}: ${msg}` }, { status });
     }
+
+    if (error) {
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    return NextResponse.json(data ?? { success: true }, { status: response.status });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Request failed';
+    const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+    return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });
+  }
 }

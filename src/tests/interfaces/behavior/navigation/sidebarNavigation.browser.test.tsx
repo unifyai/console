@@ -272,9 +272,7 @@ describe('P4-N: Sidebar Navigation', () => {
   describe('N5: Add to favorites', () => {
     it('can add interface to favorites', async () => {
       result = renderSidebarNavigation({
-        interfaces: [
-          { id: 'iface-1', name: 'My Interface', projectId: 'proj-1' },
-        ],
+        interfaces: [{ id: 'iface-1', name: 'My Interface', projectId: 'proj-1' }],
         initialFavorites: [],
       });
 
@@ -288,9 +286,7 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('can add favorite via UI button', async () => {
       result = renderSidebarNavigation({
-        interfaces: [
-          { id: 'iface-1', name: 'Favoritable', projectId: 'proj-1' },
-        ],
+        interfaces: [{ id: 'iface-1', name: 'Favoritable', projectId: 'proj-1' }],
         initialFavorites: [],
       });
 
@@ -303,9 +299,7 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('favorite button shows filled star after adding', async () => {
       result = renderSidebarNavigation({
-        interfaces: [
-          { id: 'iface-1', name: 'Test', projectId: 'proj-1' },
-        ],
+        interfaces: [{ id: 'iface-1', name: 'Test', projectId: 'proj-1' }],
         initialFavorites: [],
       });
 
@@ -323,9 +317,7 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('does not add duplicate favorites', async () => {
       result = renderSidebarNavigation({
-        initialFavorites: [
-          { id: 'iface-1', name: 'Already Fav', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'Already Fav', type: 'interface' }],
       });
 
       expect(result.getFavorites()).toHaveLength(1);
@@ -342,9 +334,7 @@ describe('P4-N: Sidebar Navigation', () => {
   describe('N6: Remove from favorites', () => {
     it('can remove interface from favorites', async () => {
       result = renderSidebarNavigation({
-        initialFavorites: [
-          { id: 'iface-1', name: 'To Remove', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'To Remove', type: 'interface' }],
       });
 
       expect(result.isFavorite('iface-1')).toBe(true);
@@ -356,12 +346,8 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('can remove favorite via UI button toggle', async () => {
       result = renderSidebarNavigation({
-        interfaces: [
-          { id: 'iface-1', name: 'Favorited', projectId: 'proj-1' },
-        ],
-        initialFavorites: [
-          { id: 'iface-1', name: 'Favorited', type: 'interface' },
-        ],
+        interfaces: [{ id: 'iface-1', name: 'Favorited', projectId: 'proj-1' }],
+        initialFavorites: [{ id: 'iface-1', name: 'Favorited', type: 'interface' }],
       });
 
       expect(result.isFavorite('iface-1')).toBe(true);
@@ -376,12 +362,8 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('removed favorite disappears from favorites section', async () => {
       result = renderSidebarNavigation({
-        interfaces: [
-          { id: 'iface-1', name: 'Removed', projectId: 'proj-1' },
-        ],
-        initialFavorites: [
-          { id: 'iface-1', name: 'Removed', type: 'interface' },
-        ],
+        interfaces: [{ id: 'iface-1', name: 'Removed', projectId: 'proj-1' }],
+        initialFavorites: [{ id: 'iface-1', name: 'Removed', type: 'interface' }],
       });
 
       expect(result.getVisibleFavorites()).toContain('Removed');
@@ -400,9 +382,7 @@ describe('P4-N: Sidebar Navigation', () => {
   describe('N7: Favorites section', () => {
     it('favorites section is visible when favorites exist', async () => {
       result = renderSidebarNavigation({
-        initialFavorites: [
-          { id: 'iface-1', name: 'Fav 1', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'Fav 1', type: 'interface' }],
       });
 
       expect(screen.getByTestId('favorites-section')).toBeInTheDocument();
@@ -418,9 +398,7 @@ describe('P4-N: Sidebar Navigation', () => {
 
     it('favorites are shown at top of sidebar', async () => {
       result = renderSidebarNavigation({
-        initialFavorites: [
-          { id: 'iface-1', name: 'Top Fav', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'Top Fav', type: 'interface' }],
       });
 
       const sidebar = screen.getByTestId('sidebar');
@@ -429,8 +407,12 @@ describe('P4-N: Sidebar Navigation', () => {
 
       // Favorites should come before interfaces in DOM order
       const children = Array.from(sidebar.querySelectorAll('[data-testid]'));
-      const favIndex = children.findIndex(el => el.getAttribute('data-testid') === 'favorites-section');
-      const ifaceIndex = children.findIndex(el => el.getAttribute('data-testid') === 'interfaces-section');
+      const favIndex = children.findIndex(
+        (el) => el.getAttribute('data-testid') === 'favorites-section'
+      );
+      const ifaceIndex = children.findIndex(
+        (el) => el.getAttribute('data-testid') === 'interfaces-section'
+      );
 
       expect(favIndex).toBeLessThan(ifaceIndex);
     });
@@ -453,9 +435,7 @@ describe('P4-N: Sidebar Navigation', () => {
     it('favorites section hidden when sidebar collapsed', async () => {
       result = renderSidebarNavigation({
         initialCollapsed: true,
-        initialFavorites: [
-          { id: 'iface-1', name: 'Hidden Fav', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'Hidden Fav', type: 'interface' }],
       });
 
       // Favorites section should not be visible in collapsed state
@@ -465,9 +445,7 @@ describe('P4-N: Sidebar Navigation', () => {
     it('favorites section appears when sidebar expanded', async () => {
       result = renderSidebarNavigation({
         initialCollapsed: true,
-        initialFavorites: [
-          { id: 'iface-1', name: 'Shown Fav', type: 'interface' },
-        ],
+        initialFavorites: [{ id: 'iface-1', name: 'Shown Fav', type: 'interface' }],
       });
 
       expect(screen.queryByTestId('favorites-section')).not.toBeInTheDocument();
@@ -512,4 +490,3 @@ describe('P4-N: Sidebar Navigation', () => {
     });
   });
 });
-

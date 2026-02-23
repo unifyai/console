@@ -3,7 +3,7 @@
  *
  * Tests selection panel behaviors including cell data display,
  * view modes, and entry management.
- * 
+ *
  * Covers behaviors from BEHAVIORS.md:
  * - H1: Show selection
  * - H2: Multiple selections
@@ -40,7 +40,6 @@ import {
 // =============================================================================
 
 describe('P2-H: Selection Panel', () => {
-  
   // =========================================================================
   // H1: Show selection
   // =========================================================================
@@ -290,12 +289,14 @@ describe('P2-H: Selection Panel', () => {
   // =========================================================================
   describe('H8: View mode - Markdown', () => {
     it('markdown mode renders formatted content', async () => {
-      const cells = [{
-        id: 'md-cell',
-        column: 'Content',
-        value: '# Heading\n\nParagraph text',
-        type: 'string' as const,
-      }];
+      const cells = [
+        {
+          id: 'md-cell',
+          column: 'Content',
+          value: '# Heading\n\nParagraph text',
+          type: 'string' as const,
+        },
+      ];
       renderSelectionPanel({
         initialSelectedCells: cells,
         initialExpandedEntries: ['md-cell'],
@@ -362,7 +363,7 @@ describe('P2-H: Selection Panel', () => {
       await waitFor(() => {
         const userMsg = screen.getByTestId('chat-message-0');
         const assistantMsg = screen.getByTestId('chat-message-1');
-        
+
         expect(userMsg.className).toContain('bg-blue-100');
         expect(assistantMsg.className).toContain('bg-gray-100');
       });
@@ -587,5 +588,3 @@ describe('P2-H: Selection Panel', () => {
     });
   });
 });
-
-

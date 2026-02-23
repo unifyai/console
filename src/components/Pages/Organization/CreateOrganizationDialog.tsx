@@ -1,18 +1,14 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/UI/dialog";
-import { Input } from "@/components/UI/input";
-import PrimaryButton from "@/components/Common/Buttons/Primary";
-import SecondaryButton from "@/components/Common/Buttons/Secondary";
-import { Plus, AlertCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/UI/button";
-import { OrganizationListItem, OrganizationListResponse } from "@/types/organization";
-import { ResponseProps } from "@/types/common";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/UI/dialog';
+import { Input } from '@/components/UI/input';
+import PrimaryButton from '@/components/Common/Buttons/Primary';
+import SecondaryButton from '@/components/Common/Buttons/Secondary';
+import { Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { OrganizationListItem, OrganizationListResponse } from '@/types/organization';
+import { ResponseProps } from '@/types/common';
 
 interface CreateOrgDialogProps {
   onCreate: (name: string) => void;
@@ -21,7 +17,7 @@ interface CreateOrgDialogProps {
 
 const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
+  const [orgName, setOrgName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -38,8 +34,8 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       // Validate if organization name already exists
       const result = await checkNameAvailability(trimmedName);
 
-      if ("detail" in result) {
-        setError("Failed to validate organization name. Please try again.");
+      if ('detail' in result) {
+        setError('Failed to validate organization name. Please try again.');
         setIsValidating(false);
         return;
       }
@@ -50,7 +46,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       );
 
       if (exists) {
-        setError("An organization with this name already exists.");
+        setError('An organization with this name already exists.');
         setIsValidating(false);
         return;
       }
@@ -58,10 +54,10 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       // If valid, proceed with creation
       onCreate(trimmedName);
       setOpen(false);
-      setOrgName("");
+      setOrgName('');
     } catch (err) {
       console.error(err);
-      setError("An unexpected error occurred.");
+      setError('An unexpected error occurred.');
     } finally {
       setIsValidating(false);
     }
@@ -70,7 +66,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setOrgName("");
+      setOrgName('');
       setError(null);
     }
   };
@@ -87,31 +83,35 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4">
           <div className="space-y-2">
             <Input
-                id="name"
-                placeholder="Acme Corp"
-                value={orgName}
-                onChange={(e) => {
-                    setOrgName(e.target.value);
-                    if (error) setError(null);
-                }}
-                className={error ? "border-destructive focus-visible:ring-destructive" : ""}
-                autoFocus
-                disabled={isValidating}
+              id="name"
+              placeholder="Acme Corp"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (error) setError(null);
+              }}
+              className={error ? 'border-destructive focus-visible:ring-destructive' : ''}
+              autoFocus
+              disabled={isValidating}
             />
             {error && (
-                <div className="flex items-center text-destructive text-sm animate-in slide-in-from-top-1 fade-in duration-200">
-                    <AlertCircle className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                    <span>{error}</span>
-                </div>
+              <div className="text-body text-error flex items-center duration-200 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="mr-1.5 h-3 w-3 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <SecondaryButton label="Cancel" onClick={() => handleOpenChange(false)} disabled={isValidating} />
-            <PrimaryButton 
-                label={isValidating ? "Checking..." : "Create"} 
-                type="submit" 
-                disabled={!orgName.trim() || isValidating} 
-                icon={isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+            <SecondaryButton
+              label="Cancel"
+              onClick={() => handleOpenChange(false)}
+              disabled={isValidating}
+            />
+            <PrimaryButton
+              label={isValidating ? 'Checking...' : 'Create'}
+              type="submit"
+              disabled={!orgName.trim() || isValidating}
+              icon={isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
             />
           </div>
         </form>

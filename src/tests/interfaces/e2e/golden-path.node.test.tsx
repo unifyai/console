@@ -13,9 +13,8 @@ import {
   mockFieldsActions,
   mockDerivedEntryActions,
   mockContextActions,
-  mockCodeActions,
-  mockFileActions,
   mockFavouritesActions,
+  mockResourcesActions,
 } from '@/tests/interfaces/mocks/fixtures/actions';
 import { mockProjectId } from '@/tests/interfaces/mocks/fixtures/projects';
 import { mockInterface } from '@/tests/interfaces/mocks/fixtures/interfaces';
@@ -29,7 +28,7 @@ const mockFetch = vi.fn();
 const createMockResponse = (data: any, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
-  headers: { get: (name: string) => name === 'etag' ? 'mock-etag' : null },
+  headers: { get: (name: string) => (name === 'etag' ? 'mock-etag' : null) },
   json: async () => data,
 });
 
@@ -59,7 +58,9 @@ vi.mock('nuqs', async () => {
       React.useEffect(() => {
         const onUpdate = () => forceUpdate((n) => n + 1);
         nuqsListeners.add(onUpdate);
-        return () => nuqsListeners.delete(onUpdate);
+        return () => {
+          nuqsListeners.delete(onUpdate);
+        };
       }, []);
 
       const value = nuqsStore.get(key) ?? options?.defaultValue ?? null;
@@ -103,10 +104,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Basic scroll mocks for jsdom
-// @ts-expect-error jsdom patch
-window.scrollTo = vi.fn();
-// @ts-expect-error jsdom patch
-HTMLElement.prototype.scrollTo = vi.fn();
+window.scrollTo = vi.fn() as any;
+HTMLElement.prototype.scrollTo = vi.fn() as any;
 
 describe('Interfaces Golden Path (node/jsdom)', () => {
   const originalConsoleError = console.error;
@@ -137,20 +136,29 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
     vi.clearAllMocks();
     nuqsStore.clear();
     nuqsListeners.clear();
-    
+
     // Setup fetch mock
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
-    
+
     // Create mock response data
-    const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
-    
+    const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, {
+      offset: 0,
+      totalCount: MOCK_LOGS_TOTAL_COUNT,
+    });
+
     // Default fetch mock implementation
     mockFetch.mockImplementation(async (url: string) => {
       // API routes
       if (url.includes('/api/logs/fields')) {
         return createMockResponse({
-          'entries/value': { data_type: 'string', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+          'entries/value': {
+            dataType: 'string',
+            fieldType: 'entry',
+            artifacts: '',
+            mutable: 'false',
+            createdAt: '',
+          },
         });
       }
       if (url.includes('/api/logs')) {
@@ -158,12 +166,11 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
         const urlObj = new URL(url, 'http://localhost');
         const limit = parseInt(urlObj.searchParams.get('limit') || '20');
         const offset = parseInt(urlObj.searchParams.get('offset') || '0');
-        
+
         // Return paginated logs
-        const paginatedLogs = allLogs.logs.slice(offset, offset + limit);
-        
+        const paginatedLogs = (allLogs.logs as any[])?.slice(offset, offset + limit) ?? [];
+
         return createMockResponse({
-          params: allLogs.params,
           logs: paginatedLogs,
           count: allLogs.count,
           groups: allLogs.groups || [],
@@ -176,15 +183,17 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
         return createMockResponse([mockTab]);
       }
       if (url.includes('/api/tile')) {
-        return createMockResponse([{
-          id: 'tile-1',
-          name: 'Logs Table',
-          type: 'Table',
-          tab_id: mockTab.id,
-          visible: true,
-          position: { x: 0, y: 0, width: 4, height: 4 },
-          table_tile: { table_type: 'logs', page_number: '0' },
-        }]);
+        return createMockResponse([
+          {
+            id: 'tile-1',
+            name: 'Logs Table',
+            type: 'Table',
+            tabId: mockTab.id,
+            visible: true,
+            position: { x: 0, y: 0, width: 4, height: 4 },
+            tableTile: { tableType: 'logs', pageNumber: '0' },
+          },
+        ]);
       }
       if (url.includes('/api/projects/tree')) {
         return createMockResponse([{ id: mockProjectId, name: mockProjectId, contexts: [] }]);
@@ -192,7 +201,7 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
       if (url.includes('/api/context')) {
         return createMockResponse([]);
       }
-      
+
       // Default: return 404
       return createMockResponse({}, 404);
     });
@@ -213,10 +222,10 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
     fieldsActions: mockFieldsActions,
     derivedEntryActions: mockDerivedEntryActions,
     contextActions: mockContextActions,
-    codeActions: mockCodeActions,
-    fileActions: mockFileActions,
     favouritesActions: mockFavouritesActions,
+    resourcesActions: mockResourcesActions,
     initialFavourites: [],
+    userMeta: { userId: 'test-user', email: 'test@example.com' },
   };
 
   it('Step 1: user selects a project and leaves the selection screen', async () => {
@@ -224,7 +233,7 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
       projects: [mockProjectId],
     };
 
-    renderWithProviders(<Interface {...defaultProps} />, { initialState });
+    renderWithProviders(<Interface {...(defaultProps as any)} />, { initialState });
 
     // Project selection screen is visible
     expect(await screen.findByText('Select a project')).toBeInTheDocument();
@@ -267,7 +276,7 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
         },
       },
       tabsById: {
-        [mockTab.id]: {
+        [mockTab.id ?? 'test-tab']: {
           ...mockTab,
           tileIds: ['tile-1'],
         },
@@ -280,15 +289,14 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
           tabId: mockTab.id,
           visible: true,
           position: { x: 0, y: 0, width: 4, height: 4 },
-          tableTile: { table_type: 'logs', page_number: '0' },
+          tableTile: { tableType: 'logs', pageNumber: '0' },
         },
       },
     };
 
-    renderWithProviders(
-      <Interface {...defaultProps} interfaceId={mockInterface.id} />,
-      { initialState },
-    );
+    renderWithProviders(<Interface {...(defaultProps as any)} interfaceId={mockInterface.id} />, {
+      initialState: initialState as any,
+    });
 
     // We should not be stuck on the project selection screen
     await waitFor(() => {
