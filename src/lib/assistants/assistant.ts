@@ -11,6 +11,7 @@ import {
 } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import { checkCreditsBalance } from '@/lib/user/credits';
 
 export const listAssistants = async (
   apiKey: string,
@@ -286,27 +287,11 @@ export const checkHiringFunds = async (apiKey: string) => {
   return async (hiringFee: number): Promise<AssistantHiringSufficientFunds | ResponseProps> => {
     'use server';
     try {
-      const orchestraUrl = process.env.ORCHESTRA_URL || '';
-      if (orchestraUrl.includes('staging')) return { sufficient: true };
-
-      const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/billing/balance`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) return { detail: `Failed to fetch balance: ${response.statusText}` };
-
-      const balanceData = (await response.json()) as { balance: string; fullBalance: number };
-      const currentBalance =
-        typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
       const fee = hiringFee ?? ASSISTANT_ONBOARDING_FEE;
-      if (currentBalance < fee) return { sufficient: false };
+      const result = await checkCreditsBalance(apiKey, fee);
 
-      return { sufficient: true };
+      if (result.error) return { detail: result.error };
+      return { sufficient: result.hasSufficientCredits };
     } catch (error) {
       console.error('[Server Action checkHiringFunds] Error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error checking balance.';

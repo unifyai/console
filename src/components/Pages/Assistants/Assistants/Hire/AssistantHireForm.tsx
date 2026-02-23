@@ -770,6 +770,7 @@ export function HireForm({
                                 />
                               )}
                             </div>
+                            {/* Local setup option hidden — uncomment to re-enable
                             <div
                               className={cn(
                                 'flex flex-col space-y-3 rounded-md border p-3',
@@ -903,6 +904,7 @@ export function HireForm({
                                 />
                               )}
                             </div>
+                            */}
                           </div>
                         )}
                       />
