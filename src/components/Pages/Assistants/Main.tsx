@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
 import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
-import { cn } from '@/lib/utils';
 import {
   Assistant,
   AssistantActions,
@@ -43,7 +42,6 @@ import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { Room } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
-import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
@@ -298,7 +296,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     toggleRemoteControlInteractive,
   } = useAssistantCall(room, assistantActions);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
-  const [isCallMinimized, setIsCallMinimized] = React.useState(false);
 
   // --- User/Org Spending for Spending Gate ---
   // Stable disabled action functions (defined once, never changes)
@@ -385,7 +382,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             );
           } else {
             setIsCommunicationDialogOpen(true);
-            setIsCallMinimized(false);
           }
         } else {
           toast.info('A call is already in progress with another assistant.');
@@ -394,7 +390,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       }
 
       setIsCommunicationDialogOpen(true);
-      setIsCallMinimized(false);
       await startCall(assistant, callType);
     },
     [startCall, activeCallAssistant, popOutCallAssistantId]
@@ -403,36 +398,16 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const handleHangUp = React.useCallback(async () => {
     await hangUpCall();
     setIsCommunicationDialogOpen(false);
-    setIsCallMinimized(false);
   }, [hangUpCall]);
-
-  const handleMinimizeCall = React.useCallback(() => {
-    setIsCommunicationDialogOpen(false);
-    setIsCallMinimized(true);
-  }, []);
-
-  const handleExpandCall = React.useCallback(() => {
-    if (activeCallAssistant) {
-      setIsCommunicationDialogOpen(true);
-      setIsCallMinimized(false);
-    }
-  }, [activeCallAssistant]);
 
   // Close dialog if connection fails during setup or is disconnected remotely
   React.useEffect(() => {
     if (connectionError) return; // Don't close if there's an error the user needs to see
 
-    if (!isConnectingCall && !isCallConnected && (isCommunicationDialogOpen || isCallMinimized)) {
+    if (!isConnectingCall && !isCallConnected && isCommunicationDialogOpen) {
       setIsCommunicationDialogOpen(false);
-      setIsCallMinimized(false);
     }
-  }, [
-    isConnectingCall,
-    isCallConnected,
-    isCommunicationDialogOpen,
-    isCallMinimized,
-    connectionError,
-  ]);
+  }, [isConnectingCall, isCallConnected, isCommunicationDialogOpen, connectionError]);
 
   const {
     displayedPresets,
@@ -967,7 +942,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           <AssistantCommunicationDialog
             isOpen={isCommunicationDialogOpen}
             onClose={handleHangUp}
-            onMinimize={handleMinimizeCall}
             assistant={activeCallAssistant}
             assistantActions={assistantActions}
             room={room}
@@ -991,24 +965,9 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             isDesktopReady={isDesktopReady}
             callType={callType}
             connectionDetails={connectionDetails}
+            isSpeakerMuted={isSpeakerMuted}
+            onToggleSpeaker={toggleSpeakerMute}
           />
-          {isCallMinimized && (
-            <AssistantCommunicationMinimized
-              assistant={activeCallAssistant}
-              room={room}
-              onHangUp={handleHangUp}
-              onExpand={handleExpandCall}
-              isSpeakerMuted={isSpeakerMuted}
-              onToggleSpeaker={toggleSpeakerMute}
-              isConnecting={isConnectingCall}
-              isCallConnected={isCallConnected}
-              isWaitingForAssistant={isWaitingForAssistant}
-              waitingMessage={waitingMessage}
-              connectionError={connectionError}
-              onRetry={retryConnection}
-              callType={callType}
-            />
-          )}
         </RoomContext.Provider>
       )}
     </>

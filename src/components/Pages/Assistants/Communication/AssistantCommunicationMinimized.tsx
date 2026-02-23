@@ -75,7 +75,9 @@ const ControlButton: React.FC<{
   </TooltipProvider>
 );
 
-const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'room'>> = ({
+export type MinimizedContentProps = Omit<AssistantCommunicationMinimizedProps, 'room'>;
+
+export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   assistant,
   onHangUp,
   onExpand,
@@ -132,7 +134,7 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
         </div>
         {/* Expand Button */}
         <div className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <ControlButton tooltip="Expand View" onClick={onExpand}>
+          <ControlButton tooltip="Fullscreen Mode" onClick={onExpand}>
             <Maximize2 className="h-4 w-4" />
           </ControlButton>
         </div>
