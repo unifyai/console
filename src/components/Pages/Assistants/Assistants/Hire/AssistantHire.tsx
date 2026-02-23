@@ -27,7 +27,10 @@ import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/Ass
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
-import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
+import {
+  ASSISTANT_ONBOARDING_FEE,
+  PRE_HIRE_CHAT_MESSAGE_COST,
+} from '@/constants/assistants/settings';
 import { useFormContext, UseFormReturn } from 'react-hook-form';
 import { AssistantHireChatPanel } from './AssistantHireChatPanel';
 import { ChatMessage } from '@/types/assistants/chat';
@@ -154,10 +157,7 @@ export function AssistantHire({
 
   const handleToggleView = () => setRightPanelView((p) => (p === 'presets' ? 'chat' : 'presets'));
 
-  const isPrimaryActionDisabled =
-    isHireSubmitting ||
-    !!isProcessingVoice ||
-    !!isProcessingPhoto;
+  const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !!isProcessingPhoto;
   const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance;
 
   const handleDialogClose = (open: boolean) => {
@@ -255,69 +255,29 @@ export function AssistantHire({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-            {/* Form Panel Section */}
-            <motion.div
-              key="hire-form-panel"
-              initial={false}
-              animate={{
-                width: !isAssistantPresetsOpen
+          {/* Form Panel Section */}
+          <motion.div
+            key="hire-form-panel"
+            initial={false}
+            animate={{
+              width: !isAssistantPresetsOpen
+                ? '100%'
+                : layoutMode === 'left'
                   ? '100%'
-                  : layoutMode === 'left'
-                    ? '100%'
-                    : layoutMode === 'right'
-                      ? '0%'
-                      : '60%',
-              }}
-              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.2 }}
-              className="relative flex h-full min-w-0 flex-shrink-0 flex-col overflow-hidden bg-background"
+                  : layoutMode === 'right'
+                    ? '0%'
+                    : '60%',
+            }}
+            transition={{ type: 'tween', ease: 'easeInOut', duration: 0.2 }}
+            className="relative flex h-full min-w-0 flex-shrink-0 flex-col overflow-hidden bg-background"
+          >
+            <div
+              className={cn('flex h-full w-full flex-col', layoutMode === 'right' && 'invisible')}
             >
-              <div
-                className={cn('flex h-full w-full flex-col', layoutMode === 'right' && 'invisible')}
-              >
-                <div className="flex flex-shrink-0 items-center justify-between border-b px-6 py-3.5">
-                  <h3 className="text-title">Your Assistant</h3>
-                  <div className="flex items-center gap-1">
-                    {layoutMode === 'split' && (
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => setLayoutMode('right')}
-                              disabled={!isAssistantPresetsOpen}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Minimize panel</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label="Randomize Assistant"
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={handleRandomizePreset}
-                            disabled={isOverallDialogBusy}
-                          >
-                            <Shuffle className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Randomize</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+              <div className="flex flex-shrink-0 items-center justify-between border-b px-6 py-3.5">
+                <h3 className="text-title">Your Assistant</h3>
+                <div className="flex items-center gap-1">
+                  {layoutMode === 'split' && (
                     <TooltipProvider delayDuration={100}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -326,67 +286,107 @@ export function AssistantHire({
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => setLayoutMode(layoutMode === 'left' ? 'split' : 'left')}
+                            onClick={() => setLayoutMode('right')}
                             disabled={!isAssistantPresetsOpen}
                           >
-                            {layoutMode === 'left' ? (
-                              <Minimize2 className="h-4 w-4" />
-                            ) : (
-                              <Maximize2 className="h-4 w-4" />
-                            )}
+                            <Minus className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{layoutMode === 'left' ? 'Shrink panel' : 'Maximize panel'}</p>
+                          <p>Minimize panel</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                  </div>
+                  )}
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          aria-label="Randomize Assistant"
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={handleRandomizePreset}
+                          disabled={isOverallDialogBusy}
+                        >
+                          <Shuffle className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Randomize</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setLayoutMode(layoutMode === 'left' ? 'split' : 'left')}
+                          disabled={!isAssistantPresetsOpen}
+                        >
+                          {layoutMode === 'left' ? (
+                            <Minimize2 className="h-4 w-4" />
+                          ) : (
+                            <Maximize2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{layoutMode === 'left' ? 'Shrink panel' : 'Maximize panel'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <div className="min-h-0 flex-1 overflow-hidden">{hireForm}</div>
               </div>
-            </motion.div>
+              <div className="min-h-0 flex-1 overflow-hidden">{hireForm}</div>
+            </div>
+          </motion.div>
 
-            {/* Presets/Chat Panel Section */}
-            <AnimatePresence>
-              {isAssistantPresetsOpen && (
-                <motion.div
-                  key="hire-right-panel"
-                  initial={{ width: '0%' }}
-                  animate={{
-                    width: layoutMode === 'left' ? '0%' : layoutMode === 'right' ? '100%' : '40%',
-                  }}
-                  exit={{ width: '0%' }}
-                  transition={{ type: 'tween', ease: 'easeInOut', duration: 0.2 }}
-                  className="h-full flex-shrink-0 overflow-hidden bg-background"
-                >
-                  <div className={cn('h-full w-full', layoutMode === 'left' && 'invisible')}>
-                    {rightPanelView === 'presets' ? (
-                      React.cloneElement(presetsPanel as React.ReactElement<any>, {
-                        onPresetSelect: handlePresetSelect,
-                        layoutMode: layoutMode,
-                        setLayoutMode: setLayoutMode,
-                        onClose: () => setIsAssistantPresetsOpen(false),
-                        onToggleView: handleToggleView,
-                        isFastMode: isFastMode,
-                        onAddPaymentMethod: onAddPaymentMethod,
-                      })
-                    ) : (
-                      <AssistantHireChatPanel
-                        layoutMode={layoutMode}
-                        setLayoutMode={setLayoutMode}
-                        onClose={() => setIsAssistantPresetsOpen(false)}
-                        assistantConfigKey={assistantConfigKey}
-                        chatHistories={chatHistories}
-                        setChatHistories={setChatHistories}
-                        onToggleView={handleToggleView}
-                      />
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Presets/Chat Panel Section */}
+          <AnimatePresence>
+            {isAssistantPresetsOpen && (
+              <motion.div
+                key="hire-right-panel"
+                initial={{ width: '0%' }}
+                animate={{
+                  width: layoutMode === 'left' ? '0%' : layoutMode === 'right' ? '100%' : '40%',
+                }}
+                exit={{ width: '0%' }}
+                transition={{ type: 'tween', ease: 'easeInOut', duration: 0.2 }}
+                className="h-full flex-shrink-0 overflow-hidden bg-background"
+              >
+                <div className={cn('h-full w-full', layoutMode === 'left' && 'invisible')}>
+                  {rightPanelView === 'presets' ? (
+                    React.cloneElement(presetsPanel as React.ReactElement<any>, {
+                      onPresetSelect: handlePresetSelect,
+                      layoutMode: layoutMode,
+                      setLayoutMode: setLayoutMode,
+                      onClose: () => setIsAssistantPresetsOpen(false),
+                      onToggleView: handleToggleView,
+                      isFastMode: isFastMode,
+                      onAddPaymentMethod: onAddPaymentMethod,
+                    })
+                  ) : (
+                    <AssistantHireChatPanel
+                      layoutMode={layoutMode}
+                      setLayoutMode={setLayoutMode}
+                      onClose={() => setIsAssistantPresetsOpen(false)}
+                      assistantConfigKey={assistantConfigKey}
+                      chatHistories={chatHistories}
+                      setChatHistories={setChatHistories}
+                      onToggleView={handleToggleView}
+                    />
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <DialogFooter className="flex flex-shrink-0 items-center border-t px-6 py-3">
           <div className="text-body mr-auto">
@@ -395,7 +395,10 @@ export function AssistantHire({
           </div>
           <div className="flex items-center gap-2">
             {rightPanelView === 'presets' ? (
-              <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+              <BillableActionGuard
+                onAddPaymentMethod={onAddPaymentMethod}
+                creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
+              >
                 <Button
                   type="button"
                   variant="outline"
@@ -441,6 +444,7 @@ export function AssistantHire({
               <PopoverTrigger asChild>
                 <BillableActionGuard
                   onAddPaymentMethod={onAddPaymentMethod}
+                  creditsRequired={ASSISTANT_ONBOARDING_FEE}
                 >
                   <Button
                     type="button"
@@ -458,31 +462,31 @@ export function AssistantHire({
                 </BillableActionGuard>
               </PopoverTrigger>
               <PopoverContent side="top" align="end" className="w-80">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
-                        <h3 className="text-title text-destructive">Insufficient Funds</h3>
-                      </div>
-                      <p className="text-body text-muted-foreground">
-                        Your required balance is ${totalOnboardingFee.toFixed(2)}. Please recharge
-                        your account.
-                      </p>
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                      <h3 className="text-title text-destructive">Insufficient Funds</h3>
                     </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open('/billing', '_blank');
-                        setShowInsufficientFundsHint(false);
-                      }}
-                    >
-                      Go to Billing
-                    </Button>
+                    <p className="text-body text-muted-foreground">
+                      Your required balance is ${totalOnboardingFee.toFixed(2)}. Please recharge
+                      your account.
+                    </p>
                   </div>
-                </PopoverContent>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open('/billing', '_blank');
+                      setShowInsufficientFundsHint(false);
+                    }}
+                  >
+                    Go to Billing
+                  </Button>
+                </div>
+              </PopoverContent>
             </Popover>
           </div>
         </DialogFooter>

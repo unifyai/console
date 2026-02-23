@@ -14,6 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
+import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
 const PRESET_ITEM_APPROX_HEIGHT = 90; // Approximate height of one PresetListItem + gap for threshold calculation
 
@@ -136,7 +137,10 @@ export function PresetsPanel({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex">
-                  <BillableActionGuard onAddPaymentMethod={onAddPaymentMethod}>
+                  <BillableActionGuard
+                    onAddPaymentMethod={onAddPaymentMethod}
+                    creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
+                  >
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
                       <MessageSquare className="h-4 w-4" />
                       <span className="sr-only">Chat with Assistant</span>
