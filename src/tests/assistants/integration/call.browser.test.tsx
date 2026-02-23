@@ -632,7 +632,7 @@ describe('Assistant Call', () => {
         mockRoomInstance.numParticipants = 2;
         mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant-a' });
 
-        const minimizeBtn = await screen.findByRole('button', { name: /minimize/i });
+        const minimizeBtn = await screen.findByRole('button', { name: /floating mode/i });
         await defaultUser.click(minimizeBtn);
 
         const assistantB = mockAssistants[1];
@@ -840,10 +840,13 @@ describe('Assistant Call', () => {
             expect(screen.queryByTitle('Assistant Remote Desktop')).toBeNull();
           });
 
-          // Verify avatar fallback is visible via fallback text "JD" inside the call dialog
-          // We scope to role="dialog" to ignore the "JD" in the background list
-          const dialog = await screen.findByRole('dialog');
-          expect(await within(dialog).findByText('JD')).toBeVisible();
+          // Verify avatar fallback is visible via fallback text "JD" inside the call view
+          // The call container no longer uses a semantic dialog role, so we scope
+          // via the audio-renderer which is unique to the call view
+          const audioRenderer = screen.getByTestId('audio-renderer');
+          const callContainer = audioRenderer.closest('.fixed') as HTMLElement;
+          expect(callContainer).toBeTruthy();
+          expect(within(callContainer).getByText('JD')).toBeVisible();
         } finally {
           // Restore photo to avoid side effects
           targetAssistant.profilePhoto = originalPhoto;
@@ -1068,18 +1071,18 @@ describe('Assistant Call', () => {
           screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
         ).toBeVisible();
 
-        // Click Minimize
-        const minimizeBtn = await screen.findByLabelText('Minimize');
-        await defaultUser.click(minimizeBtn);
+        // Click Floating Mode (previously "Minimize")
+        const floatingModeBtn = await screen.findByLabelText('Floating Mode');
+        await defaultUser.click(floatingModeBtn);
 
-        // Header should be gone
+        // Header should be gone (compact floating mode shows MinimizedContent instead)
         await waitFor(() => {
           expect(
             screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
           ).toBeNull();
         });
 
-        // Widget should be present (can check by Expand button which is unique to widget)
+        // Widget should be present (can check by Expand button which is unique to compact view)
         expect(screen.getByLabelText('Expand View')).toBeVisible();
 
         // Widget should still show controls like Hang Up
@@ -1100,16 +1103,16 @@ describe('Assistant Call', () => {
         renderPage();
         await establishCall('video');
 
-        // 1. Minimize
-        const minimizeBtn = await screen.findByLabelText('Minimize');
-        await defaultUser.click(minimizeBtn);
+        // 1. Switch to Floating Mode (previously "Minimize")
+        const floatingModeBtn = await screen.findByLabelText('Floating Mode');
+        await defaultUser.click(floatingModeBtn);
         await waitFor(() =>
           expect(
             screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
           ).toBeNull()
         );
 
-        // 2. Expand
+        // 2. Expand back to fullscreen
         const expandBtn = await screen.findByLabelText('Expand View');
         await defaultUser.click(expandBtn);
 
@@ -1119,7 +1122,7 @@ describe('Assistant Call', () => {
             screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)
           ).toBeVisible();
         });
-        // Expand button should be gone
+        // Expand button should be gone (back in modal mode)
         expect(screen.queryByLabelText('Expand View')).toBeNull();
       }
     );
@@ -1137,9 +1140,9 @@ describe('Assistant Call', () => {
         renderPage();
         const room = await establishCall('video');
 
-        // 1. Minimize
-        const minimizeBtn = await screen.findByLabelText('Minimize');
-        await defaultUser.click(minimizeBtn);
+        // 1. Switch to Floating Mode (previously "Minimize")
+        const floatingModeBtn = await screen.findByLabelText('Floating Mode');
+        await defaultUser.click(floatingModeBtn);
 
         // 2. Hang Up from Widget
         const hangUpWidgetBtn = await screen.findByLabelText('Hang Up');
