@@ -193,7 +193,7 @@ export function AssistantHire({
 
   const hireButtonLabel = () => {
     if (isCheckingBalance) return 'Checking Balance...';
-    if (isHireSubmitting) return 'Hiring...';
+    if (isHireSubmitting) return 'Hiring Assistant...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
     return 'Hire Assistant';
