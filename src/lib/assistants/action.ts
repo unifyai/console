@@ -4,6 +4,9 @@
  * Factory functions that return server actions for fetching ManagerMethod
  * and ToolLoop events from the logging API.
  *
+ * Uses paginated fetching (limit + offset) to safely retrieve all matching
+ * logs without sending unbounded queries that could choke bandwidth.
+ *
  * Set USE_MOCK_DATA to true in action-mock-data.ts to use simulated
  * progressive event data for UI testing.
  */
@@ -23,6 +26,128 @@ import {
   getMockToolLoopEvents,
 } from '../../utils/assistants/action-mock-data';
 
+const __DEV__ = process.env.NODE_ENV === 'development';
+
+// =============================================================================
+// Pagination constants
+// =============================================================================
+
+const MM_PAGE_SIZE = 100;
+const TL_PAGE_SIZE = 500;
+const MAX_TOTAL_LOGS = 5000;
+
+// =============================================================================
+// Pagination helpers
+// =============================================================================
+
+/**
+ * Fetches a single page of logs from Orchestra, parses the JSON response,
+ * and validates the HTTP status.
+ *
+ * @returns The parsed response data, or a ResponseProps error.
+ */
+async function fetchPage(
+  baseUrl: string,
+  apiKey: string,
+  limit: number,
+  offset: number,
+  label: string
+): Promise<{ data: any } | ResponseProps> {
+  const url = `${baseUrl}&limit=${limit}&offset=${offset}`;
+
+  const response = await fetch(url, { method: 'GET', headers: { apiKey } });
+
+  let data;
+  try {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      console.error(
+        `[action.ts ${label}] Received non-JSON response with status ${response.status}`
+      );
+      return { detail: 'Received an invalid response from the server.' };
+    }
+  } catch (parseError) {
+    console.error(`[action.ts ${label}] Failed to parse JSON response ${parseError}`);
+    return { detail: 'Received an invalid response from the server.' };
+  }
+
+  if (!response.ok) {
+    const errorMessage = data.detail || `Failed to get events: ${response.statusText}`;
+    return { detail: errorMessage };
+  }
+
+  return { data };
+}
+
+/**
+ * Fetches ALL matching logs from Orchestra using pagination.
+ *
+ * Starts at offset 0 with PAGE_SIZE, reads the `count` field from the
+ * first response to know the total, then pages through the remainder.
+ * Stops when all logs are fetched or the safety cap is reached.
+ *
+ * Returns the accumulated logs with entries converted to camelCase and
+ * sorted by id ascending (Orchestra returns newest-first by default).
+ */
+async function fetchAllPages(
+  baseUrl: string,
+  apiKey: string,
+  label: string,
+  pageSize: number = MM_PAGE_SIZE
+): Promise<ActionsLogsResponse | ResponseProps> {
+  const allLogs: any[] = [];
+  let totalCount = 0;
+  let offset = 0;
+
+  while (true) {
+    const result = await fetchPage(baseUrl, apiKey, pageSize, offset, label);
+    if ('detail' in result) return result;
+
+    const pageLogs = result.data?.logs ?? [];
+    allLogs.push(...pageLogs);
+
+    if (offset === 0) {
+      totalCount = result.data?.count ?? pageLogs.length;
+      if (__DEV__)
+        console.log(
+          `[DEBUG][action.ts] ${label} paginated fetch: total=${totalCount}, first page=${pageLogs.length}`
+        );
+    }
+
+    offset += pageSize;
+
+    if (
+      pageLogs.length < pageSize ||
+      allLogs.length >= totalCount ||
+      allLogs.length >= MAX_TOTAL_LOGS
+    ) {
+      if (allLogs.length >= MAX_TOTAL_LOGS && allLogs.length < totalCount) {
+        console.warn(
+          `[action.ts ${label}] Stopped at safety cap (${MAX_TOTAL_LOGS}), total matching=${totalCount}`
+        );
+      }
+      break;
+    }
+  }
+
+  if (__DEV__ && allLogs.length > pageSize) {
+    console.log(
+      `[DEBUG][action.ts] ${label} fetched ${allLogs.length} logs across ${Math.ceil(allLogs.length / pageSize)} pages`
+    );
+  }
+
+  const processedLogs = allLogs
+    .map((log: any) => ({
+      ...log,
+      entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+    }))
+    .sort((a: any, b: any) => a.id - b.id);
+
+  return { logs: processedLogs, count: totalCount } as ActionsLogsResponse;
+}
+
 // =============================================================================
 // Server Actions
 // =============================================================================
@@ -31,6 +156,8 @@ import {
  * Factory for getManagerMethodEvents server action.
  *
  * Fetches ManagerMethod events for an assistant from the All/Events/ManagerMethod context.
+ * When limit is null, paginates internally to fetch all matching logs safely.
+ * When limit is provided, fetches a single page (used by loadMore).
  *
  * @param apiKey - API key for authentication
  * @returns Async function to fetch ManagerMethod events
@@ -43,75 +170,36 @@ export const getManagerMethodEvents = async (apiKey: string) => {
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
 
-    // Use mock data for UI testing
     if (USE_MOCK_DATA) {
       return getMockManagerMethodEvents(assistantId, startTime, limit);
     }
 
     try {
       const context = 'All/Events/ManagerMethod';
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
-      // Build filter expression
-      const filters: string[] = [buildAssistantIdFilter(assistantId)];
+      // TODO: Remove MemoryManager filter which is being placed momentarily to avoid
+      // too large payloads from choking the orchestra bandwidth because these payloads
+      // carry the entire transcripts with them
+      const filters: string[] = [buildAssistantIdFilter(assistantId), `manager != "MemoryManager"`];
       if (startTime) {
         filters.push(buildTimestampFilter(startTime));
       }
       const filterExpr = combineFilters(filters);
       if (filterExpr) {
-        url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+        baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
       }
 
-      // No server-side sorting — Orchestra doesn't reliably sort on ts/id/created_at.
-      // Logs are returned newest-first by default; client sorts by id ascending.
-      if (limit !== null) {
-        url += `&limit=${limit}`;
+      if (limit === null) {
+        return await fetchAllPages(baseUrl, apiKey, 'getManagerMethodEvents', MM_PAGE_SIZE);
       }
 
-      // TODO: Remove debug logging
-      console.log(`[DEBUG][action.ts] getManagerMethodEvents URL: ${url}`);
+      // Explicit limit: single-page fetch (used by loadMore)
+      const result = await fetchPage(baseUrl, apiKey, limit, 0, 'getManagerMethodEvents');
+      if ('detail' in result) return result;
 
-      const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[action.ts getManagerMethodEvents] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
-        console.error(
-          `[action.ts getManagerMethodEvents] Failed to parse JSON response ${parseError}`
-        );
-        return { detail: 'Received an invalid response from the server.' };
-      }
-
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][action.ts] getManagerMethodEvents status=${response.status}, logs count=${data?.logs?.length ?? 'N/A'}, count field=${data?.count ?? 'N/A'}`
-      );
-      if (data?.logs?.length > 0) {
-        const firstLog = data.logs[0];
-        const lastLog = data.logs[data.logs.length - 1];
-        console.log(`[DEBUG][action.ts] First log ts=${firstLog.ts}, id=${firstLog.id}`);
-        console.log(`[DEBUG][action.ts] Last log ts=${lastLog.ts}, id=${lastLog.id}`);
-      }
-
-      if (!response.ok) {
-        const errorMessage = data.detail || `Failed to get events: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      // Orchestra returns entries in snake_case — convert to camelCase
-      // so parseManagerMethodLog / the frontend types work correctly.
-      // Also sort by id ascending (Orchestra returns newest-first by default).
-      if (data?.logs) {
-        data.logs = data.logs
+      if (result.data?.logs) {
+        result.data.logs = result.data.logs
           .map((log: any) => ({
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
@@ -119,7 +207,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
           .sort((a: any, b: any) => a.id - b.id);
       }
 
-      return data as ActionsLogsResponse;
+      return result.data as ActionsLogsResponse;
     } catch (error) {
       console.error(`[action.ts getManagerMethodEvents] Error fetching events:`, error);
       const errorMessage =
@@ -133,7 +221,12 @@ export const getManagerMethodEvents = async (apiKey: string) => {
  * Factory for getToolLoopEvents server action.
  *
  * Fetches ToolLoop events for an assistant from the All/Events/ToolLoop context.
- * Filters by hierarchy_label prefix to get events for a specific node.
+ * Filters by hierarchy (array joined with "->") to get events for a specific
+ * node and its un-noded descendants (e.g. StorageCheck inner hierarchy).
+ * Client-side filtering is then applied to exclude events that belong to
+ * child MM nodes.
+ *
+ * When limit is null, paginates internally to fetch all matching logs safely.
  *
  * @param apiKey - API key for authentication
  * @returns Async function to fetch ToolLoop events
@@ -141,71 +234,47 @@ export const getManagerMethodEvents = async (apiKey: string) => {
 export const getToolLoopEvents = async (apiKey: string) => {
   return async (
     assistantId: string,
-    hierarchyLabelPrefix: string,
+    hierarchy: string[],
     limit: number | null,
     startTime?: string,
     endTime?: string
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
 
-    // Use mock data for UI testing
     if (USE_MOCK_DATA) {
-      return getMockToolLoopEvents(assistantId, hierarchyLabelPrefix, limit);
+      return getMockToolLoopEvents(assistantId, hierarchy, limit);
     }
 
     try {
       const context = 'All/Events/ToolLoop';
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
-      // Build filter expression
+      const joinedHierarchy = hierarchy.join('->');
       const filters: string[] = [
         buildAssistantIdFilter(assistantId),
-        `hierarchy_label.startswith('${escapeFilterValue(hierarchyLabelPrefix)}')`,
+        `hierarchy_label.startswith('${escapeFilterValue(joinedHierarchy)}')`,
       ];
       if (startTime) {
-        filters.push(`created_at >= '${escapeFilterValue(startTime)}'`);
+        filters.push(`event_timestamp >= '${escapeFilterValue(startTime)}'`);
       }
       if (endTime) {
-        filters.push(`created_at <= '${escapeFilterValue(endTime)}'`);
+        filters.push(`event_timestamp <= '${escapeFilterValue(endTime)}'`);
       }
       const filterExpr = combineFilters(filters);
       if (filterExpr) {
-        url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+        baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
       }
 
-      // No server-side sorting — client sorts by id ascending.
-      if (limit !== null) {
-        url += `&limit=${limit}`;
+      if (limit === null) {
+        return await fetchAllPages(baseUrl, apiKey, 'getToolLoopEvents', TL_PAGE_SIZE);
       }
 
-      const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
+      // Explicit limit: single-page fetch
+      const result = await fetchPage(baseUrl, apiKey, limit, 0, 'getToolLoopEvents');
+      if ('detail' in result) return result;
 
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[action.ts getToolLoopEvents] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
-        console.error(`[action.ts getToolLoopEvents] Failed to parse JSON response ${parseError}`);
-        return { detail: 'Received an invalid response from the server.' };
-      }
-
-      if (!response.ok) {
-        const errorMessage =
-          data.detail || `Failed to get tool loop events: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      // Orchestra returns entries in snake_case — convert to camelCase.
-      // Sort by id ascending (Orchestra returns newest-first by default).
-      if (data?.logs) {
-        data.logs = data.logs
+      if (result.data?.logs) {
+        result.data.logs = result.data.logs
           .map((log: any) => ({
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
@@ -213,7 +282,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
           .sort((a: any, b: any) => a.id - b.id);
       }
 
-      return data as ActionsLogsResponse;
+      return result.data as ActionsLogsResponse;
     } catch (error) {
       console.error(`[action.ts getToolLoopEvents] Error fetching events:`, error);
       const errorMessage =
@@ -271,7 +340,7 @@ export const backfillByCallingIds = async (apiKey: string) => {
       // One incoming event per calling_id
       url += `&limit=${callingIds.length}`;
 
-      console.log(`[DEBUG][action.ts] backfillByCallingIds URL: ${url}`);
+      if (__DEV__) console.log(`[DEBUG][action.ts] backfillByCallingIds URL: ${url}`);
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
 
@@ -307,9 +376,10 @@ export const backfillByCallingIds = async (apiKey: string) => {
           .sort((a: any, b: any) => a.id - b.id);
       }
 
-      console.log(
-        `[DEBUG][action.ts] backfillByCallingIds: fetched ${data?.logs?.length ?? 0} incoming event(s) for ${callingIds.length} calling_id(s)`
-      );
+      if (__DEV__)
+        console.log(
+          `[DEBUG][action.ts] backfillByCallingIds: fetched ${data?.logs?.length ?? 0} incoming event(s) for ${callingIds.length} calling_id(s)`
+        );
 
       return data as ActionsLogsResponse;
     } catch (error) {

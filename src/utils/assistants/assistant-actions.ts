@@ -28,7 +28,7 @@ const USER_FACING_ACTIONS = new Set([
   'pause',
   'resume',
   'ask',
-  'answer_clarification',
+  'answerClarification',
 ]);
 
 /** Returns true if the given action string is a user-facing action that should be rendered. */
@@ -82,7 +82,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     }
     return {
       id: log.id,
-      timestamp: log.ts,
+      timestamp: entries.eventTimestamp || log.ts,
       manager: entries.manager,
       method: entries.method,
       phase: 'action',
@@ -107,7 +107,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
 
   return {
     id: log.id,
-    timestamp: log.ts,
+    timestamp: entries.eventTimestamp || log.ts,
     manager: entries.manager,
     method: entries.method,
     phase: entries.phase,
@@ -257,10 +257,11 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
     }
   }
 
-  // Clear tool loop steps only on the first transition out of 'running'
+  // Clear tool loop data only on the first transition out of 'running'
   if (wasRunning && node.status !== 'running') {
     node.toolLoopSteps = undefined;
     node.isToolLoopLoaded = false;
+    node.liveToolLoopLogs = undefined;
   }
 }
 
@@ -683,11 +684,11 @@ export function formatDuration(ms: number): string {
 
 /**
  * Builds a timestamp filter for querying events from a specific time.
- * Uses Orchestra's system-level `created_at` field (not `ts`, which
- * doesn't support filter expressions).
+ * Uses the payload-level `event_timestamp` field — the actual time the
+ * event occurred in the backend, not Orchestra's persistence timestamp.
  */
 export function buildTimestampFilter(startTime: string): string {
-  return `created_at >= '${startTime}'`;
+  return `event_timestamp >= '${startTime}'`;
 }
 
 // =============================================================================

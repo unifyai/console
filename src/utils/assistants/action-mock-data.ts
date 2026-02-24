@@ -629,22 +629,22 @@ export function getMockManagerMethodEvents(
 }
 
 /**
- * Get ToolLoop events for a specific hierarchy label prefix.
+ * Get ToolLoop events for a specific hierarchy label (exact match).
  * Simulates real-time event streaming within a specific node.
  */
 export function getMockToolLoopEvents(
   assistantId: string,
-  hierarchyLabelPrefix: string,
+  hierarchy: string[],
   limit: number | null
 ): { logs: ToolLoopLog[]; count: number } {
   const elapsed = getElapsedSeconds();
   const allEvents = buildToolLoopEvents();
+  const prefix = hierarchy.join('->');
 
-  // Filter by hierarchy label prefix and elapsed time
+  // Filter by hierarchy prefix match and elapsed time
   const visibleEvents = allEvents
     .filter(
-      (e) =>
-        e.offsetSeconds <= elapsed && e.log.entries.hierarchyLabel.startsWith(hierarchyLabelPrefix)
+      (e) => e.offsetSeconds <= elapsed && e.log.entries.hierarchy.join('->').startsWith(prefix)
     )
     .map((e) => ({
       ...e.log,
