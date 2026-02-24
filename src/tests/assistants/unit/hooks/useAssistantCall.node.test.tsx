@@ -111,6 +111,7 @@ const createMockAssistantActions = (): AssistantActions => ({
       token: 'test-token',
     }),
     dispatchToCall: vi.fn().mockResolvedValue({ info: 'dispatched' }),
+    deleteRoom: vi.fn().mockResolvedValue({}),
   },
   voice: {
     list: vi.fn(),
@@ -564,6 +565,115 @@ describe('useAssistantCall', () => {
         });
 
         expect(result.current.isSpeakerMuted).toBe(false);
+      }
+    );
+  });
+
+  describe('Room Deletion', () => {
+    it(
+      'deletes stale room before connecting',
+      {
+        meta: {
+          alias: 'Call-DeleteStaleRoom',
+          scenario: 'User initiates a new call',
+          behavior: 'deleteRoom is called before getConnectionDetails',
+        },
+      },
+      async () => {
+        // Arrange
+        const assistant = createMockAssistant({ agentId: 'agent-42' });
+        const callOrder: string[] = [];
+        (mockActions.call.deleteRoom as any).mockImplementation(async () => {
+          callOrder.push('deleteRoom');
+          return {};
+        });
+        (mockActions.call.getConnectionDetails as any).mockImplementation(async () => {
+          callOrder.push('getConnectionDetails');
+          return {
+            serverUrl: 'wss://livekit.example.com',
+            roomName: 'test-room',
+            token: 'test-token',
+          };
+        });
+
+        // Act
+        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
+
+        await act(async () => {
+          await result.current.connect(assistant, 'audio');
+        });
+
+        // Assert - deleteRoom called first with the expected room name
+        expect(mockActions.call.deleteRoom).toHaveBeenCalledWith('unity_agent-42_meet');
+        expect(callOrder[0]).toBe('deleteRoom');
+        expect(callOrder[1]).toBe('getConnectionDetails');
+      }
+    );
+
+    it(
+      'deletes room on disconnect',
+      {
+        meta: {
+          alias: 'Call-DeleteOnDisconnect',
+          scenario: 'User ends the call',
+          behavior: 'deleteRoom is called with the active assistant room name',
+        },
+      },
+      async () => {
+        // Arrange
+        const assistant = createMockAssistant({ agentId: 'agent-99' });
+
+        // Act - connect first, then disconnect
+        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
+
+        await act(async () => {
+          await result.current.connect(assistant, 'video');
+        });
+
+        // The room state needs to be 'connected' for disconnect to call room.disconnect
+        mockRoom.state = 'connected';
+
+        await act(async () => {
+          await result.current.disconnect();
+        });
+
+        // Assert - deleteRoom called with the correct room name
+        // First call is the stale-room cleanup during connect, second is on disconnect
+        expect(mockActions.call.deleteRoom).toHaveBeenCalledWith('unity_agent-99_meet');
+        expect((mockActions.call.deleteRoom as any).mock.calls.length).toBeGreaterThanOrEqual(2);
+      }
+    );
+
+    it(
+      'deleteRoom failure does not prevent disconnect',
+      {
+        meta: {
+          alias: 'Call-DeleteFailSafe',
+          scenario: 'deleteRoom rejects during disconnect',
+          behavior: 'Disconnect still proceeds normally',
+        },
+      },
+      async () => {
+        // Arrange
+        const assistant = createMockAssistant({ agentId: 'agent-fail' });
+        (mockActions.call.deleteRoom as any).mockRejectedValue(new Error('Network error'));
+
+        // Act
+        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
+
+        await act(async () => {
+          await result.current.connect(assistant, 'audio');
+        });
+
+        mockRoom.state = 'connected';
+
+        // Should not throw
+        await act(async () => {
+          await result.current.disconnect();
+        });
+
+        // Assert - disconnect was still called despite deleteRoom failure
+        expect(mockRoom.disconnect).toHaveBeenCalled();
       }
     );
   });

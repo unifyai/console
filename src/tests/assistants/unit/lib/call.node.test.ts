@@ -20,21 +20,50 @@ vi.mock('react', async (importOriginal) => {
   };
 });
 
-import { dispatchAssistantToCall } from '@/lib/assistants/call';
+// Mock getCurrentUser for deleteCallRoom auth tests
+vi.mock('@/lib/user/user', () => ({
+  getCurrentUser: vi.fn(),
+}));
+
+// Mock livekit-server-sdk to avoid real SDK calls
+const mockDeleteRoom = vi.fn();
+vi.mock('livekit-server-sdk', () => ({
+  AccessToken: vi.fn(),
+  RoomServiceClient: vi.fn().mockImplementation(function (this: any) {
+    this.deleteRoom = mockDeleteRoom;
+  }),
+}));
+
+import { dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
+import { makeRoomName } from '@/utils/assistants/call-utils';
+import { getCurrentUser } from '@/lib/user/user';
+import type { User } from '@/types/user';
 
 // Mock environment variables
 const MOCK_BASE_URL = 'http://localhost:3000';
 
 describe('call.ts', () => {
   const TEST_API_KEY = 'test-api-key';
+  const mockUser: Partial<User> = {
+    id: 'user-123',
+    name: 'John',
+    apiKey: TEST_API_KEY,
+    email: 'john@example.com',
+  };
 
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
+    vi.stubEnv('LIVEKIT_API_KEY', 'test-lk-key');
+    vi.stubEnv('LIVEKIT_API_SECRET', 'test-lk-secret');
+    vi.stubEnv('LIVEKIT_URL', 'wss://livekit.example.com');
+    vi.mocked(getCurrentUser).mockResolvedValue(mockUser as User);
+    mockDeleteRoom.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     server.resetHandlers();
     vi.unstubAllEnvs();
+    vi.clearAllMocks();
   });
 
   // Note: getCallConnectionDetails uses LiveKit SDK directly and requires mocking
@@ -176,6 +205,117 @@ describe('call.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail');
+      }
+    );
+  });
+
+  describe('deleteCallRoom', () => {
+    it(
+      'deletes room successfully when authenticated',
+      {
+        meta: {
+          alias: 'DeleteRoom-Success',
+          scenario: 'Authenticated user deletes a room',
+          behavior: 'Returns empty object and calls RoomServiceClient.deleteRoom',
+        },
+      },
+      async () => {
+        // Act
+        const deleteFn = await deleteCallRoom();
+        const result = await deleteFn('unity_assistant-1_meet');
+
+        // Assert
+        expect(result).toEqual({});
+        expect(mockDeleteRoom).toHaveBeenCalledWith('unity_assistant-1_meet');
+      }
+    );
+
+    it(
+      'returns auth error when user is not authenticated',
+      {
+        meta: {
+          alias: 'DeleteRoom-Unauthenticated',
+          scenario: 'No authenticated user',
+          behavior: 'Returns user not authenticated error',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.mocked(getCurrentUser).mockResolvedValue(null);
+
+        // Act
+        const deleteFn = await deleteCallRoom();
+        const result = await deleteFn('unity_assistant-1_meet');
+
+        // Assert
+        expect(result).toHaveProperty('detail', 'User not authenticated');
+        expect(mockDeleteRoom).not.toHaveBeenCalled();
+      }
+    );
+
+    // Note: The "server configuration error" path cannot be tested here because
+    // LIVEKIT_URL, API_KEY, and API_SECRET are captured at module scope when
+    // call.ts is first imported. Stubbing env vars after import has no effect.
+    // This path is covered by integration tests instead.
+
+    it(
+      'returns error detail when RoomServiceClient throws',
+      {
+        meta: {
+          alias: 'DeleteRoom-SDKError',
+          scenario: 'LiveKit SDK throws an error',
+          behavior: 'Returns error detail with message',
+        },
+      },
+      async () => {
+        // Arrange
+        mockDeleteRoom.mockRejectedValue(new Error('Room not found'));
+
+        // Act
+        const deleteFn = await deleteCallRoom();
+        const result = await deleteFn('unity_assistant-1_meet');
+
+        // Assert
+        expect(result).toHaveProperty('detail', 'Room not found');
+      }
+    );
+
+    it(
+      'handles non-Error thrown values gracefully',
+      {
+        meta: {
+          alias: 'DeleteRoom-UnknownError',
+          scenario: 'LiveKit SDK throws a non-Error value',
+          behavior: 'Returns generic error message',
+        },
+      },
+      async () => {
+        // Arrange
+        mockDeleteRoom.mockRejectedValue('unexpected string error');
+
+        // Act
+        const deleteFn = await deleteCallRoom();
+        const result = await deleteFn('unity_assistant-1_meet');
+
+        // Assert
+        expect(result).toHaveProperty('detail', 'Unknown error deleting room.');
+      }
+    );
+  });
+
+  describe('makeRoomName', () => {
+    it(
+      'constructs room name in expected format',
+      {
+        meta: {
+          alias: 'MakeRoomName-Format',
+          scenario: 'Given assistantId and medium',
+          behavior: 'Returns unity_{assistantId}_{medium}',
+        },
+      },
+      () => {
+        expect(makeRoomName('assistant-123', 'meet')).toBe('unity_assistant-123_meet');
+        expect(makeRoomName('abc', 'chat')).toBe('unity_abc_chat');
       }
     );
   });

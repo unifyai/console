@@ -2,14 +2,11 @@ import { ResponseProps } from '@/types/common';
 import { ConnectionDetails } from '@/types/assistants/call';
 import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-sdk';
 import { getCurrentUser } from '@/lib/user/user';
+import { makeRoomName } from '@/utils/assistants/call-utils';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
-
-function makeRoomName(assistantId: string, medium: string): string {
-  return `unity_${assistantId}_${medium}`;
-}
 
 export const getCallConnectionDetails = async (apiKey: string) => {
   return async (
@@ -77,6 +74,11 @@ export const deleteCallRoom = async () => {
   return async (roomName: string): Promise<ResponseProps> => {
     'use server';
     try {
+      const user = await getCurrentUser();
+      if (!user) {
+        return { detail: 'User not authenticated' };
+      }
+
       if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
         return { detail: 'Server configuration error.' };
       }

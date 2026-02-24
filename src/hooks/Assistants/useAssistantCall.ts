@@ -3,6 +3,7 @@ import { Room, RoomEvent } from 'livekit-client';
 import { toast } from 'sonner';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
+import { makeRoomName } from '@/utils/assistants/call-utils';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
@@ -106,7 +107,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setConnectionError(null);
       try {
         // Delete any stale room from a previous failed attempt before creating a new one
-        const expectedRoomName = `unity_${assistant.agentId}_meet`;
+        const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
         await assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
         if (isStaleAttempt()) return;
 
@@ -188,7 +189,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         toast.error(`Failed to start call. Please try again.`);
         setError(`Failed to start call: ${e.message}`);
         // Clean up the server-side room so it doesn't interfere with subsequent attempts
-        assistantActions.call.deleteRoom(`unity_${assistant.agentId}_meet`).catch(() => {});
+        assistantActions.call.deleteRoom(makeRoomName(assistant.agentId, 'meet')).catch(() => {});
         // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
         if (room.state !== 'disconnected') {
           room.disconnect().catch(console.error);
@@ -207,8 +208,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     // Delete the server-side room so it doesn't interfere with subsequent calls
     const assistantToClean = activeCallAssistantRef.current;
     if (assistantToClean) {
-      const roomName = `unity_${assistantToClean.agentId}_meet`;
-      assistantActions.call.deleteRoom(roomName).catch(() => {});
+      assistantActions.call.deleteRoom(makeRoomName(assistantToClean.agentId, 'meet')).catch(() => {});
     }
 
     if (isConnecting) {
@@ -232,8 +232,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     room.off(RoomEvent.Disconnected, onDisconnected);
 
     // Delete the stale room before disconnecting so the retry starts fresh
-    const roomName = `unity_${assistantToRetry.agentId}_meet`;
-    await assistantActions.call.deleteRoom(roomName).catch(() => {});
+    await assistantActions.call.deleteRoom(makeRoomName(assistantToRetry.agentId, 'meet')).catch(() => {});
 
     await room.disconnect();
 
@@ -441,8 +440,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             isRedispatchingRef.current = false;
             const assistant = activeCallAssistantRef.current;
             if (assistant) {
-              const rn = `unity_${assistant.agentId}_meet`;
-              assistantActions.call.deleteRoom(rn).catch(() => {});
+              assistantActions.call.deleteRoom(makeRoomName(assistant.agentId, 'meet')).catch(() => {});
             }
             toast.error(
               `${firstName} couldn't rejoin the call. Please try calling again if needed.`
