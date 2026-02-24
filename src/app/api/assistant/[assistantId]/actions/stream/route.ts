@@ -18,6 +18,8 @@ import { snakeToCamelObject } from '@/utils/casing';
 
 export const dynamic = 'force-dynamic';
 
+const __DEV__ = process.env.NODE_ENV === 'development';
+
 // =============================================================================
 // Auth
 // =============================================================================
@@ -102,8 +104,7 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
 
-  // TODO: Remove debug logging
-  console.log(`[DEBUG][Actions SSE] GET request for assistantId=${assistantId}`);
+  if (__DEV__) console.log(`[DEBUG][Actions SSE] GET request for assistantId=${assistantId}`);
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
@@ -122,8 +123,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
     subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${authData.projectId}/subscriptions/${subscriptionName}`;
 
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][Actions SSE] Auth OK. Subscription: ${subscriptionName}`);
+    if (__DEV__) console.log(`[DEBUG][Actions SSE] Auth OK. Subscription: ${subscriptionName}`);
   } catch (error: any) {
     console.error('[Actions SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
@@ -133,8 +133,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
   const stream = new ReadableStream({
     async start(controller) {
-      // TODO: Remove debug logging
-      console.log(`[DEBUG][Actions SSE] Stream started for assistant=${assistantId}`);
+      if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream started for assistant=${assistantId}`);
 
       controller.enqueue(encoder.encode(': connected\n\n'));
 
@@ -180,17 +179,17 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
           const receivedMessages = responseData.receivedMessages || [];
 
           if (receivedMessages.length === 0) {
-            // TODO: Remove debug logging
-            console.log(
-              `[DEBUG][Actions SSE] Empty pull for assistant=${assistantId} (subscription alive, waiting)`
-            );
+            if (__DEV__)
+              console.log(
+                `[DEBUG][Actions SSE] Empty pull for assistant=${assistantId} (subscription alive, waiting)`
+              );
             continue;
           }
 
-          // TODO: Remove debug logging
-          console.log(
-            `[DEBUG][Actions SSE] Pulled ${receivedMessages.length} message(s) for assistant=${assistantId}`
-          );
+          if (__DEV__)
+            console.log(
+              `[DEBUG][Actions SSE] Pulled ${receivedMessages.length} message(s) for assistant=${assistantId}`
+            );
 
           const ackIds: string[] = [];
 
@@ -207,10 +206,10 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
               const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
               const shaped = reshapeToLogEntry(camelEvent);
 
-              // TODO: Remove debug logging
-              console.log(
-                `[DEBUG][Actions SSE] Event: type=${shaped.type}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
-              );
+              if (__DEV__)
+                console.log(
+                  `[DEBUG][Actions SSE] Event: type=${shaped.type}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
+                );
 
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
             } catch (err) {
@@ -240,8 +239,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
       // Cleanup
       clearInterval(keepAliveInterval);
-      // TODO: Remove debug logging
-      console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
+      if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
       try {
         controller.close();
       } catch {
