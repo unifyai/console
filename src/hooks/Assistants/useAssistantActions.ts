@@ -20,6 +20,7 @@ import {
 import type {
   ActionNode,
   ManagerMethodLog,
+  ToolLoopLog,
   AssistantActionActions,
 } from '@/types/assistants/action';
 
@@ -74,6 +75,7 @@ export interface UseAssistantActionsResult {
 // Constants
 // =============================================================================
 
+const __DEV__ = process.env.NODE_ENV === 'development';
 const DEFAULT_EVENT_LIMIT = 100;
 const LOAD_MORE_LOOKBACK_MS = ACTION_LOOKBACK_MS;
 
@@ -115,6 +117,7 @@ export function useAssistantActions(
   const seenEventIdsRef = React.useRef<Set<string>>(new Set());
   const prevAssistantIdRef = React.useRef(assistantId);
   const sseErrorTimestampsRef = React.useRef<number[]>([]);
+  const loadGenerationRef = React.useRef(0);
 
   // Keep nodeMapRef in sync with state
   React.useEffect(() => {
@@ -130,24 +133,25 @@ export function useAssistantActions(
   const mergeLogsIntoTree = React.useCallback((logs: ManagerMethodLog[]) => {
     if (logs.length === 0) return;
 
-    // TODO: Remove debug logging
-    console.log(
-      `[DEBUG][useAssistantActions] Merging ${logs.length} log(s) into tree. First: callingId=${logs[0]?.entries?.callingId}, phase=${logs[0]?.entries?.phase}`
-    );
+    if (__DEV__)
+      console.log(
+        `[DEBUG][useAssistantActions] Merging ${logs.length} log(s) into tree. First: callingId=${logs[0]?.entries?.callingId}, phase=${logs[0]?.entries?.phase}`
+      );
 
     setRoots((prevRoots) => {
       const currentNodeMap = new Map(nodeMapRef.current);
 
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][useAssistantActions] Tree state before merge: ${prevRoots.length} root(s), ${currentNodeMap.size} node(s) in map`
-      );
-      for (const log of logs) {
-        const e = log.entries as ManagerMethodLog['entries'];
-        const existing = currentNodeMap.get(e?.callingId);
+      if (__DEV__) {
         console.log(
-          `[DEBUG][useAssistantActions]   Event: callingId=${e?.callingId}, phase=${e?.phase}, existingNode=${existing ? `status=${existing.status}` : 'NOT FOUND'}`
+          `[DEBUG][useAssistantActions] Tree state before merge: ${prevRoots.length} root(s), ${currentNodeMap.size} node(s) in map`
         );
+        for (const log of logs) {
+          const e = log.entries as ManagerMethodLog['entries'];
+          const existing = currentNodeMap.get(e?.callingId);
+          console.log(
+            `[DEBUG][useAssistantActions]   Event: callingId=${e?.callingId}, phase=${e?.phase}, existingNode=${existing ? `status=${existing.status}` : 'NOT FOUND'}`
+          );
+        }
       }
 
       // Replay orphan outgoing events that arrived before their incoming
@@ -159,18 +163,18 @@ export function useAssistantActions(
           const orphan = orphanOutgoingRef.current.get(callingId)!;
           logsWithOrphans.push(orphan);
           orphanOutgoingRef.current.delete(callingId);
-          // TODO: Remove debug logging
-          console.log(
-            `[DEBUG][useAssistantActions] Replayed stored orphan outgoing for callingId=${callingId}`
-          );
+          if (__DEV__)
+            console.log(
+              `[DEBUG][useAssistantActions] Replayed stored orphan outgoing for callingId=${callingId}`
+            );
         }
       }
 
       const result = mergeNewEvents(prevRoots, currentNodeMap, logsWithOrphans);
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][useAssistantActions] After merge: ${result.roots.length} root(s), ${result.nodeMap.size} node(s), ${result.orphanOutgoing.length} orphan(s)`
-      );
+      if (__DEV__)
+        console.log(
+          `[DEBUG][useAssistantActions] After merge: ${result.roots.length} root(s), ${result.nodeMap.size} node(s), ${result.orphanOutgoing.length} orphan(s)`
+        );
 
       for (const orphan of result.orphanOutgoing) {
         orphanOutgoingRef.current.set(orphan.callingId, {
@@ -192,10 +196,10 @@ export function useAssistantActions(
             traceback: orphan.traceback,
           },
         });
-        // TODO: Remove debug logging
-        console.log(
-          `[DEBUG][useAssistantActions] Stored orphan outgoing for callingId=${orphan.callingId}`
-        );
+        if (__DEV__)
+          console.log(
+            `[DEBUG][useAssistantActions] Stored orphan outgoing for callingId=${orphan.callingId}`
+          );
       }
 
       nodeMapRef.current = result.nodeMap;
@@ -207,14 +211,57 @@ export function useAssistantActions(
   }, []);
 
   // ===========================================================================
+  // Core: Merge a ToolLoop event into the matching node
+  // ===========================================================================
+
+  const mergeToolLoopEvent = React.useCallback((log: ToolLoopLog) => {
+    const hierarchy = log.entries.hierarchy;
+    if (!hierarchy || hierarchy.length === 0) return;
+
+    setRoots((prevRoots) => {
+      const currentNodeMap = nodeMapRef.current;
+
+      // Find the node whose hierarchy exactly matches
+      let targetNode: ActionNode | undefined;
+      const nodes = Array.from(currentNodeMap.values());
+      for (let idx = 0; idx < nodes.length; idx++) {
+        const n = nodes[idx];
+        if (
+          n.hierarchy.length === hierarchy.length &&
+          n.hierarchy.every((seg: string, i: number) => seg === hierarchy[i])
+        ) {
+          targetNode = n;
+          break;
+        }
+      }
+
+      if (!targetNode) return prevRoots;
+
+      // Deduplicate by log id
+      const existing = targetNode.liveToolLoopLogs ?? [];
+      if (existing.some((l) => l.id === log.id)) return prevRoots;
+
+      // Append and sort by id (monotonically increasing)
+      targetNode.liveToolLoopLogs = [...existing, log].sort((a, b) => a.id - b.id);
+
+      // Return new array reference so React re-renders
+      return [...prevRoots];
+    });
+  }, []);
+
+  // ===========================================================================
   // Initial load from Orchestra
   // ===========================================================================
 
   const initialLoad = React.useCallback(async () => {
     if (!isMountedRef.current) return;
 
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][useAssistantActions] Initial load starting for assistant=${assistantId}`);
+    const myGeneration = ++loadGenerationRef.current;
+
+    if (__DEV__)
+      console.log(
+        `[DEBUG][useAssistantActions] Initial load starting for assistant=${assistantId} (gen=${myGeneration})`
+      );
 
     setIsLoading(true);
     setError(null);
@@ -223,38 +270,38 @@ export function useAssistantActions(
       const startTime = new Date(Date.now() - lookbackMs).toISOString();
       const response = await actions.getManagerMethodEvents(assistantId, startTime, null);
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
       if ('detail' in response) {
         throw new Error(response.detail);
       }
 
       const logs = (response.logs || []) as ManagerMethodLog[];
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra`
-      );
+      if (__DEV__)
+        console.log(
+          `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra (gen=${myGeneration})`
+        );
 
       let result = buildActionTree(logs);
 
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} total node(s), ${result.promotedCallingIds.length} promoted`
-      );
+      if (__DEV__)
+        console.log(
+          `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} total node(s), ${result.promotedCallingIds.length} promoted`
+        );
 
       // Targeted backfill for promoted boundaries (headless trees)
       if (result.promotedCallingIds.length > 0 && actions.backfillByCallingIds) {
-        // TODO: Remove debug logging
-        console.log(
-          `[DEBUG][useAssistantActions] Backfilling ${result.promotedCallingIds.length} promoted node(s)`
-        );
+        if (__DEV__)
+          console.log(
+            `[DEBUG][useAssistantActions] Backfilling ${result.promotedCallingIds.length} promoted node(s)`
+          );
 
         const backfillResponse = await actions.backfillByCallingIds(
           assistantId,
           result.promotedCallingIds
         );
 
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
         if (!('detail' in backfillResponse)) {
           const backfillLogs = (backfillResponse.logs || []) as ManagerMethodLog[];
@@ -280,11 +327,11 @@ export function useAssistantActions(
       isInitialLoadDoneRef.current = true;
       setIsInitialLoadDone(true);
     } catch (err) {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
       console.error(`[useAssistantActions] Initial load FAILED:`, err);
       setError(err instanceof Error ? err.message : 'Failed to load actions');
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && loadGenerationRef.current === myGeneration) {
         setIsLoading(false);
       }
     }
@@ -303,18 +350,17 @@ export function useAssistantActions(
     sseErrorTimestampsRef.current = [];
 
     const sseUrl = `/api/assistant/${assistantId}/actions/stream`;
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][useAssistantActions] Opening SSE connection to ${sseUrl}`);
+    if (__DEV__) console.log(`[DEBUG][useAssistantActions] Opening SSE connection to ${sseUrl}`);
 
     const eventSource = new EventSource(sseUrl);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
       if (!isMountedRef.current) return;
-      // TODO: Remove debug logging
-      console.log(
-        `[DEBUG][useAssistantActions] SSE CONNECTED (readyState=${eventSource.readyState})`
-      );
+      if (__DEV__)
+        console.log(
+          `[DEBUG][useAssistantActions] SSE CONNECTED (readyState=${eventSource.readyState})`
+        );
       setConnectionStatus('streaming');
     };
 
@@ -325,10 +371,10 @@ export function useAssistantActions(
         const parsed = JSON.parse(event.data);
         const entries = parsed?.data?.entries;
 
-        // TODO: Remove debug logging
-        console.log(
-          `[DEBUG][useAssistantActions] SSE message: type=${parsed?.type}, callingId=${entries?.callingId}, phase=${entries?.phase}, label=${entries?.displayLabel || entries?.manager}`
-        );
+        if (__DEV__)
+          console.log(
+            `[DEBUG][useAssistantActions] SSE message: type=${parsed?.type}, callingId=${entries?.callingId}, phase=${entries?.phase}, label=${entries?.displayLabel || entries?.manager}`
+          );
 
         if (!parsed?.data) return;
 
@@ -355,6 +401,34 @@ export function useAssistantActions(
 
           const log = parsed.data as ManagerMethodLog;
           mergeLogsIntoTree([log]);
+        } else if (parsed.type === 'ToolLoop') {
+          const toolEntries = parsed.data.entries ?? parsed.data;
+          if (!toolEntries?.hierarchy || !toolEntries?.message) return;
+
+          const eventId = toolEntries.eventId;
+          if (eventId && seenEventIdsRef.current.has(eventId)) return;
+          if (eventId) {
+            seenEventIdsRef.current.add(eventId);
+            if (seenEventIdsRef.current.size > 5000) {
+              const allIds = Array.from(seenEventIdsRef.current);
+              seenEventIdsRef.current = new Set(allIds.slice(allIds.length - 4000));
+            }
+          }
+
+          const eventTs = toolEntries.eventTimestamp ?? parsed.data.ts ?? new Date().toISOString();
+          const toolLog: ToolLoopLog = {
+            id: toolEntries.rowId ?? parsed.data.id ?? Date.now(),
+            ts: eventTs,
+            entries: {
+              message: toolEntries.message,
+              method: toolEntries.method ?? '',
+              hierarchy: toolEntries.hierarchy,
+              hierarchyLabel: toolEntries.hierarchyLabel ?? '',
+              eventTimestamp: eventTs,
+            },
+          };
+
+          mergeToolLoopEvent(toolLog);
         }
       } catch (err) {
         console.warn('[useAssistantActions] SSE message parse error:', err);
@@ -371,10 +445,10 @@ export function useAssistantActions(
       );
 
       const recentErrors = sseErrorTimestampsRef.current.length;
-      // TODO: Remove debug logging
-      console.warn(
-        `[DEBUG][useAssistantActions] SSE ERROR (readyState=${eventSource.readyState}, ${recentErrors} errors in last ${SSE_ERROR_WINDOW_MS / 1000}s)`
-      );
+      if (__DEV__)
+        console.warn(
+          `[DEBUG][useAssistantActions] SSE ERROR (readyState=${eventSource.readyState}, ${recentErrors} errors in last ${SSE_ERROR_WINDOW_MS / 1000}s)`
+        );
 
       if (recentErrors >= SSE_MAX_ERRORS) {
         console.warn(
@@ -388,7 +462,7 @@ export function useAssistantActions(
 
       // Transient error — EventSource auto-reconnects.
     };
-  }, [assistantId, mergeLogsIntoTree]);
+  }, [assistantId, mergeLogsIntoTree, mergeToolLoopEvent]);
 
   // ===========================================================================
   // Load more (pagination)
@@ -464,6 +538,7 @@ export function useAssistantActions(
         nodeMapRef.current = new Map();
         orphanOutgoingRef.current = new Map();
         seenEventIdsRef.current = new Set();
+        setIsLoading(true);
       }
       await initialLoad();
     },
@@ -531,8 +606,8 @@ export function useAssistantActions(
   React.useEffect(() => {
     if (!enabled || !isInitialLoadDone) return;
 
-    // TODO: Remove debug logging
-    console.log(`[DEBUG][useAssistantActions] Starting SSE for assistant=${assistantId}`);
+    if (__DEV__)
+      console.log(`[DEBUG][useAssistantActions] Starting SSE for assistant=${assistantId}`);
 
     connectSSERef.current();
 
@@ -542,8 +617,8 @@ export function useAssistantActions(
 
       const es = eventSourceRef.current;
       if (!es || es.readyState === EventSource.CLOSED) {
-        // TODO: Remove debug logging
-        console.log(`[DEBUG][useAssistantActions] Health check: SSE dead, reconnecting...`);
+        if (__DEV__)
+          console.log(`[DEBUG][useAssistantActions] Health check: SSE dead, reconnecting...`);
         connectSSERef.current();
       }
     }, 15000);

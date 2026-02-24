@@ -49,11 +49,13 @@ const ChatMessageBubble = ({
   const bubbleContent = () => {
     if (!isUser && isLoading && !message) {
       return (
-        <div className="flex items-center space-x-1 px-2 text-muted-foreground">
+        <div className="text-body-muted flex items-center gap-1.5">
           <span className="text-caption">Typing</span>
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
+          <span className="flex items-center gap-0.5">
+            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.3s]" />
+            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.15s]" />
+            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60" />
+          </span>
         </div>
       );
     }

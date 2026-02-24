@@ -308,7 +308,7 @@ function ContentArea({
  */
 function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   const { message } = log.entries;
-  const time = formatEventTime(log.ts);
+  const time = formatEventTime(log.entries.eventTimestamp || log.ts);
 
   if (message.role === 'system') return null;
 
@@ -432,6 +432,69 @@ function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: num
 }
 
 /**
+ * Live ToolLoop timeline for running nodes.
+ * Auto-scrolls to the bottom as new events arrive unless the user
+ * has manually scrolled up to inspect older events.
+ */
+function LiveToolLoopTimeline({ logs, depth }: { logs: ToolLoopLog[]; depth: number }) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const isUserScrolledUpRef = React.useRef(false);
+  const prevLogCountRef = React.useRef(0);
+
+  // Detect manual scroll: mark as "scrolled up" if not near the bottom
+  const handleScroll = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isUserScrolledUpRef.current = distFromBottom > 40;
+  }, []);
+
+  // Auto-scroll when new logs arrive (unless user scrolled up)
+  React.useEffect(() => {
+    if (logs.length > prevLogCountRef.current && !isUserScrolledUpRef.current) {
+      const el = scrollRef.current;
+      if (el) {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight;
+        });
+      }
+    }
+    prevLogCountRef.current = logs.length;
+  }, [logs.length]);
+
+  const pad = depth > 0 ? `${depth * 12 + 36}px` : '36px';
+
+  return (
+    <div className="relative" style={{ paddingLeft: pad, paddingRight: '8px' }}>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
+        style={{ maxHeight: '260px' }}
+      >
+        <div className="space-y-0.5 py-2">
+          {logs.map((log) => (
+            <ToolLoopMessage key={log.id} log={log} />
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom fade when scrolled up */}
+      {isUserScrolledUpRef.current && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
+          style={{
+            marginLeft: pad,
+            marginRight: '8px',
+            background: 'linear-gradient(to top, var(--background), transparent)',
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
  * Collapsible wrapper for a ToolLoop segment (pre-child or post-child).
  * Uses a subtle toggle bar that is visually distinct from the bolder child-node
  * chevrons — thin text, muted colors, dashed left accent when collapsed.
@@ -463,8 +526,10 @@ function CollapsibleToolLoopSection({
 
   const sectionDuration = React.useMemo(() => {
     if (logs.length < 2) return '';
-    const first = new Date(logs[0].ts).getTime();
-    const last = new Date(logs[logs.length - 1].ts).getTime();
+    const first = new Date(logs[0].entries.eventTimestamp || logs[0].ts).getTime();
+    const last = new Date(
+      logs[logs.length - 1].entries.eventTimestamp || logs[logs.length - 1].ts
+    ).getTime();
     const ms = last - first;
     return ms > 0 ? formatCompactDuration(ms) : '';
   }, [logs]);
@@ -585,9 +650,6 @@ export function ActionNodeItem({
   // Use controlled state if provided, otherwise use local state
   const isExpanded = isControlled ? expandedNodeIds.has(node.id) : localIsExpanded;
 
-  // Latest LLM thinking content (for running nodes)
-  const [latestThinking, setLatestThinking] = React.useState<string | null>(null);
-
   // Full ToolLoop conversation (lazy-loaded for completed nodes)
   const [completedToolLoopLogs, setCompletedToolLoopLogs] = React.useState<ToolLoopLog[]>([]);
   const [isToolLoopLoading, setIsToolLoopLoading] = React.useState(false);
@@ -596,6 +658,12 @@ export function ActionNodeItem({
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
   const isExpandable = hasChildren || canLoadToolLoop;
+
+  // Live ToolLoop logs from SSE (for running nodes)
+  const liveToolLoopLogs = React.useMemo(() => {
+    if (node.status !== 'running' || !node.liveToolLoopLogs) return [];
+    return node.liveToolLoopLogs.filter((l) => l.entries.message.role !== 'system');
+  }, [node.status, node.liveToolLoopLogs]);
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -624,64 +692,12 @@ export function ActionNodeItem({
     }
   };
 
-  // Fetch latest LLM thinking while node is running
-  React.useEffect(() => {
-    if (node.status !== 'running' || !canLoadToolLoop) {
-      return;
-    }
-
-    let isCancelled = false;
-    let isCurrentlyLoading = false;
-
-    const fetchLatestThinking = async () => {
-      if (isCurrentlyLoading) return;
-      isCurrentlyLoading = true;
-
-      try {
-        const hierarchyPrefix = node.hierarchyLabel;
-        const response = await getToolLoopEvents(assistantId!, hierarchyPrefix, 5);
-
-        if (isCancelled) return;
-        if ('detail' in response) return;
-
-        const logs = (response.logs || []) as ToolLoopLog[];
-        for (let i = logs.length - 1; i >= 0; i--) {
-          const message = logs[i].entries.message;
-          if (message.role === 'system' || message.role === 'user') continue;
-
-          let content: string | undefined;
-          if (message.toolCalls && message.toolCalls.length > 0) {
-            const names = message.toolCalls.map((tc) => tc.function.name).join(', ');
-            content = `Calling ${names}...`;
-          } else {
-            content = extractTextContent(message.content);
-          }
-
-          if (content) {
-            setLatestThinking(content);
-            break;
-          }
-        }
-      } catch {
-        // Silently fail
-      } finally {
-        if (!isCancelled) isCurrentlyLoading = false;
-      }
-    };
-
-    fetchLatestThinking();
-    const interval = setInterval(fetchLatestThinking, 1500);
-    return () => {
-      isCancelled = true;
-      clearInterval(interval);
-    };
-  }, [node.status, node.hierarchyLabel, canLoadToolLoop, assistantId, getToolLoopEvents]);
-
   // Load full ToolLoop conversation for completed nodes when expanded.
-  // Uses hierarchy prefix + time bounds to scope results to this specific
-  // invocation. Without time bounds, CodeActActor.act( would match ToolLoop
-  // events from ALL invocations (yesterday's AAPL task, today's Logitech task,
-  // etc.) — producing a garbled interleaved timeline.
+  // Uses hierarchy array + time bounds to scope results to this specific
+  // invocation. Without time bounds, the hierarchy prefix would match
+  // events from ALL invocations — producing a garbled interleaved timeline.
+  // After fetch, client-side filters out events that belong to child MM
+  // nodes (they'll be fetched by the child's own ActionNodeItem).
   React.useEffect(() => {
     if (node.status === 'running' || !canLoadToolLoop || !isExpanded) return;
     if (toolLoopFetchedRef.current) return;
@@ -692,17 +708,33 @@ export function ActionNodeItem({
 
     const load = async () => {
       try {
-        const hierarchyPrefix = node.hierarchyLabel;
         const response = await getToolLoopEvents(
           assistantId!,
-          hierarchyPrefix,
+          node.hierarchy,
           null,
           node.startTime || undefined,
           node.endTime || undefined
         );
         if (isCancelled || 'detail' in response) return;
         const logs = (response.logs || []) as ToolLoopLog[];
-        setCompletedToolLoopLogs(logs.filter((l) => l.entries.message.role !== 'system'));
+
+        // Build child hierarchy prefixes to exclude TL events that belong
+        // to a child MM node's subtree — those are fetched by the child's
+        // own ActionNodeItem. Uses prefix + '->' to avoid false positives
+        // (e.g. "A->B" must not match "A->B2").
+        const childPrefixes = (node.children || []).map((c) => c.hierarchy.join('->') + '->');
+        const childExact = new Set((node.children || []).map((c) => c.hierarchy.join('->')));
+
+        setCompletedToolLoopLogs(
+          logs.filter((l) => {
+            if (l.entries.message.role === 'system') return false;
+            const logKey = l.entries.hierarchy.join('->');
+            // Exclude events at a child's exact hierarchy or deeper in its subtree
+            if (childExact.has(logKey)) return false;
+            if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
+            return true;
+          })
+        );
       } catch {
         // Silently fail
       } finally {
@@ -722,17 +754,16 @@ export function ActionNodeItem({
     getToolLoopEvents,
     node.startTime,
     node.endTime,
-    node.hierarchyLabel,
+    node.hierarchy,
+    node.children,
   ]);
 
-  // Clear thinking & reset ToolLoop state when node starts running
+  // Reset completed ToolLoop state when node starts running again
   React.useEffect(() => {
     if (node.status === 'running') {
       toolLoopFetchedRef.current = false;
       setCompletedToolLoopLogs([]);
       setIsToolLoopLoading(false);
-    } else {
-      setLatestThinking(null);
     }
   }, [node.status]);
 
@@ -750,7 +781,7 @@ export function ActionNodeItem({
 
   // Determine what to render in the detail area.
   const showToolLoopLoading = isExpanded && canLoadToolLoop && isToolLoopLoading;
-  const showRunningThinking = isExpanded && node.status === 'running' && !!latestThinking;
+  const showLiveTimeline = isExpanded && node.status === 'running' && liveToolLoopLogs.length > 0;
   const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
   const hasToolLoopData = completedToolLoopLogs.length > 0;
   const hasInteractions = (node.interactions?.length ?? 0) > 0;
@@ -764,7 +795,7 @@ export function ActionNodeItem({
       if (interaction.content || interaction.action !== 'interject') return interaction;
       const interactionTime = new Date(interaction.timestamp).getTime();
       const nextUserMsg = completedToolLoopLogs.find((log) => {
-        const logTime = new Date(log.ts).getTime();
+        const logTime = new Date(log.entries.eventTimestamp || log.ts).getTime();
         return logTime >= interactionTime && log.entries.message.role === 'user';
       });
       if (nextUserMsg) {
@@ -827,7 +858,11 @@ export function ActionNodeItem({
       const segment: ToolLoopLog[] = [];
 
       while (logIdx < completedToolLoopLogs.length) {
-        if (new Date(completedToolLoopLogs[logIdx].ts).getTime() < evt.time) {
+        if (
+          new Date(
+            completedToolLoopLogs[logIdx].entries.eventTimestamp || completedToolLoopLogs[logIdx].ts
+          ).getTime() < evt.time
+        ) {
           segment.push(completedToolLoopLogs[logIdx]);
           logIdx++;
         } else {
@@ -896,13 +931,13 @@ export function ActionNodeItem({
       data-testid="action-node"
       data-type={node.type}
       data-status={node.status}
-      className={cn('min-w-0 select-none', className)}
+      className={cn('min-w-0', className)}
       style={{ contain: 'inline-size' }}
     >
       {/* Node header */}
       <div
         className={cn(
-          'flex min-w-0 items-center gap-1.5 rounded-sm py-1 pr-1',
+          'flex min-w-0 select-none items-center gap-1.5 rounded-sm py-1 pr-1',
           'hover:bg-muted/50 transition-colors duration-150',
           depth > 0 && 'ml-4'
         )}
@@ -953,10 +988,8 @@ export function ActionNodeItem({
         )}
       </div>
 
-      {/* Running thinking hint — live status indicator */}
-      {showRunningThinking && (
-        <ContentArea content={latestThinking!} depth={depth} maxHeight={120} />
-      )}
+      {/* Live ToolLoop timeline — scrollable, auto-scrolls to bottom */}
+      {showLiveTimeline && <LiveToolLoopTimeline logs={liveToolLoopLogs} depth={depth} />}
 
       {/* ToolLoop loading spinner */}
       {showToolLoopLoading && <ToolLoopLoading depth={depth} />}
