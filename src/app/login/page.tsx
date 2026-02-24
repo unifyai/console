@@ -1,10 +1,10 @@
 'use client';
 
 import { LayoutGroup, motion } from 'framer-motion';
-import { signIn, useSession } from 'next-auth/react';
-import { redirect, useSearchParams } from 'next/navigation';
+import { signIn, signOut, useSession } from 'next-auth/react';
+import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from './login';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CheckElement from './check';
 import Back from '@/public/icons/back.svg';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
@@ -29,22 +29,57 @@ const ERRORS: Record<string, string> = {
 
 const Login = () => {
   const session = useSession();
-
-  if (session.data) {
-    redirect('/assistants');
-  }
-
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { resolvedTheme } = useTheme();
+
+  const shouldSignOut = searchParams?.get('signout') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl');
   const searchError = searchParams?.get('error');
   const searchErrorMessage = searchError ? ERRORS[searchError] : undefined;
-  const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
-  const [error, setError] = useState<string | undefined>(searchErrorMessage);
-  const { resolvedTheme } = useTheme();
 
   // Token handling: persist invite and credit tokens through OAuth flow
   const inviteToken = searchParams?.get('invite');
   const creditToken = searchParams?.get('credit');
+
+  // Track whether we are actively signing out a stale session
+  // (e.g. user deleted their backend account but the JWT cookie persists).
+  const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
+  const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
+  const [error, setError] = useState<string | undefined>(searchErrorMessage);
+
+  useEffect(() => {
+    if (!shouldSignOut) return;
+
+    if (session.status === 'authenticated') {
+      // Session exists but backend user is gone — clear the JWT cookie client-side
+      signOut({ redirect: false }).then(() => {
+        setIsSigningOut(false);
+        // Clean the signout param from the URL so a page refresh won't re-trigger
+        router.replace('/login');
+      });
+    } else if (session.status === 'unauthenticated') {
+      // Already signed out (or cookie was cleared another way)
+      setIsSigningOut(false);
+      router.replace('/login');
+    }
+    // While session.status === 'loading', we wait
+  }, [shouldSignOut, session.status, router]);
+
+  // Redirect authenticated users to /assistants — but NOT if we're in the
+  // middle of signing them out due to a deleted backend account.
+  if (session.data && !isSigningOut) {
+    redirect('/assistants');
+  }
+
+  // Show a loader while we're clearing a stale session
+  if (isSigningOut) {
+    return (
+      <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center">
+        <LoadingElement />
+      </div>
+    );
+  }
 
   const handleLogin = (provider: 'email' | 'google' | 'github', email?: string) => async () => {
     setTab('loading');

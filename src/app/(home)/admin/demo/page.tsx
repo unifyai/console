@@ -6,7 +6,6 @@
  */
 
 import * as React from 'react';
-import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
@@ -28,8 +27,7 @@ import { DemoActions } from '@/types/demo';
 const DemoPage = async () => {
   const user = await getCurrentUser();
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
 
   const apiKey = user.apiKey;
