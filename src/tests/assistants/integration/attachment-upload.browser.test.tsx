@@ -327,8 +327,8 @@ describe('Attachment Upload Flow - New Metadata', () => {
   });
 
   describe('New Attachment Count Limit (10)', () => {
-    it.fails(
-      'should accept up to 10 attachments (new limit)',
+    it(
+      'should accept up to 10 attachments',
       {
         meta: {
           alias: 'Attach-Accept-10',
@@ -374,7 +374,7 @@ describe('Attachment Upload Flow - New Metadata', () => {
       }
     );
 
-    it.fails(
+    it(
       'should reject 11th attachment with error',
       {
         meta: {

@@ -535,6 +535,92 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
+      'parses attachments from SSE messages and renders them',
+      {
+        meta: {
+          alias: 'SSE-Attachments',
+          scenario: 'Assistant sends a message with a file attachment via SSE',
+          behavior: 'Attachment is parsed from the event payload and rendered in the chat',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={undefined} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-with-attachment',
+            publishTime: new Date().toISOString(),
+            event: {
+              content: 'Here is the report',
+              attachments: [
+                {
+                  id: 'att-001',
+                  filename: 'report.pdf',
+                  gs_url: 'gs://bucket/path/report.pdf',
+                  content_type: 'application/pdf',
+                  size_bytes: 12345,
+                },
+              ],
+            },
+          });
+        });
+
+        await waitFor(() => {
+          const bubbles = getChatBubbles();
+          expect(bubbles).toContain('Here is the report');
+        });
+
+        await waitFor(() => {
+          const attachmentContainer = document.querySelector(
+            '[data-testid="historical-attachments"]'
+          );
+          expect(attachmentContainer).not.toBeNull();
+        });
+      }
+    );
+
+    it(
+      'handles SSE messages with empty attachments array',
+      {
+        meta: {
+          alias: 'SSE-Empty-Attachments',
+          scenario: 'Assistant sends a message with an empty attachments array',
+          behavior: 'Message renders normally without attachment UI',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={undefined} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-no-attachments',
+            publishTime: new Date().toISOString(),
+            event: {
+              content: 'No files here',
+              attachments: [],
+            },
+          });
+        });
+
+        await waitFor(() => {
+          const bubbles = getChatBubbles();
+          expect(bubbles).toContain('No files here');
+        });
+
+        const attachmentContainer = document.querySelector(
+          '[data-testid="historical-attachments"]'
+        );
+        expect(attachmentContainer).toBeNull();
+      }
+    );
+
+    it(
       'processes high volume message burst without dropping frames',
       {
         meta: {
@@ -4267,12 +4353,12 @@ describe('Assistant Profile Chat', () => {
       );
 
       it(
-        'should reject more than 5 attachments with toast error',
+        'should reject more than 10 attachments',
         {
           meta: {
-            alias: 'Attach-Reject-Over5',
-            scenario: 'More than 5 files attached',
-            behavior: '6th file is rejected',
+            alias: 'Attach-Reject-Over10',
+            scenario: 'More than 10 files attached',
+            behavior: '11th file is rejected',
           },
         },
         async () => {
@@ -4284,25 +4370,26 @@ describe('Assistant Profile Chat', () => {
           await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
           act(() => chatMocks.eventSource!.simulateOpen());
 
-          // Add 5 files
-          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.png()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.docx()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.txt()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.json()], attachmentUser);
+          // Add 10 files
+          for (let i = 0; i < 10; i++) {
+            const file = createTestFile(`file${i}.pdf`, `content-${i}`, 'application/pdf');
+            await simulateFileDrop(container, [file], attachmentUser);
+          }
 
           await waitFor(() => {
             const chipNames = getAttachmentChipNames(container);
-            expect(chipNames).toHaveLength(5);
+            expect(chipNames).toHaveLength(10);
           });
 
-          // Try to add a 6th file
-          await simulateFileDrop(container, [testFiles.zip()], attachmentUser);
+          // Try to add an 11th file
+          const eleventhFile = createTestFile('extra.pdf', 'extra', 'application/pdf');
+          await simulateFileDrop(container, [eleventhFile], attachmentUser);
 
-          // Should still have only 5
+          // Should still have only 10
           await waitFor(() => {
             const chipNames = getAttachmentChipNames(container);
-            expect(chipNames).toHaveLength(5);
+            expect(chipNames).toHaveLength(10);
+            expect(chipNames).not.toContain('extra.pdf');
           });
         }
       );

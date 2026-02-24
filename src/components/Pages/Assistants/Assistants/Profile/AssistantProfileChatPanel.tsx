@@ -19,6 +19,7 @@ import {
   createAttachment,
   validateFile,
   ChatMarkdown,
+  MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
@@ -200,7 +201,6 @@ export function AssistantProfileChatPanel({
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<ChatAttachment[]>([]);
-  const MAX_ATTACHMENTS = 5;
 
   /* Cleanup on unmount to release File object references */
   React.useEffect(() => {
@@ -225,7 +225,7 @@ export function AssistantProfileChatPanel({
     (files: File[]) => {
       const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
       if (remaining <= 0) {
-        toast.error('Maximum 5 attachments per message');
+        toast.error(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
         return;
       }
 

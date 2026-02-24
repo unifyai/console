@@ -9,7 +9,11 @@ import {
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
+import {
+  uploadAttachment as uploadAttachmentClient,
+  getAttachmentType,
+} from '@/components/Chat/attachmentUtils';
+import { snakeToCamelObject } from '@/utils/casing';
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -536,12 +540,30 @@ export function useAssistantProfileChat(
           const publishTimeStr = messagePayload.publishTime;
           const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
 
+          const rawAttachments = messagePayload.event?.attachments;
+          const attachments: ChatAttachment[] | undefined = Array.isArray(rawAttachments)
+            ? rawAttachments.map((a: Record<string, unknown>) => {
+                const camel = snakeToCamelObject<Record<string, unknown>>(a);
+                const filename = (camel.filename as string) || 'attachment';
+                return {
+                  id: (camel.id as string) || uuidv4(),
+                  name: filename,
+                  size: (camel.sizeBytes as number) || 0,
+                  type: getAttachmentType(filename),
+                  gsUrl: camel.gsUrl as string | undefined,
+                  contentType: camel.contentType as string | undefined,
+                  sizeBytes: camel.sizeBytes as number | undefined,
+                } satisfies ChatAttachment;
+              })
+            : undefined;
+
           const newAssistantMessage: ChatMessage = {
             id: serverMsgId,
             role: 'assistant',
             content: String(content),
             timestamp: timestamp,
             __ackId: ackId,
+            ...(attachments && attachments.length > 0 ? { attachments } : {}),
           };
 
           setChatHistories((prev) => {
