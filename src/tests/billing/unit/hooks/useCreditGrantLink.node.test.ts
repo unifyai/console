@@ -65,8 +65,9 @@ function createWrapper() {
   testQueryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return ({ children }: { children: React.ReactNode }) =>
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: testQueryClient }, children);
+  return Wrapper;
 }
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
