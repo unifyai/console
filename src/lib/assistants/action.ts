@@ -25,6 +25,7 @@ import {
   getMockManagerMethodEvents,
   getMockToolLoopEvents,
 } from '../../utils/assistants/action-mock-data';
+import { buildExcludedManagerFilters } from './excluded-managers';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
 
@@ -178,10 +179,10 @@ export const getManagerMethodEvents = async (apiKey: string) => {
       const context = 'All/Events/ManagerMethod';
       let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
-      // TODO: Remove MemoryManager filter which is being placed momentarily to avoid
-      // too large payloads from choking the orchestra bandwidth because these payloads
-      // carry the entire transcripts with them
-      const filters: string[] = [buildAssistantIdFilter(assistantId), `manager != "MemoryManager"`];
+      const filters: string[] = [
+        buildAssistantIdFilter(assistantId),
+        ...buildExcludedManagerFilters(),
+      ];
       if (startTime) {
         filters.push(buildTimestampFilter(startTime));
       }

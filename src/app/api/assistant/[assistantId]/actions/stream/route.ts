@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 import { snakeToCamelObject } from '@/utils/casing';
+import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
 
 export const dynamic = 'force-dynamic';
 
@@ -205,6 +206,14 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
               const eventPayload = payload.event || payload;
               const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
               const shaped = reshapeToLogEntry(camelEvent);
+
+              if (isManagerExcluded(shaped.data.entries.manager as string)) {
+                if (__DEV__)
+                  console.log(
+                    `[DEBUG][Actions SSE] Dropping excluded manager=${shaped.data.entries.manager}`
+                  );
+                continue;
+              }
 
               if (__DEV__)
                 console.log(
