@@ -30,16 +30,16 @@ describe('action.ts server actions', () => {
 
   describe('getManagerMethodEvents', () => {
     it(
-      'returns logs response on success',
+      'returns logs response on success (paginated when limit=null)',
       {
         meta: {
           alias: 'GetManagerMethodEvents-Success',
-          scenario: 'API returns valid events list',
-          behavior: 'Returns ActionsLogsResponse',
+          scenario: 'API returns valid events list within one page',
+          behavior: 'Returns ActionsLogsResponse with all logs',
         },
       },
       async () => {
-        // Arrange
+        // Arrange — count=1 fits in a single page so only one request
         server.use(
           http.get(`${MOCK_BASE_URL}/api/logs`, () => {
             return HttpResponse.json({
@@ -62,6 +62,84 @@ describe('action.ts server actions', () => {
         // Assert
         expect(result).toHaveProperty('logs');
         expect((result as any).logs).toHaveLength(1);
+      }
+    );
+
+    it(
+      'paginates across multiple pages when limit=null and count > page size',
+      {
+        meta: {
+          alias: 'GetManagerMethodEvents-Pagination',
+          scenario: 'Total count exceeds page size, requiring multiple fetches',
+          behavior: 'Accumulates logs from all pages',
+        },
+      },
+      async () => {
+        // Arrange — simulate 150 total logs (page size 100 → 2 requests)
+        let callCount = 0;
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            callCount++;
+            const url = new URL(request.url);
+            const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+            if (offset === 0) {
+              // First page: 100 logs
+              const logs = Array.from({ length: 100 }, (_, i) => ({
+                id: i + 1,
+                ts: '2024-01-15T10:30:00.000Z',
+                entries: { manager: 'TestManager', method: 'run' },
+              }));
+              return HttpResponse.json({ logs, count: 150 });
+            }
+            // Second page: remaining 50 logs
+            const logs = Array.from({ length: 50 }, (_, i) => ({
+              id: 101 + i,
+              ts: '2024-01-15T10:31:00.000Z',
+              entries: { manager: 'TestManager', method: 'run' },
+            }));
+            return HttpResponse.json({ logs, count: 150 });
+          })
+        );
+
+        // Act
+        const getEventsFn = await getManagerMethodEvents(TEST_API_KEY);
+        const result = await getEventsFn(TEST_ASSISTANT_ID, null, null);
+
+        // Assert
+        expect(result).toHaveProperty('logs');
+        expect((result as any).logs).toHaveLength(150);
+        expect((result as any).count).toBe(150);
+        expect(callCount).toBe(2);
+      }
+    );
+
+    it(
+      'uses offset=0 and explicit limit for single-page fetch',
+      {
+        meta: {
+          alias: 'GetManagerMethodEvents-ExplicitLimit',
+          scenario: 'Explicit limit provided (e.g. loadMore)',
+          behavior: 'Single fetch with the given limit and offset=0',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ logs: [], count: 0 });
+          })
+        );
+
+        // Act
+        const getEventsFn = await getManagerMethodEvents(TEST_API_KEY);
+        await getEventsFn(TEST_ASSISTANT_ID, null, 50);
+
+        // Assert
+        expect(capturedUrl).toContain('limit=50');
+        expect(capturedUrl).toContain('offset=0');
       }
     );
 
@@ -120,35 +198,7 @@ describe('action.ts server actions', () => {
 
         // Assert
         const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).toContain("created_at >= '2024-01-15T10:00:00.000Z'");
-      }
-    );
-
-    it(
-      'includes limit when provided',
-      {
-        meta: {
-          alias: 'GetManagerMethodEvents-Limit',
-          scenario: 'Limit parameter is provided',
-          behavior: 'URL includes limit param',
-        },
-      },
-      async () => {
-        // Arrange
-        let capturedUrl = '';
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
-            capturedUrl = request.url;
-            return HttpResponse.json({ logs: [], count: 0 });
-          })
-        );
-
-        // Act
-        const getEventsFn = await getManagerMethodEvents(TEST_API_KEY);
-        await getEventsFn(TEST_ASSISTANT_ID, null, 50);
-
-        // Assert
-        expect(capturedUrl).toContain('limit=50');
+        expect(decodedUrl).toContain("event_timestamp >= '2024-01-15T10:00:00.000Z'");
       }
     );
 
@@ -236,11 +286,11 @@ describe('action.ts server actions', () => {
 
   describe('getToolLoopEvents', () => {
     it(
-      'returns logs response on success',
+      'returns logs response on success (paginated when limit=null)',
       {
         meta: {
           alias: 'GetToolLoopEvents-Success',
-          scenario: 'API returns valid tool loop events',
+          scenario: 'API returns valid tool loop events within one page',
           behavior: 'Returns ActionsLogsResponse',
         },
       },
@@ -263,7 +313,7 @@ describe('action.ts server actions', () => {
 
         // Act
         const getEventsFn = await getToolLoopEvents(TEST_API_KEY);
-        const result = await getEventsFn(TEST_ASSISTANT_ID, 'CodeActActor.act', null);
+        const result = await getEventsFn(TEST_ASSISTANT_ID, ['CodeActActor.act'], null);
 
         // Assert
         expect(result).toHaveProperty('logs');
@@ -272,12 +322,13 @@ describe('action.ts server actions', () => {
     );
 
     it(
-      'builds correct context path with hierarchy_label filter',
+      'builds correct context path with hierarchy prefix filter',
       {
         meta: {
           alias: 'GetToolLoopEvents-ContextPath',
           scenario: 'Verify URL contains correct context and hierarchy filter',
-          behavior: 'URL includes All/Events/ToolLoop with hierarchy_label.startswith filter',
+          behavior:
+            'URL includes All/Events/ToolLoop with hierarchy_label.startswith filter from joined hierarchy array',
         },
       },
       async () => {
@@ -292,7 +343,7 @@ describe('action.ts server actions', () => {
 
         // Act
         const getEventsFn = await getToolLoopEvents(TEST_API_KEY);
-        await getEventsFn(TEST_ASSISTANT_ID, 'CodeActActor.act->ContactManager.ask', null);
+        await getEventsFn(TEST_ASSISTANT_ID, ['CodeActActor.act', 'ContactManager.ask'], null);
 
         // Assert - URL should contain context path and hierarchy filter
         expect(capturedUrl).toContain('All/Events/ToolLoop');
@@ -305,12 +356,12 @@ describe('action.ts server actions', () => {
     );
 
     it(
-      'includes limit when provided',
+      'uses offset=0 and explicit limit for single-page fetch',
       {
         meta: {
-          alias: 'GetToolLoopEvents-Limit',
-          scenario: 'Limit parameter is provided',
-          behavior: 'URL includes limit param',
+          alias: 'GetToolLoopEvents-ExplicitLimit',
+          scenario: 'Explicit limit provided',
+          behavior: 'Single fetch with the given limit',
         },
       },
       async () => {
@@ -325,10 +376,11 @@ describe('action.ts server actions', () => {
 
         // Act
         const getEventsFn = await getToolLoopEvents(TEST_API_KEY);
-        await getEventsFn(TEST_ASSISTANT_ID, 'CodeActActor.act', 20);
+        await getEventsFn(TEST_ASSISTANT_ID, ['CodeActActor.act'], 20);
 
         // Assert
         expect(capturedUrl).toContain('limit=20');
+        expect(capturedUrl).toContain('offset=0');
       }
     );
 
@@ -351,7 +403,7 @@ describe('action.ts server actions', () => {
 
         // Act
         const getEventsFn = await getToolLoopEvents(TEST_API_KEY);
-        const result = await getEventsFn(TEST_ASSISTANT_ID, 'CodeActActor.act', null);
+        const result = await getEventsFn(TEST_ASSISTANT_ID, ['CodeActActor.act'], null);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Not found');

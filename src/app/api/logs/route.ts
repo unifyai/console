@@ -4,6 +4,7 @@ import { getApiKeyFromRequest, unauthorized, badRequest } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
+const __DEV__ = process.env.NODE_ENV === 'development';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -68,12 +69,13 @@ export async function GET(request: NextRequest) {
     end_time: endTime,
   };
 
-  // TODO: Remove debug logging
-  console.log(`[DEBUG][/api/logs GET] Incoming request URL: ${url.pathname}${url.search}`);
-  console.log(
-    `[DEBUG][/api/logs GET] Orchestra query params:`,
-    JSON.stringify(queryPayload, null, 2)
-  );
+  if (__DEV__) {
+    console.log(`[DEBUG][/api/logs GET] Incoming request URL: ${url.pathname}${url.search}`);
+    console.log(
+      `[DEBUG][/api/logs GET] Orchestra query params:`,
+      JSON.stringify(queryPayload, null, 2)
+    );
+  }
 
   try {
     const startedAt = Date.now();
@@ -85,38 +87,39 @@ export async function GET(request: NextRequest) {
 
     const latencyMs = Date.now() - startedAt;
 
-    // TODO: Remove debug logging
-    console.log(
-      `[DEBUG][/api/logs GET] Orchestra response: status=${response.status}, latency=${latencyMs}ms`
-    );
-    if (error) {
-      console.log(`[DEBUG][/api/logs GET] Orchestra ERROR:`, JSON.stringify(error).slice(0, 500));
-    }
-    if (data) {
-      const logsArr = (data as any)?.logs;
-      const count = (data as any)?.count;
+    if (__DEV__) {
       console.log(
-        `[DEBUG][/api/logs GET] Response data: count=${count}, logs.length=${logsArr?.length ?? 'N/A'}`
+        `[DEBUG][/api/logs GET] Orchestra response: status=${response.status}, latency=${latencyMs}ms`
       );
-      if (logsArr?.length > 0) {
-        const first = logsArr[0];
-        const last = logsArr[logsArr.length - 1];
+      if (error) {
+        console.log(`[DEBUG][/api/logs GET] Orchestra ERROR:`, JSON.stringify(error).slice(0, 500));
+      }
+      if (data) {
+        const logsArr = (data as any)?.logs;
+        const count = (data as any)?.count;
         console.log(
-          `[DEBUG][/api/logs GET] First log: id=${first.id}, ts=${first.ts}, entries_keys=${Object.keys(first.entries || {}).join(',')}`
+          `[DEBUG][/api/logs GET] Response data: count=${count}, logs.length=${logsArr?.length ?? 'N/A'}`
         );
-        console.log(
-          `[DEBUG][/api/logs GET] First log entries preview:`,
-          JSON.stringify(first.entries).slice(0, 500)
-        );
-        console.log(`[DEBUG][/api/logs GET] Last log: id=${last.id}, ts=${last.ts}`);
-      } else {
-        console.log(
-          `[DEBUG][/api/logs GET] No logs returned. Full response keys: ${Object.keys(data as any).join(',')}`
-        );
-        console.log(
-          `[DEBUG][/api/logs GET] Full response preview:`,
-          JSON.stringify(data).slice(0, 1000)
-        );
+        if (logsArr?.length > 0) {
+          const first = logsArr[0];
+          const last = logsArr[logsArr.length - 1];
+          console.log(
+            `[DEBUG][/api/logs GET] First log: id=${first.id}, ts=${first.ts}, entries_keys=${Object.keys(first.entries || {}).join(',')}`
+          );
+          console.log(
+            `[DEBUG][/api/logs GET] First log entries preview:`,
+            JSON.stringify(first.entries).slice(0, 500)
+          );
+          console.log(`[DEBUG][/api/logs GET] Last log: id=${last.id}, ts=${last.ts}`);
+        } else {
+          console.log(
+            `[DEBUG][/api/logs GET] No logs returned. Full response keys: ${Object.keys(data as any).join(',')}`
+          );
+          console.log(
+            `[DEBUG][/api/logs GET] Full response preview:`,
+            JSON.stringify(data).slice(0, 1000)
+          );
+        }
       }
     }
 
@@ -144,8 +147,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data, { status: 200, headers });
   } catch (e: unknown) {
-    // TODO: Remove debug logging
-    console.error(`[DEBUG][/api/logs GET] EXCEPTION:`, e);
+    if (__DEV__) console.error(`[DEBUG][/api/logs GET] EXCEPTION:`, e);
     const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
     return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });

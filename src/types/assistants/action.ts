@@ -91,6 +91,9 @@ export interface ActionNode {
 
   /** Whether tool loop steps have been loaded */
   isToolLoopLoaded?: boolean;
+
+  /** Live ToolLoop logs accumulated from SSE while the node is running */
+  liveToolLoopLogs?: ToolLoopLog[];
 }
 
 // =============================================================================
@@ -128,6 +131,8 @@ export interface ManagerMethodLogEntries {
   errorType?: string;
   /** Full traceback string — present when status="error" */
   traceback?: string;
+  /** Actual event occurrence time (ISO-8601 with timezone) from the backend */
+  eventTimestamp?: string;
 }
 
 /**
@@ -185,6 +190,7 @@ export interface ToolLoopLogEntries {
   method: string;
   hierarchy: string[];
   hierarchyLabel: string;
+  eventTimestamp?: string;
 }
 
 /**
@@ -230,7 +236,7 @@ export type GetManagerMethodEventsFn = (
  */
 export type GetToolLoopEventsFn = (
   assistantId: string,
-  hierarchyLabelPrefix: string,
+  hierarchy: string[],
   limit: number | null,
   startTime?: string,
   endTime?: string
