@@ -208,12 +208,7 @@ export function useAssistantProfileChat(
         }, CONTACT_ID_RETRY_DELAY);
       }
     },
-    [
-      assistantActions.chat,
-      userEmail,
-      recordTranscriptTimestamp,
-      setChatHistories,
-    ]
+    [assistantActions.chat, userEmail, recordTranscriptTimestamp, setChatHistories]
   );
 
   /**
@@ -348,6 +343,15 @@ export function useAssistantProfileChat(
           if (contactId === null) {
             // User not in contacts - disable chat and start retry
             setCanChat(false);
+
+            // Clear any previously scheduled retry to prevent orphaned timers.
+            // If the effect re-runs (e.g. unstable onFirstViewCompleted ref from
+            // a parent re-render), the IIFE runs again while contactIdCache is
+            // still empty. Without clearing, the old timer leaks and its retry
+            // can overwrite pre-hire chat history after firstViewProcessed is reset.
+            if (contactIdRetryTimeoutRef.current) {
+              clearTimeout(contactIdRetryTimeoutRef.current);
+            }
 
             // Start auto-retry for contact_id
             setIsRetryingContactId(true);
