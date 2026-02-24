@@ -53,7 +53,7 @@ import {
   requestAssistantHiringAccess,
 } from '@/lib/assistants/approval';
 import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
-import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
+import { getCallConnectionDetails, dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
 import {
   getAssistantSpend,
@@ -149,6 +149,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
       dispatchToCall: await dispatchAssistantToCall(apiKey),
+      deleteRoom: await deleteCallRoom(),
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),

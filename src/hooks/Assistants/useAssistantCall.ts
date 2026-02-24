@@ -105,6 +105,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setError(null);
       setConnectionError(null);
       try {
+        // Delete any stale room from a previous failed attempt before creating a new one
+        const expectedRoomName = `unity_${assistant.agentId}_meet`;
+        await assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
+        if (isStaleAttempt()) return;
+
         const assistantName = `${assistant.firstName}${assistant.surname}`;
         let connDetails: ConnectionDetails | null = null;
 
@@ -182,6 +187,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         setIsConnecting(false);
         toast.error(`Failed to start call. Please try again.`);
         setError(`Failed to start call: ${e.message}`);
+        // Clean up the server-side room so it doesn't interfere with subsequent attempts
+        assistantActions.call.deleteRoom(`unity_${assistant.agentId}_meet`).catch(() => {});
         // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
         if (room.state !== 'disconnected') {
           room.disconnect().catch(console.error);
@@ -197,6 +204,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     clearAssistantJoinTimeout();
     stopRemoteControl();
 
+    // Delete the server-side room so it doesn't interfere with subsequent calls
+    const assistantToClean = activeCallAssistantRef.current;
+    if (assistantToClean) {
+      const roomName = `unity_${assistantToClean.agentId}_meet`;
+      assistantActions.call.deleteRoom(roomName).catch(() => {});
+    }
+
     if (isConnecting) {
       setIsConnecting(false);
     }
@@ -207,7 +221,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       // If room wasn't even connecting, we still need to trigger cleanup.
       onDisconnected();
     }
-  }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
+  }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected, assistantActions.call]);
 
   const retryConnection = React.useCallback(async () => {
     const assistantToRetry = activeCallAssistant;
@@ -216,6 +230,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
     // Temporarily detach the main disconnect handler to prevent full UI teardown
     room.off(RoomEvent.Disconnected, onDisconnected);
+
+    // Delete the stale room before disconnecting so the retry starts fresh
+    const roomName = `unity_${assistantToRetry.agentId}_meet`;
+    await assistantActions.call.deleteRoom(roomName).catch(() => {});
 
     await room.disconnect();
 
@@ -240,6 +258,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     onDisconnected,
     clearAssistantJoinTimeout,
     stopRemoteControl,
+    assistantActions.call,
   ]);
 
   const toggleRemoteControl = React.useCallback(async () => {
@@ -418,8 +437,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         assistantRejoinTimeoutRef.current = setTimeout(() => {
           if (isCancelledRef.current) return;
           if (isRedispatchingRef.current || room.numParticipants < 2) {
-            // Assistant still hasn't rejoined
+            // Assistant still hasn't rejoined — clean up server-side room before disconnecting
             isRedispatchingRef.current = false;
+            const assistant = activeCallAssistantRef.current;
+            if (assistant) {
+              const rn = `unity_${assistant.agentId}_meet`;
+              assistantActions.call.deleteRoom(rn).catch(() => {});
+            }
             toast.error(
               `${firstName} couldn't rejoin the call. Please try calling again if needed.`
             );
@@ -438,7 +462,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearAssistantJoinTimeout();
     };
-  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant]);
+  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call]);
 
   // Poll for desktop VM readiness once the call is connected.
   // Uses recursive setTimeout (not setInterval) so the next check only

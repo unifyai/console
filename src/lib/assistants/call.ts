@@ -1,6 +1,6 @@
 import { ResponseProps } from '@/types/common';
 import { ConnectionDetails } from '@/types/assistants/call';
-import { AccessToken, type VideoGrant } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-sdk';
 import { getCurrentUser } from '@/lib/user/user';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
@@ -68,6 +68,25 @@ export const getCallConnectionDetails = async (apiKey: string) => {
       const message =
         error instanceof Error ? error.message : 'Unknown error getting call connection details.';
       console.error('[lib/assistants/call.ts]', error);
+      return { detail: message };
+    }
+  };
+};
+
+export const deleteCallRoom = async () => {
+  return async (roomName: string): Promise<ResponseProps> => {
+    'use server';
+    try {
+      if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
+        return { detail: 'Server configuration error.' };
+      }
+      const roomService = new RoomServiceClient(LIVEKIT_URL, API_KEY, API_SECRET);
+      await roomService.deleteRoom(roomName);
+      return {};
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error deleting room.';
+      console.error('[lib/assistants/call.ts] deleteCallRoom error:', message);
       return { detail: message };
     }
   };
