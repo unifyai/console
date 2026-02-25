@@ -36,7 +36,6 @@ describe('AssistantSpendingIntegration', () => {
     organizationId: null,
     voiceId: null,
     voiceProvider: null,
-    voiceMode: null,
     email: null,
     phone: null,
     assistantWhatsappNumber: null,

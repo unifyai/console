@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateFavourite, deleteFavourite } from '@/lib/interfaces/favourites';
+import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKey = req.headers.get('apiKey');
+    const apiKey = await getApiKeyFromRequest(req);
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key required' }, { status: 401 });
+      return unauthorized();
     }
 
     const body = await req.json();
@@ -21,10 +22,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKey = req.headers.get('apiKey');
+    const apiKey = await getApiKeyFromRequest(req);
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'API key required' }, { status: 401 });
+      return unauthorized();
     }
 
     const deleteFav = await deleteFavourite(apiKey);

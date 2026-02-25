@@ -55,7 +55,7 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
     if (enabled && !hasInitialized) {
       const shuffledPresets = shuffleArray(
         assistantPresetsConstant.filter(
-          (assistant) => assistant.voiceIds[PRIMARY_VOICE_PROVIDER] || assistant.voiceIds['openai']
+          (assistant) => assistant.voiceIds[PRIMARY_VOICE_PROVIDER]
         ) as AssistantPreset[]
       );
       setAllAssistantPresets(shuffledPresets);
@@ -67,7 +67,7 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
     if (!hasInitialized) return [];
 
     return allAssistantPresets.map((preset) => {
-      const voiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] || preset.voiceIds['openai'];
+      const voiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER];
       const voice = allPresetVoices.find((v) => v.voiceId === voiceId);
       return {
         ...preset,

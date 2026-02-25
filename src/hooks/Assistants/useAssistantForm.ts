@@ -81,7 +81,6 @@ export function useAssistantForm(
 
       // UI state fields
       designIncludeBio: false,
-      fastMode: false,
     },
   });
 
@@ -148,8 +147,7 @@ export function useAssistantForm(
 
     const currentPreset = getValues('currentPreset');
     const isVoicePristine = currentPreset
-      ? voiceId === currentPreset.voiceIds.openai ||
-        voiceId === currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER]
+      ? voiceId === currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER]
       : voiceId === originalValues.voiceId;
 
     let isPristine =
@@ -216,7 +214,6 @@ export function useAssistantForm(
       const thisOperationId = presetOperationIdRef.current;
 
       handleMediaRemove();
-      const isFastMode = getValues('fastMode');
 
       setValue('setup', 'remote');
       setValue('currentPreset', preset);
@@ -235,21 +232,15 @@ export function useAssistantForm(
         preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       );
 
-      // Determine the voiceId based on fast_mode or PRIMARY_VOICE_PROVIDER
-      const preferredProvider = isFastMode ? 'openai' : PRIMARY_VOICE_PROVIDER;
-      const fallbackProvider = isFastMode ? PRIMARY_VOICE_PROVIDER : 'openai';
-
-      const providerSpecificVoiceId =
-        preset.voiceIds[preferredProvider] ?? preset.voiceIds[fallbackProvider] ?? null;
-      const finalProvider =
-        providerSpecificVoiceId === preset.voiceIds[fallbackProvider]
-          ? fallbackProvider
-          : preferredProvider;
+      // Determine the voiceId based on PRIMARY_VOICE_PROVIDER
+      const providerSpecificVoiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] ?? null;
 
       // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
       let selectedPresetVoiceDetails: VoiceOption | undefined = (
         voicePresetsConstant as VoiceOption[]
-      ).find((vp) => vp.voiceId === providerSpecificVoiceId && vp.provider === finalProvider);
+      ).find(
+        (vp) => vp.voiceId === providerSpecificVoiceId && vp.provider === PRIMARY_VOICE_PROVIDER
+      );
 
       if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
         selectedPresetVoiceDetails = {
@@ -258,7 +249,7 @@ export function useAssistantForm(
           description: 'Preset voice',
           gender: preset.gender === 'male' ? 'male' : 'female',
           language: 'en',
-          provider: finalProvider,
+          provider: PRIMARY_VOICE_PROVIDER,
           isPreset: true,
           isUserVoiceInOrchestra: false,
         };
@@ -294,7 +285,7 @@ export function useAssistantForm(
       setValue('presetOriginalValues', originalValues);
       setValue('videoPreviewUrl', null);
       assistantActions.photo
-        .downloadPresetVideo(preset.firstName, preset.surname, finalProvider)
+        .downloadPresetVideo(preset.firstName, preset.surname, PRIMARY_VOICE_PROVIDER)
         .then((res) => {
           // Ignore stale video downloads from previous preset selections
           if (presetOperationIdRef.current !== thisOperationId) {
@@ -328,7 +319,6 @@ export function useAssistantForm(
       clearErrors,
       defaultVoice,
       assistantActions.photo,
-      getValues,
       registeredVoices,
     ]
   );
@@ -373,7 +363,6 @@ export function useAssistantForm(
 
         // UI state fields
         designIncludeBio: false,
-        fastMode: false,
       });
       setShowInsufficientFundsHint(false);
     },
@@ -451,9 +440,6 @@ export function useAssistantForm(
       if (data.voiceId !== editingAssistant.voiceId) payload.voiceId = data.voiceId;
       if (data.voiceProvider !== editingAssistant.voiceProvider)
         payload.voiceProvider = data.voiceProvider;
-      const newVoiceMode = data.fastMode ? 'sts' : 'tts';
-      if (newVoiceMode !== editingAssistant.voiceMode) payload.voiceMode = newVoiceMode;
-
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
       // Image/Video upload logic
@@ -635,8 +621,6 @@ export function useAssistantForm(
         role,
         msg: content,
       }));
-      const voiceMode = data.fastMode ? 'sts' : 'tts';
-
       // Loading message updated to finalizing hire
       const assistantCreationResult = await assistantActions.assistant.create(
         data.firstName,
@@ -649,7 +633,6 @@ export function useAssistantForm(
         data.about,
         data.voiceId,
         voiceProviderVal,
-        voiceMode,
         isUserDesktop,
         desktopModePayload,
         formattedPreHireChat

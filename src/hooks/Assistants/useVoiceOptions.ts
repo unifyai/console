@@ -26,7 +26,7 @@ export function useVoiceOptions(
     const allPresets = voicePresetsConstant as Voice[];
     // Filter presets based on the PRIMARY_VOICE_PROVIDER setting
     const filteredPresets = allPresets.filter(
-      (preset) => preset.provider === PRIMARY_VOICE_PROVIDER || preset.provider === 'openai'
+      (preset) => preset.provider === PRIMARY_VOICE_PROVIDER
     );
     return filteredPresets.map((vp) => ({
       ...vp,

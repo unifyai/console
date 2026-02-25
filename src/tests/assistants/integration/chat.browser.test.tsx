@@ -4485,7 +4485,7 @@ describe('Assistant Profile Chat', () => {
             expect(lastMessage.content).toBe('Sending with attachment');
             expect(lastMessage.attachments).toBeDefined();
             expect(lastMessage.attachments).toHaveLength(1);
-            expect(lastMessage.attachments?.[0].name).toBe('report.pdf');
+            expect(lastMessage.attachments?.[0].filename).toBe('report.pdf');
           });
 
           // Input should be cleared
@@ -4614,7 +4614,7 @@ describe('Assistant Profile Chat', () => {
             expect(lastMessage.content).toBe(''); // No text
             expect(lastMessage.attachments).toBeDefined();
             expect(lastMessage.attachments).toHaveLength(1);
-            expect(lastMessage.attachments?.[0].name).toBe('report.pdf');
+            expect(lastMessage.attachments?.[0].filename).toBe('report.pdf');
           });
 
           // Input should still be empty (no text was typed)

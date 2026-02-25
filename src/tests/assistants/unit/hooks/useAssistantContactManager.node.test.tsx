@@ -115,7 +115,6 @@ const createMockAssistant = (overrides?: Partial<Assistant>): Assistant =>
     about: 'A test assistant',
     voiceId: 'voice-1',
     voiceProvider: 'elevenlabs',
-    voiceMode: 'tts',
     email: null,
     phone: null,
     userPhone: null,

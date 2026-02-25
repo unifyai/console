@@ -37,6 +37,63 @@ Related repositories:
 
 ---
 
+## Security
+
+### Authentication
+
+Console uses NextAuth.js with Google and GitHub OAuth providers. Sessions use JWT with a 30-day max age. Cookies are configured with `httpOnly`, `sameSite: lax`, and `secure` (when served over HTTPS).
+
+The NextAuth redirect callback validates that redirect URLs match the application's origin to prevent open redirect attacks.
+
+### Middleware
+
+The Next.js middleware (`src/middleware.ts`) enforces authentication on all routes except:
+
+- `/plot/view/*` and `/table/view/*` — public shareable views
+- Static assets and API routes (matched by the config regex)
+
+The `/user` path requires a valid `ADMIN_KEY` header matching the `ADMIN_KEY` environment variable (value validation, not just presence check).
+
+An `ON_PREM` environment variable bypasses authentication for self-hosted deployments. A safety guard prevents `ON_PREM` from being active when the app URL contains `unify.ai`.
+
+### Security Headers
+
+All routes receive the following headers via `next.config.js`:
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY` (overridden to `ALLOWALL` for `/plot/view/*` embeds)
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `X-XSS-Protection: 1; mode=block`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- `Content-Security-Policy` restricting scripts, styles, fonts, connections, and frames
+
+### API Routes
+
+API routes that proxy to the Communication adapters (e.g., `/api/assistant/message`) authenticate the user via their API key and forward requests with the `ORCHESTRA_ADMIN_KEY` as a Bearer token.
+
+### Required Environment Variables (Security)
+
+| Variable              | Purpose                                    |
+| --------------------- | ------------------------------------------ |
+| `JWT_SECRET`          | NextAuth JWT signing secret                |
+| `ADMIN_KEY`           | Admin header validation for `/user` routes |
+| `ORCHESTRA_ADMIN_KEY` | Bearer token for adapter webhook calls     |
+
+### GCP Infrastructure (not tracked in code)
+
+Console is deployed as the `saas-web-app` Cloud Run service in the `gcp-project-saas` GCP project:
+
+- **Cloud Run ingress**: Currently `all` (default). Restricting to `internal-and-cloud-load-balancing` requires migrating from Cloud Run custom domain mappings to a proper Google Cloud Load Balancer with serverless NEGs first — custom domain mapping traffic is classified as external and gets rejected with 404.
+- **Storage buckets**: `publicAccessPrevention` enforced on all buckets in the project. No `allUsers` or `allAuthenticatedUsers` bindings.
+
+### GitHub Repository Settings (not tracked in code)
+
+- **Branch protection** on `main`: Requires 1 approving pull request review. Force pushes and branch deletions are blocked.
+- **Dependabot**: Vulnerability alerts and automated security fixes are enabled.
+
+---
+
 ## Tech Stack
 
 | Technology   | Version | Purpose                         |

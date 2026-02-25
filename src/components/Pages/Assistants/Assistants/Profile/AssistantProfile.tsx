@@ -69,10 +69,10 @@ const AccordionTriggerWithButtons = React.forwardRef<
   <AccordionTrigger
     ref={ref}
     {...props}
-    className="group py-3.5 hover:no-underline data-[state=open]:border-b"
+    className="group py-2 hover:no-underline data-[state=open]:border-b"
     hideChevron // Hide the primitive's default chevron
   >
-    <div className="flex w-full items-center justify-between px-4">
+    <div className="flex min-h-7 w-full items-center justify-between px-3">
       <div className="flex items-center gap-2">
         <div className="text-title flex-grow text-left">{children}</div>
         <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
@@ -116,11 +116,7 @@ export function AssistantProfilePanel({
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
   onAssistantSpendingChange,
 }: AssistantProfilePanelProps) {
-  const [openSections, setOpenSections] = React.useState<string[]>([
-    'profile',
-    'resources',
-    'chat',
-  ]);
+  const [openSections, setOpenSections] = React.useState<string[]>(['chat']);
 
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -176,13 +172,13 @@ export function AssistantProfilePanel({
               ) : null
             }
           >
-            <div className="flex items-center gap-2 p-1 text-[color:var(--muted-foreground)] transition-colors duration-200 hover:text-[color:var(--foreground)]">
+            <div className="flex items-center gap-2 text-[color:var(--muted-foreground)] transition-colors duration-200 hover:text-[color:var(--foreground)]">
               <User className="h-4 w-4" />
               <span className="text-body">Profile</span>
             </div>
           </AccordionTriggerWithButtons>
           <AccordionContent
-            outerClassName="data-[state=open]:flex flex-1 min-h-0 max-h-[40vh] p-0"
+            outerClassName="data-[state=open]:flex flex-1 min-h-0 max-h-[25vh] p-0"
             className="flex min-h-0 flex-1 p-0"
           >
             <AssistantProfileInfoPanel
@@ -205,7 +201,7 @@ export function AssistantProfilePanel({
             </div>
           </AccordionTriggerWithButtons>
           <AccordionContent
-            outerClassName="data-[state=open]:flex flex-col flex-1 min-h-0 p-0"
+            outerClassName="data-[state=open]:flex flex-col flex-1 min-h-0 max-h-[20vh] p-0"
             className="min-h-0 flex-1 p-4"
           >
             <AssistantResourcesManager

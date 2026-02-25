@@ -263,30 +263,30 @@ describe('attachmentUtils', () => {
       expect(attachment1.id).not.toBe(attachment2.id);
     });
 
-    it('should set correct type based on filename', () => {
+    it('should derive correct type from filename', () => {
       const pdfFile = createTestFile('document.pdf', 'content', 'application/pdf');
       const pdfAttachment = createAttachment(pdfFile);
-      expect(pdfAttachment.type).toBe('pdf');
+      expect(getAttachmentType(pdfAttachment.filename)).toBe('pdf');
 
       const imageFile = createTestFile('photo.png', 'content', 'image/png');
       const imageAttachment = createAttachment(imageFile);
-      expect(imageAttachment.type).toBe('image');
+      expect(getAttachmentType(imageAttachment.filename)).toBe('image');
     });
 
-    it('should include file size', () => {
+    it('should include file size as sizeBytes', () => {
       const file = createTestFile('test.txt', 'hello world', 'text/plain');
       const attachment = createAttachment(file);
-      expect(attachment.size).toBe(file.size);
+      expect(attachment.sizeBytes).toBe(file.size);
     });
 
-    it('should include file name', () => {
+    it('should include filename', () => {
       const file = createTestFile(
         'myfile.docx',
         'content',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       );
       const attachment = createAttachment(file);
-      expect(attachment.name).toBe('myfile.docx');
+      expect(attachment.filename).toBe('myfile.docx');
     });
 
     it('should include the file object', () => {

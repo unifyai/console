@@ -102,7 +102,7 @@ Voice selection and creation flows.
 - Voice cloning from audio file
 - Voice design (AI-generated voices)
 - Deleting custom voices
-- Fast mode voice restrictions
+
 
 ### 4. Photo & Media (`hire-media.matrix.browser.test.tsx`)
 

@@ -33,7 +33,6 @@ export function createMockAssistant(overrides: Partial<Assistant> = {}): Assista
     timezone: 'UTC',
     voiceId: `v_${faker.string.alphanumeric(10)}`,
     voiceProvider: 'elevenlabs',
-    voiceMode: 'tts',
     userPhone: null,
     userWhatsappNumber: null,
     weeklyLimit: 40,
@@ -127,7 +126,6 @@ export const mockPresets: AssistantPreset[] = [
       cartesia: null,
     },
     language: 'en',
-    voiceMode: 'tts',
   },
   {
     firstName: 'James',
@@ -146,7 +144,6 @@ export const mockPresets: AssistantPreset[] = [
       cartesia: null,
     },
     language: 'en',
-    voiceMode: 'tts',
   },
 ];
 

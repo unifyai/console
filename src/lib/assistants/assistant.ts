@@ -6,7 +6,7 @@ import {
   PreHireChatMessage,
   DesktopMode,
   VoiceProvider,
-  VoiceMode,
+
   AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
@@ -214,7 +214,6 @@ export const createAssistant = async (apiKey: string) => {
     about: string | null,
     voiceId: string | null,
     voiceProvider: VoiceProvider | null,
-    voiceMode: VoiceMode | null,
     isUserDesktop: boolean,
     desktopMode: DesktopMode | null,
     preHireChat?: PreHireChatMessage[]
@@ -239,7 +238,6 @@ export const createAssistant = async (apiKey: string) => {
           about,
           voiceId: voiceId,
           voiceProvider: voiceProvider,
-          voiceMode: voiceMode,
           timezone,
           isUserDesktop: isUserDesktop,
           desktopMode: desktopMode,

@@ -9,12 +9,7 @@ import {
   File,
   type LucideIcon,
 } from 'lucide-react';
-import type {
-  AttachmentType,
-  ChatAttachment,
-  AttachmentUploadResponse,
-  MessageAttachment,
-} from '@/types/assistants/chat';
+import type { AttachmentType, Attachment, AttachmentUploadResponse } from '@/types/assistants/chat';
 
 // =============================================================================
 // CONSTANTS
@@ -298,14 +293,13 @@ export function truncateFilename(name: string, maxLength = 20): string {
 // =============================================================================
 
 /**
- * Create ChatAttachment from File object.
+ * Create Attachment from File object.
  */
-export function createAttachment(file: File): ChatAttachment {
+export function createAttachment(file: File): Attachment {
   return {
     id: uuidv4(),
-    name: file.name,
-    size: file.size,
-    type: getAttachmentType(file.name),
+    filename: file.name,
+    sizeBytes: file.size,
     file,
   };
 }
@@ -353,15 +347,10 @@ export async function uploadAttachment(
 }
 
 /**
- * Create a MessageAttachment from an upload response.
- * Uses gsUrl (not signedUrl) for transcript storage.
- *
- * @param uploadResponse - Response from uploadAttachment
- * @returns MessageAttachment suitable for sending in messages
+ * Create an Attachment from an upload response, stripping the signedUrl
+ * (only gsUrl is persisted in transcripts).
  */
-export function createMessageAttachment(
-  uploadResponse: AttachmentUploadResponse
-): MessageAttachment {
+export function createMessageAttachment(uploadResponse: AttachmentUploadResponse): Attachment {
   return {
     id: uploadResponse.id,
     filename: uploadResponse.filename,
@@ -372,17 +361,12 @@ export function createMessageAttachment(
 }
 
 /**
- * Update a ChatAttachment with upload metadata.
- * Called after successful upload to add gsUrl, contentType, sizeBytes.
- *
- * @param attachment - Original ChatAttachment
- * @param uploadResponse - Response from uploadAttachment
- * @returns Updated ChatAttachment with metadata
+ * Merge upload metadata into an existing attachment.
  */
 export function updateAttachmentWithMetadata(
-  attachment: ChatAttachment,
+  attachment: Attachment,
   uploadResponse: AttachmentUploadResponse
-): ChatAttachment {
+): Attachment {
   return {
     ...attachment,
     gsUrl: uploadResponse.gsUrl,

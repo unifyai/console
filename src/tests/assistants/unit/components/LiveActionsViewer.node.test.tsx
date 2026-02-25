@@ -39,7 +39,6 @@ const TEST_ASSISTANT: Assistant = {
   gender: 'female',
   voiceId: 'voice-1',
   voiceProvider: 'elevenlabs',
-  voiceMode: 'tts',
   email: 'emma@test.ai',
   phone: null,
   assistantWhatsappNumber: null,
