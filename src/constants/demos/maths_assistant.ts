@@ -22,9 +22,14 @@ qs = [
 ]
 
 # define evaluator
+def safe_arithmetic(expr: str) -> int:
+    parts = expr.split()
+    a, op, b = int(parts[0]), parts[1], int(parts[2])
+    return a + b if op == "+" else a - b
+
 @unify.traced
 def evaluate_response(question: str, response: str) -> float:
-    correct_answer = eval(question)
+    correct_answer = safe_arithmetic(question)
     try:
         response_int = int(
             "".join(

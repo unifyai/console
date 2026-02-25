@@ -3,8 +3,33 @@ import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 120;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
 export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
+
+  if (pathname.startsWith('/api/')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (isRateLimited(ip)) {
+      return new Response('Too Many Requests', {
+        status: 429,
+        headers: { 'Retry-After': '60' },
+      });
+    }
+  }
 
   // Allow public access to shareable view pages (no auth required)
   if (pathname.startsWith('/plot/view/') || pathname.startsWith('/table/view/')) {
