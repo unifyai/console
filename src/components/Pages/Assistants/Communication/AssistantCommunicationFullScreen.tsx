@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
+import { makeRoomName } from '@/utils/assistants/call-utils';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'>;
 
@@ -400,6 +401,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [room] = React.useState(() => new Room());
   const [isConnecting, setIsConnecting] = React.useState(true);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
+  // Track whether the assistant ever joined — used to decide if we should
+  // auto-close the tab on disconnect (only close if we had an active call).
+  const assistantEverJoinedRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
@@ -529,19 +533,29 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
   const connectToRoom = React.useCallback(async () => {
     if (!callData) return;
-    const { serverUrl, token, callType, handoffState } = callData;
-
-    if (!token || !serverUrl) {
-      setError('Missing connection details. This tab can be closed.');
-      setIsConnecting(false);
-      return;
-    }
+    const { callType, handoffState } = callData;
 
     setIsConnecting(true);
     setError(null);
 
     try {
-      await room.connect(serverUrl, token);
+      // Get fresh connection details for this tab. The dialog's token used the
+      // same participant identity and the old room may have been cleaned up
+      // server-side after the dialog disconnected, so we need our own token
+      // with a new identity to reliably join the room.
+      const assistantName = `${assistant.firstName} ${assistant.surname}`;
+      const connDetails = await assistantActions.call.getConnectionDetails(
+        assistant.agentId,
+        assistantName
+      );
+
+      if ('detail' in connDetails) {
+        setError(connDetails.detail || 'Failed to get connection details.');
+        setIsConnecting(false);
+        return;
+      }
+
+      await room.connect(connDetails.serverUrl, connDetails.token);
 
       // Apply mic/camera state from handoff or use defaults
       const micEnabled =
@@ -558,15 +572,20 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
       setIsConnecting(false);
 
-      // Determine waiting state: use handoff if available, otherwise check room
-      if (handoffState && typeof handoffState.assistantJoined === 'boolean') {
-        // Trust handoff state initially, but verify against room
-        // If handoff says joined but room shows otherwise, still show waiting
-        const actuallyJoined = room.numParticipants >= 2 || handoffState.assistantJoined;
-        setIsWaitingForAssistant(!actuallyJoined);
-      } else {
-        // Legacy path: no handoff state, check room directly
-        setIsWaitingForAssistant(room.numParticipants < 2);
+      // Always check the actual room state — the handoff may say the assistant
+      // was joined, but it may have left during the pop-out transition.
+      const assistantInRoom = room.numParticipants >= 2;
+      setIsWaitingForAssistant(!assistantInRoom);
+
+      // If assistant isn't in the room (e.g. it left when the dialog disconnected
+      // during the pop-out transition), redispatch it.
+      if (!assistantInRoom) {
+        const roomName = makeRoomName(assistant.agentId, 'meet');
+        assistantActions.call
+          .dispatchToCall(assistant.agentId, roomName)
+          .catch((err: any) => {
+            console.error('[FullScreen] Failed to dispatch assistant:', err);
+          });
       }
 
       // Restore remote control state from handoff
@@ -588,7 +607,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       setError('Failed to connect to the call.');
       setIsConnecting(false);
     }
-  }, [room, callData]);
+  }, [room, callData, assistant, assistantActions.call]);
 
   React.useEffect(() => {
     if (callData) {
@@ -623,8 +642,19 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     }
     window.addEventListener('beforeunload', handleUnload);
 
-    const onParticipantConnected = () => setIsWaitingForAssistant(false);
-    const handleDisconnect = () => window.close();
+    const onParticipantConnected = () => {
+      assistantEverJoinedRef.current = true;
+      setIsWaitingForAssistant(false);
+    };
+    // Only auto-close the tab if the assistant had actually joined (i.e. we had
+    // a real call). During the pop-out transition the room may disconnect before
+    // the assistant arrives — in that case we should stay open and let the
+    // redispatch bring the assistant back.
+    const handleDisconnect = () => {
+      if (assistantEverJoinedRef.current) {
+        window.close();
+      }
+    };
 
     room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.on(RoomEvent.Disconnected, handleDisconnect);

@@ -571,30 +571,17 @@ describe('useAssistantCall', () => {
 
   describe('Room Deletion', () => {
     it(
-      'deletes stale room before connecting',
+      'does not proactively delete room before connecting',
       {
         meta: {
-          alias: 'Call-DeleteStaleRoom',
+          alias: 'Call-NoProactiveDelete',
           scenario: 'User initiates a new call',
-          behavior: 'deleteRoom is called before getConnectionDetails',
+          behavior: 'deleteRoom is NOT called before getConnectionDetails',
         },
       },
       async () => {
         // Arrange
         const assistant = createMockAssistant({ agentId: 'agent-42' });
-        const callOrder: string[] = [];
-        (mockActions.call.deleteRoom as any).mockImplementation(async () => {
-          callOrder.push('deleteRoom');
-          return {};
-        });
-        (mockActions.call.getConnectionDetails as any).mockImplementation(async () => {
-          callOrder.push('getConnectionDetails');
-          return {
-            serverUrl: 'wss://livekit.example.com',
-            roomName: 'test-room',
-            token: 'test-token',
-          };
-        });
 
         // Act
         const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
@@ -603,20 +590,18 @@ describe('useAssistantCall', () => {
           await result.current.connect(assistant, 'audio');
         });
 
-        // Assert - deleteRoom called first with the expected room name
-        expect(mockActions.call.deleteRoom).toHaveBeenCalledWith('unity_agent-42_meet');
-        expect(callOrder[0]).toBe('deleteRoom');
-        expect(callOrder[1]).toBe('getConnectionDetails');
+        // Assert - deleteRoom should not be called during normal connect
+        expect(mockActions.call.deleteRoom).not.toHaveBeenCalled();
       }
     );
 
     it(
-      'deletes room on disconnect',
+      'does not delete room on normal user disconnect',
       {
         meta: {
-          alias: 'Call-DeleteOnDisconnect',
-          scenario: 'User ends the call',
-          behavior: 'deleteRoom is called with the active assistant room name',
+          alias: 'Call-NoDeleteOnDisconnect',
+          scenario: 'User ends the call normally',
+          behavior: 'deleteRoom is NOT called during disconnect',
         },
       },
       async () => {
@@ -630,6 +615,9 @@ describe('useAssistantCall', () => {
           await result.current.connect(assistant, 'video');
         });
 
+        // Clear mock to isolate disconnect behavior from stale-room cleanup during connect
+        (mockActions.call.deleteRoom as any).mockClear();
+
         // The room state needs to be 'connected' for disconnect to call room.disconnect
         mockRoom.state = 'connected';
 
@@ -637,43 +625,8 @@ describe('useAssistantCall', () => {
           await result.current.disconnect();
         });
 
-        // Assert - deleteRoom called with the correct room name
-        // First call is the stale-room cleanup during connect, second is on disconnect
-        expect(mockActions.call.deleteRoom).toHaveBeenCalledWith('unity_agent-99_meet');
-        expect((mockActions.call.deleteRoom as any).mock.calls.length).toBeGreaterThanOrEqual(2);
-      }
-    );
-
-    it(
-      'deleteRoom failure does not prevent disconnect',
-      {
-        meta: {
-          alias: 'Call-DeleteFailSafe',
-          scenario: 'deleteRoom rejects during disconnect',
-          behavior: 'Disconnect still proceeds normally',
-        },
-      },
-      async () => {
-        // Arrange
-        const assistant = createMockAssistant({ agentId: 'agent-fail' });
-        (mockActions.call.deleteRoom as any).mockRejectedValue(new Error('Network error'));
-
-        // Act
-        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
-
-        await act(async () => {
-          await result.current.connect(assistant, 'audio');
-        });
-
-        mockRoom.state = 'connected';
-
-        // Should not throw
-        await act(async () => {
-          await result.current.disconnect();
-        });
-
-        // Assert - disconnect was still called despite deleteRoom failure
-        expect(mockRoom.disconnect).toHaveBeenCalled();
+        // Assert - deleteRoom should NOT be called on normal disconnect
+        expect(mockActions.call.deleteRoom).not.toHaveBeenCalled();
       }
     );
   });
