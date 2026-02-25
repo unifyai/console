@@ -73,33 +73,37 @@ const ChatMessageBubble = ({
     return <div className="whitespace-pre-wrap">{message}</div>;
   };
 
-  return (
-    <div
-      className={cn('flex items-start gap-3', isUser && 'justify-end')}
-      data-testid="message-bubble"
-      data-role={isUser ? 'user' : 'assistant'}
-      data-index={index}
-    >
-      {!isUser && (
-        <Avatar className="h-8 w-8 flex-shrink-0 border">
-          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-          <AvatarFallback>{fallback}</AvatarFallback>
-        </Avatar>
-      )}
-      <div className="flex max-w-[75%] flex-col gap-2">
-        {attachments && attachments.length > 0 && (
-          <MessageAttachmentList attachments={attachments} />
-        )}
-        {/* Message bubble */}
-        <div
-          className={cn(
-            'break-words rounded-lg p-3 font-sans text-sm leading-snug',
-            isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
+  if (isUser) {
+    return (
+      <div
+        className="flex justify-end"
+        data-testid="message-bubble"
+        data-role="user"
+        data-index={index}
+      >
+        <div className="flex max-w-[75%] flex-col gap-2">
+          {attachments && attachments.length > 0 && (
+            <MessageAttachmentList attachments={attachments} />
           )}
-        >
-          {bubbleContent()}
+          <div className="break-words rounded-lg bg-primary p-2.5 font-sans text-sm leading-snug text-primary-foreground">
+            {bubbleContent()}
+          </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div data-testid="message-bubble" data-role="assistant" data-index={index}>
+      <div className="mb-2.5 flex items-center gap-2">
+        <Avatar className="h-6 w-6 flex-shrink-0 border">
+          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
+          <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
+        </Avatar>
+        <span className="text-body-muted font-medium">{assistantName}</span>
+      </div>
+      {attachments && attachments.length > 0 && <MessageAttachmentList attachments={attachments} />}
+      <div className="break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
     </div>
   );
 };
@@ -237,26 +241,24 @@ export function AssistantProfileChatPanel({
     multiple: true,
   });
 
-  /* Auto-resize textarea */
+  /* Auto-resize textarea (ChatGPT-style: grows with content, scrollbar after max) */
+  const TEXTAREA_MAX_HEIGHT = 200;
+
   React.useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     textarea.style.height = 'auto';
     textarea.style.overflowY = 'hidden';
+    textarea.style.scrollbarWidth = 'none';
 
     if (inputValue) {
       const scrollHeight = textarea.scrollHeight;
-      const computedStyle = window.getComputedStyle(textarea);
-      const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
-      const paddingTop = parseFloat(computedStyle.paddingTop);
-      const paddingBottom = parseFloat(computedStyle.paddingBottom);
-      const maxLines = 3;
-      const maxHeight = lineHeight * maxLines + paddingTop + paddingBottom;
 
-      if (scrollHeight > maxHeight) {
-        textarea.style.height = `${maxHeight}px`;
+      if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
+        textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
         textarea.style.overflowY = 'auto';
+        textarea.style.scrollbarWidth = 'thin';
       } else {
         textarea.style.height = `${scrollHeight}px`;
       }
@@ -372,7 +374,7 @@ export function AssistantProfileChatPanel({
   return (
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef} data-testid="chat-scroll-area">
+      <ScrollArea className="flex-1 px-14 py-4" ref={scrollAreaRef} data-testid="chat-scroll-area">
         {initialLoadError ? (
           <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="space-y-1 text-center">
@@ -385,7 +387,7 @@ export function AssistantProfileChatPanel({
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="mx-auto max-w-[720px] space-y-6">
             {hasFetchedHistory && !hasMoreMessages && (
               <div className="text-caption animate-fade-in w-full py-1 text-center text-muted-foreground">
                 No more messages
@@ -524,7 +526,7 @@ export function AssistantProfileChatPanel({
                 connectionStatus !== 'connected' ||
                 isSpendingBlocked
               }
-              className="text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
