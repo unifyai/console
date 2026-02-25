@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { getCurrentUser } from '@/lib/user/user';
 import { getProjects } from '@/lib/interfaces/projects';
 import { getFavourites } from '@/lib/interfaces/favourites';
@@ -13,8 +12,7 @@ export const metadata: Metadata = {
 export default async function FavouritesPage() {
   const user = await getCurrentUser();
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
 
   const apiKey = user!.apiKey;

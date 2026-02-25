@@ -45,7 +45,6 @@ import {
 } from '@/lib/assistants/contact';
 import { TaskActions } from '@/types/assistants/task';
 import { AssistantActions } from '@/types/assistants/assistant';
-import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import {
   fetchCurrentUserHiringProfile,
@@ -72,8 +71,7 @@ import { cookies } from 'next/headers';
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
   const user = await getCurrentUser();
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;

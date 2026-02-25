@@ -4,7 +4,6 @@ import { getCurrentUser } from '@/lib/user/user';
 
 import Main from '@/components/Pages/Profile/Main';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
-import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
 /**
@@ -21,8 +20,7 @@ const ProfilePage = async () => {
   const user = await getCurrentUser();
 
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
 
   return (

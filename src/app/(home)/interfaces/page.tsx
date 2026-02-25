@@ -10,7 +10,6 @@ import * as favourites from '@/lib/interfaces/favourites';
 import * as resourceAccess from '@/lib/user/resource-access';
 import * as organizations from '@/lib/user/organization';
 
-import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import {
   GranularInterfaceActions,
@@ -52,8 +51,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
   const user = await getCurrentUser();
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
 
   // Check if user is part of "Orchestra Admin Organization" - if not, redirect to assistants

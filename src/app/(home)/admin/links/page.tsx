@@ -1,6 +1,5 @@
 import * as React from 'react';
 import Main from '@/components/Pages/Links/Main';
-import { signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
@@ -15,8 +14,7 @@ import { AdminCreditGrantActions } from '@/types/admin';
 const LinksPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
   const user = await getCurrentUser();
   if (!user) {
-    signOut();
-    redirect('/login');
+    redirect('/login?signout=true');
   }
 
   const isAdmin =

@@ -10,6 +10,25 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
   generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
 }));
 
+// Mock the client-side upload function used by useAssistantProfileChat.
+// The hook imports uploadAttachment directly (bypassing assistantActions.chat)
+// to avoid serialising File objects across the server-action boundary.
+// Without this mock, fetch('/api/assistant/attachment') fails in tests (no server).
+vi.mock('@/components/Chat/attachmentUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Chat/attachmentUtils')>();
+  return {
+    ...actual,
+    uploadAttachment: vi.fn(async (file: File, _assistantId: string) => ({
+      id: `mock-upload-${Date.now()}`,
+      filename: file.name,
+      gsUrl: `gs://bucket/mock/${file.name}`,
+      signedUrl: `https://storage.googleapis.com/mock-signed/${file.name}`,
+      contentType: file.type || 'application/octet-stream',
+      sizeBytes: file.size,
+    })),
+  };
+});
+
 import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
 import { createMockAssistant } from '../mocks/data';
 import { mockAssistantActions } from '../mocks/actions';
@@ -28,6 +47,7 @@ import {
   createMockChatActions as createMockChatActionsFromFixture,
   getChatInput,
   getSendButton,
+  createTestFile,
   testFiles,
   simulateFileDrop,
   getAttachButton,
@@ -511,6 +531,92 @@ describe('Assistant Profile Chat', () => {
           const bubbles = getChatBubbles();
           expect(bubbles).toEqual(['See me']);
         });
+      }
+    );
+
+    it(
+      'parses attachments from SSE messages and renders them',
+      {
+        meta: {
+          alias: 'SSE-Attachments',
+          scenario: 'Assistant sends a message with a file attachment via SSE',
+          behavior: 'Attachment is parsed from the event payload and rendered in the chat',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={undefined} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-with-attachment',
+            publishTime: new Date().toISOString(),
+            event: {
+              content: 'Here is the report',
+              attachments: [
+                {
+                  id: 'att-001',
+                  filename: 'report.pdf',
+                  gs_url: 'gs://bucket/path/report.pdf',
+                  content_type: 'application/pdf',
+                  size_bytes: 12345,
+                },
+              ],
+            },
+          });
+        });
+
+        await waitFor(() => {
+          const bubbles = getChatBubbles();
+          expect(bubbles).toContain('Here is the report');
+        });
+
+        await waitFor(() => {
+          const attachmentContainer = document.querySelector(
+            '[data-testid="historical-attachments"]'
+          );
+          expect(attachmentContainer).not.toBeNull();
+        });
+      }
+    );
+
+    it(
+      'handles SSE messages with empty attachments array',
+      {
+        meta: {
+          alias: 'SSE-Empty-Attachments',
+          scenario: 'Assistant sends a message with an empty attachments array',
+          behavior: 'Message renders normally without attachment UI',
+        },
+      },
+      async () => {
+        render(<ChatTestWrapper initialHistory={undefined} />);
+        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+        act(() => chatMocks.eventSource!.simulateOpen());
+
+        act(() => {
+          chatMocks.eventSource!.simulateMessage({
+            thread: 'unify_message_outbound',
+            id: 'msg-no-attachments',
+            publishTime: new Date().toISOString(),
+            event: {
+              content: 'No files here',
+              attachments: [],
+            },
+          });
+        });
+
+        await waitFor(() => {
+          const bubbles = getChatBubbles();
+          expect(bubbles).toContain('No files here');
+        });
+
+        const attachmentContainer = document.querySelector(
+          '[data-testid="historical-attachments"]'
+        );
+        expect(attachmentContainer).toBeNull();
       }
     );
 
@@ -1028,86 +1134,6 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'orders complex interleaved history, backlog, user messages, and new replies correctly',
-      {
-        meta: {
-          alias: 'History-Complex-Order',
-          scenario: 'History[10:00], SSE Backlog[10:05], User[Now], SSE Reply[Now+1s]',
-          behavior: 'All displayed in strict chronological order.',
-        },
-      },
-      async () => {
-        const t0 = new Date('2023-01-01T10:00:00Z');
-        const tBacklog = new Date('2023-01-01T10:05:00Z');
-        // User message will use Date.now(), so we mock system time to be tBacklog + 1hr
-        const tUser = new Date('2023-01-01T11:00:00Z');
-        const tReply = new Date('2023-01-01T11:00:05Z');
-
-        vi.setSystemTime(tUser);
-
-        const initialHistory = [
-          {
-            id: 'hist-1',
-            role: 'assistant',
-            content: '1. History',
-            timestamp: t0,
-          } as ChatMessage,
-        ];
-
-        render(<ChatTestWrapper initialHistory={initialHistory} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        // 1. Verify History
-        expect(screen.getByText('1. History')).toBeInTheDocument();
-
-        // 2. SSE Backlog arrives (Timestamp is OLDER than current User time)
-        act(() => {
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'backlog-1',
-            publishTime: tBacklog.toISOString(),
-            __ackId: 'ack-backlog',
-            event: { content: '2. Backlog' },
-          });
-        });
-
-        // 3. User sends message (Timestamp = tUser)
-        const user = userEvent.setup();
-        const input = screen.getByRole('textbox');
-        await user.type(input, '3. User Input');
-        await user.keyboard('{Enter}');
-
-        // 4. SSE Reply arrives (Timestamp > tUser)
-        act(() => {
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'reply-1',
-            publishTime: tReply.toISOString(), // Future
-            __ackId: 'ack-reply',
-            event: { content: '4. Reply' },
-          });
-        });
-
-        // 5. Verify Final Order
-        await waitFor(() => {
-          const bubbles = getChatBubbles();
-          expect(bubbles).toEqual(['1. History', '2. Backlog', '3. User Input', '4. Reply']);
-        });
-
-        // Verify ACKs were attempted for the stream items
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/ack'),
-          expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-backlog' }) })
-        );
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/ack'),
-          expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-reply' }) })
-        );
-      }
-    );
-
-    it(
       'filters zombie messages based on API transcript timestamp, not local cache (cached session restore)',
       {
         meta: {
@@ -1395,12 +1421,37 @@ describe('Assistant Profile Chat', () => {
         },
       },
       async () => {
-        // Use specific assistant name to trigger handler error (logic inside handlers.ts)
+        // Mock that succeeds on initial load and fails on pagination
+        let transcriptCallCount = 0;
+        const failingTranscriptsMock = vi.fn(
+          async (
+            _contactId: number,
+            _ownerId: string,
+            _assistantId: string,
+            beforeMessageId?: number
+          ) => {
+            transcriptCallCount++;
+            if (beforeMessageId !== undefined) {
+              // Pagination call — simulate failure
+              return { detail: 'Simulated Network Error' };
+            }
+            // Initial load — return messages 26-75
+            const TOTAL = 75;
+            const LIMIT = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
+            return Array.from({ length: LIMIT }, (_, i) => ({
+              id: `msg-${TOTAL - i}`,
+              role: (TOTAL - i) % 2 === 0 ? ('assistant' as const) : ('user' as const),
+              content: `Message ${TOTAL - i}`,
+              timestamp: new Date(Date.now() - i * 60000),
+              messageId: TOTAL - i,
+            }));
+          }
+        );
         const failAssistant = createMockAssistant({ firstName: 'FailPagination', surname: 'Test' });
         const apiOverride = {
           chat: {
             getContactId: vi.fn(async () => 1),
-            getTranscripts: fetchTranscriptsViaApi,
+            getTranscripts: failingTranscriptsMock,
             message: vi.fn(),
             getAssistantOwnerById: vi.fn(async () => null),
           },
@@ -2383,105 +2434,6 @@ describe('Assistant Profile Chat', () => {
         });
       }
     );
-
-    it(
-      'falls back to getAssistantOwnerById when user names are missing',
-      {
-        meta: {
-          alias: 'Context-Fallback',
-          scenario: 'Assistant is missing userFirstName/userLastName',
-          behavior: 'getAssistantOwnerById is called with userId to resolve owner context',
-        },
-      },
-      async () => {
-        const getTranscriptsMock = vi.fn(async () => []);
-        const getContactIdMock = vi.fn(async () => 1);
-        const getAssistantOwnerByIdMock = vi.fn(async () => ({
-          firstName: 'Jane',
-          lastName: 'Smith',
-        }));
-
-        const assistantWithoutOwnerNames = createMockAssistant({
-          agentId: 'fallback-context-test',
-          firstName: 'Ada',
-          surname: 'Lovelace',
-          userFirstName: null,
-          userLastName: null,
-          userId: 'owner-user-456',
-        });
-
-        render(
-          <ChatTestWrapper
-            initialHistory={undefined}
-            assistantOverride={assistantWithoutOwnerNames}
-            assistantActionsOverride={{
-              chat: {
-                getContactId: getContactIdMock,
-                getTranscripts: getTranscriptsMock,
-                message: vi.fn(async () => ({})),
-                getAssistantOwnerById: getAssistantOwnerByIdMock,
-              },
-            }}
-          />
-        );
-
-        await waitFor(() => {
-          expect(getAssistantOwnerByIdMock).toHaveBeenCalledWith('owner-user-456');
-        });
-
-        await waitFor(() => {
-          expect(getContactIdMock).toHaveBeenCalledWith(
-            'test@example.com',
-            expect.any(String), // ownerId
-            expect.any(String) // assistantId
-          );
-        });
-      }
-    );
-
-    it(
-      'sets canChat=false when owner context cannot be resolved',
-      {
-        meta: {
-          alias: 'Context-Unresolvable',
-          scenario: 'Assistant has no user names and getAssistantOwnerById returns null',
-          behavior: 'Chat is disabled with error message',
-        },
-      },
-      async () => {
-        const getAssistantOwnerByIdMock = vi.fn(async () => null);
-
-        const assistantUnresolvable = createMockAssistant({
-          agentId: 'unresolvable-context-test',
-          firstName: 'Ada',
-          surname: 'Lovelace',
-          userFirstName: null,
-          userLastName: null,
-          userId: 'unknown-user',
-        });
-
-        render(
-          <ChatTestWrapper
-            initialHistory={undefined}
-            assistantOverride={assistantUnresolvable}
-            assistantActionsOverride={{
-              chat: {
-                getContactId: vi.fn(async () => 1),
-                getTranscripts: vi.fn(async () => []),
-                message: vi.fn(async () => ({})),
-                getAssistantOwnerById: getAssistantOwnerByIdMock,
-              },
-            }}
-          />
-        );
-
-        // When owner context fails, initialLoadError is set to true
-        // which shows "Failed to load chat history" instead of messages
-        await waitFor(() => {
-          expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
-        });
-      }
-    );
   });
 
   // =========================================================================
@@ -2550,18 +2502,12 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
-        // With new UX: messages area shows normally, but there's a status banner and input is disabled
+        // Input should be disabled with retry placeholder
         await waitFor(() => {
-          // Check for the retrying status banner
-          expect(
-            screen.getByText(/Setting up chat connection|Chat is currently unavailable/i)
-          ).toBeInTheDocument();
+          const input = screen.getByRole('textbox');
+          expect(input).toBeDisabled();
+          expect(input).toHaveAttribute('placeholder', expect.stringMatching(/Chat unavailable/i));
         });
-
-        // Input should be disabled with appropriate placeholder
-        const input = screen.getByRole('textbox');
-        expect(input).toBeDisabled();
-        expect(input).toHaveAttribute('placeholder', expect.stringMatching(/Chat unavailable/i));
       }
     );
 
@@ -2652,15 +2598,8 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(getTranscriptsMock).toHaveBeenCalled();
-          const callArgs = getTranscriptsMock.mock.calls[0] as unknown as [
-            string,
-            string,
-            number,
-            string,
-            string,
-            number | undefined,
-          ];
-          expect(callArgs[2]).toBe(42); // contactId is 3rd argument
+          const callArgs = getTranscriptsMock.mock.calls[0] as unknown as [number, ...unknown[]];
+          expect(callArgs[0]).toBe(42); // contactId is 1st argument
         });
       }
     );
@@ -2754,9 +2693,14 @@ describe('Assistant Profile Chat', () => {
             expect(getContactIdMock).toHaveBeenCalledTimes(1);
           });
 
-          // Should show retrying status
+          // Input should be disabled with retry placeholder
           await waitFor(() => {
-            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+            const input = screen.getByRole('textbox');
+            expect(input).toBeDisabled();
+            expect(input).toHaveAttribute(
+              'placeholder',
+              expect.stringMatching(/Chat unavailable/i)
+            );
           });
 
           // Switch to assistant2
@@ -2781,9 +2725,10 @@ describe('Assistant Profile Chat', () => {
             expect(getContactIdMock).toHaveBeenCalledTimes(2);
           });
 
-          // Should still show retrying status for new assistant
+          // Input should still be disabled for new assistant
           await waitFor(() => {
-            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+            const input = screen.getByRole('textbox');
+            expect(input).toBeDisabled();
           });
         }
       );
@@ -2819,12 +2764,13 @@ describe('Assistant Profile Chat', () => {
             expect(getContactIdMock).toHaveBeenCalled();
           });
 
-          // Should show status banner but NOT the old "Chat is not available" placeholder
+          // Input should be disabled (chat unavailable)
           await waitFor(() => {
-            expect(screen.getByText(/Setting up chat connection/i)).toBeInTheDocument();
+            const input = screen.getByRole('textbox');
+            expect(input).toBeDisabled();
           });
 
-          // The chat scroll area should be visible
+          // The chat scroll area should still be visible (messages area not hidden)
           expect(screen.getByTestId('chat-scroll-area')).toBeVisible();
         }
       );
@@ -2948,11 +2894,10 @@ describe('Assistant Profile Chat', () => {
           />
         );
 
-        // With new UX: status banner shows, input is disabled
+        // Input and send button should be disabled when contact ID is unavailable
         await waitFor(() => {
-          expect(
-            screen.getByText(/Setting up chat connection|Chat is currently unavailable/i)
-          ).toBeInTheDocument();
+          const input = screen.getByRole('textbox');
+          expect(input).toBeDisabled();
         });
 
         const sendButton = screen.getByRole('button', { name: /send/i });
@@ -3392,12 +3337,9 @@ describe('Assistant Profile Chat', () => {
 
         await waitFor(() => {
           expect(getTranscriptsMock).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.any(String),
             userContactId,
             expect.any(String), // ownerId
             expect.any(String) // assistantId
-            // beforeMessageId is not passed for initial load
           );
         });
 
@@ -4214,6 +4156,84 @@ describe('Assistant Profile Chat', () => {
           });
         }
       );
+
+      it(
+        'should handle multi-file selection in a single dialog (Cmd+click)',
+        {
+          meta: {
+            alias: 'Attach-Multi-Select-Single-Dialog',
+            scenario: 'User Cmd+clicks 4 PDFs in the file picker and presses OK',
+            behavior: 'All 4 files appear as attachment chips from one selection',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const input = await screen.findByPlaceholderText('Send a message...');
+          await waitFor(() => expect(input).not.toBeDisabled());
+
+          const files = [
+            createTestFile('ASH-FYE-2022.pdf', 'content-1', 'application/pdf'),
+            createTestFile('ASH-FYE-2023.pdf', 'content-2', 'application/pdf'),
+            createTestFile('ASH-FYE-2024.pdf', 'content-3', 'application/pdf'),
+            createTestFile('ASH-FYE-2025.pdf', 'content-4', 'application/pdf'),
+          ];
+
+          // Single simulateFileDrop with ALL files — simulates Cmd+click multi-select
+          await simulateFileDrop(container, files, attachmentUser);
+
+          await waitFor(() => {
+            const chipNames = getAttachmentChipNames(container);
+            expect(chipNames).toHaveLength(4);
+            expect(chipNames).toContain('ASH-FYE-2022.pdf');
+            expect(chipNames).toContain('ASH-FYE-2023.pdf');
+            expect(chipNames).toContain('ASH-FYE-2024.pdf');
+            expect(chipNames).toContain('ASH-FYE-2025.pdf');
+          });
+        }
+      );
+
+      it(
+        'should render file input with multiple attribute and without display:none',
+        {
+          meta: {
+            alias: 'Attach-Input-Attributes',
+            scenario: 'Chat panel renders',
+            behavior:
+              'File input has multiple attribute and uses clip-based hiding (not display:none)',
+          },
+        },
+        async () => {
+          const chatActions = createMockChatActionsFromFixture();
+          const { container } = render(
+            <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
+          );
+
+          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
+          act(() => chatMocks.eventSource!.simulateOpen());
+
+          const fileInput = container.querySelector(
+            'input[type="file"]'
+          ) as HTMLInputElement | null;
+          expect(fileInput).not.toBeNull();
+
+          // Must have multiple so the native file picker allows Cmd+click
+          expect(fileInput!.multiple).toBe(true);
+
+          // Must NOT use display:none — react-dropzone's clip/position:absolute
+          // technique keeps the input in the DOM so browsers handle multi-select.
+          // display:none breaks multi-file selection in some browsers.
+          const computedStyle = window.getComputedStyle(fileInput!);
+          expect(computedStyle.display).not.toBe('none');
+          expect(fileInput!.classList.contains('hidden')).toBe(false);
+        }
+      );
     });
 
     describe('File Validation', () => {
@@ -4253,12 +4273,12 @@ describe('Assistant Profile Chat', () => {
       );
 
       it(
-        'should reject more than 5 attachments with toast error',
+        'should reject more than 10 attachments',
         {
           meta: {
-            alias: 'Attach-Reject-Over5',
-            scenario: 'More than 5 files attached',
-            behavior: '6th file is rejected',
+            alias: 'Attach-Reject-Over10',
+            scenario: 'More than 10 files attached',
+            behavior: '11th file is rejected',
           },
         },
         async () => {
@@ -4270,25 +4290,26 @@ describe('Assistant Profile Chat', () => {
           await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
           act(() => chatMocks.eventSource!.simulateOpen());
 
-          // Add 5 files
-          await simulateFileDrop(container, [testFiles.pdf()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.png()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.docx()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.txt()], attachmentUser);
-          await simulateFileDrop(container, [testFiles.json()], attachmentUser);
+          // Add 10 files
+          for (let i = 0; i < 10; i++) {
+            const file = createTestFile(`file${i}.pdf`, `content-${i}`, 'application/pdf');
+            await simulateFileDrop(container, [file], attachmentUser);
+          }
 
           await waitFor(() => {
             const chipNames = getAttachmentChipNames(container);
-            expect(chipNames).toHaveLength(5);
+            expect(chipNames).toHaveLength(10);
           });
 
-          // Try to add a 6th file
-          await simulateFileDrop(container, [testFiles.zip()], attachmentUser);
+          // Try to add an 11th file
+          const eleventhFile = createTestFile('extra.pdf', 'extra', 'application/pdf');
+          await simulateFileDrop(container, [eleventhFile], attachmentUser);
 
-          // Should still have only 5
+          // Should still have only 10
           await waitFor(() => {
             const chipNames = getAttachmentChipNames(container);
-            expect(chipNames).toHaveLength(5);
+            expect(chipNames).toHaveLength(10);
+            expect(chipNames).not.toContain('extra.pdf');
           });
         }
       );

@@ -19,6 +19,7 @@ import {
   createAttachment,
   validateFile,
   ChatMarkdown,
+  MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
@@ -196,12 +197,10 @@ export function AssistantProfileChatPanel({
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<ChatAttachment[]>([]);
-  const MAX_ATTACHMENTS = 5;
 
   /* Cleanup on unmount to release File object references */
   React.useEffect(() => {
@@ -226,7 +225,7 @@ export function AssistantProfileChatPanel({
     (files: File[]) => {
       const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
       if (remaining <= 0) {
-        toast.error('Maximum 5 attachments per message');
+        toast.error(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
         return;
       }
 
@@ -258,10 +257,11 @@ export function AssistantProfileChatPanel({
   }, []);
 
   /* react-dropzone setup */
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: handleFiles,
-    noClick: true, // We use the paperclip button for click
+    noClick: true,
     noKeyboard: true,
+    multiple: true,
   });
 
   /* Auto-resize textarea */
@@ -500,8 +500,10 @@ export function AssistantProfileChatPanel({
             />
           )}
 
-          {/* Hidden file input */}
-          <input {...getInputProps()} ref={fileInputRef} className="hidden" />
+          {/* Hidden file input — getInputProps() owns the ref and hides the
+             element via clip/position:absolute. Do NOT override the ref or add
+             display:none; doing so breaks multi-file selection in some browsers. */}
+          <input {...getInputProps()} data-testid="file-input" />
 
           <div className="relative">
             {/* Paperclip button - bottom left */}
@@ -510,7 +512,7 @@ export function AssistantProfileChatPanel({
               variant="ghost"
               size="icon"
               className="absolute bottom-1 left-1 h-7 w-7"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={open}
               disabled={
                 !canChat ||
                 isLoading ||

@@ -710,6 +710,7 @@ export function useAssistantForm(
       if (!hasSufficientFunds.sufficient) {
         setShowInsufficientFundsHint(true);
       } else {
+        setIsCheckingBalance(false);
         await RHFSubmitHandler(chatHistory)();
       }
     } catch (error) {
