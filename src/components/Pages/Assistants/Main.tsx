@@ -65,8 +65,68 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
     usePanelManager();
 
-  const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
+  // --- Assistant List Fold / Resize State ---
+  const LIST_SNAP_THRESHOLD = 150;
+  const LIST_DEFAULT_WIDTH = 240;
+  const LIST_MIN_WIDTH = 56;
+  const LIST_MAX_WIDTH = 500;
+
+  // --- Profile Panel Sizing (60:40 default split with Actions) ---
+  const PROFILE_PANEL_RATIO = 0.5;
+  const PROFILE_MIN_WIDTH = 300;
+  const PROFILE_MAX_RATIO = 0.8;
+  const RESIZE_HANDLE_WIDTH = 3;
+
+  const contentContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const getAvailableContentWidth = React.useCallback(() => {
+    const container = contentContainerRef.current;
+    if (!container) return 0;
+    const listEl = container.firstElementChild as HTMLElement | null;
+    const listW = listEl ? listEl.offsetWidth : 0;
+    return container.offsetWidth - listW - RESIZE_HANDLE_WIDTH * 2;
+  }, []);
+
+  const [profilePanelWidth, setProfilePanelWidth] = React.useState(500);
   const [isResizingProfile, setIsResizingProfile] = React.useState(false);
+  const profileRatioRef = React.useRef(PROFILE_PANEL_RATIO);
+  const hasSetInitialProfileWidth = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isProfileOpen || hasSetInitialProfileWidth.current) return;
+    const available = getAvailableContentWidth();
+    if (available > 0) {
+      const target = Math.round(available * PROFILE_PANEL_RATIO);
+      setProfilePanelWidth(Math.max(PROFILE_MIN_WIDTH, target));
+      profileRatioRef.current = PROFILE_PANEL_RATIO;
+      hasSetInitialProfileWidth.current = true;
+    }
+  }, [isProfileOpen, getAvailableContentWidth]);
+
+  React.useEffect(() => {
+    if (!isProfileOpen) {
+      hasSetInitialProfileWidth.current = false;
+    }
+  }, [isProfileOpen]);
+
+  React.useEffect(() => {
+    if (!isProfileOpen || isResizingProfile) return;
+    const container = contentContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      const available = getAvailableContentWidth();
+      if (available > 0) {
+        const target = Math.round(available * profileRatioRef.current);
+        setProfilePanelWidth(
+          Math.max(PROFILE_MIN_WIDTH, Math.min(target, Math.round(available * PROFILE_MAX_RATIO)))
+        );
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isProfileOpen, isResizingProfile, getAvailableContentWidth]);
 
   const handleProfileResizeStart = React.useCallback(
     (e: React.MouseEvent) => {
@@ -77,13 +137,14 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
       const startWidth = profilePanelWidth;
       const startX = e.clientX;
+      const available = getAvailableContentWidth();
+      const maxWidth = Math.round(available * PROFILE_MAX_RATIO);
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const newWidth = startWidth + (moveEvent.clientX - startX);
-        const minWidth = 300;
-        const maxWidth = 800;
-        if (newWidth >= minWidth && newWidth <= maxWidth) {
+        if (newWidth >= PROFILE_MIN_WIDTH && newWidth <= maxWidth) {
           setProfilePanelWidth(newWidth);
+          if (available > 0) profileRatioRef.current = newWidth / available;
         }
       };
 
@@ -98,14 +159,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     },
-    [profilePanelWidth]
+    [profilePanelWidth, getAvailableContentWidth]
   );
-
-  // --- Assistant List Fold / Resize State ---
-  const LIST_SNAP_THRESHOLD = 150; // Below this width, snap to folded
-  const LIST_DEFAULT_WIDTH = 300;
-  const LIST_MIN_WIDTH = 56; // w-14 equivalent
-  const LIST_MAX_WIDTH = 500;
 
   const [assistantListWidth, setAssistantListWidth] = React.useState(LIST_DEFAULT_WIDTH);
   const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
@@ -673,7 +728,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         pendingCreditToken={pendingToken}
       />
 
-      <div className="flex h-full overflow-hidden bg-background">
+      <div ref={contentContainerRef} className="flex h-full overflow-hidden bg-background">
         {/* Assistant List */}
         <div
           className="relative h-full flex-shrink-0 border-r"
