@@ -80,6 +80,18 @@ API routes that proxy to the Communication adapters (e.g., `/api/assistant/messa
 | `ADMIN_KEY`           | Admin header validation for `/user` routes |
 | `ORCHESTRA_ADMIN_KEY` | Bearer token for adapter webhook calls     |
 
+### GCP Infrastructure (not tracked in code)
+
+Console is deployed as the `saas-web-app` Cloud Run service in the `gcp-project-saas` GCP project:
+
+- **Cloud Run ingress**: Restricted to `internal-and-cloud-load-balancing` (not `all`). External traffic must route through the load balancer.
+- **Storage buckets**: `publicAccessPrevention` enforced on all buckets in the project. No `allUsers` or `allAuthenticatedUsers` bindings.
+
+### GitHub Repository Settings (not tracked in code)
+
+- **Branch protection** on `main`: Requires 1 approving pull request review. Force pushes and branch deletions are blocked.
+- **Dependabot**: Vulnerability alerts and automated security fixes are enabled.
+
 ---
 
 ## Tech Stack
