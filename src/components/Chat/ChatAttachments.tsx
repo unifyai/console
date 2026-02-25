@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -10,6 +10,7 @@ import {
   getAttachmentColor,
   truncateFilename,
   formatFileSize,
+  getSignedUrl,
 } from './attachmentUtils';
 import type { Attachment } from '@/types/assistants/chat';
 
@@ -25,13 +26,32 @@ export interface AttachmentChipProps {
 
 /**
  * Single attachment chip with icon, filename, and optional remove button.
+ * When the attachment has a gsUrl, clicking the chip triggers a download.
  */
 export function AttachmentChip({ attachment, onRemove, className }: AttachmentChipProps) {
+  const [downloading, setDownloading] = React.useState(false);
   const type = getAttachmentType(attachment.filename);
   const Icon = getAttachmentIcon(type);
   const iconColor = getAttachmentColor(type);
   const truncatedName = truncateFilename(attachment.filename);
   const showRemoveButton = !!onRemove;
+  const isDownloadable = !!attachment.gsUrl;
+
+  const handleDownload = React.useCallback(async () => {
+    if (!attachment.gsUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const signedUrl = await getSignedUrl(attachment.gsUrl, true, attachment.filename);
+      const link = document.createElement('a');
+      link.href = signedUrl;
+      link.download = attachment.filename;
+      link.click();
+    } catch (error) {
+      console.error(`Failed to download ${attachment.filename}:`, error);
+    } finally {
+      setDownloading(false);
+    }
+  }, [attachment.gsUrl, attachment.filename, downloading]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -41,9 +61,12 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
             variant="secondary"
             className={cn(
               'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
+              isDownloadable && 'hover:bg-muted/50 cursor-pointer',
               className
             )}
             data-testid="attachment-chip"
+            onClick={isDownloadable ? handleDownload : undefined}
+            role={isDownloadable ? 'button' : undefined}
           >
             <Icon
               className="h-3.5 w-3.5 flex-shrink-0"
@@ -53,6 +76,9 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
             <span className="truncate" data-testid="attachment-name">
               {truncatedName}
             </span>
+            {isDownloadable && !showRemoveButton && (
+              <Download className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
+            )}
             {showRemoveButton && (
               <Button
                 type="button"
