@@ -205,12 +205,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     clearAssistantJoinTimeout();
     stopRemoteControl();
 
-    // Delete the server-side room so it doesn't interfere with subsequent calls
-    const assistantToClean = activeCallAssistantRef.current;
-    if (assistantToClean) {
-      assistantActions.call.deleteRoom(makeRoomName(assistantToClean.agentId, 'meet')).catch(() => {});
-    }
-
     if (isConnecting) {
       setIsConnecting(false);
     }
@@ -221,7 +215,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       // If room wasn't even connecting, we still need to trigger cleanup.
       onDisconnected();
     }
-  }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected, assistantActions.call]);
+  }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
 
   const retryConnection = React.useCallback(async () => {
     const assistantToRetry = activeCallAssistant;
