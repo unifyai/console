@@ -72,14 +72,14 @@ export function AssistantCommunicationUserView({
         {isCameraOn && trackRef ? (
           <VideoTrack trackRef={trackRef} className="h-full w-full object-cover" />
         ) : (
-          <Avatar className="h-full w-full rounded-none">
+          <Avatar className="h-16 w-16">
             <AvatarImage
               src={imageUrl ?? undefined}
               alt="Your video feed"
               className="object-cover"
             />
-            <AvatarFallback className="rounded-none bg-muted text-3xl text-muted-foreground">
-              <User className="h-10 w-10" />
+            <AvatarFallback className="bg-muted-foreground/10 text-2xl text-muted-foreground">
+              <User className="h-8 w-8" />
             </AvatarFallback>
           </Avatar>
         )}
