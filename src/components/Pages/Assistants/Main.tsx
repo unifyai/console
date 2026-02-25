@@ -545,16 +545,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Voice Options  ---
   const hireFormNationality = formMethods.watch('nationality');
-  const hireFormFastMode = formMethods.watch('fastMode') as boolean;
   const preferredLanguage = React.useMemo(
     () => getLangCodeForNationality(hireFormNationality),
     [hireFormNationality]
   );
   const allDisplayableVoices = React.useMemo(() => {
-    const voicesToFilter = unsortedVoices;
-    const filteredByProvider = hireFormFastMode
-      ? voicesToFilter.filter((v) => v.provider === 'openai')
-      : voicesToFilter.filter((v) => v.provider !== 'openai');
+    const filteredByProvider = unsortedVoices.filter((v) => v.provider !== 'openai');
 
     const sorted = [...filteredByProvider];
     sorted.sort((a, b) => {
@@ -567,7 +563,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       return (a.name || '').localeCompare(b.name || '');
     });
     return sorted;
-  }, [unsortedVoices, preferredLanguage, hireFormFastMode]);
+  }, [unsortedVoices, preferredLanguage]);
 
   // --- Callbacks for UI interaction ---
   // Track whether we need to auto-select a preset when presets become available
@@ -840,7 +836,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
           onAddPaymentMethod={() => setIsStripePanelOpen(true)}
           isStripePanelOpen={isStripePanelOpen}
-          isFastMode={hireFormFastMode}
         >
           <HireForm
             assistants={assistants}
@@ -877,7 +872,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             languageFilter={presetLanguageFilter}
             onLanguageFilterChange={setPresetLanguageFilter}
             availableLanguages={availableLanguages}
-            isFastMode={hireFormFastMode}
             layoutMode="split" // Dummy prop
             setLayoutMode={() => {}} // Dummy prop
           />

@@ -52,7 +52,6 @@ const createMockAssistant = (overrides: Partial<Assistant> = {}): Assistant => (
   maxParallel: 5,
   voiceId: 'voice-1',
   voiceProvider: 'elevenlabs',
-  voiceMode: null,
   profilePhoto: 'https://example.com/photo.jpg',
   profileVideo: null,
   signedProfilePhotoUrl: 'https://example.com/photo-signed.jpg',

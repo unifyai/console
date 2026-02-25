@@ -52,7 +52,6 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
   setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>;
   onAddPaymentMethod?: () => void;
   formMethods: UseFormReturn<AssistantFormData>;
-  isFastMode: boolean;
   /** When true the Stripe side-panel is open — focus-trap bypass and
    *  outside-interaction handling are adjusted so the user can interact
    *  with the Stripe Embedded Checkout (e.g. the quantity editor). */
@@ -76,7 +75,6 @@ export function AssistantHire({
   setShowInsufficientFundsHint,
   onAddPaymentMethod,
   formMethods,
-  isFastMode,
   isStripePanelOpen = false,
 }: AssistantHireProps) {
   const [hireForm, presetsPanel] = React.Children.toArray(children);
@@ -368,7 +366,6 @@ export function AssistantHire({
                       setLayoutMode: setLayoutMode,
                       onClose: () => setIsAssistantPresetsOpen(false),
                       onToggleView: handleToggleView,
-                      isFastMode: isFastMode,
                       onAddPaymentMethod: onAddPaymentMethod,
                     })
                   ) : (

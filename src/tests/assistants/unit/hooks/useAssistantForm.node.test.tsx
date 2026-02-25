@@ -253,7 +253,7 @@ describe('useAssistantForm', () => {
 
         const createCall = (mockActions.assistant.create as any).mock.calls[0];
         // Based on the function signature: create(firstName, surname, age, nationality, timezone,
-        // profilePhoto, profileVideo, about, voiceId, voiceProvider, voiceMode,
+        // profilePhoto, profileVideo, about, voiceId, voiceProvider,
         // isUserDesktop, desktopMode, preHireChat)
         // Contact fields (email, userPhone, etc.) are no longer passed - handled by contact manager
 
@@ -383,7 +383,6 @@ describe('useAssistantForm', () => {
         elevenlabs: 'preset-el-voice',
         openai: 'preset-oai-voice',
       },
-      voiceMode: 'tts',
       timezone: 'America/Toronto',
       phoneCountry: 'CA',
     };
@@ -771,7 +770,6 @@ describe('useAssistantForm', () => {
             profilePhoto: 'gs://bucket/alice.jpg',
             profileVideo: null,
             about: 'A helpful assistant',
-            voiceMode: 'tts',
             phoneCountry: 'US',
             timezone: 'UTC',
           };
@@ -786,7 +784,6 @@ describe('useAssistantForm', () => {
             profilePhoto: 'gs://bucket/bob.jpg',
             profileVideo: null,
             about: 'Another helpful assistant',
-            voiceMode: 'tts',
             phoneCountry: 'GB',
             timezone: 'UTC',
           };
@@ -1024,7 +1021,6 @@ describe('useAssistantForm', () => {
       timezone: 'UTC',
       voiceId: 'default-voice',
       voiceProvider: 'elevenlabs',
-      voiceMode: 'tts',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       email: null,

@@ -97,17 +97,9 @@ export function HireForm({
   >('select');
   const [showAnimatePing, setShowAnimatePing] = React.useState(false);
   const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
-  const fastMode = useWatch({ control, name: 'fastMode' });
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
-
-  // When fast mode is turned on, force voice tab back to 'select'
-  React.useEffect(() => {
-    if (fastMode && (voiceCustomizationTab === 'clone' || voiceCustomizationTab === 'design')) {
-      setVoiceCustomizationTab('select');
-    }
-  }, [fastMode, voiceCustomizationTab]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -280,18 +272,12 @@ export function HireForm({
 
     if (!isPristine || !currentPreset) return;
 
-    const targetProvider = fastMode ? 'openai' : PRIMARY_VOICE_PROVIDER;
-    const fallbackProvider = fastMode ? PRIMARY_VOICE_PROVIDER : 'openai';
-
-    const voiceId =
-      currentPreset.voiceIds[targetProvider] ?? currentPreset.voiceIds[fallbackProvider];
-    const finalProvider =
-      voiceId === currentPreset.voiceIds[fallbackProvider] ? fallbackProvider : targetProvider;
+    const voiceId = currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER];
 
     if (!voiceId) return;
 
     const voiceDetails = (voicePresetsConstant as Voice[]).find(
-      (v) => v.voiceId === voiceId && v.provider === finalProvider
+      (v) => v.voiceId === voiceId && v.provider === PRIMARY_VOICE_PROVIDER
     );
     if (!voiceDetails) return;
 
@@ -314,7 +300,7 @@ export function HireForm({
     // Update video
     setValue('videoPreviewUrl', null); // Clear old video to show loading
     assistantActions.photo
-      .downloadPresetVideo(currentPreset.firstName, currentPreset.surname, finalProvider)
+      .downloadPresetVideo(currentPreset.firstName, currentPreset.surname, PRIMARY_VOICE_PROVIDER)
       .then((res) => {
         if (res.signedUrl) {
           setValue('videoPreviewUrl', res.signedUrl);
@@ -326,7 +312,7 @@ export function HireForm({
           // Allow autoplay: do NOT add to playedVideoUrls so it auto-plays on canPlay
         }
       });
-  }, [fastMode, getValues, setValue, assistantActions.photo, allDisplayableVoices]);
+  }, [getValues, setValue, assistantActions.photo, allDisplayableVoices]);
 
   return (
     <FormProvider {...formMethods}>
