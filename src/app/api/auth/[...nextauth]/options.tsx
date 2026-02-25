@@ -40,12 +40,10 @@ const authOptions: AuthOptions = {
           scope: 'openid email profile https://www.googleapis.com/auth/userinfo.profile',
         },
       },
-      allowDangerousEmailAccountLinking: true,
     }),
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
-      allowDangerousEmailAccountLinking: true,
     }),
   ],
   secret: process.env.JWT_SECRET,
@@ -69,9 +67,13 @@ const authOptions: AuthOptions = {
      * }
      */
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`;
-      return url;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url;
+      } catch {
+        // Malformed URL — fall through to baseUrl
+      }
+      return baseUrl;
     },
 
     /**
