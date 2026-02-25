@@ -89,6 +89,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: http:",
+              "media-src 'self' blob: https://storage.googleapis.com",
               "connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com wss:",
               'frame-src https://js.stripe.com',
               "object-src 'none'",
