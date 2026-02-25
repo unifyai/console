@@ -758,6 +758,16 @@ export function useAssistantProfileChat(
             });
 
           uploadedAttachments = await Promise.all(uploadPromises);
+
+          setChatHistories((prev) => {
+            const current = prev[currentAssistantId] || [];
+            return {
+              ...prev,
+              [currentAssistantId]: current.map((msg) =>
+                msg.id === messageId ? { ...msg, attachments: uploadedAttachments } : msg
+              ),
+            };
+          });
         }
 
         const response = await assistantActions.chat.message({
