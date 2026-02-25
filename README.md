@@ -84,7 +84,7 @@ API routes that proxy to the Communication adapters (e.g., `/api/assistant/messa
 
 Console is deployed as the `saas-web-app` Cloud Run service in the `gcp-project-saas` GCP project:
 
-- **Cloud Run ingress**: Restricted to `internal-and-cloud-load-balancing` (not `all`). External traffic must route through the load balancer.
+- **Cloud Run ingress**: Currently `all` (default). Restricting to `internal-and-cloud-load-balancing` requires migrating from Cloud Run custom domain mappings to a proper Google Cloud Load Balancer with serverless NEGs first — custom domain mapping traffic is classified as external and gets rejected with 404.
 - **Storage buckets**: `publicAccessPrevention` enforced on all buckets in the project. No `allUsers` or `allAuthenticatedUsers` bindings.
 
 ### GitHub Repository Settings (not tracked in code)
