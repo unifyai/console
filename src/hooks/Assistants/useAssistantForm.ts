@@ -238,7 +238,9 @@ export function useAssistantForm(
       // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
       let selectedPresetVoiceDetails: VoiceOption | undefined = (
         voicePresetsConstant as VoiceOption[]
-      ).find((vp) => vp.voiceId === providerSpecificVoiceId && vp.provider === PRIMARY_VOICE_PROVIDER);
+      ).find(
+        (vp) => vp.voiceId === providerSpecificVoiceId && vp.provider === PRIMARY_VOICE_PROVIDER
+      );
 
       if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
         selectedPresetVoiceDetails = {
@@ -317,7 +319,6 @@ export function useAssistantForm(
       clearErrors,
       defaultVoice,
       assistantActions.photo,
-      getValues,
       registeredVoices,
     ]
   );
