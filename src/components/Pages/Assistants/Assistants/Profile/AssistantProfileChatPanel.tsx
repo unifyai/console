@@ -9,7 +9,7 @@ import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage, ChatAttachment } from '@/types/assistants/chat';
+import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import {
   RenderContentWithEmbeds,
   containsEmbedUrl,
@@ -41,7 +41,7 @@ const ChatMessageBubble = ({
   assistantName?: string;
   isLoading?: boolean;
   index?: number;
-  attachments?: ChatAttachment[];
+  attachments?: Attachment[];
 }) => {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -200,7 +200,7 @@ export function AssistantProfileChatPanel({
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
 
   // Attachment state
-  const [pendingAttachments, setPendingAttachments] = React.useState<ChatAttachment[]>([]);
+  const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
 
   /* Cleanup on unmount to release File object references */
   React.useEffect(() => {
@@ -230,7 +230,7 @@ export function AssistantProfileChatPanel({
       }
 
       const filesToAdd = files.slice(0, remaining);
-      const newAttachments: ChatAttachment[] = [];
+      const newAttachments: Attachment[] = [];
 
       for (const file of filesToAdd) {
         const validation = validateFile(file);
@@ -239,7 +239,7 @@ export function AssistantProfileChatPanel({
           continue;
         }
         // Check for duplicates
-        if (pendingAttachments.some((a) => a.name === file.name && a.size === file.size)) {
+        if (pendingAttachments.some((a) => a.filename === file.name && a.sizeBytes === file.size)) {
           continue; // Silent skip duplicates
         }
         newAttachments.push(createAttachment(file));

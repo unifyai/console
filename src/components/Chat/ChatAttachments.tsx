@@ -5,19 +5,20 @@ import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
+  getAttachmentType,
   getAttachmentIcon,
   getAttachmentColor,
   truncateFilename,
   formatFileSize,
 } from './attachmentUtils';
-import type { ChatAttachment } from '@/types/assistants/chat';
+import type { Attachment } from '@/types/assistants/chat';
 
 // =============================================================================
 // ATTACHMENT CHIP
 // =============================================================================
 
 export interface AttachmentChipProps {
-  attachment: ChatAttachment;
+  attachment: Attachment;
   onRemove?: () => void;
   className?: string;
 }
@@ -26,9 +27,10 @@ export interface AttachmentChipProps {
  * Single attachment chip with icon, filename, and optional remove button.
  */
 export function AttachmentChip({ attachment, onRemove, className }: AttachmentChipProps) {
-  const Icon = getAttachmentIcon(attachment.type);
-  const iconColor = getAttachmentColor(attachment.type);
-  const truncatedName = truncateFilename(attachment.name);
+  const type = getAttachmentType(attachment.filename);
+  const Icon = getAttachmentIcon(type);
+  const iconColor = getAttachmentColor(type);
+  const truncatedName = truncateFilename(attachment.filename);
   const showRemoveButton = !!onRemove;
 
   return (
@@ -61,7 +63,7 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
                   e.stopPropagation();
                   onRemove();
                 }}
-                aria-label={`Remove ${attachment.name}`}
+                aria-label={`Remove ${attachment.filename}`}
                 data-testid="attachment-remove"
               >
                 <X className="h-3 w-3" />
@@ -71,8 +73,8 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
         </TooltipTrigger>
         <TooltipContent side="top">
           <div className="text-caption space-y-0.5">
-            <p className="font-medium">{attachment.name}</p>
-            <p className="text-muted-foreground">{formatFileSize(attachment.size)}</p>
+            <p className="font-medium">{attachment.filename}</p>
+            <p className="text-muted-foreground">{formatFileSize(attachment.sizeBytes ?? 0)}</p>
           </div>
         </TooltipContent>
       </Tooltip>
@@ -85,7 +87,7 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
 // =============================================================================
 
 export interface PendingAttachmentListProps {
-  attachments: ChatAttachment[];
+  attachments: Attachment[];
   onRemove: (id: string) => void;
   className?: string;
 }
@@ -117,7 +119,7 @@ export function PendingAttachmentList({
 // =============================================================================
 
 export interface MessageAttachmentListProps {
-  attachments: ChatAttachment[];
+  attachments: Attachment[];
   className?: string;
 }
 

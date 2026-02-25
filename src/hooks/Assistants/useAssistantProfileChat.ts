@@ -1,18 +1,10 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  ChatMessage,
-  BroadcastMessagePayload,
-  ChatAttachment,
-  MessageAttachment,
-} from '@/types/assistants/chat';
+import { ChatMessage, BroadcastMessagePayload, Attachment } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import {
-  uploadAttachment as uploadAttachmentClient,
-  getAttachmentType,
-} from '@/components/Chat/attachmentUtils';
+import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 
 export function useAssistantProfileChat(
@@ -541,19 +533,16 @@ export function useAssistantProfileChat(
           const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
 
           const rawAttachments = messagePayload.event?.attachments;
-          const attachments: ChatAttachment[] | undefined = Array.isArray(rawAttachments)
+          const attachments: Attachment[] | undefined = Array.isArray(rawAttachments)
             ? rawAttachments.map((a: Record<string, unknown>) => {
                 const camel = snakeToCamelObject<Record<string, unknown>>(a);
-                const filename = (camel.filename as string) || 'attachment';
                 return {
                   id: (camel.id as string) || uuidv4(),
-                  name: filename,
-                  size: (camel.sizeBytes as number) || 0,
-                  type: getAttachmentType(filename),
+                  filename: (camel.filename as string) || 'attachment',
                   gsUrl: camel.gsUrl as string | undefined,
                   contentType: camel.contentType as string | undefined,
                   sizeBytes: camel.sizeBytes as number | undefined,
-                } satisfies ChatAttachment;
+                } satisfies Attachment;
               })
             : undefined;
 
@@ -680,8 +669,8 @@ export function useAssistantProfileChat(
   // Send message with contact_id
   const sendMessage = (
     e: React.FormEvent,
-    attachments?: ChatAttachment[],
-    onError?: (attachments: ChatAttachment[]) => void
+    attachments?: Attachment[],
+    onError?: (attachments: Attachment[]) => void
   ) => {
     e.preventDefault();
 
@@ -717,10 +706,10 @@ export function useAssistantProfileChat(
       timestamp: new Date(),
       attachments: attachments?.map((a) => ({
         id: a.id,
-        name: a.name,
-        size: a.size,
-        type: a.type,
-        // file: omitted - don't store File objects in history
+        filename: a.filename,
+        gsUrl: a.gsUrl,
+        contentType: a.contentType,
+        sizeBytes: a.sizeBytes,
       })),
     };
 
@@ -752,36 +741,30 @@ export function useAssistantProfileChat(
     // 3. Upload attachments (if any) and send to Backend
     const sendMessageWithAttachments = async () => {
       try {
-        // Upload attachments if present - use client-side upload function
-        let messageAttachments: MessageAttachment[] | undefined;
+        let uploadedAttachments: Attachment[] | undefined;
 
         if (attachments && attachments.length > 0) {
           const uploadPromises = attachments
-            .filter((a) => a.file) // Only upload attachments with File objects
+            .filter((a) => a.file)
             .map(async (a) => {
-              // Use client-side upload function (not server action)
-              // File objects can't be serialized across server action boundary
               const uploadResult = await uploadAttachmentClient(a.file!, currentAssistant.agentId);
-
-              // Convert to MessageAttachment format (with gsUrl, not signedUrl)
               return {
                 id: uploadResult.id,
                 filename: uploadResult.filename,
                 gsUrl: uploadResult.gsUrl,
                 contentType: uploadResult.contentType,
                 sizeBytes: uploadResult.sizeBytes,
-              };
+              } satisfies Attachment;
             });
 
-          messageAttachments = await Promise.all(uploadPromises);
+          uploadedAttachments = await Promise.all(uploadPromises);
         }
 
-        // Send message with attachments
         const response = await assistantActions.chat.message({
           assistantId: parseInt(currentAssistant.agentId),
           contactId: contactId,
           message: messageToSend,
-          attachments: messageAttachments,
+          attachments: uploadedAttachments,
         });
 
         if (response.detail) {

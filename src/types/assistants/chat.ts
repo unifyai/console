@@ -10,25 +10,25 @@ export type AttachmentType =
   | 'generic';
 
 /**
- * Local attachment representation (used in UI before upload).
+ * Unified attachment type used across the entire lifecycle:
+ * local file selection, upload, API messages, and transcript history.
+ *
+ * Storage fields (`gsUrl`, `contentType`, `sizeBytes`) are optional because
+ * they're only populated after upload. `file` is only present during upload
+ * (browser File objects can't be serialized).
  */
-export interface ChatAttachment {
+export interface Attachment {
   id: string;
-  name: string;
-  size: number;
-  type: AttachmentType;
-  file?: File;
-  /** GCS URL for permanent storage (populated after upload) */
+  filename: string;
   gsUrl?: string;
-  /** MIME type (populated after upload) */
   contentType?: string;
-  /** File size in bytes (populated after upload) */
   sizeBytes?: number;
+  /** Browser File object, only present during upload */
+  file?: File;
 }
 
 /**
  * Attachment metadata returned from upload API.
- * Contains all fields needed for transcript logging.
  * Note: API returns snake_case, converted to camelCase here.
  */
 export interface AttachmentUploadResponse {
@@ -41,24 +41,11 @@ export interface AttachmentUploadResponse {
 }
 
 /**
- * Attachment format for sending in messages (uses gsUrl, not signedUrl).
- * This is what gets stored in transcripts.
- * Note: Converted to snake_case when sent to API.
- */
-export interface MessageAttachment {
-  id: string;
-  filename: string;
-  gsUrl: string;
-  contentType: string;
-  sizeBytes: number;
-}
-
-/**
  * Type guard to check if an attachment has upload metadata.
  */
 export function isAttachmentMetadata(
-  attachment: ChatAttachment
-): attachment is ChatAttachment & { gsUrl: string; contentType: string; sizeBytes: number } {
+  attachment: Attachment
+): attachment is Attachment & { gsUrl: string; contentType: string; sizeBytes: number } {
   return !!attachment.gsUrl && !!attachment.contentType && typeof attachment.sizeBytes === 'number';
 }
 
@@ -66,9 +53,9 @@ export function isAttachmentMetadata(
  * Helper to create attachment with full metadata (for testing/mocking).
  */
 export function createAttachmentWithMetadata(
-  base: Omit<ChatAttachment, 'gsUrl' | 'contentType' | 'sizeBytes'>,
+  base: Omit<Attachment, 'gsUrl' | 'contentType' | 'sizeBytes'>,
   metadata: { gsUrl: string; contentType: string; sizeBytes: number }
-): ChatAttachment {
+): Attachment {
   return { ...base, ...metadata };
 }
 
@@ -79,7 +66,7 @@ export interface ChatMessage {
   timestamp: Date;
   messageId?: number;
   __ackId?: string;
-  attachments?: ChatAttachment[];
+  attachments?: Attachment[];
 }
 
 export type ChatRole = 'user' | 'system' | 'assistant';
@@ -115,5 +102,5 @@ export interface UnifyMessage {
   contactId: number;
   message: string;
   /** Attachments with full metadata for transcript logging */
-  attachments?: MessageAttachment[];
+  attachments?: Attachment[];
 }
