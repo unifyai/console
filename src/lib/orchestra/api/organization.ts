@@ -740,6 +740,54 @@ export const removeTeamMemberAction =
   };
 
 // =============================================================================
+// MFA Enforcement Functions
+// =============================================================================
+
+export interface OrgMFASettings {
+  requireMfa: boolean;
+}
+
+export const getMfaSettingsAction = async (apiKey: string) => {
+  return async (orgId: number): Promise<OrgMFASettings | ResponseProps> => {
+    'use server';
+    return safeFetch(
+      `${backendUrl}/organizations/${orgId}/mfa-settings`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+      'getMfaSettings'
+    ) as Promise<OrgMFASettings | ResponseProps>;
+  };
+};
+
+export const updateMfaSettingsAction = async (apiKey: string) => {
+  return async (
+    orgId: number,
+    requireMfa: boolean
+  ): Promise<OrgMFASettings | ResponseProps> => {
+    'use server';
+    return safeFetch(
+      `${backendUrl}/organizations/${orgId}/mfa-settings`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ require_mfa: requireMfa }),
+      },
+      'updateMfaSettings'
+    ) as Promise<OrgMFASettings | ResponseProps>;
+  };
+};
+
+// =============================================================================
 // Resource Access Functions
 // =============================================================================
 

@@ -17,13 +17,14 @@ import { UnifiedMember } from '@/hooks/useOrganization';
 import { Team } from '@/types/team';
 import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
-import { Search, Loader2, Users, Shield } from 'lucide-react';
+import { Search, Loader2, Users, Shield, Settings } from 'lucide-react';
 import MemberRow, { MemberSpendingInfo } from './MemberRow';
 import InviteMemberDialog from './InviteMemberDialog';
 import UpdateOrgDialog from './UpdateOrganizationDialog';
 import DeleteOrganizationDialog from './DeleteOrganizationDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
+import SecuritySettingsPanel, { MfaSettingsActions } from './SecuritySettingsPanel';
 import { MemberSpendingDialog } from './MemberSpending';
 import { Button } from '@/components/UI/button';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/UI/table';
@@ -91,6 +92,8 @@ interface OrganizationWorkspaceViewProps {
   memberSpendingActions?: MemberSpendingActions;
   // Organization spending limit (for validation context)
   orgSpendingLimit?: number | null;
+  // MFA Settings Actions (optional - if not provided, security settings are hidden)
+  mfaSettingsActions?: MfaSettingsActions;
 }
 
 const OrganizationWorkspaceView = ({
@@ -122,12 +125,14 @@ const OrganizationWorkspaceView = ({
   onRemoveRolePermission,
   memberSpendingActions,
   orgSpendingLimit,
+  mfaSettingsActions,
 }: OrganizationWorkspaceViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
   const [showTeamPanel, setShowTeamPanel] = useState(false);
   const [showRolePanel, setShowRolePanel] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
   // Member spending state
   const [memberSpendingMap, setMemberSpendingMap] = useState<Map<string, MemberSpendingInfo>>(
@@ -144,12 +149,20 @@ const OrganizationWorkspaceView = ({
   // Toggle handlers that ensure exclusivity
   const toggleTeamPanel = () => {
     if (showRolePanel) setShowRolePanel(false);
+    if (showSettingsPanel) setShowSettingsPanel(false);
     setShowTeamPanel(!showTeamPanel);
   };
 
   const toggleRolePanel = () => {
     if (showTeamPanel) setShowTeamPanel(false);
+    if (showSettingsPanel) setShowSettingsPanel(false);
     setShowRolePanel(!showRolePanel);
+  };
+
+  const toggleSettingsPanel = () => {
+    if (showTeamPanel) setShowTeamPanel(false);
+    if (showRolePanel) setShowRolePanel(false);
+    setShowSettingsPanel(!showSettingsPanel);
   };
 
   // Fetch spending data for all active members
@@ -381,7 +394,7 @@ const OrganizationWorkspaceView = ({
           <div
             className={cn(
               'flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out',
-              showTeamPanel || showRolePanel ? 'w-1/2 border-r' : 'w-full'
+              showTeamPanel || showRolePanel || showSettingsPanel ? 'w-1/2 border-r' : 'w-full'
             )}
           >
             {/* Toolbar */}
@@ -445,6 +458,28 @@ const OrganizationWorkspaceView = ({
               </div>
 
               <div className="flex w-full justify-end gap-2 xl:w-auto">
+                {/* Settings Toggle Button */}
+                {canUpdateOrg && mfaSettingsActions && (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={showSettingsPanel ? 'primary' : 'outline'}
+                          size="icon"
+                          onClick={toggleSettingsPanel}
+                          aria-label={showSettingsPanel ? 'Close Settings' : 'Settings'}
+                          data-testid="settings-toggle"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>{showSettingsPanel ? 'Close Settings' : 'Settings'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
                 {/* Role Toggle Button */}
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
@@ -589,6 +624,24 @@ const OrganizationWorkspaceView = ({
               onAddPermission={onAddRolePermission}
               onRemovePermission={onRemoveRolePermission}
             />
+          </div>
+
+          {/* Settings Panel */}
+          <div
+            className={cn(
+              'absolute bottom-0 right-0 top-0 flex h-full flex-col overflow-hidden border-l bg-background transition-all duration-300 ease-in-out',
+              showSettingsPanel
+                ? 'w-1/2 translate-x-0 opacity-100'
+                : 'pointer-events-none w-1/2 translate-x-full opacity-0'
+            )}
+          >
+            {mfaSettingsActions && (
+              <SecuritySettingsPanel
+                organizationId={organization.id}
+                canEdit={canUpdateOrg}
+                actions={mfaSettingsActions}
+              />
+            )}
           </div>
         </div>
       </section>

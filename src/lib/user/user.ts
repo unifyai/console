@@ -212,6 +212,32 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
 
+  // 4. MFA Enforcement Check
+  // If the active workspace is an org, check whether the org requires MFA
+  // and the user hasn't set it up yet. Applies to all auth providers.
+  if (workspaceId && workspaceId !== 'personal') {
+    const activeOrg = user.organizations?.find(
+      (org) => org.id.toString() === workspaceId
+    );
+    if (activeOrg) {
+      try {
+        const enforcementRes = await OrchestraAdminClient.get('/auth/mfa-enforcement-status', {
+          params: { userId: user.id, orgId: activeOrg.id },
+        });
+        const enforcement = enforcementRes.data;
+        if (enforcement?.setupRequired) {
+          user.mfaSetupRequired = {
+            orgId: activeOrg.id,
+            orgName: activeOrg.name,
+          };
+        }
+      } catch {
+        // Don't block the user if the enforcement check fails
+        console.warn('[getCurrentUser] Failed to check MFA enforcement, skipping');
+      }
+    }
+  }
+
   return user;
 }
 

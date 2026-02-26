@@ -7,6 +7,7 @@ import * as TeamActions from '@/lib/user/team';
 import * as RoleActions from '@/lib/user/role';
 import * as MemberSpendingActions from '@/lib/organizations/member-spending';
 import * as OrgSpendingActions from '@/lib/organizations/spending';
+import * as MfaSettingsActions from '@/lib/orchestra/api/organization';
 import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
 
@@ -83,6 +84,12 @@ const OrganizationPage = async () => {
     }
   }
 
+  // MFA settings actions
+  const mfaSettingsActionsObj = {
+    getMfaSettings: await MfaSettingsActions.getMfaSettingsAction(apiKey),
+    updateMfaSettings: await MfaSettingsActions.updateMfaSettingsAction(apiKey),
+  };
+
   return (
     <div className="h-full w-full overflow-auto p-1">
       <Suspense fallback={<SkeletonLoader />}>
@@ -94,6 +101,7 @@ const OrganizationPage = async () => {
           roleActions={roleActions}
           memberSpendingActions={memberSpendingActions}
           orgSpendingLimit={orgSpendingLimit}
+          mfaSettingsActions={mfaSettingsActionsObj}
         />
       </Suspense>
     </div>

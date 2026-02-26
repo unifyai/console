@@ -170,9 +170,27 @@ const authOptions: AuthOptions = {
      *
      */
     async jwt({ token, user, account, profile, trigger, session }) {
+      // On initial sign-in: persist the auth provider ('credentials', 'google', 'github')
+      if (account) {
+        token.provider = account.provider;
+      }
       // On initial sign-in: copy mfaPending from authorize() result
       if (user?.mfaPending) {
         token.mfaPending = true;
+      }
+      // On OAuth sign-in: check if the user has MFA enabled and prompt if so
+      if (account && account.provider !== 'credentials' && token.email) {
+        try {
+          const mfaRes = await OrchestraAdminClient.get('/auth/mfa/status-by-email', {
+            params: { email: token.email },
+          });
+          if (mfaRes.data?.mfaEnabled) {
+            token.mfaPending = true;
+          }
+        } catch {
+          // Don't block OAuth sign-in if MFA check fails
+          console.warn('[jwt] Failed to check MFA status for OAuth user, skipping');
+        }
       }
       // On session update: clear mfaPending after TOTP verification
       if (trigger === 'update' && session?.mfaPending === false) {
@@ -233,6 +251,11 @@ const authOptions: AuthOptions = {
       // Expose mfaPending so the middleware and /login/mfa page can react.
       if (token.mfaPending) {
         session.mfaPending = true;
+      }
+      // Expose the auth provider so downstream logic can distinguish
+      // email/password sessions from OAuth sessions.
+      if (token.provider) {
+        session.provider = token.provider as string;
       }
       return session;
     },

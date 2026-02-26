@@ -5,6 +5,7 @@ import OrganizationWorkspaceView, { MemberSpendingActions } from './Organization
 import { Organization, OrganizationActions } from '@/types/organization';
 import { TeamActions } from '@/types/team';
 import { RoleActions } from '@/types/role';
+import { MfaSettingsActions } from './SecuritySettingsPanel';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useTeams } from '@/hooks/useTeams';
 import { useRoles } from '@/hooks/useRoles';
@@ -20,6 +21,8 @@ interface MainProps {
   memberSpendingActions?: MemberSpendingActions;
   /** Organization spending limit for validation context */
   orgSpendingLimit?: number | null;
+  /** MFA settings actions (optional - enables security settings panel) */
+  mfaSettingsActions?: MfaSettingsActions;
 }
 
 const Main = ({
@@ -30,6 +33,7 @@ const Main = ({
   roleActions,
   memberSpendingActions,
   orgSpendingLimit,
+  mfaSettingsActions,
 }: MainProps) => {
   // 1. Organization Logic
   const {
@@ -109,6 +113,8 @@ const Main = ({
             // Member Spending
             memberSpendingActions={memberSpendingActions}
             orgSpendingLimit={orgSpendingLimit}
+            // MFA Settings
+            mfaSettingsActions={mfaSettingsActions}
           />
         ) : (
           <PersonalWorkspaceView
