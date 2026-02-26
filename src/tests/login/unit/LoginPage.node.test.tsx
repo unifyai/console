@@ -86,8 +86,8 @@ vi.mock('../../../app/login/check', () => ({
 }));
 
 vi.mock('../../../app/login/login', () => ({
-  default: ({ onLogin, error }: any) => (
-    <div data-testid="login-fragment">
+  default: ({ onLogin, error, callbackUrl }: any) => (
+    <div data-testid="login-fragment" data-callback-url={callbackUrl}>
       {error && <div data-testid="login-error">{error}</div>}
       <button
         data-testid="google-login"

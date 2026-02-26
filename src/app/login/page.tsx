@@ -20,7 +20,7 @@ const ERRORS: Record<string, string> = {
   EmailCreateAccount: 'Try signing with a different account.',
   Callback: 'Try signing with a different account.',
   OAuthAccountNotLinked:
-    'To confirm your identity, sign in with the same account you used originally.',
+    'Please sign in with the same authentication method you used originally.',
   EmailSignin: 'Check your email address.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   Verification: 'Error occured during verification.',
@@ -128,7 +128,7 @@ const Login = () => {
           transition={{ type: 'spring', bounce: 0.1 }}
           className="border-1 z-[200] mt-20 rounded-3xl border-[var(--white-smoke)] p-6 backdrop-blur-lg"
         >
-          <div className="max-h-screen w-screen overflow-y-auto overflow-x-hidden rounded-lg bg-background p-8 md:p-24 xl:w-[1280px] xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
+          <div className="max-h-screen w-screen overflow-y-auto overflow-x-hidden rounded-lg bg-background p-8 md:p-24 xl:w-[720px] xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -149,7 +149,7 @@ const Login = () => {
               )}
               <div className="flex justify-center lg:container">
                 <AnimatedTabs selected={tab}>
-                  <LoginFragment onLogin={handleLogin} error={error} key="login" />
+                  <LoginFragment onLogin={handleLogin} error={error} callbackUrl={callbackUrl ?? undefined} key="login" />
                   <LoadingElement key="loading" />
                   <CheckElement key="check" />
                 </AnimatedTabs>

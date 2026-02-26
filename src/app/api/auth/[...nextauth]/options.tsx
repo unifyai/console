@@ -2,7 +2,9 @@ import pagesOptions from './pages';
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
@@ -44,6 +46,35 @@ const authOptions: AuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+    }),
+    CredentialsProvider({
+      name: 'Email',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
+        try {
+          const res = await OrchestraAdminClient.post('/auth/authenticate', {
+            email: credentials.email,
+            password: credentials.password,
+          });
+
+          if (res.data?.id) {
+            return {
+              id: res.data.id,
+              email: res.data.email,
+              name: res.data.name,
+              image: res.data.image ?? null,
+            };
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      },
     }),
   ],
   secret: process.env.JWT_SECRET,
