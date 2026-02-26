@@ -118,7 +118,7 @@ export function LiveActionsHeader({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-2 border-b bg-background px-4 py-2.5',
+        'flex flex-wrap items-center gap-1.5 border-b bg-background px-3 py-2',
         className
       )}
       data-testid="live-actions-header"
@@ -130,7 +130,7 @@ export function LiveActionsHeader({
             variant="outline"
             size="sm"
             disabled={isLoading}
-            className={cn('gap-1.5 whitespace-nowrap', isLoading && 'opacity-50')}
+            className={cn('h-7 gap-1.5 whitespace-nowrap', isLoading && 'opacity-50')}
             title="History time window"
             data-testid="live-actions-time-window"
           >
@@ -171,7 +171,7 @@ export function LiveActionsHeader({
           size="sm"
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="gap-1.5 whitespace-nowrap"
+          className="h-7 gap-1.5 whitespace-nowrap"
           title="Poll recent events"
           data-testid="live-actions-refresh"
         >
@@ -181,13 +181,13 @@ export function LiveActionsHeader({
 
       {/* Search Input */}
       <div className="relative min-w-0 flex-1">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search events..."
+          placeholder="Search..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 pl-8 pr-8"
+          className="h-7 pl-7 pr-7 text-xs"
           data-testid="live-actions-search"
         />
         {searchTerm && (
@@ -209,7 +209,7 @@ export function LiveActionsHeader({
         size="sm"
         onClick={handleExpandCollapseClick}
         disabled={expandCollapseDisabled}
-        className="gap-1.5 whitespace-nowrap"
+        className="h-7 gap-1.5 whitespace-nowrap"
         data-testid="live-actions-expand-collapse"
       >
         {allExpanded ? (

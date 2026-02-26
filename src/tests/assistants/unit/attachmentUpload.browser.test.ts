@@ -84,21 +84,17 @@ describe('Attachment Utilities - New Features', () => {
 // CHAT ATTACHMENT TYPE TESTS
 // =============================================================================
 
-describe('ChatAttachment Type - New Fields', () => {
-  it('should include gsUrl field in ChatAttachment interface', async () => {
-    // Import the ChatAttachment type and verify the new fields exist in the interface
+describe('Attachment Type - Fields', () => {
+  it('should include gsUrl field in Attachment interface', async () => {
     const chatTypes = await import('@/types/assistants/chat');
 
-    // Check if the module exports a helper that uses these fields
     const hasGsUrlSupport = 'createAttachmentWithMetadata' in chatTypes;
     expect(hasGsUrlSupport).toBe(true);
   });
 
-  it('should export AttachmentMetadata type with new fields', async () => {
-    // There should be a new type/interface for the full attachment metadata
+  it('should export isAttachmentMetadata type guard', async () => {
     const chatTypes = await import('@/types/assistants/chat');
 
-    // Check that AttachmentMetadata type exists (as a runtime check, we look for a type guard)
     const hasMetadataType = 'isAttachmentMetadata' in chatTypes;
     expect(hasMetadataType).toBe(true);
   });

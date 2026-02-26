@@ -6,7 +6,7 @@ import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
-export type VoiceMode = 'sts' | 'tts';
+
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
@@ -37,7 +37,6 @@ export interface Assistant {
   // Voice fields
   voiceId: string | null; // Provider Voice ID
   voiceProvider: VoiceProvider | null;
-  voiceMode: VoiceMode | null;
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -204,7 +203,6 @@ export type AssistantFormData = Omit<
 
   // UI state fields
   designIncludeBio?: boolean;
-  fastMode?: boolean;
 };
 
 export interface PhotoUploadResponse {
@@ -259,7 +257,6 @@ export interface AssistantUpdatePayload {
   userWhatsappNumber?: string | null;
   voiceId?: string | null;
   voiceProvider?: VoiceProvider | null;
-  voiceMode?: VoiceMode | null;
   phoneCountry?: string | null;
   timezone?: string | null;
   profilePhoto?: string | null;
@@ -352,7 +349,6 @@ export interface AssistantActions {
       about: string | null,
       voiceId: string | null,
       voiceProvider: VoiceProvider | null,
-      voiceMode: VoiceMode | null,
       isUserDesktop: boolean,
       desktopMode: DesktopMode | null,
       preHireChat?: PreHireChatMessage[]

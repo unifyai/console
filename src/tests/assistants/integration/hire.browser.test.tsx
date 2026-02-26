@@ -85,14 +85,10 @@ const HireFlowTestWrapper = ({
     isHireDialogOpen
   );
 
-  const isFastMode = formMethods.watch('fastMode');
   const displayableVoices = React.useMemo(() => {
     const baseVoices = customVoices || mockVoices;
-    if (isFastMode) {
-      return baseVoices.filter((v) => v.provider === 'openai');
-    }
     return baseVoices.filter((v) => v.provider !== 'openai');
-  }, [isFastMode, customVoices]);
+  }, [customVoices]);
 
   const handleRandomizePreset = () => {
     const randomIndex = Math.floor(Math.random() * finalPresets.length);
@@ -128,7 +124,6 @@ const HireFlowTestWrapper = ({
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
           onAddPaymentMethod={() => {}}
           formMethods={formMethods}
-          isFastMode={!!isFastMode}
         >
           <HireForm
             formMethods={formMethods}
@@ -165,7 +160,6 @@ const HireFlowTestWrapper = ({
             languageFilter={languageFilter}
             onLanguageFilterChange={setLanguageFilter}
             availableLanguages={['all', 'en']}
-            isFastMode={!!isFastMode}
           />
         </AssistantHire>
       </FormProvider>
@@ -1050,33 +1044,6 @@ describe('Assistant Hire Flow', () => {
 
   describe('E. Voice', () => {
     // ... (E Tests) ...
-    it(
-      'should toggle available voices when Fast Mode is changed',
-      {
-        meta: {
-          alias: 'Hire-Fast-Mode-Toggle',
-          behavior: 'Switch voices provider based on Fast Mode',
-          scenario: 'Toggling Fast Mode',
-        },
-      },
-      async () => {
-        const user = userEvent.setup();
-        render(<HireFlowTestWrapper />);
-        await waitForFormReady();
-        const voiceAccordionTrigger = screen.getByRole('button', { name: /^voice$/i });
-        if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
-          await user.click(voiceAccordionTrigger);
-        }
-        expect(await screen.findByText(/Alice \(US\)/i)).toBeInTheDocument();
-        const fastModeToggle = screen.getByLabelText(/fast mode/i);
-        await user.click(fastModeToggle);
-        await waitFor(() => {
-          expect(screen.queryByText(/Alice \(US\)/i)).not.toBeInTheDocument();
-          expect(screen.getByText(/Speedy \(OpenAI\)/i)).toBeInTheDocument();
-        });
-      }
-    );
-
     it(
       'should display available voices in the list',
       {

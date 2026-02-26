@@ -6,9 +6,9 @@
  * Manages the credit grant link flow:
  * 1. Reads `?token=xxx` from the URL on mount
  * 2. Stores the token in localStorage (persists across page refreshes)
- * 3. If the user has a payment method → claims the token immediately
- * 4. If not → exposes state so the UI can prompt the user to add a payment method
- * 5. After successful payment method setup → auto-claims via `claimPendingToken()`
+ * 3. Once billing status is loaded, claims the token immediately
+ * 4. After successful claim, invalidates billing status cache so
+ *    BillableActionGuard and other consumers pick up the new credits
  *
  * The hook does NOT render any UI — it only provides state + actions.
  */
@@ -16,7 +16,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+import { useQueryClient } from '@tanstack/react-query';
+import { useBillingStatus, BILLING_STATUS_QUERY_KEY } from '@/hooks/Billing/useBillingStatus';
 
 // =============================================================================
 // Constants
@@ -121,6 +122,7 @@ export async function claimCreditGrantToken(token: string): Promise<CreditGrantC
 
 export function useCreditGrantLink(): UseCreditGrantLinkReturn {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { isLoading: isBillingLoading } = useBillingStatus();
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -167,6 +169,8 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
       clearStoredToken();
       setPendingToken(null);
       setHasClaimed(true);
+      // Invalidate billing status so BillableActionGuard picks up the new credits
+      queryClient.invalidateQueries({ queryKey: BILLING_STATUS_QUERY_KEY });
       toast.success(result.message || 'Credits claimed successfully!');
     } else {
       setError(result.error || 'Failed to claim credits');
@@ -180,7 +184,7 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
 
     setIsClaiming(false);
     return result;
-  }, [pendingToken]);
+  }, [pendingToken, queryClient]);
 
   // 2. Auto-claim as soon as we have a pending token
   useEffect(() => {

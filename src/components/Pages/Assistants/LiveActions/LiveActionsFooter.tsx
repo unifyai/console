@@ -78,7 +78,7 @@ export function LiveActionsFooter({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-t bg-background px-4 py-2 text-sm text-muted-foreground',
+        'flex items-center justify-between border-t bg-background px-3 py-1.5 text-xs text-muted-foreground',
         className
       )}
       data-testid="live-actions-footer"
@@ -120,9 +120,7 @@ export function LiveActionsFooter({
               className={cn('h-1.5 w-1.5 rounded-full', connectionIndicator.color)}
               aria-hidden="true"
             />
-            <span className="text-caption text-muted-foreground/70">
-              {connectionIndicator.label}
-            </span>
+            <span className="text-muted-foreground/70">{connectionIndicator.label}</span>
           </div>
         )}
         <span data-testid="last-updated">{lastUpdatedText}</span>

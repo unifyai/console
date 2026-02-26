@@ -54,7 +54,6 @@ const createMockAssistant = (userId: string): Assistant => ({
   about: null,
   voiceId: 'v1',
   voiceProvider: 'elevenlabs',
-  voiceMode: 'tts',
   email: null,
   phone: null,
   phoneCountry: null,

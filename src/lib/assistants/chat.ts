@@ -2,12 +2,12 @@
 
 import { getCurrentUser } from '@/lib/user/user';
 import {
+  Attachment,
   ChatCompletionMessage,
   ChatCompletionRequest,
   ChatMessage,
   UnifyMessage,
   AttachmentUploadResponse,
-  MessageAttachment,
 } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
@@ -21,7 +21,7 @@ import {
 
 /** Message payload with optional attachments */
 export interface UnifyMessageWithAttachments extends UnifyMessage {
-  attachments?: MessageAttachment[];
+  attachments?: Attachment[];
 }
 
 /**
@@ -175,8 +175,17 @@ export const getTranscripts = async (apiKey: string) => {
             content: entries.content,
             timestamp: new Date(timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
-            // Map attachments from transcript - already in camelCase from snakeToCamelObject
-            attachments: Array.isArray(entries.attachments) ? entries.attachments : [],
+            attachments: Array.isArray(entries.attachments)
+              ? (entries.attachments as Record<string, unknown>[]).map(
+                  (a): Attachment => ({
+                    id: (a.id as string) || String(id),
+                    filename: (a.filename as string) || 'attachment',
+                    gsUrl: a.gsUrl as string | undefined,
+                    contentType: a.contentType as string | undefined,
+                    sizeBytes: a.sizeBytes as number | undefined,
+                  })
+                )
+              : [],
           };
         })
         .filter((msg): msg is ChatMessage => msg !== null);

@@ -86,7 +86,6 @@ export function VoiceCustomization({
   const designIncludeBio = watch('designIncludeBio');
   const bioText = watch('about');
   const videoSourceVoiceId = watch('videoSourceVoiceId');
-  const isFastMode = watch('fastMode');
 
   // Microphone recording state
   const [recordingStatus, setRecordingStatus] = React.useState<'idle' | 'recording'>('idle');
@@ -174,21 +173,6 @@ export function VoiceCustomization({
       setCreateMode('design');
     }
   }, [activeMainTab, setCreateMode]);
-
-  React.useEffect(() => {
-    const currentVoice = selectedVoice;
-    if (!currentVoice) return;
-
-    if (isFastMode && currentVoice.provider !== 'openai') {
-      const defaultOpenAIVoice = allDisplayableVoices.find((v) => v.provider === 'openai');
-      handleSelectVoiceDisplay(defaultOpenAIVoice || null);
-    } else if (!isFastMode && currentVoice.provider === 'openai') {
-      const defaultPrimaryVoice = allDisplayableVoices.find(
-        (v) => v.provider === PRIMARY_VOICE_PROVIDER && v.isPreset
-      );
-      handleSelectVoiceDisplay(defaultPrimaryVoice || null);
-    }
-  }, [isFastMode, selectedVoice, allDisplayableVoices, handleSelectVoiceDisplay]);
 
   const cleanupRecording = React.useCallback(() => {
     if (audioStreamRef.current) {
@@ -601,36 +585,6 @@ export function VoiceCustomization({
         (disabled || isProcessingCreate || isGeneratingPreviews) && 'cursor-not-allowed opacity-70'
       )}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <Controller
-          name="fastMode"
-          control={control}
-          render={({ field }) => (
-            <Checkbox
-              id="fast-mode-toggle"
-              checked={field.value}
-              onCheckedChange={field.onChange}
-              disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-            />
-          )}
-        />
-        <Label
-          htmlFor="fast-mode-toggle"
-          className="text-label flex cursor-pointer items-center gap-1.5 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          Fast Mode
-        </Label>
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger type="button" asChild>
-              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent side="right" className="text-caption max-w-xs">
-              <p>Use faster, multilingual voices. Low-latency voices are not customizable.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
       <Tabs
         value={activeMainTab}
         onValueChange={(v) => setActiveMainTab(v as ActiveCreatorTab)}
@@ -650,14 +604,14 @@ export function VoiceCustomization({
           </TabsTrigger>
           <TabsTrigger
             value="clone"
-            disabled={disabled || isProcessingCreate || isGeneratingPreviews || isFastMode}
+            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
           >
             Clone
           </TabsTrigger>
           {PRIMARY_VOICE_PROVIDER === 'elevenlabs' && (
             <TabsTrigger
               value="design"
-              disabled={disabled || isProcessingCreate || isGeneratingPreviews || isFastMode}
+              disabled={disabled || isProcessingCreate || isGeneratingPreviews}
             >
               Design
             </TabsTrigger>

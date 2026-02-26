@@ -1,31 +1,48 @@
 /**
- * Tests for the Login page – invite and credit token handling.
+ * Tests for the Login page – invite/credit token handling and signout flow.
  *
  * Strategy:
  *   1. Test that invite/credit tokens from URL are persisted into the OAuth callback URL
  *   2. Test that banners appear when invite/credit tokens are present
  *   3. Test that normal login flow works without tokens
+ *   4. Test that ?signout=true properly clears a stale session (deleted-account loop fix)
+ *   5. Test that authenticated users without signout param redirect to /assistants
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-// Mock next-auth/react
+// Mock next-auth/react – configurable session state
 const mockSignIn = vi.fn();
+const mockSignOut = vi.fn().mockResolvedValue(undefined);
+let mockSessionData: { data: any; status: string } = { data: null, status: 'unauthenticated' };
+
 vi.mock('next-auth/react', () => ({
   signIn: (...args: any[]) => mockSignIn(...args),
-  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  signOut: (...args: any[]) => mockSignOut(...args),
+  useSession: () => mockSessionData,
 }));
 
-// Mock next/navigation – mutable searchParams
+// Mock next/navigation – mutable searchParams + router
 let mockSearchParamsMap: Record<string, string> = {};
+const mockRedirect = vi.fn();
+const mockRouterReplace = vi.fn();
+
 vi.mock('next/navigation', () => ({
-  redirect: vi.fn(),
+  redirect: (...args: any[]) => mockRedirect(...args),
   useSearchParams: () => ({
     get: (key: string) => mockSearchParamsMap[key] ?? null,
+  }),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: mockRouterReplace,
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
   }),
 }));
 
@@ -98,6 +115,7 @@ describe('Login page – token handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParamsMap = {};
+    mockSessionData = { data: null, status: 'unauthenticated' };
   });
 
   it('renders without banners when no tokens present', () => {
@@ -228,6 +246,113 @@ describe('Login page – token handling', () => {
     const parsed = new URL(callbackUrl);
     expect(parsed.pathname).toBe('/invite');
     expect(parsed.searchParams.get('token')).toBe('inv_priority');
+  });
+});
+
+// ─── Signout redirect-loop fix ────────────────────────────────────────────────
+// When a user deletes their backend account, the next-auth JWT cookie persists.
+// Server components detect the missing user and redirect to /login?signout=true.
+// The login page must clear the stale session client-side to break the loop.
+
+describe('Login page – stale session signout (?signout=true)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchParamsMap = {};
+    mockSessionData = { data: null, status: 'unauthenticated' };
+  });
+
+  it('calls signOut and shows loading when signout=true with authenticated session', async () => {
+    mockSearchParamsMap = { signout: 'true' };
+    mockSessionData = {
+      data: { user: { email: 'deleted@example.com' } },
+      status: 'authenticated',
+    };
+
+    render(<Login />);
+
+    // Should show loading element, not the login form
+    expect(screen.getByTestId('loading-element')).toBeInTheDocument();
+    expect(screen.queryByTestId('login-fragment')).not.toBeInTheDocument();
+
+    // Should NOT redirect to /assistants despite having a session
+    expect(mockRedirect).not.toHaveBeenCalled();
+
+    // Should have called signOut to clear the JWT cookie
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
+    });
+  });
+
+  it('cleans up URL after signing out', async () => {
+    mockSearchParamsMap = { signout: 'true' };
+    mockSessionData = {
+      data: { user: { email: 'deleted@example.com' } },
+      status: 'authenticated',
+    };
+
+    render(<Login />);
+
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
+    });
+
+    // After signOut resolves, should replace URL to remove ?signout param
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith('/login');
+    });
+  });
+
+  it('shows login form directly when signout=true but session is already gone', () => {
+    mockSearchParamsMap = { signout: 'true' };
+    mockSessionData = { data: null, status: 'unauthenticated' };
+
+    render(<Login />);
+
+    // Should clean up the URL
+    // The effect runs and calls router.replace since session is already unauthenticated
+    expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call signOut when signout param is absent', () => {
+    mockSearchParamsMap = {};
+    mockSessionData = { data: null, status: 'unauthenticated' };
+
+    render(<Login />);
+
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
+  });
+});
+
+describe('Login page – authenticated redirect', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchParamsMap = {};
+    mockSessionData = { data: null, status: 'unauthenticated' };
+  });
+
+  it('redirects to /assistants when session exists and signout is not requested', () => {
+    mockSessionData = {
+      data: { user: { email: 'active@example.com' } },
+      status: 'authenticated',
+    };
+
+    render(<Login />);
+
+    expect(mockRedirect).toHaveBeenCalledWith('/assistants');
+  });
+
+  it('does NOT redirect when session exists but signout=true', () => {
+    mockSearchParamsMap = { signout: 'true' };
+    mockSessionData = {
+      data: { user: { email: 'deleted@example.com' } },
+      status: 'authenticated',
+    };
+
+    render(<Login />);
+
+    // Should NOT redirect — should show loading and initiate signout instead
+    expect(mockRedirect).not.toHaveBeenCalled();
   });
 });
 

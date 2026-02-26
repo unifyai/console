@@ -10,6 +10,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/server';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import {
   claimCreditGrantToken,
@@ -41,6 +43,7 @@ const mockBillingStatus = {
 
 vi.mock('@/hooks/Billing/useBillingStatus', () => ({
   useBillingStatus: () => mockBillingStatus,
+  BILLING_STATUS_QUERY_KEY: ['billing', 'status'],
 }));
 
 // ─── Mock sonner toast ───────────────────────────────────────────────────────
@@ -53,6 +56,19 @@ vi.mock('sonner', () => ({
 }));
 
 import { toast } from 'sonner';
+
+// ─── QueryClient wrapper for renderHook ──────────────────────────────────────
+
+let testQueryClient: QueryClient;
+
+function createWrapper() {
+  testQueryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: testQueryClient }, children);
+  return Wrapper;
+}
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
@@ -182,7 +198,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('starts with no pending token when URL and localStorage are empty', () => {
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBeNull();
     expect(result.current.isClaiming).toBe(false);
@@ -193,7 +209,7 @@ describe('useCreditGrantLink', () => {
   it('picks up token from URL search params', () => {
     mockSearchParams.set('token', 'url_token_123');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBe('url_token_123');
     // Should also be persisted to localStorage
@@ -203,7 +219,7 @@ describe('useCreditGrantLink', () => {
   it('picks up token from localStorage when URL has no token', () => {
     setStoredToken('stored_token_456');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBe('stored_token_456');
   });
@@ -212,7 +228,7 @@ describe('useCreditGrantLink', () => {
     setStoredToken('old_stored_token');
     mockSearchParams.set('token', 'new_url_token');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBe('new_url_token');
     expect(getStoredToken()).toBe('new_url_token');
@@ -232,7 +248,7 @@ describe('useCreditGrantLink', () => {
       })
     );
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.hasClaimed).toBe(true);
@@ -243,18 +259,29 @@ describe('useCreditGrantLink', () => {
     expect(toast.success).toHaveBeenCalledWith('Claimed!');
   });
 
-  it('does NOT auto-claim when user has no payment method', async () => {
+  it('auto-claims even when user has no payment method (credit grants are free)', async () => {
     mockBillingStatus.hasPaymentMethod = false;
-    mockSearchParams.set('token', 'wait_for_payment');
+    mockSearchParams.set('token', 'free_credit_token');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', async ({ request }) => {
+        const body = (await request.json()) as { token: string };
+        if (body.token === 'free_credit_token') {
+          return HttpResponse.json({ message: 'Credits granted!', credits_granted: 10 });
+        }
+        return HttpResponse.json({ detail: 'Bad token' }, { status: 400 });
+      })
+    );
 
-    // Give it time to potentially auto-claim
-    await new Promise((r) => setTimeout(r, 100));
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
-    expect(result.current.pendingToken).toBe('wait_for_payment');
-    expect(result.current.hasClaimed).toBe(false);
-    expect(result.current.isClaiming).toBe(false);
+    await waitFor(() => {
+      expect(result.current.hasClaimed).toBe(true);
+    });
+
+    expect(result.current.pendingToken).toBeNull();
+    expect(getStoredToken()).toBeNull();
+    expect(toast.success).toHaveBeenCalledWith('Credits granted!');
   });
 
   it('does NOT auto-claim while billing status is loading', async () => {
@@ -262,7 +289,7 @@ describe('useCreditGrantLink', () => {
     mockBillingStatus.isLoading = true;
     mockSearchParams.set('token', 'loading_token');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     // Give it time to potentially auto-claim
     await new Promise((r) => setTimeout(r, 100));
@@ -281,7 +308,7 @@ describe('useCreditGrantLink', () => {
       )
     );
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBe('manual_claim_token');
 
@@ -297,7 +324,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('claimPendingToken returns error when no token', async () => {
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     let claimResult: any;
     await act(async () => {
@@ -317,7 +344,7 @@ describe('useCreditGrantLink', () => {
       )
     );
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     await act(async () => {
       await result.current.claimPendingToken();
@@ -337,7 +364,7 @@ describe('useCreditGrantLink', () => {
       )
     );
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     await act(async () => {
       await result.current.claimPendingToken();
@@ -350,7 +377,7 @@ describe('useCreditGrantLink', () => {
   it('clearPendingToken removes token without claiming', () => {
     setStoredToken('token_to_clear');
 
-    const { result } = renderHook(() => useCreditGrantLink());
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
 
     expect(result.current.pendingToken).toBe('token_to_clear');
 

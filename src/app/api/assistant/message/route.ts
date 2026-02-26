@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import type { Attachment } from '@/types/assistants/chat';
 
 /** Maximum number of attachments allowed per message */
 const MAX_ATTACHMENTS = 10;
-
-/** Attachment format for message payload (camelCase, converted to snake_case for API) */
-interface MessageAttachment {
-  id: string;
-  filename: string;
-  gsUrl: string;
-  contentType: string;
-  sizeBytes: number;
-}
 
 export async function POST(request: NextRequest) {
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -39,7 +31,7 @@ export async function POST(request: NextRequest) {
     contactId?: string | number;
     message?: string;
     body?: string;
-    attachments?: MessageAttachment[];
+    attachments?: Attachment[];
   }>(requestBody);
 
   // Support both 'message' and 'body' fields

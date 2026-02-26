@@ -5,7 +5,6 @@
  * Tests all meaningful combinations of:
  * - Setup: Remote × Local
  * - OS (if local): Ubuntu × Windows × macOS
- * - Fast Mode: On × Off
  *
  * Uses defineMatrixTests for chunking support in CI.
  *
@@ -24,20 +23,16 @@ import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
 
 type SetupType = 'remote' | 'local';
 type OperatingSystem = 'ubuntu' | 'windows' | 'macos';
-type FastModeState = 'on' | 'off';
 
 interface SetupScenario {
   id: string;
   description: string;
   setup: SetupType;
   os: OperatingSystem | null; // null when setup is remote
-  fastMode: FastModeState;
   expected: {
     showsOsSelector: boolean;
     showsLocalInstructions: boolean;
     showsRemoteInfo: boolean;
-    showsFastModeToggle: boolean;
-    fastModeEnabled: boolean;
     osFieldValue: OperatingSystem | null;
     submitPayloadFields: string[];
   };
@@ -48,139 +43,63 @@ interface SetupScenario {
 // =============================================================================
 
 const SETUP_MATRIX: SetupScenario[] = [
-  // Remote setup combinations
+  // Remote setup
   {
-    id: 'remote-fast-off',
-    description: 'Remote setup, fast mode off',
+    id: 'remote',
+    description: 'Remote setup',
     setup: 'remote',
     os: null,
-    fastMode: 'off',
     expected: {
       showsOsSelector: false,
       showsLocalInstructions: false,
       showsRemoteInfo: true,
-      showsFastModeToggle: true,
-      fastModeEnabled: false,
       osFieldValue: null,
       submitPayloadFields: ['setup'],
-    },
-  },
-  {
-    id: 'remote-fast-on',
-    description: 'Remote setup, fast mode on',
-    setup: 'remote',
-    os: null,
-    fastMode: 'on',
-    expected: {
-      showsOsSelector: false,
-      showsLocalInstructions: false,
-      showsRemoteInfo: true,
-      showsFastModeToggle: true,
-      fastModeEnabled: true,
-      osFieldValue: null,
-      submitPayloadFields: ['setup', 'fastMode'],
     },
   },
 
   // Local setup - Ubuntu
   {
-    id: 'local-ubuntu-fast-off',
-    description: 'Local setup, Ubuntu, fast mode off',
+    id: 'local-ubuntu',
+    description: 'Local setup, Ubuntu',
     setup: 'local',
     os: 'ubuntu',
-    fastMode: 'off',
     expected: {
       showsOsSelector: true,
       showsLocalInstructions: true,
       showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: false,
       osFieldValue: 'ubuntu',
       submitPayloadFields: ['setup', 'operatingSystem'],
-    },
-  },
-  {
-    id: 'local-ubuntu-fast-on',
-    description: 'Local setup, Ubuntu, fast mode on',
-    setup: 'local',
-    os: 'ubuntu',
-    fastMode: 'on',
-    expected: {
-      showsOsSelector: true,
-      showsLocalInstructions: true,
-      showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: true,
-      osFieldValue: 'ubuntu',
-      submitPayloadFields: ['setup', 'operatingSystem', 'fastMode'],
     },
   },
 
   // Local setup - Windows
   {
-    id: 'local-windows-fast-off',
-    description: 'Local setup, Windows, fast mode off',
+    id: 'local-windows',
+    description: 'Local setup, Windows',
     setup: 'local',
     os: 'windows',
-    fastMode: 'off',
     expected: {
       showsOsSelector: true,
       showsLocalInstructions: true,
       showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: false,
       osFieldValue: 'windows',
       submitPayloadFields: ['setup', 'operatingSystem'],
-    },
-  },
-  {
-    id: 'local-windows-fast-on',
-    description: 'Local setup, Windows, fast mode on',
-    setup: 'local',
-    os: 'windows',
-    fastMode: 'on',
-    expected: {
-      showsOsSelector: true,
-      showsLocalInstructions: true,
-      showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: true,
-      osFieldValue: 'windows',
-      submitPayloadFields: ['setup', 'operatingSystem', 'fastMode'],
     },
   },
 
   // Local setup - macOS
   {
-    id: 'local-macos-fast-off',
-    description: 'Local setup, macOS, fast mode off',
+    id: 'local-macos',
+    description: 'Local setup, macOS',
     setup: 'local',
     os: 'macos',
-    fastMode: 'off',
     expected: {
       showsOsSelector: true,
       showsLocalInstructions: true,
       showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: false,
       osFieldValue: 'macos',
       submitPayloadFields: ['setup', 'operatingSystem'],
-    },
-  },
-  {
-    id: 'local-macos-fast-on',
-    description: 'Local setup, macOS, fast mode on',
-    setup: 'local',
-    os: 'macos',
-    fastMode: 'on',
-    expected: {
-      showsOsSelector: true,
-      showsLocalInstructions: true,
-      showsRemoteInfo: false,
-      showsFastModeToggle: true,
-      fastModeEnabled: true,
-      osFieldValue: 'macos',
-      submitPayloadFields: ['setup', 'operatingSystem', 'fastMode'],
     },
   },
 ];
@@ -192,19 +111,15 @@ const SETUP_MATRIX: SetupScenario[] = [
 interface SetupConfigTestProps {
   setupType: SetupType;
   operatingSystem: OperatingSystem;
-  fastMode: boolean;
   onSetupChange: (type: SetupType) => void;
   onOsChange: (os: OperatingSystem) => void;
-  onFastModeToggle: () => void;
 }
 
 const SetupConfigTest: React.FC<SetupConfigTestProps> = ({
   setupType,
   operatingSystem,
-  fastMode,
   onSetupChange,
   onOsChange,
-  onFastModeToggle,
 }) => {
   const isLocal = setupType === 'local';
   const isRemote = setupType === 'remote';
@@ -213,9 +128,6 @@ const SetupConfigTest: React.FC<SetupConfigTestProps> = ({
   const payloadFields = ['setup'];
   if (isLocal) {
     payloadFields.push('operatingSystem');
-  }
-  if (fastMode) {
-    payloadFields.push('fastMode');
   }
 
   return (
@@ -297,27 +209,11 @@ const SetupConfigTest: React.FC<SetupConfigTestProps> = ({
         </div>
       )}
 
-      {/* Fast mode toggle */}
-      <div data-testid="fast-mode-section">
-        <label htmlFor="fast-mode-toggle">Fast Mode</label>
-        <input
-          id="fast-mode-toggle"
-          data-testid="fast-mode-toggle"
-          type="checkbox"
-          checked={fastMode}
-          onChange={onFastModeToggle}
-        />
-        <span data-testid="fast-mode-description">
-          Skip optional configuration steps for quicker setup
-        </span>
-      </div>
-
       {/* State indicators */}
       <div data-testid="config-state">
         <span data-testid="shows-os-selector">{isLocal.toString()}</span>
         <span data-testid="shows-local-instructions">{isLocal.toString()}</span>
         <span data-testid="shows-remote-info">{isRemote.toString()}</span>
-        <span data-testid="fast-mode-enabled">{fastMode.toString()}</span>
         <span data-testid="os-field-value">{isLocal ? operatingSystem : ''}</span>
         <span data-testid="payload-fields">{payloadFields.join(',')}</span>
       </div>
@@ -340,7 +236,6 @@ defineMatrixTests<SetupScenario>({
   defineTests: (scenario, { it, expect }) => {
     const setupType = scenario.setup;
     const operatingSystem = scenario.os ?? 'ubuntu';
-    const fastMode = scenario.fastMode === 'on';
 
     beforeEach(() => {
       vi.clearAllMocks();
@@ -351,10 +246,8 @@ defineMatrixTests<SetupScenario>({
         <SetupConfigTest
           setupType={setupType}
           operatingSystem={operatingSystem}
-          fastMode={fastMode}
           onSetupChange={vi.fn()}
           onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
         />
       );
 
@@ -371,10 +264,8 @@ defineMatrixTests<SetupScenario>({
         <SetupConfigTest
           setupType={setupType}
           operatingSystem={operatingSystem}
-          fastMode={fastMode}
           onSetupChange={vi.fn()}
           onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
         />
       );
 
@@ -391,10 +282,8 @@ defineMatrixTests<SetupScenario>({
         <SetupConfigTest
           setupType={setupType}
           operatingSystem={operatingSystem}
-          fastMode={fastMode}
           onSetupChange={vi.fn()}
           onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
         />
       );
 
@@ -406,31 +295,13 @@ defineMatrixTests<SetupScenario>({
       }
     });
 
-    it(`fastModeEnabled should be ${scenario.expected.fastModeEnabled}`, () => {
-      render(
-        <SetupConfigTest
-          setupType={setupType}
-          operatingSystem={operatingSystem}
-          fastMode={fastMode}
-          onSetupChange={vi.fn()}
-          onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
-        />
-      );
-
-      const toggle = screen.getByTestId('fast-mode-toggle') as HTMLInputElement;
-      expect(toggle.checked).toBe(scenario.expected.fastModeEnabled);
-    });
-
     it(`osFieldValue should be ${scenario.expected.osFieldValue ?? 'empty'}`, () => {
       render(
         <SetupConfigTest
           setupType={setupType}
           operatingSystem={operatingSystem}
-          fastMode={fastMode}
           onSetupChange={vi.fn()}
           onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
         />
       );
 
@@ -447,10 +318,8 @@ defineMatrixTests<SetupScenario>({
         <SetupConfigTest
           setupType={setupType}
           operatingSystem={operatingSystem}
-          fastMode={fastMode}
           onSetupChange={vi.fn()}
           onOsChange={vi.fn()}
-          onFastModeToggle={vi.fn()}
         />
       );
 

@@ -10,7 +10,9 @@ unify.activate("hidden-columns-demo", overwrite=True)
 
 for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
     student_answer = f"the answer is {random.randint(0, 6)}"
-    correct_marks_to_award = int(int(student_answer[-1]) == int(eval(question[-4:-1])))
+    parts = question[-4:-1].split()
+    expected = int(parts[0]) + int(parts[2])
+    correct_marks_to_award = int(int(student_answer[-1]) == expected)
     awarded_marks = random.randint(0, 1)
     rationale = f"the student answered {student_answer} "
     "and I gave them {awarded_marks} marks because I'm not "

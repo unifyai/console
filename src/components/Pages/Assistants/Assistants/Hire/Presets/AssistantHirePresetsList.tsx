@@ -46,7 +46,6 @@ export interface PresetsPanelProps {
   availableLanguages: string[];
 
   onToggleView?: () => void;
-  isFastMode: boolean;
   /** Callback to open the Stripe payment panel (passed to BillableActionGuard) */
   onAddPaymentMethod?: () => void;
 }
@@ -73,7 +72,6 @@ export function PresetsPanel({
   onLanguageFilterChange,
   availableLanguages,
   onToggleView,
-  isFastMode,
   onAddPaymentMethod,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
@@ -236,7 +234,7 @@ export function PresetsPanel({
             <Select
               value={languageFilter}
               onValueChange={onLanguageFilterChange}
-              disabled={availableLanguages.length <= 1 || isFastMode}
+              disabled={availableLanguages.length <= 1}
             >
               <SelectTrigger className="text-caption h-8">
                 <SelectValue placeholder="Language" />
@@ -262,7 +260,7 @@ export function PresetsPanel({
                 key={`${preset.firstName}-${preset.surname}-${index}`}
                 preset={preset}
                 onSelect={onPresetSelect}
-                isFastMode={isFastMode}
+
               />
             ))
           ) : (

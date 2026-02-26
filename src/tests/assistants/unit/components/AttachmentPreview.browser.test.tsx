@@ -9,13 +9,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { MessageAttachment } from '@/types/assistants/chat';
+import type { Attachment } from '@/types/assistants/chat';
 
 // =============================================================================
 // Test Constants
 // =============================================================================
 
-const MOCK_ATTACHMENTS: Record<string, MessageAttachment> = {
+const MOCK_ATTACHMENTS: Record<string, Attachment> = {
   pdf: {
     id: 'att-123',
     filename: 'quarterly_report.pdf',
@@ -128,10 +128,9 @@ describe('Attachment Display Utilities', () => {
 // =============================================================================
 
 describe('Type Definitions', () => {
-  describe('MessageAttachment type', () => {
-    it('MessageAttachment type includes required fields', async () => {
-      // This is a compile-time check - if the type is wrong, TypeScript will fail
-      const attachment: MessageAttachment = {
+  describe('Attachment type', () => {
+    it('Attachment type includes required fields', async () => {
+      const attachment: Attachment = {
         id: 'test-id',
         filename: 'test.pdf',
         gsUrl: 'gs://bucket/path',
@@ -147,32 +146,27 @@ describe('Type Definitions', () => {
     });
   });
 
-  describe('ChatAttachment type', () => {
+  describe('Attachment type', () => {
     it(
-      'ChatAttachment can hold historical attachment data with gsUrl',
+      'Attachment can hold historical attachment data with gsUrl',
       {
         meta: {
-          alias: 'ChatAttachment-HistoricalData',
-          scenario: 'ChatAttachment loaded from transcript',
+          alias: 'Attachment-HistoricalData',
+          scenario: 'Attachment loaded from transcript',
           behavior: 'Has gsUrl for on-demand signed URL generation',
         },
       },
       async () => {
-        // Type imports
         const { isAttachmentMetadata } = await import('@/types/assistants/chat');
 
-        // A ChatAttachment from transcript history should have gsUrl
         const historicalAttachment = {
           id: 'att-123',
-          name: 'report.pdf',
-          size: 1024,
-          type: 'pdf' as const,
+          filename: 'report.pdf',
           gsUrl: 'gs://bucket/123/att-123_report.pdf',
           contentType: 'application/pdf',
           sizeBytes: 1024,
         };
 
-        // Should be recognized as having metadata
         expect(isAttachmentMetadata(historicalAttachment)).toBe(true);
       }
     );

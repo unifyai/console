@@ -139,7 +139,6 @@ const mockAssistant = {
   age: 25,
   voiceId: 'voice-1',
   voiceProvider: 'elevenlabs' as const,
-  voiceMode: 'standard' as const,
   profileVideo: null,
   about: 'Test assistant',
   phoneCountry: 'US',

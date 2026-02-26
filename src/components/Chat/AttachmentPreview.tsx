@@ -11,7 +11,7 @@ import {
   formatFileSize,
   getSignedUrl,
 } from './attachmentUtils';
-import type { MessageAttachment, ChatAttachment, AttachmentType } from '@/types/assistants/chat';
+import type { Attachment } from '@/types/assistants/chat';
 
 // =============================================================================
 // TYPES
@@ -24,31 +24,9 @@ type SignedUrlState =
 
 export interface AttachmentPreviewProps {
   /** Attachment with gsUrl for on-demand signed URL generation */
-  attachment: MessageAttachment | ChatAttachment;
+  attachment: Attachment;
   /** Optional additional CSS classes */
   className?: string;
-}
-
-// =============================================================================
-// HELPER: Get attachment details from either type
-// =============================================================================
-
-function getAttachmentDetails(attachment: MessageAttachment | ChatAttachment): {
-  id: string;
-  filename: string;
-  gsUrl: string | undefined;
-  contentType: string | undefined;
-  sizeBytes: number | undefined;
-  type: AttachmentType;
-} {
-  // MessageAttachment uses 'filename', ChatAttachment uses 'name'
-  const filename = 'filename' in attachment ? attachment.filename : attachment.name;
-  const gsUrl = attachment.gsUrl;
-  const contentType = attachment.contentType;
-  const sizeBytes = attachment.sizeBytes;
-  const type = getAttachmentType(filename);
-
-  return { id: attachment.id, filename, gsUrl, contentType, sizeBytes, type };
 }
 
 // =============================================================================
@@ -66,28 +44,25 @@ function getAttachmentDetails(attachment: MessageAttachment | ChatAttachment): {
  */
 export function AttachmentPreview({ attachment, className }: AttachmentPreviewProps) {
   const [urlState, setUrlState] = useState<SignedUrlState>({ status: 'loading' });
-  const details = getAttachmentDetails(attachment);
-
-  // Determine if this is an image (which should open in new tab, not download)
-  const isImageType = details.contentType?.startsWith('image/') || details.type === 'image';
+  const type = getAttachmentType(attachment.filename);
+  const isImageType = attachment.contentType?.startsWith('image/') || type === 'image';
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchSignedUrl() {
-      if (!details.gsUrl) {
+      if (!attachment.gsUrl) {
         setUrlState({ status: 'unavailable' });
         return;
       }
 
       try {
-        // All attachments trigger download with proper filename
-        const signedUrl = await getSignedUrl(details.gsUrl, true, details.filename);
+        const signedUrl = await getSignedUrl(attachment.gsUrl, true, attachment.filename);
         if (!cancelled) {
           setUrlState({ status: 'available', url: signedUrl });
         }
       } catch (error) {
-        console.error(`Failed to get signed URL for ${details.filename}:`, error);
+        console.error(`Failed to get signed URL for ${attachment.filename}:`, error);
         if (!cancelled) {
           setUrlState({ status: 'unavailable' });
         }
@@ -99,10 +74,10 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
     return () => {
       cancelled = true;
     };
-  }, [details.gsUrl, details.filename]);
+  }, [attachment.gsUrl, attachment.filename]);
 
-  const Icon = getAttachmentIcon(details.type);
-  const iconColor = getAttachmentColor(details.type);
+  const Icon = getAttachmentIcon(type);
+  const iconColor = getAttachmentColor(type);
 
   // Loading state - show as thumbnail-sized placeholder
   if (urlState.status === 'loading') {
@@ -114,8 +89,8 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
         )}
         data-testid="attachment-preview-loading"
         role="status"
-        aria-label={`Loading ${details.filename}`}
-        title={details.filename}
+        aria-label={`Loading ${attachment.filename}`}
+        title={attachment.filename}
       >
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
@@ -131,7 +106,7 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
           className
         )}
         data-testid="attachment-preview-unavailable"
-        title={`${details.filename} - File unavailable`}
+        title={`${attachment.filename} - File unavailable`}
       >
         <AlertCircle className="h-4 w-4 text-muted-foreground" />
       </div>
@@ -146,18 +121,18 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
     return (
       <a
         href={url}
-        download={details.filename}
+        download={attachment.filename}
         className={cn(
           'group relative block h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg',
           className
         )}
         data-testid="attachment-preview-image"
-        title={details.filename}
+        title={attachment.filename}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
-          alt={details.filename}
+          alt={attachment.filename}
           loading="lazy"
           className="h-full w-full object-cover transition-transform group-hover:scale-110"
         />
@@ -169,13 +144,13 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
   return (
     <a
       href={url}
-      download={details.filename}
+      download={attachment.filename}
       className={cn(
         'bg-muted/50 group flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted',
         className
       )}
       data-testid="attachment-preview-document"
-      title={`${details.filename}${details.sizeBytes ? ` (${formatFileSize(details.sizeBytes)})` : ''}`}
+      title={`${attachment.filename}${attachment.sizeBytes ? ` (${formatFileSize(attachment.sizeBytes)})` : ''}`}
     >
       <Icon className="h-5 w-5" style={{ color: iconColor }} data-testid="file-icon" />
     </a>
@@ -188,7 +163,7 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
 
 export interface HistoricalAttachmentListProps {
   /** List of attachments from transcript history */
-  attachments: (MessageAttachment | ChatAttachment)[];
+  attachments: Attachment[];
   /** Optional additional CSS classes */
   className?: string;
 }

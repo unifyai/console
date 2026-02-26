@@ -63,9 +63,9 @@ export function AssistantList({
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="flex-shrink-0 overflow-hidden border-b p-3">
+      <div className="flex-shrink-0 overflow-hidden border-b px-3 py-2">
         {isFolded ? (
-          <div className="flex items-center justify-center">
+          <div className="flex min-h-7 items-center justify-center">
             {showHireButton && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -73,7 +73,7 @@ export function AssistantList({
                     <Button
                       variant={isFolded ? 'ghost' : 'outline'}
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-7 w-7"
                       onClick={onOpenHireDialog}
                       disabled={isHireButtonDisabled}
                       aria-disabled={isHireButtonDisabled}
@@ -91,11 +91,11 @@ export function AssistantList({
         ) : (
           <div className="flex items-center gap-2">
             <div className="relative flex-grow">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search assistants..."
-                className="h-8 w-full pl-8"
+                placeholder="Search..."
+                className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={isLoading || !!error}
@@ -105,7 +105,7 @@ export function AssistantList({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 items-center"
+                className="h-7 items-center text-xs"
                 onClick={onOpenHireDialog}
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}

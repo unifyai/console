@@ -473,7 +473,6 @@ describe('assistant.ts', () => {
           'Bio text',
           'voice-1',
           'elevenlabs',
-          'tts',
           false, // isUserDesktop
           null // desktopMode
         );
@@ -523,7 +522,6 @@ describe('assistant.ts', () => {
           null,
           null,
           null,
-          null,
           false, // isUserDesktop
           null, // desktopMode
           preHireChat
@@ -561,7 +559,6 @@ describe('assistant.ts', () => {
           'Jane',
           'Doe',
           30,
-          null,
           null,
           null,
           null,

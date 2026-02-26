@@ -1,35 +1,57 @@
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
+  getAttachmentType,
   getAttachmentIcon,
   getAttachmentColor,
   truncateFilename,
   formatFileSize,
+  getSignedUrl,
 } from './attachmentUtils';
-import type { ChatAttachment } from '@/types/assistants/chat';
+import type { Attachment } from '@/types/assistants/chat';
 
 // =============================================================================
 // ATTACHMENT CHIP
 // =============================================================================
 
 export interface AttachmentChipProps {
-  attachment: ChatAttachment;
+  attachment: Attachment;
   onRemove?: () => void;
   className?: string;
 }
 
 /**
  * Single attachment chip with icon, filename, and optional remove button.
+ * When the attachment has a gsUrl, clicking the chip triggers a download.
  */
 export function AttachmentChip({ attachment, onRemove, className }: AttachmentChipProps) {
-  const Icon = getAttachmentIcon(attachment.type);
-  const iconColor = getAttachmentColor(attachment.type);
-  const truncatedName = truncateFilename(attachment.name);
+  const [downloading, setDownloading] = React.useState(false);
+  const type = getAttachmentType(attachment.filename);
+  const Icon = getAttachmentIcon(type);
+  const iconColor = getAttachmentColor(type);
+  const truncatedName = truncateFilename(attachment.filename);
   const showRemoveButton = !!onRemove;
+  const isDownloadable = !!attachment.gsUrl;
+
+  const handleDownload = React.useCallback(async () => {
+    if (!attachment.gsUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const signedUrl = await getSignedUrl(attachment.gsUrl, true, attachment.filename);
+      const link = document.createElement('a');
+      link.href = signedUrl;
+      link.download = attachment.filename;
+      link.click();
+    } catch (error) {
+      console.error(`Failed to download ${attachment.filename}:`, error);
+    } finally {
+      setDownloading(false);
+    }
+  }, [attachment.gsUrl, attachment.filename, downloading]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -39,9 +61,12 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
             variant="secondary"
             className={cn(
               'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
+              isDownloadable && 'hover:bg-muted/50 cursor-pointer',
               className
             )}
             data-testid="attachment-chip"
+            onClick={isDownloadable ? handleDownload : undefined}
+            role={isDownloadable ? 'button' : undefined}
           >
             <Icon
               className="h-3.5 w-3.5 flex-shrink-0"
@@ -51,6 +76,9 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
             <span className="truncate" data-testid="attachment-name">
               {truncatedName}
             </span>
+            {isDownloadable && !showRemoveButton && (
+              <Download className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
+            )}
             {showRemoveButton && (
               <Button
                 type="button"
@@ -61,7 +89,7 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
                   e.stopPropagation();
                   onRemove();
                 }}
-                aria-label={`Remove ${attachment.name}`}
+                aria-label={`Remove ${attachment.filename}`}
                 data-testid="attachment-remove"
               >
                 <X className="h-3 w-3" />
@@ -71,8 +99,8 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
         </TooltipTrigger>
         <TooltipContent side="top">
           <div className="text-caption space-y-0.5">
-            <p className="font-medium">{attachment.name}</p>
-            <p className="text-muted-foreground">{formatFileSize(attachment.size)}</p>
+            <p className="font-medium">{attachment.filename}</p>
+            <p className="text-muted-foreground">{formatFileSize(attachment.sizeBytes ?? 0)}</p>
           </div>
         </TooltipContent>
       </Tooltip>
@@ -85,7 +113,7 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
 // =============================================================================
 
 export interface PendingAttachmentListProps {
-  attachments: ChatAttachment[];
+  attachments: Attachment[];
   onRemove: (id: string) => void;
   className?: string;
 }
@@ -117,7 +145,7 @@ export function PendingAttachmentList({
 // =============================================================================
 
 export interface MessageAttachmentListProps {
-  attachments: ChatAttachment[];
+  attachments: Attachment[];
   className?: string;
 }
 

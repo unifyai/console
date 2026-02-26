@@ -25,6 +25,7 @@ import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
 import { useCreditGrantLink } from '@/hooks/Billing/useCreditGrantLink';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+import { AssistantsBanners } from './AssistantsBanners';
 import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
@@ -45,8 +46,7 @@ import { AssistantCommunicationDialog } from './Communication/AssistantCommunica
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
-import { SpendingDisplayProps, formatSpendAmount } from '@/types/assistants/spending';
-import { AlertTriangle } from 'lucide-react';
+import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 interface MainProps {
   taskActions: TaskActions;
@@ -65,8 +65,68 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
     usePanelManager();
 
-  const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
+  // --- Assistant List Fold / Resize State ---
+  const LIST_SNAP_THRESHOLD = 150;
+  const LIST_DEFAULT_WIDTH = 240;
+  const LIST_MIN_WIDTH = 56;
+  const LIST_MAX_WIDTH = 500;
+
+  // --- Profile Panel Sizing (60:40 default split with Actions) ---
+  const PROFILE_PANEL_RATIO = 0.5;
+  const PROFILE_MIN_WIDTH = 300;
+  const PROFILE_MAX_RATIO = 0.8;
+  const RESIZE_HANDLE_WIDTH = 3;
+
+  const contentContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const getAvailableContentWidth = React.useCallback(() => {
+    const container = contentContainerRef.current;
+    if (!container) return 0;
+    const listEl = container.firstElementChild as HTMLElement | null;
+    const listW = listEl ? listEl.offsetWidth : 0;
+    return container.offsetWidth - listW - RESIZE_HANDLE_WIDTH * 2;
+  }, []);
+
+  const [profilePanelWidth, setProfilePanelWidth] = React.useState(500);
   const [isResizingProfile, setIsResizingProfile] = React.useState(false);
+  const profileRatioRef = React.useRef(PROFILE_PANEL_RATIO);
+  const hasSetInitialProfileWidth = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isProfileOpen || hasSetInitialProfileWidth.current) return;
+    const available = getAvailableContentWidth();
+    if (available > 0) {
+      const target = Math.round(available * PROFILE_PANEL_RATIO);
+      setProfilePanelWidth(Math.max(PROFILE_MIN_WIDTH, target));
+      profileRatioRef.current = PROFILE_PANEL_RATIO;
+      hasSetInitialProfileWidth.current = true;
+    }
+  }, [isProfileOpen, getAvailableContentWidth]);
+
+  React.useEffect(() => {
+    if (!isProfileOpen) {
+      hasSetInitialProfileWidth.current = false;
+    }
+  }, [isProfileOpen]);
+
+  React.useEffect(() => {
+    if (!isProfileOpen || isResizingProfile) return;
+    const container = contentContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      const available = getAvailableContentWidth();
+      if (available > 0) {
+        const target = Math.round(available * profileRatioRef.current);
+        setProfilePanelWidth(
+          Math.max(PROFILE_MIN_WIDTH, Math.min(target, Math.round(available * PROFILE_MAX_RATIO)))
+        );
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isProfileOpen, isResizingProfile, getAvailableContentWidth]);
 
   const handleProfileResizeStart = React.useCallback(
     (e: React.MouseEvent) => {
@@ -77,13 +137,14 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
       const startWidth = profilePanelWidth;
       const startX = e.clientX;
+      const available = getAvailableContentWidth();
+      const maxWidth = Math.round(available * PROFILE_MAX_RATIO);
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const newWidth = startWidth + (moveEvent.clientX - startX);
-        const minWidth = 300;
-        const maxWidth = 800;
-        if (newWidth >= minWidth && newWidth <= maxWidth) {
+        if (newWidth >= PROFILE_MIN_WIDTH && newWidth <= maxWidth) {
           setProfilePanelWidth(newWidth);
+          if (available > 0) profileRatioRef.current = newWidth / available;
         }
       };
 
@@ -98,14 +159,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     },
-    [profilePanelWidth]
+    [profilePanelWidth, getAvailableContentWidth]
   );
-
-  // --- Assistant List Fold / Resize State ---
-  const LIST_SNAP_THRESHOLD = 150; // Below this width, snap to folded
-  const LIST_DEFAULT_WIDTH = 300;
-  const LIST_MIN_WIDTH = 56; // w-14 equivalent
-  const LIST_MAX_WIDTH = 500;
 
   const [assistantListWidth, setAssistantListWidth] = React.useState(LIST_DEFAULT_WIDTH);
   const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
@@ -175,17 +230,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Billing Status & Credit Grant Link ---
   const {
-    hasPaymentMethod,
+    hasCustomerId,
     hasCredits,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
   } = useBillingStatus();
-  const {
-    pendingToken,
-    isClaiming: isClaimingCreditGrant,
-    hasClaimed: hasClaimedCreditGrant,
-    claimPendingToken,
-  } = useCreditGrantLink();
+  const { pendingToken, claimPendingToken } = useCreditGrantLink();
   const [isStripePanelOpen, setIsStripePanelOpen] = React.useState(false);
 
   // --- Dialogs & Forms ---
@@ -495,16 +545,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Voice Options  ---
   const hireFormNationality = formMethods.watch('nationality');
-  const hireFormFastMode = formMethods.watch('fastMode') as boolean;
   const preferredLanguage = React.useMemo(
     () => getLangCodeForNationality(hireFormNationality),
     [hireFormNationality]
   );
   const allDisplayableVoices = React.useMemo(() => {
-    const voicesToFilter = unsortedVoices;
-    const filteredByProvider = hireFormFastMode
-      ? voicesToFilter.filter((v) => v.provider === 'openai')
-      : voicesToFilter.filter((v) => v.provider !== 'openai');
+    const filteredByProvider = unsortedVoices.filter((v) => v.provider !== 'openai');
 
     const sorted = [...filteredByProvider];
     sorted.sort((a, b) => {
@@ -517,7 +563,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
       return (a.name || '').localeCompare(b.name || '');
     });
     return sorted;
-  }, [unsortedVoices, preferredLanguage, hireFormFastMode]);
+  }, [unsortedVoices, preferredLanguage]);
 
   // --- Callbacks for UI interaction ---
   // Track whether we need to auto-select a preset when presets become available
@@ -656,65 +702,13 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     <>
       <Toaster richColors position="bottom-right" closeButton />
 
-      {/* Credit grant banner — shown when user has a pending token but no payment method */}
-      {pendingToken && !hasPaymentMethod && !isBillingLoading && !hasClaimedCreditGrant && (
-        <div
-          className="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-800 dark:bg-blue-950"
-          data-testid="credit-grant-banner"
-        >
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            🎉 You have a credit grant waiting!{' '}
-            <button
-              type="button"
-              onClick={() => setIsStripePanelOpen(true)}
-              className="font-medium underline underline-offset-2"
-              data-testid="credit-grant-add-payment"
-            >
-              Add a payment method
-            </button>{' '}
-            to claim your credits.
-          </p>
-        </div>
-      )}
-
-      {/* Spending limit reached banner */}
-      {spendingGateStatus.isBlocked && !spendingGateStatus.isLoading && (
-        <div
-          className="flex items-center justify-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950"
-          data-testid="spending-limit-banner"
-        >
-          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            <span className="font-medium">
-              {spendingGateStatus.blockReason === 'org_limit'
-                ? 'Organization spending limit reached'
-                : spendingGateStatus.blockReason === 'user_limit'
-                  ? 'Your spending limit reached'
-                  : 'Assistant spending limit reached'}
-            </span>
-            {' — '}
-            {(() => {
-              const limit =
-                spendingGateStatus.blockReason === 'org_limit'
-                  ? spendingGateStatus.limits.org
-                  : spendingGateStatus.blockReason === 'user_limit'
-                    ? spendingGateStatus.limits.user
-                    : spendingGateStatus.limits.assistant;
-              if (limit?.limit != null) {
-                return `${formatSpendAmount(limit.currentSpend)} of ${formatSpendAmount(limit.limit)} used. `;
-              }
-              return '';
-            })()}
-            {spendingGateStatus.blockReason === 'org_limit'
-              ? 'An organization owner or admin can increase the limit on the '
-              : 'You can update your limit on the '}
-            <a href="/usage" className="font-medium underline underline-offset-2">
-              Usage page
-            </a>
-            .
-          </p>
-        </div>
-      )}
+      <AssistantsBanners
+        hasCredits={hasCredits}
+        hasCustomerId={hasCustomerId}
+        isBillingLoading={isBillingLoading}
+        spendingGateStatus={spendingGateStatus}
+        isOrgWorkspace={!!userMeta.orgId}
+      />
 
       {/* StripeSidePanel — for adding payment method */}
       <StripeSidePanel
@@ -730,7 +724,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         pendingCreditToken={pendingToken}
       />
 
-      <div className="flex h-full overflow-hidden bg-background">
+      <div ref={contentContainerRef} className="flex h-full overflow-hidden bg-background">
         {/* Assistant List */}
         <div
           className="relative h-full flex-shrink-0 border-r"
@@ -842,7 +836,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           setShowInsufficientFundsHint={setShowInsufficientFundsHint}
           onAddPaymentMethod={() => setIsStripePanelOpen(true)}
           isStripePanelOpen={isStripePanelOpen}
-          isFastMode={hireFormFastMode}
         >
           <HireForm
             assistants={assistants}
@@ -879,7 +872,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             languageFilter={presetLanguageFilter}
             onLanguageFilterChange={setPresetLanguageFilter}
             availableLanguages={availableLanguages}
-            isFastMode={hireFormFastMode}
             layoutMode="split" // Dummy prop
             setLayoutMode={() => {}} // Dummy prop
           />
