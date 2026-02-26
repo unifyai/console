@@ -449,6 +449,7 @@ export interface AssistantActions {
       assistantName: string
     ) => Promise<ConnectionDetails | ResponseProps>;
     dispatchToCall: (assistantId: string, roomName: string) => Promise<ResponseProps>;
+    deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
   desktop: {
     getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;

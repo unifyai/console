@@ -167,8 +167,13 @@ const createMockAssistantActions = () => ({
     getAssistantOwnerById: vi.fn(),
   },
   call: {
-    getConnectionDetails: vi.fn(),
-    dispatchToCall: vi.fn(),
+    getConnectionDetails: vi.fn().mockResolvedValue({
+      serverUrl: 'wss://test-server.livekit.cloud',
+      token: 'mock-token-fullscreen',
+      roomName: 'unity_123_meet',
+    }),
+    dispatchToCall: vi.fn().mockResolvedValue({ info: 'Dispatched' }),
+    deleteRoom: vi.fn().mockResolvedValue({}),
   },
   desktop: {
     getLiveviewUrl: vi.fn().mockResolvedValue({ liveviewUrl: 'https://liveview.example.com' }),
@@ -363,8 +368,8 @@ describe('AssistantCommunicationFullScreen', () => {
 
         await waitFor(() => {
           expect(mockRoomInstance.connect).toHaveBeenCalledWith(
-            validCallData.serverUrl,
-            validCallData.token
+            'wss://test-server.livekit.cloud',
+            'mock-token-fullscreen'
           );
         });
       }
@@ -951,16 +956,16 @@ describe('AssistantCommunicationFullScreen', () => {
 
     describe('State Restoration', () => {
       it(
-        'restores assistant-joined state immediately when handoff data indicates assistant was connected',
+        'dispatches assistant and shows waiting state when assistant is not in room despite handoff claiming it was',
         {
           meta: {
-            alias: 'Handoff-RestoreAssistantJoined',
-            scenario: 'Dialog passes handoff data with assistantJoined=true.',
-            behavior: 'Fullscreen shows assistant as connected immediately, no waiting state.',
+            alias: 'Handoff-AssistantGoneDespiteHandoff',
+            scenario: 'Dialog passes handoff data with assistantJoined=true, but assistant left during transition.',
+            behavior: 'Fullscreen checks actual room state, shows waiting, and dispatches assistant.',
           },
         },
         async () => {
-          // Handoff data includes state indicating assistant was already connected
+          // Handoff data says assistant was connected, but it left during the pop-out transition
           const handoffDataWithState = {
             ...handoffCallData,
             handoffState: {
@@ -977,10 +982,17 @@ describe('AssistantCommunicationFullScreen', () => {
             await vi.advanceTimersByTimeAsync(200);
           });
 
-          // Should NOT show "waiting for assistant" message since assistant was already joined
+          // Room has numParticipants=0 (mock default), so waiting message should show
+          // even though handoff said assistantJoined=true
           await waitFor(() => {
-            expect(screen.queryByText(/waiting for .* to join/i)).not.toBeInTheDocument();
+            expect(screen.getByText(/waiting for .* to join/i)).toBeInTheDocument();
           });
+
+          // Should have dispatched the assistant to bring it back
+          expect(mockAssistantActions.call.dispatchToCall).toHaveBeenCalledWith(
+            '123',
+            expect.stringContaining('meet')
+          );
         }
       );
 

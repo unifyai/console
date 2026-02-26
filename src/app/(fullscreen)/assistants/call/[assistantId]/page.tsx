@@ -7,7 +7,7 @@ import {
   getAssistantOwnerById,
   uploadAttachment,
 } from '@/lib/assistants/chat';
-import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
+import { getCallConnectionDetails, dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
 import { listAssistants } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -33,6 +33,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
       dispatchToCall: await dispatchAssistantToCall(apiKey),
+      deleteRoom: await deleteCallRoom(),
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
