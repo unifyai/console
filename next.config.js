@@ -80,7 +80,7 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
           {
             key: 'Content-Security-Policy',
             value: [
@@ -91,7 +91,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https: http:",
               "media-src 'self' blob: https://storage.googleapis.com",
               "connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com wss:",
-              'frame-src https://js.stripe.com',
+              'frame-src https://js.stripe.com https://*.vm.unify.ai',
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
