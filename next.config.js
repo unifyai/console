@@ -90,7 +90,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://storage.googleapis.com",
-              "connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud",
+              "connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery",
               'frame-src https://js.stripe.com https://*.vm.unify.ai',
               "object-src 'none'",
               "base-uri 'self'",
