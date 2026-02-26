@@ -111,10 +111,12 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
-      // Pre-validation passed — now sign in via NextAuth
+      // Pre-validation passed — sign in via NextAuth using the pre-auth
+      // token so the authorize callback skips the redundant Orchestra call.
       const result = await signIn('credentials', {
         email,
         password,
+        preAuthToken: preData.preAuthToken,
         redirect: false,
         callbackUrl: callbackUrl ?? '/',
       });

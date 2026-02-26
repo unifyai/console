@@ -3,6 +3,7 @@ import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
@@ -77,9 +78,32 @@ const authOptions: AuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        preAuthToken: { label: 'Pre-auth Token', type: 'text' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials) return null;
+
+        // Fast path: if a pre-auth token was passed from the authenticate
+        // API route, verify it locally and skip the redundant Orchestra call.
+        if (credentials.preAuthToken) {
+          try {
+            const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+            const { payload } = await jwtVerify(credentials.preAuthToken, secret);
+            return {
+              id: payload.sub as string,
+              email: payload.email as string,
+              name: (payload.name as string) ?? null,
+              lastName: (payload.lastName as string) ?? null,
+              image: (payload.image as string) ?? null,
+              mfaPending: payload.mfaRequired === true,
+            };
+          } catch {
+            // Token expired or tampered — fall through to full auth
+          }
+        }
+
+        // Full path: validate credentials via Orchestra (fallback / direct call).
+        if (!credentials.email || !credentials.password) return null;
 
         try {
           const res = await OrchestraAdminClient.post('/auth/authenticate', {
@@ -92,9 +116,8 @@ const authOptions: AuthOptions = {
               id: res.data.id,
               email: res.data.email,
               name: res.data.name,
+              lastName: res.data.lastName ?? null,
               image: res.data.image ?? null,
-              // When MFA is enabled the user must complete verification
-              // before accessing protected pages (handled by middleware).
               mfaPending: res.data.mfaRequired === true,
             };
           }

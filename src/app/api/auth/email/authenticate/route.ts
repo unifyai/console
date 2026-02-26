@@ -1,21 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SignJWT } from 'jose';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 /**
  * POST /api/auth/email/authenticate
  *
- * Pre-validates email + password credentials via Orchestra before
- * the frontend calls NextAuth's signIn("credentials").
+ * Pre-validates email + password credentials via Orchestra.
  *
- * This gives the frontend specific error codes (wrong password,
- * no email account, provider hints) that NextAuth's CredentialsProvider
- * cannot propagate through authorize().
+ * On success, signs a short-lived `preAuthToken` JWT containing the
+ * authenticated user data.  The frontend passes this token to
+ * `signIn("credentials", { preAuthToken })`, allowing the `authorize`
+ * callback to return the user without a second Orchestra call.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const res = await OrchestraAdminClient.post('/auth/authenticate', body);
-    return NextResponse.json(res.data, { status: 200 });
+
+    // Sign a short-lived JWT so `authorize` can skip the second Orchestra call.
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const preAuthToken = await new SignJWT({
+      sub: res.data.id,
+      email: res.data.email,
+      name: res.data.name,
+      lastName: res.data.lastName ?? null,
+      image: res.data.image ?? null,
+      mfaRequired: res.data.mfaRequired ?? false,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('60s') // 60-second window to complete signIn
+      .sign(secret);
+
+    return NextResponse.json({ ...res.data, preAuthToken }, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
@@ -23,4 +40,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status });
   }
 }
-
