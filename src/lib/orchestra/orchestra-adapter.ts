@@ -4,7 +4,12 @@ import { OrchestraAdminClient } from './orchestra-client';
 export function OrchestraAdapter(): Adapter {
   return {
     async createUser(user: Omit<AdapterUser, 'id'>): Promise<AdapterUser> {
-      const response = await OrchestraAdminClient.post<AdapterUser>('/user', user);
+      const response = await OrchestraAdminClient.post<AdapterUser>('/user', {
+        email: user.email,
+        name: user.name,
+        lastName: user.lastName ?? null,
+        image: user.image,
+      });
       return response.data;
     },
     async getUser(id: string): Promise<AdapterUser | null> {

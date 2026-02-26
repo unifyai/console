@@ -42,10 +42,35 @@ const authOptions: AuthOptions = {
           scope: 'openid email profile https://www.googleapis.com/auth/userinfo.profile',
         },
       },
+      profile(profile) {
+        return {
+          id: profile.sub,
+          email: profile.email,
+          name: profile.given_name ?? profile.name ?? null,
+          lastName: profile.family_name ?? null,
+          image: profile.picture ?? null,
+        };
+      },
     }),
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+      profile(profile) {
+        // GitHub provides a single "name" field (display name).
+        // Split on the first space to approximate first / last name.
+        const fullName = profile.name ?? profile.login ?? '';
+        const spaceIdx = fullName.indexOf(' ');
+        const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName;
+        const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : null;
+
+        return {
+          id: profile.id.toString(),
+          email: profile.email,
+          name: firstName || null,
+          lastName: lastName,
+          image: profile.avatar_url ?? null,
+        };
+      },
     }),
     CredentialsProvider({
       name: 'Email',
