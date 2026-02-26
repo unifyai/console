@@ -9,6 +9,7 @@ import SecondaryButton from '../../Common/Buttons/Secondary';
 import DeleteDialog from '../../Common/Dialogs/Delete';
 import { deleteUser } from '@/lib/user/user';
 import { Loader2 } from 'lucide-react';
+import SecuritySettings from '@/app/(home)/profile/security-settings';
 
 interface EmailCredentials {
   hasEmailAccount: boolean;
@@ -58,6 +59,14 @@ const SecurityTab = ({ user }: { user: User }) => {
             Your account uses external authentication (e.g. Google). Password management is not available.
           </p>
         )}
+      </div>
+
+      {/* Two-Factor Authentication Section */}
+      <div>
+        <h2 className="text-title">Two-Factor Authentication</h2>
+        <div className="mt-4">
+          <SecuritySettings />
+        </div>
       </div>
 
       {/* Sign Out & Delete Account Section */}

@@ -93,6 +93,9 @@ const authOptions: AuthOptions = {
               email: res.data.email,
               name: res.data.name,
               image: res.data.image ?? null,
+              // When MFA is enabled the user must complete verification
+              // before accessing protected pages (handled by middleware).
+              mfaPending: res.data.mfaRequired === true,
             };
           }
           return null;
@@ -143,7 +146,16 @@ const authOptions: AuthOptions = {
      * additional information should be added to it.
      *
      */
-    async jwt({ token, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      // On initial sign-in: copy mfaPending from authorize() result
+      if (user?.mfaPending) {
+        token.mfaPending = true;
+      }
+      // On session update: clear mfaPending after TOTP verification
+      if (trigger === 'update' && session?.mfaPending === false) {
+        delete token.mfaPending;
+      }
+
       if (account?.provider === 'google' && !token.picture) {
         try {
           const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
@@ -195,9 +207,14 @@ const authOptions: AuthOptions = {
       if (token.iat) {
         session.iat = token.iat;
       }
+      // Expose mfaPending so the middleware and /login/mfa page can react.
+      if (token.mfaPending) {
+        session.mfaPending = true;
+      }
       return session;
     },
   },
 };
 
+export { authOptions };
 export default authOptions;

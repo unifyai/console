@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
+import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 
-export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
+export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
   // Allow public access to shareable view pages (no auth required)
@@ -42,6 +43,18 @@ export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) 
     }
     return NextResponse.next();
   }
+
+  // MFA-pending check: redirect to /login/mfa when the JWT has mfaPending=true.
+  // Allow /login/mfa itself, NextAuth API routes, and static assets.
+  const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
+  if (token?.mfaPending) {
+    const mfaAllowed = ['/login/mfa', '/api/auth', '/_next'];
+    const isAllowed = mfaAllowed.some((prefix) => pathname.startsWith(prefix));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/login/mfa', request.url));
+    }
+  }
+
   return withAuth({ pages: authOptions.pages, secret: process.env.JWT_SECRET })(request, event);
 }
 

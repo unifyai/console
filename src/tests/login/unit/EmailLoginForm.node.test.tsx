@@ -188,7 +188,7 @@ describe('EmailLoginForm – registration flow', () => {
 
     await waitFor(() => {
       expect(registerSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'new@example.com', name: 'Jane', last_name: 'Doe' })
+        expect.objectContaining({ email: 'new@example.com', name: 'Jane', lastName: 'Doe' })
       );
     });
 
