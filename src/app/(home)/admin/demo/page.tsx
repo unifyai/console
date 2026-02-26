@@ -33,11 +33,11 @@ const DemoPage = async () => {
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
 
-  // Check if user is in the Unify/Orchestra Admin Organization
+  const UNIFY_ORG_ID = 5;
   const isUnifyMember =
     user.organizations.find(
       (o) =>
-        o.name === 'Orchestra Admin Organization' &&
+        o.id === UNIFY_ORG_ID &&
         ['owner', 'admin', 'member'].includes(o.roleName?.toLowerCase())
     ) !== undefined;
 
