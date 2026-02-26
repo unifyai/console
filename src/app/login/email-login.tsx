@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useCallback, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
+import TurnstileWidget from '@/components/Common/Auth/TurnstileWidget';
 import VerificationCodeInput from './verification-code';
 import ForgotPasswordForm from './forgot-password';
 
@@ -35,6 +36,10 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
   const [error, setError] = useState<string | undefined>(externalError);
   const [isLoading, setIsLoading] = useState(false);
   const [verificationError, setVerificationError] = useState<string | undefined>();
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>();
+
+  const handleCaptchaVerify = useCallback((token: string) => setCaptchaToken(token), []);
+  const handleCaptchaExpire = useCallback(() => setCaptchaToken(undefined), []);
 
   // ─── Registration ─────────────────────────────────────────────────────
 
@@ -50,8 +55,9 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         body: JSON.stringify({
           email,
           name: firstName || undefined,
-          last_name: lastName || undefined,
+          lastName: lastName || undefined,
           password,
+          captchaToken: captchaToken || undefined,
         }),
       });
 
@@ -300,6 +306,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             data-testid="email-password-input"
           />
         </div>
+
+        {isRegister && (
+          <TurnstileWidget
+            onVerify={handleCaptchaVerify}
+            onExpire={handleCaptchaExpire}
+            onError={handleCaptchaExpire}
+          />
+        )}
 
         {error && (
           <p className="text-sm text-red-500" data-testid="email-auth-error">

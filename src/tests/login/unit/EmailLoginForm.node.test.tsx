@@ -67,6 +67,15 @@ vi.mock('@/app/login/forgot-password', () => ({
   ),
 }));
 
+// Mock the Turnstile widget — auto-fires onVerify with a test token
+vi.mock('@/components/Common/Auth/TurnstileWidget', () => ({
+  default: ({ onVerify }: any) => {
+    // Simulate Turnstile resolving immediately
+    if (onVerify) setTimeout(() => onVerify('test-turnstile-token'), 0);
+    return <div data-testid="turnstile-widget-mock" />;
+  },
+}));
+
 // ─── Import after mocks ────────────────────────────────────────────────────
 
 import EmailLoginForm from '@/app/login/email-login';
@@ -633,5 +642,57 @@ describe('EmailLoginForm – external error', () => {
     render(<EmailLoginForm externalError="OAuth failed" />);
     // The error is set via useState initial value — it will show in the error span
     expect(screen.getByTestId('email-auth-error').textContent).toBe('OAuth failed');
+  });
+});
+
+describe('EmailLoginForm – Turnstile CAPTCHA', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders Turnstile widget in register view but not login view', async () => {
+    const user = userEvent.setup();
+    render(<EmailLoginForm />);
+
+    // Login view: no Turnstile
+    expect(screen.queryByTestId('turnstile-widget-mock')).not.toBeInTheDocument();
+
+    // Switch to register view: Turnstile rendered
+    await user.click(screen.getByTestId('switch-to-register'));
+    expect(screen.getByTestId('turnstile-widget-mock')).toBeInTheDocument();
+  });
+
+  it('includes captchaToken in registration request', async () => {
+    const registerSpy = vi.fn();
+    server.use(
+      http.post('/api/auth/email/register', async ({ request }) => {
+        registerSpy(await request.json());
+        return HttpResponse.json({ email: 'cap@test.com', requiresVerification: true });
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<EmailLoginForm />);
+
+    await user.click(screen.getByTestId('switch-to-register'));
+
+    // Wait for Turnstile mock to fire onVerify (setTimeout 0)
+    await waitFor(() => {
+      // Turnstile mock should have rendered
+      expect(screen.getByTestId('turnstile-widget-mock')).toBeInTheDocument();
+    });
+
+    // Small delay for the setTimeout(0) in the mock
+    await new Promise((r) => setTimeout(r, 10));
+
+    await user.type(screen.getByTestId('email-input'), 'cap@test.com');
+    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.click(screen.getByTestId('email-submit-btn'));
+
+    await waitFor(() => {
+        expect(registerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ captchaToken: 'test-turnstile-token' })
+        );
+    });
   });
 });

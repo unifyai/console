@@ -64,6 +64,17 @@ vi.mock('@/public/icons/back.svg', () => ({
   default: () => <svg data-testid="back-svg" />,
 }));
 
+// Mock orchestra client (needed for OAuth profile callback + adapter tests below)
+const mockAdminClientPost = vi.fn();
+vi.mock('@/lib/orchestra/orchestra-client', () => ({
+  OrchestraAdminClient: {
+    post: (...args: any[]) => mockAdminClientPost(...args),
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
 // Mock child components to keep tests focused
 vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
   default: () => <div data-testid="unify-logo" />,
@@ -108,6 +119,7 @@ vi.mock('../../../app/login/login', () => ({
 // ─── Import after mocks ──────────────────────────────────────────────────────
 
 import Login from '@/app/login/page';
+import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -353,6 +365,239 @@ describe('Login page – authenticated redirect', () => {
 
     // Should NOT redirect — should show loading and initiate signout instead
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+// ─── OAuth provider name splitting ──────────────────────────────────────────
+// Verifies that the Google and GitHub profile callbacks split the provider's
+// full name into `name` (first) and `lastName`, and that the adapter forwards
+// `lastName` to Orchestra's POST /user.
+
+/**
+ * NextAuth v4 stores the user-supplied profile callback under
+ * `provider.options.profile` (the top-level `provider.profile` is the
+ * built-in default). At runtime NextAuth merges them, but in unit tests
+ * we call the custom one directly.
+ */
+async function getProviderProfileCallback(providerId: string) {
+  const { default: authOptions } = await import(
+    '@/app/api/auth/[...nextauth]/options'
+  );
+  const provider = authOptions.providers.find(
+    (p: any) => p.id === providerId
+  ) as any;
+  return provider?.options?.profile ?? provider?.profile;
+}
+
+describe('Google provider – profile callback', () => {
+  it('splits given_name and family_name from Google profile', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-123',
+      email: 'user@example.com',
+      given_name: 'John',
+      family_name: 'Doe',
+      name: 'John Doe',
+      picture: 'https://example.com/photo.jpg',
+    });
+
+    expect(result).toEqual({
+      id: 'google-123',
+      email: 'user@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: 'https://example.com/photo.jpg',
+    });
+  });
+
+  it('uses given_name over full name when both present', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-456',
+      email: 'user@example.com',
+      given_name: 'Jane',
+      family_name: 'Smith-Jones',
+      name: 'Jane Smith-Jones',
+      picture: null,
+    });
+
+    expect(result.name).toBe('Jane');
+    expect(result.lastName).toBe('Smith-Jones');
+  });
+
+  it('falls back to full name when given_name is absent', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-789',
+      email: 'user@example.com',
+      name: 'Mononymous',
+      picture: null,
+    });
+
+    expect(result.name).toBe('Mononymous');
+    expect(result.lastName).toBeNull();
+  });
+
+  it('handles missing name fields gracefully', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-000',
+      email: 'user@example.com',
+    });
+
+    expect(result.name).toBeNull();
+    expect(result.lastName).toBeNull();
+    expect(result.image).toBeNull();
+  });
+});
+
+describe('GitHub provider – profile callback', () => {
+  it('splits "First Last" into name and lastName', async () => {
+    const profile = await getProviderProfileCallback('github');
+
+    const result = profile({
+      id: 42,
+      login: 'johndoe',
+      name: 'John Doe',
+      email: 'john@github.com',
+      avatar_url: 'https://avatars.githubusercontent.com/u/42',
+    });
+
+    expect(result).toEqual({
+      id: '42',
+      email: 'john@github.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: 'https://avatars.githubusercontent.com/u/42',
+    });
+  });
+
+  it('keeps full remainder as lastName for multi-word names', async () => {
+    const profile = await getProviderProfileCallback('github');
+
+    const result = profile({
+      id: 99,
+      login: 'maryj',
+      name: 'Mary Jane Watson-Parker',
+      email: 'mary@github.com',
+      avatar_url: null,
+    });
+
+    expect(result.name).toBe('Mary');
+    expect(result.lastName).toBe('Jane Watson-Parker');
+  });
+
+  it('uses single name with no lastName when no space present', async () => {
+    const profile = await getProviderProfileCallback('github');
+
+    const result = profile({
+      id: 7,
+      login: 'prince',
+      name: 'Prince',
+      email: 'prince@github.com',
+      avatar_url: null,
+    });
+
+    expect(result.name).toBe('Prince');
+    expect(result.lastName).toBeNull();
+  });
+
+  it('falls back to login when name is null', async () => {
+    const profile = await getProviderProfileCallback('github');
+
+    const result = profile({
+      id: 1,
+      login: 'gh-user',
+      name: null,
+      email: 'user@github.com',
+      avatar_url: null,
+    });
+
+    expect(result.name).toBe('gh-user');
+    expect(result.lastName).toBeNull();
+  });
+
+  it('converts numeric id to string', async () => {
+    const profile = await getProviderProfileCallback('github');
+
+    const result = profile({
+      id: 12345,
+      login: 'numid',
+      name: 'Num Id',
+      email: 'num@github.com',
+      avatar_url: null,
+    });
+
+    expect(result.id).toBe('12345');
+    expect(typeof result.id).toBe('string');
+  });
+});
+
+describe('OrchestraAdapter – createUser passes lastName', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends lastName to Orchestra when provided', async () => {
+    const adapter = OrchestraAdapter();
+
+    mockAdminClientPost.mockResolvedValue({
+      data: {
+        id: 'user-1',
+        email: 'john@example.com',
+        name: 'John',
+        lastName: 'Doe',
+        image: null,
+        emailVerified: null,
+      },
+    });
+
+    await adapter.createUser!({
+      email: 'john@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: null,
+      emailVerified: null,
+    });
+
+    expect(mockAdminClientPost).toHaveBeenCalledWith('/user', {
+      email: 'john@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: null,
+    });
+  });
+
+  it('sends lastName as null when not provided', async () => {
+    const adapter = OrchestraAdapter();
+
+    mockAdminClientPost.mockResolvedValue({
+      data: {
+        id: 'user-2',
+        email: 'solo@example.com',
+        name: 'Solo',
+        image: null,
+        emailVerified: null,
+      },
+    });
+
+    await adapter.createUser!({
+      email: 'solo@example.com',
+      name: 'Solo',
+      image: null,
+      emailVerified: null,
+    });
+
+    expect(mockAdminClientPost).toHaveBeenCalledWith('/user', {
+      email: 'solo@example.com',
+      name: 'Solo',
+      lastName: null,
+      image: null,
+    });
   });
 });
 
