@@ -1,8 +1,9 @@
 'use server';
 
 import { ResponseProps } from '@/types/common';
+import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
-import { camelToSnakeObject } from '@/utils/casing';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
 const MAX_LIVEVIEW_URL_RETRIES = 15;
 const LIVEVIEW_URL_RETRY_DELAY_MS = 2000;
@@ -172,6 +173,39 @@ export const sendSystemEvent = async () => {
     } catch (error: any) {
       console.error('[sendSystemEvent] Error calling webhook:', error.message);
       return { detail: 'Failed to connect to system event service.' };
+    }
+  };
+};
+
+export const listUserDesktops = async (apiKey: string) => {
+  return async (): Promise<UserDesktop[] | ResponseProps> => {
+    'use server';
+
+    const orchestraUrl = process.env.ORCHESTRA_URL;
+    if (!orchestraUrl) {
+      return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+    }
+
+    try {
+      const response = await fetch(`${orchestraUrl}/v0/desktop`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        return (data as ResponseProps) || { detail: 'Failed to list desktops' };
+      }
+
+      const desktops = data?.info ?? data;
+      return snakeToCamelObject(desktops) as UserDesktop[];
+    } catch (e: unknown) {
+      console.error('[listUserDesktops] Error:', e instanceof Error ? e.message : e);
+      return { detail: 'Failed to connect to backend' };
     }
   };
 };

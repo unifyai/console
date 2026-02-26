@@ -212,6 +212,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Assistant Data & Actions ---
   const {
     assistants,
+    setAssistants,
     isLoading: isLoadingAssistants,
     error: assistantError,
     refreshAssistants,
@@ -796,6 +797,11 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
+                  onAssistantUpdated={(id, patch) => {
+                    setAssistants((prev) =>
+                      prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
+                    );
+                  }}
                 />
               </motion.div>,
               <motion.div

@@ -112,6 +112,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   desktop: {
     getLiveviewUrl: vi.fn(),
     sendSystemEvent: vi.fn(),
+    listUserDesktops: vi.fn(),
   },
   approval: {
     getProfile: vi.fn(),

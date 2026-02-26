@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Laptop, KeyRound, Check, Contact, Download } from 'lucide-react';
+import { Laptop, KeyRound, Check, Contact, Download, Monitor } from 'lucide-react';
 import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
+import { AssistantDesktopLinker } from './AssistantDesktopLinker';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
 interface AssistantResourcesManagerProps {
@@ -9,6 +10,7 @@ interface AssistantResourcesManagerProps {
   assistantActions: AssistantActions;
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
   onOpenSetupInstructions?: (os: DesktopMode) => void;
+  onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
   /** Whether the current user can edit this assistant's resources */
   canWrite?: boolean;
 }
@@ -73,9 +75,11 @@ export function AssistantResourcesManager({
   assistantActions,
   onOpenContactManager,
   onOpenSetupInstructions,
+  onAssistantUpdated,
   canWrite = true,
 }: AssistantResourcesManagerProps) {
   const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
+  const [isDesktopLinkerOpen, setIsDesktopLinkerOpen] = React.useState(false);
 
   return (
     <>
@@ -95,6 +99,18 @@ export function AssistantResourcesManager({
             tooltip={'Copy the URL of your local desktop configuration'}
             icon={<Laptop className="h-4 w-4 flex-shrink-0" />}
             isCopyable
+          />
+        )}
+        {canWrite && (
+          <ContactItem
+            value={assistant.userDesktopId ? 'User Desktop Linked' : 'Link User Desktop'}
+            tooltip={
+              assistant.userDesktopId
+                ? 'Manage linked user desktop device'
+                : 'Assign a registered desktop device to this assistant'
+            }
+            icon={<Monitor className="h-4 w-4 flex-shrink-0" />}
+            handleClick={() => setIsDesktopLinkerOpen(true)}
           />
         )}
         <ContactItem
@@ -118,6 +134,18 @@ export function AssistantResourcesManager({
           assistantId={assistant.agentId}
           secretActions={assistantActions.secret}
           canWrite={canWrite}
+        />
+      )}
+
+      {isDesktopLinkerOpen && (
+        <AssistantDesktopLinker
+          isOpen={isDesktopLinkerOpen}
+          onClose={() => setIsDesktopLinkerOpen(false)}
+          assistant={assistant}
+          assistantActions={assistantActions}
+          onLinked={(userDesktopId) => {
+            onAssistantUpdated?.(assistant.agentId, { userDesktopId });
+          }}
         />
       )}
     </>
