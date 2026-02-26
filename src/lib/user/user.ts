@@ -135,7 +135,37 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (!user) return null;
 
-  // 2. Apply Workspace Context
+  // 2. Session Invalidation on Password Change
+  // If the user has an EmailAccount and changed their password after this
+  // JWT was issued, reject the session so the stale JWT is cleared.
+  if (session && 'iat' in session && typeof session.iat === 'number') {
+    try {
+      const credRes = await OrchestraAdminClient.get('/auth/email-credentials', {
+        params: { userId: user.id },
+      });
+      const creds = credRes.data;
+      if (
+        creds?.hasEmailAccount &&
+        creds?.passwordChangedAt
+      ) {
+        const changedAtMs = new Date(creds.passwordChangedAt).getTime();
+        const issuedAtMs = session.iat * 1000; // JWT iat is in seconds
+        if (issuedAtMs < changedAtMs) {
+          console.warn(
+            `[getCurrentUser] Session invalidated: JWT issued at ${new Date(issuedAtMs).toISOString()} ` +
+            `but password changed at ${creds.passwordChangedAt}`
+          );
+          return null;
+        }
+      }
+    } catch {
+      // If the credentials check fails, don't block the user — log and continue.
+      // This avoids locking out users if the email-credentials endpoint is down.
+      console.warn('[getCurrentUser] Failed to check password_changed_at, skipping session invalidation');
+    }
+  }
+
+  // 3. Apply Workspace Context
   const cookieStore = cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let contextResolved = false;

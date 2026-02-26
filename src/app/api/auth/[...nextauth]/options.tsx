@@ -165,6 +165,11 @@ const authOptions: AuthOptions = {
         session.user.name = token.name;
         session.user.image = token.picture || null;
       }
+      // Expose the JWT issued-at timestamp so getCurrentUser() can compare it
+      // against password_changed_at for session invalidation.
+      if (token.iat) {
+        session.iat = token.iat;
+      }
       return session;
     },
   },
