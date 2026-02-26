@@ -40,7 +40,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
-import { Room } from 'livekit-client';
+import { LogLevel, Room } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -321,7 +321,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   }, [verifyAndSetPopOutState]);
 
   // --- Call Management ---
-  const room = React.useMemo(() => new Room(), []);
+  const room = React.useMemo(() => new Room({ logLevel: LogLevel.warn }), []);
   const {
     isConnecting: isConnectingCall,
     isConnected: isCallConnected,
