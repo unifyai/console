@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/UI/button';
 import TotpInput from '@/app/login/totp-input';
 import RecoveryCodeDisplay from './recovery-codes';
@@ -129,12 +130,12 @@ const TotpSetup = ({
 
         {qrUri && (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-border p-4 bg-white">
-            {/* Render the QR code using a simple img tag with a QR API */}
-            <img
+            <Image
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUri)}`}
               alt="TOTP QR Code"
               width={200}
               height={200}
+              unoptimized
               data-testid="totp-qr-image"
             />
           </div>

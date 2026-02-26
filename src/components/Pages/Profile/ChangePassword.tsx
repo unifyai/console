@@ -3,6 +3,8 @@
 import { useState, FormEvent } from 'react';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
+import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
+import { getPasswordError } from '@/lib/auth/password';
 import { toast } from 'sonner';
 
 interface ChangePasswordFormProps {
@@ -30,8 +32,9 @@ const ChangePasswordForm = ({ hasEmailAccount }: ChangePasswordFormProps) => {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters');
+    const pwError = getPasswordError(newPassword);
+    if (pwError) {
+      setError(pwError);
       return;
     }
 
@@ -95,7 +98,7 @@ const ChangePasswordForm = ({ hasEmailAccount }: ChangePasswordFormProps) => {
           </label>
           <PasswordInput
             id="new-password"
-            placeholder="Min. 8 characters"
+            placeholder="Create a strong password"
             value={newPassword}
             onChange={(e) => {
               setNewPassword(e.target.value);
@@ -106,6 +109,7 @@ const ChangePasswordForm = ({ hasEmailAccount }: ChangePasswordFormProps) => {
             disabled={isLoading}
             data-testid="new-password-input"
           />
+          <PasswordStrengthIndicator password={newPassword} className="mt-1" />
         </div>
 
         <div>

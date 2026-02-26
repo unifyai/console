@@ -4,6 +4,8 @@ import { useState, FormEvent } from 'react';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
+import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
+import { getPasswordError } from '@/lib/auth/password';
 import VerificationCodeInput from './verification-code';
 
 type ForgotView = 'email' | 'code' | 'new-password' | 'success';
@@ -76,8 +78,9 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
     e.preventDefault();
     setPasswordError(undefined);
 
-    if (!newPassword || newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters.');
+    const pwError = getPasswordError(newPassword);
+    if (pwError) {
+      setPasswordError(pwError);
       return;
     }
 
@@ -154,7 +157,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
             </label>
             <PasswordInput
               id="new-password"
-              placeholder="Min. 8 characters"
+              placeholder="Create a strong password"
               value={newPassword}
               onChange={(e) => {
                 setNewPassword(e.target.value);
@@ -165,6 +168,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
               disabled={isLoading}
               data-testid="new-password-input"
             />
+            <PasswordStrengthIndicator password={newPassword} className="mt-1" />
           </div>
 
           <div>

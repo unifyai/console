@@ -183,7 +183,7 @@ describe('EmailLoginForm – registration flow', () => {
     await user.type(screen.getByTestId('email-first-name-input'), 'Jane');
     await user.type(screen.getByTestId('email-last-name-input'), 'Doe');
     await user.type(screen.getByTestId('email-input'), 'new@example.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -212,7 +212,7 @@ describe('EmailLoginForm – registration flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'existing@example.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -236,7 +236,7 @@ describe('EmailLoginForm – registration flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'junk@temp.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -254,7 +254,7 @@ describe('EmailLoginForm – registration flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'test@example.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -287,7 +287,7 @@ describe('EmailLoginForm – verification flow', () => {
     // Go through registration
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'new@test.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -308,7 +308,7 @@ describe('EmailLoginForm – verification flow', () => {
         'credentials',
         expect.objectContaining({
           email: 'new@test.com',
-          password: 'password123',
+          password: 'Pass1234!',
           redirect: false,
         })
       );
@@ -333,7 +333,7 @@ describe('EmailLoginForm – verification flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'test@test.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -364,7 +364,7 @@ describe('EmailLoginForm – verification flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'test@test.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -392,7 +392,7 @@ describe('EmailLoginForm – verification flow', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'test@test.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -555,7 +555,7 @@ describe('EmailLoginForm – provider-aware error formatting', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'a@b.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -580,7 +580,7 @@ describe('EmailLoginForm – provider-aware error formatting', () => {
 
     await user.click(screen.getByTestId('switch-to-register'));
     await user.type(screen.getByTestId('email-input'), 'a@b.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {
@@ -686,7 +686,7 @@ describe('EmailLoginForm – Turnstile CAPTCHA', () => {
     await new Promise((r) => setTimeout(r, 10));
 
     await user.type(screen.getByTestId('email-input'), 'cap@test.com');
-    await user.type(screen.getByTestId('email-password-input'), 'password123');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
     await user.click(screen.getByTestId('email-submit-btn'));
 
     await waitFor(() => {

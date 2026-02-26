@@ -5,7 +5,7 @@
  *   1. Test that it renders nothing when hasEmailAccount is false
  *   2. Test that it renders the form when hasEmailAccount is true
  *   3. Test password mismatch validation
- *   4. Test minimum length validation
+ *   4. Test password strength validation (replaces simple min-length check)
  *   5. Test same-as-current validation
  *   6. Test successful password change
  *   7. Test API error handling
@@ -41,6 +41,13 @@ vi.mock('sonner', () => ({
 import ChangePasswordForm from '@/components/Pages/Profile/ChangePassword';
 import { toast } from 'sonner';
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** A password that passes every strength rule. */
+const STRONG_PW = 'New@Pass1';
+/** A different strong password for the "current" field. */
+const CURRENT_PW = 'Old@Pass1';
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('ChangePasswordForm – visibility', () => {
@@ -52,7 +59,7 @@ describe('ChangePasswordForm – visibility', () => {
   it('renders the form when hasEmailAccount is true', () => {
     render(<ChangePasswordForm hasEmailAccount={true} />);
     expect(screen.getByTestId('change-password-section')).toBeInTheDocument();
-    expect(screen.getByText('Change Password')).toBeInTheDocument();
+    expect(screen.getByText('Change password')).toBeInTheDocument();
   });
 });
 
@@ -73,9 +80,9 @@ describe('ChangePasswordForm – validation', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'currentPass1');
-    await user.type(screen.getByTestId('new-password-input'), 'newPassword1');
-    await user.type(screen.getByTestId('confirm-password-input'), 'differentPass');
+    await user.type(screen.getByTestId('current-password-input'), CURRENT_PW);
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), 'Different@1');
     await user.click(screen.getByTestId('change-password-btn'));
 
     expect(screen.getByTestId('change-password-error').textContent).toBe(
@@ -85,7 +92,7 @@ describe('ChangePasswordForm – validation', () => {
     expect(changeSpy).not.toHaveBeenCalled();
   });
 
-  it('shows error when new password is too short', async () => {
+  it('shows error when new password fails strength rules', async () => {
     const changeSpy = vi.fn();
     server.use(
       http.post('/api/auth/email/change-password', async ({ request }) => {
@@ -97,14 +104,16 @@ describe('ChangePasswordForm – validation', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'currentPass1');
+    await user.type(screen.getByTestId('current-password-input'), CURRENT_PW);
+    // 'short' — fails minLength, uppercase, digit, special
     await user.type(screen.getByTestId('new-password-input'), 'short');
     await user.type(screen.getByTestId('confirm-password-input'), 'short');
     await user.click(screen.getByTestId('change-password-btn'));
 
-    expect(screen.getByTestId('change-password-error').textContent).toBe(
-      'New password must be at least 8 characters'
-    );
+    const errorText = screen.getByTestId('change-password-error').textContent!;
+    // Should mention at least one missing rule
+    expect(errorText).toContain('Password must have');
+    expect(errorText).toContain('8 characters');
     expect(changeSpy).not.toHaveBeenCalled();
   });
 
@@ -120,9 +129,10 @@ describe('ChangePasswordForm – validation', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'samePassword');
-    await user.type(screen.getByTestId('new-password-input'), 'samePassword');
-    await user.type(screen.getByTestId('confirm-password-input'), 'samePassword');
+    // Use a strong password for both current and new
+    await user.type(screen.getByTestId('current-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('change-password-btn'));
 
     expect(screen.getByTestId('change-password-error').textContent).toBe(
@@ -149,15 +159,15 @@ describe('ChangePasswordForm – API interaction', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'oldPassword1');
-    await user.type(screen.getByTestId('new-password-input'), 'newPassword1');
-    await user.type(screen.getByTestId('confirm-password-input'), 'newPassword1');
+    await user.type(screen.getByTestId('current-password-input'), CURRENT_PW);
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('change-password-btn'));
 
     await waitFor(() => {
       expect(changeSpy).toHaveBeenCalledWith({
-        currentPassword: 'oldPassword1',
-        newPassword: 'newPassword1',
+        currentPassword: CURRENT_PW,
+        newPassword: STRONG_PW,
       });
     });
 
@@ -176,9 +186,9 @@ describe('ChangePasswordForm – API interaction', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'oldPassword1');
-    await user.type(screen.getByTestId('new-password-input'), 'newPassword1');
-    await user.type(screen.getByTestId('confirm-password-input'), 'newPassword1');
+    await user.type(screen.getByTestId('current-password-input'), CURRENT_PW);
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('change-password-btn'));
 
     await waitFor(() => {
@@ -202,8 +212,8 @@ describe('ChangePasswordForm – API interaction', () => {
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
     await user.type(screen.getByTestId('current-password-input'), 'wrongOldPass');
-    await user.type(screen.getByTestId('new-password-input'), 'newPassword1');
-    await user.type(screen.getByTestId('confirm-password-input'), 'newPassword1');
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('change-password-btn'));
 
     await waitFor(() => {
@@ -221,9 +231,9 @@ describe('ChangePasswordForm – API interaction', () => {
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
-    await user.type(screen.getByTestId('current-password-input'), 'oldPassword1');
-    await user.type(screen.getByTestId('new-password-input'), 'newPassword1');
-    await user.type(screen.getByTestId('confirm-password-input'), 'newPassword1');
+    await user.type(screen.getByTestId('current-password-input'), CURRENT_PW);
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('change-password-btn'));
 
     await waitFor(() => {
@@ -251,8 +261,8 @@ describe('ChangePasswordForm – button state', () => {
     render(<ChangePasswordForm hasEmailAccount={true} />);
 
     await user.type(screen.getByTestId('current-password-input'), 'current');
-    await user.type(screen.getByTestId('new-password-input'), 'newpass123');
-    await user.type(screen.getByTestId('confirm-password-input'), 'newpass123');
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     expect(screen.getByTestId('change-password-btn')).not.toBeDisabled();
   });
 });

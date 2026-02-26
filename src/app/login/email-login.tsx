@@ -6,6 +6,8 @@ import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
 import TurnstileWidget from '@/components/Common/Auth/TurnstileWidget';
+import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
+import { getPasswordError } from '@/lib/auth/password';
 import VerificationCodeInput from './verification-code';
 import ForgotPasswordForm from './forgot-password';
 
@@ -46,6 +48,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
     setError(undefined);
+
+    // Client-side password strength check (mirrors backend rules)
+    const pwError = getPasswordError(password);
+    if (pwError) {
+      setError(pwError);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -296,7 +306,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           </label>
           <PasswordInput
             id="email-password"
-            placeholder={isRegister ? 'Min. 8 characters' : 'Your password'}
+            placeholder={isRegister ? 'Create a strong password' : 'Your password'}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -307,6 +317,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             disabled={isLoading}
             data-testid="email-password-input"
           />
+          {isRegister && <PasswordStrengthIndicator password={password} className="mt-1" />}
         </div>
 
         {isRegister && (
