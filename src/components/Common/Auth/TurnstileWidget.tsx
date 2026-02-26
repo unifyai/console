@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 /**
  * Global type declarations for the Cloudflare Turnstile API.
@@ -37,21 +38,24 @@ interface TurnstileWidgetProps {
 }
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
-const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 /**
  * Cloudflare Turnstile CAPTCHA widget.
  *
  * Renders an invisible/managed Turnstile challenge and calls `onVerify`
- * with the token on success. If `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is not
- * set, renders nothing (allows local development without Turnstile).
+ * with the token on success. If `TURNSTILE_SITE_KEY` is not configured,
+ * renders nothing (allows local development without Turnstile).
+ *
+ * The site key is read server-side in `Base.tsx` and injected via
+ * `EnvironmentProvider`, so no `NEXT_PUBLIC_` prefix is needed.
  */
 const TurnstileWidget = ({ onVerify, onExpire, onError }: TurnstileWidgetProps) => {
+  const { turnstileSiteKey } = useEnvironment();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
   const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile || !SITE_KEY) return;
+    if (!containerRef.current || !window.turnstile || !turnstileSiteKey) return;
 
     // Remove existing widget before re-rendering
     if (widgetIdRef.current) {
@@ -63,17 +67,17 @@ const TurnstileWidget = ({ onVerify, onExpire, onError }: TurnstileWidgetProps) 
     }
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: SITE_KEY,
+      sitekey: turnstileSiteKey,
       callback: onVerify,
       'expired-callback': onExpire,
       'error-callback': onError,
       theme: 'light',
       size: 'normal',
     });
-  }, [onVerify, onExpire, onError]);
+  }, [turnstileSiteKey, onVerify, onExpire, onError]);
 
   useEffect(() => {
-    if (!SITE_KEY) return;
+    if (!turnstileSiteKey) return;
 
     // If the Turnstile script is already loaded, render immediately
     if (window.turnstile) {
@@ -107,13 +111,12 @@ const TurnstileWidget = ({ onVerify, onExpire, onError }: TurnstileWidgetProps) 
       }
       window.onTurnstileLoad = undefined;
     };
-  }, [renderWidget]);
+  }, [turnstileSiteKey, renderWidget]);
 
   // Don't render anything if the site key is not configured
-  if (!SITE_KEY) return null;
+  if (!turnstileSiteKey) return null;
 
   return <div ref={containerRef} data-testid="turnstile-widget" />;
 };
 
 export default TurnstileWidget;
-
