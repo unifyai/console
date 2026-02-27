@@ -54,8 +54,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     redirect('/login?signout=true');
   }
 
-  const UNIFY_ORG_ID = 5;
-  const isUnifyMember = user.organizations?.some((o) => o.id === UNIFY_ORG_ID);
+  // Check if user is part of "Unify" - if not, redirect to assistants
+  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify');
   if (!isUnifyMember) {
     redirect('/assistants');
   }
