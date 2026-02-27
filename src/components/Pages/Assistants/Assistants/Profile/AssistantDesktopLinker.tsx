@@ -86,6 +86,8 @@ export function AssistantDesktopLinker({
   };
 
   const currentDesktopId = assistant.userDesktopId ?? null;
+  const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
+  const currentDesktopLabel = currentDesktop?.name ?? `#${currentDesktopId}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -97,7 +99,7 @@ export function AssistantDesktopLinker({
         {currentDesktopId && (
           <div className="bg-muted/50 flex items-center justify-between rounded-md border border-border px-3 py-2">
             <span className="text-caption text-muted-foreground">
-              Currently linked to desktop #{currentDesktopId}
+              Currently linked to {currentDesktopLabel}
             </span>
             <Button
               variant="ghost"
