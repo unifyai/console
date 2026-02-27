@@ -87,7 +87,7 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet }: ChangePasswordFo
     <div className="mt-2" data-testid={isSetMode ? 'set-password-section' : 'change-password-section'}>
       {isSetMode && (
         <p className="text-body text-muted-foreground mb-3">
-          Your account uses external authentication (Google/GitHub). Set a password to also sign in with your email.
+          Your account uses external authentication (Google/Microsoft). Set a password to also sign in with your email.
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md">

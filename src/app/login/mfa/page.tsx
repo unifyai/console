@@ -15,9 +15,12 @@ import { Button } from '@/components/UI/button';
  * The JWT contains mfaPending=true and the middleware redirects here.
  * After successful verification the mfaPending flag is cleared via
  * session.update(), and the user is redirected to /assistants.
+ *
+ * The user ID is resolved server-side in the API routes (from the JWT
+ * token) — the client only sends the TOTP / recovery code.
  */
 const MfaPage = () => {
-  const { data: session, update } = useSession();
+  const { update } = useSession();
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -26,9 +29,6 @@ const MfaPage = () => {
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
   const [recoveryWarning, setRecoveryWarning] = useState<string | undefined>();
-
-  // Get user ID from session token (email from session.user)
-  const userId = (session as any)?.token?.sub ?? (session as any)?.user?.id;
 
   const handleTotpSubmit = useCallback(
     async (code: string) => {
@@ -39,7 +39,7 @@ const MfaPage = () => {
         const res = await fetch('/api/auth/mfa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, code }),
+          body: JSON.stringify({ code }),
         });
 
         if (!res.ok) {
@@ -57,7 +57,7 @@ const MfaPage = () => {
         setIsLoading(false);
       }
     },
-    [userId, update, router],
+    [update, router],
   );
 
   const handleRecoverySubmit = useCallback(async () => {
@@ -70,7 +70,7 @@ const MfaPage = () => {
       const res = await fetch('/api/auth/mfa/verify-recovery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, code: recoveryCode.trim() }),
+        body: JSON.stringify({ code: recoveryCode.trim() }),
       });
 
       if (!res.ok) {
@@ -103,7 +103,7 @@ const MfaPage = () => {
       setError('Recovery code verification failed. Please try again.');
       setIsLoading(false);
     }
-  }, [userId, recoveryCode, update, router]);
+  }, [recoveryCode, update, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -192,4 +192,3 @@ const MfaPage = () => {
 };
 
 export default MfaPage;
-

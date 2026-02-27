@@ -30,6 +30,8 @@ const SecuritySettings = () => {
   const [showDisable, setShowDisable] = useState(false);
   const [disableError, setDisableError] = useState<string | undefined>();
   const [isDisabling, setIsDisabling] = useState(false);
+  const [disableWithRecovery, setDisableWithRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -55,15 +57,17 @@ const SecuritySettings = () => {
   }, [fetchStatus]);
 
   const handleDisable = useCallback(
-    async (code: string) => {
+    async (code: string, isRecovery = false) => {
       setDisableError(undefined);
       setIsDisabling(true);
+
+      const payload = isRecovery ? { recovery_code: code } : { code };
 
       try {
         const res = await fetch('/api/auth/mfa/disable', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -75,6 +79,8 @@ const SecuritySettings = () => {
 
         toast.success('Two-factor authentication has been disabled.');
         setShowDisable(false);
+        setDisableWithRecovery(false);
+        setRecoveryCode('');
         await fetchStatus();
       } catch {
         setDisableError('Failed to disable 2FA.');
@@ -184,25 +190,87 @@ const SecuritySettings = () => {
       {showDisable ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
           <h4 className="mb-3 font-medium text-destructive">Disable Two-Factor Authentication</h4>
-          <p className="mb-3 text-caption text-muted-foreground">
-            Enter your current TOTP code to disable 2FA.
-          </p>
-          <TotpInput
-            onSubmit={handleDisable}
-            error={disableError}
-            isLoading={isDisabling}
-            label=""
-          />
-          <Button
-            variant="link"
-            onClick={() => {
-              setShowDisable(false);
-              setDisableError(undefined);
-            }}
-            className="mt-2 text-caption text-muted-foreground"
-          >
-            Cancel
-          </Button>
+
+          {!disableWithRecovery ? (
+            <>
+              <p className="mb-3 text-caption text-muted-foreground">
+                Enter your current TOTP code to disable 2FA.
+              </p>
+              <TotpInput
+                onSubmit={(code) => handleDisable(code, false)}
+                error={disableError}
+                isLoading={isDisabling}
+                label=""
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setDisableWithRecovery(true);
+                    setDisableError(undefined);
+                  }}
+                  className="text-caption text-muted-foreground p-0 h-auto"
+                >
+                  Use a recovery code instead
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-caption text-muted-foreground">
+                Enter one of your recovery codes to disable 2FA.
+              </p>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)}
+                  placeholder="Enter recovery code"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
+                             focus:outline-none focus:ring-2 focus:ring-ring"
+                  data-testid="disable-recovery-input"
+                  autoFocus
+                />
+                {disableError && (
+                  <p className="text-caption text-destructive">{disableError}</p>
+                )}
+                <Button
+                  onClick={() => handleDisable(recoveryCode.trim(), true)}
+                  disabled={isDisabling || !recoveryCode.trim()}
+                  variant="destructive"
+                  data-testid="disable-recovery-submit"
+                >
+                  {isDisabling ? 'Disabling...' : 'Disable with Recovery Code'}
+                </Button>
+              </div>
+              <Button
+                variant="link"
+                onClick={() => {
+                  setDisableWithRecovery(false);
+                  setDisableError(undefined);
+                  setRecoveryCode('');
+                }}
+                className="mt-2 text-caption text-muted-foreground p-0 h-auto"
+              >
+                Use authenticator app instead
+              </Button>
+            </>
+          )}
+
+          <div className="mt-2">
+            <Button
+              variant="link"
+              onClick={() => {
+                setShowDisable(false);
+                setDisableError(undefined);
+                setDisableWithRecovery(false);
+                setRecoveryCode('');
+              }}
+              className="text-caption text-muted-foreground p-0 h-auto"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       ) : (
         <Button

@@ -141,9 +141,40 @@ const TotpSetup = ({
           </div>
         )}
 
-        <p className="text-caption text-muted-foreground text-center">
-          Can&apos;t scan? Manually enter the URI into your app.
-        </p>
+        <details className="w-full max-w-sm">
+          <summary className="text-caption text-muted-foreground text-center cursor-pointer hover:text-foreground transition-colors">
+            Can&apos;t scan? Click to enter the key manually
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-caption text-muted-foreground">
+              Enter this secret key in your authenticator app:
+            </p>
+            <code
+              className="block break-all rounded bg-muted p-2 text-sm font-mono tracking-widest select-all text-center"
+              data-testid="totp-secret"
+            >
+              {(() => {
+                try {
+                  const url = new URL(qrUri!);
+                  return url.searchParams.get('secret') ?? '';
+                } catch {
+                  return '';
+                }
+              })()}
+            </code>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Account: {(() => {
+                try {
+                  const url = new URL(qrUri!);
+                  // Path is like /Unify:email@example.com
+                  return decodeURIComponent(url.pathname.replace(/^\//, ''));
+                } catch {
+                  return '';
+                }
+              })()}
+            </p>
+          </div>
+        </details>
 
         <Button onClick={() => setStep('confirm')} data-testid="qr-scanned-btn">
           I&apos;ve scanned the code
