@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 /**
@@ -18,7 +18,11 @@ declare global {
           'error-callback'?: () => void;
           'expired-callback'?: () => void;
           theme?: 'light' | 'dark' | 'auto';
-          size?: 'normal' | 'compact';
+          size?: 'normal' | 'compact' | 'invisible';
+          appearance?: 'always' | 'execute' | 'interaction-only';
+          retry?: 'auto' | 'never';
+          'retry-interval'?: number;
+          'refresh-expired'?: 'auto' | 'manual' | 'never';
         }
       ) => string;
       reset: (widgetId: string) => void;
@@ -26,6 +30,11 @@ declare global {
     };
     onTurnstileLoad?: () => void;
   }
+}
+
+export interface TurnstileWidgetHandle {
+  /** Reset the widget to get a fresh token. */
+  reset: () => void;
 }
 
 interface TurnstileWidgetProps {
@@ -46,77 +55,99 @@ const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
  * with the token on success. If `TURNSTILE_SITE_KEY` is not configured,
  * renders nothing (allows local development without Turnstile).
  *
+ * The widget automatically refreshes expired tokens so that a valid
+ * token is always available when the user submits the form.
+ *
  * The site key is read server-side in `Base.tsx` and injected via
  * `EnvironmentProvider`, so no `NEXT_PUBLIC_` prefix is needed.
  */
-const TurnstileWidget = ({ onVerify, onExpire, onError }: TurnstileWidgetProps) => {
-  const { turnstileSiteKey } = useEnvironment();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | null>(null);
+const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
+  ({ onVerify, onExpire, onError }, ref) => {
+    const { turnstileSiteKey } = useEnvironment();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const widgetIdRef = useRef<string | null>(null);
 
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile || !turnstileSiteKey) return;
+    useImperativeHandle(ref, () => ({
+      reset: () => {
+        if (widgetIdRef.current && window.turnstile) {
+          window.turnstile.reset(widgetIdRef.current);
+        }
+      },
+    }));
 
-    // Remove existing widget before re-rendering
-    if (widgetIdRef.current) {
-      try {
-        window.turnstile.remove(widgetIdRef.current);
-      } catch {
-        // Ignore removal errors
-      }
-    }
+    const renderWidget = useCallback(() => {
+      if (!containerRef.current || !window.turnstile || !turnstileSiteKey) return;
 
-    widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: turnstileSiteKey,
-      callback: onVerify,
-      'expired-callback': onExpire,
-      'error-callback': onError,
-      theme: 'light',
-      size: 'normal',
-    });
-  }, [turnstileSiteKey, onVerify, onExpire, onError]);
-
-  useEffect(() => {
-    if (!turnstileSiteKey) return;
-
-    // If the Turnstile script is already loaded, render immediately
-    if (window.turnstile) {
-      renderWidget();
-      return;
-    }
-
-    // If the script tag already exists, wait for it to load
-    if (document.getElementById(TURNSTILE_SCRIPT_ID)) {
-      window.onTurnstileLoad = renderWidget;
-      return;
-    }
-
-    // Inject the Turnstile script
-    window.onTurnstileLoad = renderWidget;
-    const script = document.createElement('script');
-    script.id = TURNSTILE_SCRIPT_ID;
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-
-    return () => {
-      // Clean up the widget on unmount
-      if (widgetIdRef.current && window.turnstile) {
+      // Remove existing widget before re-rendering
+      if (widgetIdRef.current) {
         try {
           window.turnstile.remove(widgetIdRef.current);
         } catch {
-          // Ignore removal errors during cleanup
+          // Ignore removal errors
         }
       }
-      window.onTurnstileLoad = undefined;
-    };
-  }, [turnstileSiteKey, renderWidget]);
 
-  // Don't render anything if the site key is not configured
-  if (!turnstileSiteKey) return null;
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: turnstileSiteKey,
+        callback: onVerify,
+        'expired-callback': onExpire,
+        'error-callback': onError,
+        size: 'normal',
+        'refresh-expired': 'auto',
+      });
+    }, [turnstileSiteKey, onVerify, onExpire, onError]);
 
-  return <div ref={containerRef} data-testid="turnstile-widget" />;
-};
+    useEffect(() => {
+      if (!turnstileSiteKey) return;
+
+      // If the Turnstile script is already loaded, render immediately
+      if (window.turnstile) {
+        renderWidget();
+        return;
+      }
+
+      // If the script tag already exists, wait for it to load
+      if (document.getElementById(TURNSTILE_SCRIPT_ID)) {
+        window.onTurnstileLoad = renderWidget;
+        return;
+      }
+
+      // Inject the Turnstile script
+      window.onTurnstileLoad = renderWidget;
+      const script = document.createElement('script');
+      script.id = TURNSTILE_SCRIPT_ID;
+      script.src =
+        'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+
+      return () => {
+        // Clean up the widget on unmount
+        if (widgetIdRef.current && window.turnstile) {
+          try {
+            window.turnstile.remove(widgetIdRef.current);
+          } catch {
+            // Ignore removal errors during cleanup
+          }
+        }
+        window.onTurnstileLoad = undefined;
+      };
+    }, [turnstileSiteKey, renderWidget]);
+
+    // Don't render anything if the site key is not configured
+    if (!turnstileSiteKey) return null;
+
+    return (
+      <div
+        ref={containerRef}
+        data-testid="turnstile-widget"
+        className="flex justify-center"
+      />
+    );
+  }
+);
+
+TurnstileWidget.displayName = 'TurnstileWidget';
 
 export default TurnstileWidget;

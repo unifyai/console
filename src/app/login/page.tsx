@@ -135,12 +135,8 @@ const Login = () => {
               transition={{ delay: 0.2 }}
               className="flex flex-col gap-9"
             >
-              <div className="flex justify-between">
-                <UnifyLogo theme={resolvedTheme} />
-                <a href="https://unify.ai">
-                  <Back />
-                </a>
-              </div>
+              <UnifyLogo theme={resolvedTheme} />
+
               {/* Banner for invite/credit token context */}
               {inviteToken && (
                 <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200" data-testid="invite-banner">

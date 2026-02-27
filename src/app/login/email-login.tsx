@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, FormEvent } from 'react';
+import { useState, useCallback, useRef, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
-import TurnstileWidget from '@/components/Common/Auth/TurnstileWidget';
+import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
 import VerificationCodeInput from './verification-code';
@@ -39,6 +39,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
   const [isLoading, setIsLoading] = useState(false);
   const [verificationError, setVerificationError] = useState<string | undefined>();
   const [captchaToken, setCaptchaToken] = useState<string | undefined>();
+  const captchaRef = useRef<TurnstileWidgetHandle>(null);
 
   const handleCaptchaVerify = useCallback((token: string) => setCaptchaToken(token), []);
   const handleCaptchaExpire = useCallback(() => setCaptchaToken(undefined), []);
@@ -74,11 +75,13 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.providers) {
+        if (data.providers && !data.providers.includes('email')) {
           setError(formatProviderError(data.providers));
         } else {
           setError(data.message || data.detail || 'Registration failed');
         }
+        // Reset CAPTCHA widget so the next attempt gets a fresh token
+        captchaRef.current?.reset();
         setIsLoading(false);
         return;
       }
@@ -87,6 +90,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       setView('verify');
     } catch {
       setError('Network error. Please try again.');
+      captchaRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -317,11 +321,12 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             disabled={isLoading}
             data-testid="email-password-input"
           />
-          {isRegister && <PasswordStrengthIndicator password={password} className="mt-1" />}
+          {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
         </div>
 
         {isRegister && (
           <TurnstileWidget
+            ref={captchaRef}
             onVerify={handleCaptchaVerify}
             onExpire={handleCaptchaExpire}
             onError={handleCaptchaExpire}
