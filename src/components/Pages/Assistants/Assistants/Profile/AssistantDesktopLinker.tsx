@@ -6,6 +6,7 @@ import { Loader2, Monitor, Link2, Unlink } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
+import { FaApple, FaWindows, FaUbuntu } from 'react-icons/fa';
 import type {
   Assistant,
   AssistantActions,
@@ -27,6 +28,12 @@ const osLabels: Record<string, string> = {
   macos: 'macOS',
   windows: 'Windows',
   ubuntu: 'Ubuntu',
+};
+
+const osIcons: Record<string, React.ReactNode> = {
+  macos: <FaApple className="h-4 w-4" />,
+  windows: <FaWindows className="h-4 w-4" />,
+  ubuntu: <FaUbuntu className="h-4 w-4" />,
 };
 
 export function AssistantDesktopLinker({
@@ -183,9 +190,10 @@ export function AssistantDesktopLinker({
                 key={os}
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="flex-1 gap-1.5"
                 onClick={() => setSetupOs(os)}
               >
+                {osIcons[os]}
                 {osLabels[os]}
               </Button>
             ))}
