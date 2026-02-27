@@ -58,6 +58,7 @@ interface AssistantProfilePanelProps {
   /** Callback when assistant spending data changes (for spending gate) */
   onAssistantSpendingChange?: (display: SpendingDisplayProps | null) => void;
   onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
+  apiKey?: string;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -115,6 +116,7 @@ export function AssistantProfilePanel({
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
   onAssistantSpendingChange,
   onAssistantUpdated,
+  apiKey,
 }: AssistantProfilePanelProps) {
   const [openSections, setOpenSections] = React.useState<string[]>(['chat']);
 
@@ -210,6 +212,7 @@ export function AssistantProfilePanel({
               onOpenContactManager={onOpenContactManager}
               onAssistantUpdated={onAssistantUpdated}
               canWrite={canWrite}
+              apiKey={apiKey}
             />
           </AccordionContent>
         </AccordionItem>

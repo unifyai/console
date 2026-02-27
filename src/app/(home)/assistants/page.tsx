@@ -52,7 +52,11 @@ import {
   requestAssistantHiringAccess,
 } from '@/lib/assistants/approval';
 import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
-import { getCallConnectionDetails, dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
+import {
+  getCallConnectionDetails,
+  dispatchAssistantToCall,
+  deleteCallRoom,
+} from '@/lib/assistants/call';
 import { getLiveviewUrl, sendSystemEvent, listUserDesktops } from '@/lib/assistants/desktop';
 import {
   getAssistantSpend,
@@ -184,7 +188,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     update: await updateTask(apiKey),
   };
 
-  const userMeta = { image: user.image, timezone: user.timezone, email: user.email, orgId };
+  const userMeta = { image: user.image, timezone: user.timezone, email: user.email, orgId, apiKey };
 
   return (
     <div className="h-full w-full">

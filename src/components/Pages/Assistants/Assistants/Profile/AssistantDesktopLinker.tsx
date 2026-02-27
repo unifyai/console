@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/UI/dialog';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Monitor, Link2, Unlink } from 'lucide-react';
+import { Loader2, Monitor, Link2, Unlink, ClipboardCopy, Check } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ interface AssistantDesktopLinkerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onLinked?: (userDesktopId: number | null) => void;
+  apiKey?: string;
 }
 
 const osLabels: Record<string, string> = {
@@ -42,11 +43,13 @@ export function AssistantDesktopLinker({
   assistant,
   assistantActions,
   onLinked,
+  apiKey,
 }: AssistantDesktopLinkerProps) {
   const [desktops, setDesktops] = React.useState<UserDesktop[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [assigningId, setAssigningId] = React.useState<number | null>(null);
   const [setupOs, setSetupOs] = React.useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -184,6 +187,25 @@ export function AssistantDesktopLinker({
 
         <div className="border-t border-border pt-3">
           <p className="text-title leading-none tracking-tight">Local Setup Instructions</p>
+          {apiKey && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1.5 h-7 gap-1.5 px-2 text-muted-foreground"
+              onClick={() => {
+                navigator.clipboard.writeText(apiKey);
+                setKeyCopied(true);
+                setTimeout(() => setKeyCopied(false), 2000);
+              }}
+            >
+              {keyCopied ? (
+                <Check className="h-3.5 w-3.5 text-green-500" />
+              ) : (
+                <ClipboardCopy className="h-3.5 w-3.5" />
+              )}
+              {keyCopied ? 'Copied!' : 'Copy API Key'}
+            </Button>
+          )}
           <div className="mt-2 flex gap-2">
             {(['macos', 'windows', 'ubuntu'] as const).map((os) => (
               <Button

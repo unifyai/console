@@ -31,10 +31,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Map OS to branch name (windows -> win)
-  const branch = os === 'windows' ? 'win' : os;
-
-  const githubApiUrl = `https://api.github.com/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=${branch}`;
+  const branch = process.env.ORCHESTRA_URL?.includes('staging') ? 'staging' : 'main';
+  const githubApiUrl = `https://api.github.com/repos/unifyai/unify-desktop-assistant/contents/${os}/README.md?ref=${branch}`;
 
   try {
     const response = await fetch(githubApiUrl, {
@@ -54,7 +52,7 @@ export async function GET(request: NextRequest) {
 
       if (response.status === 404) {
         return NextResponse.json(
-          { detail: `README not found for ${os} (branch: ${branch})` },
+          { detail: `README not found for ${os} on ${branch}` },
           { status: 404 }
         );
       }

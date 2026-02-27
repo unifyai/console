@@ -57,6 +57,7 @@ interface MainProps {
     timezone?: string | null;
     email?: string | null;
     orgId?: number | null;
+    apiKey?: string;
   };
 }
 
@@ -796,6 +797,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
+                  apiKey={userMeta.apiKey}
                   onAssistantUpdated={(id, patch) => {
                     setAssistants((prev) =>
                       prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
