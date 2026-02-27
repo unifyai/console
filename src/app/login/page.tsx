@@ -36,7 +36,22 @@ const Login = () => {
   const shouldSignOut = searchParams?.get('signout') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl');
   const searchError = searchParams?.get('error');
-  const searchErrorMessage = searchError ? ERRORS[searchError] : undefined;
+  const linkedProviders = searchParams?.get('providers');
+
+  // Build a provider-aware error message when OAuthAccountNotLinked includes linked providers
+  let searchErrorMessage: string | undefined;
+  if (searchError === 'OAuthAccountNotLinked' && linkedProviders) {
+    const providerNames = linkedProviders
+      .split(',')
+      .map((p) => {
+        const names: Record<string, string> = { google: 'Google', 'azure-ad': 'Microsoft', email: 'Email/Password' };
+        return names[p] ?? p;
+      })
+      .join(', ');
+    searchErrorMessage = `This email is already registered with ${providerNames}. Please sign in with ${providerNames} instead.`;
+  } else if (searchError) {
+    searchErrorMessage = ERRORS[searchError];
+  }
 
   // Token handling: persist invite and credit tokens through OAuth flow
   const inviteToken = searchParams?.get('invite');

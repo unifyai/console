@@ -35,6 +35,10 @@ const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_ID!,
       clientSecret: process.env.GOOGLE_SECRET!,
+      // Google verifies email ownership, so it's safe to auto-link accounts
+      // that share the same verified email (e.g. user signed up with email/password
+      // and later clicks "Continue with Google").
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           prompt: 'consent',
@@ -57,6 +61,9 @@ const authOptions: AuthOptions = {
       clientId: process.env.AZURE_AD_CLIENT_ID!,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
       tenantId: process.env.AZURE_AD_TENANT_ID,
+      // Microsoft verifies email ownership, so it's safe to auto-link accounts
+      // that share the same verified email.
+      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         return {
           id: profile.sub,
@@ -129,6 +136,40 @@ const authOptions: AuthOptions = {
     logo: '@/console/static/ivy_logo_only.png',
   },
   callbacks: {
+    /**
+     * The `signIn` callback is called before a user is signed in.
+     * For OAuth providers without `allowDangerousEmailAccountLinking`, we
+     * intercept the sign-in to provide a better error message showing
+     * which providers are linked. Google and Azure AD have auto-linking
+     * enabled, so they are skipped here.
+     */
+    async signIn({ user, account }) {
+      // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
+      const autoLinkProviders = ['google', 'azure-ad'];
+
+      if (
+        account?.provider &&
+        account.provider !== 'credentials' &&
+        !autoLinkProviders.includes(account.provider) &&
+        user.email
+      ) {
+        try {
+          const res = await OrchestraAdminClient.get('/auth/providers-for-email', {
+            params: { email: user.email },
+          });
+          const providers: string[] = res.data?.providers ?? [];
+
+          if (providers.length > 0 && !providers.includes(account.provider)) {
+            const providerList = providers.join(',');
+            return `/login?error=OAuthAccountNotLinked&providers=${encodeURIComponent(providerList)}`;
+          }
+        } catch {
+          // If the check fails, let NextAuth handle it normally
+        }
+      }
+      return true;
+    },
+
     /**
      * The `redirect` callback is called when a redirect is required, either
      * due to an OAuth callback or a redirect from a login form. The
