@@ -52,12 +52,11 @@ const SecurityTab = ({ user }: { user: User }) => {
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="text-body">Loading...</span>
           </div>
-        ) : credentials?.hasEmailAccount ? (
-          <ChangePasswordForm hasEmailAccount={true} />
         ) : (
-          <p className="text-body mt-2 text-muted-foreground">
-            Your account uses external authentication (e.g. Google). Password management is not available.
-          </p>
+          <ChangePasswordForm
+            hasEmailAccount={credentials?.hasEmailAccount ?? false}
+            onPasswordSet={() => setCredentials((prev) => prev ? { ...prev, hasEmailAccount: true } : prev)}
+          />
         )}
       </div>
 
