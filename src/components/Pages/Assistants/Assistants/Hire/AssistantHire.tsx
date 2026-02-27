@@ -227,7 +227,7 @@ export function AssistantHire({
             <div className="flex flex-col gap-2">
               <DialogTitle className="text-h3">Hire Assistant</DialogTitle>
               <DialogDescription className="text-subtitle">
-                Hire an existing assistant or create your own.
+                Hire a preset or create your own.
               </DialogDescription>
             </div>
             <TooltipProvider delayDuration={100}>

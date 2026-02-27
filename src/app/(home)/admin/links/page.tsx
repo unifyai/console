@@ -17,10 +17,11 @@ const LinksPage = async ({ searchParams }: { searchParams: { token?: string } })
     redirect('/login?signout=true');
   }
 
+  const UNIFY_ORG_ID = 5;
   const isAdmin =
     user.organizations.find(
       (o) =>
-        o.name === 'Orchestra Admin Organization' &&
+        o.id === UNIFY_ORG_ID &&
         ['owner', 'admin'].includes(o.roleName?.toLowerCase())
     ) !== undefined;
 
