@@ -85,7 +85,7 @@ const SecuritySettingsPanel = ({
 
   return (
     <div className="flex flex-col gap-4 p-4" data-testid="security-settings-panel">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <div className="flex items-center gap-2 text-caption font-medium text-muted-foreground">
         <ShieldCheck className="h-4 w-4" />
         Security
       </div>
@@ -93,10 +93,10 @@ const SecuritySettingsPanel = ({
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="require-mfa" className="text-sm font-medium">
+            <Label htmlFor="require-mfa" className="text-caption font-medium">
               Require two-factor authentication
             </Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               When enabled, all members must set up 2FA to access this organization.
               Members without 2FA will be prompted to set it up before they can use the workspace.
             </p>
