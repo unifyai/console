@@ -75,8 +75,8 @@ const SecurityTab = ({ user }: { user: User }) => {
         <div className="mt-4 flex items-center gap-3">
           <SecondaryButton
             label="Sign Out"
-            onClick={() => {
-              signOut();
+            onClick={async () => {
+              await signOut({ redirect: false });
               router.push('/login');
             }}
           />
@@ -84,7 +84,10 @@ const SecurityTab = ({ user }: { user: User }) => {
             args={[user.id]}
             deletingFunction={deleteUser}
             onDelete={() => {
-              router.push('/login');
+              // Navigate with ?signout=true so the login page clears the
+              // stale JWT cookie before rendering (prevents the brief
+              // redirect loop back to /assistants).
+              router.push('/login?signout=true');
             }}
             type="account"
             text="Delete Account"
