@@ -67,11 +67,12 @@ const Login = () => {
     if (!shouldSignOut) return;
 
     if (session.status === 'authenticated') {
-      // Session exists but backend user is gone — clear the JWT cookie client-side
+      // Session exists but backend user is gone — clear the JWT cookie
+      // then do a full-page reload to avoid a race between React state
+      // updates and the session context (which could briefly trigger
+      // redirect('/assistants') before the session clears).
       signOut({ redirect: false }).then(() => {
-        setIsSigningOut(false);
-        // Clean the signout param from the URL so a page refresh won't re-trigger
-        router.replace('/login');
+        window.location.href = '/login';
       });
     } else if (session.status === 'unauthenticated') {
       // Already signed out (or cookie was cleared another way)
