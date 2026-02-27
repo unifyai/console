@@ -307,6 +307,7 @@ export function AssistantProfilePanel({
               chatHistories={chatHistories}
               setChatHistories={setChatHistories}
               userEmail={userEmail}
+              userTimezone={userTimezone}
               isFirstView={isFirstView}
               preHireChat={preHireChat}
               onFirstViewCompleted={onFirstViewCompleted}
