@@ -2,8 +2,9 @@ import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/UI/dialog';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Monitor, Link2, Unlink } from 'lucide-react';
+import { Loader2, Monitor, Link2, Unlink, Download } from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
 import type {
   Assistant,
@@ -38,6 +39,7 @@ export function AssistantDesktopLinker({
   const [desktops, setDesktops] = React.useState<UserDesktop[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [assigningId, setAssigningId] = React.useState<number | null>(null);
+  const [setupOs, setSetupOs] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -172,7 +174,33 @@ export function AssistantDesktopLinker({
             </div>
           )}
         </ScrollArea>
+
+        <div className="border-t border-border pt-3">
+          <div className="text-body-muted flex items-center gap-2">
+            <Download className="h-4 w-4 flex-shrink-0" />
+            <span>Local Setup Instructions</span>
+          </div>
+          <div className="mt-2 flex gap-2">
+            {(['macos', 'windows', 'ubuntu'] as const).map((os) => (
+              <Button
+                key={os}
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setSetupOs(os)}
+              >
+                {osLabels[os]}
+              </Button>
+            ))}
+          </div>
+        </div>
       </DialogContent>
+
+      <AssistantHireLocalSetupInstructionsDialog
+        isOpen={!!setupOs}
+        os={setupOs || 'ubuntu'}
+        onClose={() => setSetupOs(null)}
+      />
     </Dialog>
   );
 }

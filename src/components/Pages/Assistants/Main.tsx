@@ -782,7 +782,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   onClose={handleProfileClose}
                   onEdit={handleOpenEditDialog}
                   onOpenContactManager={handleOpenContactManager}
-                  onOpenSetupInstructions={(os) => setSetupInstructions({ os, isOpen: true })}
                   chatHistories={profileChatHistories}
                   setChatHistories={setProfileChatHistories}
                   userEmail={userMeta.email}
