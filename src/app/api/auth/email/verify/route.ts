@@ -4,14 +4,27 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 /**
  * POST /api/auth/email/verify
  *
- * Proxies email verification (6-digit code) to Orchestra.
- * On success, the user + email account are created in a single transaction.
+ * Two-step email verification for signup:
+ *  1. POST /auth/verify-code — validates the 6-digit code, returns a JWT token
+ *  2. POST /auth/create-user — uses the token to create User + EmailAccount
+ *
+ * The frontend still treats this as a single "verify" call.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = await OrchestraAdminClient.post('/auth/verify-email', body);
-    return NextResponse.json(res.data, { status: 200 });
+
+    // Step 1: Verify the code → get a short-lived token
+    const verifyRes = await OrchestraAdminClient.post('/auth/verify-code', {
+      email: body.email,
+      code: body.code,
+      purpose: 'signup',
+    });
+    const { token } = verifyRes.data;
+
+    // Step 2: Create the user using the token
+    const createRes = await OrchestraAdminClient.post('/auth/create-user', { token });
+    return NextResponse.json(createRes.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
@@ -19,4 +32,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status });
   }
 }
-

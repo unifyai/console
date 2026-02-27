@@ -22,7 +22,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   const [email, setEmail] = useState(initialEmail);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [verifiedCode, setVerifiedCode] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [verificationError, setVerificationError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
@@ -55,9 +55,31 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
 
   const handleVerifyCode = async (submittedCode: string) => {
     setVerificationError(undefined);
-    // Store the code — we'll use it in step 3 when setting the new password
-    setVerifiedCode(submittedCode);
-    setView('new-password');
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/email/verify-reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: submittedCode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setVerificationError(data.message || 'Invalid or expired code. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Code is valid — save the verification token and move to password entry
+      setVerificationToken(data.token);
+      setView('new-password');
+    } catch {
+      setVerificationError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResendResetCode = async () => {
@@ -96,18 +118,17 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
-          code: verifiedCode,
-          newPassword,
+          token: verificationToken,
+          new_password: newPassword,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        // If the code has expired or is invalid, send them back to the code step
-        if (data.error === 'invalid_code') {
-          setVerificationError(data.message || 'Code expired. Please request a new one.');
+        // If the verification token expired, send them back to the code step
+        if (data.error === 'token_expired' || data.error === 'invalid_token') {
+          setVerificationError(data.message || 'Verification expired. Please request a new code.');
           setView('code');
         } else {
           setPasswordError(data.message || data.detail || 'Password reset failed.');
