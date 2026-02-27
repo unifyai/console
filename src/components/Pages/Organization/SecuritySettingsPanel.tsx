@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Switch } from '@/components/UI/switch';
 import { Label } from '@/components/UI/label';
 import { toast } from 'sonner';
@@ -84,16 +84,11 @@ const SecuritySettingsPanel = ({
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4" data-testid="security-settings-panel">
-      <div className="flex items-center gap-2 text-caption font-medium text-muted-foreground">
-        <ShieldCheck className="h-4 w-4" />
-        Security
-      </div>
-
+    <div className="flex flex-col gap-4" data-testid="security-settings-panel">
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="require-mfa" className="text-caption font-medium">
+            <Label htmlFor="require-mfa" className="text-body font-medium">
               Require two-factor authentication
             </Label>
             <p className="text-caption text-muted-foreground">

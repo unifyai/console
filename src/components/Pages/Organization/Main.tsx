@@ -78,7 +78,7 @@ const Main = ({
   return (
     <>
       <Toaster richColors position="bottom-right" closeButton />
-      <div className="relative flex h-full overflow-hidden bg-background">
+      <div className="relative flex h-full overflow-auto bg-background">
         {currentOrg ? (
           <OrganizationWorkspaceView
             organization={currentOrg}
