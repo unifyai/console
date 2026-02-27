@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useTheme } from 'next-themes';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { dracula, docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { StatusIndicator } from './StatusIndicator';
 import type {
   ActionInteraction,
@@ -258,18 +261,97 @@ function expandStringNewlines(jsonText: string): string {
   return out.join('');
 }
 
+const FENCED_CODE_RE = /([ \t]*```(\w+))\n([\s\S]*?)\n([ \t]*```)(?!\w)/g;
+
+type JsonSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'code'; lang: string; code: string; opener: string; closer: string };
+
+/**
+ * Split text into alternating plain-text and fenced-code-block segments.
+ * Code blocks keep their original indentation so they align visually
+ * with the surrounding JSON structure.
+ */
+function splitCodeBlocks(text: string): JsonSegment[] {
+  const segments: JsonSegment[] = [];
+  let lastIndex = 0;
+  const re = new RegExp(FENCED_CODE_RE.source, FENCED_CODE_RE.flags);
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    const start = match.index;
+    if (start > lastIndex) {
+      segments.push({ kind: 'text', text: text.slice(lastIndex, start) });
+    }
+    segments.push({
+      kind: 'code',
+      lang: match[2],
+      code: match[3],
+      opener: match[1],
+      closer: match[4],
+    });
+    lastIndex = start + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ kind: 'text', text: text.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
 /**
  * Renders content as formatted markdown or pretty-printed JSON.
- * Auto-detects JSON objects/arrays and formats them; everything else
- * goes through react-markdown with GFM support.
+ * Auto-detects JSON objects/arrays and formats them with newline
+ * expansion and syntax highlighting for fenced code blocks;
+ * everything else goes through react-markdown with GFM support.
  */
 function RichContent({ content }: { content: string }) {
+  const { theme } = useTheme();
+
   if (isLikelyJson(content)) {
     try {
       const formatted = expandStringNewlines(JSON.stringify(JSON.parse(content), null, 2));
+      const segments = splitCodeBlocks(formatted);
+      const hasCodeBlocks = segments.some((s) => s.kind === 'code');
+
+      if (!hasCodeBlocks) {
+        return (
+          <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+            <code>{formatted}</code>
+          </pre>
+        );
+      }
+
+      const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+
       return (
         <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
-          <code>{formatted}</code>
+          {segments.map((seg, i) =>
+            seg.kind === 'text' ? (
+              <code key={i}>{seg.text}</code>
+            ) : (
+              <code key={i}>
+                {seg.opener}
+                {'\n'}
+                <SyntaxHighlighter
+                  language={seg.lang}
+                  style={hlStyle}
+                  PreTag="span"
+                  customStyle={{
+                    background: 'transparent',
+                    padding: 0,
+                    margin: 0,
+                    display: 'inline',
+                  }}
+                >
+                  {seg.code}
+                </SyntaxHighlighter>
+                {'\n'}
+                {seg.closer}
+              </code>
+            )
+          )}
         </pre>
       );
     } catch {
