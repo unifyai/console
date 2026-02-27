@@ -213,6 +213,52 @@ const markdownComponents = {
 const remarkPlugins = [remarkGfm];
 
 /**
+ * Expand escaped \n inside JSON string values into real newlines with
+ * aligned indentation so multi-line content (prompts, markdown, code)
+ * reads naturally. All other JSON escapes pass through unchanged.
+ */
+function expandStringNewlines(jsonText: string): string {
+  const out: string[] = [];
+  let i = 0;
+  const n = jsonText.length;
+  let inString = false;
+  let indent = 0;
+
+  while (i < n) {
+    const ch = jsonText[i];
+
+    if (!inString) {
+      out.push(ch);
+      if (ch === '"') {
+        inString = true;
+        const lastNl = jsonText.lastIndexOf('\n', i - 1);
+        indent = i - lastNl;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === '\\' && i + 1 < n) {
+      const nxt = jsonText[i + 1];
+      if (nxt === 'n') {
+        out.push('\n', ' '.repeat(indent));
+        i += 2;
+        continue;
+      }
+      out.push(ch, nxt);
+      i += 2;
+      continue;
+    }
+
+    out.push(ch);
+    if (ch === '"') inString = false;
+    i++;
+  }
+
+  return out.join('');
+}
+
+/**
  * Renders content as formatted markdown or pretty-printed JSON.
  * Auto-detects JSON objects/arrays and formats them; everything else
  * goes through react-markdown with GFM support.
@@ -220,7 +266,7 @@ const remarkPlugins = [remarkGfm];
 function RichContent({ content }: { content: string }) {
   if (isLikelyJson(content)) {
     try {
-      const formatted = JSON.stringify(JSON.parse(content), null, 2);
+      const formatted = expandStringNewlines(JSON.stringify(JSON.parse(content), null, 2));
       return (
         <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
           <code>{formatted}</code>
