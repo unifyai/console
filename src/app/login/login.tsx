@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import HallowButton from './hallowButton';
 import GoogleIcon from '@/public/icons/google-icon.png';
-import GithubIcon from '@/public/icons/github-icon.png';
+import { FaMicrosoft } from 'react-icons/fa';
 import { Mail } from 'lucide-react';
 import EmailLoginForm from './email-login';
 
@@ -13,7 +13,7 @@ type AuthTab = 'oauth' | 'email';
 
 interface LoginProps {
   // eslint-disable-next-line no-unused-vars
-  onLogin: (provider: 'email' | 'google' | 'github', email?: string) => () => void;
+  onLogin: (provider: 'email' | 'google' | 'azure-ad', email?: string) => () => void;
   error?: string;
   /** Callback URL for email login redirect */
   callbackUrl?: string;
@@ -42,10 +42,10 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
                   Continue with Google
                 </div>
               </HallowButton>
-              <HallowButton onClick={handleLogin('github')}>
+              <HallowButton onClick={handleLogin('azure-ad')}>
                 <div className="flex items-center justify-center gap-2">
-                  <Image src={GithubIcon} alt="Github" height={20} width={20} />
-                  Continue with Github
+                  <FaMicrosoft className="h-5 w-5" />
+                  Continue with Microsoft
                 </div>
               </HallowButton>
 
@@ -76,7 +76,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
                 className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
                 data-testid="switch-to-oauth"
               >
-                Sign in with Google or Github
+                Sign in with Google or Microsoft
               </button>
             </>
           )}

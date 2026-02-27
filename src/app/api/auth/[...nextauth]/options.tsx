@@ -1,7 +1,7 @@
 import pagesOptions from './pages';
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
-import GithubProvider from 'next-auth/providers/github';
+import AzureADProvider from 'next-auth/providers/azure-ad';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
@@ -53,23 +53,17 @@ const authOptions: AuthOptions = {
         };
       },
     }),
-    GithubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      tenantId: process.env.AZURE_AD_TENANT_ID,
       profile(profile) {
-        // GitHub provides a single "name" field (display name).
-        // Split on the first space to approximate first / last name.
-        const fullName = profile.name ?? profile.login ?? '';
-        const spaceIdx = fullName.indexOf(' ');
-        const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName;
-        const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : null;
-
         return {
-          id: profile.id.toString(),
-          email: profile.email,
-          name: firstName || null,
-          lastName: lastName,
-          image: profile.avatar_url ?? null,
+          id: profile.sub,
+          email: profile.email ?? profile.preferred_username ?? null,
+          name: profile.given_name ?? profile.name ?? null,
+          lastName: profile.family_name ?? null,
+          image: null, // Azure AD doesn't return picture in the ID token by default
         };
       },
     }),
@@ -213,14 +207,11 @@ const authOptions: AuthOptions = {
           console.error('Error fetching Google profile picture:', error);
           token.picture = null;
         }
-      } else if (account?.provider === 'github') {
-        if (profile && typeof profile === 'object' && 'avatar_url' in profile) {
-          if (typeof profile.avatar_url === 'string') {
-            token.picture = profile.avatar_url;
-          } else {
-            token.picture = null;
-          }
-        } else {
+      } else if (account?.provider === 'azure-ad') {
+        // Azure AD does not return a profile picture in the ID token;
+        // fetching it requires MS Graph API with User.Read scope, so we
+        // leave it null for now.
+        if (!token.picture) {
           token.picture = null;
         }
       }

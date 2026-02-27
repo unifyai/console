@@ -13,7 +13,7 @@ interface MfaEnforcementBannerProps {
  *
  * Shown when the user's organization has `require_mfa=true` and the user
  * has not yet enabled 2FA. Applies to all auth providers (email/password,
- * Google, GitHub). Directs the user to the profile security settings.
+ * Google, Microsoft). Directs the user to the profile security settings.
  */
 const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
   return (

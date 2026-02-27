@@ -456,7 +456,7 @@ describe('EmailLoginForm – login flow', () => {
     server.use(
       http.post('/api/auth/email/authenticate', () =>
         HttpResponse.json(
-          { error: 'no_email_account', message: 'Not registered', providers: ['github'] },
+          { error: 'no_email_account', message: 'Not registered', providers: ['azure-ad'] },
           { status: 401 }
         )
       )
@@ -471,7 +471,7 @@ describe('EmailLoginForm – login flow', () => {
 
     await waitFor(() => {
       const error = screen.getByTestId('email-auth-error');
-      expect(error.textContent).toContain('Github');
+      expect(error.textContent).toContain('Azure-ad');
     });
   });
 
@@ -569,7 +569,7 @@ describe('EmailLoginForm – provider-aware error formatting', () => {
     server.use(
       http.post('/api/auth/email/register', () =>
         HttpResponse.json(
-          { error: 'x', message: 'x', providers: ['google', 'github'] },
+          { error: 'x', message: 'x', providers: ['google', 'azure-ad'] },
           { status: 409 }
         )
       )
@@ -585,7 +585,7 @@ describe('EmailLoginForm – provider-aware error formatting', () => {
 
     await waitFor(() => {
       const error = screen.getByTestId('email-auth-error');
-      expect(error.textContent).toContain('Google and Github');
+      expect(error.textContent).toContain('Google and Azure-ad');
     });
   });
 

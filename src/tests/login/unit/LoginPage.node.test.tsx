@@ -107,10 +107,10 @@ vi.mock('../../../app/login/login', () => ({
         Continue with Google
       </button>
       <button
-        data-testid="github-login"
-        onClick={onLogin('github')}
+        data-testid="microsoft-login"
+        onClick={onLogin('azure-ad')}
       >
-        Continue with Github
+        Continue with Microsoft
       </button>
     </div>
   ),
@@ -196,11 +196,11 @@ describe('Login page – token handling', () => {
 
     render(<Login />);
 
-    const githubBtn = screen.getByTestId('github-login');
-    await userEvent.click(githubBtn);
+    const microsoftBtn = screen.getByTestId('microsoft-login');
+    await userEvent.click(microsoftBtn);
 
     expect(mockSignIn).toHaveBeenCalledWith(
-      'github',
+      'azure-ad',
       expect.objectContaining({
         callbackUrl: expect.stringContaining('/assistants'),
       })
@@ -369,7 +369,7 @@ describe('Login page – authenticated redirect', () => {
 });
 
 // ─── OAuth provider name splitting ──────────────────────────────────────────
-// Verifies that the Google and GitHub profile callbacks split the provider's
+// Verifies that the Google and Azure AD profile callbacks split the provider's
 // full name into `name` (first) and `lastName`, and that the adapter forwards
 // `lastName` to Orchestra's POST /user.
 
@@ -455,85 +455,80 @@ describe('Google provider – profile callback', () => {
   });
 });
 
-describe('GitHub provider – profile callback', () => {
-  it('splits "First Last" into name and lastName', async () => {
-    const profile = await getProviderProfileCallback('github');
+describe('Azure AD provider – profile callback', () => {
+  it('extracts given_name and family_name from Azure AD profile', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
 
     const result = profile({
-      id: 42,
-      login: 'johndoe',
+      sub: 'azure-123',
+      email: 'john@company.com',
+      given_name: 'John',
+      family_name: 'Doe',
       name: 'John Doe',
-      email: 'john@github.com',
-      avatar_url: 'https://avatars.githubusercontent.com/u/42',
     });
 
     expect(result).toEqual({
-      id: '42',
-      email: 'john@github.com',
+      id: 'azure-123',
+      email: 'john@company.com',
       name: 'John',
       lastName: 'Doe',
-      image: 'https://avatars.githubusercontent.com/u/42',
+      image: null,
     });
   });
 
-  it('keeps full remainder as lastName for multi-word names', async () => {
-    const profile = await getProviderProfileCallback('github');
+  it('uses given_name over full name when both present', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
 
     const result = profile({
-      id: 99,
-      login: 'maryj',
-      name: 'Mary Jane Watson-Parker',
-      email: 'mary@github.com',
-      avatar_url: null,
+      sub: 'azure-456',
+      email: 'jane@company.com',
+      given_name: 'Jane',
+      family_name: 'Smith-Jones',
+      name: 'Jane Smith-Jones',
     });
 
-    expect(result.name).toBe('Mary');
-    expect(result.lastName).toBe('Jane Watson-Parker');
+    expect(result.name).toBe('Jane');
+    expect(result.lastName).toBe('Smith-Jones');
   });
 
-  it('uses single name with no lastName when no space present', async () => {
-    const profile = await getProviderProfileCallback('github');
+  it('falls back to full name when given_name is absent', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
 
     const result = profile({
-      id: 7,
-      login: 'prince',
-      name: 'Prince',
-      email: 'prince@github.com',
-      avatar_url: null,
+      sub: 'azure-789',
+      email: 'mono@company.com',
+      name: 'Mononymous',
     });
 
-    expect(result.name).toBe('Prince');
+    expect(result.name).toBe('Mononymous');
     expect(result.lastName).toBeNull();
   });
 
-  it('falls back to login when name is null', async () => {
-    const profile = await getProviderProfileCallback('github');
+  it('falls back to preferred_username when email is absent', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
 
     const result = profile({
-      id: 1,
-      login: 'gh-user',
-      name: null,
-      email: 'user@github.com',
-      avatar_url: null,
+      sub: 'azure-noemail',
+      preferred_username: 'user@tenant.onmicrosoft.com',
+      given_name: 'User',
+      family_name: 'Name',
+      name: 'User Name',
     });
 
-    expect(result.name).toBe('gh-user');
-    expect(result.lastName).toBeNull();
+    expect(result.email).toBe('user@tenant.onmicrosoft.com');
   });
 
-  it('converts numeric id to string', async () => {
-    const profile = await getProviderProfileCallback('github');
+  it('handles missing name fields gracefully', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
 
     const result = profile({
-      id: 12345,
-      login: 'numid',
-      name: 'Num Id',
-      email: 'num@github.com',
-      avatar_url: null,
+      sub: 'azure-000',
+      email: 'noname@company.com',
     });
 
-    expect(result.id).toBe('12345');
-    expect(typeof result.id).toBe('string');
+    expect(result.name).toBeNull();
+    expect(result.lastName).toBeNull();
+    expect(result.image).toBeNull();
   });
 });
 

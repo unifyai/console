@@ -81,7 +81,7 @@ const Login = () => {
     );
   }
 
-  const handleLogin = (provider: 'email' | 'google' | 'github', email?: string) => async () => {
+  const handleLogin = (provider: 'email' | 'google' | 'azure-ad', email?: string) => async () => {
     setTab('loading');
     let callback: URL;
 

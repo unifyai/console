@@ -15,7 +15,7 @@ declare module 'next-auth' {
     iat?: number;
     /** True when the user still needs to complete MFA verification. */
     mfaPending?: boolean;
-    /** The auth provider used for the current session ('credentials', 'google', 'github'). */
+    /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
   }
 }
@@ -33,7 +33,7 @@ declare module 'next-auth/jwt' {
     iat?: number;
     /** True when the user still needs to complete MFA verification. */
     mfaPending?: boolean;
-    /** The auth provider used for the current session ('credentials', 'google', 'github'). */
+    /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
   }
 }
