@@ -25,6 +25,8 @@ import type {
   ToolLoopLog,
 } from '@/types/assistants/action';
 
+const SHOW_EXECUTE_CODE_CONTENT = true;
+
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
 export type SectionToggleSignal = { open: boolean; gen: number };
 
@@ -437,6 +439,7 @@ function ContentArea({
 function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
+  const { theme } = useTheme();
 
   if (message.role === 'system') return null;
 
@@ -463,10 +466,44 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   if (message.role === 'assistant') {
     if (message.toolCalls && message.toolCalls.length > 0) {
       const toolNames = message.toolCalls.map((tc) => `${tc.function.name}()`).join(', ');
+
+      const codeBlocks: Array<{ lang: string; code: string }> = [];
+      if (SHOW_EXECUTE_CODE_CONTENT) {
+        for (const tc of message.toolCalls) {
+          if (tc.function.name !== 'execute_code') continue;
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            if (args.code) codeBlocks.push({ lang: args.language || 'python', code: args.code });
+          } catch {
+            /* skip malformed arguments */
+          }
+        }
+      }
+
+      const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+
       return (
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
-          <span className="text-muted-foreground/50 min-w-0 flex-1">{toolNames}</span>
+          <div className="text-muted-foreground/50 min-w-0 flex-1">
+            <span>{toolNames}</span>
+            {codeBlocks.map((block, i) => (
+              <SyntaxHighlighter
+                key={i}
+                language={block.lang}
+                style={hlStyle}
+                customStyle={{
+                  fontSize: '10px',
+                  lineHeight: '1.4',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  margin: '4px 0 0 0',
+                }}
+              >
+                {block.code.trim()}
+              </SyntaxHighlighter>
+            ))}
+          </div>
           {timeLabel}
         </div>
       );
