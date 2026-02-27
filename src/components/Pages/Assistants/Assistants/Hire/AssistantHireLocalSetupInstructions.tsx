@@ -32,7 +32,7 @@ const LoadingSkeleton = () => (
 // Map OS to display name for the download button
 const OS_DISPLAY_NAMES: Record<string, string> = {
   ubuntu: 'Ubuntu (.deb)',
-  windows: 'Windows (.nupkg)',
+  windows: 'Windows (.exe)',
   macos: 'macOS (.dmg)',
 };
 

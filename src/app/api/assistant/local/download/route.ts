@@ -6,7 +6,7 @@ type ValidOS = (typeof VALID_OS)[number];
 // Map OS to expected file extension in release assets
 const OS_TO_EXTENSION: Record<ValidOS, string> = {
   ubuntu: '.deb',
-  windows: '.nupkg',
+  windows: '.exe',
   macos: '.dmg',
 };
 
