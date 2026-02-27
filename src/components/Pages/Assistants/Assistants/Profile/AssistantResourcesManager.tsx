@@ -96,7 +96,7 @@ export function AssistantResourcesManager({
           icon={<KeyRound className="h-4 w-4 flex-shrink-0" />}
           handleClick={() => setIsSecretsManagerOpen(true)}
         />
-        {canWrite && (
+        {/* {canWrite && (
           <ContactItem
             value={assistant.userDesktopId ? 'User Desktop Linked' : 'Link User Desktop'}
             tooltip={
@@ -107,7 +107,7 @@ export function AssistantResourcesManager({
             icon={<Monitor className="h-4 w-4 flex-shrink-0" />}
             handleClick={() => setIsDesktopLinkerOpen(true)}
           />
-        )}
+        )} */}
       </div>
 
       {isSecretsManagerOpen && (
@@ -120,7 +120,7 @@ export function AssistantResourcesManager({
         />
       )}
 
-      {isDesktopLinkerOpen && (
+      {/* {isDesktopLinkerOpen && (
         <AssistantDesktopLinker
           isOpen={isDesktopLinkerOpen}
           onClose={() => setIsDesktopLinkerOpen(false)}
@@ -131,7 +131,7 @@ export function AssistantResourcesManager({
             onAssistantUpdated?.(assistant.agentId, { userDesktopId });
           }}
         />
-      )}
+      )} */}
     </>
   );
 }
