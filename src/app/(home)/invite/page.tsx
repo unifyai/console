@@ -18,9 +18,9 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-4 rounded-xl border bg-card p-8 text-center shadow-sm">
-          <XCircle className="mx-auto h-12 w-12 text-destructive" />
-          <h1 className="text-display text-bold">Invalid Invitation</h1>
-          <p className="text-muted-foreground">The invitation link is missing a token.</p>
+          <XCircle className="mx-auto h-8 w-8 text-destructive" />
+          <h2 className="text-h2 text-bold">Invalid Invitation</h2>
+          <p className="text-body text-muted-foreground">The invitation link is missing a token.</p>
           <Link href="/">
             <Button>Go Home</Button>
           </Link>

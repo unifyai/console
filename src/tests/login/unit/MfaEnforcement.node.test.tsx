@@ -2,8 +2,8 @@
  * Tests for Organization MFA Enforcement frontend components.
  *
  * Covers:
- * - MfaEnforcementBanner rendering (org name, CTA link, test IDs)
- * - MfaEnforcementGate conditional rendering (banner + children, blocking mode)
+ * - MfaEnforcementBanner rendering (org name, CTA button, test IDs)
+ * - MfaEnforcementGate conditional rendering (modal + children)
  * - getCurrentUser MFA enforcement check logic
  */
 
@@ -12,13 +12,13 @@ import { render, screen } from '@testing-library/react';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-// Mock next/link
-vi.mock('next/link', () => ({
-  default: ({ children, href, ...rest }: any) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+const pushMock = vi.fn();
+let mockPathname = '/assistants';
+
+// Mock next/navigation (used by the modal's CTA button and pathname check)
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+  usePathname: () => mockPathname,
 }));
 
 // Mock lucide-react
@@ -26,19 +26,20 @@ vi.mock('lucide-react', () => ({
   ShieldAlert: (props: any) => <svg data-testid="shield-alert-icon" {...props} />,
 }));
 
-// ─── MfaEnforcementBanner ─────────────────────────────────────────────────────
+// ─── MfaEnforcementBanner (modal) ─────────────────────────────────────────────
 
 describe('MfaEnforcementBanner', () => {
   let MfaEnforcementBanner: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockPathname = '/assistants'; // default: not on profile page
     MfaEnforcementBanner = (
       await import('@/components/Common/Auth/MfaEnforcementBanner')
     ).default;
   });
 
-  it('renders the banner with org name', () => {
+  it('renders the modal with org name', () => {
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
     expect(screen.getByTestId('mfa-enforcement-banner')).toBeInTheDocument();
@@ -53,13 +54,6 @@ describe('MfaEnforcementBanner', () => {
     ).toBeInTheDocument();
   });
 
-  it('has a link to profile settings', () => {
-    render(<MfaEnforcementBanner orgName="Acme Corp" />);
-
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/profile#security');
-  });
-
   it('renders the setup button with correct test ID', () => {
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
@@ -67,6 +61,23 @@ describe('MfaEnforcementBanner', () => {
     expect(screen.getByTestId('mfa-setup-redirect-btn')).toHaveTextContent(
       'Set up two-factor authentication',
     );
+  });
+
+  it('navigates to profile security tab on CTA click', async () => {
+    const { userEvent } = await import('@testing-library/user-event');
+    render(<MfaEnforcementBanner orgName="Acme Corp" />);
+
+    const btn = screen.getByTestId('mfa-setup-redirect-btn');
+    await userEvent.setup().click(btn);
+
+    expect(pushMock).toHaveBeenCalledWith('/profile?tab=security');
+  });
+
+  it('does not render on the profile page', () => {
+    mockPathname = '/profile';
+    render(<MfaEnforcementBanner orgName="Acme Corp" />);
+
+    expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();
   });
 
   it('renders the shield alert icon', () => {
@@ -106,7 +117,7 @@ describe('MfaEnforcementGate', () => {
     vi.resetModules();
   });
 
-  it('renders children without banner when user has no mfaSetupRequired', async () => {
+  it('renders children without modal when user has no mfaSetupRequired', async () => {
     vi.doMock('@/lib/user/user', () => ({
       getCurrentUser: vi.fn().mockResolvedValue({
         id: 'user-1',
@@ -130,7 +141,7 @@ describe('MfaEnforcementGate', () => {
     expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();
   });
 
-  it('renders banner + children when mfaSetupRequired is set (non-blocking)', async () => {
+  it('renders modal + children when mfaSetupRequired is set', async () => {
     vi.doMock('@/lib/user/user', () => ({
       getCurrentUser: vi.fn().mockResolvedValue({
         id: 'user-1',
@@ -155,7 +166,7 @@ describe('MfaEnforcementGate', () => {
     expect(screen.getByTestId('child-content')).toBeInTheDocument();
   });
 
-  it('renders only banner when blocking=true and mfaSetupRequired is set', async () => {
+  it('renders modal + children even when blocking=true (modal overlays content)', async () => {
     vi.doMock('@/lib/user/user', () => ({
       getCurrentUser: vi.fn().mockResolvedValue({
         id: 'user-1',
@@ -170,14 +181,14 @@ describe('MfaEnforcementGate', () => {
     );
 
     const result = await MfaEnforcementGate({
-      children: <div data-testid="child-content">Should not appear</div>,
+      children: <div data-testid="child-content">Should still render</div>,
       blocking: true,
     });
 
     render(result);
 
     expect(screen.getByTestId('mfa-enforcement-banner')).toBeInTheDocument();
-    expect(screen.queryByTestId('child-content')).not.toBeInTheDocument();
+    expect(screen.getByTestId('child-content')).toBeInTheDocument();
   });
 
   it('renders children when user is null (not logged in)', async () => {
@@ -257,4 +268,3 @@ describe('User type – mfaSetupRequired', () => {
     expect(user.mfaSetupRequired).toBeUndefined();
   });
 });
-

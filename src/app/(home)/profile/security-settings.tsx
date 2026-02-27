@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/UI/button';
 import { Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
 import TotpSetup from './totp-setup';
@@ -25,6 +26,7 @@ interface MfaStatus {
  * - Regenerating recovery codes
  */
 const SecuritySettings = () => {
+  const router = useRouter();
   const [mfaStatus, setMfaStatus] = useState<MfaStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDisable, setShowDisable] = useState(false);
@@ -82,6 +84,7 @@ const SecuritySettings = () => {
         setDisableWithRecovery(false);
         setRecoveryCode('');
         await fetchStatus();
+        router.refresh();
       } catch {
         setDisableError('Failed to disable 2FA.');
       } finally {
@@ -128,7 +131,7 @@ const SecuritySettings = () => {
           <ShieldOff className="h-4 w-4" />
           <span className="text-body">Two-factor authentication is not enabled.</span>
         </div>
-        <TotpSetup onEnabled={fetchStatus} />
+        <TotpSetup onEnabled={() => { fetchStatus(); router.refresh(); }} />
       </div>
     );
   }

@@ -5,17 +5,16 @@ import MfaEnforcementBanner from './MfaEnforcementBanner';
  * Server component that checks whether the current user needs to set up MFA
  * for their active org workspace.
  *
- * When MFA setup is required, the enforcement banner is shown **above** the
- * page content. The children are still rendered (e.g. so the user can
- * navigate to /profile to set up MFA), but the banner makes the requirement
- * visually prominent.
+ * When MFA setup is required, a non-dismissible modal overlay is shown on top
+ * of the page content. The children are still rendered underneath so the user
+ * can navigate (e.g. to /profile to set up MFA) once they click the CTA.
  *
- * Pages that should be **blocked** when MFA is not set up (e.g. assistants,
- * interfaces) can use the ``blocking`` prop to replace children entirely.
+ * The ``blocking`` prop is retained for API compatibility but no longer
+ * changes the visual behaviour — the modal always overlays the page.
  */
 export default async function MfaEnforcementGate({
   children,
-  blocking = false,
+  blocking: _blocking = false,
 }: {
   children: React.ReactNode;
   blocking?: boolean;
@@ -23,9 +22,6 @@ export default async function MfaEnforcementGate({
   const user = await getCurrentUser();
 
   if (user?.mfaSetupRequired) {
-    if (blocking) {
-      return <MfaEnforcementBanner orgName={user.mfaSetupRequired.orgName} />;
-    }
     return (
       <>
         <MfaEnforcementBanner orgName={user.mfaSetupRequired.orgName} />
@@ -36,4 +32,3 @@ export default async function MfaEnforcementGate({
 
   return <>{children}</>;
 }
-

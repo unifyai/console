@@ -2,6 +2,7 @@
 
 import { User } from '@/types/user';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
+import { useSearchParams } from 'next/navigation';
 import ProfileForm from './Form';
 import SecurityTab from './SecurityTab';
 
@@ -12,8 +13,11 @@ const ProfileTabs = ({
   user: User;
   onPrem: string | undefined;
 }) => {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'security' ? 'security' : 'profile';
+
   return (
-    <Tabs defaultValue="profile" className="mt-4">
+    <Tabs defaultValue={initialTab} className="mt-4">
       <TabsList className="w-full">
         <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
         <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>

@@ -42,26 +42,23 @@ const Main = ({ token, onAccept }: MainProps) => {
 
   return (
     <div className="w-full max-w-md space-y-6 rounded-xl border bg-card p-8 text-center shadow-sm">
-      <div className="mb-4 flex justify-center">
-        <span className="text-display text-bold">Unify</span>
-      </div>
 
       {status === 'processing' && (
         <>
-          <Loader2 className="mx-auto h-16 w-16 animate-spin text-primary" />
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
           <div className="space-y-2">
-            <h1 className="text-display text-bold">Joining Organization...</h1>
-            <p className="text-muted-foreground">Please wait while we process your invitation.</p>
+            <h2 className="text-h2 text-bold">Joining Organization...</h2>
+            <p className="text-body text-muted-foreground">Please wait while we process your invitation.</p>
           </div>
         </>
       )}
 
       {status === 'success' && (
         <>
-          <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+          <CheckCircle className="mx-auto h-8 w-8 text-green-500" />
           <div className="space-y-2">
-            <h1 className="text-display text-bold">Welcome!</h1>
-            <p className="text-muted-foreground">You have successfully joined the organization.</p>
+            <h2 className="text-h2 text-bold">Welcome!</h2>
+            <p className="text-body text-muted-foreground">You have successfully joined the organization.</p>
           </div>
           <div className="pt-4">
             <Link href="/">
@@ -73,10 +70,10 @@ const Main = ({ token, onAccept }: MainProps) => {
 
       {status === 'error' && (
         <>
-          <XCircle className="mx-auto h-16 w-16 text-destructive" />
+          <XCircle className="mx-auto h-8 w-8 text-destructive" />
           <div className="space-y-2">
-            <h1 className="text-display text-bold">Invitation Failed</h1>
-            <p className="text-muted-foreground">{message}</p>
+            <h2 className="text-h2 text-bold">Invitation Failed</h2>
+            <p className="text-body text-muted-foreground">{message}</p>
           </div>
           <div className="pt-4">
             <Link href="/">

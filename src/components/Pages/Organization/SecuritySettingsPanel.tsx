@@ -109,12 +109,6 @@ const SecuritySettingsPanel = ({
             data-testid="require-mfa-toggle"
           />
         </div>
-        {requireMfa && (
-          <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-300">
-            MFA is enforced. Members who haven&apos;t set up 2FA will see a setup prompt
-            when they access this workspace.
-          </div>
-        )}
       </div>
     </div>
   );

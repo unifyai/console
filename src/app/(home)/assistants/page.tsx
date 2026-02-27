@@ -182,7 +182,13 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     update: await updateTask(apiKey),
   };
 
-  const userMeta = { image: user.image, timezone: user.timezone, email: user.email, orgId };
+  const userMeta = {
+    image: user.image,
+    timezone: user.timezone,
+    email: user.email,
+    orgId,
+    mfaSetupRequired: !!user.mfaSetupRequired,
+  };
 
   return (
     <div className="h-full w-full">

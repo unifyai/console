@@ -57,6 +57,7 @@ interface MainProps {
     timezone?: string | null;
     email?: string | null;
     orgId?: number | null;
+    mfaSetupRequired?: boolean;
   };
 }
 
@@ -659,7 +660,9 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   React.useEffect(() => {
     if (!isBillingLoading && !isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
       initialAssistantLoadProcessedRef.current = true;
-      if (!assistantError && assistants.length === 0 && !isHireDialogOpen) {
+      // Don't auto-open the hire dialog when MFA setup is required —
+      // the MFA enforcement modal needs to stay in focus.
+      if (!assistantError && assistants.length === 0 && !isHireDialogOpen && !userMeta.mfaSetupRequired) {
         handleOpenHireDialog();
       }
     }
@@ -670,6 +673,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     handleOpenHireDialog,
     isBillingLoading,
     isHireDialogOpen,
+    userMeta.mfaSetupRequired,
   ]);
   React.useEffect(() => {
     if (justDeletedVoiceId) {
