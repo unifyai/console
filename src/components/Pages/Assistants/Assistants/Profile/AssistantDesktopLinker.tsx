@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/UI/dialog';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Monitor, Link2, Unlink, Download } from 'lucide-react';
+import { Loader2, Monitor, Link2, Unlink } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
@@ -176,10 +176,7 @@ export function AssistantDesktopLinker({
         </ScrollArea>
 
         <div className="border-t border-border pt-3">
-          <div className="text-body-muted flex items-center gap-2">
-            <Download className="h-4 w-4 flex-shrink-0" />
-            <span>Local Setup Instructions</span>
-          </div>
+          <p className="text-title leading-none tracking-tight">Local Setup Instructions</p>
           <div className="mt-2 flex gap-2">
             {(['macos', 'windows', 'ubuntu'] as const).map((os) => (
               <Button
