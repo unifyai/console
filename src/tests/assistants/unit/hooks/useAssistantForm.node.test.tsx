@@ -69,6 +69,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   call: {
     getConnectionDetails: vi.fn(),
     dispatchToCall: vi.fn(),
+    deleteRoom: vi.fn(),
   },
   voice: {
     list: vi.fn(),
