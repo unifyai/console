@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { ExternalLink, Maximize2, PictureInPicture } from 'lucide-react';
+import { ExternalLink, Hand, Maximize2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -38,25 +38,22 @@ export function AssistantCommunicationHeader({
       <p className="text-title">Talk to {assistantName}</p>
       {/* Stop propagation so button clicks don't initiate a drag */}
       <div className="flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
-        {onPopOut && (
+        {onMinimize && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={onPopOut}
-                    disabled={isPopOutDisabled}
-                    aria-label="Open in new tab"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={onMinimize}
+                  aria-label="Floating Mode"
+                >
+                  <Hand className="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>{isPopOutDisabled ? 'Available when call is ready' : 'Open in new tab'}</p>
+                <p>Floating Mode</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -81,22 +78,25 @@ export function AssistantCommunicationHeader({
             </Tooltip>
           </TooltipProvider>
         )}
-        {onMinimize && (
+        {onPopOut && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  onClick={onMinimize}
-                  aria-label="Floating Mode"
-                >
-                  <PictureInPicture className="h-4 w-4" />
-                </Button>
+                <span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={onPopOut}
+                    disabled={isPopOutDisabled}
+                    aria-label="Open in new tab"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>Floating Mode</p>
+                <p>{isPopOutDisabled ? 'Available when call is ready' : 'Open in new tab'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
