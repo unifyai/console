@@ -213,6 +213,10 @@ const authOptions: AuthOptions = {
       if (user?.mfaPending) {
         token.mfaPending = true;
       }
+      // On OAuth sign-up: flag new users for workspace onboarding
+      if (trigger === 'signUp') {
+        token.needsOnboarding = true;
+      }
       // On OAuth sign-in: check if the user has MFA enabled and prompt if so
       if (account && account.provider !== 'credentials' && token.email) {
         try {
@@ -230,6 +234,10 @@ const authOptions: AuthOptions = {
       // On session update: clear mfaPending after TOTP verification
       if (trigger === 'update' && session?.mfaPending === false) {
         delete token.mfaPending;
+      }
+      // On session update: clear needsOnboarding after workspace selection
+      if (trigger === 'update' && session?.needsOnboarding === false) {
+        delete token.needsOnboarding;
       }
 
       if (account?.provider === 'google' && !token.picture) {
@@ -283,6 +291,10 @@ const authOptions: AuthOptions = {
       // Expose mfaPending so the middleware and /login/mfa page can react.
       if (token.mfaPending) {
         session.mfaPending = true;
+      }
+      // Expose needsOnboarding so the middleware can redirect to /login/workspace.
+      if (token.needsOnboarding) {
+        session.needsOnboarding = true;
       }
       // Expose the auth provider so downstream logic can distinguish
       // email/password sessions from OAuth sessions.

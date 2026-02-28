@@ -172,12 +172,18 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
-      // User created — now sign in via NextAuth
+      // User created — now sign in via NextAuth.
+      // If this is a fresh signup (no invite/credit callback), redirect to
+      // the workspace onboarding page so the user can choose between
+      // personal and organization before they start configuring anything.
+      const isSpecialCallback = callbackUrl && callbackUrl !== '/' && callbackUrl !== '';
+      const effectiveCallbackUrl = isSpecialCallback ? callbackUrl : '/login/workspace';
+
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
-        callbackUrl: callbackUrl ?? '/',
+        callbackUrl: effectiveCallbackUrl,
       });
 
       if (result?.url) {

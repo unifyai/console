@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -27,6 +27,7 @@ interface InviteContentProps {
  * - If the email doesn't match → shows two buttons: "Back to Login" + "Continue anyway"
  */
 const InviteContent = ({ token, onAccept }: InviteContentProps) => {
+  const { update } = useSession();
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'mfa_required' | 'error'>('processing');
   const [message, setMessage] = useState('');
@@ -49,14 +50,20 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
           // Org requires MFA and user doesn't have it — redirect to MFA setup
           setOrgName(result.organizationName);
           setStatus('mfa_required');
+          // Clear onboarding flag — user is joining an org via invite
+          await update({ needsOnboarding: false });
           // Auto-redirect after a brief moment so the user sees the message
           setTimeout(() => {
             router.push('/login/mfa');
           }, 2000);
         } else if (result && typeof result === 'object' && 'success' in result) {
           setOrgName(result.organizationName);
+          // Clear onboarding flag — user is joining an org via invite
+          await update({ needsOnboarding: false });
           setStatus('success');
         } else {
+          // Clear onboarding flag
+          await update({ needsOnboarding: false });
           setStatus('success');
         }
       } catch {
@@ -66,7 +73,7 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
     };
 
     processInvite();
-  }, [token, onAccept, router]);
+  }, [token, onAccept, router, update]);
 
   const handleBackToLogin = useCallback(async () => {
     await signOut({ redirect: false });
@@ -135,7 +142,7 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
               <Button onClick={handleBackToLogin} className="w-full" data-testid="back-to-login-btn">
                 ← Back to Login
               </Button>
-              <Button variant="outline" onClick={() => router.push('/assistants')} className="w-full" data-testid="continue-anyway-btn">
+              <Button variant="outline" onClick={() => router.push('/login/workspace')} className="w-full" data-testid="continue-anyway-btn">
                 Continue anyway
               </Button>
             </div>

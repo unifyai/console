@@ -56,6 +56,17 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     }
   }
 
+  // Onboarding check: redirect new users to workspace selection.
+  // This runs AFTER the MFA check (security-first) and only when the user
+  // doesn't have mfaPending (which takes priority).
+  if (token?.needsOnboarding && !token?.mfaPending) {
+    const onboardingAllowed = ['/login/workspace', '/login/invite', '/login/mfa', '/api/auth', '/_next'];
+    const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/login/workspace', request.url));
+    }
+  }
+
   return withAuth({ pages: authOptions.pages, secret: process.env.JWT_SECRET })(request, event);
 }
 

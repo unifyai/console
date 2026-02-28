@@ -15,6 +15,8 @@ declare module 'next-auth' {
     iat?: number;
     /** True when the user still needs to complete MFA verification. */
     mfaPending?: boolean;
+    /** True when a new user needs to choose between personal and org workspace. */
+    needsOnboarding?: boolean;
     /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
   }
@@ -33,6 +35,8 @@ declare module 'next-auth/jwt' {
     iat?: number;
     /** True when the user still needs to complete MFA verification. */
     mfaPending?: boolean;
+    /** True when a new user needs to choose between personal and org workspace. */
+    needsOnboarding?: boolean;
     /** The auth provider used for the current session ('credentials', 'google', 'azure-ad'). */
     provider?: string;
   }
