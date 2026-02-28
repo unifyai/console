@@ -36,8 +36,8 @@ const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
 
   // Don't show the modal on pages where the user needs unobstructed access:
   // - /profile: to set up MFA via the security tab
-  // - /invite: to accept an organization invite
-  if (pathname === '/profile' || pathname === '/invite') {
+  // - /invite or /login/invite: to accept an organization invite
+  if (pathname === '/profile' || pathname === '/invite' || pathname.startsWith('/login/invite')) {
     return null;
   }
 

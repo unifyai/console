@@ -126,7 +126,11 @@ const SecuritySettings = () => {
 
   if (!mfaStatus?.enabled) {
     return (
-      <TotpSetup autoStart onEnabled={() => { fetchStatus(); router.refresh(); }} />
+      <TotpSetup autoStart onEnabled={() => {
+        setMfaStatus({ enabled: true }); // Optimistic update to prevent button flash
+        fetchStatus(); // Confirm from server
+        router.refresh();
+      }} />
     );
   }
 

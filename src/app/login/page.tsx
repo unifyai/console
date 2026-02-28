@@ -6,7 +6,6 @@ import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from './login';
 import { useState, useEffect } from 'react';
 import CheckElement from './check';
-import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 
@@ -54,6 +53,9 @@ const Login = () => {
   const inviteToken = searchParams?.get('invite');
   const creditToken = searchParams?.get('credit');
 
+  // Detect invite context from either explicit param or callbackUrl
+  const isInviteFlow = !!inviteToken || callbackUrl?.includes('/login/invite') || callbackUrl?.includes('/invite');
+
   // Track whether we are actively signing out a stale session
   // (e.g. user deleted their backend account but the JWT cookie persists).
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
@@ -88,7 +90,7 @@ const Login = () => {
   // Show a loader while we're clearing a stale session
   if (isSigningOut) {
     return (
-      <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center">
+      <div className="m-auto flex items-center justify-center">
         <LoadingElement />
       </div>
     );
@@ -100,7 +102,7 @@ const Login = () => {
 
     // If we have an invite or credit token, set the callback to the appropriate page
     if (inviteToken) {
-      callback = new URL('/invite', document.location.href);
+      callback = new URL('/login/invite', document.location.href);
       callback.searchParams.set('token', inviteToken);
     } else if (creditToken) {
       callback = new URL('/assistants', document.location.href);
@@ -133,40 +135,28 @@ const Login = () => {
   };
 
   return (
-    <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center bg-background xl:bg-transparent">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="m-auto flex w-full flex-col gap-9"
+    >
       <LayoutGroup>
-        <motion.div
-          initial={{ y: '100vh' }}
-          animate={{ y: 0 }}
-          transition={{ type: 'spring', bounce: 0.1 }}
-          className="z-[200] xl:border-1 xl:rounded-3xl xl:border-[var(--white-smoke)] xl:p-6 xl:backdrop-blur-lg"
-        >
-          <div className="flex h-screen w-screen overflow-y-auto bg-background p-8 md:p-24 xl:h-auto xl:max-h-screen xl:w-[720px] xl:rounded-lg xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="m-auto flex w-full flex-col gap-9"
-            >
-
-              {/* Banner for invite/credit token context */}
-              {inviteToken && (
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200" data-testid="invite-banner">
-                  You&apos;ve been invited to join an organization. Sign in to accept.
-                </div>
-              )}
-              <div className="flex justify-center lg:container">
-                <AnimatedTabs selected={tab}>
-                  <LoginFragment onLogin={handleLogin} error={error} callbackUrl={callbackUrl ?? undefined} key="login" />
-                  <LoadingElement key="loading" />
-                  <CheckElement key="check" />
-                </AnimatedTabs>
-              </div>
-            </motion.div>
+        {/* Banner for invite/credit token context */}
+        {isInviteFlow && (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200" data-testid="invite-banner">
+            You&apos;ve been invited to join an organization. Please sign in with the email address you received the invitation at.
           </div>
-        </motion.div>
+        )}
+        <div className="flex justify-center lg:container">
+          <AnimatedTabs selected={tab}>
+            <LoginFragment onLogin={handleLogin} error={error} callbackUrl={callbackUrl ?? undefined} key="login" />
+            <LoadingElement key="loading" />
+            <CheckElement key="check" />
+          </AnimatedTabs>
+        </div>
       </LayoutGroup>
-    </div>
+    </motion.div>
   );
 };
 

@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { SessionProvider } from '@/components/Pages/Providers/SessionProvider';
 import { EnvironmentProvider } from '@/components/Pages/Providers/EnvironmentProvider';
+import LoginCardShell from './login-card';
 
 export const metadata: Metadata = {
   title: 'Login',
@@ -17,9 +18,9 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
   return (
     <SessionProvider>
       <EnvironmentProvider config={envConfig}>
-        <div className="h-screen w-screen overflow-hidden">
+        <LoginCardShell>
           {children}
-        </div>
+        </LoginCardShell>
       </EnvironmentProvider>
     </SessionProvider>
   );

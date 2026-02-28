@@ -169,7 +169,7 @@ describe('Login page – token handling', () => {
     expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
   });
 
-  it('sets callback URL to /invite?token=<token> when invite token present', async () => {
+  it('sets callback URL to /login/invite?token=<token> when invite token present', async () => {
     mockSearchParamsMap = { invite: 'inv_abc' };
 
     render(<Login />);
@@ -180,14 +180,14 @@ describe('Login page – token handling', () => {
     expect(mockSignIn).toHaveBeenCalledWith(
       'google',
       expect.objectContaining({
-        callbackUrl: expect.stringContaining('/invite'),
+        callbackUrl: expect.stringContaining('/login/invite'),
       })
     );
 
     // Verify the callback URL includes the token
     const callbackUrl = mockSignIn.mock.calls[0][1].callbackUrl;
     const parsed = new URL(callbackUrl);
-    expect(parsed.pathname).toBe('/invite');
+    expect(parsed.pathname).toBe('/login/invite');
     expect(parsed.searchParams.get('token')).toBe('inv_abc');
   });
 
@@ -256,7 +256,7 @@ describe('Login page – token handling', () => {
 
     const callbackUrl = mockSignIn.mock.calls[0][1].callbackUrl;
     const parsed = new URL(callbackUrl);
-    expect(parsed.pathname).toBe('/invite');
+    expect(parsed.pathname).toBe('/login/invite');
     expect(parsed.searchParams.get('token')).toBe('inv_priority');
   });
 });

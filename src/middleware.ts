@@ -45,10 +45,11 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   }
 
   // MFA-pending check: redirect to /login/mfa when the JWT has mfaPending=true.
-  // Allow /login/mfa itself, NextAuth API routes, and static assets.
+  // Allow /login/mfa itself, /login/invite (so users can accept invites
+  // before verifying MFA), NextAuth API routes, and static assets.
   const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
   if (token?.mfaPending) {
-    const mfaAllowed = ['/login/mfa', '/api/auth', '/_next'];
+    const mfaAllowed = ['/login/mfa', '/login/invite', '/api/auth', '/_next'];
     const isAllowed = mfaAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/login/mfa', request.url));

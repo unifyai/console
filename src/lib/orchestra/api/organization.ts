@@ -177,8 +177,14 @@ export const inviteMemberAction = async (apiKey: string) => {
   };
 };
 
+export interface AcceptInviteResult {
+  success: true;
+  organizationName?: string;
+  mfaSetupRequired?: boolean;
+}
+
 export const acceptInviteAction = async (apiKey: string) => {
-  return async (token: string): Promise<void | ResponseProps> => {
+  return async (token: string): Promise<AcceptInviteResult | ResponseProps> => {
     'use server';
     const client = createOrchestraClient(apiKey);
     const { data, error, response } = await client.POST('/v0/invites/{token}/accept', {
@@ -201,7 +207,11 @@ export const acceptInviteAction = async (apiKey: string) => {
       });
     }
 
-    return;
+    return {
+      success: true as const,
+      organizationName: (responseData?.organizationName as string) ?? undefined,
+      mfaSetupRequired: responseData?.mfaSetupRequired === true,
+    };
   };
 };
 

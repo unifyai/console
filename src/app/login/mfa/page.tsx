@@ -1,33 +1,72 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
-import TotpInput from '../totp-input';
+import TotpInput from '@/components/Common/Auth/TotpInput';
+import TotpSetup from '@/components/Common/Auth/TotpSetup';
 import { Button } from '@/components/UI/button';
+import { Loader2 } from 'lucide-react';
 
 /**
- * /login/mfa — Two-Factor Authentication verification page.
+ * /login/mfa — Two-Factor Authentication page.
  *
- * Shown when an email/password user with MFA enabled logs in.
- * The JWT contains mfaPending=true and the middleware redirects here.
- * After successful verification the mfaPending flag is cleared via
- * session.update(), and the user is redirected to /assistants.
+ * This page serves two purposes depending on the user's MFA status:
  *
- * The user ID is resolved server-side in the API routes (from the JWT
- * token) — the client only sends the TOTP / recovery code.
+ * 1. **Verification** (MFA already enabled): Shown when an email/password or
+ *    OAuth user with MFA enabled logs in. The JWT contains mfaPending=true
+ *    and the middleware redirects here. After successful verification the
+ *    mfaPending flag is cleared and the user proceeds to /assistants.
+ *
+ * 2. **Setup** (MFA not yet enabled): Shown when a newly invited user joins
+ *    an org that enforces MFA. The invite flow redirects here so the user
+ *    can set up 2FA before accessing the workspace.
+ *
+ * The page auto-detects which mode to use by checking the user's MFA status
+ * on mount.
+ *
+ * The card shell (background, halo, spring animation) is provided by the
+ * shared LoginCardShell in the login layout — this page only renders its
+ * content.
  */
 const MfaPage = () => {
   const { update } = useSession();
   const router = useRouter();
 
+  // MFA status detection
+  const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null); // null = loading
+  const [statusError, setStatusError] = useState(false);
+
+  // Verification state
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
   const [recoveryWarning, setRecoveryWarning] = useState<string | undefined>();
+
+  // Check MFA status on mount to decide which flow to show
+  useEffect(() => {
+    const checkMfaStatus = async () => {
+      try {
+        const res = await fetch('/api/auth/mfa/status');
+        if (res.ok) {
+          const data = await res.json();
+          setMfaEnabled(data.enabled === true);
+        } else {
+          // If we can't determine status, default to verification flow
+          setMfaEnabled(true);
+        }
+      } catch {
+        setStatusError(true);
+        setMfaEnabled(true);
+      }
+    };
+    checkMfaStatus();
+  }, []);
+
+  // --- Verification handlers (existing MFA) ---
 
   const handleTotpSubmit = useCallback(
     async (code: string) => {
@@ -104,120 +143,158 @@ const MfaPage = () => {
     }
   }, [recoveryCode, update, router]);
 
+  // --- Setup complete handler (new MFA) ---
+
+  const handleSetupComplete = useCallback(async () => {
+    // After MFA setup, clear any mfaPending flag and proceed
+    await update({ mfaPending: false });
+    router.push('/assistants');
+  }, [update, router]);
+
+  // --- Back to login ---
+
   const handleBackToLogin = useCallback(async () => {
     await signOut({ redirect: false });
     window.location.href = '/login';
   }, []);
 
-  return (
-    <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center bg-background xl:bg-transparent">
-      <motion.div
-        initial={{ y: '100vh' }}
-        animate={{ y: 0 }}
-        transition={{ type: 'spring', bounce: 0.1 }}
-        className="z-[200] xl:border-1 xl:rounded-3xl xl:border-[var(--white-smoke)] xl:p-6 xl:backdrop-blur-lg"
-      >
-        <div className="flex h-screen w-screen overflow-y-auto bg-background p-8 md:p-24 xl:h-auto xl:max-h-screen xl:w-[720px] xl:rounded-lg xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="m-auto flex w-full max-w-md flex-col gap-9"
-          >
-            {/* Header */}
-            <div className="flex flex-col items-center gap-8">
-              <div className="flex w-full items-center justify-between">
-                <UnifyLogo />
-                <button
-                  type="button"
-                  onClick={handleBackToLogin}
-                  className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
-                  data-testid="back-to-login"
-                >
-                  ← Back to Login
-                </button>
-              </div>
-              <h1 className="text-h1 font-semibold">Two-Factor Authentication</h1>
-            </div>
+  // --- Render ---
 
-            {/* Content */}
-            {!showRecovery ? (
-              <div className="flex flex-col gap-4">
-                <TotpInput
-                  onSubmit={handleTotpSubmit}
-                  error={error}
-                  isLoading={isLoading}
-                  label="Enter the 6-digit code from your authenticator app"
-                />
-
-                <div className="flex justify-center">
-                  <Button
-                    variant="link"
-                    onClick={() => {
-                      setShowRecovery(true);
-                      setError(undefined);
-                    }}
-                    className="text-caption text-muted-foreground"
-                    data-testid="use-recovery-code"
-                  >
-                    Use a recovery code
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-body text-center text-muted-foreground">
-                  Enter one of your recovery codes
-                </p>
-                <input
-                  type="text"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                  placeholder="Enter recovery code"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
-                             focus:outline-none focus:ring-2 focus:ring-ring"
-                  data-testid="recovery-code-input"
-                  autoFocus
-                />
-
-                {error && (
-                  <p className="text-caption text-destructive" data-testid="recovery-error">
-                    {error}
-                  </p>
-                )}
-
-                {recoveryWarning && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="recovery-warning">
-                    {recoveryWarning}
-                  </p>
-                )}
-
-                <Button
-                  onClick={handleRecoverySubmit}
-                  disabled={isLoading || !recoveryCode.trim()}
-                  className="w-full"
-                  data-testid="recovery-submit"
-                >
-                  {isLoading ? 'Verifying...' : 'Verify Recovery Code'}
-                </Button>
-
-                <Button
-                  variant="link"
-                  onClick={() => {
-                    setShowRecovery(false);
-                    setError(undefined);
-                  }}
-                  className="text-caption text-muted-foreground"
-                  data-testid="use-totp-code"
-                >
-                  Use authenticator app instead
-                </Button>
-              </div>
-            )}
-          </motion.div>
+  const renderContent = () => {
+    // Loading state while checking MFA status
+    if (mfaEnabled === null) {
+      return (
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-body text-muted-foreground">Checking authentication status...</p>
         </div>
-      </motion.div>
-    </div>
+      );
+    }
+
+    // MFA NOT enabled → show setup flow
+    if (!mfaEnabled) {
+      return (
+        <div className="flex flex-col gap-6">
+          <div className="text-center">
+            <p className="text-body text-muted-foreground">
+              Your organization requires two-factor authentication.
+              Set up 2FA to continue.
+            </p>
+          </div>
+          <TotpSetup autoStart onEnabled={handleSetupComplete} />
+        </div>
+      );
+    }
+
+    // MFA IS enabled → show verification flow
+    if (!showRecovery) {
+      return (
+        <div className="flex flex-col gap-4">
+          <TotpInput
+            onSubmit={handleTotpSubmit}
+            error={error}
+            isLoading={isLoading}
+            label="Enter the 6-digit code from your authenticator app"
+          />
+
+          <div className="flex justify-center">
+            <Button
+              variant="link"
+              onClick={() => {
+                setShowRecovery(true);
+                setError(undefined);
+              }}
+              className="text-caption text-muted-foreground"
+              data-testid="use-recovery-code"
+            >
+              Use a recovery code
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Recovery code input
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-body text-center text-muted-foreground">
+          Enter one of your recovery codes
+        </p>
+        <input
+          type="text"
+          value={recoveryCode}
+          onChange={(e) => setRecoveryCode(e.target.value)}
+          placeholder="Enter recovery code"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
+                     focus:outline-none focus:ring-2 focus:ring-ring"
+          data-testid="recovery-code-input"
+          autoFocus
+        />
+
+        {error && (
+          <p className="text-caption text-destructive" data-testid="recovery-error">
+            {error}
+          </p>
+        )}
+
+        {recoveryWarning && (
+          <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="recovery-warning">
+            {recoveryWarning}
+          </p>
+        )}
+
+        <Button
+          onClick={handleRecoverySubmit}
+          disabled={isLoading || !recoveryCode.trim()}
+          className="w-full"
+          data-testid="recovery-submit"
+        >
+          {isLoading ? 'Verifying...' : 'Verify Recovery Code'}
+        </Button>
+
+        <Button
+          variant="link"
+          onClick={() => {
+            setShowRecovery(false);
+            setError(undefined);
+          }}
+          className="text-caption text-muted-foreground"
+          data-testid="use-totp-code"
+        >
+          Use authenticator app instead
+        </Button>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="m-auto flex w-full max-w-md flex-col gap-9"
+    >
+      {/* Header */}
+      <div className="flex flex-col items-center gap-8">
+        <div className="flex w-full items-center justify-between">
+          <UnifyLogo />
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            data-testid="back-to-login"
+          >
+            ← Back to Login
+          </button>
+        </div>
+        <h1 className="text-h1 font-semibold">
+          {mfaEnabled === false ? 'Set Up Two-Factor Authentication' : 'Two-Factor Authentication'}
+        </h1>
+      </div>
+
+      {/* Content */}
+      {renderContent()}
+    </motion.div>
   );
 };
 
