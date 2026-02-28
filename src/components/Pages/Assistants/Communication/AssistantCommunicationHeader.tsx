@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { ExternalLink, Hand, Maximize2 } from 'lucide-react';
+import { ExternalLink, Hand, Maximize2, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ interface AssistantCommunicationHeaderProps {
   onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
+  onHangUp?: () => void;
 }
 
 export function AssistantCommunicationHeader({
@@ -22,6 +23,7 @@ export function AssistantCommunicationHeader({
   onHeaderPointerDown,
   onExpand,
   onMinimize,
+  onHangUp,
 }: AssistantCommunicationHeaderProps) {
   return (
     <div
@@ -97,6 +99,26 @@ export function AssistantCommunicationHeader({
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p>{isPopOutDisabled ? 'Available when call is ready' : 'Open in new tab'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {onHangUp && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-destructive/10 h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={onHangUp}
+                  aria-label="End call"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>End call</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
