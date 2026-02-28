@@ -496,6 +496,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     deleteUserVoice,
   } = useVoiceOptions(assistantActions.voice, { enabled: shouldLoadVoices });
 
+  const handleFirstViewCompleted = React.useCallback(() => setNewlyHiredInfo(null), []);
+
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
     (newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
@@ -788,7 +790,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   userEmail={userMeta.email}
                   isFirstView={isFirstViewAfterHire}
                   preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
-                  onFirstViewCompleted={() => setNewlyHiredInfo(null)}
+                  onFirstViewCompleted={handleFirstViewCompleted}
                   onStartCall={handleStartCall}
                   activeCallAssistantId={activeCallId}
                   isCallConnected={isCallConnected}

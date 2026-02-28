@@ -2,7 +2,7 @@
  * Unit tests for useAssistantProfileChat hook.
  *
  * Tests cover:
- * - Contact ID auto-retry mechanism
+ * - Contact ID auto-retry mechanism (phase-based state machine)
  * - SSE reconnection behavior
  * - reconnectSSE function behavior
  * - SSE reconnection trigger mechanism
@@ -93,12 +93,16 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
     vi.clearAllMocks();
   });
 
-  it('clears retry timeout on unmount without errors', async () => {
+  it('cancels in-flight resolution on unmount without errors', async () => {
     const getContactIdMock = vi.fn(async () => null);
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
-    const setChatHistories = vi.fn();
+    const setChatHistories = vi.fn((updater: any) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
 
     const { unmount } = renderHook(() =>
       useAssistantProfileChat(
@@ -110,24 +114,19 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       )
     );
 
-    // Wait for initial operations
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // getContactId should have been called at least once
     expect(getContactIdMock).toHaveBeenCalled();
     const callsBeforeUnmount = getContactIdMock.mock.calls.length;
 
-    // Unmount before any retry fires
     unmount();
 
-    // Advance past retry delay - should not cause any errors or additional calls
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(40000);
     });
 
-    // Should NOT have additional calls after unmount
     expect(getContactIdMock).toHaveBeenCalledTimes(callsBeforeUnmount);
   });
 
@@ -136,7 +135,7 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
-    const setChatHistories = vi.fn((updater) => {
+    const setChatHistories = vi.fn((updater: any) => {
       if (typeof updater === 'function') {
         Object.assign(chatHistories, updater(chatHistories));
       }
@@ -152,12 +151,10 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       )
     );
 
-    // Wait for initial operations to complete
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Should have isRetryingContactId as a boolean
     expect(typeof result.current.isRetryingContactId).toBe('boolean');
     expect(typeof result.current.canChat).toBe('boolean');
   });
@@ -167,7 +164,7 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
-    const setChatHistories = vi.fn((updater) => {
+    const setChatHistories = vi.fn((updater: any) => {
       if (typeof updater === 'function') {
         Object.assign(chatHistories, updater(chatHistories));
       }
@@ -183,12 +180,10 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       )
     );
 
-    // Wait for initial operations to complete
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
     });
 
-    // Should have canChat as false and isRetryingContactId as true
     expect(result.current.canChat).toBe(false);
     expect(result.current.isRetryingContactId).toBe(true);
   });
@@ -198,7 +193,7 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
-    const setChatHistories = vi.fn((updater) => {
+    const setChatHistories = vi.fn((updater: any) => {
       if (typeof updater === 'function') {
         Object.assign(chatHistories, updater(chatHistories));
       }
@@ -216,7 +211,6 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       )
     );
 
-    // Wait for operations
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
@@ -226,12 +220,12 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
     expect(result.current.isRetryingContactId).toBe(false);
   });
 
-  it('caches currentContactId after successful lookup', async () => {
+  it('stores currentContactId after successful lookup', async () => {
     const getContactIdMock = vi.fn(async () => 789);
 
     const assistant = createMockAssistant();
     const chatHistories: Record<string, any[]> = {};
-    const setChatHistories = vi.fn((updater) => {
+    const setChatHistories = vi.fn((updater: any) => {
       if (typeof updater === 'function') {
         Object.assign(chatHistories, updater(chatHistories));
       }
@@ -247,7 +241,6 @@ describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
       )
     );
 
-    // Wait for operations
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
