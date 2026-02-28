@@ -1,4 +1,9 @@
-function formatDateDivider(date: Date, timezone?: string | null): string {
+function isValidDate(d: unknown): d is Date {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
+function formatDateDivider(date: Date, timezone?: string | null): string | null {
+  if (!isValidDate(date)) return null;
   const now = new Date();
   const tzOpts: Intl.DateTimeFormatOptions = timezone ? { timeZone: timezone } : {};
   const dateFmt = new Intl.DateTimeFormat('en-CA', {
@@ -27,6 +32,7 @@ function formatDateDivider(date: Date, timezone?: string | null): string {
 }
 
 export function isSameDay(a: Date, b: Date, timezone?: string | null): boolean {
+  if (!isValidDate(a) || !isValidDate(b)) return false;
   const tzOpts: Intl.DateTimeFormatOptions = timezone ? { timeZone: timezone } : {};
   const fmt = new Intl.DateTimeFormat('en-CA', {
     ...tzOpts,
@@ -43,10 +49,12 @@ interface ChatDateDividerProps {
 }
 
 export function ChatDateDivider({ date, timezone }: ChatDateDividerProps) {
+  const label = formatDateDivider(date, timezone);
+  if (!label) return null;
   return (
     <div className="flex items-center justify-center py-2">
       <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
-        {formatDateDivider(date, timezone)}
+        {label}
       </span>
     </div>
   );

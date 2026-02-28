@@ -8,7 +8,8 @@ import { MessageAttachmentList } from './ChatAttachments';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
-function formatMessageTime(date: Date, timezone?: string | null): string {
+function formatMessageTime(date: Date, timezone?: string | null): string | null {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return null;
   const options: Intl.DateTimeFormatOptions = {
     hour: '2-digit',
     minute: '2-digit',
