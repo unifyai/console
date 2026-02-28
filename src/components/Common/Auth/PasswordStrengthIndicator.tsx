@@ -32,16 +32,16 @@ const PasswordStrengthIndicator = ({ password, className }: PasswordStrengthIndi
         {result.rules.map((rule) => (
           <li
             key={rule.key}
-            className={cn('flex items-center gap-1.5 text-caption', {
+            className={cn('flex items-center gap-1 text-[11px] leading-tight', {
               'text-green-600 dark:text-green-400': rule.passed,
               'text-muted-foreground': !rule.passed,
             })}
             data-testid={`password-rule-${rule.key}`}
           >
             {rule.passed ? (
-              <Check className="h-3 w-3 shrink-0" />
+              <Check className="h-2.5 w-2.5 shrink-0" />
             ) : (
-              <X className="h-3 w-3 shrink-0" />
+              <X className="h-2.5 w-2.5 shrink-0" />
             )}
             {rule.label}
           </li>

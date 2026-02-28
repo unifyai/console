@@ -140,10 +140,15 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
 
     return (
       <div
-        ref={containerRef}
-        data-testid="turnstile-widget"
-        className="flex justify-center"
-      />
+        className="flex justify-center overflow-hidden"
+        data-testid="turnstile-widget-wrapper"
+      >
+        <div
+          ref={containerRef}
+          data-testid="turnstile-widget"
+          className="origin-center scale-[0.85] sm:scale-100"
+        />
+      </div>
     );
   }
 );

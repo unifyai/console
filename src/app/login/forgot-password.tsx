@@ -150,7 +150,6 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'success') {
     return (
       <div className="flex flex-col items-center gap-4" data-testid="reset-success">
-        <h2 className="text-h2 font-semibold">Password reset</h2>
         <p className="text-center text-body text-muted-foreground">
           Your password has been reset. You can now sign in with your new password.
         </p>
@@ -166,7 +165,6 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'new-password') {
     return (
       <div className="flex flex-col gap-4" data-testid="reset-new-password-view">
-        <h2 className="text-h2 font-semibold text-center">Set a new password</h2>
         <p className="text-center text-body text-muted-foreground">
           Code verified. Enter your new password below.
         </p>
@@ -244,7 +242,6 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'code') {
     return (
       <div className="flex flex-col gap-4" data-testid="reset-code-view">
-        <h2 className="text-h2 font-semibold text-center">Enter your reset code</h2>
 
         <VerificationCodeInput
           email={email}
@@ -271,7 +268,6 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
 
   return (
     <div className="flex flex-col gap-4" data-testid="forgot-password-form">
-      <h2 className="text-h2 font-semibold text-center">Forgot your password?</h2>
       <p className="text-center text-body text-muted-foreground">
         Enter your email and we&apos;ll send you a code to reset your password.
       </p>

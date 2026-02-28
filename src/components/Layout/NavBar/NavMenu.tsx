@@ -22,7 +22,6 @@ import { NavItem } from '@/types/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
-import { useTheme } from 'next-themes';
 import ivyLogoOnly from '@/public/ivy_logo_only.png';
 import Image from 'next/image';
 import { User, Menu, HelpCircle, Star, ChevronDown, ChevronRight, ChartLine } from 'lucide-react';
@@ -139,7 +138,6 @@ export default function NavMenu() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { state, setOpen } = useSidebar();
-  const { resolvedTheme } = useTheme();
   const [profileName, setProfileName] = useState('Profile');
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
 
@@ -453,7 +451,7 @@ export default function NavMenu() {
         <div
           className={`mr-8 transition-opacity duration-300 ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}
         >
-          <UnifyLogo theme={resolvedTheme} />
+          <UnifyLogo />
         </div>
       </SidebarHeader>
 

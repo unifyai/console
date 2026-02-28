@@ -33,7 +33,7 @@ const Scaffold = ({
       lang="en"
       className={`${fontSans.variable} ${fontMono.variable} ${fullScreen ? 'h-full' : ''}`}
     >
-      <body className={`${fullScreen ? 'h-full' : ''}`}>
+      <body className={`${fullScreen ? 'h-full overflow-hidden' : ''}`}>
         <NextUIProvider className={fullScreen ? 'h-full' : 'flex min-h-screen flex-col'}>
           {(navbar === true && <Navbar>{navbarEnd}</Navbar>) ||
             (navbar === false && null) ||

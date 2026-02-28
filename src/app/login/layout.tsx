@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Scaffold footer={false}>
+    <Scaffold navbar={false} footer={false} fullScreen>
       <BaseLayout>
         <Suspense>{children}</Suspense>
       </BaseLayout>

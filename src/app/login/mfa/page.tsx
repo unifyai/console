@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import TotpInput from '../totp-input';
 import { Button } from '@/components/UI/button';
@@ -22,7 +21,6 @@ import { Button } from '@/components/UI/button';
 const MfaPage = () => {
   const { update } = useSession();
   const router = useRouter();
-  const { theme } = useTheme();
 
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
@@ -109,7 +107,7 @@ const MfaPage = () => {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8 shadow-sm">
         <div className="flex flex-col items-center gap-3">
-          <UnifyLogo theme={theme} />
+          <UnifyLogo />
           <h1 className="text-h1 font-semibold">Two-Factor Authentication</h1>
         </div>
 

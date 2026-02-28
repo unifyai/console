@@ -221,7 +221,6 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
   if (view === 'verify') {
     return (
       <div className="flex flex-col gap-4" data-testid="email-verify-view">
-        <h2 className="text-h2 font-semibold text-center">Verify your email</h2>
         <VerificationCodeInput
           email={email}
           purpose="signup"
@@ -321,6 +320,19 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             disabled={isLoading}
             data-testid="email-password-input"
           />
+          {!isRegister && (
+            <button
+              type="button"
+              onClick={() => {
+                setView('forgot-password');
+                setError(undefined);
+              }}
+              className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+              data-testid="forgot-password-link"
+            >
+              Forgot password?
+            </button>
+          )}
           {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
         </div>
 
@@ -354,20 +366,6 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
               : 'Sign in'}
         </Button>
       </form>
-
-      {!isRegister && (
-        <button
-          type="button"
-          onClick={() => {
-            setView('forgot-password');
-            setError(undefined);
-          }}
-          className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
-          data-testid="forgot-password-link"
-        >
-          Forgot password?
-        </button>
-      )}
 
       <div className="text-center text-caption text-muted-foreground">
         {isRegister ? (

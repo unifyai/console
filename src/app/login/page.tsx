@@ -6,11 +6,9 @@ import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from './login';
 import { useState, useEffect } from 'react';
 import CheckElement from './check';
-import Back from '@/public/icons/back.svg';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
-import { useTheme } from 'next-themes';
 
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
@@ -31,7 +29,6 @@ const Login = () => {
   const session = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { resolvedTheme } = useTheme();
 
   const shouldSignOut = searchParams?.get('signout') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl');
@@ -136,22 +133,21 @@ const Login = () => {
   };
 
   return (
-    <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center">
+    <div className="fixed left-0 top-0 flex h-screen w-screen items-center justify-center bg-background xl:bg-transparent">
       <LayoutGroup>
         <motion.div
           initial={{ y: '100vh' }}
           animate={{ y: 0 }}
           transition={{ type: 'spring', bounce: 0.1 }}
-          className="border-1 z-[200] mt-20 rounded-3xl border-[var(--white-smoke)] p-6 backdrop-blur-lg"
+          className="z-[200] xl:border-1 xl:rounded-3xl xl:border-[var(--white-smoke)] xl:p-6 xl:backdrop-blur-lg"
         >
-          <div className="max-h-screen w-screen overflow-y-auto overflow-x-hidden rounded-lg bg-background p-8 md:p-24 xl:w-[720px] xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
+          <div className="flex h-screen w-screen overflow-y-auto bg-background p-8 md:p-24 xl:h-auto xl:max-h-screen xl:w-[720px] xl:rounded-lg xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="flex flex-col gap-9"
+              className="m-auto flex w-full flex-col gap-9"
             >
-              <UnifyLogo theme={resolvedTheme} />
 
               {/* Banner for invite/credit token context */}
               {inviteToken && (

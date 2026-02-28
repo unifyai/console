@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Image from 'next/image';
 import HallowButton from './hallowButton';
 import GoogleIcon from '@/public/icons/google-icon.png';
-import { FaMicrosoft } from 'react-icons/fa';
-import { Mail } from 'lucide-react';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
+import { ArrowLeft, Mail } from 'lucide-react';
 import EmailLoginForm from './email-login';
+import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 
 /** Auth method tabs */
 type AuthTab = 'oauth' | 'email';
@@ -23,12 +24,19 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
   const [authTab, setAuthTab] = useState<AuthTab>('oauth');
 
   return (
-    <div className="flex flex-wrap gap-16">
-      <div className="flex flex-1 flex-col gap-[40px]">
-        <h1 className="text-center text-4xl leading-tight text-gray-800 dark:text-white sm:text-5xl">
-          Hire <span className="font-bold">AI </span>
-          - Not <span className="font-bold">APIs</span>
-        </h1>
+    <div className="flex flex-wrap">
+      <div className="flex flex-1 flex-col gap-14">
+
+        {/* Header — tagline */}
+        <div className="flex flex-col gap-4">
+          <UnifyLogo />
+          <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
+            Hire AI{' '}
+            <span className="font-serif italic">— Not APIs</span>
+          </h1>
+        </div>
+
+        {/* Content — auth buttons / email form */}
         <div className="flex flex-col gap-3">
           {error && authTab === 'oauth' && (
             <div className="text-red-500" data-testid="oauth-error">{error}</div>
@@ -44,7 +52,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
               </HallowButton>
               <HallowButton onClick={handleLogin('azure-ad')}>
                 <div className="flex items-center justify-center gap-2">
-                  <FaMicrosoft className="h-5 w-5" />
+                  <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
                   Continue with Microsoft
                 </div>
               </HallowButton>
@@ -80,20 +88,19 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
               </button>
             </>
           )}
+        </div>
 
-          <div className="text-branding-grey text-body">
-            {'By signing up you agree to our '}
-            <a href="https://unify.ai/privacy-policy" className="font-semibold">
-              Privacy Policy
-            </a>
-            {' and '}
-            <a href="https://unify.ai/terms-of-service" className="font-semibold">
-              Terms Of Service
-            </a>
-            {
-              '. You may also receive communication on product updates and events, which you can edit in your profile.'
-            }
-          </div>
+        {/* Footer — disclaimer */}
+        <div className="text-branding-grey text-body">
+          {'By signing up you agree to our '}
+          <a href="https://unify.ai/privacy-policy" className="font-semibold underline text-primary">
+            Privacy Policy
+          </a>
+          {' and '}
+          <a href="https://unify.ai/terms-of-service" className="font-semibold underline text-primary">
+            Terms Of Service
+          </a>
+          {'.'}
         </div>
       </div>
     </div>
