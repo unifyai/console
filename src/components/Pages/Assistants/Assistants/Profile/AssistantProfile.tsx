@@ -19,12 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/UI/accordion';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/UI/dropdown-menu';
+
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
@@ -126,7 +121,7 @@ export function AssistantProfilePanel({
   const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
   const isCallButtonDisabled = isAnotherCallActive || isSpendingBlocked;
 
-  const callButtonTooltip =
+  const callButtonTooltip = (type: 'audio' | 'video') =>
     isInThisCall && isConnectingCall
       ? 'Connecting call...'
       : isInThisCall
@@ -135,7 +130,9 @@ export function AssistantProfilePanel({
           ? spendingGate.blockedMessage || 'Spending limit reached'
           : isAnotherCallActive
             ? 'Another call is in progress'
-            : 'Start a call';
+            : type === 'audio'
+              ? 'Start audio call'
+              : 'Start video call';
 
   if (!assistant) return null;
 
@@ -222,73 +219,51 @@ export function AssistantProfilePanel({
           <AccordionTriggerWithButtons
             className="text-title"
             buttonSlot={
-              <div className="flex items-center gap-1">
-                {isInThisCall ? (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onStartCall(assistant, 'video')}
-                          disabled={isCallButtonDisabled}
-                          data-testid="call-return-button"
-                        >
-                          {isConnectingCall ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Phone className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>{callButtonTooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <DropdownMenu>
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <DropdownMenuTrigger asChild>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              disabled={isCallButtonDisabled}
-                              data-testid="call-menu-trigger"
-                            >
-                              <Phone className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                        </DropdownMenuTrigger>
-                        <TooltipContent side="top">
-                          <p>{callButtonTooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => onStartCall(assistant, 'video')}
-                        data-testid="call-option-video"
-                      >
-                        <Video className="mr-2 h-4 w-4" />
-                        <span>Video Call</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
+              <div className="flex items-center gap-0.5">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
                         onClick={() => onStartCall(assistant, 'audio')}
-                        data-testid="call-option-audio"
+                        disabled={isCallButtonDisabled}
+                        data-testid="call-audio-button"
                       >
-                        <Phone className="mr-2 h-4 w-4" />
-                        <span>Audio Call</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                        {isInThisCall && isConnectingCall ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Phone className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{callButtonTooltip('audio')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onStartCall(assistant, 'video')}
+                        disabled={isCallButtonDisabled}
+                        data-testid="call-video-button"
+                      >
+                        <Video className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{callButtonTooltip('video')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             }
           >
