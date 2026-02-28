@@ -11,6 +11,13 @@ import { Button } from '@/components/UI/button';
 import SecuritySettings from '@/app/(home)/profile/security-settings';
 import MfaModal, { type MfaCodeType } from '@/components/Common/Auth/MfaModal';
 import BaseDialog from '@/components/Common/Dialogs/Base';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/UI/dialog';
 import { toast } from 'sonner';
 
 interface EmailCredentials {
@@ -25,11 +32,32 @@ const SecurityTab = ({ user }: { user: User }) => {
   const [credentials, setCredentials] = useState<EmailCredentials | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // MFA status (for card label)
+  const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
+
+  // Modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showMfaSettingsModal, setShowMfaSettingsModal] = useState(false);
+
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [showMfaModal, setShowMfaModal] = useState(false);
+
+  const fetchMfaStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/mfa/status');
+      if (res.ok) {
+        const data = await res.json();
+        setMfaEnabled(data.enabled ?? false);
+      } else {
+        setMfaEnabled(false);
+      }
+    } catch {
+      setMfaEnabled(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchCredentials = async () => {
@@ -48,7 +76,8 @@ const SecurityTab = ({ user }: { user: User }) => {
       }
     };
     fetchCredentials();
-  }, []);
+    fetchMfaStatus();
+  }, [fetchMfaStatus]);
 
   const performDelete = useCallback(
     async (mfaCode?: string) => {
@@ -116,35 +145,59 @@ const SecurityTab = ({ user }: { user: User }) => {
     [router],
   );
 
+  const hasEmailAccount = credentials?.hasEmailAccount ?? false;
+
   return (
-    <div className="flex flex-col gap-8">
-      {/* Change Password Section */}
-      <div>
-        <h2 className="text-title">Password</h2>
-        {isLoading ? (
-          <div className="mt-4 flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-body">Loading...</span>
+    <div className="flex flex-col gap-4">
+      {/* Password Card */}
+      <div className="rounded-lg border p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-medium">Password</h3>
+            <p className="text-xs text-muted-foreground">
+              {isLoading
+                ? 'Loading...'
+                : hasEmailAccount
+                  ? "Update your account's password used for email login."
+                  : 'You signed-in using Google/Microsoft. Set a password to be able to sign-in with email.'}
+            </p>
           </div>
-        ) : (
-          <ChangePasswordForm
-            hasEmailAccount={credentials?.hasEmailAccount ?? false}
-            onPasswordSet={() => setCredentials((prev) => prev ? { ...prev, hasEmailAccount: true } : prev)}
-          />
-        )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPasswordModal(true)}
+            disabled={isLoading}
+            data-testid="open-password-modal-btn"
+          >
+            {hasEmailAccount ? 'Change Password' : 'Set Password'}
+          </Button>
+        </div>
       </div>
 
-      {/* Two-Factor Authentication Section */}
-      <div>
-        <h2 className="text-title">Two-Factor Authentication</h2>
-        <div className="mt-4">
-          <SecuritySettings />
+      {/* 2FA Card */}
+      <div className="rounded-lg border p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-medium">Two-Factor Authentication</h3>
+            <p className="text-xs text-muted-foreground">
+              {mfaEnabled
+                ? 'Two-factor authentication is enabled on your account.'
+                : 'Enable two factor authentication to secure your account.'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMfaSettingsModal(true)}
+            data-testid="open-2fa-modal-btn"
+          >
+            {mfaEnabled ? 'Manage 2FA' : 'Enable 2FA'}
+          </Button>
         </div>
       </div>
 
       {/* Sign Out & Delete Account Section */}
       <div>
-        <h2 className="text-title">Session</h2>
         <div className="mt-4 flex items-center gap-3">
           <SecondaryButton
             label="Sign Out"
@@ -166,6 +219,49 @@ const SecurityTab = ({ user }: { user: User }) => {
           </Button>
         </div>
       </div>
+
+      {/* Password Modal */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{hasEmailAccount ? 'Change Password' : 'Set Password'}</DialogTitle>
+            <DialogDescription>
+              {hasEmailAccount
+                ? 'Enter your current password and choose a new one.'
+                : 'Set a password to also sign in with your email address.'}
+            </DialogDescription>
+          </DialogHeader>
+          <ChangePasswordForm
+            hasEmailAccount={hasEmailAccount}
+            onPasswordSet={() => {
+              setCredentials((prev) => prev ? { ...prev, hasEmailAccount: true } : prev);
+              setShowPasswordModal(false);
+            }}
+            onSuccess={() => setShowPasswordModal(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* 2FA Settings Modal */}
+      <Dialog
+        open={showMfaSettingsModal}
+        onOpenChange={(open) => {
+          setShowMfaSettingsModal(open);
+          if (!open) fetchMfaStatus();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              {mfaEnabled
+                ? 'Manage your two-factor authentication settings.'
+                : 'Set up two-factor authentication to secure your account.'}
+            </DialogDescription>
+          </DialogHeader>
+          <SecuritySettings />
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Account Confirmation Dialog */}
       <BaseDialog

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/UI/button';
-import { Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import TotpSetup from './totp-setup';
 import TotpInput from '@/app/login/totp-input';
 import RecoveryCodeDisplay from './recovery-codes';
@@ -126,25 +126,13 @@ const SecuritySettings = () => {
 
   if (!mfaStatus?.enabled) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <ShieldOff className="h-4 w-4" />
-          <span className="text-body">Two-factor authentication is not enabled.</span>
-        </div>
-        <TotpSetup onEnabled={() => { fetchStatus(); router.refresh(); }} />
-      </div>
+      <TotpSetup autoStart onEnabled={() => { fetchStatus(); router.refresh(); }} />
     );
   }
 
   // MFA is enabled
   return (
     <div className="flex flex-col gap-4" data-testid="mfa-enabled-section">
-      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-        <ShieldCheck className="h-4 w-4" />
-        <span className="text-body font-medium">
-          Two-factor authentication is enabled
-        </span>
-      </div>
 
       {mfaStatus.recoveryCodesRemaining !== undefined && (
         <p

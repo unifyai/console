@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/UI/button';
 import TotpInput from '@/app/login/totp-input';
@@ -21,9 +21,12 @@ type SetupStep = 'idle' | 'qr' | 'confirm' | 'recovery';
  */
 const TotpSetup = ({
   onEnabled,
+  autoStart = false,
 }: {
   /** Called after MFA is fully enabled (recovery codes acknowledged). */
   onEnabled?: () => void;
+  /** When true, automatically begin setup on mount (skip the idle button). */
+  autoStart?: boolean;
 }) => {
   const [step, setStep] = useState<SetupStep>('idle');
   const [qrUri, setQrUri] = useState<string | null>(null);
@@ -53,6 +56,14 @@ const TotpSetup = ({
       setIsLoading(false);
     }
   }, []);
+
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStart && !autoStartedRef.current && step === 'idle') {
+      autoStartedRef.current = true;
+      handleSetup();
+    }
+  }, [autoStart, step, handleSetup]);
 
   const handleConfirm = useCallback(
     async (code: string) => {
@@ -119,13 +130,9 @@ const TotpSetup = ({
   if (step === 'qr') {
     return (
       <div className="flex flex-col items-center gap-4" data-testid="totp-qr-step">
-        <div className="flex items-center gap-2">
-          <QrCode className="h-5 w-5" />
-          <h3 className="font-semibold">Scan QR Code</h3>
-        </div>
 
         <p className="text-body text-center text-muted-foreground">
-          Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+          Scan this code with your authenticator app.
         </p>
 
         {qrUri && (
@@ -186,7 +193,6 @@ const TotpSetup = ({
   if (step === 'confirm') {
     return (
       <div className="flex flex-col gap-4" data-testid="totp-confirm-step">
-        <h3 className="text-center font-semibold">Verify Setup</h3>
         <TotpInput
           onSubmit={handleConfirm}
           error={error}

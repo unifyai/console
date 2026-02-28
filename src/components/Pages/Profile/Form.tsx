@@ -367,7 +367,7 @@ const ProfileForm = ({
   };
 
   return (
-    <div className="mt-10 w-fit sm:mt-0">
+    <div className="mt-10 w-full sm:mt-0">
       <form onSubmit={handleSave}>
         <UserInfo
           formState={formState}

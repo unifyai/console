@@ -52,11 +52,9 @@ const RecoveryCodeDisplay = ({ codes, onDone }: RecoveryCodeDisplayProps) => {
 
   return (
     <div className="flex flex-col gap-4" data-testid="recovery-codes-display">
-      <h3 className="text-center font-semibold">Save Your Recovery Codes</h3>
 
       <p className="text-body text-center text-muted-foreground">
-        Store these codes in a safe place. Each code can only be used once. If you lose access to
-        your authenticator app, you can use a recovery code to sign in.
+        Store these codes in a safe place. You can sign in with a code if you lose access to your authenticator app. Each code is usable once.
       </p>
 
       <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/50 p-4 font-mono text-caption">

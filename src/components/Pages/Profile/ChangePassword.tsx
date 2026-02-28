@@ -12,9 +12,11 @@ interface ChangePasswordFormProps {
   hasEmailAccount: boolean;
   /** Called after successfully setting a password (so parent can refresh state) */
   onPasswordSet?: () => void;
+  /** Called after any successful password change/set (e.g. to close a modal) */
+  onSuccess?: () => void;
 }
 
-const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet }: ChangePasswordFormProps) => {
+const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet, onSuccess }: ChangePasswordFormProps) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -76,6 +78,7 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet }: ChangePasswordFo
       if (isSetMode && onPasswordSet) {
         onPasswordSet();
       }
+      onSuccess?.();
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -84,13 +87,8 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet }: ChangePasswordFo
   };
 
   return (
-    <div className="mt-2" data-testid={isSetMode ? 'set-password-section' : 'change-password-section'}>
-      {isSetMode && (
-        <p className="text-body text-muted-foreground mb-3">
-          Your account uses external authentication (Google/Microsoft). Set a password to also sign in with your email.
-        </p>
-      )}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md">
+    <div data-testid={isSetMode ? 'set-password-section' : 'change-password-section'}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {!isSetMode && (
           <div>
             <label htmlFor="current-password" className="text-caption font-medium text-foreground">
