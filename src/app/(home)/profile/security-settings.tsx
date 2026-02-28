@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/UI/button';
-import { Loader2, ShieldCheck } from 'lucide-react';
-import TotpSetup from './totp-setup';
-import TotpInput from '@/app/login/totp-input';
-import RecoveryCodeDisplay from './recovery-codes';
+import { Loader2 } from 'lucide-react';
+import TotpSetup from '@/components/Common/Auth/TotpSetup';
+import TotpInput from '@/components/Common/Auth/TotpInput';
+import RecoveryCodeDisplay from '@/components/Common/Auth/RecoveryCodeDisplay';
 import { toast } from 'sonner';
 
 interface MfaStatus {

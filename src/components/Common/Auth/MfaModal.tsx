@@ -10,7 +10,7 @@ import {
 } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
 import { Loader2 } from 'lucide-react';
-import TotpInput from '@/app/login/totp-input';
+import TotpInput from '@/components/Common/Auth/TotpInput';
 
 export type MfaCodeType = 'totp' | 'recovery';
 
