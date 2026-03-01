@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
-import WorkspaceContent from './workspace-content';
+import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
 import { createOrganizationAction } from '@/lib/orchestra/api/organization';
 import { updateOnboardingAction } from '@/lib/user/onboarding';
 

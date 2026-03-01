@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { SessionProvider } from '@/components/Pages/Providers/SessionProvider';
 import { EnvironmentProvider } from '@/components/Pages/Providers/EnvironmentProvider';
-import LoginCardShell from './login-card';
+import LoginCardShell from '@/components/Pages/Login/LoginCardShell';
 
 export const metadata: Metadata = {
   title: 'Login',

@@ -311,7 +311,7 @@ vi.mock('@/app/login/forgot-password', () => ({
   ),
 }));
 
-import EmailLoginForm from '@/app/login/email-login';
+import EmailLoginForm from '@/components/Pages/Login/EmailLoginForm';
 import ChangePasswordForm from '@/components/Pages/Profile/ChangePassword';
 
 describe('EmailLoginForm – password strength enforcement', () => {

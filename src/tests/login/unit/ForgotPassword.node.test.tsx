@@ -61,7 +61,7 @@ vi.mock('@/app/login/verification-code', () => ({
 
 // ─── Import after mocks ────────────────────────────────────────────────────
 
-import ForgotPasswordForm from '@/app/login/forgot-password';
+import ForgotPasswordForm from '@/components/Pages/Login/ForgotPasswordForm';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

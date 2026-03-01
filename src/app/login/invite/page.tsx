@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
 import { XCircle } from 'lucide-react';
-import InviteContent from './invite-content';
+import InviteContent from '@/components/Pages/Invite/Main';
 import { acceptInviteAction } from '@/lib/user/organization';
 
 interface InvitePageProps {

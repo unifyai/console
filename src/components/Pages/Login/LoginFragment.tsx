@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import HallowButton from './hallowButton';
+import HallowButton from './HallowButton';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
-import { ArrowLeft, Mail } from 'lucide-react';
-import EmailLoginForm from './email-login';
+import { Mail } from 'lucide-react';
+import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 
 /** Auth method tabs */
@@ -108,3 +108,4 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
 };
 
 export default LoginFragment;
+

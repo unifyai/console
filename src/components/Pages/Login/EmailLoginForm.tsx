@@ -8,8 +8,8 @@ import { PasswordInput } from '@/components/Common/Input/Password';
 import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
-import VerificationCodeInput from './verification-code';
-import ForgotPasswordForm from './forgot-password';
+import VerificationCodeInput from './VerificationCodeInput';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 /** Possible views within the email login flow */
 type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';

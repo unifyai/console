@@ -28,7 +28,7 @@ vi.mock('@/components/UI/button', () => ({
 
 // ─── Import after mocks ────────────────────────────────────────────────────
 
-import VerificationCodeInput from '@/app/login/verification-code';
+import VerificationCodeInput from '@/components/Pages/Login/VerificationCodeInput';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
-import VerificationCodeInput from './verification-code';
+import VerificationCodeInput from './VerificationCodeInput';
 
 type ForgotView = 'email' | 'code' | 'new-password' | 'success';
 
@@ -315,3 +315,4 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
 };
 
 export default ForgotPasswordForm;
+

@@ -78,7 +78,7 @@ vi.mock('@/components/Common/Auth/TurnstileWidget', () => ({
 
 // ─── Import after mocks ────────────────────────────────────────────────────
 
-import EmailLoginForm from '@/app/login/email-login';
+import EmailLoginForm from '@/components/Pages/Login/EmailLoginForm';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import ChangePasswordForm from './ChangePassword';
 import SecondaryButton from '../../Common/Buttons/Secondary';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import SecuritySettings from '@/app/(home)/profile/security-settings';
+import SecuritySettings from '@/components/Pages/Profile/SecuritySettings';
 import MfaModal, { type MfaCodeType } from '@/components/Common/Auth/MfaModal';
 import BaseDialog from '@/components/Common/Dialogs/Base';
 import {

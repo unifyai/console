@@ -3,9 +3,9 @@
 import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
-import LoginFragment from './login';
+import LoginFragment from '@/components/Pages/Login/LoginFragment';
 import { Suspense, useState, useEffect } from 'react';
-import CheckElement from './check';
+import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 
