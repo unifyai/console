@@ -63,7 +63,7 @@ const SecuritySettings = () => {
       setDisableError(undefined);
       setIsDisabling(true);
 
-      const payload = isRecovery ? { recovery_code: code } : { code };
+      const payload = isRecovery ? { recoveryCode: code } : { code };
 
       try {
         const res = await fetch('/api/auth/mfa/disable', {
@@ -91,7 +91,7 @@ const SecuritySettings = () => {
         setIsDisabling(false);
       }
     },
-    [fetchStatus],
+    [fetchStatus, router],
   );
 
   const handleRegenerate = useCallback(async () => {

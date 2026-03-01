@@ -1,6 +1,6 @@
 'use server';
 
-import { createOrchestraClient } from '@/lib/orchestra/client';
+import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
  * Server action factory that returns a function to update the user's
@@ -12,6 +12,10 @@ import { createOrchestraClient } from '@/lib/orchestra/client';
  *
  * OnboardingStatus is the single source of truth for where the user
  * is in the onboarding flow.
+ *
+ * Uses the axios-based Orchestra client (which auto-converts
+ * camelCase → snake_case) because the onboarding endpoint is not yet
+ * in the generated OpenAPI schema.
  */
 export async function updateOnboardingAction(apiKey: string) {
   return async (update: {
@@ -20,13 +24,11 @@ export async function updateOnboardingAction(apiKey: string) {
   }): Promise<void> => {
     'use server';
 
-    const client = createOrchestraClient(apiKey);
+    const client = await getOrchestraUserClient(apiKey);
 
-    await client.PUT('/v0/user/onboarding', {
-      body: {
-        current_step: update.currentStep,
-        ...(update.stepData && { step_data: update.stepData }),
-      } as never,
+    await client.put('/user/onboarding', {
+      currentStep: update.currentStep,
+      ...(update.stepData && { stepData: update.stepData }),
     });
   };
 }

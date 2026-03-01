@@ -4,7 +4,7 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from './login';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import CheckElement from './check';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
@@ -160,4 +160,14 @@ const Login = () => {
   );
 };
 
-export default Login;
+/**
+ * Wrap in Suspense because Login uses useSearchParams(), which requires
+ * a Suspense boundary for Next.js static generation.
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingElement />}>
+      <Login />
+    </Suspense>
+  );
+}

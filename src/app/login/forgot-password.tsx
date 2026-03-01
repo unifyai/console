@@ -119,7 +119,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token: verificationToken,
-          new_password: newPassword,
+          newPassword,
         }),
       });
 

@@ -99,10 +99,10 @@ const WorkspaceContent = ({
 
     const latestOrg = existingOrgs[existingOrgs.length - 1];
     completeAndRedirect({
-      selected_type: 'organization',
-      organization_id: String(latestOrg.id),
-      organization_name: latestOrg.name,
-      auto_completed: true,
+      selectedType: 'organization',
+      organizationId: String(latestOrg.id),
+      organizationName: latestOrg.name,
+      autoCompleted: true,
     });
   }, [existingOrgs, completeAndRedirect]);
 
@@ -110,7 +110,7 @@ const WorkspaceContent = ({
     setError(undefined);
     setIsLoading(true);
     // Selecting "personal" has no side effect — repeating is harmless.
-    await completeAndRedirect({ selected_type: 'personal' });
+    await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
 
   const handleCreateOrg = useCallback(async () => {
@@ -143,9 +143,9 @@ const WorkspaceContent = ({
       });
 
       await completeAndRedirect({
-        selected_type: 'organization',
-        organization_id: String(org.id),
-        organization_name: org.name,
+        selectedType: 'organization',
+        organizationId: String(org.id),
+        organizationName: org.name,
       });
     } catch {
       setError('Failed to create organization. Please try again.');
@@ -279,7 +279,7 @@ const WorkspaceContent = ({
 
       {/* Error */}
       {error && (
-        <p className="text-sm text-destructive" data-testid="workspace-error">
+        <p className="text-body text-error" data-testid="workspace-error">
           {error}
         </p>
       )}

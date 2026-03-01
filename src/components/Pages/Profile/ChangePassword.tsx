@@ -53,8 +53,8 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet, onSuccess }: Chang
         : '/api/auth/email/change-password';
 
       const body = isSetMode
-        ? { new_password: newPassword }
-        : { current_password: currentPassword, new_password: newPassword };
+        ? { newPassword }
+        : { currentPassword, newPassword };
 
       const res = await fetch(endpoint, {
         method: 'POST',

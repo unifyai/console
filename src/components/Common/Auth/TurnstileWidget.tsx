@@ -21,7 +21,10 @@ declare global {
           size?: 'normal' | 'compact' | 'invisible';
           appearance?: 'always' | 'execute' | 'interaction-only';
           retry?: 'auto' | 'never';
+          // Cloudflare Turnstile API uses hyphenated property names
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           'retry-interval'?: number;
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           'refresh-expired'?: 'auto' | 'manual' | 'never';
         }
       ) => string;

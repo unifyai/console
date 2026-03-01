@@ -153,8 +153,8 @@ const SecurityTab = ({ user }: { user: User }) => {
       <div className="rounded-lg border p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium">Password</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3 className="text-title">Password</h3>
+            <p className="text-caption">
               {isLoading
                 ? 'Loading...'
                 : hasEmailAccount
@@ -178,8 +178,8 @@ const SecurityTab = ({ user }: { user: User }) => {
       <div className="rounded-lg border p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium">Two-Factor Authentication</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3 className="text-title">Two-Factor Authentication</h3>
+            <p className="text-caption">
               {mfaEnabled
                 ? 'Two-factor authentication is enabled on your account.'
                 : 'Enable two factor authentication to secure your account.'}

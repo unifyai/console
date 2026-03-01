@@ -67,7 +67,7 @@ const OrganizationSettingsTab = ({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption">
             This timezone will be used for organization-wide scheduling and reporting.
           </p>
         </div>

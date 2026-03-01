@@ -157,7 +157,7 @@ const TotpSetup = ({
               Enter this secret key in your authenticator app:
             </p>
             <code
-              className="block break-all rounded bg-muted p-2 text-sm font-mono tracking-widest select-all text-center"
+              className="block break-all rounded bg-muted p-2 text-code tracking-widest select-all text-center"
               data-testid="totp-secret"
             >
               {(() => {

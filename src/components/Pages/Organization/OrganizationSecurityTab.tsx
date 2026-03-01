@@ -48,8 +48,8 @@ const OrganizationSecurityTab = ({
       {canDelete && (
         <div className="space-y-4">
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-            <h3 className="text-sm font-medium text-destructive">Danger Zone</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h3 className="text-h3 text-destructive">Danger Zone</h3>
+            <p className="mt-1 text-caption">
               Deleting the organization is irreversible. All data and members associated with this
               organization will be permanently removed.
             </p>
