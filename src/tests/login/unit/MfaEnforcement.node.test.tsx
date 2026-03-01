@@ -13,17 +13,39 @@ import { render, screen } from '@testing-library/react';
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const pushMock = vi.fn();
+const refreshMock = vi.fn();
 let mockPathname = '/assistants';
 
 // Mock next/navigation (used by the modal's CTA button and pathname check)
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   usePathname: () => mockPathname,
 }));
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
   ShieldAlert: (props: any) => <svg data-testid="shield-alert-icon" {...props} />,
+  ShieldCheck: (props: any) => <svg data-testid="shield-check-icon" {...props} />,
+}));
+
+// Mock Dialog components (Radix-based)
+vi.mock('@/components/UI/dialog', () => ({
+  Dialog: ({ children, open }: any) => (open ? <div data-testid="dialog-root">{children}</div> : null),
+  DialogContent: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  DialogHeader: ({ children }: any) => <div>{children}</div>,
+  DialogTitle: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
+  DialogDescription: ({ children, ...props }: any) => <p {...props}>{children}</p>,
+}));
+
+// Mock TotpSetup (embedded inline in the banner now)
+vi.mock('@/components/Common/Auth/TotpSetup', () => ({
+  default: ({ autoStart, onEnabled }: any) => (
+    <div data-testid="totp-setup-inline" data-auto-start={autoStart}>
+      <button data-testid="totp-complete-btn" onClick={onEnabled}>
+        Complete Setup
+      </button>
+    </div>
+  ),
 }));
 
 // ─── MfaEnforcementBanner (modal) ─────────────────────────────────────────────
@@ -54,27 +76,64 @@ describe('MfaEnforcementBanner', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the setup button with correct test ID', () => {
+  it('embeds TotpSetup inline with autoStart', () => {
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
-    expect(screen.getByTestId('mfa-setup-redirect-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('mfa-setup-redirect-btn')).toHaveTextContent(
-      'Set up two-factor authentication',
-    );
+    const totpSetup = screen.getByTestId('totp-setup-inline');
+    expect(totpSetup).toBeInTheDocument();
+    expect(totpSetup.getAttribute('data-auto-start')).toBe('true');
   });
 
-  it('navigates to profile security tab on CTA click', async () => {
+  it('refreshes router when TotpSetup completes', async () => {
     const { userEvent } = await import('@testing-library/user-event');
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
-    const btn = screen.getByTestId('mfa-setup-redirect-btn');
-    await userEvent.setup().click(btn);
+    const completeBtn = screen.getByTestId('totp-complete-btn');
+    await userEvent.setup().click(completeBtn);
 
-    expect(pushMock).toHaveBeenCalledWith('/profile?tab=security');
+    // After setup completes, the component calls router.refresh()
+    // to re-evaluate MfaEnforcementGate server-side
+    expect(refreshMock).toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('shows success state after TotpSetup completes', async () => {
+    const { userEvent } = await import('@testing-library/user-event');
+    const { waitFor } = await import('@testing-library/react');
+    render(<MfaEnforcementBanner orgName="Acme Corp" />);
+
+    // Initially shows shield-alert icon and requirement message
+    expect(screen.getByTestId('shield-alert-icon')).toBeInTheDocument();
+    expect(screen.getByText(/requires all members to enable two-factor/i)).toBeInTheDocument();
+
+    // Complete setup
+    const completeBtn = screen.getByTestId('totp-complete-btn');
+    await userEvent.setup().click(completeBtn);
+
+    // After completion, should show shield-check icon and success message
+    await waitFor(() => {
+      expect(screen.getByTestId('shield-check-icon')).toBeInTheDocument();
+      expect(screen.getByText(/Two-factor authentication enabled/i)).toBeInTheDocument();
+      expect(screen.getByText(/account is now secured/i)).toBeInTheDocument();
+    });
   });
 
   it('does not render on the profile page', () => {
     mockPathname = '/profile';
+    render(<MfaEnforcementBanner orgName="Acme Corp" />);
+
+    expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();
+  });
+
+  it('does not render on the invite page', () => {
+    mockPathname = '/invite';
+    render(<MfaEnforcementBanner orgName="Acme Corp" />);
+
+    expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();
+  });
+
+  it('does not render on the login invite page', () => {
+    mockPathname = '/login/invite';
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
     expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();

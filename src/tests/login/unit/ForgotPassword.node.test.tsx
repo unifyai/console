@@ -44,8 +44,8 @@ vi.mock('@/components/Common/Input/Password', () => ({
   PasswordInput: ({ ...props }: any) => <input {...props} type="password" />,
 }));
 
-// Mock the verification code component
-vi.mock('@/app/login/verification-code', () => ({
+// Mock the verification code component (path matches ForgotPasswordForm's import)
+vi.mock('@/components/Pages/Login/VerificationCodeInput', () => ({
   default: ({ onSubmit, onResend, error }: any) => (
     <div data-testid="verification-code-mock">
       {error && <span data-testid="reset-verification-error">{error}</span>}
@@ -91,9 +91,20 @@ const goToCodeView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
 /**
  * Navigates through Step 1 → Step 2 → Step 3 (new-password view).
  * Submits the code in Step 2 to arrive at the password entry form.
+ *
+ * The component's handleVerifyCode calls /api/auth/email/verify-reset-code,
+ * which returns a verification token. We mock that endpoint here so the
+ * flow can advance to the new-password view.
  */
 const goToNewPasswordView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
   const user = await goToCodeView(mockOnBack);
+
+  // Mock the verify-reset-code endpoint that handleVerifyCode calls
+  server.use(
+    http.post('/api/auth/email/verify-reset-code', () =>
+      HttpResponse.json({ token: 'test-verify-token' })
+    )
+  );
 
   // Submit the code (verification-code mock fires onSubmit('654321'))
   await user.click(screen.getByTestId('submit-reset-code'));
@@ -117,7 +128,7 @@ describe('ForgotPasswordForm – email entry (Step 1)', () => {
   it('renders the email entry view by default', () => {
     render(<ForgotPasswordForm onBack={mockOnBack} />);
     expect(screen.getByTestId('forgot-password-form')).toBeInTheDocument();
-    expect(screen.getByText(/Forgot your password/)).toBeInTheDocument();
+    expect(screen.getByText(/send you a code to reset your password/i)).toBeInTheDocument();
   });
 
   it('pre-fills email from props', () => {
@@ -190,6 +201,13 @@ describe('ForgotPasswordForm – code entry (Step 2)', () => {
 
   it('submitting code advances to new-password view', async () => {
     const user = await goToCodeView(mockOnBack);
+
+    // Mock the verify-reset-code endpoint
+    server.use(
+      http.post('/api/auth/email/verify-reset-code', () =>
+        HttpResponse.json({ token: 'test-verify-token' })
+      )
+    );
 
     await user.click(screen.getByTestId('submit-reset-code'));
 
@@ -287,7 +305,7 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
 
     await waitFor(() => {
       expect(resetSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ code: '654321', email: 'test@test.com', newPassword: STRONG_PW })
+        expect.objectContaining({ token: 'test-verify-token', newPassword: STRONG_PW })
       );
     });
 
@@ -296,13 +314,13 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
     });
   });
 
-  it('shows error on invalid reset code from backend', async () => {
+  it('sends user back to code view when reset token has expired', async () => {
     const user = await goToNewPasswordView(mockOnBack);
 
     server.use(
       http.post('/api/auth/email/reset-password', () =>
         HttpResponse.json(
-          { error: 'invalid_code', message: 'Code expired' },
+          { error: 'token_expired', message: 'Verification expired. Please request a new code.' },
           { status: 400 }
         )
       )
@@ -312,10 +330,33 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
     await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
     await user.click(screen.getByTestId('reset-password-btn'));
 
-    // Invalid code sends the user back to the code view with an error
+    // Expired token sends the user back to the code view with an error
     await waitFor(() => {
       expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
-      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Code expired');
+      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Verification expired');
+    });
+  });
+
+  it('shows inline error for non-token-related backend errors', async () => {
+    const user = await goToNewPasswordView(mockOnBack);
+
+    server.use(
+      http.post('/api/auth/email/reset-password', () =>
+        HttpResponse.json(
+          { error: 'password_too_common', message: 'Password is too common' },
+          { status: 400 }
+        )
+      )
+    );
+
+    await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
+    await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
+    await user.click(screen.getByTestId('reset-password-btn'));
+
+    // Non-token errors stay on the new-password view
+    await waitFor(() => {
+      expect(screen.getByTestId('reset-new-password-view')).toBeInTheDocument();
+      expect(screen.getByTestId('password-error').textContent).toContain('Password is too common');
     });
   });
 
@@ -336,6 +377,84 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
   });
 });
 
+describe('ForgotPasswordForm – verify code errors', () => {
+  const mockOnBack = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows verification error when code is invalid', async () => {
+    const user = await goToCodeView(mockOnBack);
+
+    server.use(
+      http.post('/api/auth/email/verify-reset-code', () =>
+        HttpResponse.json(
+          { error: 'invalid_code', message: 'Invalid or expired code.' },
+          { status: 400 }
+        )
+      )
+    );
+
+    await user.click(screen.getByTestId('submit-reset-code'));
+
+    // Should stay on code view and show error
+    await waitFor(() => {
+      expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Invalid or expired');
+    });
+  });
+
+  it('handles network error during code verification', async () => {
+    const user = await goToCodeView(mockOnBack);
+
+    server.use(
+      http.post('/api/auth/email/verify-reset-code', () => HttpResponse.error())
+    );
+
+    await user.click(screen.getByTestId('submit-reset-code'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
+      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Network error');
+    });
+  });
+
+  it('handles network error during initial forgot-password request', async () => {
+    server.use(
+      http.post('/api/auth/email/forgot-password', () => HttpResponse.error())
+    );
+
+    const user = userEvent.setup();
+    render(<ForgotPasswordForm onBack={mockOnBack} initialEmail="test@test.com" />);
+
+    await user.click(screen.getByTestId('send-reset-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('forgot-error').textContent).toContain('Network error');
+    });
+  });
+
+  it('calls resend API when resend button is clicked in code view', async () => {
+    const resendSpy = vi.fn();
+    server.use(
+      http.post('/api/auth/email/resend-verification', async ({ request }) => {
+        resendSpy(await request.json());
+        return HttpResponse.json({ message: 'sent' });
+      })
+    );
+
+    const user = await goToCodeView(mockOnBack);
+    await user.click(screen.getByTestId('resend-reset-code'));
+
+    await waitFor(() => {
+      expect(resendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'test@test.com', purpose: 'password_reset' })
+      );
+    });
+  });
+});
+
 describe('ForgotPasswordForm – success view', () => {
   const mockOnBack = vi.fn();
 
@@ -344,10 +463,13 @@ describe('ForgotPasswordForm – success view', () => {
   });
 
   it('success view has back to login button', async () => {
-    // Set up handler for reset API
+    // Set up handlers for the full 3-step flow
     server.use(
       http.post('/api/auth/email/forgot-password', () =>
         HttpResponse.json({ message: 'sent' })
+      ),
+      http.post('/api/auth/email/verify-reset-code', () =>
+        HttpResponse.json({ token: 'test-verify-token' })
       ),
       http.post('/api/auth/email/reset-password', () =>
         HttpResponse.json({ message: 'done' })

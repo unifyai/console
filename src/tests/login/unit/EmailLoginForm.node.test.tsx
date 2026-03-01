@@ -40,7 +40,7 @@ vi.mock('@/components/Common/Input/Password', () => ({
 }));
 
 // Mock the verification code component to simplify testing
-vi.mock('@/app/login/verification-code', () => ({
+vi.mock('@/components/Pages/Login/VerificationCodeInput', () => ({
   default: ({ onSubmit, onResend, error, email }: any) => (
     <div data-testid="verification-code-mock">
       <span data-testid="verification-email">{email}</span>
@@ -56,7 +56,7 @@ vi.mock('@/app/login/verification-code', () => ({
 }));
 
 // Mock the forgot password component
-vi.mock('@/app/login/forgot-password', () => ({
+vi.mock('@/components/Pages/Login/ForgotPasswordForm', () => ({
   default: ({ onBack, initialEmail }: any) => (
     <div data-testid="forgot-password-mock">
       <span data-testid="forgot-email">{initialEmail}</span>
@@ -642,6 +642,113 @@ describe('EmailLoginForm – external error', () => {
     render(<EmailLoginForm externalError="OAuth failed" />);
     // The error is set via useState initial value — it will show in the error span
     expect(screen.getByTestId('email-auth-error').textContent).toBe('OAuth failed');
+  });
+});
+
+describe('EmailLoginForm – onboarding redirect after verification', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('redirects to /login/onboarding after signup verification when no special callbackUrl', async () => {
+    server.use(
+      http.post('/api/auth/email/register', () =>
+        HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
+      ),
+      http.post('/api/auth/email/verify', () =>
+        HttpResponse.json({ id: 'user-1', email: 'new@test.com' })
+      )
+    );
+    mockSignIn.mockResolvedValueOnce({ url: '/login/onboarding', error: null, ok: true });
+
+    const user = userEvent.setup();
+    render(<EmailLoginForm />);
+
+    // Register
+    await user.click(screen.getByTestId('switch-to-register'));
+    await user.type(screen.getByTestId('email-input'), 'new@test.com');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
+    await user.click(screen.getByTestId('email-submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('email-verify-view')).toBeInTheDocument());
+
+    // Verify
+    await user.click(screen.getByTestId('submit-code'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledWith(
+        'credentials',
+        expect.objectContaining({
+          callbackUrl: '/login/onboarding',
+        })
+      );
+    });
+  });
+
+  it('uses special callbackUrl instead of onboarding when provided', async () => {
+    server.use(
+      http.post('/api/auth/email/register', () =>
+        HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
+      ),
+      http.post('/api/auth/email/verify', () =>
+        HttpResponse.json({ id: 'user-1', email: 'new@test.com' })
+      )
+    );
+    mockSignIn.mockResolvedValueOnce({ url: '/login/invite?token=abc', error: null, ok: true });
+
+    const user = userEvent.setup();
+    render(<EmailLoginForm callbackUrl="/login/invite?token=abc" />);
+
+    await user.click(screen.getByTestId('switch-to-register'));
+    await user.type(screen.getByTestId('email-input'), 'new@test.com');
+    await user.type(screen.getByTestId('email-password-input'), 'Pass1234!');
+    await user.click(screen.getByTestId('email-submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('email-verify-view')).toBeInTheDocument());
+
+    await user.click(screen.getByTestId('submit-code'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledWith(
+        'credentials',
+        expect.objectContaining({
+          callbackUrl: '/login/invite?token=abc',
+        })
+      );
+    });
+  });
+});
+
+describe('EmailLoginForm – preAuthToken forwarding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('forwards preAuthToken from pre-validation to signIn', async () => {
+    server.use(
+      http.post('/api/auth/email/authenticate', () =>
+        HttpResponse.json({
+          id: 'user-1',
+          email: 'user@test.com',
+          preAuthToken: 'pre-auth-jwt-123',
+        })
+      )
+    );
+    mockSignIn.mockResolvedValueOnce({ url: '/', error: null, ok: true });
+
+    const user = userEvent.setup();
+    render(<EmailLoginForm />);
+
+    await user.type(screen.getByTestId('email-input'), 'user@test.com');
+    await user.type(screen.getByTestId('email-password-input'), 'mypassword');
+    await user.click(screen.getByTestId('email-submit-btn'));
+
+    await waitFor(() => {
+      expect(mockSignIn).toHaveBeenCalledWith(
+        'credentials',
+        expect.objectContaining({
+          preAuthToken: 'pre-auth-jwt-123',
+        })
+      );
+    });
   });
 });
 

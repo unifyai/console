@@ -10,7 +10,7 @@
  * - MfaModal sensitive-action flow
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -58,6 +58,17 @@ vi.mock('sonner', () => ({
   },
 }));
 
+// Mock TotpSetup (used by MFA page for setup flow)
+vi.mock('@/components/Common/Auth/TotpSetup', () => ({
+  default: ({ autoStart, onEnabled }: any) => (
+    <div data-testid="totp-setup-mock" data-auto-start={autoStart}>
+      <button data-testid="totp-setup-complete" onClick={onEnabled}>
+        Complete Setup
+      </button>
+    </div>
+  ),
+}));
+
 // Mock OrchestraAdminClient (needed when importing authOptions)
 vi.mock('@/lib/orchestra/orchestra-client', () => ({
   OrchestraAdminClient: {
@@ -92,7 +103,7 @@ describe('TotpInput component', () => {
   let TotpInput: any;
 
   beforeEach(async () => {
-    TotpInput = (await import('@/app/login/totp-input')).default;
+    TotpInput = (await import('@/components/Common/Auth/TotpInput')).default;
   });
 
   it('renders 6 digit inputs', () => {
@@ -196,14 +207,25 @@ describe('MFA login page', () => {
   let MfaPage: any;
 
   beforeEach(async () => {
+    // The MFA page now checks MFA status on mount — tell it MFA is enabled
+    // so it renders the verification flow (not the setup flow).
+    server.use(
+      http.get('/api/auth/mfa/status', () => {
+        return HttpResponse.json({ enabled: true });
+      }),
+    );
     MfaPage = (await import('@/app/login/mfa/page')).default;
   });
 
-  it('renders the TOTP input by default', () => {
+  it('renders the TOTP input by default', async () => {
     render(<MfaPage />);
 
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('totp-input')).toBeInTheDocument();
+    });
+
     expect(screen.getByText('Two-Factor Authentication')).toBeInTheDocument();
-    expect(screen.getByTestId('totp-input')).toBeInTheDocument();
     expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
   });
 
@@ -216,6 +238,11 @@ describe('MFA login page', () => {
 
     render(<MfaPage />);
     const user = userEvent.setup();
+
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('totp-digit-0')).toBeInTheDocument();
+    });
 
     // Type the code
     const digit0 = screen.getByTestId('totp-digit-0');
@@ -242,6 +269,11 @@ describe('MFA login page', () => {
     render(<MfaPage />);
     const user = userEvent.setup();
 
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('totp-digit-0')).toBeInTheDocument();
+    });
+
     const digit0 = screen.getByTestId('totp-digit-0');
     await user.click(digit0);
     await user.keyboard('000000');
@@ -259,6 +291,11 @@ describe('MFA login page', () => {
     render(<MfaPage />);
     const user = userEvent.setup();
 
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
+    });
+
     await user.click(screen.getByTestId('use-recovery-code'));
 
     expect(screen.getByTestId('recovery-code-input')).toBeInTheDocument();
@@ -274,6 +311,11 @@ describe('MFA login page', () => {
 
     render(<MfaPage />);
     const user = userEvent.setup();
+
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
+    });
 
     // Switch to recovery mode
     await user.click(screen.getByTestId('use-recovery-code'));
@@ -299,6 +341,11 @@ describe('MFA login page', () => {
     render(<MfaPage />);
     const user = userEvent.setup();
 
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
+    });
+
     await user.click(screen.getByTestId('use-recovery-code'));
     await user.type(screen.getByTestId('recovery-code-input'), 'testcode');
     await user.click(screen.getByTestId('recovery-submit'));
@@ -314,11 +361,52 @@ describe('MFA login page', () => {
     render(<MfaPage />);
     const user = userEvent.setup();
 
+    // Wait for MFA status check to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
+    });
+
     await user.click(screen.getByTestId('use-recovery-code'));
     expect(screen.getByTestId('recovery-code-input')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('use-totp-code'));
     expect(screen.getByTestId('totp-input')).toBeInTheDocument();
+  });
+
+  it('shows setup flow when MFA status check returns enabled: false', async () => {
+    server.use(
+      http.get('/api/auth/mfa/status', () => {
+        return HttpResponse.json({ enabled: false });
+      }),
+    );
+
+    render(<MfaPage />);
+
+    // When MFA is not enabled, the page should show setup flow
+    await waitFor(() => {
+      expect(screen.getByTestId('totp-setup-mock')).toBeInTheDocument();
+    });
+  });
+
+  it('handles MFA status check network error gracefully', async () => {
+    server.use(
+      http.get('/api/auth/mfa/status', () => {
+        return HttpResponse.error();
+      }),
+    );
+
+    render(<MfaPage />);
+
+    // On network error, the page should still render something
+    // (either show TOTP input as fallback or an error message)
+    await waitFor(() => {
+      // The page should not remain in loading state indefinitely
+      const totpOrError =
+        screen.queryByTestId('totp-input') ||
+        screen.queryByTestId('totp-setup-mock') ||
+        screen.queryByText(/error/i);
+      expect(totpOrError).toBeTruthy();
+    });
   });
 });
 
@@ -429,7 +517,7 @@ describe('RecoveryCodeDisplay component', () => {
   let RecoveryCodeDisplay: any;
 
   beforeEach(async () => {
-    RecoveryCodeDisplay = (await import('@/app/(home)/profile/recovery-codes')).default;
+    RecoveryCodeDisplay = (await import('@/components/Common/Auth/RecoveryCodeDisplay')).default;
   });
 
   it('renders all codes', () => {

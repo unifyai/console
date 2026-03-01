@@ -92,11 +92,11 @@ vi.mock('@/components/Common/Loaders/LoadingElement', () => ({
   default: () => <div data-testid="loading-element" />,
 }));
 
-vi.mock('../../../app/login/check', () => ({
+vi.mock('@/components/Pages/Login/CheckElement', () => ({
   default: () => <div data-testid="check-element" />,
 }));
 
-vi.mock('../../../app/login/login', () => ({
+vi.mock('@/components/Pages/Login/LoginFragment', () => ({
   default: ({ onLogin, error, callbackUrl }: any) => (
     <div data-testid="login-fragment" data-callback-url={callbackUrl}>
       {error && <div data-testid="login-error">{error}</div>}
@@ -134,7 +134,6 @@ describe('Login page – token handling', () => {
     render(<Login />);
 
     expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
     expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
   });
 
@@ -149,15 +148,14 @@ describe('Login page – token handling', () => {
     expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
   });
 
-  it('shows credit banner when ?credit=<token> is in URL', () => {
+  it('does not show invite banner when only credit token present', () => {
     mockSearchParamsMap = { credit: 'cred_token_456' };
 
     render(<Login />);
 
-    const banner = screen.getByTestId('credit-banner');
-    expect(banner).toBeInTheDocument();
-    expect(banner.textContent).toContain('credit grant waiting');
+    // Credit tokens are handled in callback URL but no banner is shown
     expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
   });
 
   it('shows invite banner (not credit) when both tokens present', () => {
@@ -302,15 +300,28 @@ describe('Login page – stale session signout (?signout=true)', () => {
       status: 'authenticated',
     };
 
+    // Mock window.location.href assignment
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, href: '' },
+    });
+
     render(<Login />);
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
     });
 
-    // After signOut resolves, should replace URL to remove ?signout param
+    // After signOut resolves, should navigate to /login via window.location.href
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith('/login');
+      expect(window.location.href).toBe('/login');
+    });
+
+    // Restore
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
     });
   });
 

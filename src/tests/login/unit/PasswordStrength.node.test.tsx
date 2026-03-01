@@ -202,34 +202,49 @@ describe('PasswordStrengthIndicator – rendering', () => {
   });
 });
 
-describe('PasswordStrengthIndicator – strength labels', () => {
-  it('shows "Very weak" for 1/5 rules passed', () => {
-    // 'a' → only lowercase passes (20%)
+describe('PasswordStrengthIndicator – rule pass/fail display', () => {
+  it('shows only lowercase as passed for single lowercase char', () => {
     render(<PasswordStrengthIndicator password="a" />);
-    expect(screen.getByTestId('password-strength-label').textContent).toBe('Very weak');
+    // Only lowercase should pass
+    expect(screen.getByTestId('password-rule-lowercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-uppercase').className).toContain('text-muted');
+    expect(screen.getByTestId('password-rule-digit').className).toContain('text-muted');
+    expect(screen.getByTestId('password-rule-special').className).toContain('text-muted');
+    expect(screen.getByTestId('password-rule-minLength').className).toContain('text-muted');
   });
 
-  it('shows "Weak" for 2/5 rules passed', () => {
-    // 'aA' → lowercase + uppercase (40%)
+  it('shows lowercase and uppercase as passed for mixed case', () => {
     render(<PasswordStrengthIndicator password="aA" />);
-    expect(screen.getByTestId('password-strength-label').textContent).toBe('Weak');
+    expect(screen.getByTestId('password-rule-lowercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-uppercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-digit').className).toContain('text-muted');
   });
 
-  it('shows "Fair" for 3/5 rules passed', () => {
-    // 'aA1' → lowercase + uppercase + digit (60%)
+  it('shows 3 rules passed for lowercase + uppercase + digit', () => {
     render(<PasswordStrengthIndicator password="aA1" />);
-    expect(screen.getByTestId('password-strength-label').textContent).toBe('Fair');
+    expect(screen.getByTestId('password-rule-lowercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-uppercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-digit').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-special').className).toContain('text-muted');
+    expect(screen.getByTestId('password-rule-minLength').className).toContain('text-muted');
   });
 
-  it('shows "Good" for 4/5 rules passed', () => {
-    // 'aA1!' → 4 rules but too short (80%)
+  it('shows 4 rules passed for short but complex password', () => {
     render(<PasswordStrengthIndicator password="aA1!" />);
-    expect(screen.getByTestId('password-strength-label').textContent).toBe('Good');
+    expect(screen.getByTestId('password-rule-lowercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-uppercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-digit').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-special').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-minLength').className).toContain('text-muted');
   });
 
-  it('shows "Strong" for all rules passed', () => {
+  it('shows all rules passed for a fully valid password', () => {
     render(<PasswordStrengthIndicator password="Str0ng!Pass" />);
-    expect(screen.getByTestId('password-strength-label').textContent).toBe('Strong');
+    expect(screen.getByTestId('password-rule-lowercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-uppercase').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-digit').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-special').className).toContain('text-green');
+    expect(screen.getByTestId('password-rule-minLength').className).toContain('text-green');
   });
 });
 
@@ -249,10 +264,13 @@ describe('PasswordStrengthIndicator – rule checkmarks', () => {
     expect(uppercaseRule.className).toContain('text-muted');
   });
 
-  it('strength bar width matches strength percentage', () => {
-    render(<PasswordStrengthIndicator password="aA1!" />);
-    const bar = screen.getByTestId('password-strength-bar');
-    expect(bar.style.width).toBe('80%');
+  it('renders rule labels from the PASSWORD_RULES', () => {
+    render(<PasswordStrengthIndicator password="a" />);
+    // Verify each rule item displays its label text
+    PASSWORD_RULES.forEach((rule) => {
+      const ruleEl = screen.getByTestId(`password-rule-${rule.key}`);
+      expect(ruleEl.textContent).toContain(rule.label);
+    });
   });
 });
 
@@ -290,7 +308,7 @@ vi.mock('@/components/Common/Auth/TurnstileWidget', () => ({
 }));
 
 // Mock verification code and forgot password to simplify
-vi.mock('@/app/login/verification-code', () => ({
+vi.mock('@/components/Pages/Login/VerificationCodeInput', () => ({
   default: ({ onSubmit, error }: any) => (
     <div data-testid="verification-code-mock">
       {error && <span data-testid="verification-error">{error}</span>}
@@ -301,7 +319,7 @@ vi.mock('@/app/login/verification-code', () => ({
   ),
 }));
 
-vi.mock('@/app/login/forgot-password', () => ({
+vi.mock('@/components/Pages/Login/ForgotPasswordForm', () => ({
   default: ({ onBack }: any) => (
     <div data-testid="forgot-password-mock">
       <button data-testid="forgot-back" onClick={onBack}>
