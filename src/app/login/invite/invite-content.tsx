@@ -50,20 +50,20 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
           // Org requires MFA and user doesn't have it — redirect to MFA setup
           setOrgName(result.organizationName);
           setStatus('mfa_required');
-          // Clear onboarding flag — user is joining an org via invite
-          await update({ needsOnboarding: false });
+          // Clear onboarding step — user is joining an org via invite
+          await update({ onboardingStep: 'completed' });
           // Auto-redirect after a brief moment so the user sees the message
           setTimeout(() => {
             router.push('/login/mfa');
           }, 2000);
         } else if (result && typeof result === 'object' && 'success' in result) {
           setOrgName(result.organizationName);
-          // Clear onboarding flag — user is joining an org via invite
-          await update({ needsOnboarding: false });
+          // Clear onboarding step — user is joining an org via invite
+          await update({ onboardingStep: 'completed' });
           setStatus('success');
         } else {
-          // Clear onboarding flag
-          await update({ needsOnboarding: false });
+          // Clear onboarding step
+          await update({ onboardingStep: 'completed' });
           setStatus('success');
         }
       } catch {
@@ -142,7 +142,7 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
               <Button onClick={handleBackToLogin} className="w-full" data-testid="back-to-login-btn">
                 ← Back to Login
               </Button>
-              <Button variant="outline" onClick={() => router.push('/login/workspace')} className="w-full" data-testid="continue-anyway-btn">
+              <Button variant="outline" onClick={() => router.push('/login/onboarding')} className="w-full" data-testid="continue-anyway-btn">
                 Continue anyway
               </Button>
             </div>

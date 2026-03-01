@@ -97,6 +97,7 @@ const authOptions: AuthOptions = {
               lastName: (payload.lastName as string) ?? null,
               image: (payload.image as string) ?? null,
               mfaPending: payload.mfaRequired === true,
+              onboardingStep: (payload.onboardingStep as string) ?? 'completed',
             };
           } catch {
             // Token expired or tampered — fall through to full auth
@@ -120,6 +121,7 @@ const authOptions: AuthOptions = {
               lastName: res.data.lastName ?? null,
               image: res.data.image ?? null,
               mfaPending: res.data.mfaRequired === true,
+              onboardingStep: res.data.onboardingStep ?? 'completed',
             };
           }
           return null;
@@ -213,9 +215,13 @@ const authOptions: AuthOptions = {
       if (user?.mfaPending) {
         token.mfaPending = true;
       }
-      // On OAuth sign-up: flag new users for workspace onboarding
-      if (trigger === 'signUp') {
-        token.needsOnboarding = true;
+      // Persist onboarding step from authorize() or adapter sign-up.
+      // For credentials login: authorize() returns user.onboardingStep from Orchestra.
+      // For OAuth sign-up: trigger === 'signUp' means a brand-new user.
+      if (user?.onboardingStep && user.onboardingStep !== 'completed') {
+        token.onboardingStep = user.onboardingStep;
+      } else if (trigger === 'signUp') {
+        token.onboardingStep = 'workspace_setup';
       }
       // On OAuth sign-in: check if the user has MFA enabled and prompt if so
       if (account && account.provider !== 'credentials' && token.email) {
@@ -235,9 +241,13 @@ const authOptions: AuthOptions = {
       if (trigger === 'update' && session?.mfaPending === false) {
         delete token.mfaPending;
       }
-      // On session update: clear needsOnboarding after workspace selection
-      if (trigger === 'update' && session?.needsOnboarding === false) {
-        delete token.needsOnboarding;
+      // On session update: advance or clear onboarding step
+      if (trigger === 'update' && session?.onboardingStep) {
+        if (session.onboardingStep === 'completed') {
+          delete token.onboardingStep;
+        } else {
+          token.onboardingStep = session.onboardingStep;
+        }
       }
 
       if (account?.provider === 'google' && !token.picture) {
@@ -292,9 +302,9 @@ const authOptions: AuthOptions = {
       if (token.mfaPending) {
         session.mfaPending = true;
       }
-      // Expose needsOnboarding so the middleware can redirect to /login/workspace.
-      if (token.needsOnboarding) {
-        session.needsOnboarding = true;
+      // Expose onboardingStep so the middleware can redirect to /login/onboarding.
+      if (token.onboardingStep) {
+        session.onboardingStep = token.onboardingStep;
       }
       // Expose the auth provider so downstream logic can distinguish
       // email/password sessions from OAuth sessions.

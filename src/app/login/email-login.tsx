@@ -177,7 +177,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       // the workspace onboarding page so the user can choose between
       // personal and organization before they start configuring anything.
       const isSpecialCallback = callbackUrl && callbackUrl !== '/' && callbackUrl !== '';
-      const effectiveCallbackUrl = isSpecialCallback ? callbackUrl : '/login/workspace';
+      const effectiveCallbackUrl = isSpecialCallback ? callbackUrl : '/login/onboarding';
 
       const result = await signIn('credentials', {
         email,

@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       lastName: res.data.lastName ?? null,
       image: res.data.image ?? null,
       mfaRequired: res.data.mfaRequired ?? false,
+      onboardingStep: res.data.onboardingStep ?? 'completed',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -11,8 +11,20 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
 
+/** Minimal shape of an existing organization — only what we need here. */
+interface ExistingOrg {
+  id: number;
+  name: string;
+}
+
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
+  onUpdateOnboarding: (update: {
+    currentStep: string;
+    stepData?: Record<string, unknown>;
+  }) => Promise<void>;
+  /** Organizations the user already belongs to (passed from server component). */
+  existingOrgs: ExistingOrg[];
 }
 
 /**
@@ -22,27 +34,84 @@ interface WorkspaceContentProps {
  *   - "Just for me"  → personal workspace
  *   - "For my team"  → create an organization
  *
- * After choosing, the `needsOnboarding` flag is cleared from the session
- * and the user is redirected to /assistants.
+ * ## Idempotency
+ *
+ * Each onboarding step can have side effects (e.g. creating an org). The step
+ * update in the backend and the side effect are two separate operations that
+ * can't be atomic. To prevent duplicating side effects when a user resumes
+ * after a partial failure, we check on mount whether the step's outcome
+ * already exists:
+ *
+ * - **workspace_setup**: if the user already has an organization, the step's
+ *   side effect has already happened → auto-complete.
+ * - For steps **without** observable side effects (e.g. selecting "personal"),
+ *   repeating is harmless.
+ *
+ * This makes the backend step tracker a "where to resume" hint, while the
+ * actual outcome is the source of truth for whether a step was done.
  */
-const WorkspaceContent = ({ onCreateOrg }: WorkspaceContentProps) => {
+const WorkspaceContent = ({
+  onCreateOrg,
+  onUpdateOnboarding,
+  existingOrgs,
+}: WorkspaceContentProps) => {
   const { update } = useSession();
   const router = useRouter();
+  const autoCompletedRef = useRef(false);
 
   const [choice, setChoice] = useState<'personal' | 'organization' | null>(null);
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
+  const [autoCompleting, setAutoCompleting] = useState(false);
 
-  const clearOnboardingAndRedirect = useCallback(async () => {
-    await update({ needsOnboarding: false });
-    router.push('/assistants');
-  }, [update, router]);
+  /**
+   * Persist the onboarding step to the backend (best-effort) and clear the
+   * JWT flag. Because we check existing outcomes on mount, a failed backend
+   * update won't cause the user to repeat side effects — worst case they see
+   * the selection UI again but the auto-complete check will skip them through.
+   */
+  const completeAndRedirect = useCallback(
+    async (stepData: Record<string, unknown>) => {
+      try {
+        await onUpdateOnboarding({ currentStep: 'completed', stepData });
+      } catch {
+        // Best-effort: the idempotency check on next load handles the gap.
+        console.warn('[onboarding] Failed to persist step completion — will auto-complete on next visit');
+      }
+
+      await update({ onboardingStep: 'completed' });
+      router.push('/assistants');
+    },
+    [onUpdateOnboarding, update, router],
+  );
+
+  // ── Idempotency check on mount ──────────────────────────────────────
+  // If the user already has an organization, the workspace step's side
+  // effect has already happened (they created an org on a previous
+  // attempt that wasn't recorded). Auto-complete the step.
+  useEffect(() => {
+    if (autoCompletedRef.current) return;
+    if (existingOrgs.length === 0) return;
+
+    autoCompletedRef.current = true;
+    setAutoCompleting(true);
+
+    const latestOrg = existingOrgs[existingOrgs.length - 1];
+    completeAndRedirect({
+      selected_type: 'organization',
+      organization_id: String(latestOrg.id),
+      organization_name: latestOrg.name,
+      auto_completed: true,
+    });
+  }, [existingOrgs, completeAndRedirect]);
 
   const handlePersonal = useCallback(async () => {
+    setError(undefined);
     setIsLoading(true);
-    await clearOnboardingAndRedirect();
-  }, [clearOnboardingAndRedirect]);
+    // Selecting "personal" has no side effect — repeating is harmless.
+    await completeAndRedirect({ selected_type: 'personal' });
+  }, [completeAndRedirect]);
 
   const handleCreateOrg = useCallback(async () => {
     const trimmed = orgName.trim();
@@ -73,12 +142,32 @@ const WorkspaceContent = ({ onCreateOrg }: WorkspaceContentProps) => {
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
-      await clearOnboardingAndRedirect();
+      await completeAndRedirect({
+        selected_type: 'organization',
+        organization_id: String(org.id),
+        organization_name: org.name,
+      });
     } catch {
       setError('Failed to create organization. Please try again.');
       setIsLoading(false);
     }
-  }, [orgName, onCreateOrg, clearOnboardingAndRedirect]);
+  }, [orgName, onCreateOrg, completeAndRedirect]);
+
+  // Show a loading state while auto-completing (user already has an org).
+  if (autoCompleting) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="m-auto flex w-full max-w-md flex-col items-center gap-6"
+      >
+        <UnifyLogo />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <p className="text-body text-muted-foreground">Setting up your workspace...</p>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -232,4 +321,3 @@ const WorkspaceContent = ({ onCreateOrg }: WorkspaceContentProps) => {
 };
 
 export default WorkspaceContent;
-
