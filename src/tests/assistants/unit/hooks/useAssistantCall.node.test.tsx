@@ -154,6 +154,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn(),
+    checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn(),
     listUserDesktops: vi.fn(),
   },

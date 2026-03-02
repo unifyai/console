@@ -158,6 +158,7 @@ export const mockAssistantActions: any = {
   },
   desktop: {
     getLiveviewUrl: vi.fn(async () => ({ liveviewUrl: 'https://vnc.example.com' })),
+    checkLiveviewHealth: vi.fn(async () => true),
     sendSystemEvent: vi.fn(async () => ({ info: 'Event sent' })),
   },
 };

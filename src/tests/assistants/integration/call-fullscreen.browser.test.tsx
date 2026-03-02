@@ -177,6 +177,7 @@ const createMockAssistantActions = () => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn().mockResolvedValue({ liveviewUrl: 'https://liveview.example.com' }),
+    checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn().mockResolvedValue({ info: 'success' }),
   },
 });
@@ -960,8 +961,10 @@ describe('AssistantCommunicationFullScreen', () => {
         {
           meta: {
             alias: 'Handoff-AssistantGoneDespiteHandoff',
-            scenario: 'Dialog passes handoff data with assistantJoined=true, but assistant left during transition.',
-            behavior: 'Fullscreen checks actual room state, shows waiting, and dispatches assistant.',
+            scenario:
+              'Dialog passes handoff data with assistantJoined=true, but assistant left during transition.',
+            behavior:
+              'Fullscreen checks actual room state, shows waiting, and dispatches assistant.',
           },
         },
         async () => {

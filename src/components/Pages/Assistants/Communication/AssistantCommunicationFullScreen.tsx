@@ -18,6 +18,7 @@ import { AssistantCommunicationUserView } from '@/components/Pages/Assistants/Co
 import { AssistantCommunicationControls } from '@/components/Pages/Assistants/Communication/AssistantCommunicationControls';
 import { AssistantCommunicationSidePanel } from '@/components/Pages/Assistants/Communication/AssistantCommunicationSidePanel';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -458,9 +459,15 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     }
 
     setIsRemoteControlLoading(true);
+    const toastId = toast.loading('Starting assistant screen sharing...');
     try {
       const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
       if ('liveviewUrl' in result && result.liveviewUrl) {
+        const healthy = await assistantActions.desktop.checkLiveviewHealth(result.liveviewUrl);
+        if (!healthy) {
+          toast.error('Desktop is not reachable — it may still be starting up.', { id: toastId });
+          return;
+        }
         setLiveviewUrl(result.liveviewUrl);
         setIsRemoteControlActive(true);
         assistantActions.desktop
@@ -470,11 +477,16 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
             'User enabled assistant screen sharing'
           )
           .catch(console.error);
+        toast.success('Assistant screen sharing started.', { id: toastId });
       } else if ('detail' in result) {
         console.error('[FullScreen] Failed to get liveview URL:', result.detail);
+        toast.error('detail' in result ? result.detail : 'Could not start screen sharing.', {
+          id: toastId,
+        });
       }
     } catch (err) {
       console.error('[FullScreen] Error fetching liveview URL:', err);
+      toast.error('Failed to start assistant screen sharing.', { id: toastId });
     } finally {
       setIsRemoteControlLoading(false);
     }
