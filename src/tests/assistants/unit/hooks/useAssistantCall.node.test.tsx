@@ -13,6 +13,14 @@ import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { RoomEvent } from 'livekit-client';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
+// Mock BroadcastChannel (not available in jsdom)
+class MockBroadcastChannel {
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  postMessage = vi.fn();
+  close = vi.fn();
+}
+(global as any).BroadcastChannel = MockBroadcastChannel;
+
 // Mock sonner toast
 vi.mock('sonner', () => ({
   toast: {

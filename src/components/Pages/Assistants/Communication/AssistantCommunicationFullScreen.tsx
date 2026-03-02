@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 import { makeRoomName } from '@/utils/assistants/call-utils';
+import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'>;
 
@@ -395,6 +396,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       remoteControlActive?: boolean;
       liveviewUrl?: string | null;
       remoteControlInteractive?: boolean;
+      isDesktopReady?: boolean;
     };
   } | null>(null);
 
@@ -407,9 +409,15 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
+  // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
+  // with a low-frequency fallback poll.
+  const isDesktopReady = useDesktopReady(
+    !isConnecting ? assistant?.agentId : undefined,
+    assistantActions.desktop.getLiveviewUrl,
+    callData?.handoffState?.isDesktopReady
+  );
+
   // Remote control state
-  const [isDesktopReady, setIsDesktopReady] = React.useState(false);
-  const desktopPollRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
@@ -581,11 +589,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // during the pop-out transition), redispatch it.
       if (!assistantInRoom) {
         const roomName = makeRoomName(assistant.agentId, 'meet');
-        assistantActions.call
-          .dispatchToCall(assistant.agentId, roomName)
-          .catch((err: any) => {
-            console.error('[FullScreen] Failed to dispatch assistant:', err);
-          });
+        assistantActions.call.dispatchToCall(assistant.agentId, roomName).catch((err: any) => {
+          console.error('[FullScreen] Failed to dispatch assistant:', err);
+        });
       }
 
       // Restore remote control state from handoff
@@ -680,56 +686,6 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       }
     };
   }, [room, assistant, params.assistantId]);
-
-  // Poll for desktop VM readiness once connected.
-  // Uses recursive setTimeout so the next check only schedules after
-  // the current one completes, avoiding overlapping calls.
-  React.useEffect(() => {
-    if (isConnecting || !assistant) return;
-
-    let cancelled = false;
-
-    const stopPoll = () => {
-      if (desktopPollRef.current) {
-        clearTimeout(desktopPollRef.current);
-        desktopPollRef.current = null;
-      }
-    };
-
-    const scheduleCheck = () => {
-      desktopPollRef.current = setTimeout(async () => {
-        if (cancelled) return;
-        try {
-          const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
-          if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-            setIsDesktopReady(true);
-            return;
-          }
-        } catch {
-          // VM not ready yet
-        }
-        if (!cancelled) scheduleCheck();
-      }, 3000);
-    };
-
-    (async () => {
-      try {
-        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
-        if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-          setIsDesktopReady(true);
-          return;
-        }
-      } catch {
-        // VM not ready yet
-      }
-      if (!cancelled) scheduleCheck();
-    })();
-
-    return () => {
-      cancelled = true;
-      stopPoll();
-    };
-  }, [isConnecting, assistant, assistantActions.desktop]);
 
   if (!callData || !assistant) {
     return (

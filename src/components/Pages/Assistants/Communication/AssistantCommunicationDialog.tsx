@@ -216,6 +216,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         remoteControlActive: isRemoteControlActive,
         liveviewUrl: liveviewUrl,
         remoteControlInteractive: isRemoteControlInteractive,
+        isDesktopReady: isDesktopReady,
       },
     };
 

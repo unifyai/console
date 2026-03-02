@@ -5,11 +5,6 @@ import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
-const MAX_LIVEVIEW_URL_RETRIES = 15;
-const LIVEVIEW_URL_RETRY_DELAY_MS = 2000;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
   return async (assistantId: string): Promise<{ liveviewUrl?: string } | ResponseProps> => {
     'use server';
@@ -34,73 +29,43 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
       url.searchParams.append('context', 'startup_events');
       url.searchParams.append('filterExpr', filterExpr);
 
-      for (let attempt = 1; attempt <= MAX_LIVEVIEW_URL_RETRIES; attempt++) {
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            apiKey: sharedUnifyKey, // Use the shared key for the internal proxy request
-          },
-          cache: 'no-store',
-        });
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          apiKey: sharedUnifyKey,
+        },
+        cache: 'no-store',
+      });
 
-        if (response.status === 404) {
-          if (attempt === MAX_LIVEVIEW_URL_RETRIES) {
-            console.warn(
-              `[getLiveviewUrl] Max retries reached. No active session found for assistant ${assistantId} (404 Not Found).`
-            );
-            return {
-              detail: 'No active session found for this assistant. Please try again in a moment.',
-            };
-          }
-          await sleep(LIVEVIEW_URL_RETRY_DELAY_MS);
-          continue;
-        }
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          const errorMessage =
-            data.detail ||
-            `Failed to get session details: ${response.statusText} (Status: ${response.status})`;
-          console.error(
-            `[getLiveviewUrl] Error from logs API. Status: ${response.status}, Body:`,
-            JSON.stringify(data, null, 2)
-          );
-          return { detail: errorMessage }; // Break on definitive errors
-        }
-
-        const logsResponse = data as LogsResponseProps;
-        const latestLog = (logsResponse.logs as LogProps[])?.[0];
-
-        // Note: The orchestra client transforms snake_case to camelCase, so liveview_url becomes liveviewUrl
-        // Also check for snake_case in case the transformation didn't happen
-        const liveviewUrlValue =
-          latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
-
-        if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
-          let liveviewUrl = liveviewUrlValue;
-
-          const urlObj = new URL(liveviewUrl);
-          urlObj.searchParams.set('password', userApiKey); // Use the user's key for the VNC password
-
-          const finalUrl = urlObj.toString();
-
-          return { liveviewUrl: finalUrl };
-        }
-
-        // If we got a 200 OK but the log wasn't there/complete, wait and retry.
-        if (attempt < MAX_LIVEVIEW_URL_RETRIES) {
-          await sleep(LIVEVIEW_URL_RETRY_DELAY_MS);
-        }
+      if (response.status === 404) {
+        return { detail: 'No active session found for this assistant.' };
       }
 
-      console.warn(
-        `[getLiveviewUrl] No logs with a valid 'liveviewUrl' found for assistant ${assistantId} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`
-      );
-      return {
-        detail:
-          'Could not find an active remote control session. The assistant might still be starting up.',
-      };
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.detail ||
+          `Failed to get session details: ${response.statusText} (Status: ${response.status})`;
+        console.error(
+          `[getLiveviewUrl] Error from logs API. Status: ${response.status}, Body:`,
+          JSON.stringify(data, null, 2)
+        );
+        return { detail: errorMessage };
+      }
+
+      const logsResponse = data as LogsResponseProps;
+      const latestLog = (logsResponse.logs as LogProps[])?.[0];
+
+      const liveviewUrlValue = latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
+
+      if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
+        const urlObj = new URL(liveviewUrlValue);
+        urlObj.searchParams.set('password', userApiKey);
+        return { liveviewUrl: urlObj.toString() };
+      }
+
+      return { detail: 'Liveview URL not yet available.' };
     } catch (error) {
       console.error(
         `[getLiveviewUrl] An unexpected error occurred while fetching session URL for assistant ${assistantId}:`,
