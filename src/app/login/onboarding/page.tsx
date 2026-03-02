@@ -35,9 +35,16 @@ export default async function OnboardingPage() {
   // ── Idempotency: auto-complete if the user already has an org ─────────
   // This covers the case where the user joined an org via invite but the
   // client-side JWT update failed, leaving the stale `onboardingStep` flag
-  // in the cookie. We handle it server-side: mark the backend step complete
-  // (best-effort) then patch the JWT cookie and redirect.
-  if (existingOrgs.length > 0) {
+  // in the cookie. We mark the backend step complete (best-effort) and pass
+  // `autoComplete` to the client component, which then calls the server
+  // action to patch the JWT cookie.
+  //
+  // NOTE: We can't call patchSessionAndRedirect here because cookies can
+  // only be modified in Server Actions or Route Handlers, not during a
+  // server component render.
+  const shouldAutoComplete = existingOrgs.length > 0;
+
+  if (shouldAutoComplete) {
     const latestOrg = existingOrgs[existingOrgs.length - 1];
     try {
       await onUpdateOnboarding({
@@ -52,7 +59,6 @@ export default async function OnboardingPage() {
     } catch {
       // Best-effort — the idempotency check will handle it next time.
     }
-    await patchSessionAndRedirect({ onboardingStep: 'completed' });
   }
 
   return (
@@ -60,6 +66,7 @@ export default async function OnboardingPage() {
       onCreateOrg={createOrgAction}
       onUpdateOnboarding={onUpdateOnboarding}
       onPatchSession={patchSessionAndRedirect}
+      autoComplete={shouldAutoComplete}
     />
   );
 }

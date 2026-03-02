@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { User, Users, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
+import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
 
@@ -21,6 +22,12 @@ interface WorkspaceContentProps {
     redirectTo?: string,
     extraParams?: Record<string, string>,
   ) => Promise<never>;
+  /**
+   * When true, the component auto-completes onboarding on mount
+   * (calls onPatchSession immediately). Used when the server component
+   * detects the user already has an org (e.g. joined via invite).
+   */
+  autoComplete?: boolean;
 }
 
 /**
@@ -42,11 +49,34 @@ const WorkspaceContent = ({
   onCreateOrg,
   onUpdateOnboarding,
   onPatchSession,
+  autoComplete = false,
 }: WorkspaceContentProps) => {
   const [choice, setChoice] = useState<'personal' | 'organization' | null>(null);
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(autoComplete);
+  const autoCompleteTriggered = useRef(false);
+
+  // Auto-complete onboarding on mount when the user already has an org.
+  // Server actions can modify cookies when called from a client component,
+  // but NOT during a server component render — hence this runs here.
+  useEffect(() => {
+    if (!autoComplete || autoCompleteTriggered.current) return;
+    autoCompleteTriggered.current = true;
+    onPatchSession({ onboardingStep: 'completed' }).catch(() => {
+      // If the patch fails, show the normal onboarding UI
+      setIsLoading(false);
+    });
+  }, [autoComplete, onPatchSession]);
+
+  // Show a loading state while auto-completing
+  if (autoComplete && isLoading) {
+    return (
+      <div className="m-auto flex items-center justify-center">
+        <LoadingElement />
+      </div>
+    );
+  }
 
   /**
    * Persist the onboarding step to the backend (best-effort) then call the
