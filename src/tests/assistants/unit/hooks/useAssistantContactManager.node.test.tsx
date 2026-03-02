@@ -49,6 +49,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   call: {
     getConnectionDetails: vi.fn(),
     dispatchToCall: vi.fn(),
+    deleteRoom: vi.fn(),
   },
   voice: {
     list: vi.fn(),
@@ -88,6 +89,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   desktop: {
     getLiveviewUrl: vi.fn(),
     sendSystemEvent: vi.fn(),
+    listUserDesktops: vi.fn(),
   },
   approval: {
     getProfile: vi.fn(),

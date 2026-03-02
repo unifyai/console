@@ -52,8 +52,12 @@ import {
   requestAssistantHiringAccess,
 } from '@/lib/assistants/approval';
 import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
-import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
-import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
+import {
+  getCallConnectionDetails,
+  dispatchAssistantToCall,
+  deleteCallRoom,
+} from '@/lib/assistants/call';
+import { getLiveviewUrl, sendSystemEvent, listUserDesktops } from '@/lib/assistants/desktop';
 import {
   getAssistantSpend,
   getAssistantSpendingLimit,
@@ -147,10 +151,12 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
       dispatchToCall: await dispatchAssistantToCall(apiKey),
+      deleteRoom: await deleteCallRoom(),
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
       sendSystemEvent: await sendSystemEvent(),
+      listUserDesktops: await listUserDesktops(apiKey),
     },
     spending: {
       getSpend: await getAssistantSpend(apiKey),
@@ -188,6 +194,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     email: user.email,
     orgId,
     mfaSetupRequired: !!user.mfaSetupRequired,
+    apiKey,
   };
 
   return (

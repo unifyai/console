@@ -7,6 +7,33 @@ import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/set
 import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 
+/**
+ * Chat initialization follows a linear phase progression:
+ *
+ *   uninitialized ──► pending_contact ──────────────────► ready
+ *                      (first view or returning;           (SSE connects)
+ *                       skip transcript fetch)
+ *
+ *   uninitialized ──► resolving_contact ──► loading_transcripts ──► ready
+ *                      (fresh load;          (fetch from backend)
+ *                       need transcripts)
+ *
+ * The "should I fetch transcripts?" decision is structural — encoded in the
+ * phase transition — not conditional on a mutable ref. This eliminates the
+ * class of race conditions where concurrent async paths disagree on whether
+ * to fetch.
+ */
+type ChatPhase =
+  | 'uninitialized'
+  | 'pending_contact'
+  | 'resolving_contact'
+  | 'loading_transcripts'
+  | 'ready'
+  | 'error';
+
+const CONTACT_ID_RETRY_DELAY = 5000;
+const CONTACT_ID_MAX_RETRIES = 6;
+
 export function useAssistantProfileChat(
   assistant: Assistant | null,
   assistantActions: Pick<AssistantActions, 'chat'>,
@@ -26,10 +53,28 @@ export function useAssistantProfileChat(
     );
   }, [chatHistories, assistantId]);
 
+  // =========================================================================
+  // Phase state machine
+  // =========================================================================
+  const [phase, setPhase] = React.useState<ChatPhase>('uninitialized');
+  const [contactId, setContactId] = React.useState<number | null>(null);
+  const [initialLoadError, setInitialLoadError] = React.useState(false);
+  const [canChat, setCanChat] = React.useState(true);
+  const [isRetryingContactId, setIsRetryingContactId] = React.useState(false);
+  const initDoneRef = React.useRef(false);
+  // Tracks which assistantId the current phase/contactId belong to. Prevents
+  // the SSE effect from creating a spurious connection during the render where
+  // assistantId has changed but phase/contactId haven't been reset yet.
+  const activeAssistantIdRef = React.useRef<string | null>(null);
+  // Session-wide cache so switching back to a previously-viewed assistant
+  // doesn't re-resolve contactId (avoids "Connecting..." flash on every switch).
+  const contactIdCacheRef = React.useRef<Map<string, number>>(new Map());
+
+  // =========================================================================
+  // Orthogonal UI state
+  // =========================================================================
   const [inputValue, setInputValue] = React.useState('');
   const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
-  const [isInitialLoading, setIsInitialLoading] = React.useState(false);
-  const [initialLoadError, setInitialLoadError] = React.useState(false);
   const [connectionStatus, setConnectionStatus] = React.useState<
     'connecting' | 'connected' | 'reconnecting' | 'error'
   >('connecting');
@@ -37,13 +82,9 @@ export function useAssistantProfileChat(
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [loadMoreError, setLoadMoreError] = React.useState(false);
   const [hasFetchedHistory, setHasFetchedHistory] = React.useState(false);
-  const [historyLoadedForAssistantId, setHistoryLoadedForAssistantId] = React.useState<
-    string | null
-  >(null);
-  const firstViewProcessed = React.useRef(false);
+
   const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
   const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
 
   // SSE reconnection state
@@ -51,44 +92,27 @@ export function useAssistantProfileChat(
   const sseReconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sseReconnectAttemptsRef = React.useRef(0);
   const SSE_MAX_RECONNECT_ATTEMPTS = 5;
-  const SSE_RECONNECT_BASE_DELAY = 1000; // 1 second, will use exponential backoff
+  const SSE_RECONNECT_BASE_DELAY = 1000;
 
-  // Contact ID caching and chat permission state
-  const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
-  const [canChat, setCanChat] = React.useState<boolean>(true);
-  const [isRetryingContactId, setIsRetryingContactId] = React.useState<boolean>(false);
-
-  // Auto-retry for contact_id resolution
-  const contactIdRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const contactIdRetryAttemptsRef = React.useRef<Map<string, number>>(new Map());
-  const CONTACT_ID_RETRY_DELAY = 5000; // 5 seconds between retries
-  const CONTACT_ID_MAX_RETRIES = 6; // Max 6 retries (30 seconds total)
-
-  // Get the current user's contact_id for the active assistant
-  // This value is stable and only changes when the contact ID for THIS assistant changes
-  const currentContactId = React.useMemo(() => {
-    if (!assistantId) return null;
-    return contactIdCache.get(assistantId) ?? null;
-  }, [assistantId, contactIdCache]);
-
-  // Reset UI state when assistant changes
+  // =========================================================================
+  // Reset when assistant changes
+  // =========================================================================
   React.useEffect(() => {
+    setPhase('uninitialized');
+    setContactId(null);
+    setInitialLoadError(false);
+    setCanChat(true);
+    setIsRetryingContactId(false);
     setHasMoreMessages(true);
     setHasFetchedHistory(false);
     setLoadMoreError(false);
-    setInitialLoadError(false);
-    setHistoryLoadedForAssistantId(null);
-    // Reset canChat - will be determined during initialization
-    setCanChat(true);
-    setIsRetryingContactId(false);
-
-    // Clear any pending contact_id retry timeout when assistant changes
-    if (contactIdRetryTimeoutRef.current) {
-      clearTimeout(contactIdRetryTimeoutRef.current);
-      contactIdRetryTimeoutRef.current = null;
-    }
+    setConnectionStatus('connecting');
+    initDoneRef.current = false;
   }, [assistantId]);
 
+  // =========================================================================
+  // Typing helpers
+  // =========================================================================
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   };
@@ -109,7 +133,6 @@ export function useAssistantProfileChat(
     setIsAssistantReplying(false);
   }, [clearTimers]);
 
-  // Typing timeout
   React.useEffect(() => {
     if (isAssistantReplying) {
       typingTimeoutTimerRef.current = setTimeout(() => {
@@ -121,7 +144,6 @@ export function useAssistantProfileChat(
     };
   }, [isAssistantReplying]);
 
-  // Helper to calculate and store the latest timestamp
   const recordTranscriptTimestamp = React.useCallback((id: string, msgs: ChatMessage[]) => {
     if (msgs.length > 0) {
       const maxTime = Math.max(...msgs.map((m) => new Date(m.timestamp).getTime()));
@@ -133,269 +155,201 @@ export function useAssistantProfileChat(
     }
   }, []);
 
-  /**
-   * Retries getting the contact_id for an assistant.
-   * Called automatically when contact_id is not found initially.
-   */
-  const retryContactIdLookup = React.useCallback(
-    async (currentAssistantId: string, currentAssistant: Assistant) => {
-      // Get current retry count
-      const currentRetries = contactIdRetryAttemptsRef.current.get(currentAssistantId) || 0;
+  // =========================================================================
+  // Phase 1: Initialization
+  // Determines starting phase based on isFirstView and existing history.
+  // Runs exactly once per assistant (gated on phase === 'uninitialized').
+  // =========================================================================
+  React.useEffect(() => {
+    if (phase !== 'uninitialized' || !assistantId || !assistant) return;
 
-      if (currentRetries >= CONTACT_ID_MAX_RETRIES) {
-        // Max retries reached, stop retrying
-        setIsRetryingContactId(false);
-        contactIdRetryAttemptsRef.current.delete(currentAssistantId);
-        return;
+    activeAssistantIdRef.current = assistantId;
+
+    const cachedId = contactIdCacheRef.current.get(assistantId);
+
+    if (isFirstView && !initDoneRef.current) {
+      initDoneRef.current = true;
+      const initialHistory = preHireChat || [];
+      recordTranscriptTimestamp(assistantId, initialHistory);
+      setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
+      onFirstViewCompleted?.();
+      if (cachedId !== undefined) {
+        setContactId(cachedId);
+        setPhase('ready');
+      } else {
+        setPhase('pending_contact');
       }
+    } else if (chatHistories[assistantId] !== undefined) {
+      if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
+        transcriptCutoffsRef.current[assistantId] = 0;
+      }
+      if (cachedId !== undefined) {
+        setContactId(cachedId);
+        setPhase('ready');
+      } else {
+        setPhase('pending_contact');
+      }
+    } else {
+      if (cachedId !== undefined) {
+        setContactId(cachedId);
+        setPhase('loading_transcripts');
+      } else {
+        setPhase('resolving_contact');
+      }
+    }
+    // isFirstView, preHireChat, onFirstViewCompleted are consumed once during the
+    // uninitialized→* transition. They must NOT be dependencies — the effect should
+    // not re-run when the parent re-renders with a new onFirstViewCompleted ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, assistantId, assistant, recordTranscriptTimestamp, setChatHistories]);
 
+  // =========================================================================
+  // Phase 2: Contact ID resolution
+  // Polls getContactId with retries inside a single effect. The cleanup
+  // function cancels in-flight requests and timers — proper React lifecycle,
+  // no orphaned callbacks.
+  // =========================================================================
+  React.useEffect(() => {
+    if (phase !== 'pending_contact' && phase !== 'resolving_contact') return;
+    if (!assistantId || !assistant) return;
+
+    if (!userEmail) {
+      setCanChat(false);
+      setInitialLoadError(true);
+      setPhase('error');
+      return;
+    }
+
+    let cancelled = false;
+    let retryTimer: NodeJS.Timeout;
+    const currentAssistantId = assistantId;
+    const currentAssistant = assistant;
+    const skipTranscripts = phase === 'pending_contact';
+
+    const resolve = async (attempt: number) => {
       try {
-        const contactId = await assistantActions.chat.getContactId(
-          userEmail || '',
+        const id = await assistantActions.chat.getContactId(
+          userEmail,
           currentAssistant.userId,
           currentAssistantId
         );
+        if (cancelled) return;
 
-        if (contactId !== null) {
-          // Success! Cache the contact_id and enable chat
-          setContactIdCache((prev) => new Map(prev).set(currentAssistantId, contactId));
+        if (id !== null) {
+          contactIdCacheRef.current.set(currentAssistantId, id);
+          setContactId(id);
           setCanChat(true);
           setIsRetryingContactId(false);
-          contactIdRetryAttemptsRef.current.delete(currentAssistantId);
-
-          // If this assistant was just hired (first view processed), pre-hire messages
-          // are already loaded into history. Skip the transcript fetch to avoid
-          // overwriting them — there can't be any server transcripts yet since chat
-          // was unavailable before the contact_id was resolved.
-          // SSE will pick up any new messages going forward.
-          if (firstViewProcessed.current) {
-            firstViewProcessed.current = false;
-            setHistoryLoadedForAssistantId(currentAssistantId);
+          if (skipTranscripts) {
+            setPhase('ready');
           } else {
-            // Fetch transcripts now that we have a contact_id
-            const historyResult = await assistantActions.chat.getTranscripts(
-              contactId,
-              currentAssistant.userId,
-              currentAssistantId
-            );
-
-            if (!('detail' in historyResult)) {
-              const history = (historyResult as ChatMessage[]).reverse();
-              recordTranscriptTimestamp(currentAssistantId, history);
-              setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
-              if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
-                setHasMoreMessages(false);
-              }
-              setHistoryLoadedForAssistantId(currentAssistantId);
-            }
+            setPhase('loading_transcripts');
           }
-        } else {
-          // Still no contact_id, schedule next retry
-          contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
-          contactIdRetryTimeoutRef.current = setTimeout(() => {
-            retryContactIdLookup(currentAssistantId, currentAssistant);
+        } else if (attempt < CONTACT_ID_MAX_RETRIES) {
+          setCanChat(false);
+          setIsRetryingContactId(true);
+          retryTimer = setTimeout(() => {
+            if (!cancelled) resolve(attempt + 1);
           }, CONTACT_ID_RETRY_DELAY);
+        } else {
+          setCanChat(false);
+          setIsRetryingContactId(false);
+          setPhase('error');
         }
       } catch {
-        // Error occurred, schedule next retry
-        contactIdRetryAttemptsRef.current.set(currentAssistantId, currentRetries + 1);
-        contactIdRetryTimeoutRef.current = setTimeout(() => {
-          retryContactIdLookup(currentAssistantId, currentAssistant);
-        }, CONTACT_ID_RETRY_DELAY);
-      }
-    },
-    [assistantActions.chat, userEmail, recordTranscriptTimestamp, setChatHistories]
-  );
-
-  /**
-   * Initializes chat for an assistant:
-   * 1. Looks up user's contact_id via All/Contacts context with id filters
-   * 2. Fetches transcripts if contact_id found
-   * 3. Sets canChat=false and starts retry if contact_id not found
-   */
-  const fetchInitialHistory = React.useCallback(
-    async (currentAssistantId: string, currentAssistant: Assistant) => {
-      setIsInitialLoading(true);
-      setInitialLoadError(false);
-
-      // Check if we already have a cached contact_id
-      const cachedContactId = contactIdCache.get(currentAssistantId);
-
-      try {
-        let contactId: number;
-
-        // Lookup contact_id if not cached
-        if (cachedContactId !== undefined) {
-          contactId = cachedContactId;
+        if (cancelled) return;
+        if (attempt < CONTACT_ID_MAX_RETRIES) {
+          setCanChat(false);
+          setIsRetryingContactId(true);
+          retryTimer = setTimeout(() => {
+            if (!cancelled) resolve(attempt + 1);
+          }, CONTACT_ID_RETRY_DELAY);
         } else {
-          if (!userEmail) {
-            setCanChat(false);
-            setIsInitialLoading(false);
-            setInitialLoadError(true);
-            return;
-          }
-
-          const lookedUpContactId = await assistantActions.chat.getContactId(
-            userEmail,
-            currentAssistant.userId,
-            currentAssistantId
-          );
-
-          if (lookedUpContactId === null) {
-            // User not in contacts - disable chat and start retry
-            setCanChat(false);
-            setIsInitialLoading(false);
-            setChatHistories((prev) => ({ ...prev, [currentAssistantId]: [] }));
-            setHistoryLoadedForAssistantId(currentAssistantId);
-
-            // Start auto-retry for contact_id
-            setIsRetryingContactId(true);
-            contactIdRetryAttemptsRef.current.set(currentAssistantId, 0);
-            contactIdRetryTimeoutRef.current = setTimeout(() => {
-              retryContactIdLookup(currentAssistantId, currentAssistant);
-            }, CONTACT_ID_RETRY_DELAY);
-
-            return;
-          }
-
-          contactId = lookedUpContactId;
-          // Cache the contact_id
-          setContactIdCache((prev) => new Map(prev).set(currentAssistantId, contactId));
+          setCanChat(false);
+          setIsRetryingContactId(false);
+          setPhase('error');
         }
+      }
+    };
 
-        // Fetch transcripts with the contact_id
-        const historyResult = await assistantActions.chat.getTranscripts(
+    resolve(0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+    // assistantActions.chat and userEmail are stable across the resolution lifecycle.
+    // phase drives re-entry; assistantId gates on the correct assistant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, assistantId]);
+
+  // =========================================================================
+  // Phase 3: Transcript loading
+  // Only reachable from resolving_contact path, never from first-view or
+  // returning. This is the structural guarantee that eliminates the race.
+  // =========================================================================
+  React.useEffect(() => {
+    if (phase !== 'loading_transcripts' || contactId === null || !assistantId || !assistant) return;
+
+    let cancelled = false;
+    const currentAssistantId = assistantId;
+
+    (async () => {
+      try {
+        const result = await assistantActions.chat.getTranscripts(
           contactId,
-          currentAssistant.userId,
+          assistant.userId,
           currentAssistantId
         );
+        if (cancelled) return;
 
-        if ('detail' in historyResult) {
+        if ('detail' in result) {
           setInitialLoadError(true);
+          setPhase('error');
         } else {
-          const history = (historyResult as ChatMessage[]).reverse();
+          const history = (result as ChatMessage[]).reverse();
           recordTranscriptTimestamp(currentAssistantId, history);
           setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
           if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
             setHasMoreMessages(false);
           }
-          setCanChat(true);
-          setHistoryLoadedForAssistantId(currentAssistantId); // Enable SSE
+          setPhase('ready');
         }
-      } catch (error) {
+      } catch {
+        if (cancelled) return;
         setInitialLoadError(true);
-      } finally {
-        setIsInitialLoading(false);
+        setPhase('error');
       }
-    },
-    [
-      assistantActions.chat,
-      recordTranscriptTimestamp,
-      setChatHistories,
-      userEmail,
-      contactIdCache,
-      retryContactIdLookup,
-    ]
-  );
+    })();
 
-  // Initial loading
-  React.useEffect(() => {
-    if (!assistantId || !assistant) return;
-    const hasBeenInitialized = chatHistories[assistantId] !== undefined;
-    if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized && !initialLoadError) {
-      return;
-    }
-    if (isFirstView && !firstViewProcessed.current) {
-      firstViewProcessed.current = true;
-      const initialHistory = preHireChat || [];
-      recordTranscriptTimestamp(assistantId, initialHistory);
-
-      fetchInitiatedRef.current.add(assistantId);
-
-      setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
-      onFirstViewCompleted?.();
-      setHistoryLoadedForAssistantId(assistantId);
-    } else if (!hasBeenInitialized) {
-      fetchInitiatedRef.current.add(assistantId);
-      fetchInitialHistory(assistantId, assistant);
-    } else {
-      // History already initialized - ensure contactId is also resolved
-      if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
-        transcriptCutoffsRef.current[assistantId] = 0;
-      }
-
-      // If contactId isn't cached, we need to resolve it before enabling SSE
-      const cachedContactId = contactIdCache.get(assistantId);
-      if (cachedContactId === undefined && userEmail) {
-        // Resolve contactId asynchronously
-        const currentAssistant = assistant;
-        const currentAssistantId = assistantId;
-        (async () => {
-          const contactId = await assistantActions.chat.getContactId(
-            userEmail,
-            currentAssistant.userId,
-            currentAssistantId
-          );
-          if (contactId === null) {
-            // User not in contacts - disable chat and start retry
-            setCanChat(false);
-
-            // Clear any previously scheduled retry to prevent orphaned timers.
-            // If the effect re-runs (e.g. unstable onFirstViewCompleted ref from
-            // a parent re-render), the IIFE runs again while contactIdCache is
-            // still empty. Without clearing, the old timer leaks and its retry
-            // can overwrite pre-hire chat history after firstViewProcessed is reset.
-            if (contactIdRetryTimeoutRef.current) {
-              clearTimeout(contactIdRetryTimeoutRef.current);
-            }
-
-            // Start auto-retry for contact_id
-            setIsRetryingContactId(true);
-            contactIdRetryAttemptsRef.current.set(currentAssistantId, 0);
-            contactIdRetryTimeoutRef.current = setTimeout(() => {
-              retryContactIdLookup(currentAssistantId, currentAssistant);
-            }, CONTACT_ID_RETRY_DELAY);
-          } else {
-            setContactIdCache((prev) => new Map(prev).set(currentAssistantId, contactId));
-            setCanChat(true);
-          }
-        })();
-      }
-
-      if (historyLoadedForAssistantId !== assistantId) {
-        setHistoryLoadedForAssistantId(assistantId);
-      }
-      // Only reset firstViewProcessed after contactId is resolved, so that
-      // retryContactIdLookup can skip transcript fetch for first-view assistants.
-      if (!isFirstView && contactIdCache.has(assistantId)) {
-        firstViewProcessed.current = false;
-      }
-    }
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    assistantId,
-    isFirstView,
-    preHireChat,
-    onFirstViewCompleted,
-    userEmail,
-    contactIdCache,
-    assistantActions.chat,
-  ]);
+  }, [phase, contactId, assistantId]);
 
-  const retryInitialLoad = () => {
-    if (assistantId && assistant) {
-      fetchInitialHistory(assistantId, assistant);
+  // =========================================================================
+  // Error recovery
+  // =========================================================================
+  const retryInitialLoad = React.useCallback(() => {
+    if (!assistantId || !assistant) return;
+    setInitialLoadError(false);
+    setIsRetryingContactId(false);
+    if (contactId !== null) {
+      setPhase('loading_transcripts');
+    } else if (chatHistories[assistantId] !== undefined) {
+      setPhase('pending_contact');
+    } else {
+      setPhase('resolving_contact');
     }
-  };
+  }, [assistantId, assistant, contactId, chatHistories]);
 
-  // Pagination: Load more messages
+  // =========================================================================
+  // Pagination
+  // =========================================================================
   const loadMoreMessages = async () => {
     if (isLoadingMore || !hasMoreMessages || !assistant || !assistantId || !canChat) return;
-
-    const contactId = contactIdCache.get(assistantId);
-    if (contactId === undefined) {
-      return;
-    }
+    if (contactId === null) return;
 
     const oldestMessage = messages[0];
     if (!oldestMessage || oldestMessage.messageId === undefined) {
@@ -434,8 +388,9 @@ export function useAssistantProfileChat(
     }
   };
 
-  // Broadcast Channel Sync
-  // Handles both User sent messages and Server received messages relayed from other tabs.
+  // =========================================================================
+  // Cross-tab sync via BroadcastChannel
+  // =========================================================================
   React.useEffect(() => {
     if (!assistantId) return;
     const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
@@ -466,17 +421,20 @@ export function useAssistantProfileChat(
     };
   }, [assistantId, setChatHistories]);
 
-  // PubSub SSE Connection with contact_id filtering
+  // =========================================================================
+  // SSE connection (only when ready)
+  // =========================================================================
   React.useEffect(() => {
-    if (!assistantId || historyLoadedForAssistantId !== assistantId || !canChat) return;
-
-    // Use currentContactId (a primitive) as a dependency to avoid unnecessary reconnections
-    // when the contactIdCache Map reference changes but the actual contact ID hasn't
-    const userContactId = currentContactId;
-    // If we don't have a contact_id, we shouldn't be connecting to SSE
-    if (userContactId === undefined || userContactId === null) return;
+    if (
+      phase !== 'ready' ||
+      !assistantId ||
+      contactId === null ||
+      assistantId !== activeAssistantIdRef.current
+    )
+      return;
 
     setConnectionStatus('connecting');
+    const userContactId = contactId;
     const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
     const ack = (ackId: string) => {
@@ -484,14 +442,13 @@ export function useAssistantProfileChat(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ackId }),
-      }).catch((err) => {
+      }).catch(() => {
         /* noop */
       });
     };
 
     eventSource.onopen = () => {
       setConnectionStatus('connected');
-      // Reset reconnect attempts on successful connection
       sseReconnectAttemptsRef.current = 0;
     };
 
@@ -501,16 +458,11 @@ export function useAssistantProfileChat(
         const messagePayload: any = JSON.parse(event.data);
         const ackId = messagePayload.__ackId;
 
-        // Filter by contact_id: only display and ACK messages for this user
         const messageContactId = messagePayload.event?.contactId ?? messagePayload.contactId;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
-          // Message is not for this user - don't ACK, let it be redelivered
           return;
         }
 
-        // Check if message is older than the API Transcript
-        // If message is strictly older than what we loaded from the API, it's a zombie.
-        // Acknowledge it but don't display it in the chat.
         if (messagePayload.publishTime) {
           const msgTime = new Date(messagePayload.publishTime).getTime();
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
@@ -518,6 +470,14 @@ export function useAssistantProfileChat(
             if (ackId) ack(ackId);
             return;
           }
+        }
+
+        if (messagePayload.thread === 'assistant_desktop_ready') {
+          if (ackId) ack(ackId);
+          const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
+          desktopChannel.postMessage(messagePayload.event ?? {});
+          desktopChannel.close();
+          return;
         }
 
         if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
@@ -595,28 +555,21 @@ export function useAssistantProfileChat(
     };
 
     eventSource.onerror = () => {
-      // Close the failed connection
       eventSource.close();
 
-      // Check if we should attempt reconnection
       if (sseReconnectAttemptsRef.current < SSE_MAX_RECONNECT_ATTEMPTS) {
         setConnectionStatus('reconnecting');
-
-        // Calculate delay with exponential backoff
         const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, sseReconnectAttemptsRef.current);
         sseReconnectAttemptsRef.current += 1;
 
-        // Clear any existing reconnect timeout
         if (sseReconnectTimeoutRef.current) {
           clearTimeout(sseReconnectTimeoutRef.current);
         }
 
-        // Schedule reconnection
         sseReconnectTimeoutRef.current = setTimeout(() => {
           setSseReconnectTrigger((prev) => prev + 1);
         }, delay);
       } else {
-        // Max attempts reached
         setConnectionStatus('error');
         sseReconnectAttemptsRef.current = 0;
       }
@@ -625,24 +578,16 @@ export function useAssistantProfileChat(
     return () => {
       stopReplying();
       eventSource.close();
-      // Clear reconnect timeout on cleanup
       if (sseReconnectTimeoutRef.current) {
         clearTimeout(sseReconnectTimeoutRef.current);
         sseReconnectTimeoutRef.current = null;
       }
     };
-  }, [
-    assistantId,
-    setChatHistories,
-    stopReplying,
-    historyLoadedForAssistantId,
-    canChat,
-    currentContactId, // Use primitive contact ID instead of contactIdCache Map to prevent unnecessary reconnections
-    sseReconnectTrigger, // Re-run effect when reconnect is triggered
-  ]);
+  }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
 
-  // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
-  // This only runs in the tab that successfully received the SSE message with the __ackId
+  // =========================================================================
+  // Ack displayed messages
+  // =========================================================================
   React.useEffect(() => {
     if (!assistantId) return;
     messages.forEach((msg) => {
@@ -652,7 +597,7 @@ export function useAssistantProfileChat(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ackId }),
-        }).catch((err) => {
+        }).catch(() => {
           /* noop */
         });
         setChatHistories((prev) => {
@@ -666,7 +611,9 @@ export function useAssistantProfileChat(
     });
   }, [messages, assistantId, setChatHistories]);
 
-  // Send message with contact_id
+  // =========================================================================
+  // Send message
+  // =========================================================================
   const sendMessage = (
     e: React.FormEvent,
     attachments?: Attachment[],
@@ -674,11 +621,10 @@ export function useAssistantProfileChat(
   ) => {
     e.preventDefault();
 
-    // Allow sending if there's text OR attachments
     const hasContent = inputValue.trim() || (attachments && attachments.length > 0);
     if (
       !hasContent ||
-      isInitialLoading ||
+      phase !== 'ready' ||
       initialLoadError ||
       !assistant ||
       !assistantId ||
@@ -686,15 +632,14 @@ export function useAssistantProfileChat(
     )
       return;
 
-    const contactId = contactIdCache.get(assistantId);
-    if (contactId === undefined) {
+    if (contactId === null) {
       toast.error('Cannot send message: not connected to assistant');
       return;
     }
 
-    // Capture values at call time to ensure consistent closure in async handlers
     const currentAssistantId = assistantId;
     const currentAssistant = assistant;
+    const currentContactId = contactId;
 
     clearTimers();
 
@@ -713,7 +658,6 @@ export function useAssistantProfileChat(
       })),
     };
 
-    // 1. Update Local State (Optimistic)
     setChatHistories((prev) => {
       const current = prev[currentAssistantId] || [];
       const updated = [...current, newUserMessage].sort(
@@ -729,7 +673,6 @@ export function useAssistantProfileChat(
       setIsAssistantReplying(true);
     }, 5000);
 
-    // 2. Broadcast to other tabs
     const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
     const payload: BroadcastMessagePayload = {
       type: 'NEW_MESSAGE',
@@ -738,7 +681,6 @@ export function useAssistantProfileChat(
     channel.postMessage(payload);
     channel.close();
 
-    // 3. Upload attachments (if any) and send to Backend
     const sendMessageWithAttachments = async () => {
       try {
         let uploadedAttachments: Attachment[] | undefined;
@@ -772,7 +714,7 @@ export function useAssistantProfileChat(
 
         const response = await assistantActions.chat.message({
           assistantId: parseInt(currentAssistant.agentId),
-          contactId: contactId,
+          contactId: currentContactId,
           message: messageToSend,
           attachments: uploadedAttachments,
         });
@@ -781,8 +723,6 @@ export function useAssistantProfileChat(
           throw new Error(response.detail);
         }
       } catch (error) {
-        // Use captured messageId and currentAssistantId to ensure correct rollback
-        // even when multiple messages are sent rapidly
         setChatHistories((prev) => ({
           ...prev,
           [currentAssistantId]: (prev[currentAssistantId] || []).filter(
@@ -793,7 +733,6 @@ export function useAssistantProfileChat(
         stopReplying();
         toast.error('Failed to send message.');
 
-        // Restore attachments if callback provided
         if (onError && attachments && attachments.length > 0) {
           onError(attachments);
         }
@@ -803,28 +742,21 @@ export function useAssistantProfileChat(
     sendMessageWithAttachments();
   };
 
-  // Force SSE reconnection (useful when chat becomes re-enabled after being blocked)
+  // =========================================================================
+  // Force SSE reconnection
+  // =========================================================================
   const reconnectSSE = React.useCallback(() => {
-    // Reset reconnect attempts to allow fresh reconnection
     sseReconnectAttemptsRef.current = 0;
-    // Trigger reconnection by incrementing the trigger
     setSseReconnectTrigger((prev) => prev + 1);
   }, []);
 
-  // Cleanup retry timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (contactIdRetryTimeoutRef.current) {
-        clearTimeout(contactIdRetryTimeoutRef.current);
-        contactIdRetryTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
+  // =========================================================================
+  // Return backward-compatible API
+  // =========================================================================
   return {
     messages,
     inputValue,
-    isLoading: isInitialLoading,
+    isLoading: phase === 'resolving_contact' || phase === 'loading_transcripts',
     initialLoadError,
     retryInitialLoad,
     isAssistantReplying,
@@ -838,7 +770,7 @@ export function useAssistantProfileChat(
     hasFetchedHistory,
     canChat,
     isRetryingContactId,
-    currentContactId,
+    currentContactId: contactId,
     reconnectSSE,
   };
 }

@@ -216,6 +216,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         remoteControlActive: isRemoteControlActive,
         liveviewUrl: liveviewUrl,
         remoteControlInteractive: isRemoteControlInteractive,
+        isDesktopReady: isDesktopReady,
       },
     };
 
@@ -309,6 +310,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onHeaderPointerDown={onHeaderPointerDown}
         onExpand={onExpand}
         onMinimize={onMinimize}
+        onHangUp={onHangUp}
       />
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">

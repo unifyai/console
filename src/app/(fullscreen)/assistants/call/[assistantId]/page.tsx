@@ -7,9 +7,9 @@ import {
   getAssistantOwnerById,
   uploadAttachment,
 } from '@/lib/assistants/chat';
-import { getCallConnectionDetails, dispatchAssistantToCall } from '@/lib/assistants/call';
-import { getLiveviewUrl, sendSystemEvent } from '@/lib/assistants/desktop';
-import { listAssistants } from '@/lib/assistants/assistant';
+import { getCallConnectionDetails, dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
+import { getLiveviewUrl, sendSystemEvent, listUserDesktops } from '@/lib/assistants/desktop';
+import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import AssistantCommunicationFullScreen from '@/components/Pages/Assistants/Communication/AssistantCommunicationFullScreen';
 import { notFound } from 'next/navigation';
@@ -22,7 +22,12 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
   const apiKey = user.apiKey;
   const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
 
-  const assistantActions: Pick<AssistantActions, 'chat' | 'call' | 'desktop'> = {
+  const assistantActions: Pick<AssistantActions, 'chat' | 'call' | 'desktop'> & {
+    assistant: Pick<AssistantActions['assistant'], 'update'>;
+  } = {
+    assistant: {
+      update: await updateAssistant(apiKey),
+    },
     chat: {
       getContactId: await getContactIdByEmail(apiKey),
       getTranscripts: await getTranscripts(apiKey),
@@ -33,10 +38,12 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
       dispatchToCall: await dispatchAssistantToCall(apiKey),
+      deleteRoom: await deleteCallRoom(),
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
       sendSystemEvent: await sendSystemEvent(),
+      listUserDesktops: await listUserDesktops(apiKey),
     },
   };
 

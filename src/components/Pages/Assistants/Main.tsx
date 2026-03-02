@@ -40,7 +40,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
-import { Room } from 'livekit-client';
+import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -58,6 +58,7 @@ interface MainProps {
     email?: string | null;
     orgId?: number | null;
     mfaSetupRequired?: boolean;
+    apiKey?: string;
   };
 }
 
@@ -213,6 +214,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Assistant Data & Actions ---
   const {
     assistants,
+    setAssistants,
     isLoading: isLoadingAssistants,
     error: assistantError,
     refreshAssistants,
@@ -322,7 +324,10 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   }, [verifyAndSetPopOutState]);
 
   // --- Call Management ---
-  const room = React.useMemo(() => new Room(), []);
+  const room = React.useMemo(() => {
+    setLogLevel(LogLevel.warn);
+    return new Room();
+  }, []);
   const {
     isConnecting: isConnectingCall,
     isConnected: isCallConnected,
@@ -491,6 +496,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     fetchUserVoices,
     deleteUserVoice,
   } = useVoiceOptions(assistantActions.voice, { enabled: shouldLoadVoices });
+
+  const handleFirstViewCompleted = React.useCallback(() => setNewlyHiredInfo(null), []);
 
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
@@ -782,13 +789,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   onClose={handleProfileClose}
                   onEdit={handleOpenEditDialog}
                   onOpenContactManager={handleOpenContactManager}
-                  onOpenSetupInstructions={(os) => setSetupInstructions({ os, isOpen: true })}
                   chatHistories={profileChatHistories}
                   setChatHistories={setProfileChatHistories}
                   userEmail={userMeta.email}
                   isFirstView={isFirstViewAfterHire}
                   preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
-                  onFirstViewCompleted={() => setNewlyHiredInfo(null)}
+                  onFirstViewCompleted={handleFirstViewCompleted}
                   onStartCall={handleStartCall}
                   activeCallAssistantId={activeCallId}
                   isCallConnected={isCallConnected}
@@ -797,6 +803,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
+                  apiKey={userMeta.apiKey}
+                  onAssistantUpdated={(id, patch) => {
+                    setAssistants((prev) =>
+                      prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
+                    );
+                  }}
                 />
               </motion.div>,
               <motion.div

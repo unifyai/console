@@ -23,6 +23,7 @@ import type {
   ToolLoopLog,
   AssistantActionActions,
 } from '@/types/assistants/action';
+import type { ResponseProps } from '@/types/common';
 
 // =============================================================================
 // Types
@@ -114,10 +115,17 @@ export function useAssistantActions(
   const isInitialLoadDoneRef = React.useRef(false);
   const isLoadingMoreRef = React.useRef(false);
   const orphanOutgoingRef = React.useRef<Map<string, ManagerMethodLog>>(new Map());
+  const orphanToolLoopRef = React.useRef<Map<string, ToolLoopLog[]>>(new Map());
   const seenEventIdsRef = React.useRef<Set<string>>(new Set());
   const prevAssistantIdRef = React.useRef(assistantId);
   const sseErrorTimestampsRef = React.useRef<number[]>([]);
   const loadGenerationRef = React.useRef(0);
+
+  // SSE event batching: buffer events and flush on a short debounce
+  const BATCH_FLUSH_MS = 100;
+  const managerBatchRef = React.useRef<ManagerMethodLog[]>([]);
+  const toolLoopBatchRef = React.useRef<ToolLoopLog[]>([]);
+  const batchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep nodeMapRef in sync with state
   React.useEffect(() => {
@@ -154,20 +162,24 @@ export function useAssistantActions(
         }
       }
 
-      // Replay orphan outgoing events that arrived before their incoming
+      // Replay orphan outgoing events that arrived before their incoming.
+      // Collect matches first, then delete — avoids mutating the map mid-iteration.
       const logsWithOrphans = [...logs];
+      const replayedCallingIds: string[] = [];
       for (const log of logs) {
         const callingId = (log.entries as ManagerMethodLog['entries'])?.callingId;
         const phase = (log.entries as ManagerMethodLog['entries'])?.phase;
         if (phase === 'incoming' && callingId && orphanOutgoingRef.current.has(callingId)) {
-          const orphan = orphanOutgoingRef.current.get(callingId)!;
-          logsWithOrphans.push(orphan);
-          orphanOutgoingRef.current.delete(callingId);
+          logsWithOrphans.push(orphanOutgoingRef.current.get(callingId)!);
+          replayedCallingIds.push(callingId);
           if (__DEV__)
             console.log(
               `[DEBUG][useAssistantActions] Replayed stored orphan outgoing for callingId=${callingId}`
             );
         }
+      }
+      for (const id of replayedCallingIds) {
+        orphanOutgoingRef.current.delete(id);
       }
 
       const result = mergeNewEvents(prevRoots, currentNodeMap, logsWithOrphans);
@@ -175,6 +187,45 @@ export function useAssistantActions(
         console.log(
           `[DEBUG][useAssistantActions] After merge: ${result.roots.length} root(s), ${result.nodeMap.size} node(s), ${result.orphanOutgoing.length} orphan(s)`
         );
+
+      // Replay any orphan ToolLoop events whose target node now exists
+      if (orphanToolLoopRef.current.size > 0) {
+        const replayedKeys: string[] = [];
+        const orphanEntries = Array.from(orphanToolLoopRef.current.entries());
+        for (let oe = 0; oe < orphanEntries.length; oe++) {
+          const [key, pendingLogs] = orphanEntries[oe];
+          const hierarchy = key.split('->');
+          let targetNode: ActionNode | undefined;
+          const mapNodes = Array.from(result.nodeMap.values());
+          for (let mn = 0; mn < mapNodes.length; mn++) {
+            const n = mapNodes[mn];
+            if (
+              n.hierarchy.length === hierarchy.length &&
+              n.hierarchy.every((seg: string, i: number) => seg === hierarchy[i])
+            ) {
+              targetNode = n;
+              break;
+            }
+          }
+          if (targetNode) {
+            const existing = targetNode.liveToolLoopLogs ?? [];
+            const deduped = pendingLogs.filter(
+              (pl: ToolLoopLog) => !existing.some((e) => e.id === pl.id)
+            );
+            if (deduped.length > 0) {
+              targetNode.liveToolLoopLogs = [...existing, ...deduped].sort((a, b) => a.id - b.id);
+            }
+            replayedKeys.push(key);
+            if (__DEV__)
+              console.log(
+                `[DEBUG][useAssistantActions] Replayed ${deduped.length} orphan ToolLoop log(s) for hierarchy=${key}`
+              );
+          }
+        }
+        for (let rk = 0; rk < replayedKeys.length; rk++) {
+          orphanToolLoopRef.current.delete(replayedKeys[rk]);
+        }
+      }
 
       for (const orphan of result.orphanOutgoing) {
         orphanOutgoingRef.current.set(orphan.callingId, {
@@ -211,43 +262,80 @@ export function useAssistantActions(
   }, []);
 
   // ===========================================================================
-  // Core: Merge a ToolLoop event into the matching node
+  // Core: Merge ToolLoop events into matching nodes (batch-aware)
   // ===========================================================================
 
-  const mergeToolLoopEvent = React.useCallback((log: ToolLoopLog) => {
-    const hierarchy = log.entries.hierarchy;
-    if (!hierarchy || hierarchy.length === 0) return;
+  const mergeToolLoopEvents = React.useCallback((logs: ToolLoopLog[]) => {
+    if (logs.length === 0) return;
 
     setRoots((prevRoots) => {
       const currentNodeMap = nodeMapRef.current;
+      let changed = false;
 
-      // Find the node whose hierarchy exactly matches
-      let targetNode: ActionNode | undefined;
-      const nodes = Array.from(currentNodeMap.values());
-      for (let idx = 0; idx < nodes.length; idx++) {
-        const n = nodes[idx];
-        if (
-          n.hierarchy.length === hierarchy.length &&
-          n.hierarchy.every((seg: string, i: number) => seg === hierarchy[i])
-        ) {
-          targetNode = n;
-          break;
+      for (const log of logs) {
+        const hierarchy = log.entries.hierarchy;
+        if (!hierarchy || hierarchy.length === 0) continue;
+
+        let targetNode: ActionNode | undefined;
+        const nodes = Array.from(currentNodeMap.values());
+        for (let idx = 0; idx < nodes.length; idx++) {
+          const n = nodes[idx];
+          if (
+            n.hierarchy.length === hierarchy.length &&
+            n.hierarchy.every((seg: string, i: number) => seg === hierarchy[i])
+          ) {
+            targetNode = n;
+            break;
+          }
         }
+
+        if (!targetNode) {
+          // Store as orphan for replay when the node is created
+          const key = hierarchy.join('->');
+          const pending = orphanToolLoopRef.current.get(key) ?? [];
+          if (!pending.some((l) => l.id === log.id)) {
+            pending.push(log);
+            orphanToolLoopRef.current.set(key, pending);
+          }
+          continue;
+        }
+
+        const existing = targetNode.liveToolLoopLogs ?? [];
+        if (existing.some((l) => l.id === log.id)) continue;
+
+        targetNode.liveToolLoopLogs = [...existing, log].sort((a, b) => a.id - b.id);
+        changed = true;
       }
 
-      if (!targetNode) return prevRoots;
-
-      // Deduplicate by log id
-      const existing = targetNode.liveToolLoopLogs ?? [];
-      if (existing.some((l) => l.id === log.id)) return prevRoots;
-
-      // Append and sort by id (monotonically increasing)
-      targetNode.liveToolLoopLogs = [...existing, log].sort((a, b) => a.id - b.id);
-
-      // Return new array reference so React re-renders
-      return [...prevRoots];
+      return changed ? [...prevRoots] : prevRoots;
     });
   }, []);
+
+  // ===========================================================================
+  // Core: Flush batched SSE events
+  // ===========================================================================
+
+  const flushEventBatch = React.useCallback(() => {
+    batchTimerRef.current = null;
+
+    const managerLogs = managerBatchRef.current;
+    const toolLogs = toolLoopBatchRef.current;
+    managerBatchRef.current = [];
+    toolLoopBatchRef.current = [];
+
+    if (managerLogs.length > 0) {
+      mergeLogsIntoTree(managerLogs);
+    }
+    if (toolLogs.length > 0) {
+      mergeToolLoopEvents(toolLogs);
+    }
+  }, [mergeLogsIntoTree, mergeToolLoopEvents]);
+
+  const scheduleFlush = React.useCallback(() => {
+    if (batchTimerRef.current === null) {
+      batchTimerRef.current = setTimeout(flushEventBatch, BATCH_FLUSH_MS);
+    }
+  }, [flushEventBatch]);
 
   // ===========================================================================
   // Initial load from Orchestra
@@ -273,10 +361,21 @@ export function useAssistantActions(
       if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
       if ('detail' in response) {
-        throw new Error(response.detail);
+        const detail = (response as ResponseProps).detail as string;
+        const isNotFound = typeof detail === 'string' && detail.toLowerCase().includes('not found');
+        if (isNotFound) {
+          // Project or context doesn't exist yet (e.g. newly hired assistant
+          // whose Unity instance hasn't logged any events). Treat as empty.
+          if (__DEV__)
+            console.log(
+              `[DEBUG][useAssistantActions] Resource not found, treating as empty: ${detail} (gen=${myGeneration})`
+            );
+        } else {
+          throw new Error(detail);
+        }
       }
 
-      const logs = (response.logs || []) as ManagerMethodLog[];
+      const logs = ('logs' in response ? response.logs : []) as ManagerMethodLog[];
       if (__DEV__)
         console.log(
           `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra (gen=${myGeneration})`
@@ -400,7 +499,8 @@ export function useAssistantActions(
           }
 
           const log = parsed.data as ManagerMethodLog;
-          mergeLogsIntoTree([log]);
+          managerBatchRef.current.push(log);
+          scheduleFlush();
         } else if (parsed.type === 'ToolLoop') {
           const toolEntries = parsed.data.entries ?? parsed.data;
           if (!toolEntries?.hierarchy || !toolEntries?.message) return;
@@ -428,7 +528,8 @@ export function useAssistantActions(
             },
           };
 
-          mergeToolLoopEvent(toolLog);
+          toolLoopBatchRef.current.push(toolLog);
+          scheduleFlush();
         }
       } catch (err) {
         console.warn('[useAssistantActions] SSE message parse error:', err);
@@ -462,7 +563,7 @@ export function useAssistantActions(
 
       // Transient error — EventSource auto-reconnects.
     };
-  }, [assistantId, mergeLogsIntoTree, mergeToolLoopEvent]);
+  }, [assistantId, scheduleFlush]);
 
   // ===========================================================================
   // Load more (pagination)
@@ -537,6 +638,7 @@ export function useAssistantActions(
         setNodeMap(new Map());
         nodeMapRef.current = new Map();
         orphanOutgoingRef.current = new Map();
+        orphanToolLoopRef.current = new Map();
         seenEventIdsRef.current = new Set();
         setIsLoading(true);
       }
@@ -554,6 +656,10 @@ export function useAssistantActions(
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (batchTimerRef.current) {
+        clearTimeout(batchTimerRef.current);
+        batchTimerRef.current = null;
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -569,6 +675,7 @@ export function useAssistantActions(
       setNodeMap(new Map());
       nodeMapRef.current = new Map();
       orphanOutgoingRef.current = new Map();
+      orphanToolLoopRef.current = new Map();
       seenEventIdsRef.current = new Set();
       setError(null);
       setLastUpdated(null);
@@ -576,6 +683,10 @@ export function useAssistantActions(
       isInitialLoadDoneRef.current = false;
       setIsInitialLoadDone(false);
 
+      if (batchTimerRef.current) {
+        clearTimeout(batchTimerRef.current);
+        batchTimerRef.current = null;
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;

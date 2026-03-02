@@ -36,3 +36,7 @@ export {
 } from './attachmentUtils';
 
 export { ChatMarkdown } from './ChatMarkdown';
+
+export { ChatMessageBubble } from './ChatMessageBubble';
+
+export { ChatDateDivider, isSameDay } from './ChatDateDivider';

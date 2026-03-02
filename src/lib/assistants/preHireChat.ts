@@ -135,7 +135,7 @@ export async function generatePostHireGreeting(
     const userName = `${user.name} ${user.lastName}`;
 
     const displayName = assistantName.replace(/([A-Z])/g, ' $1').trim();
-    const greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
+    const greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first chat message (2-3 sentences) to ${userName}. This will appear in a browser-based chat interface, so write it as a casual chat message — no subject line, no email-style salutation or sign-off. In your message, mention that you're ready to get started and that they can reach you via this chat, by phone call, or by text message.`;
 
     const result = await generateText({
       model: getModel('gpt-4o-mini'),

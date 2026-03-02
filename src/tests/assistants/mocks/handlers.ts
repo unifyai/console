@@ -93,7 +93,7 @@ const MOCK_README_WINDOWS = `# Unify Desktop Assistant - Windows
 
 ## Installation
 
-1. Download the .nupkg package
+1. Download the .exe installer
 2. Run the installer
 3. Follow the setup wizard
 `;
@@ -140,7 +140,7 @@ export const getLocalDownloadHandler = http.get('/api/assistant/local/download',
 
   const filenameMap: Record<string, string> = {
     ubuntu: 'unify-desktop-assistant.deb',
-    windows: 'unify-desktop-assistant.nupkg',
+    windows: 'unify-desktop-assistant.exe',
     macos: 'unify-desktop-assistant.dmg',
   };
 

@@ -2,15 +2,13 @@ import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Send, Loader2, LayoutList, Minimize2, Maximize2, Minus } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 import { AssistantFormData } from '@/types/assistants/assistant';
 import { Textarea } from '@/components/UI/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
-import { RenderContentWithEmbeds, containsEmbedUrl, ChatMarkdown } from '@/components/Chat';
+import { ChatMessageBubble, ChatDateDivider, isSameDay } from '@/components/Chat';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
 interface AssistantHireChatPanelProps {
@@ -22,98 +20,6 @@ interface AssistantHireChatPanelProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   onToggleView?: () => void;
 }
-
-// Helper function to render text with clickable links
-const renderContentWithLinks = (text: string) => {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      return (
-        <a
-          key={index}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-link"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
-};
-
-const ChatMessageBubble = ({
-  message,
-  isUser,
-  assistantPhoto,
-  assistantName,
-  isLoading,
-}: {
-  message: string;
-  isUser?: boolean;
-  assistantPhoto?: string | null;
-  assistantName?: string;
-  isLoading?: boolean;
-}) => {
-  const fallback = assistantName
-    ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
-    : 'A';
-
-  const bubbleContent = () => {
-    if (!isUser && isLoading && !message) {
-      return (
-        <div className="text-body-muted flex items-center gap-1.5">
-          <span className="text-caption">Typing</span>
-          <span className="flex items-center gap-0.5">
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.3s]" />
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.15s]" />
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60" />
-          </span>
-        </div>
-      );
-    }
-    // Check if message contains embeddable URLs (tables/plots)
-    if (containsEmbedUrl(message)) {
-      return (
-        <div className="whitespace-pre-wrap">
-          <RenderContentWithEmbeds content={message} expandedHeight={300} />
-        </div>
-      );
-    }
-    if (!isUser) {
-      return <ChatMarkdown content={message} />;
-    }
-    return <div className="whitespace-pre-wrap">{renderContentWithLinks(message)}</div>;
-  };
-
-  if (isUser) {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] break-words rounded-lg bg-accent p-2.5 font-sans text-sm leading-snug">
-          {bubbleContent()}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="mb-2.5 flex items-center gap-2">
-        <Avatar className="h-6 w-6 flex-shrink-0 border">
-          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-          <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
-        </Avatar>
-        <span className="text-body-muted font-medium">{assistantName}</span>
-      </div>
-      <div className="break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
-    </div>
-  );
-};
 
 export function AssistantHireChatPanel({
   onClose,
@@ -263,16 +169,24 @@ export function AssistantHireChatPanel({
       {/* Chat Area */}
       <ScrollArea className="flex-1 px-14 py-4" ref={scrollAreaRef}>
         <div className="mx-auto max-w-[720px] space-y-6">
-          {messages.map((msg, index) => (
-            <ChatMessageBubble
-              key={msg.id}
-              message={msg.content}
-              isUser={msg.role === 'user'}
-              assistantPhoto={photoPreviewUrl}
-              assistantName={displayName}
-              isLoading={isLoading && index === messages.length - 1 && msg.role === 'assistant'}
-            />
-          ))}
+          {messages.map((msg, i) => {
+            const prevMsg = messages[i - 1];
+            const showDivider = !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp);
+            return (
+              <React.Fragment key={msg.id}>
+                {showDivider && <ChatDateDivider date={msg.timestamp} />}
+                <ChatMessageBubble
+                  message={msg.content}
+                  isUser={msg.role === 'user'}
+                  assistantPhoto={photoPreviewUrl}
+                  assistantName={displayName}
+                  timestamp={msg.timestamp}
+                  isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
+                  variant="hire"
+                />
+              </React.Fragment>
+            );
+          })}
         </div>
       </ScrollArea>
 

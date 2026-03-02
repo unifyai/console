@@ -64,7 +64,7 @@ export {
   CallTestHarness,
   // Helpers
   getTargetAssistant,
-  openProfileAndGetCallButton,
+  openProfile,
   getCallControls,
   // Types
   type LiveKitTrackState,

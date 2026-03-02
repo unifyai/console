@@ -44,9 +44,9 @@ const MOCK_RELEASE = {
     },
     {
       id: 12346,
-      name: 'unify-desktop-assistant.nupkg',
+      name: 'unify-desktop-assistant.exe',
       browser_download_url:
-        'https://github.com/unifyai/unify-desktop-assistant/releases/download/v1.0.0/unify-desktop-assistant.nupkg',
+        'https://github.com/unifyai/unify-desktop-assistant/releases/download/v1.0.0/unify-desktop-assistant.exe',
       size: 2048000,
       content_type: 'application/octet-stream',
     },
@@ -78,17 +78,17 @@ describe('Local Desktop API Routes', () => {
         meta: {
           alias: 'LocalInstall-Ubuntu',
           scenario: 'Valid OS parameter (ubuntu)',
-          behavior: 'Returns README content from ubuntu branch',
+          behavior: 'Returns README content from ubuntu folder on main/staging branch',
         },
       },
       async () => {
         // Arrange
         server.use(
           http.get(
-            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md`,
+            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md`,
             ({ request }) => {
               const url = new URL(request.url);
-              expect(url.searchParams.get('ref')).toBe('ubuntu');
+              expect(['main', 'staging']).toContain(url.searchParams.get('ref'));
               return new HttpResponse(MOCK_README_CONTENT, {
                 headers: { 'Content-Type': 'text/plain' },
               });
@@ -98,7 +98,7 @@ describe('Local Desktop API Routes', () => {
 
         // Act
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=ubuntu`,
+          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${MOCK_GITHUB_TOKEN}`,
@@ -116,23 +116,23 @@ describe('Local Desktop API Routes', () => {
     );
 
     it(
-      'returns README content for windows (maps to win branch)',
+      'returns README content for windows',
       {
         meta: {
           alias: 'LocalInstall-Windows',
           scenario: 'Valid OS parameter (windows)',
-          behavior: 'Maps windows to win branch and returns README',
+          behavior: 'Returns README from windows folder on main/staging branch',
         },
       },
       async () => {
         // Arrange
-        const windowsReadme = '# Unify Desktop Assistant - Windows\n\nInstall the .nupkg file.';
+        const windowsReadme = '# Unify Desktop Assistant - Windows\n\nInstall the .exe file.';
         server.use(
           http.get(
-            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md`,
+            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/windows/README.md`,
             ({ request }) => {
               const url = new URL(request.url);
-              expect(url.searchParams.get('ref')).toBe('win');
+              expect(['main', 'staging']).toContain(url.searchParams.get('ref'));
               return new HttpResponse(windowsReadme, {
                 headers: { 'Content-Type': 'text/plain' },
               });
@@ -142,7 +142,7 @@ describe('Local Desktop API Routes', () => {
 
         // Act
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=win`,
+          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/windows/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${MOCK_GITHUB_TOKEN}`,
@@ -164,7 +164,7 @@ describe('Local Desktop API Routes', () => {
         meta: {
           alias: 'LocalInstall-MacOS',
           scenario: 'Valid OS parameter (macos)',
-          behavior: 'Returns README from macos branch',
+          behavior: 'Returns README from macos folder on main/staging branch',
         },
       },
       async () => {
@@ -172,10 +172,10 @@ describe('Local Desktop API Routes', () => {
         const macosReadme = '# Unify Desktop Assistant - macOS\n\nInstall the .dmg file.';
         server.use(
           http.get(
-            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md`,
+            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/macos/README.md`,
             ({ request }) => {
               const url = new URL(request.url);
-              expect(url.searchParams.get('ref')).toBe('macos');
+              expect(['main', 'staging']).toContain(url.searchParams.get('ref'));
               return new HttpResponse(macosReadme, {
                 headers: { 'Content-Type': 'text/plain' },
               });
@@ -185,7 +185,7 @@ describe('Local Desktop API Routes', () => {
 
         // Act
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=macos`,
+          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/macos/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${MOCK_GITHUB_TOKEN}`,
@@ -214,7 +214,7 @@ describe('Local Desktop API Routes', () => {
         // Arrange
         server.use(
           http.get(
-            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md`,
+            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md`,
             () => {
               return HttpResponse.json({ message: 'Not Found' }, { status: 404 });
             }
@@ -223,7 +223,7 @@ describe('Local Desktop API Routes', () => {
 
         // Act
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=ubuntu`,
+          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${MOCK_GITHUB_TOKEN}`,
@@ -250,7 +250,7 @@ describe('Local Desktop API Routes', () => {
         // Arrange
         server.use(
           http.get(
-            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md`,
+            `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md`,
             () => {
               return HttpResponse.json({ message: 'API rate limit exceeded' }, { status: 403 });
             }
@@ -259,7 +259,7 @@ describe('Local Desktop API Routes', () => {
 
         // Act
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/README.md?ref=ubuntu`,
+          `${GITHUB_API_URL}/repos/unifyai/unify-desktop-assistant/contents/ubuntu/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${MOCK_GITHUB_TOKEN}`,
@@ -319,12 +319,12 @@ describe('Local Desktop API Routes', () => {
     );
 
     it(
-      'finds correct asset for windows (.nupkg)',
+      'finds correct asset for windows (.exe)',
       {
         meta: {
           alias: 'LocalDownload-Windows',
           scenario: 'Valid OS parameter (windows)',
-          behavior: 'Finds .nupkg asset from release',
+          behavior: 'Finds .exe asset from release',
         },
       },
       async () => {
@@ -352,9 +352,9 @@ describe('Local Desktop API Routes', () => {
 
         // Assert
         expect(response.ok).toBe(true);
-        const nupkgAsset = data.assets.find((a: any) => a.name.endsWith('.nupkg'));
-        expect(nupkgAsset).toBeDefined();
-        expect(nupkgAsset.name).toBe('unify-desktop-assistant.nupkg');
+        const exeAsset = data.assets.find((a: any) => a.name.endsWith('.exe'));
+        expect(exeAsset).toBeDefined();
+        expect(exeAsset.name).toBe('unify-desktop-assistant.exe');
       }
     );
 
@@ -460,7 +460,7 @@ describe('Local Desktop API Routes', () => {
           assets: [
             {
               id: 12346,
-              name: 'unify-desktop-assistant.nupkg',
+              name: 'unify-desktop-assistant.exe',
               size: 2048000,
             },
           ],

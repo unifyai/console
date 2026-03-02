@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Send, Loader2, MessageSquareMore, Paperclip } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -11,102 +10,15 @@ import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileC
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import {
-  RenderContentWithEmbeds,
-  containsEmbedUrl,
   PendingAttachmentList,
-  MessageAttachmentList,
   createAttachment,
   validateFile,
-  ChatMarkdown,
+  ChatMessageBubble,
+  ChatDateDivider,
+  isSameDay,
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
-
-/* ---------------------
-   ChatMessageBubble
------------------------- */
-const ChatMessageBubble = ({
-  message,
-  isUser,
-  assistantPhoto,
-  assistantName,
-  isLoading,
-  index,
-  attachments,
-}: {
-  message: string;
-  isUser?: boolean;
-  assistantPhoto?: string | null;
-  assistantName?: string;
-  isLoading?: boolean;
-  index?: number;
-  attachments?: Attachment[];
-}) => {
-  const fallback = assistantName
-    ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
-    : 'A';
-
-  const bubbleContent = () => {
-    if (!isUser && isLoading && !message) {
-      return (
-        <div className="text-body-muted flex items-center gap-1.5">
-          <span className="text-caption">Typing</span>
-          <span className="flex items-center gap-0.5">
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.3s]" />
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60 [animation-delay:-0.15s]" />
-            <span className="h-1 w-1 animate-bounce rounded-full bg-current opacity-60" />
-          </span>
-        </div>
-      );
-    }
-    // Check if message contains embeddable URLs (tables/plots)
-    if (containsEmbedUrl(message)) {
-      return (
-        <div className="whitespace-pre-wrap">
-          <RenderContentWithEmbeds content={message} expandedHeight={300} />
-        </div>
-      );
-    }
-    if (!isUser) {
-      return <ChatMarkdown content={message} />;
-    }
-    return <div className="whitespace-pre-wrap">{message}</div>;
-  };
-
-  if (isUser) {
-    return (
-      <div
-        className="flex justify-end"
-        data-testid="message-bubble"
-        data-role="user"
-        data-index={index}
-      >
-        <div className="flex max-w-[75%] flex-col gap-2">
-          {attachments && attachments.length > 0 && (
-            <MessageAttachmentList attachments={attachments} />
-          )}
-          <div className="break-words rounded-lg bg-primary p-2.5 font-sans text-sm leading-snug text-primary-foreground">
-            {bubbleContent()}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div data-testid="message-bubble" data-role="assistant" data-index={index}>
-      <div className="mb-2.5 flex items-center gap-2">
-        <Avatar className="h-6 w-6 flex-shrink-0 border">
-          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-          <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
-        </Avatar>
-        <span className="text-body-muted font-medium">{assistantName}</span>
-      </div>
-      {attachments && attachments.length > 0 && <MessageAttachmentList attachments={attachments} />}
-      <div className="break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
-    </div>
-  );
-};
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -117,6 +29,7 @@ interface AssistantProfileChatPanelProps {
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   userEmail: string | null | undefined;
+  userTimezone?: string | null;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
   onFirstViewCompleted?: () => void;
@@ -130,6 +43,7 @@ export function AssistantProfileChatPanel({
   chatHistories,
   setChatHistories,
   userEmail,
+  userTimezone,
   isFirstView,
   preHireChat,
   onFirstViewCompleted,
@@ -418,20 +332,28 @@ export function AssistantProfileChatPanel({
                 </Button>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <ChatMessageBubble
-                key={msg.id}
-                message={msg.content}
-                isUser={msg.role === 'user'}
-                assistantPhoto={photoSrc}
-                assistantName={displayName}
-                index={i}
-                attachments={msg.attachments}
-              />
-            ))}
+            {messages.map((msg, i) => {
+              const prevMsg = messages[i - 1];
+              const showDivider =
+                !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp, userTimezone);
+              return (
+                <React.Fragment key={msg.id}>
+                  {showDivider && <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />}
+                  <ChatMessageBubble
+                    message={msg.content}
+                    isUser={msg.role === 'user'}
+                    assistantPhoto={photoSrc}
+                    assistantName={displayName}
+                    timestamp={msg.timestamp}
+                    timezone={userTimezone}
+                    index={i}
+                    attachments={msg.attachments}
+                  />
+                </React.Fragment>
+              );
+            })}
             {isAssistantReplying && (
               <ChatMessageBubble
-                key="typing-indicator"
                 message=""
                 isUser={false}
                 assistantPhoto={photoSrc}

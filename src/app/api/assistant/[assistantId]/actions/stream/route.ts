@@ -194,6 +194,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
           const ackIds: string[] = [];
 
+          // Parse all messages first, then sort by rowId to restore publish order
+          // (Pub/Sub synchronous pull does not guarantee ordering)
+          const parsed: Array<{
+            shaped: ReturnType<typeof reshapeToLogEntry>;
+            ackId: string;
+          }> = [];
+
           for (const item of receivedMessages) {
             const { ackId, message } = item;
             if (!message) continue;
@@ -215,15 +222,21 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
                 continue;
               }
 
-              if (__DEV__)
-                console.log(
-                  `[DEBUG][Actions SSE] Event: type=${shaped.type}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
-                );
-
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
+              parsed.push({ shaped, ackId });
             } catch (err) {
               console.warn('[Actions SSE] Failed to process message:', err);
             }
+          }
+
+          parsed.sort((a, b) => a.shaped.data.id - b.shaped.data.id);
+
+          for (const { shaped } of parsed) {
+            if (__DEV__)
+              console.log(
+                `[DEBUG][Actions SSE] Event: type=${shaped.type}, id=${shaped.data.id}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
+              );
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
           }
 
           // Server-side ACK — Orchestra is the durable store

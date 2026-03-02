@@ -65,11 +65,11 @@ describe('@real Local Desktop API - GitHub Integration', () => {
 
   describe('GitHub API Direct Verification', () => {
     it.skipIf(!hasGitHubToken())(
-      '@real README exists in ubuntu branch',
+      '@real README exists in ubuntu folder on main branch',
       realTestOptions,
       async () => {
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/README.md?ref=ubuntu`,
+          `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/ubuntu/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -82,34 +82,37 @@ describe('@real Local Desktop API - GitHub Integration', () => {
         expect(response.ok).toBe(true);
         const content = await response.text();
         expect(content.length).toBeGreaterThan(0);
-        // README should contain markdown heading
         expect(content).toMatch(/^#/m);
       }
     );
 
-    it.skipIf(!hasGitHubToken())('@real README exists in win branch', realTestOptions, async () => {
-      const response = await fetch(
-        `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/README.md?ref=win`,
-        {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3.raw',
-            'User-Agent': 'unify-console-tests',
-          },
-        }
-      );
-
-      expect(response.ok).toBe(true);
-      const content = await response.text();
-      expect(content.length).toBeGreaterThan(0);
-    });
-
     it.skipIf(!hasGitHubToken())(
-      '@real README exists in macos branch',
+      '@real README exists in windows folder on main branch',
       realTestOptions,
       async () => {
         const response = await fetch(
-          `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/README.md?ref=macos`,
+          `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/windows/README.md?ref=main`,
+          {
+            headers: {
+              Authorization: `Bearer ${GITHUB_TOKEN}`,
+              Accept: 'application/vnd.github.v3.raw',
+              'User-Agent': 'unify-console-tests',
+            },
+          }
+        );
+
+        expect(response.ok).toBe(true);
+        const content = await response.text();
+        expect(content.length).toBeGreaterThan(0);
+      }
+    );
+
+    it.skipIf(!hasGitHubToken())(
+      '@real README exists in macos folder on main branch',
+      realTestOptions,
+      async () => {
+        const response = await fetch(
+          `${GITHUB_API_URL}/repos/${REPO_OWNER}/${REPO_NAME}/contents/macos/README.md?ref=main`,
           {
             headers: {
               Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -177,7 +180,7 @@ describe('@real Local Desktop API - GitHub Integration', () => {
     );
 
     it.skipIf(!hasGitHubToken())(
-      '@real release contains .nupkg asset for windows',
+      '@real release contains .exe asset for windows',
       realTestOptions,
       async () => {
         const response = await fetch(
@@ -194,10 +197,10 @@ describe('@real Local Desktop API - GitHub Integration', () => {
         expect(response.ok).toBe(true);
 
         const release = await response.json();
-        const nupkgAsset = release.assets.find((a: any) => a.name.endsWith('.nupkg'));
+        const exeAsset = release.assets.find((a: any) => a.name.endsWith('.exe'));
 
-        expect(nupkgAsset).toBeDefined();
-        expect(nupkgAsset.name).toContain('.nupkg');
+        expect(exeAsset).toBeDefined();
+        expect(exeAsset.name).toContain('.exe');
       }
     );
 

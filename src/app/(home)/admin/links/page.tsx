@@ -19,9 +19,7 @@ const LinksPage = async ({ searchParams }: { searchParams: { token?: string } })
 
   const isAdmin =
     user.organizations.find(
-      (o) =>
-        o.name === 'Orchestra Admin Organization' &&
-        ['owner', 'admin'].includes(o.roleName?.toLowerCase())
+      (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase())
     ) !== undefined;
 
   if (!isAdmin) {

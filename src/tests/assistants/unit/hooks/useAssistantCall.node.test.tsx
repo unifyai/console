@@ -13,6 +13,14 @@ import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { RoomEvent } from 'livekit-client';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
+// Mock BroadcastChannel (not available in jsdom)
+class MockBroadcastChannel {
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  postMessage = vi.fn();
+  close = vi.fn();
+}
+(global as any).BroadcastChannel = MockBroadcastChannel;
+
 // Mock sonner toast
 vi.mock('sonner', () => ({
   toast: {
@@ -110,6 +118,7 @@ const createMockAssistantActions = (): AssistantActions => ({
       token: 'test-token',
     }),
     dispatchToCall: vi.fn().mockResolvedValue({ info: 'dispatched' }),
+    deleteRoom: vi.fn().mockResolvedValue({}),
   },
   voice: {
     list: vi.fn(),
@@ -146,6 +155,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   desktop: {
     getLiveviewUrl: vi.fn(),
     sendSystemEvent: vi.fn(),
+    listUserDesktops: vi.fn(),
   },
   approval: {
     getProfile: vi.fn(),
@@ -401,10 +411,7 @@ describe('useAssistantCall', () => {
         });
 
         // Assert
-        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith(
-          'agent-123',
-          'test-room'
-        );
+        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith('agent-123', 'test-room');
       }
     );
 
@@ -563,6 +570,68 @@ describe('useAssistantCall', () => {
         });
 
         expect(result.current.isSpeakerMuted).toBe(false);
+      }
+    );
+  });
+
+  describe('Room Deletion', () => {
+    it(
+      'does not proactively delete room before connecting',
+      {
+        meta: {
+          alias: 'Call-NoProactiveDelete',
+          scenario: 'User initiates a new call',
+          behavior: 'deleteRoom is NOT called before getConnectionDetails',
+        },
+      },
+      async () => {
+        // Arrange
+        const assistant = createMockAssistant({ agentId: 'agent-42' });
+
+        // Act
+        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
+
+        await act(async () => {
+          await result.current.connect(assistant, 'audio');
+        });
+
+        // Assert - deleteRoom should not be called during normal connect
+        expect(mockActions.call.deleteRoom).not.toHaveBeenCalled();
+      }
+    );
+
+    it(
+      'does not delete room on normal user disconnect',
+      {
+        meta: {
+          alias: 'Call-NoDeleteOnDisconnect',
+          scenario: 'User ends the call normally',
+          behavior: 'deleteRoom is NOT called during disconnect',
+        },
+      },
+      async () => {
+        // Arrange
+        const assistant = createMockAssistant({ agentId: 'agent-99' });
+
+        // Act - connect first, then disconnect
+        const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
+
+        await act(async () => {
+          await result.current.connect(assistant, 'video');
+        });
+
+        // Clear mock to isolate disconnect behavior from stale-room cleanup during connect
+        (mockActions.call.deleteRoom as any).mockClear();
+
+        // The room state needs to be 'connected' for disconnect to call room.disconnect
+        mockRoom.state = 'connected';
+
+        await act(async () => {
+          await result.current.disconnect();
+        });
+
+        // Assert - deleteRoom should NOT be called on normal disconnect
+        expect(mockActions.call.deleteRoom).not.toHaveBeenCalled();
       }
     );
   });

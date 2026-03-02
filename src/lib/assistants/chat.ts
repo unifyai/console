@@ -159,7 +159,7 @@ export const getTranscripts = async (apiKey: string) => {
       const logsResponse = data as LogsResponseProps;
       const mappedMessages = (logsResponse.logs as LogProps[])
         .map((log): ChatMessage | null => {
-          const { entries, id, timestamp } = log;
+          const { entries, id, ts: timestamp } = log;
           if (
             !entries ||
             typeof entries.content !== 'string' ||

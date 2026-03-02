@@ -54,8 +54,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     redirect('/login?signout=true');
   }
 
-  // Check if user is part of "Orchestra Admin Organization" - if not, redirect to assistants
-  const isUnifyMember = user.organizations?.some((o) => o.name === 'Orchestra Admin Organization');
+  // Check if user is part of "Unify" - if not, redirect to assistants
+  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify');
   if (!isUnifyMember) {
     redirect('/assistants');
   }

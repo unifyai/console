@@ -3,12 +3,13 @@ import { Room, RoomEvent } from 'livekit-client';
 import { toast } from 'sonner';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
+import { makeRoomName } from '@/utils/assistants/call-utils';
+import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
-const DESKTOP_READY_POLL_INTERVAL = 3000; // 3 seconds between desktop readiness checks
 
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
@@ -29,8 +30,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const connectionAttemptIdRef = React.useRef(0);
 
   // --- Remote Control State ---
-  const [isDesktopReady, setIsDesktopReady] = React.useState(false);
-  const desktopPollRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
   const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
   const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
@@ -53,13 +52,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     }
   }, []);
 
-  const stopDesktopPoll = React.useCallback(() => {
-    if (desktopPollRef.current) {
-      clearInterval(desktopPollRef.current);
-      desktopPollRef.current = null;
-    }
-  }, []);
-
   const stopRemoteControl = React.useCallback(() => {
     setIsRemoteControlActive(false);
     setLiveviewUrl(null);
@@ -78,10 +70,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsSpeakerMuted(false);
     isRedispatchingRef.current = false;
     stopRemoteControl();
-    stopDesktopPoll();
-    setIsDesktopReady(false);
     clearAssistantJoinTimeout();
-  }, [clearAssistantJoinTimeout, stopRemoteControl, stopDesktopPoll]);
+  }, [clearAssistantJoinTimeout, stopRemoteControl]);
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
@@ -105,6 +95,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setError(null);
       setConnectionError(null);
       try {
+        // Delete any stale room from a previous failed attempt before creating a new one
+        const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
+        await assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
+        if (isStaleAttempt()) return;
+
         const assistantName = `${assistant.firstName}${assistant.surname}`;
         let connDetails: ConnectionDetails | null = null;
 
@@ -182,6 +177,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         setIsConnecting(false);
         toast.error(`Failed to start call. Please try again.`);
         setError(`Failed to start call: ${e.message}`);
+        // Clean up the server-side room so it doesn't interfere with subsequent attempts
+        assistantActions.call.deleteRoom(makeRoomName(assistant.agentId, 'meet')).catch(() => {});
         // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
         if (room.state !== 'disconnected') {
           room.disconnect().catch(console.error);
@@ -217,6 +214,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     // Temporarily detach the main disconnect handler to prevent full UI teardown
     room.off(RoomEvent.Disconnected, onDisconnected);
 
+    // Delete the stale room before disconnecting so the retry starts fresh
+    await assistantActions.call
+      .deleteRoom(makeRoomName(assistantToRetry.agentId, 'meet'))
+      .catch(() => {});
+
     await room.disconnect();
 
     // Manually reset only the states needed for a fresh connection attempt
@@ -240,6 +242,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     onDisconnected,
     clearAssistantJoinTimeout,
     stopRemoteControl,
+    assistantActions.call,
   ]);
 
   const toggleRemoteControl = React.useCallback(async () => {
@@ -418,8 +421,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         assistantRejoinTimeoutRef.current = setTimeout(() => {
           if (isCancelledRef.current) return;
           if (isRedispatchingRef.current || room.numParticipants < 2) {
-            // Assistant still hasn't rejoined
+            // Assistant still hasn't rejoined — clean up server-side room before disconnecting
             isRedispatchingRef.current = false;
+            const assistant = activeCallAssistantRef.current;
+            if (assistant) {
+              assistantActions.call
+                .deleteRoom(makeRoomName(assistant.agentId, 'meet'))
+                .catch(() => {});
+            }
             toast.error(
               `${firstName} couldn't rejoin the call. Please try calling again if needed.`
             );
@@ -438,59 +447,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearAssistantJoinTimeout();
     };
-  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant]);
+  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call]);
 
-  // Poll for desktop VM readiness once the call is connected.
-  // Uses recursive setTimeout (not setInterval) so the next check only
-  // schedules after the current one completes, avoiding overlapping calls
-  // into getLiveviewUrl which has its own internal retry loop.
-  React.useEffect(() => {
-    if (!isConnected || !activeCallAssistant) {
-      stopDesktopPoll();
-      return;
-    }
-
-    let cancelled = false;
-
-    const scheduleCheck = () => {
-      desktopPollRef.current = setTimeout(async () => {
-        if (cancelled) return;
-        try {
-          const result = await assistantActions.desktop.getLiveviewUrl(
-            activeCallAssistant.agentId,
-          );
-          if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-            setIsDesktopReady(true);
-            return;
-          }
-        } catch {
-          // VM not ready yet
-        }
-        if (!cancelled) scheduleCheck();
-      }, DESKTOP_READY_POLL_INTERVAL);
-    };
-
-    // Immediate first check
-    (async () => {
-      try {
-        const result = await assistantActions.desktop.getLiveviewUrl(
-          activeCallAssistant.agentId,
-        );
-        if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-          setIsDesktopReady(true);
-          return;
-        }
-      } catch {
-        // VM not ready yet
-      }
-      if (!cancelled) scheduleCheck();
-    })();
-
-    return () => {
-      cancelled = true;
-      stopDesktopPoll();
-    };
-  }, [isConnected, activeCallAssistant, assistantActions.desktop, stopDesktopPoll]);
+  // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
+  // with a low-frequency fallback poll.
+  const isDesktopReady = useDesktopReady(
+    isConnected ? activeCallAssistant?.agentId : undefined,
+    assistantActions.desktop.getLiveviewUrl
+  );
 
   // Ensure proper cleanup on component unmount
   React.useEffect(() => {
