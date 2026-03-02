@@ -155,11 +155,13 @@ export const mockAssistantActions: any = {
       token: 'token_1',
     })),
     dispatchToCall: vi.fn(async () => ({ info: 'Dispatched' })),
+    deleteRoom: vi.fn(async () => ({})),
   },
   desktop: {
     getLiveviewUrl: vi.fn(async () => ({ liveviewUrl: 'https://vnc.example.com' })),
     checkLiveviewHealth: vi.fn(async () => true),
     sendSystemEvent: vi.fn(async () => ({ info: 'Event sent' })),
+    listUserDesktops: vi.fn(async () => []),
   },
 };
 

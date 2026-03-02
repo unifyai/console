@@ -295,7 +295,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       }
     } catch (e: any) {
       console.error('[useAssistantCall] Toggle remote control failed:', e.message);
-      toast.error(e.message || 'The assistant could not share their screen. Please try again.', {
+      toast.error('The assistant could not share their screen. Please try again.', {
         id: toastId,
       });
     } finally {
