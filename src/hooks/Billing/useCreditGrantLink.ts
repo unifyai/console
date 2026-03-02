@@ -135,7 +135,7 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
 
   // 1. On mount: read token from URL or localStorage
   useEffect(() => {
-    const urlToken = searchParams.get('token');
+    const urlToken = searchParams?.get('token') ?? null;
     const storedToken = getStoredToken();
 
     if (urlToken) {
@@ -175,7 +175,11 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
     } else {
       setError(result.error || 'Failed to claim credits');
       // If token is invalid/expired, clear it
-      if (result.error?.includes('expired') || result.error?.includes('invalid') || result.error?.includes('not found')) {
+      if (
+        result.error?.includes('expired') ||
+        result.error?.includes('invalid') ||
+        result.error?.includes('not found')
+      ) {
         clearStoredToken();
         setPendingToken(null);
       }
@@ -215,4 +219,3 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
     clearPendingToken: clearPendingTokenAction,
   };
 }
-

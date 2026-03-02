@@ -509,7 +509,15 @@ describe('AssistantCommunicationFullScreen', () => {
         },
       },
       async () => {
-        // Make getLiveviewUrl take time
+        renderFullScreen();
+        await waitForAssistantToJoin();
+
+        // Wait for useDesktopReady poll to resolve and enable the button
+        const remoteControlButton = await screen.findByRole('button', {
+          name: /show assistant screen/i,
+        });
+
+        // Now override getLiveviewUrl to be slow for the toggle click
         let resolveUrl: (value: any) => void;
         mockAssistantActions.desktop.getLiveviewUrl.mockImplementation(
           () =>
@@ -518,15 +526,8 @@ describe('AssistantCommunicationFullScreen', () => {
             })
         );
 
-        renderFullScreen();
-        await waitForAssistantToJoin();
-
-        const remoteControlButton = await screen.findByRole('button', {
-          name: /show assistant screen/i,
-        });
         await user.click(remoteControlButton);
 
-        // Button should be in loading state (disabled or show spinner)
         await waitFor(() => {
           expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalled();
         });
@@ -556,6 +557,9 @@ describe('AssistantCommunicationFullScreen', () => {
           name: /show assistant screen/i,
         });
 
+        // Clear counts from useDesktopReady's background poll
+        mockAssistantActions.desktop.getLiveviewUrl.mockClear();
+
         // First click - enable
         await user.click(remoteControlButton);
         await waitFor(() => {
@@ -584,16 +588,20 @@ describe('AssistantCommunicationFullScreen', () => {
       },
       async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        mockAssistantActions.desktop.getLiveviewUrl.mockResolvedValueOnce({
-          detail: 'No active session found',
-        });
 
         renderFullScreen();
         await waitForAssistantToJoin();
 
+        // Wait for useDesktopReady poll to resolve and enable the button
         const remoteControlButton = await screen.findByRole('button', {
           name: /show assistant screen/i,
         });
+
+        // Now override getLiveviewUrl to return an error for the toggle click
+        mockAssistantActions.desktop.getLiveviewUrl.mockResolvedValueOnce({
+          detail: 'No active session found',
+        });
+
         await user.click(remoteControlButton);
 
         await waitFor(() => {
@@ -820,6 +828,13 @@ describe('AssistantCommunicationFullScreen', () => {
           await vi.advanceTimersByTimeAsync(200);
         });
 
+        // Simulate assistant joining (required for window.close guard)
+        await act(async () => {
+          mockRoomInstance.numParticipants = 2;
+          mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
+          await vi.advanceTimersByTimeAsync(50);
+        });
+
         // Simulate room disconnect
         act(() => {
           mockRoomInstance.emit(RoomEvent.Disconnected);
@@ -1016,6 +1031,7 @@ describe('AssistantCommunicationFullScreen', () => {
               remoteControlActive: true,
               liveviewUrl: 'https://liveview.example.com/session/abc123',
               remoteControlInteractive: false,
+              isDesktopReady: true,
             },
           };
           localStorageData['test-key-123'] = JSON.stringify(handoffDataWithRemoteControl);
@@ -1032,11 +1048,19 @@ describe('AssistantCommunicationFullScreen', () => {
             expect(mockRoomInstance.connect).toHaveBeenCalled();
           });
 
-          // The key behavior: getLiveviewUrl should NOT be called since we restored from handoff
-          // If the state wasn't restored, the user would need to click the button to get the liveview URL
+          // Simulate assistant joining (the component checks actual room
+          // state, not the handoff flag, to determine isAssistantJoined)
+          await act(async () => {
+            mockRoomInstance.numParticipants = 2;
+            mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
+            await vi.advanceTimersByTimeAsync(50);
+          });
+
+          // The key behavior: getLiveviewUrl should NOT be called since we
+          // restored from handoff with isDesktopReady: true
           expect(mockAssistantActions.desktop.getLiveviewUrl).not.toHaveBeenCalled();
 
-          // Also verify the toggle button is available (remote control can be toggled off)
+          // Verify the toggle button is available (remote control can be toggled off)
           await waitFor(() => {
             const remoteControlButton = screen.getByRole('button', {
               name: /show.*screen|hide.*screen/i,
