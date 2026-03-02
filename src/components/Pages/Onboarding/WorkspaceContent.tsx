@@ -157,7 +157,7 @@ const WorkspaceContent = ({
     >
       {/* Header */}
       <div className="flex flex-col items-center gap-6">
-        <UnifyLogo />
+        <div className="flex justify-center"><UnifyLogo /></div>
         <div className="text-center">
           <h1 className="text-h1 font-semibold">Welcome to Unify</h1>
           <p className="mt-2 text-body text-muted-foreground">

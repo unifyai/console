@@ -178,7 +178,6 @@ const MfaPage = () => {
           <div className="text-center">
             <p className="text-body text-muted-foreground">
               Your organization requires two-factor authentication.
-              Set up 2FA to continue.
             </p>
           </div>
           <TotpSetup autoStart onEnabled={handleSetupComplete} />
@@ -276,17 +275,7 @@ const MfaPage = () => {
     >
       {/* Header */}
       <div className="flex flex-col items-center gap-8">
-        <div className="flex w-full items-center justify-between">
-          <UnifyLogo />
-          <button
-            type="button"
-            onClick={handleBackToLogin}
-            className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
-            data-testid="back-to-login"
-          >
-            ← Back to Login
-          </button>
-        </div>
+        <div className="flex justify-center"><UnifyLogo /></div>
         <h1 className="text-h1 font-semibold">
           {mfaEnabled === false ? 'Set Up Two-Factor Authentication' : 'Two-Factor Authentication'}
         </h1>
@@ -294,6 +283,15 @@ const MfaPage = () => {
 
       {/* Content */}
       {renderContent()}
+
+      <button
+        type="button"
+        onClick={handleBackToLogin}
+        className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        data-testid="back-to-login"
+      >
+        ← Back to Login
+      </button>
     </motion.div>
   );
 };

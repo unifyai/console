@@ -29,7 +29,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
 
         {/* Header — tagline */}
         <div className="flex flex-col gap-4">
-          <UnifyLogo />
+          <div className="flex justify-center"><UnifyLogo /></div>
           <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
             Hire AI{' '}
             <span className="font-serif italic">— Not APIs</span>

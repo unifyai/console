@@ -99,7 +99,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
       transition={{ duration: 0.3 }}
       className="m-auto flex w-full max-w-md flex-col items-center gap-6 text-center"
     >
-      <UnifyLogo />
+      <div className="flex justify-center"><UnifyLogo /></div>
 
       {status === 'processing' && (
         <>
