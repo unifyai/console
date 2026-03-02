@@ -215,15 +215,14 @@ const authOptions: AuthOptions = {
       if (user?.mfaPending) {
         token.mfaPending = true;
       }
-      // Persist onboarding step from authorize() or adapter sign-up.
-      // For credentials login: authorize() returns user.onboardingStep from Orchestra.
-      // For OAuth sign-up: trigger === 'signUp' means a brand-new user.
+      // Persist onboarding step from authorize() result (credentials login).
       if (user?.onboardingStep && user.onboardingStep !== 'completed') {
         token.onboardingStep = user.onboardingStep;
-      } else if (trigger === 'signUp') {
-        token.onboardingStep = 'workspace_setup';
       }
-      // On OAuth sign-in: check if the user has MFA enabled and prompt if so
+      // On OAuth sign-in: check MFA and onboarding status from the backend.
+      // We query the backend directly instead of relying on trigger === 'signUp',
+      // because NextAuth fires 'signUp' even when an existing email user links
+      // a new OAuth provider (e.g. signed up with email, later signs in with Google).
       if (account && account.provider !== 'credentials' && token.email) {
         try {
           const mfaRes = await OrchestraAdminClient.get('/auth/mfa/status-by-email', {
@@ -235,6 +234,22 @@ const authOptions: AuthOptions = {
         } catch {
           // Don't block OAuth sign-in if MFA check fails
           console.warn('[jwt] Failed to check MFA status for OAuth user, skipping');
+        }
+
+        // Check onboarding status — only set if not already set by credentials path
+        if (!token.onboardingStep) {
+          try {
+            const onboardingRes = await OrchestraAdminClient.get(
+              '/auth/onboarding-status-by-email',
+              { params: { email: token.email } },
+            );
+            const step = onboardingRes.data?.onboardingStep;
+            if (step && step !== 'completed') {
+              token.onboardingStep = step;
+            }
+          } catch {
+            console.warn('[jwt] Failed to check onboarding status for OAuth user, skipping');
+          }
         }
       }
       // On session update: clear mfaPending after TOTP verification
