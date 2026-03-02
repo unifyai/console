@@ -6,12 +6,15 @@
  * InviteContent component with its full UI (icons, buttons, animations) and
  * verify the complete user interaction flow:
  *
- * - Accept invite → success → "Get Started" redirects to /assistants
- * - Accept invite → MFA required → auto-redirect to /login/mfa
+ * - Accept invite → success → "Get Started" calls server action
+ * - Accept invite → MFA required → auto-calls server action → /login/mfa
  * - Accept invite → email mismatch → "Back to Login" / "Continue anyway"
  * - Accept invite → generic error → "Return to Console"
  *
- * Mocked: next-auth/react, next/navigation, framer-motion, APIs (via MSW)
+ * Session updates go through `onPatchSession` (a Server Action) which is
+ * CSRF-safe and not URL-accessible.
+ *
+ * Mocked: next-auth/react (signOut only), next/navigation, framer-motion
  * Real:   InviteContent, Button, UnifyLogo
  *
  * @group integration
@@ -23,16 +26,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── Mocks (external dependencies only) ──────────────────────────────────────
 
-const mockUpdate = vi.fn().mockResolvedValue(undefined);
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 const pushMock = vi.fn();
 
 vi.mock('next-auth/react', () => ({
-  useSession: () => ({
-    data: { user: { email: 'user@test.com' } },
-    status: 'authenticated',
-    update: mockUpdate,
-  }),
   signOut: (...args: unknown[]) => mockSignOut(...args),
 }));
 
@@ -60,13 +57,18 @@ import InviteContent from '@/components/Pages/Invite/Main';
 
 describe('Invite Integration', () => {
   let mockOnAccept: ReturnType<typeof vi.fn>;
+  let mockPatchSession: ReturnType<typeof vi.fn>;
+  let locationHref: string;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockOnAccept = vi.fn();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    locationHref = 'http://localhost:3000/login/invite';
     Object.defineProperty(window, 'location', {
       value: {
-        href: 'http://localhost:3000/login/invite',
+        get href() { return locationHref; },
+        set href(val: string) { locationHref = val; },
         origin: 'http://localhost:3000',
         protocol: 'http:',
         host: 'localhost:3000',
@@ -87,7 +89,13 @@ describe('Invite Integration', () => {
   });
 
   const renderInvite = (token = 'test-invite-token') =>
-    render(<InviteContent token={token} onAccept={mockOnAccept} />);
+    render(
+      <InviteContent
+        token={token}
+        onAccept={mockOnAccept}
+        onPatchSession={mockPatchSession}
+      />,
+    );
 
   // ─── Processing State ────────────────────────────────────────────────
 
@@ -116,7 +124,7 @@ describe('Invite Integration', () => {
   // ─── Success Flow ───────────────────────────────────────────────────
 
   describe('Success flow', () => {
-    it('shows success with org name and navigates to /assistants', async () => {
+    it('shows success with org name and calls server action on Get Started', async () => {
       mockOnAccept.mockResolvedValue({
         success: true,
         organizationName: 'Acme Corp',
@@ -136,14 +144,13 @@ describe('Invite Integration', () => {
         screen.getByText(/You have successfully joined/),
       ).toBeInTheDocument();
 
-      // Session should be updated to clear onboarding step
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
-
-      // Click "Get Started"
+      // Click "Get Started" — should call server action
       await user.click(screen.getByTestId('get-started-btn'));
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
+      expect(mockPatchSession).toHaveBeenCalledWith(
+        { onboardingStep: 'completed' },
+        '/assistants',
+        {},
+      );
     });
 
     it('shows success without org name for generic result', async () => {
@@ -169,17 +176,13 @@ describe('Invite Integration', () => {
       await waitFor(() => {
         expect(screen.getByText('Welcome!')).toBeInTheDocument();
       });
-
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
     });
   });
 
   // ─── MFA Required Flow ──────────────────────────────────────────────
 
   describe('MFA required flow', () => {
-    it('shows MFA required message and auto-redirects to /login/mfa', async () => {
+    it('shows MFA required message and auto-calls server action after delay', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       mockOnAccept.mockResolvedValue({
@@ -201,16 +204,18 @@ describe('Invite Integration', () => {
       // Should show org name
       expect(screen.getByText('Secure Corp')).toBeInTheDocument();
 
-      // Session should be updated
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
+      // Server action should not have been called yet
+      expect(mockPatchSession).not.toHaveBeenCalled();
 
       // Auto-redirect after 2 seconds
       vi.advanceTimersByTime(2500);
 
       await waitFor(() => {
-        expect(pushMock).toHaveBeenCalledWith('/login/mfa');
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/login/mfa',
+          {},
+        );
       });
 
       vi.useRealTimers();
@@ -246,7 +251,7 @@ describe('Invite Integration', () => {
 
       await waitFor(() => {
         expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
-        expect(window.location.href).toBe('/login');
+        expect(locationHref).toBe('/login');
       });
     });
 
@@ -350,7 +355,7 @@ describe('Invite Integration', () => {
       vi.useRealTimers();
     });
 
-    it('updates session before auto-redirect', async () => {
+    it('does not call server action immediately — waits for timeout', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       mockOnAccept.mockResolvedValue({
@@ -361,19 +366,21 @@ describe('Invite Integration', () => {
       renderInvite();
 
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({
-          onboardingStep: 'completed',
-        });
+        expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
       });
 
-      // Redirect should not happen immediately
-      expect(pushMock).not.toHaveBeenCalled();
+      // Server action should not have been called yet
+      expect(mockPatchSession).not.toHaveBeenCalled();
 
-      // After timeout, should redirect
+      // After timeout, should call server action
       vi.advanceTimersByTime(2500);
 
       await waitFor(() => {
-        expect(pushMock).toHaveBeenCalledWith('/login/mfa');
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/login/mfa',
+          {},
+        );
       });
 
       vi.useRealTimers();
@@ -435,34 +442,8 @@ describe('Invite Integration', () => {
 
   // ─── Session Update ──────────────────────────────────────────────
 
-  describe('Session update', () => {
-    it('updates session with onboardingStep: completed on success', async () => {
-      mockOnAccept.mockResolvedValue({ success: true, organizationName: 'Test Org' });
-
-      renderInvite();
-
-      await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({
-          onboardingStep: 'completed',
-        });
-      });
-    });
-
-    it('updates session with onboardingStep: completed on fallback success', async () => {
-      mockOnAccept.mockResolvedValue('ok'); // non-object result
-
-      renderInvite();
-
-      await waitFor(() => {
-        expect(screen.getByText('Welcome!')).toBeInTheDocument();
-      });
-
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
-    });
-
-    it('does NOT update session on error', async () => {
+  describe('No server action call on error', () => {
+    it('does NOT call server action on error', async () => {
       mockOnAccept.mockResolvedValue({ detail: 'Some error' });
 
       renderInvite();
@@ -471,8 +452,7 @@ describe('Invite Integration', () => {
         expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
       });
 
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockPatchSession).not.toHaveBeenCalled();
     });
   });
 });
-

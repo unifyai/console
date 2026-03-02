@@ -2,7 +2,10 @@ import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
 import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
 import { createOrganizationAction } from '@/lib/orchestra/api/organization';
-import { updateOnboardingAction } from '@/lib/user/onboarding';
+import {
+  updateOnboardingAction,
+  patchSessionAndRedirect,
+} from '@/lib/user/onboarding';
 
 /**
  * /login/onboarding — Onboarding flow for new users.
@@ -27,17 +30,36 @@ export default async function OnboardingPage() {
   const createOrgAction = await createOrganizationAction(user.apiKey);
   const onUpdateOnboarding = await updateOnboardingAction(user.apiKey);
 
-  // Pass existing organizations so the client component can detect whether
-  // the workspace step's side effect (org creation) already happened — e.g.
-  // if the user created an org but the onboarding step update failed and
-  // they resumed later.
   const existingOrgs = user.organizations ?? [];
+
+  // ── Idempotency: auto-complete if the user already has an org ─────────
+  // This covers the case where the user joined an org via invite but the
+  // client-side JWT update failed, leaving the stale `onboardingStep` flag
+  // in the cookie. We handle it server-side: mark the backend step complete
+  // (best-effort) then patch the JWT cookie and redirect.
+  if (existingOrgs.length > 0) {
+    const latestOrg = existingOrgs[existingOrgs.length - 1];
+    try {
+      await onUpdateOnboarding({
+        currentStep: 'completed',
+        stepData: {
+          selectedType: 'organization',
+          organizationId: String(latestOrg.id),
+          organizationName: latestOrg.name,
+          autoCompleted: true,
+        },
+      });
+    } catch {
+      // Best-effort — the idempotency check will handle it next time.
+    }
+    await patchSessionAndRedirect({ onboardingStep: 'completed' });
+  }
 
   return (
     <WorkspaceContent
       onCreateOrg={createOrgAction}
       onUpdateOnboarding={onUpdateOnboarding}
-      existingOrgs={existingOrgs}
+      onPatchSession={patchSessionAndRedirect}
     />
   );
 }

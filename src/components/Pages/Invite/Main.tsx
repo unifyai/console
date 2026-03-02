@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -15,6 +15,12 @@ const EMAIL_MISMATCH_ERROR = 'This invite is for a different email address';
 interface InviteContentProps {
   token: string;
   onAccept: (token: string) => Promise<void | ResponseProps | any>;
+  /** Server action that patches the JWT cookie and redirects. */
+  onPatchSession: (
+    patch: { onboardingStep?: string; mfaPending?: boolean },
+    redirectTo?: string,
+    extraParams?: Record<string, string>,
+  ) => Promise<never>;
 }
 
 /**
@@ -22,12 +28,17 @@ interface InviteContentProps {
  *
  * Renders inside the shared LoginCardShell (provided by the login layout).
  * After accepting the invite:
- * - If the org requires MFA setup → auto-redirects to /login/mfa
- * - Otherwise → shows success with a "Get Started" button
+ * - If the org requires MFA setup → calls `onPatchSession` to clear
+ *   onboarding and redirect to /login/mfa
+ * - Otherwise → shows success with a "Get Started" button that calls the
+ *   same server action
  * - If the email doesn't match → shows two buttons: "Back to Login" + "Continue anyway"
+ *
+ * Session mutations go through `onPatchSession` (a Server Action) which
+ * patches the JWT cookie server-side via `cookies().set()` — CSRF-safe and
+ * not URL-accessible.
  */
-const InviteContent = ({ token, onAccept }: InviteContentProps) => {
-  const { update } = useSession();
+const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) => {
   const router = useRouter();
   const [status, setStatus] = useState<'processing' | 'success' | 'mfa_required' | 'error'>('processing');
   const [message, setMessage] = useState('');
@@ -50,20 +61,19 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
           // Org requires MFA and user doesn't have it — redirect to MFA setup
           setOrgName(result.organizationName);
           setStatus('mfa_required');
-          // Clear onboarding step — user is joining an org via invite
-          await update({ onboardingStep: 'completed' });
-          // Auto-redirect after a brief moment so the user sees the message
+          // Auto-redirect after a brief moment so the user sees the message.
+          // The redirect goes through the API route to clear onboardingStep
+          // and then lands on /login/mfa.
           setTimeout(() => {
-            router.push('/login/mfa');
+            const extraParams: Record<string, string> = {};
+            const current = new URLSearchParams(window.location.search);
+            current.forEach((value, key) => { extraParams[key] = value; });
+            onPatchSession({ onboardingStep: 'completed' }, '/login/mfa', extraParams);
           }, 2000);
         } else if (result && typeof result === 'object' && 'success' in result) {
           setOrgName(result.organizationName);
-          // Clear onboarding step — user is joining an org via invite
-          await update({ onboardingStep: 'completed' });
           setStatus('success');
         } else {
-          // Clear onboarding step
-          await update({ onboardingStep: 'completed' });
           setStatus('success');
         }
       } catch {
@@ -73,7 +83,7 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
     };
 
     processInvite();
-  }, [token, onAccept, router, update]);
+  }, [token, onAccept, router]);
 
   const handleBackToLogin = useCallback(async () => {
     await signOut({ redirect: false });
@@ -110,7 +120,16 @@ const InviteContent = ({ token, onAccept }: InviteContentProps) => {
               You have successfully joined{orgName ? <> <strong>{orgName}</strong></> : ' the organization'}.
             </p>
           </div>
-          <Button onClick={() => router.push('/assistants')} className="w-full" data-testid="get-started-btn">
+          <Button
+            onClick={() => {
+              const extraParams: Record<string, string> = {};
+              const current = new URLSearchParams(window.location.search);
+              current.forEach((value, key) => { extraParams[key] = value; });
+              onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
+            }}
+            className="w-full"
+            data-testid="get-started-btn"
+          >
             Get Started
           </Button>
         </>

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { XCircle } from 'lucide-react';
 import InviteContent from '@/components/Pages/Invite/Main';
 import { acceptInviteAction } from '@/lib/user/organization';
+import { patchSessionAndRedirect } from '@/lib/user/onboarding';
 
 interface InvitePageProps {
   searchParams: { token?: string };
@@ -55,6 +56,12 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   const acceptAction = await acceptInviteAction(user.apiKey);
 
   // 4. Render Client View
-  return <InviteContent token={token} onAccept={acceptAction} />;
+  return (
+    <InviteContent
+      token={token}
+      onAccept={acceptAction}
+      onPatchSession={patchSessionAndRedirect}
+    />
+  );
 }
 

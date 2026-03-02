@@ -6,12 +6,14 @@
  * WorkspaceContent component with framer-motion passthroughs and verify the
  * full user interaction flow end-to-end:
  *
- * - Personal workspace selection → session update → redirect
- * - Organization creation → workspace cookie → session update → redirect
- * - Idempotency: auto-complete when user already has an org
+ * - Personal workspace selection → onboarding update → patchSession server action
+ * - Organization creation → workspace cookie → patchSession server action
  * - Validation: empty org name, API errors
  *
- * Mocked: next-auth/react, next/navigation, framer-motion, APIs (via MSW)
+ * Note: Idempotency (auto-complete when user has existing orgs) is now handled
+ * server-side in the page component, not in WorkspaceContent.
+ *
+ * Mocked: next/navigation, framer-motion, APIs (via MSW)
  * Real:   WorkspaceContent, Input, Button
  *
  * @group integration
@@ -25,19 +27,8 @@ import { server } from '@/tests/server';
 
 // ─── Mocks (external dependencies only) ──────────────────────────────────────
 
-const mockUpdate = vi.fn().mockResolvedValue(undefined);
-const pushMock = vi.fn();
-
-vi.mock('next-auth/react', () => ({
-  useSession: () => ({
-    data: { user: { email: 'user@test.com' } },
-    status: 'authenticated',
-    update: mockUpdate,
-  }),
-}));
-
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock, refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/login/onboarding',
 }));
 
@@ -61,11 +52,28 @@ import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
 describe('Onboarding Integration', () => {
   let mockCreateOrg: ReturnType<typeof vi.fn>;
   let mockUpdateOnboarding: ReturnType<typeof vi.fn>;
+  let mockPatchSession: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateOrg = vi.fn();
     mockUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window, 'location', {
+      value: {
+        href: 'http://localhost:3000/login/onboarding',
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/onboarding',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
 
     // Default MSW handler for workspace cookie
     server.use(
@@ -79,12 +87,12 @@ describe('Onboarding Integration', () => {
     server.resetHandlers();
   });
 
-  const renderOnboarding = (existingOrgs: { id: number; name: string }[] = []) =>
+  const renderOnboarding = () =>
     render(
       <WorkspaceContent
         onCreateOrg={mockCreateOrg}
         onUpdateOnboarding={mockUpdateOnboarding}
-        existingOrgs={existingOrgs}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -126,13 +134,12 @@ describe('Onboarding Integration', () => {
         });
       });
 
-      // Verify session was updated
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
-
-      // Verify redirect
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
+      // Verify server action was called
+      expect(mockPatchSession).toHaveBeenCalledWith(
+        { onboardingStep: 'completed' },
+        '/assistants',
+        {},
+      );
     });
   });
 
@@ -188,11 +195,12 @@ describe('Onboarding Integration', () => {
         });
       });
 
-      // Verify session update and redirect
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
+      // Verify server action was called
+      expect(mockPatchSession).toHaveBeenCalledWith(
+        { onboardingStep: 'completed' },
+        '/assistants',
+        {},
+      );
     });
 
     it('shows error when org name is empty and user clicks continue', async () => {
@@ -232,8 +240,8 @@ describe('Onboarding Integration', () => {
         );
       });
 
-      // Should NOT have redirected
-      expect(pushMock).not.toHaveBeenCalled();
+      // Should NOT have called server action
+      expect(mockPatchSession).not.toHaveBeenCalled();
     });
 
     it('shows error when org creation throws an exception', async () => {
@@ -291,81 +299,6 @@ describe('Onboarding Integration', () => {
     });
   });
 
-  // ─── Idempotency (Auto-Complete) ────────────────────────────────────
-
-  describe('Idempotency', () => {
-    it('auto-completes when user already has an organization', async () => {
-      const consoleSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
-
-      renderOnboarding([{ id: 99, name: 'Old Corp' }]);
-
-      // Should auto-complete without showing the selection UI
-      await waitFor(() => {
-        expect(mockUpdateOnboarding).toHaveBeenCalledWith({
-          currentStep: 'completed',
-          stepData: {
-            selectedType: 'organization',
-            organizationId: '99',
-            organizationName: 'Old Corp',
-            autoCompleted: true,
-          },
-        });
-      });
-
-      expect(mockUpdate).toHaveBeenCalledWith({
-        onboardingStep: 'completed',
-      });
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
-
-      consoleSpy.mockRestore();
-    });
-
-    it('auto-completes using the latest org when user has multiple', async () => {
-      const consoleSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
-
-      renderOnboarding([
-        { id: 10, name: 'First Corp' },
-        { id: 20, name: 'Latest Corp' },
-      ]);
-
-      await waitFor(() => {
-        expect(mockUpdateOnboarding).toHaveBeenCalledWith({
-          currentStep: 'completed',
-          stepData: expect.objectContaining({
-            organizationId: '20',
-            organizationName: 'Latest Corp',
-            autoCompleted: true,
-          }),
-        });
-      });
-
-      consoleSpy.mockRestore();
-    });
-
-    it('tolerates onUpdateOnboarding failure during auto-complete', async () => {
-      const consoleSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
-      mockUpdateOnboarding.mockRejectedValue(new Error('Backend down'));
-
-      renderOnboarding([{ id: 1, name: 'Corp' }]);
-
-      // Should still update session and redirect despite backend failure
-      await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({
-          onboardingStep: 'completed',
-        });
-        expect(pushMock).toHaveBeenCalledWith('/assistants');
-      });
-
-      consoleSpy.mockRestore();
-    });
-  });
-
   // ─── Workspace Cookie ──────────────────────────────────────────────
 
   describe('Workspace cookie', () => {
@@ -400,7 +333,7 @@ describe('Onboarding Integration', () => {
   // ─── Personal Workspace Failure Tolerance ─────────────────────────
 
   describe('Personal workspace failure tolerance', () => {
-    it('still redirects when onUpdateOnboarding fails for personal', async () => {
+    it('still calls server action when onUpdateOnboarding fails for personal', async () => {
       const consoleSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
@@ -412,12 +345,13 @@ describe('Onboarding Integration', () => {
       await user.click(screen.getByTestId('workspace-personal'));
       await user.click(screen.getByTestId('workspace-continue'));
 
-      // Should still update session and redirect despite backend failure
+      // Should still call server action despite backend failure
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({
-          onboardingStep: 'completed',
-        });
-        expect(pushMock).toHaveBeenCalledWith('/assistants');
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/assistants',
+          {},
+        );
       });
 
       consoleSpy.mockRestore();
@@ -472,24 +406,6 @@ describe('Onboarding Integration', () => {
         expect(screen.getByTestId('workspace-continue')).toBeDisabled();
       });
     });
-
-    it('shows auto-completing state when user has existing orgs', () => {
-      const consoleSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
-
-      renderOnboarding([{ id: 1, name: 'Corp' }]);
-
-      // Should show auto-completing UI, not the selection UI
-      expect(
-        screen.getByText('Setting up your workspace...'),
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByText('Welcome to Unify'),
-      ).not.toBeInTheDocument();
-
-      consoleSpy.mockRestore();
-    });
   });
 
   // ─── Initial State ─────────────────────────────────────────────────
@@ -514,4 +430,3 @@ describe('Onboarding Integration', () => {
     });
   });
 });
-

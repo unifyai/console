@@ -7,12 +7,14 @@
  *   3. Test that MFA-required invites show the mfa_required state and auto-redirect
  *   4. Test that a generic error from onAccept shows the error state
  *   5. Test that an email-mismatch error shows the two-button layout
- *   6. Test that the session onboardingStep is cleared on success
- *   7. Test that "Get Started" navigates to /assistants
- *   8. Test that "Back to Login" signs out and redirects
- *   9. Test that "Continue anyway" navigates to /login/onboarding
- *  10. Test that an unexpected exception shows a generic error message
- *  11. Test that onAccept is called exactly once (strict-mode guard)
+ *   6. Test that "Get Started" calls the patchSession server action
+ *   7. Test that "Back to Login" signs out and redirects
+ *   8. Test that "Continue anyway" navigates to /login/onboarding
+ *   9. Test that an unexpected exception shows a generic error message
+ *  10. Test that onAccept is called exactly once (strict-mode guard)
+ *
+ * Note: Session updates now go through the `onPatchSession` server action
+ * (CSRF-safe, not URL-accessible) instead of useSession().update().
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -21,16 +23,10 @@ import userEvent from '@testing-library/user-event';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-const mockUpdate = vi.fn().mockResolvedValue(undefined);
 const mockRouterPush = vi.fn();
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('next-auth/react', () => ({
-  useSession: () => ({
-    data: { user: { id: 'user-1', email: 'me@test.com' } },
-    status: 'authenticated',
-    update: mockUpdate,
-  }),
   signOut: (...args: any[]) => mockSignOut(...args),
 }));
 
@@ -62,18 +58,35 @@ vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
 
 import InviteContent from '@/components/Pages/Invite/Main';
 
+// Mock for the patchSessionAndRedirect server action
+let mockPatchSession: ReturnType<typeof vi.fn>;
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('InviteContent – processing state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'location', {
+      value: {
+        href: 'http://localhost:3000/login/invite',
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
   });
 
   it('shows processing UI immediately on mount', () => {
-    // onAccept never resolves, so we stay in processing
     const onAccept = vi.fn(() => new Promise<void>(() => {}));
 
-    render(<InviteContent token="tok_123" onAccept={onAccept} />);
+    render(<InviteContent token="tok_123" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     expect(screen.getByText('Joining Organization...')).toBeInTheDocument();
     expect(screen.getByText(/Please wait/)).toBeInTheDocument();
@@ -82,7 +95,7 @@ describe('InviteContent – processing state', () => {
   it('calls onAccept with the provided token', async () => {
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_abc" onAccept={onAccept} />);
+    render(<InviteContent token="tok_abc" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(onAccept).toHaveBeenCalledWith('tok_abc');
@@ -92,9 +105,8 @@ describe('InviteContent – processing state', () => {
   it('calls onAccept exactly once (strict-mode guard)', async () => {
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_once" onAccept={onAccept} />);
+    render(<InviteContent token="tok_once" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
-    // Wait for the effect to settle
     await waitFor(() => {
       expect(onAccept).toHaveBeenCalledTimes(1);
     });
@@ -104,6 +116,21 @@ describe('InviteContent – processing state', () => {
 describe('InviteContent – success state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'location', {
+      value: {
+        href: 'http://localhost:3000/login/invite',
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
   });
 
   it('shows success state with org name after acceptance', async () => {
@@ -112,7 +139,7 @@ describe('InviteContent – success state', () => {
       organizationName: 'Acme Corp',
     });
 
-    render(<InviteContent token="tok_ok" onAccept={onAccept} />);
+    render(<InviteContent token="tok_ok" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Welcome!')).toBeInTheDocument();
@@ -125,7 +152,7 @@ describe('InviteContent – success state', () => {
   it('shows generic success text when org name is absent', async () => {
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_no_name" onAccept={onAccept} />);
+    render(<InviteContent token="tok_no_name" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Welcome!')).toBeInTheDocument();
@@ -134,21 +161,11 @@ describe('InviteContent – success state', () => {
     expect(screen.getByText(/the organization/)).toBeInTheDocument();
   });
 
-  it('clears the onboardingStep in the session on success', async () => {
-    const onAccept = vi.fn().mockResolvedValue({ success: true });
-
-    render(<InviteContent token="tok_step" onAccept={onAccept} />);
-
-    await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
-    });
-  });
-
-  it('navigates to /assistants when "Get Started" is clicked', async () => {
+  it('calls server action when "Get Started" is clicked', async () => {
     const user = userEvent.setup();
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_nav" onAccept={onAccept} />);
+    render(<InviteContent token="tok_nav" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('get-started-btn')).toBeInTheDocument();
@@ -156,13 +173,36 @@ describe('InviteContent – success state', () => {
 
     await user.click(screen.getByTestId('get-started-btn'));
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
+    expect(mockPatchSession).toHaveBeenCalledWith(
+      { onboardingStep: 'completed' },
+      '/assistants',
+      {},
+    );
   });
 });
 
 describe('InviteContent – MFA required state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'location', {
+      value: {
+        href: 'http://localhost:3000/login/invite',
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows MFA required message when org requires MFA setup', async () => {
@@ -172,7 +212,7 @@ describe('InviteContent – MFA required state', () => {
       organizationName: 'Secure Inc',
     });
 
-    render(<InviteContent token="tok_mfa" onAccept={onAccept} />);
+    render(<InviteContent token="tok_mfa" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
@@ -181,42 +221,57 @@ describe('InviteContent – MFA required state', () => {
     expect(screen.getByText('Secure Inc')).toBeInTheDocument();
   });
 
-  it('clears onboardingStep even when MFA is required', async () => {
+  it('auto-redirects via server action after a short delay', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
     const onAccept = vi.fn().mockResolvedValue({
       success: true,
       mfaSetupRequired: true,
       organizationName: 'MFA Org',
     });
 
-    render(<InviteContent token="tok_mfa_step" onAccept={onAccept} />);
+    render(<InviteContent token="tok_mfa_redirect" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
-    });
-  });
-
-  it('auto-redirects to /login/mfa after a short delay', async () => {
-    const onAccept = vi.fn().mockResolvedValue({
-      success: true,
-      mfaSetupRequired: true,
-      organizationName: 'MFA Org',
+      expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
     });
 
-    render(<InviteContent token="tok_mfa_redirect" onAccept={onAccept} />);
+    // Server action should not have been called yet
+    expect(mockPatchSession).not.toHaveBeenCalled();
 
-    // Wait for the state to settle and the setTimeout redirect to fire (2s delay)
-    await waitFor(
-      () => {
-        expect(mockRouterPush).toHaveBeenCalledWith('/login/mfa');
-      },
-      { timeout: 3500 },
-    );
+    // Advance past the 2s delay
+    vi.advanceTimersByTime(2500);
+
+    await waitFor(() => {
+      expect(mockPatchSession).toHaveBeenCalledWith(
+        { onboardingStep: 'completed' },
+        '/login/mfa',
+        {},
+      );
+    });
+
+    vi.useRealTimers();
   });
 });
 
 describe('InviteContent – error state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'location', {
+      value: {
+        href: 'http://localhost:3000/login/invite',
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
   });
 
   it('shows error state when onAccept returns a detail error', async () => {
@@ -224,7 +279,7 @@ describe('InviteContent – error state', () => {
       detail: 'Invitation has expired',
     });
 
-    render(<InviteContent token="tok_expired" onAccept={onAccept} />);
+    render(<InviteContent token="tok_expired" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
@@ -238,7 +293,7 @@ describe('InviteContent – error state', () => {
       detail: 'Something went wrong',
     });
 
-    render(<InviteContent token="tok_err" onAccept={onAccept} />);
+    render(<InviteContent token="tok_err" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Return to Console')).toBeInTheDocument();
@@ -248,31 +303,47 @@ describe('InviteContent – error state', () => {
   it('shows generic error when onAccept throws', async () => {
     const onAccept = vi.fn().mockRejectedValue(new Error('Network failure'));
 
-    render(<InviteContent token="tok_throw" onAccept={onAccept} />);
+    render(<InviteContent token="tok_throw" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
     });
   });
 
-  it('does NOT clear onboardingStep when an error occurs', async () => {
+  it('does NOT call server action on error', async () => {
     const onAccept = vi.fn().mockResolvedValue({
       detail: 'Token invalid',
     });
 
-    render(<InviteContent token="tok_no_clear" onAccept={onAccept} />);
+    render(<InviteContent token="tok_no_clear" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
     });
 
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockPatchSession).not.toHaveBeenCalled();
   });
 });
 
 describe('InviteContent – email mismatch error', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPatchSession = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'location', {
+      value: {
+        get href() { return 'http://localhost:3000/login/invite'; },
+        set href(val: string) { /* allow signOut redirect */ },
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
+      writable: true,
+    });
   });
 
   it('shows two buttons when the error is an email mismatch', async () => {
@@ -280,14 +351,13 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'This invite is for a different email address',
     });
 
-    render(<InviteContent token="tok_mismatch" onAccept={onAccept} />);
+    render(<InviteContent token="tok_mismatch" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
       expect(screen.getByTestId('continue-anyway-btn')).toBeInTheDocument();
     });
 
-    // Should NOT show the generic "Return to Console" button
     expect(screen.queryByText('Return to Console')).not.toBeInTheDocument();
   });
 
@@ -297,14 +367,24 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'This invite is for a different email address',
     });
 
-    // Need to mock window.location.href
-    const originalLocation = window.location;
+    let locationHref = 'http://localhost:3000/login/invite';
     Object.defineProperty(window, 'location', {
+      value: {
+        get href() { return locationHref; },
+        set href(val: string) { locationHref = val; },
+        origin: 'http://localhost:3000',
+        protocol: 'http:',
+        host: 'localhost:3000',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/login/invite',
+        search: '',
+        hash: '',
+      },
       writable: true,
-      value: { ...originalLocation, href: '' },
     });
 
-    render(<InviteContent token="tok_back" onAccept={onAccept} />);
+    render(<InviteContent token="tok_back" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
@@ -316,13 +396,7 @@ describe('InviteContent – email mismatch error', () => {
       expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
     });
 
-    expect(window.location.href).toBe('/login');
-
-    // Restore
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: originalLocation,
-    });
+    expect(locationHref).toBe('/login');
   });
 
   it('"Continue anyway" navigates to /login/onboarding', async () => {
@@ -331,7 +405,7 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'This invite is for a different email address',
     });
 
-    render(<InviteContent token="tok_continue" onAccept={onAccept} />);
+    render(<InviteContent token="tok_continue" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('continue-anyway-btn')).toBeInTheDocument();
@@ -347,7 +421,7 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'Invitation already used',
     });
 
-    render(<InviteContent token="tok_used" onAccept={onAccept} />);
+    render(<InviteContent token="tok_used" onAccept={onAccept} onPatchSession={mockPatchSession} />);
 
     await waitFor(() => {
       expect(screen.getByText('Invitation already used')).toBeInTheDocument();

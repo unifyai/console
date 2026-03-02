@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { User, Users, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -11,20 +9,18 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
 
-/** Minimal shape of an existing organization — only what we need here. */
-interface ExistingOrg {
-  id: number;
-  name: string;
-}
-
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
   onUpdateOnboarding: (update: {
     currentStep: string;
     stepData?: Record<string, unknown>;
   }) => Promise<void>;
-  /** Organizations the user already belongs to (passed from server component). */
-  existingOrgs: ExistingOrg[];
+  /** Server action that patches the JWT cookie and redirects. */
+  onPatchSession: (
+    patch: { onboardingStep?: string; mfaPending?: boolean },
+    redirectTo?: string,
+    extraParams?: Record<string, string>,
+  ) => Promise<never>;
 }
 
 /**
@@ -34,77 +30,46 @@ interface WorkspaceContentProps {
  *   - "Just for me"  → personal workspace
  *   - "For my team"  → create an organization
  *
- * ## Idempotency
+ * The server-side page component handles auto-completing if the user already
+ * has organizations (e.g. joined via invite). This client component only
+ * renders when the user has no orgs yet and actually needs to pick.
  *
- * Each onboarding step can have side effects (e.g. creating an org). The step
- * update in the backend and the side effect are two separate operations that
- * can't be atomic. To prevent duplicating side effects when a user resumes
- * after a partial failure, we check on mount whether the step's outcome
- * already exists:
- *
- * - **workspace_setup**: if the user already has an organization, the step's
- *   side effect has already happened → auto-complete.
- * - For steps **without** observable side effects (e.g. selecting "personal"),
- *   repeating is harmless.
- *
- * This makes the backend step tracker a "where to resume" hint, while the
- * actual outcome is the source of truth for whether a step was done.
+ * On completion we call the `onPatchSession` server action which patches
+ * the JWT cookie server-side (via `cookies().set()`) and redirects — more
+ * reliable than `useSession().update()` and not URL-accessible (CSRF-safe).
  */
 const WorkspaceContent = ({
   onCreateOrg,
   onUpdateOnboarding,
-  existingOrgs,
+  onPatchSession,
 }: WorkspaceContentProps) => {
-  const { update } = useSession();
-  const router = useRouter();
-  const autoCompletedRef = useRef(false);
-
   const [choice, setChoice] = useState<'personal' | 'organization' | null>(null);
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
-  const [autoCompleting, setAutoCompleting] = useState(false);
 
   /**
-   * Persist the onboarding step to the backend (best-effort) and clear the
-   * JWT flag. Because we check existing outcomes on mount, a failed backend
-   * update won't cause the user to repeat side effects — worst case they see
-   * the selection UI again but the auto-complete check will skip them through.
+   * Persist the onboarding step to the backend (best-effort) then call the
+   * server action to patch the JWT cookie and redirect.
    */
   const completeAndRedirect = useCallback(
     async (stepData: Record<string, unknown>) => {
       try {
         await onUpdateOnboarding({ currentStep: 'completed', stepData });
       } catch {
-        // Best-effort: the idempotency check on next load handles the gap.
+        // Best-effort: the server-side idempotency check handles the gap.
         console.warn('[onboarding] Failed to persist step completion — will auto-complete on next visit');
       }
 
-      await update({ onboardingStep: 'completed' });
-      router.push('/assistants');
+      // Collect current URL params (e.g. credit tokens) to forward.
+      const extraParams: Record<string, string> = {};
+      const current = new URLSearchParams(window.location.search);
+      current.forEach((value, key) => { extraParams[key] = value; });
+
+      await onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
     },
-    [onUpdateOnboarding, update, router],
+    [onUpdateOnboarding, onPatchSession],
   );
-
-  // ── Idempotency check on mount ──────────────────────────────────────
-  // If the user already has an organization, the workspace step's side
-  // effect has already happened (they created an org on a previous
-  // attempt that wasn't recorded). Auto-complete the step.
-  useEffect(() => {
-    if (autoCompletedRef.current) return;
-    if (existingOrgs.length === 0) return;
-
-    autoCompletedRef.current = true;
-    setAutoCompleting(true);
-
-    const latestOrg = existingOrgs[existingOrgs.length - 1];
-    completeAndRedirect({
-      selectedType: 'organization',
-      organizationId: String(latestOrg.id),
-      organizationName: latestOrg.name,
-      autoCompleted: true,
-    });
-  }, [existingOrgs, completeAndRedirect]);
 
   const handlePersonal = useCallback(async () => {
     setError(undefined);
@@ -152,22 +117,6 @@ const WorkspaceContent = ({
       setIsLoading(false);
     }
   }, [orgName, onCreateOrg, completeAndRedirect]);
-
-  // Show a loading state while auto-completing (user already has an org).
-  if (autoCompleting) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="m-auto flex w-full max-w-md flex-col items-center gap-6"
-      >
-        <UnifyLogo />
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <p className="text-body text-muted-foreground">Setting up your workspace...</p>
-      </motion.div>
-    );
-  }
 
   return (
     <motion.div

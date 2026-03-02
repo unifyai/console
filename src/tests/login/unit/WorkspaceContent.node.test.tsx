@@ -3,14 +3,16 @@
  *
  * Strategy:
  *   1. Test that the selection UI renders with both options
- *   2. Test "Just for me" (personal) flow — marks step completed, redirects
- *   3. Test "For my team" flow — shows org name input, creates org, redirects
- *   4. Test idempotency — auto-completes when user already has an org
- *   5. Test validation — empty org name shows error
- *   6. Test API errors — org creation failure shows error, keeps form usable
- *   7. Test that the workspace cookie is set when org is created
- *   8. Test that onUpdateOnboarding failure is tolerated (best-effort)
- *   9. Test that the Continue button is disabled while loading
+ *   2. Test "Just for me" (personal) flow — marks step completed, patches session
+ *   3. Test "For my team" flow — shows org name input, creates org, patches session
+ *   4. Test validation — empty org name shows error
+ *   5. Test API errors — org creation failure shows error, keeps form usable
+ *   6. Test that the workspace cookie is set when org is created
+ *   7. Test that onUpdateOnboarding failure is tolerated (best-effort)
+ *   8. Test that the Continue button is disabled while loading
+ *
+ * Note: Idempotency (auto-complete when user has existing orgs) is now handled
+ * server-side in the page component, not in WorkspaceContent.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -19,20 +21,9 @@ import userEvent from '@testing-library/user-event';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
-const mockUpdate = vi.fn().mockResolvedValue(undefined);
-const mockRouterPush = vi.fn();
-
-vi.mock('next-auth/react', () => ({
-  useSession: () => ({
-    data: { user: { id: 'user-1', email: 'me@test.com' } },
-    status: 'authenticated',
-    update: mockUpdate,
-  }),
-}));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: mockRouterPush,
+    push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
@@ -67,8 +58,26 @@ import { server } from '@/tests/server';
 // Track workspace cookie calls via MSW
 let workspaceCookieCalls: { workspaceId: string }[] = [];
 
+// Mock for the patchSessionAndRedirect server action
+let mockPatchSession: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   workspaceCookieCalls = [];
+  mockPatchSession = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(window, 'location', {
+    value: {
+      href: 'http://localhost:3000/login/onboarding',
+      origin: 'http://localhost:3000',
+      protocol: 'http:',
+      host: 'localhost:3000',
+      hostname: 'localhost',
+      port: '3000',
+      pathname: '/login/onboarding',
+      search: '',
+      hash: '',
+    },
+    writable: true,
+  });
   server.use(
     http.post('/api/session/workspace', async ({ request }) => {
       const body = (await request.json()) as { workspaceId: string };
@@ -86,14 +95,11 @@ describe('WorkspaceContent – initial render', () => {
   });
 
   it('renders both workspace options', () => {
-    const onCreateOrg = vi.fn();
-    const onUpdateOnboarding = vi.fn();
-
     render(
       <WorkspaceContent
-        onCreateOrg={onCreateOrg}
-        onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[]}
+        onCreateOrg={vi.fn()}
+        onUpdateOnboarding={vi.fn()}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -108,7 +114,7 @@ describe('WorkspaceContent – initial render', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -120,7 +126,7 @@ describe('WorkspaceContent – initial render', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -133,7 +139,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
     vi.clearAllMocks();
   });
 
-  it('clicking "Just for me" and Continue marks onboarding completed and redirects', async () => {
+  it('clicking "Just for me" and Continue marks onboarding completed and patches session', async () => {
     const user = userEvent.setup();
     const onCreateOrg = vi.fn();
     const onUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
@@ -142,7 +148,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -165,11 +171,12 @@ describe('WorkspaceContent – personal workspace flow', () => {
       });
     });
 
-    // Should clear onboardingStep in session
-    expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
-
-    // Should redirect to /assistants
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
+    // Should call the server action to patch the JWT
+    expect(mockPatchSession).toHaveBeenCalledWith(
+      { onboardingStep: 'completed' },
+      '/assistants',
+      {},
+    );
 
     // Should NOT call onCreateOrg
     expect(onCreateOrg).not.toHaveBeenCalled();
@@ -182,7 +189,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -204,7 +211,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -221,7 +228,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -231,7 +238,7 @@ describe('WorkspaceContent – organization flow', () => {
     expect(continueBtn).toBeDisabled();
   });
 
-  it('creates organization, sets workspace cookie, and redirects', async () => {
+  it('creates organization, sets workspace cookie, and patches session', async () => {
     const user = userEvent.setup();
     const onCreateOrg = vi.fn().mockResolvedValue({ id: 42, name: 'Acme Corp' });
     const onUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
@@ -240,7 +247,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -277,9 +284,12 @@ describe('WorkspaceContent – organization flow', () => {
       });
     });
 
-    // Should clear session and redirect
-    expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
+    // Should call server action to patch the JWT
+    expect(mockPatchSession).toHaveBeenCalledWith(
+      { onboardingStep: 'completed' },
+      '/assistants',
+      {},
+    );
   });
 
   it('shows error when org creation returns a detail error', async () => {
@@ -292,7 +302,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -306,8 +316,8 @@ describe('WorkspaceContent – organization flow', () => {
       );
     });
 
-    // Should NOT redirect
-    expect(mockRouterPush).not.toHaveBeenCalled();
+    // Should NOT patch session
+    expect(mockPatchSession).not.toHaveBeenCalled();
     // Form should still be usable (not loading)
     expect(screen.getByTestId('workspace-continue')).not.toBeDisabled();
   });
@@ -320,7 +330,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -334,7 +344,7 @@ describe('WorkspaceContent – organization flow', () => {
       );
     });
 
-    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockPatchSession).not.toHaveBeenCalled();
   });
 
   it('validates empty org name with whitespace-only input', async () => {
@@ -345,7 +355,7 @@ describe('WorkspaceContent – organization flow', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -361,93 +371,12 @@ describe('WorkspaceContent – organization flow', () => {
   });
 });
 
-describe('WorkspaceContent – idempotency (auto-complete)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('auto-completes when user already has an organization', async () => {
-    const onUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <WorkspaceContent
-        onCreateOrg={vi.fn()}
-        onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[{ id: 99, name: 'Pre-existing Org' }]}
-      />,
-    );
-
-    // Should show loading state
-    expect(screen.getByText('Setting up your workspace...')).toBeInTheDocument();
-
-    // Should NOT show the choice UI
-    expect(screen.queryByTestId('workspace-personal')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('workspace-organization')).not.toBeInTheDocument();
-
-    // Should auto-complete with the latest org
-    await waitFor(() => {
-      expect(onUpdateOnboarding).toHaveBeenCalledWith({
-        currentStep: 'completed',
-        stepData: {
-          selectedType: 'organization',
-          organizationId: '99',
-          organizationName: 'Pre-existing Org',
-          autoCompleted: true,
-        },
-      });
-    });
-
-    expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
-  });
-
-  it('uses the LAST organization when multiple exist', async () => {
-    const onUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <WorkspaceContent
-        onCreateOrg={vi.fn()}
-        onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[
-          { id: 10, name: 'First Org' },
-          { id: 20, name: 'Second Org' },
-        ]}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(onUpdateOnboarding).toHaveBeenCalledWith(
-        expect.objectContaining({
-          stepData: expect.objectContaining({
-            organizationId: '20',
-            organizationName: 'Second Org',
-          }),
-        }),
-      );
-    });
-  });
-
-  it('does NOT auto-complete when existingOrgs is empty', () => {
-    render(
-      <WorkspaceContent
-        onCreateOrg={vi.fn()}
-        onUpdateOnboarding={vi.fn()}
-        existingOrgs={[]}
-      />,
-    );
-
-    // Should show the choice UI, not the loading state
-    expect(screen.getByTestId('workspace-personal')).toBeInTheDocument();
-    expect(screen.queryByText('Setting up your workspace...')).not.toBeInTheDocument();
-  });
-});
-
 describe('WorkspaceContent – onUpdateOnboarding failure tolerance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('still completes and redirects even if onUpdateOnboarding fails', async () => {
+  it('still patches session even if onUpdateOnboarding fails', async () => {
     const user = userEvent.setup();
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const onUpdateOnboarding = vi.fn().mockRejectedValue(new Error('Backend down'));
@@ -456,7 +385,7 @@ describe('WorkspaceContent – onUpdateOnboarding failure tolerance', () => {
       <WorkspaceContent
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={onUpdateOnboarding}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -464,12 +393,14 @@ describe('WorkspaceContent – onUpdateOnboarding failure tolerance', () => {
     await user.click(screen.getByTestId('workspace-personal'));
     await user.click(screen.getByTestId('workspace-continue'));
 
-    // Should still clear session and redirect despite the failure
+    // Should still call the server action despite the failure
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ onboardingStep: 'completed' });
+      expect(mockPatchSession).toHaveBeenCalledWith(
+        { onboardingStep: 'completed' },
+        '/assistants',
+        {},
+      );
     });
-
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
 
     consoleSpy.mockRestore();
   });
@@ -490,7 +421,7 @@ describe('WorkspaceContent – switching choices', () => {
       <WorkspaceContent
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn().mockResolvedValue(undefined)}
-        existingOrgs={[]}
+        onPatchSession={mockPatchSession}
       />,
     );
 
@@ -509,4 +440,3 @@ describe('WorkspaceContent – switching choices', () => {
     expect(screen.queryByTestId('workspace-error')).not.toBeInTheDocument();
   });
 });
-
