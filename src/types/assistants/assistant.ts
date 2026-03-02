@@ -11,6 +11,13 @@ export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
 
+export interface UserDesktop {
+  id: number;
+  name: string;
+  os: string;
+  assignedToAssistantId: number | null;
+}
+
 // Type for the pre_hire_chat payload
 export interface PreHireChatMessage {
   role: 'user' | 'assistant';
@@ -50,6 +57,7 @@ export interface Assistant {
   userDesktopMode?: DesktopMode | null;
   userDesktopUrl?: string | null;
   userDesktopFilesysSync?: boolean | null;
+  userDesktopId?: number | null;
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;
@@ -261,6 +269,7 @@ export interface AssistantUpdatePayload {
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
+  userDesktopId?: number | null;
   // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 }
 
@@ -458,6 +467,7 @@ export interface AssistantActions {
       eventType: import('@/lib/assistants/desktop').SystemEventType,
       message: string
     ) => Promise<ResponseProps>;
+    listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
   };
   spending: {
     getSpend: (

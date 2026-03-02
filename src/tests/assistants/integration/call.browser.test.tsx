@@ -173,15 +173,13 @@ describe('Assistant Call', () => {
     );
   };
 
-  const openProfileAndGetCallButton = async (user = defaultUser) => {
+  const openProfile = async (user = defaultUser) => {
     const assistantCard = await screen.findByText(
       `${targetAssistant.firstName} ${targetAssistant.surname}`
     );
     await user.click(assistantCard);
     const profilePanel = await screen.findByText('Profile');
     expect(profilePanel).toBeVisible();
-    const callButton = await screen.findByTestId('call-menu-trigger');
-    return callButton;
   };
 
   const getMockRoomInstance = async (): Promise<MockRoom> => {
@@ -199,11 +197,8 @@ describe('Assistant Call', () => {
       screenShareEnabled: false,
     });
 
-    const callButton = await openProfileAndGetCallButton();
-    await defaultUser.click(callButton);
-
-    const option = await screen.findByTestId(`call-option-${type}`);
-    await defaultUser.click(option);
+    await openProfile();
+    await defaultUser.click(await screen.findByTestId(`call-${type}-button`));
 
     const mockRoomInstance = await getMockRoomInstance();
 
@@ -265,11 +260,8 @@ describe('Assistant Call', () => {
       },
       async () => {
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         expect(await screen.findByText('Setting up a connection...')).toBeInTheDocument();
 
@@ -331,11 +323,8 @@ describe('Assistant Call', () => {
           .mockResolvedValue({ detail: 'Backend Error: Quota Exceeded' });
 
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-
-        await defaultUser.click(callButton);
-        const audioOption = await screen.findByTestId('call-option-audio');
-        await defaultUser.click(audioOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-audio-button'));
 
         expect(await screen.findByText('Setting up a connection...')).toBeVisible();
 
@@ -380,10 +369,8 @@ describe('Assistant Call', () => {
         });
 
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         expect(await screen.findByText('Setting up a connection...')).toBeVisible();
 
@@ -413,10 +400,8 @@ describe('Assistant Call', () => {
       },
       async () => {
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         const mockRoomInstance = await getMockRoomInstance();
         mockRoomInstance.numParticipants = 2;
@@ -455,10 +440,8 @@ describe('Assistant Call', () => {
         } as any);
 
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-        const audioOption = await screen.findByTestId('call-option-audio');
-        await defaultUser.click(audioOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-audio-button'));
 
         await waitFor(() => {
           expect(screen.queryByText('Setting up a connection...')).toBeNull();
@@ -485,10 +468,8 @@ describe('Assistant Call', () => {
         renderPage();
 
         // 1. Start and Fail (Timeout)
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         expect(await screen.findByText(/Waiting for/)).toBeVisible();
 
@@ -537,12 +518,10 @@ describe('Assistant Call', () => {
       },
       async () => {
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
+        await openProfile();
 
         // Click 1: Start
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         // Click 2: Hangup
         await waitFor(() => expect(screen.getByTestId('audio-renderer')).toBeInTheDocument());
@@ -554,13 +533,7 @@ describe('Assistant Call', () => {
         await waitFor(() => expect(screen.queryByRole('button', { name: /hang up/i })).toBeNull());
 
         // Click 3: Start again
-        // Re-find the button as DOM updated
-        const callButton2 = await screen.findByTestId('call-menu-trigger');
-        await defaultUser.click(callButton2);
-
-        // Wait for menu to appear
-        const videoOption2 = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption2);
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         expect(await screen.findByText('Setting up a connection...')).toBeVisible();
 
@@ -582,12 +555,10 @@ describe('Assistant Call', () => {
       },
       async () => {
         const { unmount } = renderPage();
-        const callButton = await openProfileAndGetCallButton();
+        await openProfile();
 
         // 1. Establish Call
-        await defaultUser.click(callButton);
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         const mockRoomInstance = await getMockRoomInstance();
         // Simulate successful join state on the instance
@@ -624,9 +595,7 @@ describe('Assistant Call', () => {
         const cardA = await screen.findByText(`${assistantA.firstName} ${assistantA.surname}`);
         await defaultUser.click(cardA);
 
-        const callButtonA = await screen.findByTestId('call-menu-trigger');
-        await defaultUser.click(callButtonA);
-        await defaultUser.click(await screen.findByTestId('call-option-video'));
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         const mockRoomInstance = await getMockRoomInstance();
         mockRoomInstance.numParticipants = 2;
@@ -639,14 +608,12 @@ describe('Assistant Call', () => {
         const cardB = await screen.findByText(`${assistantB.firstName} ${assistantB.surname}`);
         await defaultUser.click(cardB);
 
-        const callButtonB = await screen.findByTestId('call-menu-trigger');
+        const callButtonB = await screen.findByTestId('call-video-button');
 
         if (callButtonB.hasAttribute('disabled')) {
           expect(callButtonB).toBeDisabled();
         } else {
           await defaultUser.click(callButtonB);
-          const videoOptionB = await screen.queryByTestId('call-option-video');
-          if (videoOptionB) await defaultUser.click(videoOptionB);
           expect(await screen.findByText(/call is already in progress/i)).toBeVisible();
         }
       }
@@ -664,11 +631,10 @@ describe('Assistant Call', () => {
       },
       async () => {
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
+        await openProfile();
 
         // --- SESSION 1 ---
-        await defaultUser.click(callButton);
-        await defaultUser.click(await screen.findByTestId('call-option-video'));
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         const mockRoomInstance1 = await getMockRoomInstance();
         mockRoomInstance1.numParticipants = 2;
@@ -686,10 +652,8 @@ describe('Assistant Call', () => {
         );
 
         // --- SESSION 2 ---
-        // Refresh call button ref
-        const callButton2 = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton2);
-        await defaultUser.click(await screen.findByTestId('call-option-video'));
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         expect(await screen.findByText('Setting up a connection...')).toBeVisible();
 
@@ -710,9 +674,8 @@ describe('Assistant Call', () => {
       },
       async () => {
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-        await defaultUser.click(await screen.findByTestId('call-option-video'));
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         const mockRoomInstance = await getMockRoomInstance();
         mockRoomInstance.numParticipants = 2;
@@ -1276,8 +1239,7 @@ describe('Assistant Call', () => {
         });
 
         // Verify we can start a new call
-        const callButton = await screen.findByTestId('call-menu-trigger');
-        expect(callButton).toBeInTheDocument();
+        expect(await screen.findByTestId('call-audio-button')).toBeInTheDocument();
       }
     );
 
@@ -1299,11 +1261,8 @@ describe('Assistant Call', () => {
         });
 
         renderPage();
-        const callButton = await openProfileAndGetCallButton();
-        await defaultUser.click(callButton);
-
-        const audioOption = await screen.findByTestId('call-option-audio');
-        await defaultUser.click(audioOption);
+        await openProfile();
+        await defaultUser.click(await screen.findByTestId('call-audio-button'));
 
         // Wait for error to be handled - connect should have been called and failed
         await waitFor(() => {
@@ -1358,11 +1317,7 @@ describe('Assistant Call', () => {
         });
 
         // Start second call immediately
-        const callButton = await screen.findByTestId('call-menu-trigger');
-        await defaultUser.click(callButton);
-
-        const videoOption = await screen.findByTestId('call-option-video');
-        await defaultUser.click(videoOption);
+        await defaultUser.click(await screen.findByTestId('call-video-button'));
 
         // Wait for new connection
         const room2 = await getMockRoomInstance();
@@ -1456,12 +1411,10 @@ describe('Assistant Call', () => {
         },
         async () => {
           renderPage();
-          const callButton = await openProfileAndGetCallButton();
+          await openProfile();
 
           // Cycle 1: Start call
-          await defaultUser.click(callButton);
-          const videoOption1 = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption1);
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Don't wait for connection to complete - immediately cancel
           const hangUpBtn1 = await screen.findByRole('button', { name: /hang up/i });
@@ -1473,10 +1426,7 @@ describe('Assistant Call', () => {
           );
 
           // Cycle 2: Start another call immediately
-          const callButton2 = await screen.findByTestId('call-menu-trigger');
-          await defaultUser.click(callButton2);
-          const videoOption2 = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption2);
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Cancel again quickly
           const hangUpBtn2 = await screen.findByRole('button', { name: /hang up/i });
@@ -1487,10 +1437,7 @@ describe('Assistant Call', () => {
           );
 
           // Cycle 3: Start final call and let it connect
-          const callButton3 = await screen.findByTestId('call-menu-trigger');
-          await defaultUser.click(callButton3);
-          const videoOption3 = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption3);
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           const mockRoom = await getMockRoomInstance();
           mockRoom.numParticipants = 2;
@@ -1537,10 +1484,8 @@ describe('Assistant Call', () => {
           });
 
           renderPage();
-          const callButton = await openProfileAndGetCallButton();
-          await defaultUser.click(callButton);
-          const videoOption = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption);
+          await openProfile();
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Wait for first attempt to fail
           await waitFor(() => {
@@ -1756,12 +1701,10 @@ describe('Assistant Call', () => {
           (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT = 500;
 
           renderPage();
-          const callButton = await openProfileAndGetCallButton();
+          await openProfile();
 
           // Start call and wait for timeout error
-          await defaultUser.click(callButton);
-          const videoOption = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption);
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Wait for timeout error
           await waitFor(
@@ -1793,8 +1736,7 @@ describe('Assistant Call', () => {
           });
 
           // Should be able to start a new call
-          const callButton2 = await screen.findByTestId('call-menu-trigger');
-          expect(callButton2).toBeInTheDocument();
+          expect(await screen.findByTestId('call-video-button')).toBeInTheDocument();
         }
       );
     });
@@ -1815,11 +1757,8 @@ describe('Assistant Call', () => {
           const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
           const { unmount } = renderPage();
-          const callButton = await openProfileAndGetCallButton(user);
-
-          await user.click(callButton);
-          const videoOption = await screen.findByTestId('call-option-video');
-          await user.click(videoOption);
+          await openProfile(user);
+          await user.click(await screen.findByTestId('call-video-button'));
 
           // Wait for "waiting for assistant" state
           await waitFor(() => {
@@ -1926,12 +1865,10 @@ describe('Assistant Call', () => {
           });
 
           renderPage();
-          const callButton = await openProfileAndGetCallButton();
+          await openProfile();
 
           // Start first call
-          await defaultUser.click(callButton);
-          const videoOption1 = await screen.findByTestId('call-option-video');
-          await defaultUser.click(videoOption1);
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Try to start second call immediately (menu should be gone, but let's verify behavior)
           // The room.state check should prevent this
@@ -1982,10 +1919,8 @@ describe('Assistant Call', () => {
           } as any);
 
           renderPage();
-          const callButton = await openProfileAndGetCallButton();
-          await defaultUser.click(callButton);
-          const audioOption = await screen.findByTestId('call-option-audio');
-          await defaultUser.click(audioOption);
+          await openProfile();
+          await defaultUser.click(await screen.findByTestId('call-audio-button'));
 
           // Wait for the disconnect to be handled
           await waitFor(() => {
@@ -1993,8 +1928,7 @@ describe('Assistant Call', () => {
           });
 
           // Should not have crashed - verify we can still interact
-          const callButton2 = await screen.findByTestId('call-menu-trigger');
-          expect(callButton2).toBeInTheDocument();
+          expect(await screen.findByTestId('call-audio-button')).toBeInTheDocument();
 
           // Check for actual errors (not just mock logging)
           const realErrors = consoleSpy.mock.calls.filter((call) =>
@@ -2037,9 +1971,7 @@ describe('Assistant Call', () => {
           // Start call with Assistant A
           const cardA = await screen.findByText(`${assistantA.firstName} ${assistantA.surname}`);
           await defaultUser.click(cardA);
-          const callButtonA = await screen.findByTestId('call-menu-trigger');
-          await defaultUser.click(callButtonA);
-          await defaultUser.click(await screen.findByTestId('call-option-video'));
+          await defaultUser.click(await screen.findByTestId('call-video-button'));
 
           // Immediately hang up
           const hangUpBtn = await screen.findByRole('button', { name: /hang up/i });
@@ -2052,9 +1984,7 @@ describe('Assistant Call', () => {
           // Switch to Assistant B and start call
           const cardB = await screen.findByText(`${assistantB.firstName} ${assistantB.surname}`);
           await defaultUser.click(cardB);
-          const callButtonB = await screen.findByTestId('call-menu-trigger');
-          await defaultUser.click(callButtonB);
-          await defaultUser.click(await screen.findByTestId('call-option-audio'));
+          await defaultUser.click(await screen.findByTestId('call-audio-button'));
 
           const mockRoom = await getMockRoomInstance();
           await waitFor(() => expect(mockRoom.connect).toHaveBeenCalled());

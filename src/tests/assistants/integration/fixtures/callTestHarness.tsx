@@ -346,16 +346,11 @@ export function getTargetAssistant() {
 }
 
 /**
- * Helper to open an assistant profile and find the call button.
- *
- * @param screen - Testing library screen object
- * @param user - User event instance
- * @returns Promise resolving to the call button element
+ * Helper to open an assistant profile panel.
  */
-export async function openProfileAndGetCallButton(
+export async function openProfile(
   screen: {
     findByText: (text: string | RegExp) => Promise<HTMLElement>;
-    getByRole: (role: string, options?: { name?: string | RegExp }) => HTMLElement;
   },
   user: { click: (element: HTMLElement) => Promise<void> }
 ) {
@@ -364,9 +359,6 @@ export async function openProfileAndGetCallButton(
     `${targetAssistant.firstName} ${targetAssistant.surname}`
   );
   await user.click(assistantCard);
-
-  // Wait for profile panel to open and find call button
-  return screen.getByRole('button', { name: /call/i });
 }
 
 /**

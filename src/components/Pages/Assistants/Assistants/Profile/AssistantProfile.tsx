@@ -10,7 +10,7 @@ import {
   Phone,
   Video,
 } from 'lucide-react';
-import type { Assistant, AssistantActions, DesktopMode } from '@/types/assistants/assistant';
+import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
@@ -19,12 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/UI/accordion';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/UI/dropdown-menu';
+
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
@@ -38,7 +33,6 @@ interface AssistantProfilePanelProps {
   onClose: () => void;
   onEdit: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
-  onOpenSetupInstructions?: (os: DesktopMode) => void;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   userEmail: string | null | undefined;
@@ -58,6 +52,8 @@ interface AssistantProfilePanelProps {
   spendingGate?: SpendingGateStatus;
   /** Callback when assistant spending data changes (for spending gate) */
   onAssistantSpendingChange?: (display: SpendingDisplayProps | null) => void;
+  onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
+  apiKey?: string;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -99,7 +95,6 @@ export function AssistantProfilePanel({
   onClose,
   onEdit,
   onOpenContactManager,
-  onOpenSetupInstructions,
   chatHistories,
   setChatHistories,
   userEmail,
@@ -115,6 +110,8 @@ export function AssistantProfilePanel({
   showSpending = true,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
   onAssistantSpendingChange,
+  onAssistantUpdated,
+  apiKey,
 }: AssistantProfilePanelProps) {
   const [openSections, setOpenSections] = React.useState<string[]>(['chat']);
 
@@ -124,7 +121,7 @@ export function AssistantProfilePanel({
   const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
   const isCallButtonDisabled = isAnotherCallActive || isSpendingBlocked;
 
-  const callButtonTooltip =
+  const callButtonTooltip = (type: 'audio' | 'video') =>
     isInThisCall && isConnectingCall
       ? 'Connecting call...'
       : isInThisCall
@@ -133,7 +130,9 @@ export function AssistantProfilePanel({
           ? spendingGate.blockedMessage || 'Spending limit reached'
           : isAnotherCallActive
             ? 'Another call is in progress'
-            : 'Start a call';
+            : type === 'audio'
+              ? 'Start audio call'
+              : 'Start video call';
 
   if (!assistant) return null;
 
@@ -208,8 +207,9 @@ export function AssistantProfilePanel({
               assistant={assistant}
               assistantActions={assistantActions}
               onOpenContactManager={onOpenContactManager}
-              onOpenSetupInstructions={onOpenSetupInstructions}
+              onAssistantUpdated={onAssistantUpdated}
               canWrite={canWrite}
+              apiKey={apiKey}
             />
           </AccordionContent>
         </AccordionItem>
@@ -219,73 +219,51 @@ export function AssistantProfilePanel({
           <AccordionTriggerWithButtons
             className="text-title"
             buttonSlot={
-              <div className="flex items-center gap-1">
-                {isInThisCall ? (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onStartCall(assistant, 'video')}
-                          disabled={isCallButtonDisabled}
-                          data-testid="call-return-button"
-                        >
-                          {isConnectingCall ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Phone className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>{callButtonTooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <DropdownMenu>
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <DropdownMenuTrigger asChild>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              disabled={isCallButtonDisabled}
-                              data-testid="call-menu-trigger"
-                            >
-                              <Phone className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                        </DropdownMenuTrigger>
-                        <TooltipContent side="top">
-                          <p>{callButtonTooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => onStartCall(assistant, 'video')}
-                        data-testid="call-option-video"
-                      >
-                        <Video className="mr-2 h-4 w-4" />
-                        <span>Video Call</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
+              <div className="flex items-center gap-0.5">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
                         onClick={() => onStartCall(assistant, 'audio')}
-                        data-testid="call-option-audio"
+                        disabled={isCallButtonDisabled}
+                        data-testid="call-audio-button"
                       >
-                        <Phone className="mr-2 h-4 w-4" />
-                        <span>Audio Call</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                        {isInThisCall && isConnectingCall ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Phone className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{callButtonTooltip('audio')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => onStartCall(assistant, 'video')}
+                        disabled={isCallButtonDisabled}
+                        data-testid="call-video-button"
+                      >
+                        <Video className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{callButtonTooltip('video')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             }
           >
@@ -304,6 +282,7 @@ export function AssistantProfilePanel({
               chatHistories={chatHistories}
               setChatHistories={setChatHistories}
               userEmail={userEmail}
+              userTimezone={userTimezone}
               isFirstView={isFirstView}
               preHireChat={preHireChat}
               onFirstViewCompleted={onFirstViewCompleted}

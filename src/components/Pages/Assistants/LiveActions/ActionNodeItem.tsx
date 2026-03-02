@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useTheme } from 'next-themes';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { dracula, docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { StatusIndicator } from './StatusIndicator';
 import type {
   ActionInteraction,
@@ -21,6 +24,8 @@ import type {
   GetToolLoopEventsFn,
   ToolLoopLog,
 } from '@/types/assistants/action';
+
+const SHOW_EXECUTE_CODE_CONTENT = true;
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
 export type SectionToggleSignal = { open: boolean; gen: number };
@@ -213,17 +218,142 @@ const markdownComponents = {
 const remarkPlugins = [remarkGfm];
 
 /**
+ * Expand escaped \n inside JSON string values into real newlines with
+ * aligned indentation so multi-line content (prompts, markdown, code)
+ * reads naturally. All other JSON escapes pass through unchanged.
+ */
+function expandStringNewlines(jsonText: string): string {
+  const out: string[] = [];
+  let i = 0;
+  const n = jsonText.length;
+  let inString = false;
+  let indent = 0;
+
+  while (i < n) {
+    const ch = jsonText[i];
+
+    if (!inString) {
+      out.push(ch);
+      if (ch === '"') {
+        inString = true;
+        const lastNl = jsonText.lastIndexOf('\n', i - 1);
+        indent = i - lastNl;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === '\\' && i + 1 < n) {
+      const nxt = jsonText[i + 1];
+      if (nxt === 'n') {
+        out.push('\n', ' '.repeat(indent));
+        i += 2;
+        continue;
+      }
+      out.push(ch, nxt);
+      i += 2;
+      continue;
+    }
+
+    out.push(ch);
+    if (ch === '"') inString = false;
+    i++;
+  }
+
+  return out.join('');
+}
+
+const FENCED_CODE_RE = /([ \t]*```(\w+))\n([\s\S]*?)\n([ \t]*```)(?!\w)/g;
+
+type JsonSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'code'; lang: string; code: string; opener: string; closer: string };
+
+/**
+ * Split text into alternating plain-text and fenced-code-block segments.
+ * Code blocks keep their original indentation so they align visually
+ * with the surrounding JSON structure.
+ */
+function splitCodeBlocks(text: string): JsonSegment[] {
+  const segments: JsonSegment[] = [];
+  let lastIndex = 0;
+  const re = new RegExp(FENCED_CODE_RE.source, FENCED_CODE_RE.flags);
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    const start = match.index;
+    if (start > lastIndex) {
+      segments.push({ kind: 'text', text: text.slice(lastIndex, start) });
+    }
+    segments.push({
+      kind: 'code',
+      lang: match[2],
+      code: match[3],
+      opener: match[1],
+      closer: match[4],
+    });
+    lastIndex = start + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ kind: 'text', text: text.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
+/**
  * Renders content as formatted markdown or pretty-printed JSON.
- * Auto-detects JSON objects/arrays and formats them; everything else
- * goes through react-markdown with GFM support.
+ * Auto-detects JSON objects/arrays and formats them with newline
+ * expansion and syntax highlighting for fenced code blocks;
+ * everything else goes through react-markdown with GFM support.
  */
 function RichContent({ content }: { content: string }) {
+  const { theme } = useTheme();
+
   if (isLikelyJson(content)) {
     try {
-      const formatted = JSON.stringify(JSON.parse(content), null, 2);
+      const formatted = expandStringNewlines(JSON.stringify(JSON.parse(content), null, 2));
+      const segments = splitCodeBlocks(formatted);
+      const hasCodeBlocks = segments.some((s) => s.kind === 'code');
+
+      if (!hasCodeBlocks) {
+        return (
+          <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+            <code>{formatted}</code>
+          </pre>
+        );
+      }
+
+      const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+
       return (
         <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
-          <code>{formatted}</code>
+          {segments.map((seg, i) =>
+            seg.kind === 'text' ? (
+              <code key={i}>{seg.text}</code>
+            ) : (
+              <code key={i}>
+                {seg.opener}
+                {'\n'}
+                <SyntaxHighlighter
+                  language={seg.lang}
+                  style={hlStyle}
+                  PreTag="span"
+                  customStyle={{
+                    background: 'transparent',
+                    padding: 0,
+                    margin: 0,
+                    display: 'inline',
+                  }}
+                >
+                  {seg.code}
+                </SyntaxHighlighter>
+                {'\n'}
+                {seg.closer}
+              </code>
+            )
+          )}
         </pre>
       );
     } catch {
@@ -309,6 +439,7 @@ function ContentArea({
 function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
+  const { theme } = useTheme();
 
   if (message.role === 'system') return null;
 
@@ -335,10 +466,44 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
   if (message.role === 'assistant') {
     if (message.toolCalls && message.toolCalls.length > 0) {
       const toolNames = message.toolCalls.map((tc) => `${tc.function.name}()`).join(', ');
+
+      const codeBlocks: Array<{ lang: string; code: string }> = [];
+      if (SHOW_EXECUTE_CODE_CONTENT) {
+        for (const tc of message.toolCalls) {
+          if (tc.function.name !== 'execute_code') continue;
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            if (args.code) codeBlocks.push({ lang: args.language || 'python', code: args.code });
+          } catch {
+            /* skip malformed arguments */
+          }
+        }
+      }
+
+      const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+
       return (
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
-          <span className="text-muted-foreground/50 min-w-0 flex-1">{toolNames}</span>
+          <div className="text-muted-foreground/50 min-w-0 flex-1">
+            <span>{toolNames}</span>
+            {codeBlocks.map((block, i) => (
+              <SyntaxHighlighter
+                key={i}
+                language={block.lang}
+                style={hlStyle}
+                customStyle={{
+                  fontSize: '10px',
+                  lineHeight: '1.4',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  margin: '4px 0 0 0',
+                }}
+              >
+                {block.code.trim()}
+              </SyntaxHighlighter>
+            ))}
+          </div>
           {timeLabel}
         </div>
       );

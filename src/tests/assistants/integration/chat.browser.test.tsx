@@ -1684,14 +1684,15 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'preserves initial greeting passed via preHireChat when transitioning from first view to normal view (race condition fix)',
+      'preserves initial greeting passed via preHireChat (first-view skips transcript fetch structurally)',
       {
         meta: {
           alias: 'History-Preserve-Greeting',
           scenario:
-            'New assistant hired. Profile opens (isFirstView=true) with greeting. Hook initializes, calls onFirstViewCompleted. Parent toggles isFirstView=false.',
-          behavior:
-            'Greeting remains visible. API fetch is skipped to prevent overwriting local greeting with empty server logs.',
+            'New assistant hired. Profile opens (isFirstView=true) with greeting. ' +
+            'Phase machine: uninitialized → pending_contact → ready. ' +
+            'The pending_contact → ready transition never passes through loading_transcripts.',
+          behavior: 'Greeting remains visible. getTranscripts is never called.',
         },
       },
       async () => {
@@ -1757,10 +1758,11 @@ describe('Assistant Profile Chat', () => {
           scenario:
             'New assistant hired. Profile opens with isFirstView=true and pre-hire chat. ' +
             'getContactId returns null initially (contact not yet created on backend). ' +
-            'After retry delay, getContactId returns a valid contact_id.',
+            'After retry delay, getContactId returns a valid contact_id. ' +
+            'Phase: uninitialized → pending_contact → ready (never loading_transcripts).',
           behavior:
             'Pre-hire messages remain visible throughout the contact_id retry. ' +
-            'getTranscripts is NOT called because pre-hire messages are already loaded.',
+            'getTranscripts is NOT called because pending_contact → ready skips it.',
         },
       },
       async () => {
@@ -1797,9 +1799,7 @@ describe('Assistant Profile Chat', () => {
         let contactIdCallCount = 0;
         const getContactIdMock = vi.fn(async () => {
           contactIdCallCount++;
-          // Return null for first 2 calls (simulating contact not yet created)
           if (contactIdCallCount <= 2) return null;
-          // Third call returns valid contact_id
           return 42;
         });
 
@@ -1839,35 +1839,28 @@ describe('Assistant Profile Chat', () => {
 
         render(<TransitionContainer />);
 
-        // Pre-hire messages should be visible immediately
         expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
         expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
         expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
 
-        // Wait for the first getContactId call (returns null) and the retry to start
         await waitFor(() => {
           expect(getContactIdMock).toHaveBeenCalled();
         });
 
-        // Messages should still be there
         expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
 
-        // Advance past two retry intervals (5s each) so the third call succeeds
         await act(async () => {
           await vi.advanceTimersByTimeAsync(12000);
         });
 
-        // Wait for the contact_id to be resolved
         await waitFor(() => {
           expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
         });
 
-        // Pre-hire messages should STILL be visible after contact_id is resolved
         expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
         expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
         expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
 
-        // getTranscripts should NOT have been called — pre-hire messages were preserved
         expect(getTranscriptsMock).not.toHaveBeenCalled();
 
         vi.useRealTimers();
@@ -1875,44 +1868,39 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'preserves greeting when orphaned retry timer fires after parent re-render spawns duplicate IIFE (leaked timer race)',
+      'greeting survives parent re-renders because init effect only runs once per phase',
       {
         meta: {
-          alias: 'History-Preserve-Greeting-LeakedTimer',
+          alias: 'History-Preserve-Greeting-ParentRerender',
           scenario:
-            'New assistant hired. First-view branch → greeting loaded. ' +
-            'Effect re-runs → else branch IIFE #1 calls getContactId → null → retry timer #1 scheduled. ' +
-            'Parent re-renders (simulating refreshAssistants) → new onFirstViewCompleted ref → ' +
-            'effect re-runs → else branch IIFE #2 calls getContactId → null → retry timer #2 scheduled ' +
-            '(overwrites ref, timer #1 is now orphaned). ' +
-            'Orphaned timer #1 fires → retryContactIdLookup → success → firstViewProcessed=true → ' +
-            'skips transcripts → sets firstViewProcessed=false. ' +
-            'Timer #2 fires → retryContactIdLookup → success → firstViewProcessed=false → ' +
-            'MUST NOT fetch transcripts and overwrite greeting.',
+            'New assistant hired. First-view greeting loaded. Phase transitions to ' +
+            'pending_contact. Parent re-renders (simulating refreshAssistants) which ' +
+            'creates new onFirstViewCompleted ref. The init effect does NOT re-run ' +
+            'because phase is no longer uninitialized — onFirstViewCompleted is not ' +
+            'in its dependency array.',
           behavior:
-            'Pre-hire greeting survives both retry timer firings. ' +
-            'getTranscripts is never called.',
+            'Pre-hire greeting survives all parent re-renders. ' +
+            'getTranscripts is never called. Only one contact resolution cycle runs.',
         },
         timeout: 15000,
       },
       async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+
         const assistant = createMockAssistant({
-          agentId: 'leaked-timer-id',
-          firstName: 'Leaked',
-          surname: 'Timer',
+          agentId: 'rerender-id',
+          firstName: 'Rerender',
+          surname: 'Test',
         });
 
         const greetingMsg: ChatMessage = {
-          id: 'greeting-leaked-1',
+          id: 'greeting-rerender-1',
           role: 'assistant',
           content: 'Hi! I am your newly hired assistant.',
           timestamp: new Date(),
         };
 
         const getTranscriptsMock = vi.fn(async () => []);
-
-        // First 2 calls return null (from two IIFE runs),
-        // subsequent calls return valid id (from retry callbacks)
         let contactIdCallCount = 0;
         const getContactIdMock = vi.fn(async () => {
           contactIdCallCount++;
@@ -1930,9 +1918,6 @@ describe('Assistant Profile Chat', () => {
           },
         };
 
-        // Button to force parent re-render (simulates refreshAssistants completing).
-        // Re-rendering the parent creates a new onFirstViewCompleted arrow ref,
-        // which re-triggers the init effect in useAssistantProfileChat.
         const TransitionContainer = () => {
           const [isFirstView, setIsFirstView] = React.useState(true);
           const [histories, setHistories] = React.useState<Record<string, ChatMessage[]>>({});
@@ -1963,81 +1948,62 @@ describe('Assistant Profile Chat', () => {
 
         render(<TransitionContainer />);
 
-        // Greeting should be visible immediately
         expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
 
-        // Wait for IIFE #1 to call getContactId (returns null → schedules retry timer #1)
         await waitFor(() => {
           expect(getContactIdMock).toHaveBeenCalled();
         });
 
-        // Force parent re-render → creates new onFirstViewCompleted reference →
-        // effect re-runs → IIFE #2 calls getContactId (returns null → schedules retry timer #2,
-        // timer #1 is now orphaned!)
+        // Force parent re-renders — with the phase-based design, this does NOT
+        // restart the contact resolution because the init effect is gated on
+        // phase === 'uninitialized' and onFirstViewCompleted is not a dependency.
+        act(() => {
+          fireEvent.click(screen.getByTestId('force-rerender'));
+        });
         act(() => {
           fireEvent.click(screen.getByTestId('force-rerender'));
         });
 
-        // Wait for IIFE #2's getContactId call
-        await waitFor(() => {
-          expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(12000);
         });
 
-        // Greeting must still be visible before retries fire
+        await waitFor(() => {
+          expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+        });
+
         expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
-
-        // Wait for ALL retry timers to fire (~5 seconds each) and retryContactIdLookup to complete.
-        // Timer #1 fires first → getContactId (call #3) → success → firstViewProcessed set false.
-        // Timer #2 fires shortly after → getContactId (call #4) → success →
-        //   BUG: firstViewProcessed is false → fetches transcripts → overwrites greeting.
-        //   FIX: timer #1 was cleared by IIFE #2 → only timer #2 fires → 3 calls total.
-        // We wait for >= 3 calls, then add extra delay to ensure any leaked timers also complete.
-        await waitFor(
-          () => {
-            expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-          },
-          { timeout: 8000 }
-        );
-
-        // Extra delay to let any orphaned second timer fire and its async
-        // retryContactIdLookup to fully resolve (including potential getTranscripts call).
-        await new Promise((r) => setTimeout(r, 1500));
-
-        // The greeting MUST still be visible — neither retry should have overwritten it
-        expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
-
-        // getTranscripts should NOT have been called at any point
         expect(getTranscriptsMock).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
       }
     );
 
     it(
-      'preserves greeting when effect re-runs due to contactIdCache change after first-view transition',
+      'preserves greeting when contactId resolves immediately after first-view transition',
       {
         meta: {
-          alias: 'History-Preserve-Greeting-CacheChangeRerun',
+          alias: 'History-Preserve-Greeting-ImmediateContact',
           scenario:
             'New assistant hired. getContactId immediately returns valid id. ' +
-            'First-view branch runs → sets greeting → calls onFirstViewCompleted. ' +
-            'isFirstView becomes false → effect re-runs → else branch IIFE calls getContactId → success. ' +
-            'setContactIdCache triggers another effect re-run → must NOT overwrite the greeting ' +
-            'by calling getTranscripts from any code path.',
-          behavior:
-            'Pre-hire greeting remains visible throughout all re-renders. ' +
-            'getTranscripts is never called.',
+            'Phase: uninitialized → pending_contact → ready. ' +
+            'No retries needed. Transcript fetch is structurally unreachable.',
+          behavior: 'Pre-hire greeting remains visible. getTranscripts is never called.',
         },
       },
       async () => {
         const assistant = createMockAssistant({
-          agentId: 'cache-change-id',
-          firstName: 'Cache',
-          surname: 'Change',
+          agentId: 'immediate-contact-id',
+          firstName: 'Immediate',
+          surname: 'Contact',
         });
 
         const greetingMsg: ChatMessage = {
-          id: 'greeting-cache-1',
+          id: 'greeting-immediate-1',
           role: 'assistant',
-          content: 'Greetings from cache-change test!',
+          content: 'Greetings from immediate-contact test!',
           timestamp: new Date(),
         };
 
@@ -2080,18 +2046,13 @@ describe('Assistant Profile Chat', () => {
 
         render(<TransitionContainer />);
 
-        // Greeting visible immediately
-        expect(screen.getByText('Greetings from cache-change test!')).toBeInTheDocument();
+        expect(screen.getByText('Greetings from immediate-contact test!')).toBeInTheDocument();
 
-        // Wait for all async operations to settle (contactId lookup, effect re-runs)
         await waitFor(() => {
           expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
         });
 
-        // After everything settles, the greeting MUST still be visible
-        expect(screen.getByText('Greetings from cache-change test!')).toBeInTheDocument();
-
-        // getTranscripts should NOT have been called — first-view greeting is authoritative
+        expect(screen.getByText('Greetings from immediate-contact test!')).toBeInTheDocument();
         expect(getTranscriptsMock).not.toHaveBeenCalled();
       }
     );

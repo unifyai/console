@@ -23,6 +23,7 @@ import type {
   ToolLoopLog,
   AssistantActionActions,
 } from '@/types/assistants/action';
+import type { ResponseProps } from '@/types/common';
 
 // =============================================================================
 // Types
@@ -273,10 +274,21 @@ export function useAssistantActions(
       if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
       if ('detail' in response) {
-        throw new Error(response.detail);
+        const detail = (response as ResponseProps).detail as string;
+        const isNotFound = typeof detail === 'string' && detail.toLowerCase().includes('not found');
+        if (isNotFound) {
+          // Project or context doesn't exist yet (e.g. newly hired assistant
+          // whose Unity instance hasn't logged any events). Treat as empty.
+          if (__DEV__)
+            console.log(
+              `[DEBUG][useAssistantActions] Resource not found, treating as empty: ${detail} (gen=${myGeneration})`
+            );
+        } else {
+          throw new Error(detail);
+        }
       }
 
-      const logs = (response.logs || []) as ManagerMethodLog[];
+      const logs = ('logs' in response ? response.logs : []) as ManagerMethodLog[];
       if (__DEV__)
         console.log(
           `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra (gen=${myGeneration})`

@@ -57,6 +57,7 @@ interface MainProps {
     timezone?: string | null;
     email?: string | null;
     orgId?: number | null;
+    apiKey?: string;
   };
 }
 
@@ -212,6 +213,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Assistant Data & Actions ---
   const {
     assistants,
+    setAssistants,
     isLoading: isLoadingAssistants,
     error: assistantError,
     refreshAssistants,
@@ -493,6 +495,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     fetchUserVoices,
     deleteUserVoice,
   } = useVoiceOptions(assistantActions.voice, { enabled: shouldLoadVoices });
+
+  const handleFirstViewCompleted = React.useCallback(() => setNewlyHiredInfo(null), []);
 
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
@@ -781,13 +785,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   onClose={handleProfileClose}
                   onEdit={handleOpenEditDialog}
                   onOpenContactManager={handleOpenContactManager}
-                  onOpenSetupInstructions={(os) => setSetupInstructions({ os, isOpen: true })}
                   chatHistories={profileChatHistories}
                   setChatHistories={setProfileChatHistories}
                   userEmail={userMeta.email}
                   isFirstView={isFirstViewAfterHire}
                   preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
-                  onFirstViewCompleted={() => setNewlyHiredInfo(null)}
+                  onFirstViewCompleted={handleFirstViewCompleted}
                   onStartCall={handleStartCall}
                   activeCallAssistantId={activeCallId}
                   isCallConnected={isCallConnected}
@@ -796,6 +799,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
+                  apiKey={userMeta.apiKey}
+                  onAssistantUpdated={(id, patch) => {
+                    setAssistants((prev) =>
+                      prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
+                    );
+                  }}
                 />
               </motion.div>,
               <motion.div

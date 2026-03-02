@@ -147,6 +147,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   desktop: {
     getLiveviewUrl: vi.fn(),
     sendSystemEvent: vi.fn(),
+    listUserDesktops: vi.fn(),
   },
   approval: {
     getProfile: vi.fn(),
@@ -402,10 +403,7 @@ describe('useAssistantCall', () => {
         });
 
         // Assert
-        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith(
-          'agent-123',
-          'test-room'
-        );
+        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith('agent-123', 'test-room');
       }
     );
 
