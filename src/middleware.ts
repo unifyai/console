@@ -49,7 +49,9 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // before verifying MFA), NextAuth API routes, and static assets.
   const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
   if (token?.mfaPending) {
-    const mfaAllowed = ['/login/mfa', '/login/invite', '/api/auth', '/_next'];
+    // Allow the login page itself so users with stale sessions (e.g. DB reset)
+    // can sign in again instead of being trapped in a redirect loop.
+    const mfaAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = mfaAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/login/mfa', request.url));
@@ -60,7 +62,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // This runs AFTER the MFA check (security-first) and only when the user
   // doesn't have mfaPending (which takes priority).
   if (token?.onboardingStep && token.onboardingStep !== 'completed' && !token?.mfaPending) {
-    const onboardingAllowed = ['/login/onboarding', '/login/invite', '/login/mfa', '/api/auth', '/_next'];
+    const onboardingAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/login/onboarding', request.url));

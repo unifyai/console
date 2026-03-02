@@ -126,7 +126,15 @@ export async function getCurrentUser(): Promise<User | null> {
     user = await getOnPremUser();
   } else {
     if (session && session.user?.email) {
-      user = await getUserByEmail(session.user.email);
+      try {
+        user = await getUserByEmail(session.user.email);
+      } catch {
+        // User doesn't exist in the DB (e.g. DB was reset) or Orchestra is
+        // unreachable. Return null so the calling page redirects to /login
+        // rather than showing an unhandled error page.
+        console.warn('[getCurrentUser] Failed to fetch user by email — session may be stale');
+        return null;
+      }
     } else {
       console.error('No user email found in session');
       return null;

@@ -1,8 +1,12 @@
 /**
- * Tests for session invalidation on password change.
+ * Tests for session invalidation and stale-session handling.
  *
- * Verifies that getCurrentUser() returns null when the JWT was issued
- * before the user's password was last changed, forcing a re-login.
+ * Covers:
+ * - Password change invalidation: getCurrentUser() returns null when the JWT
+ *   was issued before the user's password was last changed.
+ * - Stale session (DB reset): getCurrentUser() returns null when the user
+ *   no longer exists in the database (e.g. local DB was reset), instead of
+ *   throwing an unhandled error that crashes the page.
  *
  * @vitest-environment node
  */
@@ -236,6 +240,128 @@ describe('getCurrentUser – session invalidation on password change', () => {
     // iat (in seconds) * 1000 == changedAtMs, so issuedAtMs is NOT < changedAtMs
     // The session should remain valid
     expect(user).not.toBeNull();
+  });
+});
+
+// ─── Stale session (DB reset / user deleted) ─────────────────────────────────
+
+describe('getCurrentUser – stale session handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.ON_PREM;
+  });
+
+  it('returns null when getUserByEmail throws (user not in DB)', async () => {
+    // Simulate a valid JWT session pointing to a user that no longer exists.
+    // Orchestra returns 404 → axios throws.
+    mockGetServerSession.mockResolvedValue({
+      user: { email: 'deleted@example.com', name: 'Ghost', image: null },
+    });
+
+    mockAdminClientGet.mockImplementation((url: string) => {
+      if (url === '/user/by-email') {
+        return Promise.reject({
+          response: { status: 404, data: { detail: 'User not found' } },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = await getCurrentUser();
+    expect(user).toBeNull();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to fetch user by email'),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('returns null when getUserByEmail throws a network error', async () => {
+    // Simulate Orchestra being unreachable (e.g. wrong URL after restart).
+    mockGetServerSession.mockResolvedValue({
+      user: { email: 'test@example.com', name: 'Test', image: null },
+    });
+
+    mockAdminClientGet.mockImplementation((url: string) => {
+      if (url === '/user/by-email') {
+        return Promise.reject(new Error('ECONNREFUSED'));
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = await getCurrentUser();
+    expect(user).toBeNull();
+    consoleSpy.mockRestore();
+  });
+
+  it('returns null when getUserByEmail throws a 403 (admin key mismatch)', async () => {
+    // Simulate a new Orchestra instance with a different admin key.
+    mockGetServerSession.mockResolvedValue({
+      user: { email: 'test@example.com', name: 'Test', image: null },
+    });
+
+    mockAdminClientGet.mockImplementation((url: string) => {
+      if (url === '/user/by-email') {
+        return Promise.reject({
+          response: { status: 403, data: { detail: 'Forbidden' } },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = await getCurrentUser();
+    expect(user).toBeNull();
+    consoleSpy.mockRestore();
+  });
+
+  it('returns null when getUserByEmail returns null (user deleted from DB)', async () => {
+    // Orchestra returns 200 with null body when user is not found.
+    mockGetServerSession.mockResolvedValue({
+      user: { email: 'deleted@example.com', name: 'Ghost', image: null },
+    });
+
+    mockAdminClientGet.mockImplementation((url: string) => {
+      if (url === '/user/by-email') {
+        return Promise.resolve({ data: null });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const user = await getCurrentUser();
+    expect(user).toBeNull();
+  });
+
+  it('does not crash downstream code when getUserByEmail throws', async () => {
+    // Ensure that the error is caught before reaching the password-change
+    // check or workspace resolution, which would crash on a null user.
+    mockGetServerSession.mockResolvedValue({
+      user: { email: 'test@example.com', name: 'Test', image: null },
+      iat: Math.floor(Date.now() / 1000),
+    });
+
+    mockAdminClientGet.mockImplementation((url: string) => {
+      if (url === '/user/by-email') {
+        return Promise.reject(new Error('Service unavailable'));
+      }
+      // These should NOT be called when getUserByEmail fails
+      if (url === '/auth/email-credentials') {
+        throw new Error('Should not reach email-credentials check');
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const user = await getCurrentUser();
+    expect(user).toBeNull();
+
+    // Verify email-credentials was never called
+    const credentialsCalls = mockAdminClientGet.mock.calls.filter(
+      (call: any[]) => call[0] === '/auth/email-credentials',
+    );
+    expect(credentialsCalls).toHaveLength(0);
+    consoleSpy.mockRestore();
   });
 });
 
