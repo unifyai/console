@@ -50,12 +50,13 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
                   Continue with Google
                 </div>
               </HallowButton>
-              <HallowButton onClick={handleLogin('azure-ad')}>
+              {/* TODO: Re-enable Microsoft auth once ready */}
+              {/* <HallowButton onClick={handleLogin('azure-ad')}>
                 <div className="flex items-center justify-center gap-2">
                   <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
                   Continue with Microsoft
                 </div>
-              </HallowButton>
+              </HallowButton> */}
 
               <div className="flex items-center gap-3 my-1">
                 <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
@@ -84,7 +85,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
                 className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
                 data-testid="switch-to-oauth"
               >
-                Sign in with Google or Microsoft
+                Sign in with Google
               </button>
             </>
           )}
