@@ -104,31 +104,43 @@ async function fetchAllPages(
 
   while (true) {
     const result = await fetchPage(baseUrl, apiKey, pageSize, offset, label);
-    if ('detail' in result) return result;
+    if ('detail' in result) {
+      if (__DEV__)
+        console.log(
+          `[DEBUG][action.ts] ${label} fetchPage returned error at offset=${offset}: ${JSON.stringify(result).slice(0, 200)}`
+        );
+      return result;
+    }
 
     const pageLogs = result.data?.logs ?? [];
     allLogs.push(...pageLogs);
 
     if (offset === 0) {
       totalCount = result.data?.count ?? pageLogs.length;
-      if (__DEV__)
-        console.log(
-          `[DEBUG][action.ts] ${label} paginated fetch: total=${totalCount}, first page=${pageLogs.length}`
-        );
     }
+
+    if (__DEV__)
+      console.log(
+        `[DEBUG][action.ts] ${label} paginated fetch: offset=${offset}, page=${pageLogs.length}, accumulated=${allLogs.length}, total=${totalCount}`
+      );
 
     offset += pageSize;
 
-    if (
+    const done =
       pageLogs.length < pageSize ||
       allLogs.length >= totalCount ||
-      allLogs.length >= MAX_TOTAL_LOGS
-    ) {
+      allLogs.length >= MAX_TOTAL_LOGS;
+
+    if (done) {
       if (allLogs.length >= MAX_TOTAL_LOGS && allLogs.length < totalCount) {
         console.warn(
           `[action.ts ${label}] Stopped at safety cap (${MAX_TOTAL_LOGS}), total matching=${totalCount}`
         );
       }
+      if (__DEV__ && allLogs.length < totalCount && pageLogs.length >= pageSize)
+        console.log(
+          `[DEBUG][action.ts] ${label} pagination stopped: accumulated=${allLogs.length} < total=${totalCount}`
+        );
       break;
     }
   }
