@@ -144,9 +144,11 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!user) return null;
 
   // 2. Session Invalidation on Password Change
-  // If the user has an EmailAccount and changed their password after this
-  // JWT was issued, reject the session so the stale JWT is cleared.
-  if (session && 'iat' in session && typeof session.iat === 'number') {
+  // If the user signed in with email/password and changed their password after
+  // this JWT was issued, reject the session so the stale JWT is cleared.
+  // Skip this check for OAuth sessions — password changes don't affect them.
+  const isCredentialsSession = session && 'provider' in session && session.provider === 'credentials';
+  if (isCredentialsSession && 'iat' in session && typeof session.iat === 'number') {
     try {
       const credRes = await OrchestraAdminClient.get('/auth/email-credentials', {
         params: { userId: user.id },
