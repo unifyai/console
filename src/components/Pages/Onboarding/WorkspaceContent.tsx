@@ -57,27 +57,6 @@ const WorkspaceContent = ({
   const [isLoading, setIsLoading] = useState(autoComplete);
   const autoCompleteTriggered = useRef(false);
 
-  // Auto-complete onboarding on mount when the user already has an org.
-  // Server actions can modify cookies when called from a client component,
-  // but NOT during a server component render — hence this runs here.
-  useEffect(() => {
-    if (!autoComplete || autoCompleteTriggered.current) return;
-    autoCompleteTriggered.current = true;
-    onPatchSession({ onboardingStep: 'completed' }).catch(() => {
-      // If the patch fails, show the normal onboarding UI
-      setIsLoading(false);
-    });
-  }, [autoComplete, onPatchSession]);
-
-  // Show a loading state while auto-completing
-  if (autoComplete && isLoading) {
-    return (
-      <div className="m-auto flex items-center justify-center">
-        <LoadingElement />
-      </div>
-    );
-  }
-
   /**
    * Persist the onboarding step to the backend (best-effort) then call the
    * server action to patch the JWT cookie and redirect.
@@ -147,6 +126,27 @@ const WorkspaceContent = ({
       setIsLoading(false);
     }
   }, [orgName, onCreateOrg, completeAndRedirect]);
+
+  // Auto-complete onboarding on mount when the user already has an org.
+  // Server actions can modify cookies when called from a client component,
+  // but NOT during a server component render — hence this runs here.
+  useEffect(() => {
+    if (!autoComplete || autoCompleteTriggered.current) return;
+    autoCompleteTriggered.current = true;
+    onPatchSession({ onboardingStep: 'completed' }).catch(() => {
+      // If the patch fails, show the normal onboarding UI
+      setIsLoading(false);
+    });
+  }, [autoComplete, onPatchSession]);
+
+  // Show a loading state while auto-completing
+  if (autoComplete && isLoading) {
+    return (
+      <div className="m-auto flex items-center justify-center">
+        <LoadingElement />
+      </div>
+    );
+  }
 
   return (
     <motion.div

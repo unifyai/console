@@ -83,7 +83,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
     };
 
     processInvite();
-  }, [token, onAccept, router]);
+  }, [token, onAccept, onPatchSession, router]);
 
   const handleBackToLogin = useCallback(async () => {
     await signOut({ redirect: false });
