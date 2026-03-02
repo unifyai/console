@@ -1,6 +1,7 @@
 import pagesOptions from './pages';
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import GithubProvider from 'next-auth/providers/github';
 // import AzureADProvider from 'next-auth/providers/azure-ad'; // TODO: Re-enable
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
@@ -56,6 +57,12 @@ const authOptions: AuthOptions = {
           image: profile.picture ?? null,
         };
       },
+    }),
+    GithubProvider({
+      clientId: process.env.GITHUB_ID!,
+      clientSecret: process.env.GITHUB_SECRET!,
+      // GitHub verifies email ownership, so it's safe to auto-link accounts.
+      allowDangerousEmailAccountLinking: true,
     }),
     // TODO: Re-enable Microsoft auth once ready
     // AzureADProvider({
@@ -148,7 +155,7 @@ const authOptions: AuthOptions = {
      */
     async signIn({ user, account }) {
       // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
-      const autoLinkProviders = ['google', 'azure-ad'];
+      const autoLinkProviders = ['google', 'github', 'azure-ad'];
 
       if (
         account?.provider &&
@@ -280,6 +287,12 @@ const authOptions: AuthOptions = {
           }
         } catch (error) {
           console.error('Error fetching Google profile picture:', error);
+          token.picture = null;
+        }
+      } else if (account?.provider === 'github') {
+        if (profile && typeof profile === 'object' && 'avatar_url' in profile) {
+          token.picture = typeof profile.avatar_url === 'string' ? profile.avatar_url : null;
+        } else {
           token.picture = null;
         }
       } else if (account?.provider === 'azure-ad') {

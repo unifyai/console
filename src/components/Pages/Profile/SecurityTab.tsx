@@ -159,7 +159,7 @@ const SecurityTab = ({ user }: { user: User }) => {
                 ? 'Loading...'
                 : hasEmailAccount
                   ? "Update your account's password used for email login."
-                  : 'You signed-in using Google/Microsoft. Set a password to be able to sign-in with email.'}
+                  : 'You signed in with an external provider. Set a password to also sign in with your email address.'}
             </p>
           </div>
           <Button

@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 
 import Main from '@/components/Pages/Profile/Main';
+import { GithubDeprecationBanner } from '@/components/Pages/Profile/GithubDeprecationBanner';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { redirect } from 'next/navigation';
 
@@ -24,10 +25,13 @@ const ProfilePage = async () => {
   }
 
   return (
-    <div className="h-full w-full overflow-auto p-1">
-      <Suspense fallback={<SkeletonLoader />}>
-        <Main user={user} onPrem={onPrem} />
-      </Suspense>
+    <div className="h-full w-full overflow-auto">
+      <GithubDeprecationBanner />
+      <div className="p-1">
+        <Suspense fallback={<SkeletonLoader />}>
+          <Main user={user} onPrem={onPrem} />
+        </Suspense>
+      </div>
     </div>
   );
 };
