@@ -84,17 +84,6 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
       const liveviewUrlValue = latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
 
       if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
-        const reachable = await isLiveviewReachable(liveviewUrlValue);
-        if (!reachable) {
-          console.warn(
-            `[getLiveviewUrl] URL found but VM is not reachable: ${liveviewUrlValue}`
-          );
-          return {
-            detail:
-              'The assistant desktop was found but is not reachable. It may still be starting up.',
-          };
-        }
-
         const urlObj = new URL(liveviewUrlValue);
         urlObj.searchParams.set('password', userApiKey);
         return { liveviewUrl: urlObj.toString() };
