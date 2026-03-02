@@ -761,20 +761,43 @@ function InteractionEvent({
     color: 'text-muted-foreground/70',
   };
 
+  const hasContent = !!interaction.content;
+  const [isOpen, setIsOpen] = React.useState(false);
+
   return (
     <div
-      className="flex items-baseline gap-2 py-0.5 text-[11px]"
-      style={{ paddingLeft: `${28 + depth * 12}px` }}
-    >
-      <span className={cn('shrink-0 font-medium', config.color)}>{config.label}</span>
-      {interaction.content && (
-        <span className="text-muted-foreground/70 min-w-0 flex-1 truncate">
-          {interaction.content}
-        </span>
+      className={cn(
+        'rounded-sm py-0.5 text-[11px] transition-colors duration-150',
+        hasContent && 'cursor-pointer hover:bg-muted/40'
       )}
-      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-        {formatEventTime(interaction.timestamp)}
-      </span>
+      style={{ paddingLeft: `${28 + depth * 12}px` }}
+      onClick={hasContent ? () => setIsOpen((v) => !v) : undefined}
+    >
+      <div className="flex items-baseline gap-2">
+        {hasContent && (
+          <ChevronRight
+            className={cn(
+              'h-2.5 w-2.5 shrink-0 transition-transform duration-150',
+              isOpen && 'rotate-90'
+            )}
+          />
+        )}
+        <span className={cn('shrink-0 font-medium', config.color)}>{config.label}</span>
+        {hasContent && !isOpen && (
+          <span className="text-muted-foreground/50 min-w-0 flex-1 truncate">
+            {interaction.content}
+          </span>
+        )}
+        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+          {formatEventTime(interaction.timestamp)}
+        </span>
+      </div>
+
+      {hasContent && isOpen && (
+        <div className="text-muted-foreground/50 mt-1 max-h-[120px] overflow-y-auto text-[11px] leading-relaxed styled-scrollbar">
+          <RichContent content={interaction.content!} />
+        </div>
+      )}
     </div>
   );
 }
@@ -824,11 +847,12 @@ export function ActionNodeItem({
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
   const isExpandable = hasChildren || canLoadToolLoop;
 
-  // Live ToolLoop logs from SSE (for running nodes)
+  // Live ToolLoop logs from SSE — shown while running and kept as a bridge
+  // after completion until the lazy-loaded historical data arrives.
   const liveToolLoopLogs = React.useMemo(() => {
-    if (node.status !== 'running' || !node.liveToolLoopLogs) return [];
+    if (!node.liveToolLoopLogs) return [];
     return node.liveToolLoopLogs.filter((l) => l.entries.message.role !== 'system');
-  }, [node.status, node.liveToolLoopLogs]);
+  }, [node.liveToolLoopLogs]);
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -857,18 +881,20 @@ export function ActionNodeItem({
     }
   };
 
-  // Load full ToolLoop conversation for completed nodes when expanded.
+  // Load full ToolLoop conversation for completed nodes.
+  // Fires immediately on completion (no expansion gate) so data is ready
+  // when the user expands the node — and so step counts can be computed
+  // even while the node is collapsed.
   // Uses hierarchy array + time bounds to scope results to this specific
   // invocation. Without time bounds, the hierarchy prefix would match
   // events from ALL invocations — producing a garbled interleaved timeline.
   // After fetch, client-side filters out events that belong to child MM
   // nodes (they'll be fetched by the child's own ActionNodeItem).
   React.useEffect(() => {
-    if (node.status === 'running' || !canLoadToolLoop || !isExpanded) return;
+    if (node.status === 'running' || !canLoadToolLoop) return;
     if (toolLoopFetchedRef.current) return;
     toolLoopFetchedRef.current = true;
 
-    let isCancelled = false;
     setIsToolLoopLoading(true);
 
     const load = async () => {
@@ -880,21 +906,19 @@ export function ActionNodeItem({
           node.startTime || undefined,
           node.endTime || undefined
         );
-        if (isCancelled || 'detail' in response) return;
+        if ('detail' in response) return;
         const logs = (response.logs || []) as ToolLoopLog[];
 
-        // Build child hierarchy prefixes to exclude TL events that belong
-        // to a child MM node's subtree — those are fetched by the child's
-        // own ActionNodeItem. Uses prefix + '->' to avoid false positives
-        // (e.g. "A->B" must not match "A->B2").
-        const childPrefixes = (node.children || []).map((c) => c.hierarchy.join('->') + '->');
-        const childExact = new Set((node.children || []).map((c) => c.hierarchy.join('->')));
+        // Snapshot children at resolution time (not at effect setup time)
+        // so we filter against the most up-to-date tree.
+        const children = node.children || [];
+        const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
+        const childExact = new Set(children.map((c) => c.hierarchy.join('->')));
 
         setCompletedToolLoopLogs(
           logs.filter((l) => {
             if (l.entries.message.role === 'system') return false;
             const logKey = l.entries.hierarchy.join('->');
-            // Exclude events at a child's exact hierarchy or deeper in its subtree
             if (childExact.has(logKey)) return false;
             if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
             return true;
@@ -908,19 +932,16 @@ export function ActionNodeItem({
     };
 
     load();
-    return () => {
-      isCancelled = true;
-    };
+    // No cleanup — once toolLoopFetchedRef is set, the effect won't re-run.
+    // React 18+ safely ignores setState on unmounted components.
   }, [
     node.status,
-    isExpanded,
     canLoadToolLoop,
     assistantId,
     getToolLoopEvents,
     node.startTime,
     node.endTime,
     node.hierarchy,
-    node.children,
   ]);
 
   // Reset completed ToolLoop state when node starts running again
@@ -946,9 +967,12 @@ export function ActionNodeItem({
 
   // Determine what to render in the detail area.
   const showToolLoopLoading = isExpanded && canLoadToolLoop && isToolLoopLoading;
-  const showLiveTimeline = isExpanded && node.status === 'running' && liveToolLoopLogs.length > 0;
-  const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
   const hasToolLoopData = completedToolLoopLogs.length > 0;
+  // Show the live SSE timeline while running, and keep showing it after
+  // completion as a bridge until the lazy-loaded historical data arrives.
+  const showLiveTimeline =
+    isExpanded && liveToolLoopLogs.length > 0 && !hasToolLoopData && !isToolLoopLoading;
+  const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
   const hasInteractions = (node.interactions?.length ?? 0) > 0;
 
   // Enrich interactions with content extracted from ToolLoop data.
