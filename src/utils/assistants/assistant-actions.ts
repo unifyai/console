@@ -194,47 +194,46 @@ export function isMeaningfulContent(content: string | undefined): boolean {
  * Returns true for values that should NOT change a node's status.
  *
  * The _LoggedHandle proxy polls handle.done() repeatedly — each poll
- * publishes an outgoing ManagerMethod event with the coerced boolean.
- * These are infrastructure noise and must not trigger completion:
+ * publishes an outgoing ManagerMethod event with the coerced return value.
  *
- * - "false": handle.done() returned False — loop still running.
- * - "true":  handle.done() returned True — terminal loop signal. The
- *            real answer arrives as a separate outgoing with meaningful
- *            content (e.g. the pricing table). "true" is just a bookkeeping
- *            artifact from the proxy.
- * - "null":  Python None serialized via json.dumps(None). Means "no result"
- *            from a polling call, not an actual completion.
+ * - "false": handle.done() returned False — loop still running, ignore.
+ * - "null":  _coerce_text_value(None) → json.dumps(None) → "null" string.
+ *            Means a polling call returned Python None, not a completion.
  *
- * Returns false for JS null/undefined (field absent from payload) — that
- * means a boundary wrapper operation (execute_code/execute_function)
- * completed with answer=null (field omitted), which IS a legitimate
- * completion.
+ * NOT trivial (these trigger completion):
+ * - "true":  handle.done() returned True — the async task finished. This
+ *            is a valid completion signal that ensures the node transitions
+ *            to 'completed' even if a separate result() event hasn't arrived.
+ * - JS null/undefined (field absent from payload): boundary wrapper
+ *   (execute_code/execute_function) completed without setting answer.
  */
 function isTrivialLoopSignal(content: string | undefined): boolean {
   if (content == null) return false;
   const trimmed = content.trim().toLowerCase();
-  return trimmed === 'true' || trimmed === 'false' || trimmed === 'null';
+  // "false" = intermediate loop iteration ("not done yet, more work to do")
+  // "true"  = action completed ("done, result is ready") — NOT trivial
+  return trimmed === 'false' || trimmed === 'null';
 }
 
 /**
  * Applies an outgoing event to a node, updating its status and content.
  *
- * Unity emits many outgoing events per calling_id: trivial loop-control
- * signals (answer="false"/"true") after each tool-loop iteration, plus the
- * real answer once the operation actually finishes. We must NOT mark the
- * node as completed on a trivial signal — otherwise the parent appears done
- * while its children are still running.
+ * Unity emits many outgoing events per calling_id via the _LoggedHandle proxy.
+ * Most are polling noise: handle.done() returning False → answer="false".
+ * Only three patterns signal completion:
  *
- * Some operations (like execute_code) complete with answer: null — no content
- * to report, but the operation IS finished. These must still be marked
- * completed. The key distinction: null means "done, nothing to say" while
- * "false" means "loop iteration boundary, keep going."
+ *  1. answer="true"  — handle.done() returned True, async task finished.
+ *  2. answer=<string> — handle.result() returned the actual content.
+ *  3. answer=null (JS) — boundary wrapper (execute_code) completed without
+ *     setting an answer field.
+ *
+ * The string "null" (from json.dumps(None)) is NOT a completion — it means
+ * a polling call returned Python None.
  *
  * Status transitions:
  *  - Error → always mark as 'error'
- *  - Trivial loop signal ("true"/"false") → don't change status
- *  - Meaningful content → mark as 'completed', set content
- *  - No content (null/undefined) → mark as 'completed', no content to set
+ *  - "false" / "null" (string) → trivial, don't change status
+ *  - Everything else → mark as 'completed'; set content if meaningful
  */
 export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
   const wasRunning = node.status === 'running';
@@ -257,11 +256,13 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
     }
   }
 
-  // Clear tool loop data only on the first transition out of 'running'
+  // On the first transition out of 'running', clear lazy-loaded historical
+  // data so it can be re-fetched with the complete set.  Preserve
+  // liveToolLoopLogs — the UI uses them as a bridge until the lazy-loaded
+  // historical data arrives, preventing content from vanishing on completion.
   if (wasRunning && node.status !== 'running') {
     node.toolLoopSteps = undefined;
     node.isToolLoopLoaded = false;
-    node.liveToolLoopLogs = undefined;
   }
 }
 
@@ -330,7 +331,7 @@ function applyBackfilledIncoming(node: ActionNode, event: ParsedManagerMethodEve
   if (!node.content && event.content) {
     node.content = event.content;
   }
-  if (event.displayLabel) {
+  if (event.displayLabel && event.displayLabel.trim()) {
     node.label = event.displayLabel;
     node.displayLabel = event.displayLabel;
   }
@@ -351,16 +352,16 @@ function promoteBoundaryNode(
   event: ParsedManagerMethodEvent,
   nodeMap: Map<string, ActionNode>
 ): void {
-  nodeMap.delete(node.id);
-
+  const oldId = node.id;
   node.id = event.callingId;
   node.type = 'manager';
 
-  if (event.displayLabel) {
+  if (event.displayLabel && event.displayLabel.trim()) {
     node.label = event.displayLabel;
     node.displayLabel = event.displayLabel;
   }
 
+  nodeMap.delete(oldId);
   nodeMap.set(node.id, node);
 }
 

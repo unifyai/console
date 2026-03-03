@@ -92,7 +92,8 @@ export interface ActionNode {
   /** Whether tool loop steps have been loaded */
   isToolLoopLoaded?: boolean;
 
-  /** Live ToolLoop logs accumulated from SSE while the node is running */
+  /** Live ToolLoop logs accumulated from SSE. Persists after completion to
+   *  serve as a bridge until lazy-loaded historical data replaces them. */
   liveToolLoopLogs?: ToolLoopLog[];
 }
 

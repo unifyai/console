@@ -472,6 +472,14 @@ export function useAssistantProfileChat(
           }
         }
 
+        if (messagePayload.thread === 'assistant_desktop_ready') {
+          if (ackId) ack(ackId);
+          const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
+          desktopChannel.postMessage(messagePayload.event ?? {});
+          desktopChannel.close();
+          return;
+        }
+
         if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
           const content =
             messagePayload.event?.content ??

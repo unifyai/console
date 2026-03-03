@@ -57,7 +57,12 @@ import {
   dispatchAssistantToCall,
   deleteCallRoom,
 } from '@/lib/assistants/call';
-import { getLiveviewUrl, sendSystemEvent, listUserDesktops } from '@/lib/assistants/desktop';
+import {
+  getLiveviewUrl,
+  checkLiveviewHealth,
+  sendSystemEvent,
+  listUserDesktops,
+} from '@/lib/assistants/desktop';
 import {
   getAssistantSpend,
   getAssistantSpendingLimit,
@@ -155,6 +160,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
+      checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),
     },
