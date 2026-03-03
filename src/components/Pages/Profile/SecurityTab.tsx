@@ -2,15 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { User } from '@/types/user';
 import ChangePasswordForm from './ChangePassword';
-import SecondaryButton from '../../Common/Buttons/Secondary';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import SecuritySettings from '@/components/Pages/Profile/SecuritySettings';
 import MfaModal, { type MfaCodeType } from '@/components/Common/Auth/MfaModal';
-import BaseDialog from '@/components/Common/Dialogs/Base';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +15,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/UI/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
 import { toast } from 'sonner';
 
 interface EmailCredentials {
@@ -40,7 +48,6 @@ const SecurityTab = ({ user }: { user: User }) => {
   const [showMfaSettingsModal, setShowMfaSettingsModal] = useState(false);
 
   // Delete account state
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [showMfaModal, setShowMfaModal] = useState(false);
@@ -100,7 +107,6 @@ const SecurityTab = ({ user }: { user: User }) => {
 
           // If MFA is required, show the MFA modal
           if (res.status === 403 && data.error === 'mfa_required') {
-            setShowDeleteConfirm(false);
             setShowMfaModal(true);
             setIsDeleting(false);
             return;
@@ -196,27 +202,62 @@ const SecurityTab = ({ user }: { user: User }) => {
         </div>
       </div>
 
-      {/* Sign Out & Delete Account Section */}
-      <div>
-        <div className="mt-4 flex items-center gap-3">
-          <SecondaryButton
-            label="Sign Out"
-            onClick={async () => {
-              await signOut({ redirect: false });
-              router.push('/login');
-            }}
-          />
-          <Button
-            variant="destructive"
-            className='h-8'
-            onClick={() => {
-              setDeleteError(undefined);
-              setShowDeleteConfirm(true);
-            }}
-            data-testid="delete-account-btn"
-          >
-            Delete Account
-          </Button>
+      {/* Danger Zone */}
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <h3 className="text-h3 text-destructive">Danger Zone</h3>
+        <p className="mt-1 text-caption">
+          Deleting your account is irreversible. All your data will be permanently removed.
+        </p>
+        <div className="mt-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                data-testid="delete-account-btn"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You are about to delete your account. This is an irreversible action.
+                  All your data will be permanently removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {deleteError && (
+                <p className="text-caption text-destructive">{deleteError}</p>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => setDeleteError(undefined)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => performDelete()}
+                  disabled={isDeleting}
+                  className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+                  data-testid="confirm-delete-btn"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Proceed'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -262,55 +303,6 @@ const SecurityTab = ({ user }: { user: User }) => {
           <SecuritySettings />
         </DialogContent>
       </Dialog>
-
-      {/* Delete Account Confirmation Dialog */}
-      <BaseDialog
-        button={null}
-        title="Delete Account ?"
-        body={
-          <div className="text-body">
-            {deleteError ? (
-              <p className="text-destructive">{deleteError}</p>
-            ) : (
-              <p>
-                You are about to delete your account. This is an irreversible action.
-                All your data will be permanently removed.
-              </p>
-            )}
-          </div>
-        }
-        footer={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                setDeleteError(undefined);
-              }}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => performDelete()}
-              disabled={isDeleting}
-              data-testid="confirm-delete-btn"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete'
-              )}
-            </Button>
-          </div>
-        }
-        open={showDeleteConfirm}
-        setOpen={setShowDeleteConfirm}
-      />
 
       {/* MFA Modal for protected deletion */}
       <MfaModal
