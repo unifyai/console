@@ -423,7 +423,7 @@ const OrganizationWorkspaceView = ({
             {/* Member Table */}
             <div className="flex-1 overflow-auto bg-background px-3">
               {isLoadingMembers && filteredMembers.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+                <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center text-muted-foreground">
                   <Loader2 className="mb-2 h-8 w-8 animate-spin" />
                   <p>Loading members...</p>
                 </div>
