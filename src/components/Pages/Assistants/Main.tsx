@@ -667,9 +667,10 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   React.useEffect(() => {
     if (!isBillingLoading && !isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
       initialAssistantLoadProcessedRef.current = true;
-      // Don't auto-open the hire dialog when MFA setup is required —
-      // the MFA enforcement modal needs to stay in focus.
-      if (!assistantError && assistants.length === 0 && !isHireDialogOpen && !userMeta.mfaSetupRequired) {
+      // Don't auto-open the hire dialog when:
+      // - MFA setup is required (the MFA enforcement modal needs focus)
+      // - The user doesn't have hire permission (org members/admins can't hire)
+      if (!assistantError && assistants.length === 0 && !isHireDialogOpen && !userMeta.mfaSetupRequired && canHire) {
         handleOpenHireDialog();
       }
     }
@@ -681,6 +682,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     isBillingLoading,
     isHireDialogOpen,
     userMeta.mfaSetupRequired,
+    canHire,
   ]);
   React.useEffect(() => {
     if (justDeletedVoiceId) {
