@@ -127,9 +127,9 @@ describe('TopNav – navigation restructuring', () => {
     const allLinks = await screen.findAllByRole('link');
     const dropdownLinkTexts = allLinks
       .map((link) => link.textContent?.trim() ?? '')
-      .filter((t) => ['Profile', 'Usage', 'Organizations', 'Billing'].includes(t));
+      .filter((t) => ['Account', 'Usage', 'Organizations', 'Billing'].includes(t));
 
-    expect(dropdownLinkTexts).toEqual(['Profile', 'Organizations', 'Usage', 'Billing']);
+    expect(dropdownLinkTexts).toEqual(['Account', 'Organizations', 'Usage', 'Billing']);
   });
 
   it('renders "Sign out" in the profile dropdown', async () => {

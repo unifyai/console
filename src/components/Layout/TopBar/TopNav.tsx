@@ -242,11 +242,11 @@ export default function TopNav() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                 <Link
-                  href="/profile"
+                  href="/account"
                   className="text-body flex items-center hover:text-[color:var(--foreground)]"
                 >
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                  <span>Account</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">

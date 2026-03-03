@@ -55,7 +55,7 @@ describe('MfaEnforcementBanner', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockPathname = '/assistants'; // default: not on profile page
+    mockPathname = '/assistants'; // default: not on account page
     MfaEnforcementBanner = (
       await import('@/components/Common/Auth/MfaEnforcementBanner')
     ).default;
@@ -118,8 +118,8 @@ describe('MfaEnforcementBanner', () => {
     });
   });
 
-  it('does not render on the profile page', () => {
-    mockPathname = '/profile';
+  it('does not render on the account page', () => {
+    mockPathname = '/account';
     render(<MfaEnforcementBanner orgName="Acme Corp" />);
 
     expect(screen.queryByTestId('mfa-enforcement-banner')).not.toBeInTheDocument();

@@ -27,8 +27,8 @@ export function GithubDeprecationBanner() {
       <p className="text-sm text-amber-800 dark:text-amber-200">
         <span className="font-medium">GitHub sign-in is being retired</span>
         {' — '}
-        Please link your account to Google or{' '}
-        <a href="/profile?tab=security" className="font-medium underline underline-offset-2">
+        Please sign in with another provider or{' '}
+        <a href="/account?tab=security" className="font-medium underline underline-offset-2">
           set a password
         </a>{' '}
         to keep access.

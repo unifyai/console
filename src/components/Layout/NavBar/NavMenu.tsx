@@ -227,7 +227,7 @@ export default function NavMenu() {
   const profileItem: NavItem = {
     title: profileName,
     icon: avatarJSX ? () => avatarJSX : User,
-    href: '/profile',
+    href: '/account',
   };
 
   const usageProjectItem: NavItem = {

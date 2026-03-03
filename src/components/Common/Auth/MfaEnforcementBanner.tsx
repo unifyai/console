@@ -24,7 +24,7 @@ interface MfaEnforcementBannerProps {
  * full MFA setup flow (QR code → confirm → recovery codes) directly
  * inside the dialog, so the user never has to leave the page.
  *
- * The modal is suppressed on exempt pages (/profile, /invite) so the user
+ * The modal is suppressed on exempt pages (/account, /invite) so the user
  * can complete the MFA setup flow or accept an invite.
  *
  * Uses z-[100] to stay above any other dialogs (z-50).
@@ -35,9 +35,9 @@ const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
   const [setupComplete, setSetupComplete] = useState(false);
 
   // Don't show the modal on pages where the user needs unobstructed access:
-  // - /profile: to set up MFA via the security tab
+  // - /account: to set up MFA via the security tab
   // - /invite or /login/invite: to accept an organization invite
-  if (pathname === '/profile' || pathname === '/invite' || pathname.startsWith('/login/invite')) {
+  if (pathname === '/account' || pathname === '/invite' || pathname.startsWith('/login/invite')) {
     return null;
   }
 

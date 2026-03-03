@@ -8,13 +8,13 @@ import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { redirect } from 'next/navigation';
 
 /**
- * ProfilePage is a Next.js page component that renders the user profile page.
+ * AccountPage is a Next.js page component that renders the user account page.
  *
- * The page displays the user's profile information, and newsletter preferences.
+ * The page displays the user's account information, and newsletter preferences.
  *
- * @returns {JSX.Element} The ProfilePage component.
+ * @returns {JSX.Element} The AccountPage component.
  */
-const ProfilePage = async () => {
+const AccountPage = async () => {
   const onPrem = process.env.ON_PREM;
 
   // Get current user
@@ -36,4 +36,4 @@ const ProfilePage = async () => {
   );
 };
 
-export default ProfilePage;
+export default AccountPage;

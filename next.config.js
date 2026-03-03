@@ -70,6 +70,15 @@ const nextConfig = {
 
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/profile',
+        destination: '/account',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
