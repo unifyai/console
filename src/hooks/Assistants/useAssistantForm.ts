@@ -538,51 +538,71 @@ export function useAssistantForm(
         throw new Error('No voice selected.');
       }
 
-      // Generate initial greeting if no pre-hire chat exists
+      const voiceProviderVal =
+        data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
+
+      const photoFormData = data.photoFile
+        ? (() => {
+            const fd = new FormData();
+            fd.append('file', data.photoFile!);
+            return fd;
+          })()
+        : null;
+
+      const videoFormData = data.videoFile
+        ? (() => {
+            const fd = new FormData();
+            fd.append('file', data.videoFile!);
+            return fd;
+          })()
+        : null;
+
+      const [greetingResult, photoUploadResult, videoUploadResult, voiceCreationResponse] =
+        await Promise.all([
+          !chatHistory || chatHistory.length === 0
+            ? generatePostHireGreeting(
+                `${data.firstName} ${data.surname}`,
+                data.age,
+                data.about,
+                data.nationality
+              ).catch(() => null)
+            : Promise.resolve(null),
+          photoFormData ? assistantActions.photo.upload(photoFormData) : Promise.resolve(null),
+          videoFormData ? assistantActions.photo.uploadVideo(videoFormData) : Promise.resolve(null),
+          !data.voiceExists && data.voiceId
+            ? assistantActions.voice.register(
+                data.voiceId,
+                voiceProviderVal,
+                data.voiceName!,
+                data.voiceDescription || data.voiceName!,
+                data.voiceGender!,
+                data.voiceLanguage!,
+                voicePresetsConstant.map((v) => v.voiceId).includes(data.voiceId)
+              )
+            : Promise.resolve(null),
+        ]);
+
       let finalChatHistory = chatHistory;
-      if (!chatHistory || chatHistory.length === 0) {
-        try {
-          // Use Server Action instead of API route - cannot be called directly via HTTP
-          const greetingResult = await generatePostHireGreeting(
-            `${data.firstName} ${data.surname}`,
-            data.age,
-            data.about,
-            data.nationality
-          );
-          if (greetingResult.error) {
-            throw new Error(greetingResult.error);
-          }
-          if (!greetingResult.content) throw new Error('Generated an empty greeting.');
-          finalChatHistory = [
-            {
-              id: uuidv4(),
-              role: 'assistant',
-              content: greetingResult.content,
-              timestamp: new Date(),
-            },
-          ];
-        } catch (greetingError) {
-          /* no-op */
-        }
+      if (greetingResult && 'content' in greetingResult && greetingResult.content) {
+        finalChatHistory = [
+          {
+            id: uuidv4(),
+            role: 'assistant',
+            content: greetingResult.content,
+            timestamp: new Date(),
+          },
+        ];
       }
 
-      // Registering voices / uploading custom photos/videos
       let finalImageUrlToSend: string | null = data.profilePhotoUrl || null;
-      let finalVideoUrlToSend: string | null = data.profileVideoUrl || null;
-
-      if (data.photoFile) {
-        const photoFormData = new FormData();
-        photoFormData.append('file', data.photoFile);
-        const photoUploadResult = await assistantActions.photo.upload(photoFormData);
+      if (photoUploadResult) {
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
         finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcsUrl;
       }
 
-      if (data.videoFile) {
-        const videoFormData = new FormData();
-        videoFormData.append('file', data.videoFile);
-        const videoUploadResult = await assistantActions.photo.uploadVideo(videoFormData);
+      let finalVideoUrlToSend: string | null = data.profileVideoUrl || null;
+      if (videoUploadResult) {
         if ((videoUploadResult as ResponseProps).detail)
           throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
         finalVideoUrlToSend = (videoUploadResult as PhotoUploadResponse).gcsUrl;
@@ -593,26 +613,14 @@ export function useAssistantForm(
         finalVideoUrlToSend = data.profileVideoUrl ?? null;
       }
 
-      const voiceProviderVal =
-        data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
-      if (!data.voiceExists && data.voiceId) {
-        const voiceCreationResponse = await assistantActions.voice.register(
-          data.voiceId,
-          voiceProviderVal,
-          data.voiceName,
-          data.voiceDescription || data.voiceName,
-          data.voiceGender,
-          data.voiceLanguage,
-          voicePresetsConstant.map((v) => v.voiceId).includes(data.voiceId)
+      if (
+        voiceCreationResponse &&
+        'detail' in voiceCreationResponse &&
+        !(voiceCreationResponse as ResponseProps).detail?.includes('already exists')
+      ) {
+        throw new Error(
+          `Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`
         );
-        if (
-          'detail' in voiceCreationResponse &&
-          !voiceCreationResponse.detail.includes('already exists')
-        ) {
-          throw new Error(
-            `Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`
-          );
-        }
       }
 
       const isUserDesktop = data.setup === 'local';
