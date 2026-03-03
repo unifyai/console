@@ -172,6 +172,39 @@ describe('claimCreditGrantToken', () => {
     expect(result.success).toBe(true);
     expect(result.creditsGranted).toBe(25);
   });
+
+  it('returns creditedTo when present in response (snake_case)', async () => {
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Claimed for org!',
+          credits_granted: 50,
+          credited_to: 'My Org',
+        })
+      )
+    );
+
+    const result = await claimCreditGrantToken('org_token');
+    expect(result.success).toBe(true);
+    expect(result.creditsGranted).toBe(50);
+    expect(result.creditedTo).toBe('My Org');
+  });
+
+  it('returns creditedTo when present in response (camelCase)', async () => {
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Claimed personally!',
+          creditsGranted: 10,
+          creditedTo: 'personal',
+        })
+      )
+    );
+
+    const result = await claimCreditGrantToken('personal_token');
+    expect(result.success).toBe(true);
+    expect(result.creditedTo).toBe('personal');
+  });
 });
 
 // ─── useCreditGrantLink hook ─────────────────────────────────────────────────
@@ -388,6 +421,32 @@ describe('useCreditGrantLink', () => {
     expect(result.current.pendingToken).toBeNull();
     expect(getStoredToken()).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+
+  it('shows org name in success toast when credits go to an organization', async () => {
+    mockBillingStatus.hasPaymentMethod = false;
+    mockSearchParams.set('token', 'org_claim_token');
+
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Link successfully claimed! 50.00 credits awarded.',
+          credits_granted: 50,
+          credited_to: 'Acme Corp',
+        })
+      )
+    );
+
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.hasClaimed).toBe(true);
+    });
+
+    // The toast should show the backend message
+    expect(toast.success).toHaveBeenCalledWith(
+      'Link successfully claimed! 50.00 credits awarded.'
+    );
   });
 });
 

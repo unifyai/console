@@ -9,6 +9,7 @@ export interface OneTimeLinkResponse {
   expiresAt: string; // ISO date string
   claimedAt?: string | null; // ISO date string
   userId?: string | null;
+  organizationId?: number | null;
   creditAmount?: number | null;
 }
 
@@ -19,7 +20,9 @@ export interface OneTimeLinkEntry {
   expiresAt: string; // ISO date string
   claimedAt?: string | null;
   userId?: string | null;
+  organizationId?: number | null;
   claimedByEmail?: string | null; // Added for displaying email
+  claimedForOrg?: string | null; // Org name if claimed for an org
   creditAmount?: number | null;
 }
 

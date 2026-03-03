@@ -32,6 +32,8 @@ const STORAGE_KEY = 'pending_credit_grant_token';
 export interface CreditGrantClaimResult {
   success: boolean;
   creditsGranted?: number;
+  /** "personal" or the org name */
+  creditedTo?: string;
   message?: string;
   error?: string;
 }
@@ -106,6 +108,7 @@ export async function claimCreditGrantToken(token: string): Promise<CreditGrantC
     return {
       success: true,
       creditsGranted: data.credits_granted ?? data.creditsGranted ?? undefined,
+      creditedTo: data.credited_to ?? data.creditedTo ?? undefined,
       message: data.message ?? 'Credits claimed successfully!',
     };
   } catch (error) {
@@ -171,7 +174,13 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
       setHasClaimed(true);
       // Invalidate billing status so BillableActionGuard picks up the new credits
       queryClient.invalidateQueries({ queryKey: BILLING_STATUS_QUERY_KEY });
-      toast.success(result.message || 'Credits claimed successfully!');
+
+      // Build a context-aware success message
+      const defaultMsg =
+        result.creditedTo && result.creditedTo !== 'personal'
+          ? `Credits claimed for ${result.creditedTo}!`
+          : 'Credits claimed successfully!';
+      toast.success(result.message || defaultMsg);
     } else {
       setError(result.error || 'Failed to claim credits');
       // If token is invalid/expired, clear it
