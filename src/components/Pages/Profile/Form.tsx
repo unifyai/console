@@ -115,13 +115,9 @@ const ProfileForm = ({
         if (response.ok) {
           setFormState((prev) => ({ ...prev, timezone: tz }));
           setInitialFormState((prev) => ({ ...prev, timezone: tz }));
-          toast.success('Your timezone has been automatically set.');
-        } else {
-          toast.error('Could not automatically set your timezone.');
         }
       } catch (error) {
         console.error('Failed to auto-update timezone:', error);
-        toast.error('Could not automatically set your timezone.');
       }
     };
 
