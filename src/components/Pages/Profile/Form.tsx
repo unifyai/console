@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from '@/types/user';
 import UserInfo from '@/components/Pages/Profile/Info';
-import NewsletterPreferences from './Newsletter';
 import SecondaryButton from '../../Common/Buttons/Secondary';
 import PrimaryButton from '../../Common/Buttons/Primary';
 import { AlertCircle, CheckCircle } from 'lucide-react';
@@ -55,31 +54,11 @@ const ProfileForm = ({
   });
   const [initialPhoneNumber] = useState(user.phoneNumber || '');
 
-  // State for newsletter subscriptions
-  const [subscriptions, setSubscriptions] = useState<string[]>([]);
-  const [initialSubscriptions, setInitialSubscriptions] = useState<string[]>([]);
-
   // Alert state
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | null; message: string }>({
     type: null,
     message: '',
   });
-
-  useEffect(() => {
-    const fetchSubscriptions = async () => {
-      try {
-        const response = await fetch('/api/loops/subscribe?getSubscriptions=true');
-        if (response.ok) {
-          const subs = await response.json();
-          setSubscriptions(subs);
-          setInitialSubscriptions(subs);
-        }
-      } catch (error) {
-        console.error('Error fetching subscriptions:', error);
-      }
-    };
-    fetchSubscriptions();
-  }, []);
 
   // Cooldown timer for phone verification
   useEffect(() => {
@@ -129,12 +108,6 @@ const ProfileForm = ({
     }
   }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.bio, user.email]);
 
-  const preferencesChanged = useMemo(() => {
-    if (subscriptions.length !== initialSubscriptions.length) return true;
-    const initialSubsSet = new Set(initialSubscriptions);
-    return !subscriptions.every((sub) => initialSubsSet.has(sub));
-  }, [subscriptions, initialSubscriptions]);
-
   useEffect(() => {
     if (alert.type) {
       const timer = setTimeout(() => {
@@ -144,11 +117,6 @@ const ProfileForm = ({
       return () => clearTimeout(timer);
     }
   }, [alert]);
-
-  // Handle subscription changes
-  const handleSubscriptionChange = (value: string[]) => {
-    setSubscriptions(value);
-  };
 
   useEffect(() => {
     setInitialFormState({ ...formState });
@@ -297,7 +265,6 @@ const ProfileForm = ({
     // Reset form state to initial values
     setFormState(initialFormState);
     setChangeMade(false);
-    setSubscriptions(initialSubscriptions);
     // Reset phone state
     setPhoneState({
       phoneNumber: initialPhoneNumber,
@@ -329,36 +296,17 @@ const ProfileForm = ({
     formData.append('phoneNumber', phoneToSave);
 
     // Update profile info
-    const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {
+    const profileResponse = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
       method: 'POST',
       body: formData,
     });
 
-    // Update newsletter preferences
-    const newsletterPromise = fetch('/api/loops/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailingLists: subscriptions }),
-    });
-
-    const [profileResponse, newsletterResponse] = await Promise.all([
-      profilePromise,
-      newsletterPromise,
-    ]);
-
-    if (profileResponse.ok && newsletterResponse.ok) {
+    if (profileResponse.ok) {
       setAlert({ type: 'success', message: 'Profile updated successfully!' });
       setInitialFormState({ ...formState });
-      setInitialSubscriptions([...subscriptions]);
       setChangeMade(false);
     } else {
-      let errorMessage = 'An error occurred. Please try again.';
-      if (!profileResponse.ok) {
-        errorMessage = 'Error updating profile.';
-      } else if (!newsletterResponse.ok) {
-        errorMessage = 'Error updating newsletter preferences.';
-      }
-      setAlert({ type: 'error', message: errorMessage });
+      setAlert({ type: 'error', message: 'Error updating profile.' });
     }
   };
 
@@ -379,20 +327,16 @@ const ProfileForm = ({
           setVerificationInput={setVerificationInput}
           isVerificationFlowActive={!!isVerificationFlowActive}
         />
-        <NewsletterPreferences
-          subscriptions={subscriptions}
-          handleSubscriptionChange={handleSubscriptionChange}
-        />
-        {(changeMade || preferencesChanged) && (
+        {changeMade && (
           <div className="mt-5 flex w-fit gap-2">
             <SecondaryButton
               onClick={handleCancel}
-              disabled={!changeMade && !preferencesChanged}
+              disabled={!changeMade}
               label="Cancel"
             />
             <PrimaryButton
               type="submit"
-              disabled={(!changeMade && !preferencesChanged) || phoneNeedsVerification}
+              disabled={!changeMade || phoneNeedsVerification}
               label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
             />
           </div>

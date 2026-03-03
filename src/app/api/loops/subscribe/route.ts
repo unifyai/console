@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateContact, getMailingLists, getContactSubscriptions } from '@/lib/loops';
+import {
+  updateContact,
+  getMailingLists,
+  getContactSubscriptions,
+  getNewsletters,
+} from '@/lib/loops';
 import { getCurrentUser } from '@/lib/user/user';
 
 export async function GET(request: NextRequest) {
@@ -15,7 +20,8 @@ export async function GET(request: NextRequest) {
   try {
     if (getSubscriptions) {
       const subscriptions = await getContactSubscriptions(user.email);
-      return NextResponse.json(subscriptions);
+      const newsletters = getNewsletters();
+      return NextResponse.json({ subscriptions, newsletters });
     } else {
       const mailingLists = await getMailingLists();
       return NextResponse.json(mailingLists);
