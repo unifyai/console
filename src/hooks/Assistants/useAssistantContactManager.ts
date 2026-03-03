@@ -16,6 +16,7 @@ import {
   FALLBACK_DEFAULT_COUNTRY_CODE,
 } from '@/constants/assistants/settings';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
+import { fetchVisitorCountry } from '@/utils/geo';
 import { toast } from 'sonner';
 
 interface UseAssistantContactManagerProps {
@@ -84,27 +85,34 @@ export function useAssistantContactManager({
     async function loadPhoneCountries() {
       setIsLoadingPhoneCountries(true);
       try {
-        const countries = await assistantActions.contact.listAvailablePhoneCountries();
+        const [countries, visitorCountry] = await Promise.all([
+          assistantActions.contact.listAvailablePhoneCountries(),
+          fetchVisitorCountry(),
+        ]);
         if (cancelled) return;
 
         setAvailablePhoneCountries(countries);
 
-        // Set default phone country if not already set or if current is not in list
         const currentPhoneCountry = getValues('phoneCountry');
         if (countries.length > 0) {
           const hasCurrentCountry = countries.some((c) => c.code === currentPhoneCountry);
           if (!currentPhoneCountry || !hasCurrentCountry) {
+            const preferredDefault = visitorCountry ?? FALLBACK_DEFAULT_COUNTRY_CODE;
+            const hasPreferred = countries.some((c) => c.code === preferredDefault);
             const hasFallback = countries.some((c) => c.code === FALLBACK_DEFAULT_COUNTRY_CODE);
             setValue(
               'phoneCountry',
-              hasFallback ? FALLBACK_DEFAULT_COUNTRY_CODE : countries[0].code,
+              hasPreferred
+                ? preferredDefault
+                : hasFallback
+                  ? FALLBACK_DEFAULT_COUNTRY_CODE
+                  : countries[0].code,
               { shouldDirty: true }
             );
           }
         }
       } catch (error) {
         if (cancelled) return;
-        // Fallback to US
         const usName = getCountryName('US') || 'United States';
         const usFlag = getCountryFlag('US');
         setAvailablePhoneCountries([{ code: 'US', name: usName, flag: usFlag }]);
