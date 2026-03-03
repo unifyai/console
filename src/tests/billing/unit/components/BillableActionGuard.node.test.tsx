@@ -4,10 +4,9 @@
  * Strategy:
  *   1. Pure logic tests for computeGuardDecision (no React)
  *   2. Component rendering tests verifying:
- *      - Passthrough when billing is ready
- *      - Disabled state + tooltip when payment method missing
+ *      - Passthrough when user has credits
  *      - Disabled state + tooltip when credits missing
- *      - "Add a payment method" link is clickable and fires callback
+ *      - "Purchase credits" link is clickable and fires callback
  *      - Custom tooltip messages
  */
 
@@ -28,10 +27,8 @@ import {
 vi.mock('@/hooks/Billing/useBillingStatus', () => ({
   useBillingStatus: () => ({
     hasCustomerId: false,
-    hasPaymentMethod: false,
     credits: 0,
     hasCredits: false,
-    isReady: false,
     isLoading: false,
     error: null,
     refetch: vi.fn(),
@@ -41,8 +38,8 @@ vi.mock('@/hooks/Billing/useBillingStatus', () => ({
 // ─── 1. Pure logic tests ────────────────────────────────────────────────────
 
 describe('computeGuardDecision', () => {
-  it('returns not blocked when both payment method and credits exist', () => {
-    const result = computeGuardDecision(true, true);
+  it('returns not blocked when user has credits', () => {
+    const result = computeGuardDecision(true);
     expect(result).toEqual<GuardDecision>({
       blocked: false,
       reason: null,
@@ -50,28 +47,16 @@ describe('computeGuardDecision', () => {
     });
   });
 
-  it('returns blocked with no_payment_method when payment method missing', () => {
-    const result = computeGuardDecision(false, true);
-    expect(result.blocked).toBe(true);
-    expect(result.reason).toBe('no_payment_method');
-    expect(result.message).toContain('payment method');
-  });
-
   it('returns blocked with no_credits when credits missing', () => {
-    const result = computeGuardDecision(true, false);
+    const result = computeGuardDecision(false);
     expect(result.blocked).toBe(true);
     expect(result.reason).toBe('no_credits');
     expect(result.message).toContain('credits');
   });
 
-  it('prioritizes no_payment_method over no_credits', () => {
-    const result = computeGuardDecision(false, false);
-    expect(result.reason).toBe('no_payment_method');
-  });
-
   it('uses custom message when provided', () => {
     const custom = 'Custom block message';
-    const result = computeGuardDecision(false, true, custom);
+    const result = computeGuardDecision(false, custom);
     expect(result.message).toBe(custom);
   });
 });
@@ -79,10 +64,10 @@ describe('computeGuardDecision', () => {
 // ─── 2. Component rendering tests ──────────────────────────────────────────
 
 describe('BillableActionGuard', () => {
-  it('renders children unmodified when billing is ready', () => {
+  it('renders children unmodified when user has credits', () => {
     const onClick = vi.fn();
     render(
-      <BillableActionGuard hasPaymentMethod={true} hasCredits={true}>
+      <BillableActionGuard hasCredits={true}>
         <button onClick={onClick}>Hire</button>
       </BillableActionGuard>
     );
@@ -93,9 +78,9 @@ describe('BillableActionGuard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('does not wrap in guard span when billing is ready', () => {
+  it('does not wrap in guard span when user has credits', () => {
     render(
-      <BillableActionGuard hasPaymentMethod={true} hasCredits={true}>
+      <BillableActionGuard hasCredits={true}>
         <button>Hire</button>
       </BillableActionGuard>
     );
@@ -103,36 +88,9 @@ describe('BillableActionGuard', () => {
     expect(screen.queryByTestId('billable-action-guard')).toBeNull();
   });
 
-  it('disables child button when no payment method', () => {
-    const onClick = vi.fn();
-    render(
-      <BillableActionGuard hasPaymentMethod={false} hasCredits={true}>
-        <button onClick={onClick}>Hire</button>
-      </BillableActionGuard>
-    );
-
-    const button = screen.getByRole('button', { name: 'Hire' });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-
-    // Click should not fire
-    fireEvent.click(button);
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it('renders guard wrapper when blocked', () => {
-    render(
-      <BillableActionGuard hasPaymentMethod={false} hasCredits={true}>
-        <button>Hire</button>
-      </BillableActionGuard>
-    );
-
-    expect(screen.getByTestId('billable-action-guard')).toBeTruthy();
-  });
-
   it('disables child button when no credits', () => {
     render(
-      <BillableActionGuard hasPaymentMethod={true} hasCredits={false}>
+      <BillableActionGuard hasCredits={false}>
         <button>Chat</button>
       </BillableActionGuard>
     );
@@ -141,9 +99,19 @@ describe('BillableActionGuard', () => {
     expect(button).toBeDisabled();
   });
 
+  it('renders guard wrapper when blocked', () => {
+    render(
+      <BillableActionGuard hasCredits={false}>
+        <button>Hire</button>
+      </BillableActionGuard>
+    );
+
+    expect(screen.getByTestId('billable-action-guard')).toBeTruthy();
+  });
+
   it('applies opacity and pointer-events-none to disabled child', () => {
     render(
-      <BillableActionGuard hasPaymentMethod={false} hasCredits={false}>
+      <BillableActionGuard hasCredits={false}>
         <button className="existing-class">Edit</button>
       </BillableActionGuard>
     );
@@ -154,14 +122,13 @@ describe('BillableActionGuard', () => {
     expect(button.className).toContain('existing-class');
   });
 
-  it('renders "add a payment method" link when onAddPaymentMethod provided', async () => {
+  it('renders "purchase credits" link when onAddPaymentMethod provided and no credits', async () => {
     const onAdd = vi.fn();
     const user = userEvent.setup();
 
     render(
       <BillableActionGuard
-        hasPaymentMethod={false}
-        hasCredits={true}
+        hasCredits={false}
         onAddPaymentMethod={onAdd}
       >
         <button>Hire</button>
@@ -173,35 +140,19 @@ describe('BillableActionGuard', () => {
     await user.hover(guard);
 
     // Wait for tooltip to appear (Radix renders content twice — visual + a11y)
-    const links = await screen.findAllByTestId('add-payment-method-link');
+    const links = await screen.findAllByTestId('buy-credits-link');
     expect(links.length).toBeGreaterThanOrEqual(1);
     const link = links[0];
-    expect(link.textContent).toBe('add a payment method');
+    expect(link.textContent).toBe('purchase credits');
 
     // Click the link
     await user.click(link);
     expect(onAdd).toHaveBeenCalledTimes(1);
   });
 
-  it('shows plain text instead of link when onAddPaymentMethod not provided', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <BillableActionGuard hasPaymentMethod={false} hasCredits={true}>
-        <button>Hire</button>
-      </BillableActionGuard>
-    );
-
-    const guard = screen.getByTestId('billable-action-guard');
-    await user.hover(guard);
-
-    // Should not have the clickable link
-    expect(screen.queryByTestId('add-payment-method-link')).toBeNull();
-  });
-
   it('works with non-button elements', () => {
     render(
-      <BillableActionGuard hasPaymentMethod={false} hasCredits={false}>
+      <BillableActionGuard hasCredits={false}>
         <div data-testid="custom-element">Custom Action</div>
       </BillableActionGuard>
     );
@@ -211,8 +162,7 @@ describe('BillableActionGuard', () => {
   });
 
   it('uses hook data when no explicit props are provided', () => {
-    // The mock returns hasPaymentMethod=false, hasCredits=false, isLoading=false
-    // so the guard should block
+    // The mock returns hasCredits=false, isLoading=false so the guard should block
     render(
       <BillableActionGuard>
         <button>Hire</button>
@@ -225,9 +175,9 @@ describe('BillableActionGuard', () => {
   });
 
   it('supports creditsRequired threshold via explicit props override', () => {
-    // hasPaymentMethod=true, credits from hook = 0, but explicit hasCredits=true overrides
+    // credits from hook = 0, but explicit hasCredits=true overrides
     render(
-      <BillableActionGuard hasPaymentMethod={true} hasCredits={true} creditsRequired={5}>
+      <BillableActionGuard hasCredits={true} creditsRequired={5}>
         <button>Run</button>
       </BillableActionGuard>
     );
@@ -236,4 +186,3 @@ describe('BillableActionGuard', () => {
     expect(button).not.toBeDisabled();
   });
 });
-

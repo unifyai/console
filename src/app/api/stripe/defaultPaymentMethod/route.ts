@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
     const customerID = billingInfo.stripeCustomerId;
 
     if (!customerID) {
-      return NextResponse.json({ error: 'No customer ID found' }, { status: 404 });
+      // No Stripe customer yet — this is normal for new accounts.
+      // Return 200 with null so the client doesn't see a spurious 404 error.
+      return NextResponse.json({ defaultPaymentMethod: null });
     }
 
     const defaultPaymentMethod = await getCustomerDefaultPaymentMethod(customerID);

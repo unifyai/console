@@ -257,12 +257,22 @@ export function OneTimeLinkTable({
                 className={cn('text-label truncate', isExpired && !isClaimed && 'opacity-60')}
                 title={link.claimedByEmail || link.userId || undefined}
               >
-                {link.claimedByEmail ||
-                  (link.userId ? (
-                    <span className="text-muted-foreground/70 italic">{link.userId} (ID)</span>
-                  ) : (
-                    <span className="italic text-muted-foreground">N/A</span>
-                  ))}
+                {link.claimedByEmail || link.userId ? (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="truncate">
+                      {link.claimedByEmail || (
+                        <span className="text-muted-foreground/70 italic">{link.userId} (ID)</span>
+                      )}
+                    </span>
+                    {link.claimedForOrg && (
+                      <span className="text-[11px] text-muted-foreground">
+                        → {link.claimedForOrg}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="italic text-muted-foreground">N/A</span>
+                )}
               </TableCell>
               <TableCell className={cn('text-right', isExpired && !isClaimed && 'opacity-60')}>
                 {isDeletingThis ? (

@@ -6,7 +6,7 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch Teams and their details (members)
+  // Fetch Teams (the list endpoint now includes members inline)
   const fetchTeams = useCallback(async () => {
     if (!orgId) {
       setTeams([]);
@@ -15,7 +15,6 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
 
     setIsLoading(true);
     try {
-      // 1. Get the list of teams
       const listRes = await actions.getTeams(orgId);
 
       if ('detail' in listRes) {
@@ -23,17 +22,7 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
         return;
       }
 
-      const basicTeams = listRes as Team[];
-
-      // 2. Fetch details for each team to get the member list
-      const detailedTeams = await Promise.all(
-        basicTeams.map(async (t) => {
-          const details = await actions.getTeamDetails(orgId, t.id);
-          return 'detail' in details ? t : (details as Team);
-        })
-      );
-
-      setTeams(detailedTeams);
+      setTeams(listRes as Team[]);
     } catch (error) {
       console.error(error);
       toast.error('Failed to load teams');

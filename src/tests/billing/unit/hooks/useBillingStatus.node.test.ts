@@ -18,7 +18,6 @@ import { server } from '@/tests/server';
 
 import {
   fetchHasCustomerId,
-  fetchDefaultPaymentMethod,
   fetchCreditBalance,
   fetchBillingStatus,
   useBillingStatus,
@@ -36,9 +35,6 @@ function installBaselineHandlers() {
   server.use(
     http.get('/api/billing/hasCustomerId', () => {
       return HttpResponse.json({ hasCustomerId: true });
-    }),
-    http.get('/api/stripe/defaultPaymentMethod', () => {
-      return HttpResponse.json({ defaultPaymentMethod: 'pm_test_card_visa' });
     }),
     http.get('/api/billing/balance', () => {
       return HttpResponse.json({ balance: '25.00', fullBalance: BASELINE_BALANCE });
@@ -90,39 +86,6 @@ describe('fetchHasCustomerId', () => {
   });
 });
 
-describe('fetchDefaultPaymentMethod', () => {
-  it('returns payment method ID when one exists', async () => {
-    expect(await fetchDefaultPaymentMethod()).toBe('pm_test_card_visa');
-  });
-
-  it('returns null when no payment method', async () => {
-    server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return HttpResponse.json({ defaultPaymentMethod: null });
-      })
-    );
-    expect(await fetchDefaultPaymentMethod()).toBeNull();
-  });
-
-  it('returns null on 404 (no customer)', async () => {
-    server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return new HttpResponse(null, { status: 404 });
-      })
-    );
-    expect(await fetchDefaultPaymentMethod()).toBeNull();
-  });
-
-  it('returns null on server error', async () => {
-    server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return new HttpResponse(null, { status: 500 });
-      })
-    );
-    expect(await fetchDefaultPaymentMethod()).toBeNull();
-  });
-});
-
 describe('fetchCreditBalance', () => {
   it('returns fullBalance as a number', async () => {
     expect(await fetchCreditBalance()).toBe(25);
@@ -157,57 +120,41 @@ describe('fetchCreditBalance', () => {
 });
 
 describe('fetchBillingStatus', () => {
-  it('returns fully ready status with default mocks', async () => {
+  it('returns ready status with default mocks', async () => {
     const status = await fetchBillingStatus();
     expect(status).toEqual<BillingStatusData>({
       hasCustomerId: true,
-      hasPaymentMethod: true,
       credits: 25,
       hasCredits: true,
-      isReady: true,
     });
   });
 
-  it('isReady is false when no payment method', async () => {
-    server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return HttpResponse.json({ defaultPaymentMethod: null });
-      })
-    );
-    const status = await fetchBillingStatus();
-    expect(status.hasPaymentMethod).toBe(false);
-    expect(status.isReady).toBe(false);
-  });
-
-  it('isReady is false when zero credits despite having payment method', async () => {
+  it('hasCredits is false when zero credits', async () => {
     server.use(
       http.get('/api/billing/balance', () => {
         return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
       })
     );
     const status = await fetchBillingStatus();
-    expect(status.hasPaymentMethod).toBe(true);
     expect(status.hasCredits).toBe(false);
-    expect(status.isReady).toBe(false);
   });
 
-  it('isReady is false when both missing', async () => {
+  it('hasCredits is false when both customer ID and balance missing', async () => {
     server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return new HttpResponse(null, { status: 404 });
+      http.get('/api/billing/hasCustomerId', () => {
+        return HttpResponse.json({ hasCustomerId: false });
       }),
       http.get('/api/billing/balance', () => {
         return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
       })
     );
     const status = await fetchBillingStatus();
-    expect(status.isReady).toBe(false);
-    expect(status.hasPaymentMethod).toBe(false);
+    expect(status.hasCustomerId).toBe(false);
     expect(status.hasCredits).toBe(false);
   });
 
   it('handles partial API failures gracefully', async () => {
-    // Customer ID check fails, but others succeed
+    // Customer ID check fails, but balance succeeds
     server.use(
       http.get('/api/billing/hasCustomerId', () => {
         return new HttpResponse(null, { status: 500 });
@@ -215,8 +162,7 @@ describe('fetchBillingStatus', () => {
     );
     const status = await fetchBillingStatus();
     expect(status.hasCustomerId).toBe(false);
-    // Payment method and balance still work
-    expect(status.hasPaymentMethod).toBe(true);
+    // Balance still works
     expect(status.credits).toBe(25);
   });
 });
@@ -231,24 +177,21 @@ describe('useBillingStatus', () => {
 
     // Initially loading
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.isReady).toBe(false);
 
     // Wait for resolution
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.hasPaymentMethod).toBe(true);
     expect(result.current.hasCredits).toBe(true);
-    expect(result.current.isReady).toBe(true);
     expect(result.current.credits).toBe(25);
     expect(result.current.error).toBeNull();
   });
 
-  it('reports not ready when payment method is missing', async () => {
+  it('reports no credits when balance is zero', async () => {
     server.use(
-      http.get('/api/stripe/defaultPaymentMethod', () => {
-        return HttpResponse.json({ defaultPaymentMethod: null });
+      http.get('/api/billing/balance', () => {
+        return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
       })
     );
 
@@ -260,8 +203,7 @@ describe('useBillingStatus', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.hasPaymentMethod).toBe(false);
-    expect(result.current.isReady).toBe(false);
+    expect(result.current.hasCredits).toBe(false);
   });
 
   it('provides a working refetch callback', async () => {
@@ -284,7 +226,7 @@ describe('useBillingStatus', () => {
 
     // First call: 0 credits
     expect(result.current.credits).toBe(0);
-    expect(result.current.isReady).toBe(false);
+    expect(result.current.hasCredits).toBe(false);
 
     // Trigger refetch
     result.current.refetch();
@@ -293,7 +235,6 @@ describe('useBillingStatus', () => {
       expect(result.current.credits).toBe(50);
     });
 
-    expect(result.current.isReady).toBe(true);
+    expect(result.current.hasCredits).toBe(true);
   });
 });
-

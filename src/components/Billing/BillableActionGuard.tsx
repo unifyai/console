@@ -4,10 +4,10 @@
  * BillableActionGuard
  *
  * Wraps any billable action button/element and, when the active billing
- * account lacks a payment method or sufficient credits, disables the
- * element and shows a tooltip explaining the requirement.
+ * account lacks sufficient credits, disables the element and shows a
+ * tooltip explaining the requirement.
  *
- * The tooltip contains a clickable "add a payment method" link that opens
+ * The tooltip contains a clickable "purchase credits" link that opens
  * the Stripe side panel.
  *
  * By default the guard fetches billing status automatically via the
@@ -28,13 +28,13 @@
  * </BillableActionGuard>
  *
  * // Explicit override — pass billing status from parent
- * <BillableActionGuard hasPaymentMethod={status.hasPaymentMethod} hasCredits={status.hasCredits}>
+ * <BillableActionGuard hasCredits={status.hasCredits}>
  *   <Button onClick={action}>Go</Button>
  * </BillableActionGuard>
  * ```
  *
- * When billing is ready (payment method + sufficient credits), children
- * render normally with no wrapper overhead.
+ * When the user has sufficient credits, children render normally with
+ * no wrapper overhead.
  */
 
 import * as React from 'react';
@@ -51,11 +51,6 @@ import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider
 
 export interface BillableActionGuardProps {
   children: React.ReactElement;
-  /**
-   * Whether the user has a payment method on file.
-   * If omitted, fetched automatically via useBillingStatus.
-   */
-  hasPaymentMethod?: boolean;
   /**
    * Whether the user has sufficient credits.
    * If omitted, computed from useBillingStatus using `creditsRequired`.
@@ -78,7 +73,7 @@ export interface BillableActionGuardProps {
 
 export interface GuardDecision {
   blocked: boolean;
-  reason: 'no_payment_method' | 'no_credits' | null;
+  reason: 'no_credits' | null;
   message: string;
 }
 
@@ -87,7 +82,6 @@ export interface GuardDecision {
  * Exported for unit testing without React.
  */
 export function computeGuardDecision(
-  hasPaymentMethod: boolean,
   hasCredits: boolean,
   customMessage?: string
 ): GuardDecision {
@@ -105,7 +99,6 @@ export function computeGuardDecision(
 
 export function BillableActionGuard({
   children,
-  hasPaymentMethod: hasPaymentMethodProp,
   hasCredits: hasCreditsProp,
   creditsRequired = 0,
   onAddPaymentMethod,
@@ -115,19 +108,16 @@ export function BillableActionGuard({
   // All hooks called unconditionally (React rules of hooks)
   const billingStatus = useBillingStatus();
 
-  // In staging environments, skip billing checks entirely
-
   // Use explicit props when provided, otherwise derive from hook data
-  const hasPaymentMethod = hasPaymentMethodProp ?? billingStatus.hasPaymentMethod;
   const hasCredits =
     hasCreditsProp ?? (creditsRequired > 0
       ? billingStatus.credits >= creditsRequired
       : billingStatus.hasCredits);
 
-  const decision = computeGuardDecision(hasPaymentMethod, hasCredits, tooltipMessage);
+  const decision = computeGuardDecision(hasCredits, tooltipMessage);
 
   // Still loading and no explicit props → render children as-is (not blocked)
-  if (billingStatus.isLoading && hasPaymentMethodProp === undefined && hasCreditsProp === undefined) {
+  if (billingStatus.isLoading && hasCreditsProp === undefined) {
     return <>{children}</>;
   }
 
@@ -155,33 +145,16 @@ export function BillableActionGuard({
         </TooltipTrigger>
         <TooltipContent side={tooltipSide} className="max-w-xs p-3">
           <p className="text-caption leading-relaxed">
-            {decision.reason === 'no_payment_method' ? (
-              <>
-                You need to{' '}
-                <button
-                  type="button"
-                  onClick={onAddPaymentMethod}
-                  className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-                  data-testid="add-payment-method-link"
-                >
-                  add a payment method
-                </button>{' '}
-                and purchase credits before using this feature.
-              </>
-            ) : (
-              <>
-                You need to{' '}
-                <button
-                  type="button"
-                  onClick={onAddPaymentMethod}
-                  className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-                  data-testid="buy-credits-link"
-                >
-                  purchase credits
-                </button>{' '}
-                to use this feature.
-              </>
-            )}
+            You need to{' '}
+            <button
+              type="button"
+              onClick={onAddPaymentMethod}
+              className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+              data-testid="buy-credits-link"
+            >
+              purchase credits
+            </button>{' '}
+            to use this feature.
           </p>
         </TooltipContent>
       </Tooltip>

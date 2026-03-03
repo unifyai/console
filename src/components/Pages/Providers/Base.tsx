@@ -18,6 +18,7 @@ export default async function Providers({ children }: { children: React.ReactNod
   // production builds.
   const envConfig = {
     isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
+    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY,
   };
 
   return (

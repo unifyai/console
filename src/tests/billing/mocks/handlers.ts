@@ -25,6 +25,7 @@ export const defaultBalance = {
 export const defaultCreditGrantClaim = {
   message: 'Credits granted successfully!',
   credits_granted: 10,
+  credited_to: 'personal',
 };
 
 // ─── Handlers ───────────────────────────────────────────────────────────────

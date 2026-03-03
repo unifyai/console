@@ -530,6 +530,48 @@ describe('Assistant Hire Flow', () => {
       }
     );
 
+    it(
+      'should NOT automatically open the hiring dialog for org members who cannot hire',
+      {
+        meta: {
+          alias: 'Hire-Auto-Open-Blocked-OrgMember',
+          behavior: 'Does not trigger open dialog logic when user lacks hire permission',
+          scenario: 'Org member visits page with no assistants',
+        },
+      },
+      async () => {
+        const AutoOpenTestComponent = ({
+          assistants,
+          canHire,
+        }: {
+          assistants: Assistant[];
+          canHire: boolean;
+        }) => {
+          const [isOpen, setIsOpen] = React.useState(false);
+          React.useEffect(() => {
+            if (assistants.length === 0 && !isOpen && canHire) {
+              setIsOpen(true);
+            }
+          }, [assistants, isOpen, canHire]);
+          return isOpen ? <div>Dialog Open</div> : <div>Dialog Closed</div>;
+        };
+
+        // Org member (canHire=false) with no assistants — dialog should stay closed
+        render(<AutoOpenTestComponent assistants={[]} canHire={false} />);
+        // Give React a tick to process the effect
+        await waitFor(() => {
+          expect(screen.getByText('Dialog Closed')).toBeInTheDocument();
+        });
+
+        // Org owner (canHire=true) with no assistants — dialog should open
+        cleanup();
+        render(<AutoOpenTestComponent assistants={[]} canHire={true} />);
+        await waitFor(() => {
+          expect(screen.getByText('Dialog Open')).toBeInTheDocument();
+        });
+      }
+    );
+
     it('should register voice before hiring if selected voice does not exist in user library', async () => {
       const user = userEvent.setup();
       const registerSpy = vi.spyOn(mockAssistantActions.voice, 'register').mockResolvedValue({

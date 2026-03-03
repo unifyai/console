@@ -288,6 +288,7 @@ export function setupWorkspaceMock(
         workspaceType === 'organization' ? { id: 'org-1', name: 'Test Org' } : null,
       currentUserId: userId,
       isOwner,
+      isWorkspaceSwitchable: true,
       switchWorkspace: vi.fn(),
     }),
   }));

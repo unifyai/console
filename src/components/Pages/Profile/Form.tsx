@@ -6,12 +6,9 @@ import UserInfo from '@/components/Pages/Profile/Info';
 import NewsletterPreferences from './Newsletter';
 import SecondaryButton from '../../Common/Buttons/Secondary';
 import PrimaryButton from '../../Common/Buttons/Primary';
-import DeleteDialog from '../../Common/Dialogs/Delete';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
-import { useRouter } from 'next/navigation';
-import { deleteUser, verifyUserPhone } from '@/lib/user/user';
-import { signOut } from 'next-auth/react';
+import { verifyUserPhone } from '@/lib/user/user';
 import { toast } from 'sonner';
 
 export interface PhoneVerificationState {
@@ -26,9 +23,13 @@ export interface PhoneVerificationState {
   cooldown: number;
 }
 
-const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
-  const router = useRouter();
-
+const ProfileForm = ({
+  user,
+  onPrem,
+}: {
+  user: User;
+  onPrem: string | undefined;
+}) => {
   // Form state
   const [formState, setFormState] = useState({
     name: user.name || '',
@@ -114,13 +115,9 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
         if (response.ok) {
           setFormState((prev) => ({ ...prev, timezone: tz }));
           setInitialFormState((prev) => ({ ...prev, timezone: tz }));
-          toast.success('Your timezone has been automatically set.');
-        } else {
-          toast.error('Could not automatically set your timezone.');
         }
       } catch (error) {
         console.error('Failed to auto-update timezone:', error);
-        toast.error('Could not automatically set your timezone.');
       }
     };
 
@@ -366,7 +363,7 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
   };
 
   return (
-    <div className="mt-10 w-fit sm:mt-0">
+    <div className="mt-10 w-full sm:mt-0">
       <form onSubmit={handleSave}>
         <UserInfo
           formState={formState}
@@ -386,45 +383,20 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
           subscriptions={subscriptions}
           handleSubscriptionChange={handleSubscriptionChange}
         />
-        <div className="mt-5 flex items-center justify-between gap-5">
-          {changeMade || preferencesChanged ? (
-            <div className="flex w-fit gap-2">
-              <SecondaryButton
-                onClick={handleCancel}
-                disabled={!changeMade && !preferencesChanged}
-                label="Cancel"
-              />
-              <PrimaryButton
-                type="submit"
-                disabled={(!changeMade && !preferencesChanged) || phoneNeedsVerification}
-                label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
-              />
-            </div>
-          ) : (
-            <div></div>
-          )}
-          <div className="flex w-fit gap-2">
+        {(changeMade || preferencesChanged) && (
+          <div className="mt-5 flex w-fit gap-2">
             <SecondaryButton
-              label="Sign Out"
-              onClick={() => {
-                signOut();
-                router.push('/login');
-              }}
+              onClick={handleCancel}
+              disabled={!changeMade && !preferencesChanged}
+              label="Cancel"
             />
-            <DeleteDialog
-              args={[user.id]}
-              deletingFunction={deleteUser}
-              onDelete={() => {
-                router.push('/login');
-              }}
-              type="account"
-              text="Delete Account"
-              icon={null}
-              variant="destructive"
-              expectedResponseType={'string'}
+            <PrimaryButton
+              type="submit"
+              disabled={(!changeMade && !preferencesChanged) || phoneNeedsVerification}
+              label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
             />
           </div>
-        </div>
+        )}
       </form>
       {alert.type && (
         <Alert variant={alert.type === 'error' ? 'destructive' : 'default'} className="mt-5">

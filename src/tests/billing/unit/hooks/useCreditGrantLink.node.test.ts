@@ -31,12 +31,10 @@ vi.mock('next/navigation', () => ({
 // ─── Mock useBillingStatus ───────────────────────────────────────────────────
 
 const mockBillingStatus = {
-  hasPaymentMethod: false,
   isLoading: false,
   hasCustomerId: true,
   hasCredits: false,
   credits: 0,
-  isReady: false,
   error: null,
   refetch: vi.fn(),
 };
@@ -172,6 +170,39 @@ describe('claimCreditGrantToken', () => {
     expect(result.success).toBe(true);
     expect(result.creditsGranted).toBe(25);
   });
+
+  it('returns creditedTo when present in response (snake_case)', async () => {
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Claimed for org!',
+          credits_granted: 50,
+          credited_to: 'My Org',
+        })
+      )
+    );
+
+    const result = await claimCreditGrantToken('org_token');
+    expect(result.success).toBe(true);
+    expect(result.creditsGranted).toBe(50);
+    expect(result.creditedTo).toBe('My Org');
+  });
+
+  it('returns creditedTo when present in response (camelCase)', async () => {
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Claimed personally!',
+          creditsGranted: 10,
+          creditedTo: 'personal',
+        })
+      )
+    );
+
+    const result = await claimCreditGrantToken('personal_token');
+    expect(result.success).toBe(true);
+    expect(result.creditedTo).toBe('personal');
+  });
 });
 
 // ─── useCreditGrantLink hook ─────────────────────────────────────────────────
@@ -183,7 +214,7 @@ describe('useCreditGrantLink', () => {
     vi.clearAllMocks();
 
     // Reset billing status to default (no payment method, not loading)
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     mockBillingStatus.isLoading = false;
 
     // Reset search params
@@ -235,7 +266,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('auto-claims when user has payment method and token is present', async () => {
-    mockBillingStatus.hasPaymentMethod = true;
+    mockBillingStatus.hasCredits = true;
     mockSearchParams.set('token', 'auto_claim_token');
 
     server.use(
@@ -260,7 +291,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('auto-claims even when user has no payment method (credit grants are free)', async () => {
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     mockSearchParams.set('token', 'free_credit_token');
 
     server.use(
@@ -285,7 +316,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('does NOT auto-claim while billing status is loading', async () => {
-    mockBillingStatus.hasPaymentMethod = true;
+    mockBillingStatus.hasCredits = true;
     mockBillingStatus.isLoading = true;
     mockSearchParams.set('token', 'loading_token');
 
@@ -299,7 +330,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('claimPendingToken can be called manually', async () => {
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     setStoredToken('manual_claim_token');
 
     server.use(
@@ -388,6 +419,32 @@ describe('useCreditGrantLink', () => {
     expect(result.current.pendingToken).toBeNull();
     expect(getStoredToken()).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+
+  it('shows org name in success toast when credits go to an organization', async () => {
+    mockBillingStatus.hasCredits = false;
+    mockSearchParams.set('token', 'org_claim_token');
+
+    server.use(
+      http.post('/api/user/claim-credit-grant-link', () =>
+        HttpResponse.json({
+          message: 'Link successfully claimed! 50.00 credits awarded.',
+          credits_granted: 50,
+          credited_to: 'Acme Corp',
+        })
+      )
+    );
+
+    const { result } = renderHook(() => useCreditGrantLink(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.hasClaimed).toBe(true);
+    });
+
+    // The toast should show the backend message
+    expect(toast.success).toHaveBeenCalledWith(
+      'Link successfully claimed! 50.00 credits awarded.'
+    );
   });
 });
 

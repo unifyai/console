@@ -9,6 +9,8 @@ interface WorkspaceContextType {
   activeWorkspace: UserWorkspace | null;
   activeOrganization: UserOrganization | null;
   currentUserId: string | null;
+  /** Whether the user can switch between workspaces (false for non-Unify org members). */
+  isWorkspaceSwitchable: boolean;
   switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
@@ -70,6 +72,15 @@ export function WorkspaceProvider({
   // 2c. Current User ID
   const currentUserId = user?.id || null;
 
+  // 2d. Workspace switchability
+  // Non-Unify org members are locked to their org workspace; the switcher
+  // is rendered as a static label instead of a dropdown.
+  const isWorkspaceSwitchable = useMemo(() => {
+    if (!user) return false;
+    // Only Unify org members can switch workspaces; everyone else sees a static label.
+    return user.organizations?.some((org) => org.name === 'Unify') ?? false;
+  }, [user]);
+
   // 3. Switcher Logic
   const switchWorkspace = async (workspaceId: string) => {
     // Optimistic UI update could happen here if we used local state,
@@ -87,7 +98,7 @@ export function WorkspaceProvider({
 
   return (
     <WorkspaceContext.Provider
-      value={{ workspaces, activeWorkspace, activeOrganization, currentUserId, switchWorkspace }}
+      value={{ workspaces, activeWorkspace, activeOrganization, currentUserId, isWorkspaceSwitchable, switchWorkspace }}
     >
       {children}
     </WorkspaceContext.Provider>
