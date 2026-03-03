@@ -7,8 +7,17 @@ import {
   getAssistantOwnerById,
   uploadAttachment,
 } from '@/lib/assistants/chat';
-import { getCallConnectionDetails, dispatchAssistantToCall, deleteCallRoom } from '@/lib/assistants/call';
-import { getLiveviewUrl, sendSystemEvent, listUserDesktops } from '@/lib/assistants/desktop';
+import {
+  getCallConnectionDetails,
+  dispatchAssistantToCall,
+  deleteCallRoom,
+} from '@/lib/assistants/call';
+import {
+  getLiveviewUrl,
+  checkLiveviewHealth,
+  sendSystemEvent,
+  listUserDesktops,
+} from '@/lib/assistants/desktop';
 import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import AssistantCommunicationFullScreen from '@/components/Pages/Assistants/Communication/AssistantCommunicationFullScreen';
@@ -42,6 +51,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
+      checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),
     },

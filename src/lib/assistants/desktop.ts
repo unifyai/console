@@ -5,6 +5,30 @@ import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 
+const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
+  try {
+    const urlObj = new URL(liveviewUrl);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}/`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS);
+    try {
+      const resp = await fetch(baseUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+        // @ts-ignore — Node fetch supports this option in server actions
+        rejectUnauthorized: false,
+      });
+      return resp.status < 500;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch {
+    return false;
+  }
+}
+
 export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
   return async (assistantId: string): Promise<{ liveviewUrl?: string } | ResponseProps> => {
     'use server';
@@ -77,6 +101,13 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
           : 'Unknown server error occurred while fetching session URL.';
       return { detail: errorMessage };
     }
+  };
+};
+
+export const checkLiveviewHealth = async () => {
+  return async (liveviewUrl: string): Promise<boolean> => {
+    'use server';
+    return isLiveviewReachable(liveviewUrl);
   };
 };
 

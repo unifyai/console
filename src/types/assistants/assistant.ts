@@ -462,6 +462,7 @@ export interface AssistantActions {
   };
   desktop: {
     getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+    checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,

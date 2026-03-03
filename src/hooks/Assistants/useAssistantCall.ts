@@ -275,6 +275,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     try {
       const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
       if (result.liveviewUrl) {
+        const healthy = await assistantActions.desktop.checkLiveviewHealth(result.liveviewUrl);
+        if (!healthy) {
+          throw new Error('Desktop is not reachable — it may still be starting up.');
+        }
         setLiveviewUrl(result.liveviewUrl);
         setIsRemoteControlActive(true);
         setIsRemoteControlInteractive(false);
@@ -291,7 +295,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       }
     } catch (e: any) {
       console.error('[useAssistantCall] Toggle remote control failed:', e.message);
-      toast.error('The assistant could not share their screen. Please try again.', { id: toastId });
+      toast.error('The assistant could not share their screen. Please try again.', {
+        id: toastId,
+      });
     } finally {
       setIsRemoteControlLoading(false);
     }

@@ -154,6 +154,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn(),
+    checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn(),
     listUserDesktops: vi.fn(),
   },
@@ -576,27 +577,26 @@ describe('useAssistantCall', () => {
 
   describe('Room Deletion', () => {
     it(
-      'does not proactively delete room before connecting',
+      'proactively deletes stale room before connecting',
       {
         meta: {
-          alias: 'Call-NoProactiveDelete',
+          alias: 'Call-ProactiveDelete',
           scenario: 'User initiates a new call',
-          behavior: 'deleteRoom is NOT called before getConnectionDetails',
+          behavior:
+            'deleteRoom is called before getConnectionDetails to clear stale rooms from previous failed attempts',
         },
       },
       async () => {
-        // Arrange
         const assistant = createMockAssistant({ agentId: 'agent-42' });
 
-        // Act
         const { result } = renderHook(() => useAssistantCall(mockRoom as any, mockActions));
 
         await act(async () => {
           await result.current.connect(assistant, 'audio');
         });
 
-        // Assert - deleteRoom should not be called during normal connect
-        expect(mockActions.call.deleteRoom).not.toHaveBeenCalled();
+        expect(mockActions.call.deleteRoom).toHaveBeenCalledTimes(1);
+        expect(mockActions.call.deleteRoom).toHaveBeenCalledWith('unity_agent-42_meet');
       }
     );
 
