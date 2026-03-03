@@ -2,7 +2,7 @@ import pagesOptions from './pages';
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
-// import AzureADProvider from 'next-auth/providers/azure-ad'; // TODO: Re-enable
+import AzureADProvider from 'next-auth/providers/azure-ad';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
@@ -64,24 +64,35 @@ const authOptions: AuthOptions = {
       // GitHub verifies email ownership, so it's safe to auto-link accounts.
       allowDangerousEmailAccountLinking: true,
     }),
-    // TODO: Re-enable Microsoft auth once ready
-    // AzureADProvider({
-    //   clientId: process.env.AZURE_AD_CLIENT_ID!,
-    //   clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-    //   tenantId: process.env.AZURE_AD_TENANT_ID,
-    //   // Microsoft verifies email ownership, so it's safe to auto-link accounts
-    //   // that share the same verified email.
-    //   allowDangerousEmailAccountLinking: true,
-    //   profile(profile) {
-    //     return {
-    //       id: profile.sub,
-    //       email: profile.email ?? profile.preferred_username ?? null,
-    //       name: profile.given_name ?? profile.name ?? null,
-    //       lastName: profile.family_name ?? null,
-    //       image: null, // Azure AD doesn't return picture in the ID token by default
-    //     };
-    //   },
-    // }),
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      tenantId: process.env.AZURE_AD_TENANT_ID,
+      // Microsoft verifies email ownership, so it's safe to auto-link accounts
+      // that share the same verified email.
+      allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        // Azure AD may only provide `name` (full display name) without
+        // separate given_name / family_name fields — especially for
+        // personal Microsoft accounts. Split the full name as a fallback.
+        let firstName = profile.given_name ?? null;
+        let lastName = profile.family_name ?? null;
+
+        if (!firstName && profile.name) {
+          const parts = profile.name.trim().split(/\s+/);
+          firstName = parts[0];
+          lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
+        }
+
+        return {
+          id: profile.sub,
+          email: profile.email ?? profile.preferred_username ?? null,
+          name: firstName,
+          lastName: lastName,
+          image: null, // Azure AD doesn't return picture in the ID token by default
+        };
+      },
+    }),
     CredentialsProvider({
       name: 'Email',
       credentials: {
