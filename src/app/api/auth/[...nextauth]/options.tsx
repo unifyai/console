@@ -18,7 +18,7 @@ const authOptions: AuthOptions = {
   adapter: OrchestraAdapter(),
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   cookies: {
     sessionToken: {
@@ -61,8 +61,7 @@ const authOptions: AuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
-      // GitHub verifies email ownership, so it's safe to auto-link accounts.
-      allowDangerousEmailAccountLinking: true,
+      // GitHub is deprecated; auto-linking is disabled for security.
     }),
     AzureADProvider({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
@@ -166,7 +165,7 @@ const authOptions: AuthOptions = {
      */
     async signIn({ user, account }) {
       // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
-      const autoLinkProviders = ['google', 'github', 'azure-ad'];
+      const autoLinkProviders = ['google', 'azure-ad'];
 
       if (
         account?.provider &&
@@ -260,7 +259,7 @@ const authOptions: AuthOptions = {
           try {
             const onboardingRes = await OrchestraAdminClient.get(
               '/auth/onboarding-status-by-email',
-              { params: { email: token.email } },
+              { params: { email: token.email } }
             );
             const step = onboardingRes.data?.onboardingStep;
             if (step && step !== 'completed') {
@@ -271,14 +270,26 @@ const authOptions: AuthOptions = {
           }
         }
       }
-      // On session update: clear mfaPending after TOTP verification
-      if (trigger === 'update' && session?.mfaPending === false) {
-        delete token.mfaPending;
-      }
+      // mfaPending is cleared exclusively by the server-side MFA verify
+      // route handlers (src/app/api/auth/mfa/verify and verify-recovery),
+      // which patch the JWT cookie directly after Orchestra confirms the
+      // TOTP/recovery code. Client-side update() cannot clear this flag.
+
       // On session update: advance or clear onboarding step
       if (trigger === 'update' && session?.onboardingStep) {
         if (session.onboardingStep === 'completed') {
-          delete token.onboardingStep;
+          try {
+            const onboardingRes = await OrchestraAdminClient.get(
+              '/auth/onboarding-status-by-email',
+              { params: { email: token.email } }
+            );
+            const step = onboardingRes.data?.onboardingStep;
+            if (!step || step === 'completed') {
+              delete token.onboardingStep;
+            }
+          } catch {
+            // Don't clear if verification fails
+          }
         } else {
           token.onboardingStep = session.onboardingStep;
         }

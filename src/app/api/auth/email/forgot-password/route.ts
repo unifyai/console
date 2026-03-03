@@ -10,7 +10,8 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = await OrchestraAdminClient.post('/auth/forgot-password', body);
+    const { email } = body;
+    const res = await OrchestraAdminClient.post('/auth/forgot-password', { email });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
     // Always return 200 to prevent email enumeration
@@ -20,4 +21,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

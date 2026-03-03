@@ -13,11 +13,12 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { email, code } = body;
 
     // Step 1: Verify the code → get a short-lived token
     const verifyRes = await OrchestraAdminClient.post('/auth/verify-code', {
-      email: body.email,
-      code: body.code,
+      email,
+      code,
       purpose: 'signup',
     });
     const { token } = verifyRes.data;
@@ -28,7 +29,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'verification_failed', message: 'Verification failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'verification_failed', message: 'Verification failed' };
     return NextResponse.json(data, { status });
   }
 }

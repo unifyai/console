@@ -10,13 +10,17 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = await OrchestraAdminClient.post('/auth/resend-verification', body);
+    const { email, purpose } = body;
+    const res = await OrchestraAdminClient.post('/auth/resend-verification', {
+      email,
+      purpose,
+    });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'resend_failed', message: 'Failed to resend code' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'resend_failed', message: 'Failed to resend code' };
     return NextResponse.json(data, { status });
   }
 }
-

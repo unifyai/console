@@ -15,7 +15,11 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = await OrchestraAdminClient.post('/auth/authenticate', body);
+    const { email, password } = body;
+    const res = await OrchestraAdminClient.post('/auth/authenticate', {
+      email,
+      password,
+    });
 
     // Sign a short-lived JWT so `authorize` can skip the second Orchestra call.
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
@@ -33,11 +37,12 @@ export async function POST(request: NextRequest) {
       .setExpirationTime('60s') // 60-second window to complete signIn
       .sign(secret);
 
-    return NextResponse.json({ ...res.data, preAuthToken }, { status: 200 });
+    return NextResponse.json({ preAuthToken }, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'auth_failed', message: 'Authentication failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'auth_failed', message: 'Authentication failed' };
     return NextResponse.json(data, { status });
   }
 }

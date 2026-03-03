@@ -59,7 +59,7 @@ vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
 import InviteContent from '@/components/Pages/Invite/Main';
 
 // Mock for the patchSessionAndRedirect server action
-let mockPatchSession: ReturnType<typeof vi.fn>;
+let mockPatchSession: any;
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,9 @@ describe('InviteContent – processing state', () => {
   it('calls onAccept exactly once (strict-mode guard)', async () => {
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_once" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_once" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(onAccept).toHaveBeenCalledTimes(1);
@@ -152,7 +154,9 @@ describe('InviteContent – success state', () => {
   it('shows generic success text when org name is absent', async () => {
     const onAccept = vi.fn().mockResolvedValue({ success: true });
 
-    render(<InviteContent token="tok_no_name" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_no_name" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Welcome!')).toBeInTheDocument();
@@ -176,7 +180,7 @@ describe('InviteContent – success state', () => {
     expect(mockPatchSession).toHaveBeenCalledWith(
       { onboardingStep: 'completed' },
       '/assistants',
-      {},
+      {}
     );
   });
 });
@@ -230,7 +234,13 @@ describe('InviteContent – MFA required state', () => {
       organizationName: 'MFA Org',
     });
 
-    render(<InviteContent token="tok_mfa_redirect" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent
+        token="tok_mfa_redirect"
+        onAccept={onAccept}
+        onPatchSession={mockPatchSession}
+      />
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
@@ -246,7 +256,7 @@ describe('InviteContent – MFA required state', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/login/mfa',
-        {},
+        {}
       );
     });
 
@@ -279,7 +289,9 @@ describe('InviteContent – error state', () => {
       detail: 'Invitation has expired',
     });
 
-    render(<InviteContent token="tok_expired" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_expired" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
@@ -303,7 +315,9 @@ describe('InviteContent – error state', () => {
   it('shows generic error when onAccept throws', async () => {
     const onAccept = vi.fn().mockRejectedValue(new Error('Network failure'));
 
-    render(<InviteContent token="tok_throw" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_throw" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
@@ -315,7 +329,9 @@ describe('InviteContent – error state', () => {
       detail: 'Token invalid',
     });
 
-    render(<InviteContent token="tok_no_clear" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_no_clear" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
@@ -331,8 +347,12 @@ describe('InviteContent – email mismatch error', () => {
     mockPatchSession = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'location', {
       value: {
-        get href() { return 'http://localhost:3000/login/invite'; },
-        set href(val: string) { /* allow signOut redirect */ },
+        get href() {
+          return 'http://localhost:3000/login/invite';
+        },
+        set href(val: string) {
+          /* allow signOut redirect */
+        },
         origin: 'http://localhost:3000',
         protocol: 'http:',
         host: 'localhost:3000',
@@ -351,7 +371,9 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'This invite is for a different email address',
     });
 
-    render(<InviteContent token="tok_mismatch" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_mismatch" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
@@ -370,8 +392,12 @@ describe('InviteContent – email mismatch error', () => {
     let locationHref = 'http://localhost:3000/login/invite';
     Object.defineProperty(window, 'location', {
       value: {
-        get href() { return locationHref; },
-        set href(val: string) { locationHref = val; },
+        get href() {
+          return locationHref;
+        },
+        set href(val: string) {
+          locationHref = val;
+        },
         origin: 'http://localhost:3000',
         protocol: 'http:',
         host: 'localhost:3000',
@@ -384,7 +410,9 @@ describe('InviteContent – email mismatch error', () => {
       writable: true,
     });
 
-    render(<InviteContent token="tok_back" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_back" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
@@ -405,7 +433,9 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'This invite is for a different email address',
     });
 
-    render(<InviteContent token="tok_continue" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_continue" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('continue-anyway-btn')).toBeInTheDocument();
@@ -421,7 +451,9 @@ describe('InviteContent – email mismatch error', () => {
       detail: 'Invitation already used',
     });
 
-    render(<InviteContent token="tok_used" onAccept={onAccept} onPatchSession={mockPatchSession} />);
+    render(
+      <InviteContent token="tok_used" onAccept={onAccept} onPatchSession={mockPatchSession} />
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Invitation already used')).toBeInTheDocument();

@@ -15,17 +15,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const body = await request.json();
+    const { code } = body;
     const client = await getOrchestraUserClient(apiKey);
-    const res = await client.post('/auth/mfa/recovery-codes');
+    const res = await client.post('/auth/mfa/recovery-codes', { code });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? {
-      error: 'regenerate_failed',
-      message: 'Recovery code regeneration failed',
-    };
+    const data = rawData?.detail ??
+      rawData ?? {
+        error: 'regenerate_failed',
+        message: 'Recovery code regeneration failed',
+      };
     return NextResponse.json(data, { status });
   }
 }
-

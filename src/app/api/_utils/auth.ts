@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getToken } from 'next-auth/jwt';
 import { getCurrentUser } from '@/lib/user/user';
 
 /**
@@ -18,6 +19,19 @@ import { getCurrentUser } from '@/lib/user/user';
  * @returns API key string or null if not authenticated
  */
 export async function getApiKeyFromRequest(request: NextRequest): Promise<string | null> {
+  // Block access when MFA verification is still pending.
+  // The middleware matcher excludes /api/* routes, so this is the enforcement
+  // point for API-level MFA gating. MFA-specific routes are exempt because
+  // the user needs them to complete verification or org-enforced setup.
+  const pathname = request.nextUrl.pathname;
+  const isMfaRoute = pathname.startsWith('/api/auth/mfa');
+  if (!isMfaRoute) {
+    const jwtToken = await getToken({ req: request, secret: process.env.JWT_SECRET });
+    if (jwtToken?.mfaPending) {
+      return null;
+    }
+  }
+
   // Try session-based auth first
   const user = await getCurrentUser();
   if (user?.apiKey) {

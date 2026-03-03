@@ -29,7 +29,7 @@ vi.mock('next-auth/jwt', () => ({
 }));
 
 vi.mock('next-auth/middleware', () => ({
-  withAuth: (...args: any[]) => mockWithAuth(...args),
+  withAuth: (...args: any[]) => (mockWithAuth as any)(...args),
   // NextRequestWithAuth is just NextRequest with an optional nextauth prop
 }));
 
@@ -286,4 +286,3 @@ describe('Middleware – stale session redirect loop prevention', () => {
     }
   });
 });
-

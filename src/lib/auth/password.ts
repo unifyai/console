@@ -28,6 +28,11 @@ export const PASSWORD_RULES: PasswordRule[] = [
     test: (p) => p.length >= PASSWORD_MIN_LENGTH,
   },
   {
+    key: 'maxLength',
+    label: `No more than ${PASSWORD_MAX_LENGTH} characters`,
+    test: (p) => p.length <= PASSWORD_MAX_LENGTH,
+  },
+  {
     key: 'lowercase',
     label: 'At least one lowercase letter',
     test: (p) => /[a-z]/.test(p),
@@ -89,4 +94,3 @@ export function getPasswordError(password: string): string | undefined {
   const missing = rules.filter((r) => !r.passed).map((r) => r.label.toLowerCase());
   return `Password must have ${missing.join(', ')}.`;
 }
-

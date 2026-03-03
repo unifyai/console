@@ -212,7 +212,7 @@ describe('MFA login page', () => {
     server.use(
       http.get('/api/auth/mfa/status', () => {
         return HttpResponse.json({ enabled: true });
-      }),
+      })
     );
     MfaPage = (await import('@/app/login/mfa/page')).default;
   });
@@ -229,11 +229,11 @@ describe('MFA login page', () => {
     expect(screen.getByTestId('use-recovery-code')).toBeInTheDocument();
   });
 
-  it('submits TOTP code and clears mfaPending on success', async () => {
+  it('submits TOTP code and redirects on success (mfaPending cleared server-side)', async () => {
     server.use(
       http.post('/api/auth/mfa/verify', () => {
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -250,10 +250,11 @@ describe('MFA login page', () => {
     await user.keyboard('123456');
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
+      expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
     });
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
+    // mfaPending is cleared server-side via cookie patching, not client-side update()
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('shows error on invalid TOTP code', async () => {
@@ -261,9 +262,9 @@ describe('MFA login page', () => {
       http.post('/api/auth/mfa/verify', () => {
         return HttpResponse.json(
           { error: 'invalid_code', message: 'Invalid or expired TOTP code.' },
-          { status: 400 },
+          { status: 400 }
         );
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -279,9 +280,7 @@ describe('MFA login page', () => {
     await user.keyboard('000000');
 
     await waitFor(() => {
-      expect(screen.getByTestId('totp-error')).toHaveTextContent(
-        'Invalid or expired TOTP code.',
-      );
+      expect(screen.getByTestId('totp-error')).toHaveTextContent('Invalid or expired TOTP code.');
     });
 
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -302,11 +301,11 @@ describe('MFA login page', () => {
     expect(screen.getByTestId('recovery-submit')).toBeInTheDocument();
   });
 
-  it('submits recovery code and clears mfaPending', async () => {
+  it('submits recovery code and redirects on success (mfaPending cleared server-side)', async () => {
     server.use(
       http.post('/api/auth/mfa/verify-recovery', () => {
         return HttpResponse.json({ success: true, remainingCodes: 7 });
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -327,15 +326,17 @@ describe('MFA login page', () => {
     await user.click(screen.getByTestId('recovery-submit'));
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
+      expect(mockRouterPush).toHaveBeenCalledWith('/assistants');
     });
+
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('shows warning when recovery codes are low', async () => {
     server.use(
       http.post('/api/auth/mfa/verify-recovery', () => {
         return HttpResponse.json({ success: true, remainingCodes: 2 });
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -352,7 +353,7 @@ describe('MFA login page', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('recovery-warning')).toHaveTextContent(
-        'You have 2 recovery codes remaining',
+        'You have 2 recovery codes remaining'
       );
     });
   });
@@ -377,7 +378,7 @@ describe('MFA login page', () => {
     server.use(
       http.get('/api/auth/mfa/status', () => {
         return HttpResponse.json({ enabled: false });
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -392,7 +393,7 @@ describe('MFA login page', () => {
     server.use(
       http.get('/api/auth/mfa/status', () => {
         return HttpResponse.error();
-      }),
+      })
     );
 
     render(<MfaPage />);
@@ -433,7 +434,7 @@ describe('JWT callback – mfaPending lifecycle', () => {
     expect(result.mfaPending).toBe(true);
   });
 
-  it('clears mfaPending on session update with mfaPending=false', async () => {
+  it('does NOT clear mfaPending via client-side session update', async () => {
     const mod = await import('@/app/api/auth/[...nextauth]/options');
     const authOpts = mod.authOptions ?? mod.default;
     const jwtCallback = authOpts.callbacks!.jwt!;
@@ -449,7 +450,8 @@ describe('JWT callback – mfaPending lifecycle', () => {
       session: { mfaPending: false },
     });
 
-    expect(result.mfaPending).toBeUndefined();
+    // mfaPending can only be cleared server-side by the MFA verify route handlers
+    expect(result.mfaPending).toBe(true);
   });
 
   it('preserves mfaPending on regular jwt calls', async () => {
@@ -555,4 +557,3 @@ describe('RecoveryCodeDisplay component', () => {
     expect(onDone).toHaveBeenCalled();
   });
 });
-

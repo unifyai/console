@@ -49,9 +49,10 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
-// next/image: render as basic img
+// next/image: render as basic div in tests
 vi.mock('next/image', () => ({
   __esModule: true,
+  // eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element
   default: (props: any) => <img {...props} />,
 }));
 
@@ -93,11 +94,7 @@ describe('MFA Integration', () => {
 
   describe('MFA Verification (enabled)', () => {
     beforeEach(() => {
-      server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: true }),
-        ),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: true })));
     });
 
     it('completes full TOTP verification with real 6-digit input', async () => {
@@ -107,11 +104,8 @@ describe('MFA Integration', () => {
           if (body.code === '123456') {
             return HttpResponse.json({ success: true });
           }
-          return HttpResponse.json(
-            { message: 'Invalid code' },
-            { status: 400 },
-          );
-        }),
+          return HttpResponse.json({ message: 'Invalid code' }, { status: 400 });
+        })
       );
 
       const user = userEvent.setup();
@@ -127,23 +121,19 @@ describe('MFA Integration', () => {
         await user.type(screen.getByTestId(`totp-digit-${i}`), '123456'[i]);
       }
 
-      // Verify session update was called to clear mfaPending
+      // mfaPending is cleared server-side via cookie patching in the verify route
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
+        expect(pushMock).toHaveBeenCalledWith('/assistants');
       });
 
-      // Verify redirect to assistants
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it('shows error for invalid TOTP code in real TotpInput', async () => {
       server.use(
         http.post('/api/auth/mfa/verify', () =>
-          HttpResponse.json(
-            { message: 'Invalid code. Please try again.' },
-            { status: 400 },
-          ),
-        ),
+          HttpResponse.json({ message: 'Invalid code. Please try again.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -161,9 +151,7 @@ describe('MFA Integration', () => {
 
       // Error should appear in the real TotpInput
       await waitFor(() => {
-        expect(screen.getByTestId('totp-error')).toHaveTextContent(
-          'Invalid code',
-        );
+        expect(screen.getByTestId('totp-error')).toHaveTextContent('Invalid code');
       });
 
       // Should NOT have updated session or redirected
@@ -178,11 +166,8 @@ describe('MFA Integration', () => {
           if (body.code === 'ABCD-1234-EFGH') {
             return HttpResponse.json({ remainingCodes: 5 });
           }
-          return HttpResponse.json(
-            { message: 'Invalid recovery code' },
-            { status: 400 },
-          );
-        }),
+          return HttpResponse.json({ message: 'Invalid recovery code' }, { status: 400 });
+        })
       );
 
       const user = userEvent.setup();
@@ -201,26 +186,20 @@ describe('MFA Integration', () => {
       expect(screen.queryByTestId('totp-input')).toBeNull();
 
       // Enter recovery code
-      await user.type(
-        screen.getByTestId('recovery-code-input'),
-        'ABCD-1234-EFGH',
-      );
+      await user.type(screen.getByTestId('recovery-code-input'), 'ABCD-1234-EFGH');
       await user.click(screen.getByTestId('recovery-submit'));
 
-      // Verify session update
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
+        expect(pushMock).toHaveBeenCalledWith('/assistants');
       });
-      expect(pushMock).toHaveBeenCalledWith('/assistants');
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it('shows warning when few recovery codes remain', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       server.use(
-        http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.json({ remainingCodes: 2 }),
-        ),
+        http.post('/api/auth/mfa/verify-recovery', () => HttpResponse.json({ remainingCodes: 2 }))
       );
 
       const user = userEvent.setup({
@@ -233,26 +212,23 @@ describe('MFA Integration', () => {
       });
 
       await user.click(screen.getByTestId('use-recovery-code'));
-      await user.type(
-        screen.getByTestId('recovery-code-input'),
-        'VALID-CODE',
-      );
+      await user.type(screen.getByTestId('recovery-code-input'), 'VALID-CODE');
       await user.click(screen.getByTestId('recovery-submit'));
 
       // Warning should appear
       await waitFor(() => {
         expect(screen.getByTestId('recovery-warning')).toHaveTextContent(
-          '2 recovery codes remaining',
+          '2 recovery codes remaining'
         );
       });
 
-      // After 3 seconds, should redirect
+      // After 3 seconds, should redirect (mfaPending already cleared server-side)
       vi.advanceTimersByTime(3500);
 
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
         expect(pushMock).toHaveBeenCalledWith('/assistants');
       });
+      expect(mockUpdate).not.toHaveBeenCalled();
 
       vi.useRealTimers();
     });
@@ -281,20 +257,15 @@ describe('MFA Integration', () => {
 
   describe('MFA Setup (not enabled)', () => {
     beforeEach(() => {
-      server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: false }),
-        ),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })));
     });
 
     it('completes full MFA setup: QR → confirm code → recovery codes → done', async () => {
       server.use(
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', async ({ request }) => {
           const body = (await request.json()) as Record<string, unknown>;
@@ -308,11 +279,8 @@ describe('MFA Integration', () => {
               ],
             });
           }
-          return HttpResponse.json(
-            { message: 'Invalid code' },
-            { status: 400 },
-          );
-        }),
+          return HttpResponse.json({ message: 'Invalid code' }, { status: 400 });
+        })
       );
 
       const user = userEvent.setup();
@@ -342,24 +310,14 @@ describe('MFA Integration', () => {
 
       // Real RecoveryCodeDisplay should appear
       await waitFor(() => {
-        expect(
-          screen.getByTestId('recovery-codes-display'),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('recovery-codes-display')).toBeInTheDocument();
       });
 
       // Verify recovery codes are displayed
-      expect(screen.getByTestId('recovery-code-0')).toHaveTextContent(
-        'CODE-1111-AAAA',
-      );
-      expect(screen.getByTestId('recovery-code-1')).toHaveTextContent(
-        'CODE-2222-BBBB',
-      );
-      expect(screen.getByTestId('recovery-code-2')).toHaveTextContent(
-        'CODE-3333-CCCC',
-      );
-      expect(screen.getByTestId('recovery-code-3')).toHaveTextContent(
-        'CODE-4444-DDDD',
-      );
+      expect(screen.getByTestId('recovery-code-0')).toHaveTextContent('CODE-1111-AAAA');
+      expect(screen.getByTestId('recovery-code-1')).toHaveTextContent('CODE-2222-BBBB');
+      expect(screen.getByTestId('recovery-code-2')).toHaveTextContent('CODE-3333-CCCC');
+      expect(screen.getByTestId('recovery-code-3')).toHaveTextContent('CODE-4444-DDDD');
 
       // "Done" button should be disabled until acknowledged
       expect(screen.getByTestId('codes-done-btn')).toBeDisabled();
@@ -371,24 +329,23 @@ describe('MFA Integration', () => {
       // Click Done
       await user.click(screen.getByTestId('codes-done-btn'));
 
-      // Should update session and redirect
+      // mfaPending cleared server-side by the confirm route's cookie patch
       await waitFor(() => {
-        expect(mockUpdate).toHaveBeenCalledWith({ mfaPending: false });
         expect(pushMock).toHaveBeenCalledWith('/assistants');
       });
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it('shows error in real TotpInput when confirmation code is wrong', async () => {
       server.use(
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
-          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -413,15 +370,11 @@ describe('MFA Integration', () => {
 
       // Error should appear in the real TotpInput
       await waitFor(() => {
-        expect(screen.getByTestId('totp-error')).toHaveTextContent(
-          'Invalid code',
-        );
+        expect(screen.getByTestId('totp-error')).toHaveTextContent('Invalid code');
       });
 
       // Should NOT have shown recovery codes
-      expect(
-        screen.queryByTestId('recovery-codes-display'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('recovery-codes-display')).not.toBeInTheDocument();
     });
   });
 
@@ -429,11 +382,7 @@ describe('MFA Integration', () => {
 
   describe('Back to login', () => {
     it('signs out and redirects to login page', async () => {
-      server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: true }),
-        ),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: true })));
 
       const user = userEvent.setup();
       render(<MfaPage />);
@@ -455,17 +404,11 @@ describe('MFA Integration', () => {
 
   describe('MFA verification error paths', () => {
     beforeEach(() => {
-      server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: true }),
-        ),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: true })));
     });
 
     it('shows network error when TOTP verify API throws', async () => {
-      server.use(
-        http.post('/api/auth/mfa/verify', () => HttpResponse.error()),
-      );
+      server.use(http.post('/api/auth/mfa/verify', () => HttpResponse.error()));
 
       const user = userEvent.setup();
       render(<MfaPage />);
@@ -479,9 +422,7 @@ describe('MFA Integration', () => {
       }
 
       await waitFor(() => {
-        expect(screen.getByTestId('totp-error')).toHaveTextContent(
-          'Verification failed',
-        );
+        expect(screen.getByTestId('totp-error')).toHaveTextContent('Verification failed');
       });
 
       // Should NOT have updated session
@@ -491,11 +432,8 @@ describe('MFA Integration', () => {
     it('shows error for invalid recovery code', async () => {
       server.use(
         http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.json(
-            { message: 'Invalid recovery code.' },
-            { status: 400 },
-          ),
-        ),
+          HttpResponse.json({ message: 'Invalid recovery code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -506,16 +444,11 @@ describe('MFA Integration', () => {
       });
 
       await user.click(screen.getByTestId('use-recovery-code'));
-      await user.type(
-        screen.getByTestId('recovery-code-input'),
-        'WRONG-CODE',
-      );
+      await user.type(screen.getByTestId('recovery-code-input'), 'WRONG-CODE');
       await user.click(screen.getByTestId('recovery-submit'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('recovery-error')).toHaveTextContent(
-          'Invalid recovery code',
-        );
+        expect(screen.getByTestId('recovery-error')).toHaveTextContent('Invalid recovery code');
       });
 
       // Should stay on recovery view
@@ -524,11 +457,7 @@ describe('MFA Integration', () => {
     });
 
     it('shows network error when recovery verify API throws', async () => {
-      server.use(
-        http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.error(),
-        ),
-      );
+      server.use(http.post('/api/auth/mfa/verify-recovery', () => HttpResponse.error()));
 
       const user = userEvent.setup();
       render(<MfaPage />);
@@ -538,15 +467,12 @@ describe('MFA Integration', () => {
       });
 
       await user.click(screen.getByTestId('use-recovery-code'));
-      await user.type(
-        screen.getByTestId('recovery-code-input'),
-        'SOME-CODE',
-      );
+      await user.type(screen.getByTestId('recovery-code-input'), 'SOME-CODE');
       await user.click(screen.getByTestId('recovery-submit'));
 
       await waitFor(() => {
         expect(screen.getByTestId('recovery-error')).toHaveTextContent(
-          'Recovery code verification failed',
+          'Recovery code verification failed'
         );
       });
     });
@@ -568,11 +494,8 @@ describe('MFA Integration', () => {
     it('clears error when switching between TOTP and recovery views', async () => {
       server.use(
         http.post('/api/auth/mfa/verify', () =>
-          HttpResponse.json(
-            { message: 'Invalid code.' },
-            { status: 400 },
-          ),
-        ),
+          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -606,15 +529,10 @@ describe('MFA Integration', () => {
   describe('MFA setup error paths', () => {
     it('shows error when setup API fails', async () => {
       server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: false }),
-        ),
+        http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })),
         http.post('/api/auth/mfa/setup', () =>
-          HttpResponse.json(
-            { message: 'MFA setup failed' },
-            { status: 500 },
-          ),
-        ),
+          HttpResponse.json({ message: 'MFA setup failed' }, { status: 500 })
+        )
       );
 
       render(<MfaPage />);
@@ -630,18 +548,14 @@ describe('MFA Integration', () => {
 
     it('shows error when setup API throws network error', async () => {
       server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: false }),
-        ),
-        http.post('/api/auth/mfa/setup', () => HttpResponse.error()),
+        http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })),
+        http.post('/api/auth/mfa/setup', () => HttpResponse.error())
       );
 
       render(<MfaPage />);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Failed to start 2FA setup.'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Failed to start 2FA setup.')).toBeInTheDocument();
       });
     });
   });
@@ -651,20 +565,17 @@ describe('MFA Integration', () => {
   describe('Recovery code actions during setup', () => {
     it('shows "Copied!" feedback after clicking copy button', async () => {
       server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: false }),
-        ),
+        http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })),
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
           HttpResponse.json({
             recoveryCodes: ['CODE-AAAA', 'CODE-BBBB', 'CODE-CCCC'],
-          }),
-        ),
+          })
+        )
       );
 
       const user = userEvent.setup();
@@ -686,21 +597,13 @@ describe('MFA Integration', () => {
       }
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId('recovery-codes-display'),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('recovery-codes-display')).toBeInTheDocument();
       });
 
       // Verify all codes are displayed
-      expect(screen.getByTestId('recovery-code-0')).toHaveTextContent(
-        'CODE-AAAA',
-      );
-      expect(screen.getByTestId('recovery-code-1')).toHaveTextContent(
-        'CODE-BBBB',
-      );
-      expect(screen.getByTestId('recovery-code-2')).toHaveTextContent(
-        'CODE-CCCC',
-      );
+      expect(screen.getByTestId('recovery-code-0')).toHaveTextContent('CODE-AAAA');
+      expect(screen.getByTestId('recovery-code-1')).toHaveTextContent('CODE-BBBB');
+      expect(screen.getByTestId('recovery-code-2')).toHaveTextContent('CODE-CCCC');
 
       // Initially shows "Copy" text
       expect(screen.getByTestId('copy-codes-btn')).toHaveTextContent('Copy');
@@ -713,9 +616,7 @@ describe('MFA Integration', () => {
       // The copy button may show "Copied!" or remain "Copy" depending
       // on jsdom clipboard support; verify the button was clickable
       // and the recovery codes display is still visible
-      expect(
-        screen.getByTestId('recovery-codes-display'),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId('recovery-codes-display')).toBeInTheDocument();
     });
 
     it('downloads recovery codes as text file', async () => {
@@ -730,20 +631,17 @@ describe('MFA Integration', () => {
       });
 
       server.use(
-        http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ enabled: false }),
-        ),
+        http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: false })),
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
           HttpResponse.json({
             recoveryCodes: ['CODE-1111'],
-          }),
-        ),
+          })
+        )
       );
 
       const user = userEvent.setup();
@@ -764,9 +662,7 @@ describe('MFA Integration', () => {
       }
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId('recovery-codes-display'),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('recovery-codes-display')).toBeInTheDocument();
       });
 
       // Click download button
@@ -784,8 +680,8 @@ describe('MFA Integration', () => {
     it('defaults to verification flow when status check fails', async () => {
       server.use(
         http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ error: 'Server error' }, { status: 500 }),
-        ),
+          HttpResponse.json({ error: 'Server error' }, { status: 500 })
+        )
       );
 
       render(<MfaPage />);
@@ -797,9 +693,7 @@ describe('MFA Integration', () => {
     });
 
     it('defaults to verification flow when status check throws network error', async () => {
-      server.use(
-        http.get('/api/auth/mfa/status', () => HttpResponse.error()),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.error()));
 
       render(<MfaPage />);
 
@@ -810,19 +704,14 @@ describe('MFA Integration', () => {
 
     it('shows loading state before MFA status is determined', () => {
       // Use a handler that never resolves
-      server.use(
-        http.get('/api/auth/mfa/status', () => new Promise(() => {})),
-      );
+      server.use(http.get('/api/auth/mfa/status', () => new Promise(() => {})));
 
       render(<MfaPage />);
 
       // Should show loading spinner, not TOTP input or setup
-      expect(
-        screen.getByText('Checking authentication status...'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Checking authentication status...')).toBeInTheDocument();
       expect(screen.queryByTestId('totp-input')).not.toBeInTheDocument();
       expect(screen.queryByTestId('totp-qr-step')).not.toBeInTheDocument();
     });
   });
 });
-

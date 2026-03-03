@@ -59,7 +59,7 @@ import { server } from '@/tests/server';
 let workspaceCookieCalls: { workspaceId: string }[] = [];
 
 // Mock for the patchSessionAndRedirect server action
-let mockPatchSession: ReturnType<typeof vi.fn>;
+let mockPatchSession: any;
 
 beforeEach(() => {
   workspaceCookieCalls = [];
@@ -83,7 +83,7 @@ beforeEach(() => {
       const body = (await request.json()) as { workspaceId: string };
       workspaceCookieCalls.push(body);
       return HttpResponse.json({ ok: true });
-    }),
+    })
   );
 });
 
@@ -100,7 +100,7 @@ describe('WorkspaceContent – initial render', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     expect(screen.getByTestId('workspace-personal')).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('WorkspaceContent – initial render', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     expect(screen.queryByTestId('workspace-continue')).not.toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('WorkspaceContent – initial render', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     expect(screen.getByText(/You can always create an organization later/)).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={onUpdateOnboarding}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     // Select personal
@@ -175,7 +175,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
     expect(mockPatchSession).toHaveBeenCalledWith(
       { onboardingStep: 'completed' },
       '/assistants',
-      {},
+      {}
     );
 
     // Should NOT call onCreateOrg
@@ -190,7 +190,7 @@ describe('WorkspaceContent – personal workspace flow', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-personal'));
@@ -212,7 +212,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-organization'));
@@ -229,7 +229,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-organization'));
@@ -248,7 +248,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={onUpdateOnboarding}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     // Select organization
@@ -288,7 +288,7 @@ describe('WorkspaceContent – organization flow', () => {
     expect(mockPatchSession).toHaveBeenCalledWith(
       { onboardingStep: 'completed' },
       '/assistants',
-      {},
+      {}
     );
   });
 
@@ -303,7 +303,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-organization'));
@@ -312,7 +312,7 @@ describe('WorkspaceContent – organization flow', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-        'Organization name already exists',
+        'Organization name already exists'
       );
     });
 
@@ -331,7 +331,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-organization'));
@@ -340,7 +340,7 @@ describe('WorkspaceContent – organization flow', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-        'Failed to create organization. Please try again.',
+        'Failed to create organization. Please try again.'
       );
     });
 
@@ -356,7 +356,7 @@ describe('WorkspaceContent – organization flow', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn()}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     await user.click(screen.getByTestId('workspace-organization'));
@@ -386,7 +386,7 @@ describe('WorkspaceContent – onUpdateOnboarding failure tolerance', () => {
         onCreateOrg={vi.fn()}
         onUpdateOnboarding={onUpdateOnboarding}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     // Select personal and continue
@@ -398,7 +398,7 @@ describe('WorkspaceContent – onUpdateOnboarding failure tolerance', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -422,7 +422,7 @@ describe('WorkspaceContent – switching choices', () => {
         onCreateOrg={onCreateOrg}
         onUpdateOnboarding={vi.fn().mockResolvedValue(undefined)}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
     // Select organization, type name, submit to get error

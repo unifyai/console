@@ -56,8 +56,8 @@ vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
 import InviteContent from '@/components/Pages/Invite/Main';
 
 describe('Invite Integration', () => {
-  let mockOnAccept: ReturnType<typeof vi.fn>;
-  let mockPatchSession: ReturnType<typeof vi.fn>;
+  let mockOnAccept: any;
+  let mockPatchSession: any;
   let locationHref: string;
 
   beforeEach(() => {
@@ -67,8 +67,12 @@ describe('Invite Integration', () => {
     locationHref = 'http://localhost:3000/login/invite';
     Object.defineProperty(window, 'location', {
       value: {
-        get href() { return locationHref; },
-        set href(val: string) { locationHref = val; },
+        get href() {
+          return locationHref;
+        },
+        set href(val: string) {
+          locationHref = val;
+        },
         origin: 'http://localhost:3000',
         protocol: 'http:',
         host: 'localhost:3000',
@@ -90,11 +94,7 @@ describe('Invite Integration', () => {
 
   const renderInvite = (token = 'test-invite-token') =>
     render(
-      <InviteContent
-        token={token}
-        onAccept={mockOnAccept}
-        onPatchSession={mockPatchSession}
-      />,
+      <InviteContent token={token} onAccept={mockOnAccept} onPatchSession={mockPatchSession} />
     );
 
   // ─── Processing State ────────────────────────────────────────────────
@@ -107,9 +107,7 @@ describe('Invite Integration', () => {
       renderInvite();
 
       expect(screen.getByText('Joining Organization...')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Please wait while we process/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Please wait while we process/)).toBeInTheDocument();
     });
 
     it('passes the correct token to onAccept', () => {
@@ -140,16 +138,14 @@ describe('Invite Integration', () => {
 
       // Should show org name
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      expect(
-        screen.getByText(/You have successfully joined/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/You have successfully joined/)).toBeInTheDocument();
 
       // Click "Get Started" — should call server action
       await user.click(screen.getByTestId('get-started-btn'));
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -163,9 +159,7 @@ describe('Invite Integration', () => {
       });
 
       // Should show generic text
-      expect(
-        screen.getByText(/joined.*the organization/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/joined.*the organization/)).toBeInTheDocument();
     });
 
     it('handles non-object result (fallback success)', async () => {
@@ -196,9 +190,7 @@ describe('Invite Integration', () => {
       // Wait for MFA required state
       await waitFor(() => {
         expect(screen.getByText('Welcome!')).toBeInTheDocument();
-        expect(
-          screen.getByText(/requires two-factor authentication/),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
       });
 
       // Should show org name
@@ -214,7 +206,7 @@ describe('Invite Integration', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/login/mfa',
-          {},
+          {}
         );
       });
 
@@ -238,9 +230,7 @@ describe('Invite Integration', () => {
       });
 
       // Should show specific email mismatch message
-      expect(
-        screen.getByText('This invite is for a different email address'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('This invite is for a different email address')).toBeInTheDocument();
 
       // Should show two buttons for email mismatch
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
@@ -301,9 +291,7 @@ describe('Invite Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
-        expect(
-          screen.getByText('An unexpected error occurred.'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument();
       });
     });
   });
@@ -344,9 +332,7 @@ describe('Invite Integration', () => {
       });
 
       // Should show MFA required state, not the generic success
-      expect(
-        screen.getByText(/requires two-factor authentication/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/requires two-factor authentication/)).toBeInTheDocument();
       expect(screen.getByText('Secure Corp')).toBeInTheDocument();
 
       // Should NOT show "Get Started" button (auto-redirects instead)
@@ -379,7 +365,7 @@ describe('Invite Integration', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/login/mfa',
-          {},
+          {}
         );
       });
 

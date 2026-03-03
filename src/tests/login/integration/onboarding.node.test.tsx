@@ -50,9 +50,9 @@ vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
 import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
 
 describe('Onboarding Integration', () => {
-  let mockCreateOrg: ReturnType<typeof vi.fn>;
-  let mockUpdateOnboarding: ReturnType<typeof vi.fn>;
-  let mockPatchSession: ReturnType<typeof vi.fn>;
+  let mockCreateOrg: any;
+  let mockUpdateOnboarding: any;
+  let mockPatchSession: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,11 +76,7 @@ describe('Onboarding Integration', () => {
     });
 
     // Default MSW handler for workspace cookie
-    server.use(
-      http.post('/api/session/workspace', () =>
-        HttpResponse.json({ ok: true }),
-      ),
-    );
+    server.use(http.post('/api/session/workspace', () => HttpResponse.json({ ok: true })));
   });
 
   afterEach(() => {
@@ -93,7 +89,7 @@ describe('Onboarding Integration', () => {
         onCreateOrg={mockCreateOrg}
         onUpdateOnboarding={mockUpdateOnboarding}
         onPatchSession={mockPatchSession}
-      />,
+      />
     );
 
   // ─── Personal Workspace Flow ─────────────────────────────────────────
@@ -116,9 +112,7 @@ describe('Onboarding Integration', () => {
 
       // Continue button should appear
       expect(screen.getByTestId('workspace-continue')).toBeInTheDocument();
-      expect(screen.getByTestId('workspace-continue')).toHaveTextContent(
-        'Continue',
-      );
+      expect(screen.getByTestId('workspace-continue')).toHaveTextContent('Continue');
 
       // No org name input should be visible
       expect(screen.queryByTestId('org-name-input')).toBeNull();
@@ -138,7 +132,7 @@ describe('Onboarding Integration', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
   });
@@ -165,9 +159,7 @@ describe('Onboarding Integration', () => {
 
       // Continue button should be disabled (empty name)
       expect(screen.getByTestId('workspace-continue')).toBeDisabled();
-      expect(screen.getByTestId('workspace-continue')).toHaveTextContent(
-        'Create Organization',
-      );
+      expect(screen.getByTestId('workspace-continue')).toHaveTextContent('Create Organization');
 
       // Type org name
       await user.type(screen.getByTestId('org-name-input'), 'Acme Corp');
@@ -199,7 +191,7 @@ describe('Onboarding Integration', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -236,7 +228,7 @@ describe('Onboarding Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-          'Organization name already taken',
+          'Organization name already taken'
         );
       });
 
@@ -261,7 +253,7 @@ describe('Onboarding Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-          'Failed to create organization',
+          'Failed to create organization'
         );
       });
     });
@@ -277,25 +269,19 @@ describe('Onboarding Integration', () => {
       // Select personal
       await user.click(screen.getByTestId('workspace-personal'));
       expect(screen.queryByTestId('org-name-input')).toBeNull();
-      expect(screen.getByTestId('workspace-continue')).toHaveTextContent(
-        'Continue',
-      );
+      expect(screen.getByTestId('workspace-continue')).toHaveTextContent('Continue');
 
       // Switch to organization
       await user.click(screen.getByTestId('workspace-organization'));
       await waitFor(() => {
         expect(screen.getByTestId('org-name-input')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('workspace-continue')).toHaveTextContent(
-        'Create Organization',
-      );
+      expect(screen.getByTestId('workspace-continue')).toHaveTextContent('Create Organization');
 
       // Switch back to personal
       await user.click(screen.getByTestId('workspace-personal'));
       expect(screen.queryByTestId('org-name-input')).toBeNull();
-      expect(screen.getByTestId('workspace-continue')).toHaveTextContent(
-        'Continue',
-      );
+      expect(screen.getByTestId('workspace-continue')).toHaveTextContent('Continue');
     });
   });
 
@@ -308,7 +294,7 @@ describe('Onboarding Integration', () => {
         http.post('/api/session/workspace', async ({ request }) => {
           cookieBody = (await request.json()) as Record<string, unknown>;
           return HttpResponse.json({ ok: true });
-        }),
+        })
       );
 
       mockCreateOrg.mockResolvedValue({ id: 55, name: 'New Corp' });
@@ -334,9 +320,7 @@ describe('Onboarding Integration', () => {
 
   describe('Personal workspace failure tolerance', () => {
     it('still calls server action when onUpdateOnboarding fails for personal', async () => {
-      const consoleSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       mockUpdateOnboarding.mockRejectedValue(new Error('Backend down'));
 
       const user = userEvent.setup();
@@ -350,7 +334,7 @@ describe('Onboarding Integration', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/assistants',
-          {},
+          {}
         );
       });
 
@@ -384,7 +368,7 @@ describe('Onboarding Integration', () => {
   describe('Loading state', () => {
     it('disables choice buttons during loading', async () => {
       mockCreateOrg.mockImplementation(
-        () => new Promise(() => {}), // never resolves
+        () => new Promise(() => {}) // never resolves
       );
 
       const user = userEvent.setup();
@@ -424,8 +408,8 @@ describe('Onboarding Integration', () => {
 
       expect(
         screen.getByText(
-          'You can always create an organization later, with separate billing and resources.',
-        ),
+          'You can always create an organization later, with separate billing and resources.'
+        )
       ).toBeInTheDocument();
     });
   });

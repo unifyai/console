@@ -228,7 +228,7 @@ describe('JWT callback – mfaPending vs onboardingStep priority', () => {
     expect(result.onboardingStep).toBe('workspace_setup');
   });
 
-  it('clearing mfaPending does NOT affect onboardingStep', async () => {
+  it('client-side update cannot clear mfaPending (does NOT affect onboardingStep either)', async () => {
     const { jwt } = await getCallbacks();
 
     const result = await jwt({
@@ -240,7 +240,8 @@ describe('JWT callback – mfaPending vs onboardingStep priority', () => {
       session: { mfaPending: false },
     });
 
-    expect(result.mfaPending).toBeUndefined();
+    // mfaPending can only be cleared server-side by MFA verify route handlers
+    expect(result.mfaPending).toBe(true);
     expect(result.onboardingStep).toBe('workspace_setup');
   });
 
@@ -260,4 +261,3 @@ describe('JWT callback – mfaPending vs onboardingStep priority', () => {
     expect(result.onboardingStep).toBeUndefined();
   });
 });
-

@@ -69,11 +69,9 @@ import ForgotPasswordForm from '@/components/Pages/Login/ForgotPasswordForm';
  * Navigates through Step 1 (email) → Step 2 (code view).
  * Returns the userEvent handle for further interaction.
  */
-const goToCodeView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
+const goToCodeView = async (mockOnBack: any) => {
   server.use(
-    http.post('/api/auth/email/forgot-password', () =>
-      HttpResponse.json({ message: 'sent' })
-    )
+    http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'sent' }))
   );
 
   const user = userEvent.setup();
@@ -96,7 +94,7 @@ const goToCodeView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
  * which returns a verification token. We mock that endpoint here so the
  * flow can advance to the new-password view.
  */
-const goToNewPasswordView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
+const goToNewPasswordView = async (mockOnBack: any) => {
   const user = await goToCodeView(mockOnBack);
 
   // Mock the verify-reset-code endpoint that handleVerifyCode calls
@@ -119,7 +117,7 @@ const goToNewPasswordView = async (mockOnBack: ReturnType<typeof vi.fn>) => {
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('ForgotPasswordForm – email entry (Step 1)', () => {
-  const mockOnBack = vi.fn();
+  const mockOnBack: any = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,9 +169,7 @@ describe('ForgotPasswordForm – email entry (Step 1)', () => {
   });
 
   it('shows network error when fetch fails entirely', async () => {
-    server.use(
-      http.post('/api/auth/email/forgot-password', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/forgot-password', () => HttpResponse.error()));
 
     const user = userEvent.setup();
     render(<ForgotPasswordForm onBack={mockOnBack} />);
@@ -188,7 +184,7 @@ describe('ForgotPasswordForm – email entry (Step 1)', () => {
 });
 
 describe('ForgotPasswordForm – code entry (Step 2)', () => {
-  const mockOnBack = vi.fn();
+  const mockOnBack: any = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -246,7 +242,7 @@ describe('ForgotPasswordForm – code entry (Step 2)', () => {
 });
 
 describe('ForgotPasswordForm – new password (Step 3)', () => {
-  const mockOnBack = vi.fn();
+  const mockOnBack: any = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -282,9 +278,7 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
     await user.click(screen.getByTestId('reset-password-btn'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('password-error').textContent).toContain(
-        'Passwords do not match'
-      );
+      expect(screen.getByTestId('password-error').textContent).toContain('Passwords do not match');
     });
   });
 
@@ -333,7 +327,9 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
     // Expired token sends the user back to the code view with an error
     await waitFor(() => {
       expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
-      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Verification expired');
+      expect(screen.getByTestId('reset-verification-error').textContent).toContain(
+        'Verification expired'
+      );
     });
   });
 
@@ -363,9 +359,7 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
   it('handles network error during reset', async () => {
     const user = await goToNewPasswordView(mockOnBack);
 
-    server.use(
-      http.post('/api/auth/email/reset-password', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/reset-password', () => HttpResponse.error()));
 
     await user.type(screen.getByTestId('new-password-input'), STRONG_PW);
     await user.type(screen.getByTestId('confirm-password-input'), STRONG_PW);
@@ -378,7 +372,7 @@ describe('ForgotPasswordForm – new password (Step 3)', () => {
 });
 
 describe('ForgotPasswordForm – verify code errors', () => {
-  const mockOnBack = vi.fn();
+  const mockOnBack: any = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -401,16 +395,16 @@ describe('ForgotPasswordForm – verify code errors', () => {
     // Should stay on code view and show error
     await waitFor(() => {
       expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
-      expect(screen.getByTestId('reset-verification-error').textContent).toContain('Invalid or expired');
+      expect(screen.getByTestId('reset-verification-error').textContent).toContain(
+        'Invalid or expired'
+      );
     });
   });
 
   it('handles network error during code verification', async () => {
     const user = await goToCodeView(mockOnBack);
 
-    server.use(
-      http.post('/api/auth/email/verify-reset-code', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/verify-reset-code', () => HttpResponse.error()));
 
     await user.click(screen.getByTestId('submit-reset-code'));
 
@@ -421,9 +415,7 @@ describe('ForgotPasswordForm – verify code errors', () => {
   });
 
   it('handles network error during initial forgot-password request', async () => {
-    server.use(
-      http.post('/api/auth/email/forgot-password', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/forgot-password', () => HttpResponse.error()));
 
     const user = userEvent.setup();
     render(<ForgotPasswordForm onBack={mockOnBack} initialEmail="test@test.com" />);
@@ -456,7 +448,7 @@ describe('ForgotPasswordForm – verify code errors', () => {
 });
 
 describe('ForgotPasswordForm – success view', () => {
-  const mockOnBack = vi.fn();
+  const mockOnBack: any = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -465,15 +457,11 @@ describe('ForgotPasswordForm – success view', () => {
   it('success view has back to login button', async () => {
     // Set up handlers for the full 3-step flow
     server.use(
-      http.post('/api/auth/email/forgot-password', () =>
-        HttpResponse.json({ message: 'sent' })
-      ),
+      http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'sent' })),
       http.post('/api/auth/email/verify-reset-code', () =>
         HttpResponse.json({ token: 'test-verify-token' })
       ),
-      http.post('/api/auth/email/reset-password', () =>
-        HttpResponse.json({ message: 'done' })
-      )
+      http.post('/api/auth/email/reset-password', () => HttpResponse.json({ message: 'done' }))
     );
 
     const user = userEvent.setup();

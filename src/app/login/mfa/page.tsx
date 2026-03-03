@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
@@ -32,7 +32,6 @@ import { Loader2 } from 'lucide-react';
  * content.
  */
 const MfaPage = () => {
-  const { update } = useSession();
   const router = useRouter();
 
   // MFA status detection
@@ -87,15 +86,14 @@ const MfaPage = () => {
           return;
         }
 
-        // Clear mfaPending from the JWT
-        await update({ mfaPending: false });
+        // mfaPending already cleared server-side by the verify route
         router.push('/assistants');
       } catch {
         setError('Verification failed. Please try again.');
         setIsLoading(false);
       }
     },
-    [update, router],
+    [router]
   );
 
   const handleRecoverySubmit = useCallback(async () => {
@@ -124,32 +122,32 @@ const MfaPage = () => {
       if (data.remainingCodes !== undefined && data.remainingCodes < 3) {
         setRecoveryWarning(
           `You have ${data.remainingCodes} recovery code${data.remainingCodes === 1 ? '' : 's'} remaining. ` +
-            'Please regenerate your codes in Security Settings.',
+            'Please regenerate your codes in Security Settings.'
         );
-        // Wait a moment for user to read the warning
-        setTimeout(async () => {
-          await update({ mfaPending: false });
+        setTimeout(() => {
           router.push('/assistants');
         }, 3000);
         return;
       }
 
-      // Clear mfaPending from the JWT
-      await update({ mfaPending: false });
+      // mfaPending already cleared server-side by the verify-recovery route
       router.push('/assistants');
     } catch {
       setError('Recovery code verification failed. Please try again.');
       setIsLoading(false);
     }
-  }, [recoveryCode, update, router]);
+  }, [recoveryCode, router]);
 
   // --- Setup complete handler (new MFA) ---
 
   const handleSetupComplete = useCallback(async () => {
-    // After MFA setup, clear any mfaPending flag and proceed
-    await update({ mfaPending: false });
+    // After MFA setup during org-enforced onboarding, the user now has MFA
+    // enabled. We need to clear mfaPending server-side by verifying a code.
+    // The TotpSetup component already confirmed MFA with Orchestra, so we
+    // redirect to /assistants — the middleware will allow access since MFA
+    // is now enabled and the session will be refreshed on next page load.
     router.push('/assistants');
-  }, [update, router]);
+  }, [router]);
 
   // --- Back to login ---
 
@@ -224,8 +222,7 @@ const MfaPage = () => {
           value={recoveryCode}
           onChange={(e) => setRecoveryCode(e.target.value)}
           placeholder="Enter recovery code"
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
-                     focus:outline-none focus:ring-2 focus:ring-ring"
+          className="text-caption w-full rounded-md border border-input bg-background px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-ring"
           data-testid="recovery-code-input"
           autoFocus
         />
@@ -275,7 +272,9 @@ const MfaPage = () => {
     >
       {/* Header */}
       <div className="flex flex-col items-center gap-8">
-        <div className="flex justify-center"><UnifyLogo /></div>
+        <div className="flex justify-center">
+          <UnifyLogo />
+        </div>
         <h1 className="text-h1 font-semibold">
           {mfaEnabled === false ? 'Set Up Two-Factor Authentication' : 'Two-Factor Authentication'}
         </h1>
@@ -287,7 +286,7 @@ const MfaPage = () => {
       <button
         type="button"
         onClick={handleBackToLogin}
-        className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        className="text-caption flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
         data-testid="back-to-login"
       >
         ← Back to Login

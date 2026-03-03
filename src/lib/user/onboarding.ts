@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode, encode } from 'next-auth/jwt';
-import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
+import { getOrchestraUserClient, OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 /**
  * Server action factory that returns a function to update the user's
@@ -32,7 +32,6 @@ const hostName = new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').ho
 /** Allowlisted fields that can be mutated in the JWT. */
 interface SessionPatch {
   onboardingStep?: string;
-  mfaPending?: boolean;
 }
 
 /**
@@ -47,7 +46,6 @@ interface SessionPatch {
  *
  * @param patch      Allowlisted JWT mutations.
  *                   `onboardingStep: 'completed'` clears the field from the JWT.
- *                   `mfaPending: false` clears the field from the JWT.
  * @param redirectTo Relative path to redirect to after patching (default: `/assistants`).
  * @param extraParams Extra query params to forward to the redirect destination
  *                    (e.g. credit tokens).
@@ -55,7 +53,7 @@ interface SessionPatch {
 export async function patchSessionAndRedirect(
   patch: SessionPatch,
   redirectTo: string = '/assistants',
-  extraParams?: Record<string, string>,
+  extraParams?: Record<string, string>
 ): Promise<never> {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -79,23 +77,28 @@ export async function patchSessionAndRedirect(
 
   if (patch.onboardingStep !== undefined) {
     if (patch.onboardingStep === 'completed') {
-      delete token.onboardingStep;
+      try {
+        const onboardingRes = await OrchestraAdminClient.get('/auth/onboarding-status-by-email', {
+          params: { email: token.email },
+        });
+        const step = onboardingRes.data?.onboardingStep;
+        if (!step || step === 'completed') {
+          delete token.onboardingStep;
+        }
+      } catch {
+        // Don't clear if verification fails
+      }
     } else {
       token.onboardingStep = patch.onboardingStep;
     }
   }
 
-  if (patch.mfaPending !== undefined) {
-    if (patch.mfaPending === false) {
-      delete token.mfaPending;
-    } else {
-      token.mfaPending = true;
-    }
-  }
+  // mfaPending is NOT mutable here — it is cleared exclusively by the
+  // server-side MFA verify route handlers after Orchestra confirmation.
 
   // ── Re-encode and set the cookie ─────────────────────────────────────
 
-  const maxAge = 30 * 24 * 60 * 60; // 30 days — matches authOptions.session.maxAge
+  const maxAge = 7 * 24 * 60 * 60; // 7 days — matches authOptions.session.maxAge
   const newJwt = await encode({ token, secret, maxAge });
 
   cookieStore.set(cookieName, newJwt, {
@@ -113,9 +116,7 @@ export async function patchSessionAndRedirect(
 
   // Forward extra params to the destination
   const query = extraParams ? new URLSearchParams(extraParams).toString() : '';
-  const finalPath = query
-    ? `${safePath}${safePath.includes('?') ? '&' : '?'}${query}`
-    : safePath;
+  const finalPath = query ? `${safePath}${safePath.includes('?') ? '&' : '?'}${query}` : safePath;
 
   redirect(finalPath);
 }

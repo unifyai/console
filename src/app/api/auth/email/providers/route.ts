@@ -15,6 +15,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   }
 
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+  if (turnstileSecret) {
+    const captchaToken = request.nextUrl.searchParams.get('captchaToken');
+    if (!captchaToken) {
+      return NextResponse.json({ error: 'captcha_required' }, { status: 403 });
+    }
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret: turnstileSecret,
+        response: captchaToken,
+      }),
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) {
+      return NextResponse.json({ error: 'captcha_failed' }, { status: 403 });
+    }
+  }
+
   try {
     const res = await OrchestraAdminClient.get('/auth/providers-for-email', {
       params: { email },
@@ -23,8 +43,8 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'lookup_failed', message: 'Provider lookup failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'lookup_failed', message: 'Provider lookup failed' };
     return NextResponse.json(data, { status });
   }
 }
-

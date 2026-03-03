@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
@@ -33,8 +34,17 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   if (request.url.includes('/user')) {
     const providedKey = request.headers.get('ADMIN_KEY');
     const expectedKey = process.env.ADMIN_KEY;
-    if (!expectedKey || !providedKey || providedKey !== expectedKey)
+    if (!expectedKey || !providedKey) {
       return new Response('Unauthorized', { status: 403 });
+    }
+    const expectedBuf = Buffer.from(expectedKey);
+    const providedBuf = Buffer.from(providedKey);
+    if (
+      expectedBuf.length !== providedBuf.length ||
+      !crypto.timingSafeEqual(expectedBuf, providedBuf)
+    ) {
+      return new Response('Unauthorized', { status: 403 });
+    }
   }
   if (process.env.ON_PREM) {
     if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
