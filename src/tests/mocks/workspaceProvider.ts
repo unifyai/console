@@ -54,6 +54,7 @@ export const defaultWorkspaceValues = {
   activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
   activeOrganization: null,
   currentUserId: 'test-user-001',
+  isWorkspaceSwitchable: true,
 };
 
 /**

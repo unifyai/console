@@ -222,12 +222,27 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
 
+  // Priority 3: Lock non-Unify org members to their organization workspace.
+  // Users who belong to a non-Unify organization are always placed in that
+  // org workspace (the UI switcher is also disabled for them). This overrides
+  // any cookie value. Unify org members retain free switching.
+  // Skip if context was resolved via an explicit header API key (API calls).
+  let effectiveWorkspaceId: string | undefined = workspaceId;
+  if (!headerApiKey) {
+    const isUnifyMember = user.organizations?.some((org) => org.name === 'Unify') ?? false;
+    if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
+      user.apiKey = user.organizations[0].apiKey;
+      effectiveWorkspaceId = user.organizations[0].id.toString();
+      contextResolved = true;
+    }
+  }
+
   // 4. MFA Enforcement Check
   // If the active workspace is an org, check whether the org requires MFA
   // and the user hasn't set it up yet. Applies to all auth providers.
-  if (workspaceId && workspaceId !== 'personal') {
+  if (effectiveWorkspaceId && effectiveWorkspaceId !== 'personal') {
     const activeOrg = user.organizations?.find(
-      (org) => org.id.toString() === workspaceId
+      (org) => org.id.toString() === effectiveWorkspaceId
     );
     if (activeOrg) {
       try {

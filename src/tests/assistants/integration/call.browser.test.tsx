@@ -154,6 +154,7 @@ vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
     activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
     activeOrganization: null,
     currentUserId: 'test-user-001',
+    isWorkspaceSwitchable: true,
     switchWorkspace: vi.fn(),
   }),
 }));
