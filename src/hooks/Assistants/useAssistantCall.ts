@@ -75,12 +75,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
-      // Increment connection attempt ID to invalidate any in-flight operations from previous attempts
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
 
-      // Helper to check if this connection attempt is still valid
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
 
@@ -95,46 +93,41 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setError(null);
       setConnectionError(null);
       try {
-        // Delete any stale room from a previous failed attempt before creating a new one
         const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
-        await assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
-        if (isStaleAttempt()) return;
+
+        // Fire-and-forget: clean up any stale room without blocking the connection flow
+        assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
 
         const assistantName = `${assistant.firstName}${assistant.surname}`;
         let connDetails: ConnectionDetails | null = null;
 
-        // Retry loop for connection setup
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
           if (isStaleAttempt()) return;
 
           try {
-            // Step 1: Get connection details for the user
-            const details = await assistantActions.call.getConnectionDetails(
-              assistant.agentId,
-              assistantName
-            );
+            // Run getConnectionDetails and dispatchToCall in parallel.
+            // The room name is deterministic (unity_{id}_meet), so dispatch
+            // doesn't need to wait for connection details.
+            const [details, dispatchResult] = await Promise.all([
+              assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
+              assistantActions.call.dispatchToCall(assistant.agentId, expectedRoomName),
+            ]);
             if (isStaleAttempt()) return;
+
             if ('detail' in details) {
-              throw new Error(details.detail || 'Could not get call details.');
+              throw new Error((details as any).detail || 'Could not get call details.');
             }
             connDetails = details as ConnectionDetails;
             setConnectionDetails(connDetails);
 
-            // Step 2: Dispatch the assistant to join the room
-            const dispatchResult = await assistantActions.call.dispatchToCall(
-              assistant.agentId,
-              connDetails.roomName
-            );
-            if (isStaleAttempt()) return;
             if (dispatchResult.detail) {
               throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
             }
 
-            // If we get here, both steps succeeded
             break;
           } catch (err: any) {
             if (attempt > MAX_RETRIES) {
-              throw err; // Rethrow on final attempt to trigger catch block below
+              throw err;
             }
 
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
@@ -142,19 +135,20 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           }
         }
 
-        if (!connDetails) return; // Should be covered by throw above, but safety check
+        if (!connDetails) return;
 
-        // Step 3: Connect the user's client
         await room.connect(connDetails.serverUrl, connDetails.token);
         if (isStaleAttempt()) {
           await room.disconnect();
           return;
         }
 
-        await room.localParticipant.setMicrophoneEnabled(true);
-        await room.localParticipant.setCameraEnabled(type === 'video');
+        await Promise.all([
+          room.localParticipant.setMicrophoneEnabled(true),
+          room.localParticipant.setCameraEnabled(type === 'video'),
+        ]);
         setIsConnected(true);
-        setIsConnecting(false); // User is connected, now wait for assistant
+        setIsConnecting(false);
 
         if (room.numParticipants < 2) {
           // Check if assistant isn't already there

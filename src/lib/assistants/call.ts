@@ -3,6 +3,7 @@ import { ConnectionDetails } from '@/types/assistants/call';
 import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-sdk';
 import { getCurrentUser } from '@/lib/user/user';
 import { makeRoomName } from '@/utils/assistants/call-utils';
+import { camelToSnakeObject } from '@/utils/casing';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
@@ -86,32 +87,48 @@ export const deleteCallRoom = async () => {
       await roomService.deleteRoom(roomName);
       return {};
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown error deleting room.';
+      const message = error instanceof Error ? error.message : 'Unknown error deleting room.';
       console.error('[lib/assistants/call.ts] deleteCallRoom error:', message);
       return { detail: message };
     }
   };
 };
 
-export const dispatchAssistantToCall = async (apiKey: string) => {
+export const dispatchAssistantToCall = async (_apiKey: string) => {
   return async (assistantId: string, roomName: string): Promise<ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/call/dispatch`, {
-        method: 'POST',
-        headers: {
-          apiKey: apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ assistantId, roomName }),
+      const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
+      if (!adminKey) {
+        return { info: 'Dispatch accepted (no backend configured)' };
+      }
+
+      const baseUrl = process.env.ORCHESTRA_URL ?? '';
+      const isStaging = baseUrl.includes('staging');
+      const dispatchUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/meet`;
+
+      const dispatchPayload = camelToSnakeObject({
+        assistantId,
+        livekitAgentName: roomName,
+        roomName,
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || `Failed to dispatch assistant: ${response.statusText}` };
+      const resp = await fetch(dispatchUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify(dispatchPayload),
+      });
+
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => 'Failed to dispatch agent');
+        return { detail };
       }
-      return data as ResponseProps;
+
+      const data = await resp.json().catch(() => ({}));
+      return { info: 'Agent dispatched', ...data };
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown error dispatching assistant.';

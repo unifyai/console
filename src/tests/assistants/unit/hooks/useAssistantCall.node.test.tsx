@@ -392,12 +392,12 @@ describe('useAssistantCall', () => {
     );
 
     it(
-      'dispatches assistant to call after getting details',
+      'dispatches assistant to call with deterministic room name',
       {
         meta: {
           alias: 'Call-Dispatch',
-          scenario: 'Connection details received',
-          behavior: 'Dispatches assistant with room name',
+          scenario: 'User initiates call',
+          behavior: 'Dispatches assistant with deterministic room name (unity_{id}_meet)',
         },
       },
       async () => {
@@ -411,8 +411,11 @@ describe('useAssistantCall', () => {
           await result.current.connect(assistant, 'video');
         });
 
-        // Assert
-        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith('agent-123', 'test-room');
+        // Assert — dispatch uses the deterministic room name, not the one from getConnectionDetails
+        expect(mockActions.call.dispatchToCall).toHaveBeenCalledWith(
+          'agent-123',
+          'unity_agent-123_meet'
+        );
       }
     );
 
