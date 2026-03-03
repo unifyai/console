@@ -31,12 +31,10 @@ vi.mock('next/navigation', () => ({
 // ─── Mock useBillingStatus ───────────────────────────────────────────────────
 
 const mockBillingStatus = {
-  hasPaymentMethod: false,
   isLoading: false,
   hasCustomerId: true,
   hasCredits: false,
   credits: 0,
-  isReady: false,
   error: null,
   refetch: vi.fn(),
 };
@@ -216,7 +214,7 @@ describe('useCreditGrantLink', () => {
     vi.clearAllMocks();
 
     // Reset billing status to default (no payment method, not loading)
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     mockBillingStatus.isLoading = false;
 
     // Reset search params
@@ -268,7 +266,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('auto-claims when user has payment method and token is present', async () => {
-    mockBillingStatus.hasPaymentMethod = true;
+    mockBillingStatus.hasCredits = true;
     mockSearchParams.set('token', 'auto_claim_token');
 
     server.use(
@@ -293,7 +291,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('auto-claims even when user has no payment method (credit grants are free)', async () => {
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     mockSearchParams.set('token', 'free_credit_token');
 
     server.use(
@@ -318,7 +316,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('does NOT auto-claim while billing status is loading', async () => {
-    mockBillingStatus.hasPaymentMethod = true;
+    mockBillingStatus.hasCredits = true;
     mockBillingStatus.isLoading = true;
     mockSearchParams.set('token', 'loading_token');
 
@@ -332,7 +330,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('claimPendingToken can be called manually', async () => {
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     setStoredToken('manual_claim_token');
 
     server.use(
@@ -424,7 +422,7 @@ describe('useCreditGrantLink', () => {
   });
 
   it('shows org name in success toast when credits go to an organization', async () => {
-    mockBillingStatus.hasPaymentMethod = false;
+    mockBillingStatus.hasCredits = false;
     mockSearchParams.set('token', 'org_claim_token');
 
     server.use(
