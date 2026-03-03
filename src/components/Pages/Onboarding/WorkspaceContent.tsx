@@ -293,7 +293,7 @@ const WorkspaceContent = ({
 
       {/* Footer note */}
       <p className="text-center text-caption text-muted-foreground">
-        You can always create an organization later from settings.
+        You can always create an organization later, with separate billing and resources.
       </p>
     </motion.div>
   );

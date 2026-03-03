@@ -424,7 +424,7 @@ describe('Onboarding Integration', () => {
 
       expect(
         screen.getByText(
-          'You can always create an organization later from settings.',
+          'You can always create an organization later, with separate billing and resources.',
         ),
       ).toBeInTheDocument();
     });
