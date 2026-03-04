@@ -150,8 +150,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         setIsConnected(true);
         setIsConnecting(false);
 
-        if (room.numParticipants < 2) {
-          // Check if assistant isn't already there
+        if (room.remoteParticipants.size < 1) {
           setIsWaitingForAssistant(true);
           const timeoutDuration =
             (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
@@ -393,7 +392,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   }, [activeCallAssistant]);
 
   React.useEffect(() => {
-    const onParticipantConnected = () => {
+    const clearWaitingState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
       isRedispatchingRef.current = false;
@@ -401,11 +400,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
 
     const onParticipantDisconnected = () => {
-      // Only handle if we're in an active call and the disconnected participant is the assistant
       if (!isConnectedRef.current || !activeCallAssistantRef.current) return;
 
-      // Check if the room now has fewer than 2 participants (user alone)
-      if (room.numParticipants < 2) {
+      if (room.remoteParticipants.size < 1) {
         const firstName = activeCallAssistantRef.current.firstName;
         setWaitingMessage(`${firstName} disconnected, waiting for them to rejoin...`);
         setIsWaitingForAssistant(true);
@@ -420,7 +417,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         assistantRejoinTimeoutRef.current = setTimeout(() => {
           if (isCancelledRef.current) return;
-          if (isRedispatchingRef.current || room.numParticipants < 2) {
+          if (isRedispatchingRef.current || room.remoteParticipants.size < 1) {
             // Assistant still hasn't rejoined — clean up server-side room before disconnecting
             isRedispatchingRef.current = false;
             const assistant = activeCallAssistantRef.current;
@@ -438,11 +435,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       }
     };
 
-    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.ParticipantConnected, clearWaitingState);
+    room.on(RoomEvent.TrackSubscribed, clearWaitingState);
     room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
-      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.ParticipantConnected, clearWaitingState);
+      room.off(RoomEvent.TrackSubscribed, clearWaitingState);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearAssistantJoinTimeout();

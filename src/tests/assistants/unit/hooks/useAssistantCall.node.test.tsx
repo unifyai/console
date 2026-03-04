@@ -71,6 +71,12 @@ const createMockRoom = () => {
   return {
     state: 'disconnected' as string,
     numParticipants: 1,
+    get remoteParticipants() {
+      const count = Math.max(0, this.numParticipants - 1);
+      const map = new Map();
+      for (let i = 0; i < count; i++) map.set(`remote-${i}`, { identity: `remote-${i}` });
+      return map;
+    },
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn().mockResolvedValue(undefined),
     localParticipant: {

@@ -594,7 +594,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
       // Always check the actual room state — the handoff may say the assistant
       // was joined, but it may have left during the pop-out transition.
-      const assistantInRoom = room.numParticipants >= 2;
+      const assistantInRoom = room.remoteParticipants.size >= 1;
       setIsWaitingForAssistant(!assistantInRoom);
 
       // If assistant isn't in the room (e.g. it left when the dialog disconnected
@@ -660,7 +660,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     }
     window.addEventListener('beforeunload', handleUnload);
 
-    const onParticipantConnected = () => {
+    const clearWaitingState = () => {
       assistantEverJoinedRef.current = true;
       setIsWaitingForAssistant(false);
     };
@@ -674,7 +674,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       }
     };
 
-    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.ParticipantConnected, clearWaitingState);
+    room.on(RoomEvent.TrackSubscribed, clearWaitingState);
     room.on(RoomEvent.Disconnected, handleDisconnect);
 
     // Add ping-pong listener for state verification
@@ -691,7 +692,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('storage', handlePing);
       handleUnload();
-      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.ParticipantConnected, clearWaitingState);
+      room.off(RoomEvent.TrackSubscribed, clearWaitingState);
       room.off(RoomEvent.Disconnected, handleDisconnect);
       if (room.state !== 'disconnected') {
         room.disconnect();
