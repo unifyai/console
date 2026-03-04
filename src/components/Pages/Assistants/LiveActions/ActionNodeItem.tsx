@@ -35,6 +35,7 @@ import {
   XCircle,
   Pause,
   CheckCircle,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -47,6 +48,7 @@ import type {
   ActionNode,
   ActionNodeStatus,
   GetToolLoopEventsFn,
+  LoadChildrenFn,
   ToolLoopLog,
 } from '@/types/assistants/action';
 
@@ -70,6 +72,8 @@ export interface ActionNodeItemProps {
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
   getToolLoopEvents?: GetToolLoopEventsFn;
+  /** Function to lazy-load child events for a node on expand */
+  loadChildren?: LoadChildrenFn;
   /** Signal to force-expand/collapse all ToolLoop step sections */
   sectionToggleSignal?: SectionToggleSignal;
   /** Additional class names */
@@ -81,7 +85,7 @@ export interface ActionNodeItemProps {
  */
 function getLabelStyles(status: ActionNodeStatus): string {
   if (status === 'error') return 'text-red-500/70 font-normal';
-  if (status === 'running') return 'text-muted-foreground font-normal';
+  if (status === 'running') return 'text-muted-foreground font-normal animate-shimmer';
   return 'text-muted-foreground font-normal';
 }
 
@@ -747,6 +751,105 @@ function LiveToolLoopTimeline({ logs, depth }: { logs: ToolLoopLog[]; depth: num
 }
 
 /**
+ * Prominent display for request/response content pulled out of the collapsed
+ * step sections. Matches the faded/scrollable style of ContentArea.
+ */
+function PromotedContent({
+  label,
+  labelColor,
+  content,
+  depth,
+  defaultOpen = false,
+  timestamp,
+}: {
+  label: string;
+  labelColor: string;
+  content: string;
+  depth: number;
+  defaultOpen?: boolean;
+  timestamp?: string;
+}) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+  const [isOverflowing, setIsOverflowing] = React.useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const pad = `${28 + depth * 16}px`;
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const el = contentRef.current;
+      if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
+    }
+  }, [isOpen, content]);
+
+  return (
+    <div
+      className="group min-w-0 rounded-sm transition-colors duration-150"
+      style={{ paddingLeft: pad }}
+      title={!isOpen ? 'Click to expand' : undefined}
+    >
+      <div
+        className="flex cursor-pointer items-baseline gap-1 py-0.5 text-[11px] hover:bg-muted/40 rounded-sm pr-1"
+        onClick={() => setIsOpen((v) => !v)}
+      >
+        <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
+        {!isOpen && (
+          <span className="text-muted-foreground/50 min-w-0 truncate">
+            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
+          </span>
+        )}
+        <ChevronRight
+          className={cn(
+            'h-2.5 w-2.5 shrink-0 self-center text-muted-foreground/40 opacity-0 transition-all duration-150 group-hover:opacity-100',
+            isOpen && 'rotate-90'
+          )}
+        />
+        {timestamp && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {timestamp}
+          </span>
+        )}
+      </div>
+      {isOpen && (
+        <div className="relative" style={{ maxWidth: `calc(100% - 8px)` }}>
+          {isOverflowing && (
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
+              style={{
+                background: 'linear-gradient(to top, transparent, var(--background))',
+              }}
+            />
+          )}
+          <div
+            ref={contentRef}
+            className={cn(
+              'text-muted-foreground/70 overflow-y-auto py-1 text-[11px] leading-relaxed',
+              'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
+            )}
+            style={{ maxHeight: '200px', scrollbarWidth: 'none' }}
+            onMouseEnter={(e) => {
+              (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
+            }}
+          >
+            <RichContent content={content} />
+          </div>
+          {isOverflowing && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
+              style={{
+                background: 'linear-gradient(to bottom, transparent, var(--background))',
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Collapsible wrapper for a ToolLoop segment (pre-child or post-child).
  * Uses a subtle toggle bar that is visually distinct from the bolder child-node
  * chevrons — thin text, muted colors, dashed left accent when collapsed.
@@ -797,6 +900,7 @@ function CollapsibleToolLoopSection({
           'text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors duration-150'
         )}
         style={{ paddingLeft: pad }}
+        title={!isOpen ? 'Click to expand' : undefined}
       >
         <span>
           {logs.length} {logs.length === 1 ? 'step' : 'steps'}
@@ -863,6 +967,7 @@ function InteractionEvent({
       )}
       style={{ paddingLeft: `${28 + depth * 16}px` }}
       onClick={hasContent ? () => setIsOpen((v) => !v) : undefined}
+      title={hasContent && !isOpen ? 'Click to expand' : undefined}
     >
       <div className="flex items-center gap-1.5">
         <InteractionIcon className={cn('h-3 w-3 shrink-0', config.color)} />
@@ -902,6 +1007,7 @@ export function ActionNodeItem({
   onExpandedChange,
   assistantId,
   getToolLoopEvents,
+  loadChildren,
   sectionToggleSignal,
   className,
 }: ActionNodeItemProps) {
@@ -915,85 +1021,122 @@ export function ActionNodeItem({
   // Use controlled state if provided, otherwise use local state
   const isExpanded = isControlled ? expandedNodeIds.has(node.id) : localIsExpanded;
 
-  // Full ToolLoop conversation (lazy-loaded for completed nodes)
-  const [completedToolLoopLogs, setCompletedToolLoopLogs] = React.useState<ToolLoopLog[]>([]);
+  // Full ToolLoop conversation (lazy-loaded when expanded).
+  // Raw logs are stored unfiltered; the derived memo re-filters whenever
+  // children change — this handles the race between loadChildren and
+  // the ToolLoop fetch without blocking either.
+  const [rawToolLoopLogs, setRawToolLoopLogs] = React.useState<ToolLoopLog[]>([]);
   const [isToolLoopLoading, setIsToolLoopLoading] = React.useState(false);
   const toolLoopFetchedRef = React.useRef(false);
+
+  // Track children count as a primitive so the memo re-runs when
+  // mergeNewEvents mutates node.children in place (same array reference).
+  const childCount = node.children?.length ?? 0;
+
+  const completedToolLoopLogs = React.useMemo(() => {
+    if (rawToolLoopLogs.length === 0) return [];
+    const children = node.children || [];
+    if (children.length === 0) return rawToolLoopLogs;
+    const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
+    const childExact = new Set(children.map((c) => c.hierarchy.join('->')));
+    return rawToolLoopLogs.filter((l) => {
+      const logKey = l.entries.hierarchy.join('->');
+      if (childExact.has(logKey)) return false;
+      if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
+    // primitive proxy for node.children which is mutated in place by mergeNewEvents.
+  }, [rawToolLoopLogs, childCount]);
 
   const hasChildren = node.children && node.children.length > 0;
   const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
   const isExpandable = hasChildren || canLoadToolLoop;
 
-  // Live ToolLoop logs from SSE — shown while running and kept as a bridge
-  // after completion until the lazy-loaded historical data arrives.
-  const liveToolLoopLogs = React.useMemo(() => {
+  // Live ToolLoop logs from SSE, filtered identically to completedToolLoopLogs:
+  // exclude system messages AND child-owned events so live rendering matches
+  // polled rendering exactly (no duplication of descendant ToolLoop events).
+  const filteredLiveToolLoopLogs = React.useMemo(() => {
     if (!node.liveToolLoopLogs) return [];
-    return node.liveToolLoopLogs.filter((l) => l.entries.message.role !== 'system');
-  }, [node.liveToolLoopLogs]);
+    const logs = node.liveToolLoopLogs.filter((l) => l.entries.message.role !== 'system');
+    const children = node.children || [];
+    if (children.length === 0) return logs;
+    const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
+    const childExact = new Set(children.map((c) => c.hierarchy.join('->')));
+    return logs.filter((l) => {
+      const logKey = l.entries.hierarchy.join('->');
+      if (childExact.has(logKey)) return false;
+      if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
+    // primitive proxy for node.children which is mutated in place by mergeNewEvents.
+  }, [node.liveToolLoopLogs, childCount]);
 
-  // Derive label from the first ToolLoop user message (the request that
-  // kicked off this action). Falls back to displayLabel/hierarchy segment
-  // when no ToolLoop data is available yet.
-  const effectiveLabel = React.useMemo(() => {
-    const liveLogs = node.liveToolLoopLogs ?? [];
-    const liveUserMsg = liveLogs.find((l) => l.entries.message.role === 'user');
-    if (liveUserMsg) {
-      const text = extractTextContent(liveUserMsg.entries.message.content);
-      if (text) return text;
+  // Unified data source: prefer polled data when available, fall back to
+  // filtered live data. Every downstream consumer uses this instead of
+  // referencing completedToolLoopLogs or liveToolLoopLogs directly.
+  const effectiveLogs = completedToolLoopLogs.length > 0
+    ? completedToolLoopLogs
+    : filteredLiveToolLoopLogs;
+
+  // Label comes directly from the ManagerMethod incoming event's
+  // question/instructions/request field, stored as requestContent.
+  // Falls back to displayLabel/hierarchy segment for non-manager nodes.
+  const effectiveLabel = node.requestContent || node.label;
+
+  // --- Visibility gate ---
+  // Root nodes (depth 0) are always visible — they always carry a meaningful
+  // label (requestContent or displayLabel fallback for old data).
+  // Boundary nodes are visible only when they have children.
+  // Other inner nodes need requestContent, children, or to be running.
+  const isVisible = depth === 0
+    ? true
+    : node.type === 'boundary'
+      ? hasChildren
+      : !!node.requestContent || hasChildren || node.status === 'running';
+
+  // Extract the full request text and the final response text as standalone
+  // values so they can be rendered prominently outside the collapsed steps.
+  const promoted = React.useMemo(() => {
+    let req: { content: string; time: string } | null = null;
+    const userMsg = effectiveLogs.find((l) => l.entries.message.role === 'user');
+    if (userMsg) {
+      const text = extractTextContent(userMsg.entries.message.content);
+      if (text) req = { content: text, time: formatEventTime(userMsg.entries.eventTimestamp || userMsg.ts) };
     }
-    const completedUserMsg = completedToolLoopLogs.find((l) => l.entries.message.role === 'user');
-    if (completedUserMsg) {
-      const text = extractTextContent(completedUserMsg.entries.message.content);
-      if (text) return text;
-    }
-    return node.label;
-  }, [node.liveToolLoopLogs, completedToolLoopLogs, node.label]);
 
-  // --- Label animation system ---
-  const hasAnyToolLoopData =
-    (node.liveToolLoopLogs && node.liveToolLoopLogs.length > 0) || completedToolLoopLogs.length > 0;
-  const isLabelPending =
-    effectiveLabel === node.label &&
-    canLoadToolLoop &&
-    (node.status === 'running' ? !hasAnyToolLoopData : isToolLoopLoading);
-
-  const [displayedLabel, setDisplayedLabel] = React.useState(effectiveLabel);
-  const prevLabelRef = React.useRef(effectiveLabel);
-  const animRef = React.useRef<number | null>(null);
-  const [labelFading, setLabelFading] = React.useState(false);
-
-  React.useEffect(() => {
-    const prev = prevLabelRef.current;
-    prevLabelRef.current = effectiveLabel;
-    if (effectiveLabel === prev) return;
-
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-
-    const isLiveSwap = node.status === 'running' && prev === node.label;
-
-    if (isLiveSwap) {
-      let idx = 0;
-      const step = () => {
-        idx = Math.min(idx + 10, effectiveLabel.length);
-        setDisplayedLabel(effectiveLabel.slice(0, idx));
-        if (idx < effectiveLabel.length) {
-          animRef.current = requestAnimationFrame(step);
+    let resp: { content: string; time: string } | null = null;
+    for (let i = effectiveLogs.length - 1; i >= 0; i--) {
+      const msg = effectiveLogs[i].entries.message;
+      if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
+        const text = extractTextContent(msg.content);
+        if (text) {
+          resp = { content: text, time: formatEventTime(effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts) };
+          break;
         }
-      };
-      animRef.current = requestAnimationFrame(step);
-    } else {
-      setLabelFading(true);
-      const t = setTimeout(() => {
-        setDisplayedLabel(effectiveLabel);
-        setLabelFading(false);
-      }, 100);
-      return () => clearTimeout(t);
+      }
     }
 
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [effectiveLabel, node.status, node.label]);
+    return { request: req, response: resp };
+  }, [effectiveLogs]);
+
+  // IDs of the ToolLoop logs that are promoted (request + response) so they
+  // can be excluded from intermediate step sections.
+  const promotedLogIds = React.useMemo(() => {
+    const ids = new Set<number>();
+    const firstUser = effectiveLogs.find((l) => l.entries.message.role === 'user');
+    if (firstUser) ids.add(firstUser.id);
+    for (let i = effectiveLogs.length - 1; i >= 0; i--) {
+      const msg = effectiveLogs[i].entries.message;
+      if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
+        const text = extractTextContent(msg.content);
+        if (text) { ids.add(effectiveLogs[i].id); break; }
+      }
+    }
+    return ids;
+  }, [effectiveLogs]);
+
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -1023,16 +1166,14 @@ export function ActionNodeItem({
   };
 
   // Load full ToolLoop conversation for completed nodes.
-  // Fires immediately on completion (no expansion gate) so data is ready
-  // when the user expands the node — and so step counts can be computed
-  // even while the node is collapsed.
+  // Only fires when the node is expanded — prevents thundering herd of
+  // parallel requests for nodes that aren't even being viewed.
   // Uses hierarchy array + time bounds to scope results to this specific
-  // invocation. Without time bounds, the hierarchy prefix would match
-  // events from ALL invocations — producing a garbled interleaved timeline.
-  // After fetch, client-side filters out events that belong to child MM
-  // nodes (they'll be fetched by the child's own ActionNodeItem).
+  // invocation. After fetch, client-side filters out events that belong
+  // to child MM nodes (they'll be fetched by the child's own ActionNodeItem).
   React.useEffect(() => {
     if (node.status === 'running' || !canLoadToolLoop) return;
+    if (!isExpanded) return;
     if (toolLoopFetchedRef.current) return;
     toolLoopFetchedRef.current = true;
 
@@ -1050,20 +1191,10 @@ export function ActionNodeItem({
         if ('detail' in response) return;
         const logs = (response.logs || []) as ToolLoopLog[];
 
-        // Snapshot children at resolution time (not at effect setup time)
-        // so we filter against the most up-to-date tree.
-        const children = node.children || [];
-        const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
-        const childExact = new Set(children.map((c) => c.hierarchy.join('->')));
-
-        setCompletedToolLoopLogs(
-          logs.filter((l) => {
-            if (l.entries.message.role === 'system') return false;
-            const logKey = l.entries.hierarchy.join('->');
-            if (childExact.has(logKey)) return false;
-            if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
-            return true;
-          })
+        // Store raw logs (minus system messages). Child-event filtering
+        // happens reactively in the completedToolLoopLogs memo.
+        setRawToolLoopLogs(
+          logs.filter((l) => l.entries.message.role !== 'system')
         );
       } catch {
         // Silently fail
@@ -1073,24 +1204,31 @@ export function ActionNodeItem({
     };
 
     load();
-    // No cleanup — once toolLoopFetchedRef is set, the effect won't re-run.
-    // React 18+ safely ignores setState on unmounted components.
   }, [
     node.status,
     canLoadToolLoop,
+    isExpanded,
     assistantId,
     getToolLoopEvents,
     node.startTime,
     node.endTime,
     node.hierarchy,
-    node.children,
   ]);
 
-  // Reset completed ToolLoop state when node starts running again
+  // Lazy-load child manager events when a node is expanded and hasn't
+  // loaded children yet. This replaces the old eager full-tree fetch.
+  React.useEffect(() => {
+    if (!isExpanded || !loadChildren) return;
+    if (node.childrenLoaded || node.type !== 'manager') return;
+
+    loadChildren(node.id, node.hierarchy);
+  }, [isExpanded, loadChildren, node.id, node.hierarchy, node.childrenLoaded, node.type]);
+
+  // Reset ToolLoop state when node starts running again
   React.useEffect(() => {
     if (node.status === 'running') {
       toolLoopFetchedRef.current = false;
-      setCompletedToolLoopLogs([]);
+      setRawToolLoopLogs([]);
       setIsToolLoopLoading(false);
     }
   }, [node.status]);
@@ -1108,23 +1246,32 @@ export function ActionNodeItem({
   }, [node.status]);
 
   // Determine what to render in the detail area.
-  const hasToolLoopData = completedToolLoopLogs.length > 0;
-  // Show the live SSE timeline while running, and keep showing it after
-  // completion as a bridge until the lazy-loaded historical data arrives.
-  const showLiveTimeline =
-    isExpanded && liveToolLoopLogs.length > 0 && !hasToolLoopData && !isToolLoopLoading;
-  const showFallbackContent = isExpanded && !canLoadToolLoop && !!fallbackContent;
+  const hasToolLoopData = effectiveLogs.length > 0;
+
+  // Expanded content is only ready once children have been lazy-loaded
+  // (or there's no lazy-loading mechanism). Running nodes stream children
+  // via SSE so they're always ready.
+  const childrenReady = !loadChildren || node.childrenLoaded || node.status === 'running';
+  // ToolLoop-capable nodes also need their ToolLoop data before showing content.
+  const toolLoopReady = !canLoadToolLoop || hasToolLoopData || !isToolLoopLoading;
+  // Content is ready when polled data is fully loaded, OR we're running
+  // (streaming), OR we have live data to show as a bridge during transition.
+  const hasLiveData = filteredLiveToolLoopLogs.length > 0;
+  const contentReady =
+    (childrenReady && toolLoopReady) || node.status === 'running' || hasLiveData;
+
+  const showFallbackContent = isExpanded && contentReady && !canLoadToolLoop && !!fallbackContent;
   const hasInteractions = (node.interactions?.length ?? 0) > 0;
 
   // Enrich interactions with content extracted from ToolLoop data.
   // interject() injects a message into the existing loop queue — the next
   // ToolLoop "user" message IS the interjection text. Show it inline.
   const enrichedInteractions = React.useMemo(() => {
-    if (!node.interactions?.length || !completedToolLoopLogs.length) return node.interactions;
+    if (!node.interactions?.length || !effectiveLogs.length) return node.interactions;
     return node.interactions.map((interaction) => {
       if (interaction.content || interaction.action !== 'interject') return interaction;
       const interactionTime = new Date(interaction.timestamp).getTime();
-      const nextUserMsg = completedToolLoopLogs.find((log) => {
+      const nextUserMsg = effectiveLogs.find((log) => {
         const logTime = new Date(log.entries.eventTimestamp || log.ts).getTime();
         return logTime >= interactionTime && log.entries.message.role === 'user';
       });
@@ -1134,7 +1281,7 @@ export function ActionNodeItem({
       }
       return interaction;
     });
-  }, [node.interactions, completedToolLoopLogs]);
+  }, [node.interactions, effectiveLogs]);
 
   // Build a strictly chronological timeline that interleaves ToolLoop segments,
   // child nodes, and interaction annotations. Each child/interaction timestamp
@@ -1151,9 +1298,18 @@ export function ActionNodeItem({
   const timeline = React.useMemo((): TimelineSegment[] => {
     if (!hasToolLoopData && !hasChildren && !hasInteractions) return [];
 
+    // Only include children that will actually render (same logic as isVisible).
+    // Invisible children (e.g. empty boundary nodes) must not split step
+    // sections — otherwise consecutive steps get fragmented.
+    const visibleChildren = node.children.filter((c) =>
+      c.type === 'boundary'
+        ? (c.children?.length ?? 0) > 0
+        : !!c.requestContent || (c.children?.length ?? 0) > 0 || c.status === 'running'
+    );
+
     // Merge children and interactions into a unified chronological event list
     const timelineEvents: TimelineEvent[] = [
-      ...node.children.map((c) => ({
+      ...visibleChildren.map((c) => ({
         kind: 'child' as const,
         node: c,
         time: new Date(c.startTime).getTime(),
@@ -1176,7 +1332,7 @@ export function ActionNodeItem({
 
     // No events — single steps block
     if (timelineEvents.length === 0) {
-      return [{ kind: 'steps' as const, logs: completedToolLoopLogs, key: 'all' }];
+      return [{ kind: 'steps' as const, logs: effectiveLogs, key: 'all' }];
     }
 
     // Interleave: walk through ToolLoop logs and events together,
@@ -1187,13 +1343,13 @@ export function ActionNodeItem({
     for (const evt of timelineEvents) {
       const segment: ToolLoopLog[] = [];
 
-      while (logIdx < completedToolLoopLogs.length) {
+      while (logIdx < effectiveLogs.length) {
         if (
           new Date(
-            completedToolLoopLogs[logIdx].entries.eventTimestamp || completedToolLoopLogs[logIdx].ts
+            effectiveLogs[logIdx].entries.eventTimestamp || effectiveLogs[logIdx].ts
           ).getTime() < evt.time
         ) {
-          segment.push(completedToolLoopLogs[logIdx]);
+          segment.push(effectiveLogs[logIdx]);
           logIdx++;
         } else {
           break;
@@ -1213,10 +1369,10 @@ export function ActionNodeItem({
     }
 
     // Remaining logs after the last event
-    if (logIdx < completedToolLoopLogs.length) {
+    if (logIdx < effectiveLogs.length) {
       result.push({
         kind: 'steps',
-        logs: completedToolLoopLogs.slice(logIdx),
+        logs: effectiveLogs.slice(logIdx),
         key: 'post',
       });
     }
@@ -1243,20 +1399,36 @@ export function ActionNodeItem({
       }
     }
 
-    return result;
+    // Merge consecutive step sections so that adjacent ToolLoop segments
+    // (with no child/interaction between them) appear as a single block.
+    const merged: TimelineSegment[] = [];
+    for (const seg of result) {
+      const last = merged[merged.length - 1];
+      if (seg.kind === 'steps' && last?.kind === 'steps') {
+        last.logs = [...last.logs, ...seg.logs];
+      } else {
+        merged.push(seg);
+      }
+    }
+
+    return merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
+    // primitive proxy for node.children which is mutated in place.
   }, [
     hasToolLoopData,
     hasChildren,
     hasInteractions,
-    completedToolLoopLogs,
-    node.children,
+    effectiveLogs,
+    childCount,
     enrichedInteractions,
   ]);
 
   // Whether to use the interleaved timeline renderer
-  const useTimeline = isExpanded && (hasToolLoopData || hasInteractions);
+  const useTimeline = isExpanded && contentReady && (hasToolLoopData || hasInteractions);
 
   const NodeIcon = getNodeIcon(node.displayLabel);
+
+  if (!isVisible) return null;
 
   return (
     <div
@@ -1277,6 +1449,7 @@ export function ActionNodeItem({
         style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}
         onClick={isExpandable ? handleToggle : undefined}
         data-testid={isExpandable ? 'expand-button' : undefined}
+        title={isExpandable && !isExpanded ? 'Click to expand' : undefined}
       >
         {/* Type icon */}
         <NodeIcon
@@ -1294,15 +1467,11 @@ export function ActionNodeItem({
         <span
           className={cn(
             'flex min-w-0 items-baseline gap-0 text-xs',
-            getLabelStyles(node.status),
-            isLabelPending && 'animate-shimmer',
-            'transition-opacity duration-150',
-            labelFading && 'opacity-0'
+            getLabelStyles(node.status)
           )}
-          title={effectiveLabel}
         >
-          <span className="line-clamp-1">
-            <TruncatedMarkdown content={displayedLabel} />
+          <span className="min-w-0 truncate">
+            <TruncatedMarkdown content={effectiveLabel} />
           </span>
           <LiveDuration node={node} />
         </span>
@@ -1325,18 +1494,39 @@ export function ActionNodeItem({
         )}
       </div>
 
-      {/* Live ToolLoop timeline — scrollable, auto-scrolls to bottom */}
-      {showLiveTimeline && <LiveToolLoopTimeline logs={liveToolLoopLogs} depth={depth} />}
+      {/* Promoted request/response — shown prominently when expanded */}
+      {isExpanded && contentReady && promoted.request && (
+        <PromotedContent
+          label="request"
+          labelColor="text-blue-500/60"
+          content={promoted.request.content}
+          depth={depth}
+          defaultOpen
+          timestamp={promoted.request.time}
+        />
+      )}
+      {isExpanded && contentReady && promoted.response && (
+        <PromotedContent
+          label="response"
+          labelColor="text-green-500/60"
+          content={promoted.response.content}
+          depth={depth}
+          timestamp={promoted.response.time}
+        />
+      )}
 
       {/* Interleaved timeline: ToolLoop segments, children, and interactions
-          in strict chronological order. */}
+          in strict chronological order. Promoted request/response logs are
+          filtered out since they're shown above. */}
       {useTimeline &&
         timeline.map((segment) => {
           if (segment.kind === 'steps') {
+            const filtered = segment.logs.filter((l) => !promotedLogIds.has(l.id));
+            if (filtered.length === 0) return null;
             return (
               <CollapsibleToolLoopSection
                 key={segment.key}
-                logs={segment.logs}
+                logs={filtered}
                 depth={depth}
                 sectionToggleSignal={sectionToggleSignal}
               />
@@ -1365,6 +1555,7 @@ export function ActionNodeItem({
                 onExpandedChange={onExpandedChange}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
+                loadChildren={loadChildren}
                 sectionToggleSignal={sectionToggleSignal}
               />
             </div>
@@ -1373,7 +1564,7 @@ export function ActionNodeItem({
 
       {/* Standard children rendering — while running (no ToolLoop yet) or
           for completed nodes without ToolLoop data. */}
-      {!useTimeline && hasChildren && (
+      {!useTimeline && contentReady && hasChildren && (
         <div
           className={cn(
             'relative overflow-hidden transition-all duration-200 ease-out',
@@ -1394,9 +1585,21 @@ export function ActionNodeItem({
               onExpandedChange={onExpandedChange}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
+              loadChildren={loadChildren}
               sectionToggleSignal={sectionToggleSignal}
             />
           ))}
+        </div>
+      )}
+
+      {/* Children loading indicator — shown while content isn't ready */}
+      {isExpanded && !contentReady && (
+        <div
+          className="flex items-center gap-1.5 py-1 text-[11px] text-muted-foreground/40"
+          style={{ paddingLeft: `${28 + depth * 16}px` }}
+        >
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>Loading...</span>
         </div>
       )}
 
