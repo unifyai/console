@@ -179,7 +179,9 @@ export const getManagerMethodEvents = async (apiKey: string) => {
   return async (
     assistantId: string,
     startTime: string | null,
-    limit: number | null
+    limit: number | null,
+    offset?: number,
+    extraFilters?: string[]
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
 
@@ -198,17 +200,28 @@ export const getManagerMethodEvents = async (apiKey: string) => {
       if (startTime) {
         filters.push(buildTimestampFilter(startTime));
       }
+      if (extraFilters) {
+        filters.push(...extraFilters);
+      }
       const filterExpr = combineFilters(filters);
       if (filterExpr) {
         baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
       }
 
-      if (limit === null) {
+      if (limit === null && offset === undefined) {
         return await fetchAllPages(baseUrl, apiKey, 'getManagerMethodEvents', MM_PAGE_SIZE);
       }
 
-      // Explicit limit: single-page fetch (used by loadMore)
-      const result = await fetchPage(baseUrl, apiKey, limit, 0, 'getManagerMethodEvents');
+      // Explicit limit/offset: single-page fetch (progressive load or loadMore)
+      const pageLimit = limit ?? MM_PAGE_SIZE;
+      const pageOffset = offset ?? 0;
+      const result = await fetchPage(
+        baseUrl,
+        apiKey,
+        pageLimit,
+        pageOffset,
+        'getManagerMethodEvents'
+      );
       if ('detail' in result) return result;
 
       if (result.data?.logs) {
