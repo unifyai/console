@@ -65,6 +65,7 @@ export function AssistantProfileChatPanel({
     handleInputChange,
     sendMessage,
     connectionStatus,
+    showConnectionBanner,
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,
@@ -366,8 +367,9 @@ export function AssistantProfileChatPanel({
         )}
       </ScrollArea>
 
-      {/* Connection status */}
-      {!initialLoadError && connectionStatus !== 'connected' && connectionStatusText && (
+      {/* Connection status — only shown after a grace period to avoid flashing
+         during routine SSE reconnections (e.g. the 60-second cycle). */}
+      {!initialLoadError && showConnectionBanner && connectionStatusText && (
         <div className="text-caption flex animate-pulse flex-row gap-2 px-4 text-muted-foreground">
           <MessageSquareMore className="h-4 w-4" />
           {connectionStatusText}
@@ -414,7 +416,7 @@ export function AssistantProfileChatPanel({
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
-                connectionStatus !== 'connected' ||
+                showConnectionBanner ||
                 isSpendingBlocked
               }
               aria-label="Attach files"
@@ -445,7 +447,7 @@ export function AssistantProfileChatPanel({
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
-                connectionStatus !== 'connected' ||
+                showConnectionBanner ||
                 isSpendingBlocked
               }
               className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
@@ -464,7 +466,7 @@ export function AssistantProfileChatPanel({
                 isLoading ||
                 (!inputValue.trim() && pendingAttachments.length === 0) ||
                 initialLoadError ||
-                connectionStatus !== 'connected' ||
+                showConnectionBanner ||
                 isSpendingBlocked
               }
             >

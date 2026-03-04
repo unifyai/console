@@ -3659,12 +3659,14 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'shows correct status during connection lifecycle',
+      'shows correct status during connection lifecycle with grace period',
       {
         meta: {
           alias: 'SSE-Status-Lifecycle',
           scenario: 'Connection transitions through states',
-          behavior: 'UI reflects correct connection status',
+          behavior:
+            'Connecting banner is suppressed during the 3s grace period. ' +
+            'If connection opens within the grace period, the banner never appears.',
         },
       },
       async () => {
@@ -3674,10 +3676,10 @@ describe('Assistant Profile Chat', () => {
         );
         await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
 
-        // Before open - should show connecting
-        expect(screen.getByText(/Connecting/i)).toBeInTheDocument();
+        // Within grace period — banner is suppressed
+        expect(screen.queryByText(/Connecting/i)).not.toBeInTheDocument();
 
-        // After open - should show connected (status indicator disappears)
+        // Connection opens within grace period — banner never appears
         act(() => chatMocks.eventSource!.simulateOpen());
 
         await waitFor(() => {
@@ -3839,13 +3841,17 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'shows reconnecting status after error',
+      'suppresses connection banner during grace period after error',
       {
         meta: {
           alias: 'SSE-Reconnecting-Status',
-          scenario: 'SSE connection error occurs',
-          behavior: 'Reconnecting status is displayed',
+          scenario: 'SSE connection error occurs; reconnection starts within the grace period',
+          behavior:
+            'Banner is suppressed immediately after error. After the reconnect delay ' +
+            '(1s) the status transitions to connecting and the grace period restarts. ' +
+            'The banner eventually appears if the connection is not restored.',
         },
+        timeout: 15000,
       },
       async () => {
         const chatActions = createMockChatActionsFromFixture();
@@ -3863,10 +3869,19 @@ describe('Assistant Profile Chat', () => {
         // Simulate error
         act(() => chatMocks.eventSource!.simulateError());
 
-        // Should show reconnecting
-        await waitFor(() => {
-          expect(screen.getByText(/Reconnecting/i)).toBeInTheDocument();
-        });
+        // Immediately after error — banner is suppressed (within 3s grace period)
+        expect(screen.queryByText(/Connecting/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Reconnecting/i)).not.toBeInTheDocument();
+
+        // After reconnect delay (1s) + grace period (3s), the banner appears.
+        // The status transitions reconnecting → connecting when the SSE effect
+        // re-runs, so the visible text is "Connecting..." not "Reconnecting...".
+        await waitFor(
+          () => {
+            expect(screen.getByText(/Connecting/i)).toBeInTheDocument();
+          },
+          { timeout: 6000 }
+        );
       }
     );
   });
@@ -3908,13 +3923,16 @@ describe('Assistant Profile Chat', () => {
       );
 
       it(
-        'should be disabled when chat is not connected',
+        'should be enabled during connection grace period and disabled after',
         {
           meta: {
-            alias: 'Attach-Button-Disabled',
-            scenario: 'Chat is not connected',
-            behavior: 'Paperclip button is disabled',
+            alias: 'Attach-Button-Grace-Period',
+            scenario: 'Chat SSE created but not yet opened',
+            behavior:
+              'Within the 3s grace period the button is enabled (brief reconnections ' +
+              'should not block interaction). After the grace period the button is disabled.',
           },
+          timeout: 15000,
         },
         async () => {
           const chatActions = createMockChatActionsFromFixture();
@@ -3922,12 +3940,19 @@ describe('Assistant Profile Chat', () => {
             <ChatTestHarness initialHistory={[]} assistantActionsOverride={{ chat: chatActions }} />
           );
 
-          // Wait for EventSource to be created but don't open it
           await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
 
-          // Button should render but be disabled without connection
+          // Within grace period — button is still enabled
           const attachButton = await screen.findByLabelText('Attach files');
-          expect(attachButton).toBeDisabled();
+          expect(attachButton).not.toBeDisabled();
+
+          // After grace period expires — button becomes disabled
+          await waitFor(
+            () => {
+              expect(screen.getByLabelText('Attach files')).toBeDisabled();
+            },
+            { timeout: 5000 }
+          );
         }
       );
     });
@@ -6270,13 +6295,13 @@ describe('Assistant Profile Chat', () => {
           act(() => chatMocks.eventSource!.simulateOpen());
           act(() => chatMocks.eventSource!.simulateError());
 
-          // Should show reconnecting
-          await waitFor(() => {
-            expect(screen.getByText(/Reconnecting/i)).toBeInTheDocument();
-          });
+          // Reconnecting banner is suppressed during the grace period;
+          // the reconnection should complete before it expires.
 
-          // 4. SSE reconnects
-          await waitFor(() => expect(chatMocks.allEventSources.length).toBeGreaterThan(1));
+          // 4. SSE reconnects (after 1s reconnect delay)
+          await waitFor(() => expect(chatMocks.allEventSources.length).toBeGreaterThan(1), {
+            timeout: 3000,
+          });
           const newConnection = chatMocks.allEventSources[chatMocks.allEventSources.length - 1];
           act(() => newConnection.simulateOpen());
 
