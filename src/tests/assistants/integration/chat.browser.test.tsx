@@ -1749,20 +1749,23 @@ describe('Assistant Profile Chat', () => {
     );
 
     it(
-      'displays pre-hire messages immediately with contactId=1 and skips contact resolution',
+      'preserves pre-hire messages when contact_id is not found initially and requires retry',
       {
         meta: {
-          alias: 'History-Preserve-Greeting-SkipResolution',
+          alias: 'History-Preserve-Greeting-ContactRetry',
           scenario:
             'New assistant hired. Profile opens with isFirstView=true and pre-hire chat. ' +
-            'The hiring user is always contact_id=1 (owner), so contact resolution is ' +
-            'skipped entirely. Phase: uninitialized → ready (immediate).',
+            'getContactId returns null initially (contact not yet created on backend). ' +
+            'After retry delay, getContactId returns a valid contact_id. ' +
+            'Phase: uninitialized → pending_contact → ready (never loading_transcripts).',
           behavior:
-            'Pre-hire messages are visible immediately. ' +
-            'getContactId is NOT called. getTranscripts is NOT called.',
+            'Pre-hire messages remain visible throughout the contact_id retry. ' +
+            'getTranscripts is NOT called because pending_contact → ready skips it.',
         },
       },
       async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+
         const assistant = createMockAssistant({
           agentId: 'new-hire-retry-id',
           firstName: 'New',
@@ -1791,7 +1794,12 @@ describe('Assistant Profile Chat', () => {
         ];
 
         const getTranscriptsMock = vi.fn(async () => []);
-        const getContactIdMock = vi.fn(async () => 42);
+        let contactIdCallCount = 0;
+        const getContactIdMock = vi.fn(async () => {
+          contactIdCallCount++;
+          if (contactIdCallCount <= 2) return null;
+          return 42;
+        });
 
         const actionsOverride = {
           ...mockAssistantActions,
@@ -1833,8 +1841,27 @@ describe('Assistant Profile Chat', () => {
         expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
         expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
 
-        expect(getContactIdMock).not.toHaveBeenCalled();
+        await waitFor(() => {
+          expect(getContactIdMock).toHaveBeenCalled();
+        });
+
+        expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(12000);
+        });
+
+        await waitFor(() => {
+          expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+        });
+
+        expect(screen.getByText('Hi! Nice to meet you before hiring.')).toBeInTheDocument();
+        expect(screen.getByText('Hello! Tell me about yourself.')).toBeInTheDocument();
+        expect(screen.getByText('I am a helpful assistant ready to work!')).toBeInTheDocument();
+
         expect(getTranscriptsMock).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
       }
     );
 
@@ -1844,16 +1871,20 @@ describe('Assistant Profile Chat', () => {
         meta: {
           alias: 'History-Preserve-Greeting-ParentRerender',
           scenario:
-            'New assistant hired. First-view greeting loaded. Phase transitions directly ' +
-            'to ready with contactId=1 (owner). Parent re-renders (simulating ' +
-            'refreshAssistants) which creates new onFirstViewCompleted ref. The init ' +
-            'effect does NOT re-run because phase is no longer uninitialized.',
+            'New assistant hired. First-view greeting loaded. Phase transitions to ' +
+            'pending_contact. Parent re-renders (simulating refreshAssistants) which ' +
+            'creates new onFirstViewCompleted ref. The init effect does NOT re-run ' +
+            'because phase is no longer uninitialized — onFirstViewCompleted is not ' +
+            'in its dependency array.',
           behavior:
             'Pre-hire greeting survives all parent re-renders. ' +
-            'getContactId and getTranscripts are never called.',
+            'getTranscripts is never called. Only one contact resolution cycle runs.',
         },
+        timeout: 15000,
       },
       async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+
         const assistant = createMockAssistant({
           agentId: 'rerender-id',
           firstName: 'Rerender',
@@ -1868,7 +1899,12 @@ describe('Assistant Profile Chat', () => {
         };
 
         const getTranscriptsMock = vi.fn(async () => []);
-        const getContactIdMock = vi.fn(async () => 99);
+        let contactIdCallCount = 0;
+        const getContactIdMock = vi.fn(async () => {
+          contactIdCallCount++;
+          if (contactIdCallCount <= 2) return null;
+          return 99;
+        });
 
         const actionsOverride = {
           ...mockAssistantActions,
@@ -1912,9 +1948,13 @@ describe('Assistant Profile Chat', () => {
 
         expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
 
+        await waitFor(() => {
+          expect(getContactIdMock).toHaveBeenCalled();
+        });
+
         // Force parent re-renders — with the phase-based design, this does NOT
-        // restart initialization because the init effect is gated on
-        // phase === 'uninitialized'.
+        // restart the contact resolution because the init effect is gated on
+        // phase === 'uninitialized' and onFirstViewCompleted is not a dependency.
         act(() => {
           fireEvent.click(screen.getByTestId('force-rerender'));
         });
@@ -1924,8 +1964,18 @@ describe('Assistant Profile Chat', () => {
 
         expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
 
-        expect(getContactIdMock).not.toHaveBeenCalled();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(12000);
+        });
+
+        await waitFor(() => {
+          expect(getContactIdMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+        });
+
+        expect(screen.getByText('Hi! I am your newly hired assistant.')).toBeInTheDocument();
         expect(getTranscriptsMock).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
       }
     );
 
