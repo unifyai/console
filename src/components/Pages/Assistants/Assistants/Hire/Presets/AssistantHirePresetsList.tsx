@@ -45,6 +45,7 @@ export interface PresetsPanelProps {
   onLanguageFilterChange: (value: string) => void;
   availableLanguages: string[];
 
+  selectedPreset?: AssistantPreset | null;
   onToggleView?: () => void;
   /** Callback to open the Stripe payment panel (passed to BillableActionGuard) */
   onAddPaymentMethod?: () => void;
@@ -53,6 +54,7 @@ export interface PresetsPanelProps {
 export function PresetsPanel({
   displayedPresets,
   onPresetSelect,
+  selectedPreset,
   onClose,
   layoutMode,
   setLayoutMode,
@@ -260,7 +262,11 @@ export function PresetsPanel({
                 key={`${preset.firstName}-${preset.surname}-${index}`}
                 preset={preset}
                 onSelect={onPresetSelect}
-
+                isSelected={
+                  !!selectedPreset &&
+                  preset.firstName === selectedPreset.firstName &&
+                  preset.surname === selectedPreset.surname
+                }
               />
             ))
           ) : (

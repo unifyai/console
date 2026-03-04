@@ -10,9 +10,10 @@ type ImageLoadingStatus = 'idle' | 'loading' | 'loaded' | 'error';
 interface PresetListItemProps {
   preset: AssistantPreset;
   onSelect: (preset: AssistantPreset) => void;
+  isSelected?: boolean;
 }
 
-export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
+export function PresetListItem({ preset, onSelect, isSelected }: PresetListItemProps) {
   const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>('loading');
 
   const displayName = `${preset.firstName} ${preset.surname}`;
@@ -24,7 +25,10 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
 
   return (
     <div
-      className="flex cursor-pointer items-start gap-4 rounded-md p-3 hover:bg-muted"
+      className={cn(
+        'flex cursor-pointer items-start gap-4 rounded-md p-3',
+        isSelected ? 'bg-primary/10 ring-primary/40 ring-1' : 'hover:bg-muted'
+      )}
       onClick={() => onSelect(preset)}
       role="button"
     >
@@ -62,9 +66,7 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
           <span>{preset.nationality}</span>
           <span className="text-caption text-muted-foreground">Language:</span>
           <span className="flex items-center gap-1.5">
-            {preset.language
-              ? getLanguageLabel(preset.language)
-              : '-'}
+            {preset.language ? getLanguageLabel(preset.language) : '-'}
           </span>
         </div>
         <p className="text-caption line-clamp-2 text-muted-foreground">
