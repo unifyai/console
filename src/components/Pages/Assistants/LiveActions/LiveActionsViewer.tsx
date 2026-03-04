@@ -98,15 +98,24 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     return preset ? preset.getMs() : 3 * 3_600_000;
   }, [timeWindowKey]);
 
-  const { roots, hasActiveAction, isLoading, error, refresh, loadMore, hasMore, connectionStatus } =
-    useAssistantActions(
-      hasAssistant ? assistant.agentId : '',
-      actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
-      {
-        enabled: shouldPoll,
-        initialLookbackMs: lookbackMs,
-      }
-    );
+  const {
+    roots,
+    hasActiveAction,
+    isLoading,
+    error,
+    refresh,
+    loadMore,
+    loadChildren,
+    hasMore,
+    connectionStatus,
+  } = useAssistantActions(
+    hasAssistant ? assistant.agentId : '',
+    actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
+    {
+      enabled: shouldPoll,
+      initialLookbackMs: lookbackMs,
+    }
+  );
 
   // Track loading more state separately for UI
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -306,6 +315,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
         roots={roots}
         assistantId={assistant?.agentId || null}
         getToolLoopEvents={actions?.getToolLoopEvents}
+        loadChildren={loadChildren}
         searchTerm={searchTerm}
         autoCollapse={autoCollapse}
         isLoading={isLoading}
