@@ -10,7 +10,6 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
-const hostName = new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').hostname;
 
 const authOptions: AuthOptions = {
   ...pagesOptions,
@@ -28,7 +27,6 @@ const authOptions: AuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: useSecureCookies,
-        domain: hostName == 'localhost' ? hostName : '.' + hostName.split('.').splice(1).join('.'),
       },
     },
   },
