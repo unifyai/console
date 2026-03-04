@@ -15,9 +15,6 @@ import type { AttachmentType, Attachment, AttachmentUploadResponse } from '@/typ
 // CONSTANTS
 // =============================================================================
 
-/** Maximum file size in bytes (25MB) */
-export const MAX_FILE_SIZE = 25 * 1024 * 1024;
-
 /** Maximum number of attachments per message */
 export const MAX_ATTACHMENTS = 10;
 
@@ -55,6 +52,11 @@ export const ALLOWED_EXTENSIONS = new Set([
   '.xml',
   '.yaml',
   '.yml',
+  // Web
+  '.html',
+  '.htm',
+  // Code
+  '.py',
 ]);
 
 /** Blocked file extensions (security risk) */
@@ -221,24 +223,10 @@ export function validateFileType(filename: string): { valid: boolean; error?: st
 }
 
 /**
- * Validate file size.
+ * Validate a file for upload (type check only; no size cap).
  */
 export function validateFile(file: File): { valid: boolean; error?: string } {
-  // Check file type first
-  const typeValidation = validateFileType(file.name);
-  if (!typeValidation.valid) {
-    return typeValidation;
-  }
-
-  // Check file size
-  if (file.size > MAX_FILE_SIZE) {
-    return {
-      valid: false,
-      error: 'File exceeds 25MB limit',
-    };
-  }
-
-  return { valid: true };
+  return validateFileType(file.name);
 }
 
 /**

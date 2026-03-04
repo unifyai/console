@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       let errorDetail = 'Upload failed';
       try {
         const errorJson = JSON.parse(errorText);
-        errorDetail = errorJson.detail || errorDetail;
+        errorDetail = errorJson.error || errorJson.detail || errorDetail;
       } catch {
         errorDetail = errorText || errorDetail;
       }
