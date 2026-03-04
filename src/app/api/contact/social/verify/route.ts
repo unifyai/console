@@ -6,7 +6,16 @@ import {
   getCommunicationErrorStatus,
 } from '@/lib/communication/client';
 
+const isStaging = (process.env.ORCHESTRA_URL ?? '').includes('staging');
+
 export async function POST(request: NextRequest) {
+  if (!isStaging) {
+    return NextResponse.json(
+      { detail: 'Social account verification is currently unavailable. Coming soon.' },
+      { status: 503 }
+    );
+  }
+
   // Get API key from session (fallback to header for backwards compatibility)
   const user = await getCurrentUser();
   const apiKey = user?.apiKey || request.headers.get('apiKey');
