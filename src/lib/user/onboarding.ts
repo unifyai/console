@@ -25,7 +25,6 @@ import { getOrchestraUserClient, OrchestraAdminClient } from '@/lib/orchestra/or
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
 const cookieName = `${cookiePrefix}next-auth.session-token`;
-const hostName = new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').hostname;
 
 // ─── Server action: patch JWT and redirect ────────────────────────────────────
 
@@ -106,7 +105,6 @@ export async function patchSessionAndRedirect(
     sameSite: 'lax',
     path: '/',
     secure: useSecureCookies,
-    domain: hostName === 'localhost' ? hostName : '.' + hostName.split('.').splice(1).join('.'),
   });
 
   // ── Redirect ─────────────────────────────────────────────────────────

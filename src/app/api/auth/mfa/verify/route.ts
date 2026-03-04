@@ -6,7 +6,6 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
 const cookieName = `${cookiePrefix}next-auth.session-token`;
-const hostName = new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').hostname;
 
 /**
  * POST /api/auth/mfa/verify
@@ -50,8 +49,6 @@ export async function POST(request: NextRequest) {
           sameSite: 'lax',
           path: '/',
           secure: useSecureCookies,
-          domain:
-            hostName === 'localhost' ? hostName : '.' + hostName.split('.').splice(1).join('.'),
         });
         return response;
       }
