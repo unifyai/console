@@ -1013,6 +1013,231 @@ describe('useAssistantForm', () => {
     });
   });
 
+  describe('Media Upload with assistant_id', () => {
+    it(
+      'hire flow: creates assistant first, then uploads photo with assistant_id, then updates assistant',
+      {
+        meta: {
+          alias: 'HireForm-PhotoUploadWithAssistantId',
+          scenario: 'User hires assistant with custom photo',
+          behavior:
+            'Create assistant first (null photo), upload photo with assistant_id, update with URL',
+        },
+      },
+      async () => {
+        // Arrange - track call order
+        const callOrder: string[] = [];
+
+        mockActions.assistant.create = vi.fn().mockImplementation(async (...args: any[]) => {
+          callOrder.push('create');
+          return {
+            assistant: {
+              agentId: 'new-assistant-42',
+              firstName: 'Jane',
+              surname: 'Doe',
+            },
+          };
+        });
+
+        mockActions.photo.upload = vi.fn().mockImplementation(async (formData: FormData) => {
+          callOrder.push('photo.upload');
+          return { gcsUrl: 'gs://bucket/42/photos/photo.jpg' };
+        });
+
+        mockActions.assistant.update = vi.fn().mockImplementation(async () => {
+          callOrder.push('update');
+          return { info: 'Updated' };
+        });
+
+        const { result } = renderHook(() =>
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        await waitFor(() => {
+          expect(result.current.isSubmitting).toBe(false);
+        });
+
+        const mockPhotoFile = new File(['photo data'], 'photo.jpg', { type: 'image/jpeg' });
+
+        act(() => {
+          result.current.formMethods.setValue('firstName', 'Jane');
+          result.current.formMethods.setValue('surname', 'Doe');
+          result.current.formMethods.setValue('age', 25);
+          result.current.formMethods.setValue('nationality', 'United States');
+          result.current.formMethods.setValue('voiceId', 'voice-1');
+          result.current.formMethods.setValue('voiceName', 'Test Voice');
+          result.current.formMethods.setValue('voiceGender', 'female');
+          result.current.formMethods.setValue('voiceLanguage', 'en');
+          result.current.formMethods.setValue('voiceExists', true);
+          result.current.formMethods.setValue('photoFile', mockPhotoFile);
+        });
+
+        // Act
+        await act(async () => {
+          await result.current.initiateHireSequence();
+        });
+
+        // Assert - correct call order
+        await waitFor(() => {
+          expect(callOrder).toEqual(['create', 'photo.upload', 'update']);
+        });
+
+        // Create should be called with null for profilePhoto (index 5)
+        const createCall = (mockActions.assistant.create as any).mock.calls[0];
+        expect(createCall[5]).toBeNull(); // profilePhoto = null (custom upload deferred)
+
+        // Photo upload should include assistant_id in FormData
+        const uploadCall = (mockActions.photo.upload as any).mock.calls[0];
+        const uploadFormData: FormData = uploadCall[0];
+        expect(uploadFormData.get('assistant_id')).toBe('new-assistant-42');
+        expect(uploadFormData.get('file')).toBeTruthy();
+
+        // Update should be called with assistant_id and profilePhoto
+        expect(mockActions.assistant.update).toHaveBeenCalledWith('new-assistant-42', {
+          profilePhoto: 'gs://bucket/42/photos/photo.jpg',
+        });
+      }
+    );
+
+    it(
+      'hire flow: does not upload or update when using preset (pristine) photo',
+      {
+        meta: {
+          alias: 'HireForm-PresetPhotoNoUpload',
+          scenario: 'User hires with a preset (no custom photo file)',
+          behavior: 'Photo URL is passed directly to create, no upload/update needed',
+        },
+      },
+      async () => {
+        mockActions.assistant.create = vi.fn().mockResolvedValue({
+          assistant: { agentId: 'preset-1', firstName: 'Preset', surname: 'Test' },
+        });
+
+        const { result } = renderHook(() =>
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        await waitFor(() => {
+          expect(result.current.isSubmitting).toBe(false);
+        });
+
+        act(() => {
+          result.current.formMethods.setValue('firstName', 'Preset');
+          result.current.formMethods.setValue('surname', 'Test');
+          result.current.formMethods.setValue('nationality', 'United States');
+          result.current.formMethods.setValue('voiceId', 'voice-1');
+          result.current.formMethods.setValue('voiceName', 'Test Voice');
+          result.current.formMethods.setValue('voiceGender', 'female');
+          result.current.formMethods.setValue('voiceLanguage', 'en');
+          result.current.formMethods.setValue('voiceExists', true);
+          result.current.formMethods.setValue('isPresetPristine', true);
+          result.current.formMethods.setValue(
+            'profilePhotoUrl',
+            'gs://bucket/preset.jpg'
+          );
+        });
+
+        await act(async () => {
+          await result.current.initiateHireSequence();
+        });
+
+        await waitFor(() => {
+          expect(mockActions.assistant.create).toHaveBeenCalled();
+        });
+
+        // Create should have the preset photo URL (index 5)
+        const createCall = (mockActions.assistant.create as any).mock.calls[0];
+        expect(createCall[5]).toBe('gs://bucket/preset.jpg');
+
+        // No photo upload or assistant update should have been called
+        expect(mockActions.photo.upload).not.toHaveBeenCalled();
+        expect(mockActions.assistant.update).not.toHaveBeenCalled();
+      }
+    );
+
+    it(
+      'update flow: includes assistant_id in photo upload FormData',
+      {
+        meta: {
+          alias: 'HireForm-UpdatePhotoWithAssistantId',
+          scenario: 'User updates assistant with new photo',
+          behavior: 'Photo upload FormData includes assistant_id',
+        },
+      },
+      async () => {
+        const existingAssistant: Assistant = {
+          agentId: 'existing-99',
+          firstName: 'Existing',
+          surname: 'Assistant',
+          age: 25,
+          nationality: 'United States',
+          timezone: 'UTC',
+          voiceId: 'default-voice',
+          voiceProvider: 'elevenlabs',
+          userId: '1',
+          organizationId: null,
+          about: 'Test',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          email: null,
+          phone: null,
+          userPhone: null,
+          phoneCountry: null,
+          userWhatsappNumber: null,
+          assistantWhatsappNumber: null,
+          profilePhoto: null,
+          profileVideo: null,
+          weeklyLimit: null,
+          maxParallel: null,
+        } as Assistant;
+
+        mockActions.photo.upload = vi.fn().mockResolvedValue({
+          gcsUrl: 'gs://bucket/99/photos/new-photo.jpg',
+        });
+
+        const { result } = renderHook(() =>
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        await waitFor(() => {
+          expect(result.current.isSubmitting).toBe(false);
+        });
+
+        act(() => {
+          result.current.loadAssistantForEdit(existingAssistant);
+        });
+
+        const mockPhotoFile = new File(['photo data'], 'new-photo.jpg', { type: 'image/jpeg' });
+
+        act(() => {
+          result.current.formMethods.setValue('photoFile', mockPhotoFile);
+        });
+
+        await act(async () => {
+          await result.current.initiateUpdate();
+        });
+
+        await waitFor(() => {
+          expect(mockActions.photo.upload).toHaveBeenCalled();
+        });
+
+        // Verify assistant_id is in the FormData
+        const uploadCall = (mockActions.photo.upload as any).mock.calls[0];
+        const uploadFormData: FormData = uploadCall[0];
+        expect(uploadFormData.get('assistant_id')).toBe('existing-99');
+        expect(uploadFormData.get('file')).toBeTruthy();
+
+        // Verify update was called with the new photo URL
+        expect(mockActions.assistant.update).toHaveBeenCalledWith(
+          'existing-99',
+          expect.objectContaining({
+            profilePhoto: 'gs://bucket/99/photos/new-photo.jpg',
+          })
+        );
+      }
+    );
+  });
+
   describe('G - Update Error Handling', () => {
     const mockEditingAssistant: Assistant = {
       agentId: 'edit-assistant-1',
