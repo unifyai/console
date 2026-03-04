@@ -463,7 +463,8 @@ export function usePhotoCreator(
         formData.append('imageUrl', imageSource);
       }
       if (audioDuration > 0) {
-        formData.append('duration', audioDuration.toString());
+        // Replicate only accepts duration of 5 or 10
+        formData.append('duration', (audioDuration <= 5 ? 5 : 10).toString());
       }
 
       const createResult = await photoActions.animate(formData);
