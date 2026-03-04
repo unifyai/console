@@ -499,6 +499,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
     (newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
+      setAssistants((prev) => [...prev, newAssistant]);
       refreshAssistants(false);
       fetchUserVoices();
       refetchBillingStatus();
@@ -510,7 +511,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
       }
     },
-    [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices]
+    [setAssistants, refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices]
   );
 
   const handleUpdateSuccess = React.useCallback(
