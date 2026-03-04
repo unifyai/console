@@ -75,12 +75,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
-      // Increment connection attempt ID to invalidate any in-flight operations from previous attempts
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
 
-      // Helper to check if this connection attempt is still valid
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
 
@@ -95,46 +93,41 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setError(null);
       setConnectionError(null);
       try {
-        // Delete any stale room from a previous failed attempt before creating a new one
         const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
-        await assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
-        if (isStaleAttempt()) return;
+
+        // Fire-and-forget: clean up any stale room without blocking the connection flow
+        assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
 
         const assistantName = `${assistant.firstName}${assistant.surname}`;
         let connDetails: ConnectionDetails | null = null;
 
-        // Retry loop for connection setup
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
           if (isStaleAttempt()) return;
 
           try {
-            // Step 1: Get connection details for the user
-            const details = await assistantActions.call.getConnectionDetails(
-              assistant.agentId,
-              assistantName
-            );
+            // Run getConnectionDetails and dispatchToCall in parallel.
+            // The room name is deterministic (unity_{id}_meet), so dispatch
+            // doesn't need to wait for connection details.
+            const [details, dispatchResult] = await Promise.all([
+              assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
+              assistantActions.call.dispatchToCall(assistant.agentId, expectedRoomName),
+            ]);
             if (isStaleAttempt()) return;
+
             if ('detail' in details) {
-              throw new Error(details.detail || 'Could not get call details.');
+              throw new Error((details as any).detail || 'Could not get call details.');
             }
             connDetails = details as ConnectionDetails;
             setConnectionDetails(connDetails);
 
-            // Step 2: Dispatch the assistant to join the room
-            const dispatchResult = await assistantActions.call.dispatchToCall(
-              assistant.agentId,
-              connDetails.roomName
-            );
-            if (isStaleAttempt()) return;
             if (dispatchResult.detail) {
               throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
             }
 
-            // If we get here, both steps succeeded
             break;
           } catch (err: any) {
             if (attempt > MAX_RETRIES) {
-              throw err; // Rethrow on final attempt to trigger catch block below
+              throw err;
             }
 
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
@@ -142,22 +135,22 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           }
         }
 
-        if (!connDetails) return; // Should be covered by throw above, but safety check
+        if (!connDetails) return;
 
-        // Step 3: Connect the user's client
         await room.connect(connDetails.serverUrl, connDetails.token);
         if (isStaleAttempt()) {
           await room.disconnect();
           return;
         }
 
-        await room.localParticipant.setMicrophoneEnabled(true);
-        await room.localParticipant.setCameraEnabled(type === 'video');
+        await Promise.all([
+          room.localParticipant.setMicrophoneEnabled(true),
+          room.localParticipant.setCameraEnabled(type === 'video'),
+        ]);
         setIsConnected(true);
-        setIsConnecting(false); // User is connected, now wait for assistant
+        setIsConnecting(false);
 
-        if (room.numParticipants < 2) {
-          // Check if assistant isn't already there
+        if (room.remoteParticipants.size < 1) {
           setIsWaitingForAssistant(true);
           const timeoutDuration =
             (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
@@ -399,7 +392,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   }, [activeCallAssistant]);
 
   React.useEffect(() => {
-    const onParticipantConnected = () => {
+    const clearWaitingState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
       isRedispatchingRef.current = false;
@@ -407,11 +400,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
 
     const onParticipantDisconnected = () => {
-      // Only handle if we're in an active call and the disconnected participant is the assistant
       if (!isConnectedRef.current || !activeCallAssistantRef.current) return;
 
-      // Check if the room now has fewer than 2 participants (user alone)
-      if (room.numParticipants < 2) {
+      if (room.remoteParticipants.size < 1) {
         const firstName = activeCallAssistantRef.current.firstName;
         setWaitingMessage(`${firstName} disconnected, waiting for them to rejoin...`);
         setIsWaitingForAssistant(true);
@@ -426,7 +417,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         assistantRejoinTimeoutRef.current = setTimeout(() => {
           if (isCancelledRef.current) return;
-          if (isRedispatchingRef.current || room.numParticipants < 2) {
+          if (isRedispatchingRef.current || room.remoteParticipants.size < 1) {
             // Assistant still hasn't rejoined — clean up server-side room before disconnecting
             isRedispatchingRef.current = false;
             const assistant = activeCallAssistantRef.current;
@@ -444,11 +435,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       }
     };
 
-    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.ParticipantConnected, clearWaitingState);
+    room.on(RoomEvent.TrackSubscribed, clearWaitingState);
     room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
-      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.ParticipantConnected, clearWaitingState);
+      room.off(RoomEvent.TrackSubscribed, clearWaitingState);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearAssistantJoinTimeout();

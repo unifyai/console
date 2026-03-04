@@ -57,6 +57,13 @@ export class MockRoom extends EventEmitter {
   localParticipant = new MockLocalParticipant();
   numParticipants = 0;
 
+  get remoteParticipants() {
+    const count = Math.max(0, this.numParticipants - 1);
+    const map = new Map();
+    for (let i = 0; i < count; i++) map.set(`remote-${i}`, { identity: `remote-${i}` });
+    return map;
+  }
+
   /**
    * Simulate connection to a room.
    * Use 'error-url' to simulate connection failure.
@@ -288,6 +295,7 @@ export function setupWorkspaceMock(
         workspaceType === 'organization' ? { id: 'org-1', name: 'Test Org' } : null,
       currentUserId: userId,
       isOwner,
+      isWorkspaceSwitchable: true,
       switchWorkspace: vi.fn(),
     }),
   }));

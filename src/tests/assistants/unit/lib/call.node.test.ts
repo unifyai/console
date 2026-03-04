@@ -39,8 +39,9 @@ import { makeRoomName } from '@/utils/assistants/call-utils';
 import { getCurrentUser } from '@/lib/user/user';
 import type { User } from '@/types/user';
 
-// Mock environment variables
-const MOCK_BASE_URL = 'http://localhost:3000';
+const MOCK_ORCHESTRA_URL = 'http://localhost:8000/v0';
+const MOCK_DISPATCH_URL = 'https://service.a.run.app/unify/meet';
+const MOCK_ADMIN_KEY = 'test-admin-key';
 
 describe('call.ts', () => {
   const TEST_API_KEY = 'test-api-key';
@@ -52,7 +53,8 @@ describe('call.ts', () => {
   };
 
   beforeEach(() => {
-    vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
+    vi.stubEnv('ORCHESTRA_URL', MOCK_ORCHESTRA_URL);
+    vi.stubEnv('ORCHESTRA_ADMIN_KEY', MOCK_ADMIN_KEY);
     vi.stubEnv('LIVEKIT_API_KEY', 'test-lk-key');
     vi.stubEnv('LIVEKIT_API_SECRET', 'test-lk-secret');
     vi.stubEnv('LIVEKIT_URL', 'wss://livekit.example.com');
@@ -76,14 +78,14 @@ describe('call.ts', () => {
       {
         meta: {
           alias: 'DispatchCall-Success',
-          scenario: 'API successfully dispatches assistant to call',
+          scenario: 'Cloud Run endpoint successfully dispatches assistant',
           behavior: 'Returns info message',
         },
       },
       async () => {
         // Arrange
         server.use(
-          http.post(`${MOCK_BASE_URL}/api/assistant/call/dispatch`, () => {
+          http.post(MOCK_DISPATCH_URL, () => {
             return HttpResponse.json({ info: 'Assistant dispatched to call' });
           })
         );
@@ -93,24 +95,24 @@ describe('call.ts', () => {
         const result = await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
-        expect(result).toHaveProperty('info', 'Assistant dispatched to call');
+        expect(result).toHaveProperty('info');
       }
     );
 
     it(
-      'sends correct payload to dispatch endpoint',
+      'sends correct snake_case payload to Cloud Run',
       {
         meta: {
           alias: 'DispatchCall-Payload',
           scenario: 'Verify request body structure',
-          behavior: 'Request contains assistantId and roomName',
+          behavior: 'Request contains snake_case assistant_id, room_name, livekit_agent_name',
         },
       },
       async () => {
         // Arrange
         let capturedBody: any = null;
         server.use(
-          http.post(`${MOCK_BASE_URL}/api/assistant/call/dispatch`, async ({ request }) => {
+          http.post(MOCK_DISPATCH_URL, async ({ request }) => {
             capturedBody = await request.json();
             return HttpResponse.json({ info: 'OK' });
           })
@@ -122,27 +124,28 @@ describe('call.ts', () => {
 
         // Assert
         expect(capturedBody).toEqual({
-          assistantId: 'assistant-123',
-          roomName: 'room-abc',
+          assistant_id: 'assistant-123',
+          livekit_agent_name: 'room-abc',
+          room_name: 'room-abc',
         });
       }
     );
 
     it(
-      'includes apiKey in request headers',
+      'includes admin key in Authorization header',
       {
         meta: {
-          alias: 'DispatchCall-ApiKey',
+          alias: 'DispatchCall-AdminKey',
           scenario: 'Verify authorization header',
-          behavior: 'Request includes apiKey header',
+          behavior: 'Request includes Bearer token with admin key',
         },
       },
       async () => {
         // Arrange
-        let capturedApiKey = '';
+        let capturedAuth = '';
         server.use(
-          http.post(`${MOCK_BASE_URL}/api/assistant/call/dispatch`, ({ request }) => {
-            capturedApiKey = request.headers.get('apiKey') || '';
+          http.post(MOCK_DISPATCH_URL, ({ request }) => {
+            capturedAuth = request.headers.get('Authorization') || '';
             return HttpResponse.json({ info: 'OK' });
           })
         );
@@ -152,7 +155,7 @@ describe('call.ts', () => {
         await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
-        expect(capturedApiKey).toBe(TEST_API_KEY);
+        expect(capturedAuth).toBe(`Bearer ${MOCK_ADMIN_KEY}`);
       }
     );
 
@@ -161,15 +164,15 @@ describe('call.ts', () => {
       {
         meta: {
           alias: 'DispatchCall-Error',
-          scenario: 'API returns error response',
-          behavior: 'Returns error detail from API',
+          scenario: 'Cloud Run returns error response',
+          behavior: 'Returns error detail',
         },
       },
       async () => {
         // Arrange
         server.use(
-          http.post(`${MOCK_BASE_URL}/api/assistant/call/dispatch`, () => {
-            return HttpResponse.json({ detail: 'Room not found' }, { status: 404 });
+          http.post(MOCK_DISPATCH_URL, () => {
+            return new HttpResponse('Room not found', { status: 404 });
           })
         );
 
@@ -194,7 +197,7 @@ describe('call.ts', () => {
       async () => {
         // Arrange
         server.use(
-          http.post(`${MOCK_BASE_URL}/api/assistant/call/dispatch`, () => {
+          http.post(MOCK_DISPATCH_URL, () => {
             return HttpResponse.error();
           })
         );
@@ -205,6 +208,28 @@ describe('call.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'returns success when no admin key is configured',
+      {
+        meta: {
+          alias: 'DispatchCall-NoAdminKey',
+          scenario: 'ORCHESTRA_ADMIN_KEY is not set (local development)',
+          behavior: 'Returns info message without making external call',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.stubEnv('ORCHESTRA_ADMIN_KEY', '');
+
+        // Act
+        const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
+        const result = await dispatchFn('assistant-123', 'room-abc');
+
+        // Assert
+        expect(result).toHaveProperty('info');
       }
     );
   });

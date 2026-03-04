@@ -42,6 +42,13 @@ class MockRoom extends EventEmitter {
   localParticipant = new MockLocalParticipant();
   numParticipants = 0;
 
+  get remoteParticipants() {
+    const count = Math.max(0, this.numParticipants - 1);
+    const map = new Map();
+    for (let i = 0; i < count; i++) map.set(`remote-${i}`, { identity: `remote-${i}` });
+    return map;
+  }
+
   connect = vi.fn().mockImplementation(async (url, token) => {
     if (url === 'error-url') {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -154,6 +161,7 @@ vi.mock('@/components/Pages/Providers/WorkspaceProvider', () => ({
     activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
     activeOrganization: null,
     currentUserId: 'test-user-001',
+    isWorkspaceSwitchable: true,
     switchWorkspace: vi.fn(),
   }),
 }));

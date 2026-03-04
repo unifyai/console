@@ -32,6 +32,11 @@ export interface User {
   organizations: UserOrganization[];
   assistantHiringApproval: ApprovalStatus;
   hasClaimedApprovalLink: string;
+  /** Set when the user must set up MFA to access an org workspace */
+  mfaSetupRequired?: {
+    orgId: number;
+    orgName: string;
+  };
 }
 
 export interface UserOrganization {

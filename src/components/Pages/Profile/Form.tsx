@@ -1,17 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from '@/types/user';
 import UserInfo from '@/components/Pages/Profile/Info';
-import NewsletterPreferences from './Newsletter';
 import SecondaryButton from '../../Common/Buttons/Secondary';
 import PrimaryButton from '../../Common/Buttons/Primary';
-import DeleteDialog from '../../Common/Dialogs/Delete';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
-import { useRouter } from 'next/navigation';
-import { deleteUser, verifyUserPhone } from '@/lib/user/user';
-import { signOut } from 'next-auth/react';
+import { verifyUserPhone } from '@/lib/user/user';
 import { toast } from 'sonner';
 
 export interface PhoneVerificationState {
@@ -26,9 +22,13 @@ export interface PhoneVerificationState {
   cooldown: number;
 }
 
-const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
-  const router = useRouter();
-
+const ProfileForm = ({
+  user,
+  onPrem,
+}: {
+  user: User;
+  onPrem: string | undefined;
+}) => {
   // Form state
   const [formState, setFormState] = useState({
     name: user.name || '',
@@ -54,31 +54,11 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
   });
   const [initialPhoneNumber] = useState(user.phoneNumber || '');
 
-  // State for newsletter subscriptions
-  const [subscriptions, setSubscriptions] = useState<string[]>([]);
-  const [initialSubscriptions, setInitialSubscriptions] = useState<string[]>([]);
-
   // Alert state
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | null; message: string }>({
     type: null,
     message: '',
   });
-
-  useEffect(() => {
-    const fetchSubscriptions = async () => {
-      try {
-        const response = await fetch('/api/loops/subscribe?getSubscriptions=true');
-        if (response.ok) {
-          const subs = await response.json();
-          setSubscriptions(subs);
-          setInitialSubscriptions(subs);
-        }
-      } catch (error) {
-        console.error('Error fetching subscriptions:', error);
-      }
-    };
-    fetchSubscriptions();
-  }, []);
 
   // Cooldown timer for phone verification
   useEffect(() => {
@@ -114,13 +94,9 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
         if (response.ok) {
           setFormState((prev) => ({ ...prev, timezone: tz }));
           setInitialFormState((prev) => ({ ...prev, timezone: tz }));
-          toast.success('Your timezone has been automatically set.');
-        } else {
-          toast.error('Could not automatically set your timezone.');
         }
       } catch (error) {
         console.error('Failed to auto-update timezone:', error);
-        toast.error('Could not automatically set your timezone.');
       }
     };
 
@@ -132,12 +108,6 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     }
   }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.bio, user.email]);
 
-  const preferencesChanged = useMemo(() => {
-    if (subscriptions.length !== initialSubscriptions.length) return true;
-    const initialSubsSet = new Set(initialSubscriptions);
-    return !subscriptions.every((sub) => initialSubsSet.has(sub));
-  }, [subscriptions, initialSubscriptions]);
-
   useEffect(() => {
     if (alert.type) {
       const timer = setTimeout(() => {
@@ -147,11 +117,6 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
       return () => clearTimeout(timer);
     }
   }, [alert]);
-
-  // Handle subscription changes
-  const handleSubscriptionChange = (value: string[]) => {
-    setSubscriptions(value);
-  };
 
   useEffect(() => {
     setInitialFormState({ ...formState });
@@ -300,7 +265,6 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     // Reset form state to initial values
     setFormState(initialFormState);
     setChangeMade(false);
-    setSubscriptions(initialSubscriptions);
     // Reset phone state
     setPhoneState({
       phoneNumber: initialPhoneNumber,
@@ -332,41 +296,22 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     formData.append('phoneNumber', phoneToSave);
 
     // Update profile info
-    const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {
+    const profileResponse = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
       method: 'POST',
       body: formData,
     });
 
-    // Update newsletter preferences
-    const newsletterPromise = fetch('/api/loops/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailingLists: subscriptions }),
-    });
-
-    const [profileResponse, newsletterResponse] = await Promise.all([
-      profilePromise,
-      newsletterPromise,
-    ]);
-
-    if (profileResponse.ok && newsletterResponse.ok) {
+    if (profileResponse.ok) {
       setAlert({ type: 'success', message: 'Profile updated successfully!' });
       setInitialFormState({ ...formState });
-      setInitialSubscriptions([...subscriptions]);
       setChangeMade(false);
     } else {
-      let errorMessage = 'An error occurred. Please try again.';
-      if (!profileResponse.ok) {
-        errorMessage = 'Error updating profile.';
-      } else if (!newsletterResponse.ok) {
-        errorMessage = 'Error updating newsletter preferences.';
-      }
-      setAlert({ type: 'error', message: errorMessage });
+      setAlert({ type: 'error', message: 'Error updating profile.' });
     }
   };
 
   return (
-    <div className="mt-10 w-fit sm:mt-0">
+    <div className="mt-10 w-full sm:mt-0">
       <form onSubmit={handleSave}>
         <UserInfo
           formState={formState}
@@ -382,49 +327,20 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
           setVerificationInput={setVerificationInput}
           isVerificationFlowActive={!!isVerificationFlowActive}
         />
-        <NewsletterPreferences
-          subscriptions={subscriptions}
-          handleSubscriptionChange={handleSubscriptionChange}
-        />
-        <div className="mt-5 flex items-center justify-between gap-5">
-          {changeMade || preferencesChanged ? (
-            <div className="flex w-fit gap-2">
-              <SecondaryButton
-                onClick={handleCancel}
-                disabled={!changeMade && !preferencesChanged}
-                label="Cancel"
-              />
-              <PrimaryButton
-                type="submit"
-                disabled={(!changeMade && !preferencesChanged) || phoneNeedsVerification}
-                label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
-              />
-            </div>
-          ) : (
-            <div></div>
-          )}
-          <div className="flex w-fit gap-2">
+        {changeMade && (
+          <div className="mt-5 flex w-fit gap-2">
             <SecondaryButton
-              label="Sign Out"
-              onClick={() => {
-                signOut();
-                router.push('/login');
-              }}
+              onClick={handleCancel}
+              disabled={!changeMade}
+              label="Cancel"
             />
-            <DeleteDialog
-              args={[user.id]}
-              deletingFunction={deleteUser}
-              onDelete={() => {
-                router.push('/login');
-              }}
-              type="account"
-              text="Delete Account"
-              icon={null}
-              variant="destructive"
-              expectedResponseType={'string'}
+            <PrimaryButton
+              type="submit"
+              disabled={!changeMade || phoneNeedsVerification}
+              label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
             />
           </div>
-        </div>
+        )}
       </form>
       {alert.type && (
         <Alert variant={alert.type === 'error' ? 'destructive' : 'default'} className="mt-5">

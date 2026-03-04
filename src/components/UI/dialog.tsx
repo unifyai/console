@@ -32,14 +32,16 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 interface DialogContentOwnProps {
   /** Hide the built-in ✕ close button */
   hideClose?: boolean;
+  /** Additional classes for the backdrop overlay (e.g. to raise z-index) */
+  overlayClassName?: string;
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & DialogContentOwnProps
->(({ className, children, hideClose, ...props }, ref) => (
+>(({ className, children, hideClose, overlayClassName, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(

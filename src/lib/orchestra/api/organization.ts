@@ -177,8 +177,14 @@ export const inviteMemberAction = async (apiKey: string) => {
   };
 };
 
+export interface AcceptInviteResult {
+  success: true;
+  organizationName?: string;
+  mfaSetupRequired?: boolean;
+}
+
 export const acceptInviteAction = async (apiKey: string) => {
-  return async (token: string): Promise<void | ResponseProps> => {
+  return async (token: string): Promise<AcceptInviteResult | ResponseProps> => {
     'use server';
     const client = createOrchestraClient(apiKey);
     const { data, error, response } = await client.POST('/v0/invites/{token}/accept', {
@@ -201,7 +207,11 @@ export const acceptInviteAction = async (apiKey: string) => {
       });
     }
 
-    return;
+    return {
+      success: true as const,
+      organizationName: (responseData?.organizationName as string) ?? undefined,
+      mfaSetupRequired: responseData?.mfaSetupRequired === true,
+    };
   };
 };
 
@@ -738,6 +748,54 @@ export const removeTeamMemberAction =
 
     return;
   };
+
+// =============================================================================
+// MFA Enforcement Functions
+// =============================================================================
+
+export interface OrgMFASettings {
+  requireMfa: boolean;
+}
+
+export const getMfaSettingsAction = async (apiKey: string) => {
+  return async (orgId: number): Promise<OrgMFASettings | ResponseProps> => {
+    'use server';
+    return safeFetch(
+      `${backendUrl}/organizations/${orgId}/mfa-settings`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+      'getMfaSettings'
+    ) as Promise<OrgMFASettings | ResponseProps>;
+  };
+};
+
+export const updateMfaSettingsAction = async (apiKey: string) => {
+  return async (
+    orgId: number,
+    requireMfa: boolean
+  ): Promise<OrgMFASettings | ResponseProps> => {
+    'use server';
+    return safeFetch(
+      `${backendUrl}/organizations/${orgId}/mfa-settings`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ require_mfa: requireMfa }),
+      },
+      'updateMfaSettings'
+    ) as Promise<OrgMFASettings | ResponseProps>;
+  };
+};
 
 // =============================================================================
 // Resource Access Functions

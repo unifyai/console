@@ -12,6 +12,7 @@ import '@/styles/globals.css';
 
 import ThemeLoader from '@/components/Layout/ThemeLoader';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
+import MfaEnforcementGate from '@/components/Common/Auth/MfaEnforcementGate';
 import { Toaster } from '@/components/UI/Chat/sonner';
 import { Loader2 } from 'lucide-react';
 import { fontSans, fontMono } from '@/styles/fonts';
@@ -44,7 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Suspense>
                 <Suspense fallback={<LoadingScreen />}>
                   <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden">
-                    <NuqsAdapter>{children}</NuqsAdapter>
+                    <MfaEnforcementGate>
+                      <NuqsAdapter>{children}</NuqsAdapter>
+                    </MfaEnforcementGate>
                   </main>
                 </Suspense>
                 <Toaster />

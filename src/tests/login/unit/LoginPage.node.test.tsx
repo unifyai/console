@@ -64,6 +64,17 @@ vi.mock('@/public/icons/back.svg', () => ({
   default: () => <svg data-testid="back-svg" />,
 }));
 
+// Mock orchestra client (needed for OAuth profile callback + adapter tests below)
+const mockAdminClientPost = vi.fn();
+vi.mock('@/lib/orchestra/orchestra-client', () => ({
+  OrchestraAdminClient: {
+    post: (...args: any[]) => mockAdminClientPost(...args),
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
 // Mock child components to keep tests focused
 vi.mock('@/components/Common/Misc/UnifyLogo', () => ({
   default: () => <div data-testid="unify-logo" />,
@@ -81,13 +92,13 @@ vi.mock('@/components/Common/Loaders/LoadingElement', () => ({
   default: () => <div data-testid="loading-element" />,
 }));
 
-vi.mock('../../../app/login/check', () => ({
+vi.mock('@/components/Pages/Login/CheckElement', () => ({
   default: () => <div data-testid="check-element" />,
 }));
 
-vi.mock('../../../app/login/login', () => ({
-  default: ({ onLogin, error }: any) => (
-    <div data-testid="login-fragment">
+vi.mock('@/components/Pages/Login/LoginFragment', () => ({
+  default: ({ onLogin, error, callbackUrl }: any) => (
+    <div data-testid="login-fragment" data-callback-url={callbackUrl}>
       {error && <div data-testid="login-error">{error}</div>}
       <button
         data-testid="google-login"
@@ -96,10 +107,10 @@ vi.mock('../../../app/login/login', () => ({
         Continue with Google
       </button>
       <button
-        data-testid="github-login"
-        onClick={onLogin('github')}
+        data-testid="microsoft-login"
+        onClick={onLogin('azure-ad')}
       >
-        Continue with Github
+        Continue with Microsoft
       </button>
     </div>
   ),
@@ -108,6 +119,7 @@ vi.mock('../../../app/login/login', () => ({
 // ─── Import after mocks ──────────────────────────────────────────────────────
 
 import Login from '@/app/login/page';
+import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -122,7 +134,6 @@ describe('Login page – token handling', () => {
     render(<Login />);
 
     expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
     expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
   });
 
@@ -137,15 +148,14 @@ describe('Login page – token handling', () => {
     expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
   });
 
-  it('shows credit banner when ?credit=<token> is in URL', () => {
+  it('does not show invite banner when only credit token present', () => {
     mockSearchParamsMap = { credit: 'cred_token_456' };
 
     render(<Login />);
 
-    const banner = screen.getByTestId('credit-banner');
-    expect(banner).toBeInTheDocument();
-    expect(banner.textContent).toContain('credit grant waiting');
+    // Credit tokens are handled in callback URL but no banner is shown
     expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
   });
 
   it('shows invite banner (not credit) when both tokens present', () => {
@@ -157,7 +167,7 @@ describe('Login page – token handling', () => {
     expect(screen.queryByTestId('credit-banner')).not.toBeInTheDocument();
   });
 
-  it('sets callback URL to /invite?token=<token> when invite token present', async () => {
+  it('sets callback URL to /login/invite?token=<token> when invite token present', async () => {
     mockSearchParamsMap = { invite: 'inv_abc' };
 
     render(<Login />);
@@ -168,14 +178,14 @@ describe('Login page – token handling', () => {
     expect(mockSignIn).toHaveBeenCalledWith(
       'google',
       expect.objectContaining({
-        callbackUrl: expect.stringContaining('/invite'),
+        callbackUrl: expect.stringContaining('/login/invite'),
       })
     );
 
     // Verify the callback URL includes the token
     const callbackUrl = mockSignIn.mock.calls[0][1].callbackUrl;
     const parsed = new URL(callbackUrl);
-    expect(parsed.pathname).toBe('/invite');
+    expect(parsed.pathname).toBe('/login/invite');
     expect(parsed.searchParams.get('token')).toBe('inv_abc');
   });
 
@@ -184,11 +194,11 @@ describe('Login page – token handling', () => {
 
     render(<Login />);
 
-    const githubBtn = screen.getByTestId('github-login');
-    await userEvent.click(githubBtn);
+    const microsoftBtn = screen.getByTestId('microsoft-login');
+    await userEvent.click(microsoftBtn);
 
     expect(mockSignIn).toHaveBeenCalledWith(
-      'github',
+      'azure-ad',
       expect.objectContaining({
         callbackUrl: expect.stringContaining('/assistants'),
       })
@@ -244,7 +254,7 @@ describe('Login page – token handling', () => {
 
     const callbackUrl = mockSignIn.mock.calls[0][1].callbackUrl;
     const parsed = new URL(callbackUrl);
-    expect(parsed.pathname).toBe('/invite');
+    expect(parsed.pathname).toBe('/login/invite');
     expect(parsed.searchParams.get('token')).toBe('inv_priority');
   });
 });
@@ -290,15 +300,28 @@ describe('Login page – stale session signout (?signout=true)', () => {
       status: 'authenticated',
     };
 
+    // Mock window.location.href assignment
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, href: '' },
+    });
+
     render(<Login />);
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
     });
 
-    // After signOut resolves, should replace URL to remove ?signout param
+    // After signOut resolves, should navigate to /login via window.location.href
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith('/login');
+      expect(window.location.href).toBe('/login');
+    });
+
+    // Restore
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
     });
   });
 
@@ -353,6 +376,234 @@ describe('Login page – authenticated redirect', () => {
 
     // Should NOT redirect — should show loading and initiate signout instead
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+// ─── OAuth provider name splitting ──────────────────────────────────────────
+// Verifies that the Google and Azure AD profile callbacks split the provider's
+// full name into `name` (first) and `lastName`, and that the adapter forwards
+// `lastName` to Orchestra's POST /user.
+
+/**
+ * NextAuth v4 stores the user-supplied profile callback under
+ * `provider.options.profile` (the top-level `provider.profile` is the
+ * built-in default). At runtime NextAuth merges them, but in unit tests
+ * we call the custom one directly.
+ */
+async function getProviderProfileCallback(providerId: string) {
+  const { default: authOptions } = await import(
+    '@/app/api/auth/[...nextauth]/options'
+  );
+  const provider = authOptions.providers.find(
+    (p: any) => p.id === providerId
+  ) as any;
+  return provider?.options?.profile ?? provider?.profile;
+}
+
+describe('Google provider – profile callback', () => {
+  it('splits given_name and family_name from Google profile', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-123',
+      email: 'user@example.com',
+      given_name: 'John',
+      family_name: 'Doe',
+      name: 'John Doe',
+      picture: 'https://example.com/photo.jpg',
+    });
+
+    expect(result).toEqual({
+      id: 'google-123',
+      email: 'user@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: 'https://example.com/photo.jpg',
+    });
+  });
+
+  it('uses given_name over full name when both present', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-456',
+      email: 'user@example.com',
+      given_name: 'Jane',
+      family_name: 'Smith-Jones',
+      name: 'Jane Smith-Jones',
+      picture: null,
+    });
+
+    expect(result.name).toBe('Jane');
+    expect(result.lastName).toBe('Smith-Jones');
+  });
+
+  it('falls back to full name when given_name is absent', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-789',
+      email: 'user@example.com',
+      name: 'Mononymous',
+      picture: null,
+    });
+
+    expect(result.name).toBe('Mononymous');
+    expect(result.lastName).toBeNull();
+  });
+
+  it('handles missing name fields gracefully', async () => {
+    const profile = await getProviderProfileCallback('google');
+
+    const result = profile({
+      sub: 'google-000',
+      email: 'user@example.com',
+    });
+
+    expect(result.name).toBeNull();
+    expect(result.lastName).toBeNull();
+    expect(result.image).toBeNull();
+  });
+});
+
+describe('Azure AD provider – profile callback', () => {
+  it('extracts given_name and family_name from Azure AD profile', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
+
+    const result = profile({
+      sub: 'azure-123',
+      email: 'john@company.com',
+      given_name: 'John',
+      family_name: 'Doe',
+      name: 'John Doe',
+    });
+
+    expect(result).toEqual({
+      id: 'azure-123',
+      email: 'john@company.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: null,
+    });
+  });
+
+  it('uses given_name over full name when both present', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
+
+    const result = profile({
+      sub: 'azure-456',
+      email: 'jane@company.com',
+      given_name: 'Jane',
+      family_name: 'Smith-Jones',
+      name: 'Jane Smith-Jones',
+    });
+
+    expect(result.name).toBe('Jane');
+    expect(result.lastName).toBe('Smith-Jones');
+  });
+
+  it('falls back to full name when given_name is absent', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
+
+    const result = profile({
+      sub: 'azure-789',
+      email: 'mono@company.com',
+      name: 'Mononymous',
+    });
+
+    expect(result.name).toBe('Mononymous');
+    expect(result.lastName).toBeNull();
+  });
+
+  it('falls back to preferred_username when email is absent', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
+
+    const result = profile({
+      sub: 'azure-noemail',
+      preferred_username: 'user@tenant.onmicrosoft.com',
+      given_name: 'User',
+      family_name: 'Name',
+      name: 'User Name',
+    });
+
+    expect(result.email).toBe('user@tenant.onmicrosoft.com');
+  });
+
+  it('handles missing name fields gracefully', async () => {
+    const profile = await getProviderProfileCallback('azure-ad');
+
+    const result = profile({
+      sub: 'azure-000',
+      email: 'noname@company.com',
+    });
+
+    expect(result.name).toBeNull();
+    expect(result.lastName).toBeNull();
+    expect(result.image).toBeNull();
+  });
+});
+
+describe('OrchestraAdapter – createUser passes lastName', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends lastName to Orchestra when provided', async () => {
+    const adapter = OrchestraAdapter();
+
+    mockAdminClientPost.mockResolvedValue({
+      data: {
+        id: 'user-1',
+        email: 'john@example.com',
+        name: 'John',
+        lastName: 'Doe',
+        image: null,
+        emailVerified: null,
+      },
+    });
+
+    await adapter.createUser!({
+      email: 'john@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: null,
+      emailVerified: null,
+    });
+
+    expect(mockAdminClientPost).toHaveBeenCalledWith('/user', {
+      email: 'john@example.com',
+      name: 'John',
+      lastName: 'Doe',
+      image: null,
+    });
+  });
+
+  it('sends lastName as null when not provided', async () => {
+    const adapter = OrchestraAdapter();
+
+    mockAdminClientPost.mockResolvedValue({
+      data: {
+        id: 'user-2',
+        email: 'solo@example.com',
+        name: 'Solo',
+        image: null,
+        emailVerified: null,
+      },
+    });
+
+    await adapter.createUser!({
+      email: 'solo@example.com',
+      name: 'Solo',
+      image: null,
+      emailVerified: null,
+    });
+
+    expect(mockAdminClientPost).toHaveBeenCalledWith('/user', {
+      email: 'solo@example.com',
+      name: 'Solo',
+      lastName: null,
+      image: null,
+    });
   });
 });
 

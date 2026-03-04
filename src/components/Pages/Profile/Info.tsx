@@ -50,7 +50,6 @@ const UserInfo = ({
 
   return (
     <div className="profile-form tutorial-user-information mt-4">
-      <p className="text-title">Change your personal information</p>
       <div className="text-body grid grid-cols-2 gap-4">
         <div className="mt-2">
           <Label>First Name</Label>

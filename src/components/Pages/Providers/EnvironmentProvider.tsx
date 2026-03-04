@@ -16,6 +16,8 @@ import React, { createContext, useContext } from 'react';
 export interface EnvironmentConfig {
   /** Whether the app is running in a staging / development environment. */
   isStaging: boolean;
+  /** Cloudflare Turnstile site key (public). Undefined when not configured. */
+  turnstileSiteKey?: string;
 }
 
 const EnvironmentContext = createContext<EnvironmentConfig | undefined>(undefined);

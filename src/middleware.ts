@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
+import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 
-export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
+export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
   // Allow public access to shareable view pages (no auth required)
@@ -32,8 +34,17 @@ export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) 
   if (request.url.includes('/user')) {
     const providedKey = request.headers.get('ADMIN_KEY');
     const expectedKey = process.env.ADMIN_KEY;
-    if (!expectedKey || !providedKey || providedKey !== expectedKey)
+    if (!expectedKey || !providedKey) {
       return new Response('Unauthorized', { status: 403 });
+    }
+    const expectedBuf = Buffer.from(expectedKey);
+    const providedBuf = Buffer.from(providedKey);
+    if (
+      expectedBuf.length !== providedBuf.length ||
+      !crypto.timingSafeEqual(expectedBuf, providedBuf)
+    ) {
+      return new Response('Unauthorized', { status: 403 });
+    }
   }
   if (process.env.ON_PREM) {
     if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
@@ -42,6 +53,32 @@ export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) 
     }
     return NextResponse.next();
   }
+
+  // MFA-pending check: redirect to /login/mfa when the JWT has mfaPending=true.
+  // Allow /login/mfa itself, /login/invite (so users can accept invites
+  // before verifying MFA), NextAuth API routes, and static assets.
+  const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
+  if (token?.mfaPending) {
+    // Allow the login page itself so users with stale sessions (e.g. DB reset)
+    // can sign in again instead of being trapped in a redirect loop.
+    const mfaAllowed = ['/login', '/api/auth', '/_next'];
+    const isAllowed = mfaAllowed.some((prefix) => pathname.startsWith(prefix));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/login/mfa', request.url));
+    }
+  }
+
+  // Onboarding check: redirect new users to the onboarding flow.
+  // This runs AFTER the MFA check (security-first) and only when the user
+  // doesn't have mfaPending (which takes priority).
+  if (token?.onboardingStep && token.onboardingStep !== 'completed' && !token?.mfaPending) {
+    const onboardingAllowed = ['/login', '/api/auth', '/_next'];
+    const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/login/onboarding', request.url));
+    }
+  }
+
   return withAuth({ pages: authOptions.pages, secret: process.env.JWT_SECRET })(request, event);
 }
 

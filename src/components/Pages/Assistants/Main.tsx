@@ -57,6 +57,7 @@ interface MainProps {
     timezone?: string | null;
     email?: string | null;
     orgId?: number | null;
+    mfaSetupRequired?: boolean;
     apiKey?: string;
   };
 }
@@ -666,7 +667,16 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   React.useEffect(() => {
     if (!isBillingLoading && !isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
       initialAssistantLoadProcessedRef.current = true;
-      if (!assistantError && assistants.length === 0 && !isHireDialogOpen) {
+      // Don't auto-open the hire dialog when:
+      // - MFA setup is required (the MFA enforcement modal needs focus)
+      // - The user doesn't have hire permission (org members/admins can't hire)
+      if (
+        !assistantError &&
+        assistants.length === 0 &&
+        !isHireDialogOpen &&
+        !userMeta.mfaSetupRequired &&
+        canHire
+      ) {
         handleOpenHireDialog();
       }
     }
@@ -677,6 +687,8 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     handleOpenHireDialog,
     isBillingLoading,
     isHireDialogOpen,
+    userMeta.mfaSetupRequired,
+    canHire,
   ]);
   React.useEffect(() => {
     if (justDeletedVoiceId) {

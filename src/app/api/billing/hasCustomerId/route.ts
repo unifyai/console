@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   const ctx = await getWorkspaceBillingContext();
 
   if (!ctx) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // No authenticated session — return false rather than a 404 error.
+    return NextResponse.json({ hasCustomerId: false });
   }
 
   try {

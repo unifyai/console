@@ -71,29 +71,29 @@ const RoleListPanel = ({
 
   return (
     <div
-      className="flex h-full w-full flex-col border-l bg-background shadow-xl"
+      className="flex w-full flex-1 flex-col bg-background"
       data-testid="role-list-panel"
     >
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b p-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative flex-1">
+      <div className="flex flex-shrink-0 flex-col gap-4 border-b p-4">
+        <div className="flex items-center gap-2">
+          <CreateRoleDialog onCreate={onCreateRole} availablePermissions={allPermissions} />
+          <div className="relative w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search Roles"
+              placeholder="Search roles..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <CreateRoleDialog onCreate={onCreateRole} availablePermissions={allPermissions} />
         </div>
       </div>
 
       {/* List */}
       <div className="flex-1 overflow-auto px-3">
         {filteredRoles.length === 0 ? (
-          <div className="text-body-muted flex h-full items-center justify-center">
+          <div className="text-body-muted flex items-center justify-center py-12">
             No roles found.
           </div>
         ) : (

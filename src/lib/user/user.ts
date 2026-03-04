@@ -126,7 +126,15 @@ export async function getCurrentUser(): Promise<User | null> {
     user = await getOnPremUser();
   } else {
     if (session && session.user?.email) {
-      user = await getUserByEmail(session.user.email);
+      try {
+        user = await getUserByEmail(session.user.email);
+      } catch {
+        // User doesn't exist in the DB (e.g. DB was reset) or Orchestra is
+        // unreachable. Return null so the calling page redirects to /login
+        // rather than showing an unhandled error page.
+        console.warn('[getCurrentUser] Failed to fetch user by email — session may be stale');
+        return null;
+      }
     } else {
       console.error('No user email found in session');
       return null;
@@ -135,7 +143,39 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (!user) return null;
 
-  // 2. Apply Workspace Context
+  // 2. Session Invalidation on Password Change
+  // If the user signed in with email/password and changed their password after
+  // this JWT was issued, reject the session so the stale JWT is cleared.
+  // Skip this check for OAuth sessions — password changes don't affect them.
+  const isCredentialsSession = session && 'provider' in session && session.provider === 'credentials';
+  if (isCredentialsSession && 'iat' in session && typeof session.iat === 'number') {
+    try {
+      const credRes = await OrchestraAdminClient.get('/auth/email-credentials', {
+        params: { userId: user.id },
+      });
+      const creds = credRes.data;
+      if (
+        creds?.hasEmailAccount &&
+        creds?.passwordChangedAt
+      ) {
+        const changedAtMs = new Date(creds.passwordChangedAt).getTime();
+        const issuedAtMs = session.iat * 1000; // JWT iat is in seconds
+        if (issuedAtMs < changedAtMs) {
+          console.warn(
+            `[getCurrentUser] Session invalidated: JWT issued at ${new Date(issuedAtMs).toISOString()} ` +
+            `but password changed at ${creds.passwordChangedAt}`
+          );
+          return null;
+        }
+      }
+    } catch {
+      // If the credentials check fails, don't block the user — log and continue.
+      // This avoids locking out users if the email-credentials endpoint is down.
+      console.warn('[getCurrentUser] Failed to check password_changed_at, skipping session invalidation');
+    }
+  }
+
+  // 3. Apply Workspace Context
   const cookieStore = cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let contextResolved = false;
@@ -179,6 +219,47 @@ export async function getCurrentUser(): Promise<User | null> {
       }
       // If targetOrg not found (e.g. user removed from org), contextResolved remains false
       // and we fall through to default logic below.
+    }
+  }
+
+  // Priority 3: Lock non-Unify org members to their organization workspace.
+  // Users who belong to a non-Unify organization are always placed in that
+  // org workspace (the UI switcher is also disabled for them). This overrides
+  // any cookie value. Unify org members retain free switching.
+  // Skip if context was resolved via an explicit header API key (API calls).
+  let effectiveWorkspaceId: string | undefined = workspaceId;
+  if (!headerApiKey) {
+    const isUnifyMember = user.organizations?.some((org) => org.name === 'Unify') ?? false;
+    if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
+      user.apiKey = user.organizations[0].apiKey;
+      effectiveWorkspaceId = user.organizations[0].id.toString();
+      contextResolved = true;
+    }
+  }
+
+  // 4. MFA Enforcement Check
+  // If the active workspace is an org, check whether the org requires MFA
+  // and the user hasn't set it up yet. Applies to all auth providers.
+  if (effectiveWorkspaceId && effectiveWorkspaceId !== 'personal') {
+    const activeOrg = user.organizations?.find(
+      (org) => org.id.toString() === effectiveWorkspaceId
+    );
+    if (activeOrg) {
+      try {
+        const enforcementRes = await OrchestraAdminClient.get('/auth/mfa-enforcement-status', {
+          params: { userId: user.id, orgId: activeOrg.id },
+        });
+        const enforcement = enforcementRes.data;
+        if (enforcement?.setupRequired) {
+          user.mfaSetupRequired = {
+            orgId: activeOrg.id,
+            orgName: activeOrg.name,
+          };
+        }
+      } catch {
+        // Don't block the user if the enforcement check fails
+        console.warn('[getCurrentUser] Failed to check MFA enforcement, skipping');
+      }
     }
   }
 

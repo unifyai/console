@@ -8,16 +8,7 @@ import {
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { AxiosError } from 'axios';
 
-const isStaging = (process.env.ORCHESTRA_URL ?? '').includes('staging');
-
 export async function POST(request: NextRequest) {
-  if (!isStaging) {
-    return NextResponse.json(
-      { detail: 'Email contact creation is currently unavailable. Coming soon.' },
-      { status: 503 }
-    );
-  }
-
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();

@@ -22,6 +22,7 @@ import type {
   ManagerMethodLog,
   ToolLoopLog,
   AssistantActionActions,
+  LoadChildrenFn,
 } from '@/types/assistants/action';
 import type { ResponseProps } from '@/types/common';
 
@@ -61,6 +62,9 @@ export interface UseAssistantActionsResult {
 
   /** Load more historical events (for pagination) */
   loadMore: () => Promise<void>;
+
+  /** Lazy-load child manager events for a specific node on demand */
+  loadChildren: LoadChildrenFn;
 
   /** Whether there are more events to load */
   hasMore: boolean;
@@ -356,67 +360,48 @@ export function useAssistantActions(
 
     try {
       const startTime = new Date(Date.now() - lookbackMs).toISOString();
-      const response = await actions.getManagerMethodEvents(assistantId, startTime, null);
+
+      // Single targeted API call for all root-level events (incoming + outgoing
+      // + action). Includes action events so interactions (interject, stop, ask)
+      // are captured for root nodes.
+      const rootResponse = await actions.getManagerMethodEvents(
+        assistantId,
+        startTime,
+        null,
+        undefined,
+        [`len(hierarchy) == 1`]
+      );
 
       if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
 
-      if ('detail' in response) {
-        const detail = (response as ResponseProps).detail as string;
+      let allRootLogs: ManagerMethodLog[] = [];
+      if ('detail' in rootResponse) {
+        const detail = (rootResponse as ResponseProps).detail as string;
         const isNotFound = typeof detail === 'string' && detail.toLowerCase().includes('not found');
-        if (isNotFound) {
-          // Project or context doesn't exist yet (e.g. newly hired assistant
-          // whose Unity instance hasn't logged any events). Treat as empty.
-          if (__DEV__)
-            console.log(
-              `[DEBUG][useAssistantActions] Resource not found, treating as empty: ${detail} (gen=${myGeneration})`
-            );
-        } else {
-          throw new Error(detail);
-        }
+        if (!isNotFound) throw new Error(detail);
+      } else {
+        allRootLogs = ('logs' in rootResponse ? rootResponse.logs : []) as ManagerMethodLog[];
       }
-
-      const logs = ('logs' in response ? response.logs : []) as ManagerMethodLog[];
-      if (__DEV__)
-        console.log(
-          `[DEBUG][useAssistantActions] Initial load got ${logs.length} event(s) from Orchestra (gen=${myGeneration})`
-        );
-
-      let result = buildActionTree(logs);
 
       if (__DEV__)
         console.log(
-          `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} total node(s), ${result.promotedCallingIds.length} promoted`
+          `[DEBUG][useAssistantActions] Root fetch: ${allRootLogs.length} event(s) (gen=${myGeneration})`
         );
 
-      // Targeted backfill for promoted boundaries (headless trees)
-      if (result.promotedCallingIds.length > 0 && actions.backfillByCallingIds) {
-        if (__DEV__)
-          console.log(
-            `[DEBUG][useAssistantActions] Backfilling ${result.promotedCallingIds.length} promoted node(s)`
-          );
+      if (allRootLogs.length > 0) {
+        const result = buildActionTree(allRootLogs);
+        nodeMapRef.current = result.nodeMap;
+        setRoots(result.roots);
+        setNodeMap(result.nodeMap);
 
-        const backfillResponse = await actions.backfillByCallingIds(
-          assistantId,
-          result.promotedCallingIds
-        );
-
-        if (!isMountedRef.current || loadGenerationRef.current !== myGeneration) return;
-
-        if (!('detail' in backfillResponse)) {
-          const backfillLogs = (backfillResponse.logs || []) as ManagerMethodLog[];
-          if (backfillLogs.length > 0) {
-            result = mergeNewEvents(result.roots, result.nodeMap, backfillLogs);
-          }
-        }
-      }
-
-      setRoots(result.roots);
-      setNodeMap(result.nodeMap);
-
-      if (logs.length > 0) {
-        const oldestLog = logs[0];
+        const oldestLog = allRootLogs.reduce((oldest, log) => (log.ts < oldest.ts ? log : oldest));
         oldestTimestampRef.current = oldestLog.ts;
         setHasMore(true);
+
+        if (__DEV__)
+          console.log(
+            `[DEBUG][useAssistantActions] Built tree: ${result.roots.length} root(s), ${result.nodeMap.size} node(s) (gen=${myGeneration})`
+          );
       } else {
         oldestTimestampRef.current = startTime;
         setHasMore(false);
@@ -582,32 +567,35 @@ export function useAssistantActions(
       const startTime = new Date(oldestTime - LOAD_MORE_LOOKBACK_MS).toISOString();
       const endTime = oldestTimestampRef.current;
 
+      // Fetch only root-level events for the extended time window.
+      // Children are lazy-loaded on expand, same as current roots.
       const response = await actions.getManagerMethodEvents(
         assistantId,
         startTime,
-        DEFAULT_EVENT_LIMIT
+        DEFAULT_EVENT_LIMIT,
+        undefined,
+        [`len(hierarchy) == 1`]
       );
 
       if (!isMountedRef.current) return;
 
-      if ('detail' in response) {
-        console.warn('[useAssistantActions] Load more error:', response.detail);
-        return;
+      let allLogs: ManagerMethodLog[] = [];
+      if (!('detail' in response)) {
+        allLogs = ('logs' in response ? response.logs : []) as ManagerMethodLog[];
       }
-
-      const logs = (response.logs || []) as ManagerMethodLog[];
-      const olderLogs = logs.filter((log) => log.ts < endTime);
+      const olderLogs = allLogs.filter((log) => log.ts < endTime);
 
       if (olderLogs.length === 0) {
         setHasMore(false);
         return;
       }
 
-      const oldestLog = olderLogs[0];
+      const oldestLog = olderLogs.reduce((oldest, log) => (log.ts < oldest.ts ? log : oldest));
       oldestTimestampRef.current = oldestLog.ts;
 
       setRoots((prevRoots) => {
         const result = mergeNewEvents(prevRoots, nodeMapRef.current, olderLogs);
+        nodeMapRef.current = result.nodeMap;
         setNodeMap(result.nodeMap);
         return result.roots;
       });
@@ -623,6 +611,78 @@ export function useAssistantActions(
       }
     }
   }, [actions, assistantId, hasMore]);
+
+  // ===========================================================================
+  // Lazy children loading
+  // ===========================================================================
+
+  const loadChildren: LoadChildrenFn = React.useCallback(
+    async (nodeId, hierarchy) => {
+      if (!isMountedRef.current) return;
+
+      const node = nodeMapRef.current.get(nodeId);
+      if (!node || node.childrenLoaded) return;
+
+      const rootSegment = hierarchy[0];
+      if (!rootSegment) return;
+
+      if (__DEV__)
+        console.log(
+          `[DEBUG][useAssistantActions] Loading children for node=${nodeId}, rootSegment=${rootSegment}`
+        );
+
+      try {
+        const response = await actions.getManagerMethodEvents(assistantId, null, null, undefined, [
+          `hierarchy[0] == '${rootSegment}'`,
+          `len(hierarchy) > 1`,
+        ]);
+
+        if (!isMountedRef.current) return;
+
+        if ('detail' in response) {
+          console.warn(
+            '[useAssistantActions] Load children error:',
+            (response as ResponseProps).detail
+          );
+          return;
+        }
+
+        const logs = (response.logs || []) as ManagerMethodLog[];
+
+        if (__DEV__)
+          console.log(
+            `[DEBUG][useAssistantActions] Loaded ${logs.length} descendant event(s) for node=${nodeId}`
+          );
+
+        if (logs.length > 0) {
+          setRoots((prevRoots) => {
+            const result = mergeNewEvents(prevRoots, nodeMapRef.current, logs);
+            nodeMapRef.current = result.nodeMap;
+            setNodeMap(result.nodeMap);
+
+            // Mark the target and all its descendants as children-loaded
+            // since the fetch included all hierarchy depths under this root.
+            const markLoaded = (n: ActionNode) => {
+              n.childrenLoaded = true;
+              for (const child of n.children) markLoaded(child);
+            };
+            const targetNode = result.nodeMap.get(nodeId);
+            if (targetNode) markLoaded(targetNode);
+
+            return result.roots;
+          });
+        } else {
+          if (node) node.childrenLoaded = true;
+          setRoots((prev) => [...prev]);
+        }
+
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.warn('[useAssistantActions] Load children error:', err);
+      }
+    },
+    [actions, assistantId]
+  );
 
   // ===========================================================================
   // Public refresh
@@ -752,6 +812,7 @@ export function useAssistantActions(
     error,
     refresh,
     loadMore,
+    loadChildren,
     hasMore,
     lastUpdated,
     connectionStatus,

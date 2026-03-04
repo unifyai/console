@@ -2,7 +2,11 @@ import pagesOptions from './pages';
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
+import AzureADProvider from 'next-auth/providers/azure-ad';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
@@ -14,7 +18,7 @@ const authOptions: AuthOptions = {
   adapter: OrchestraAdapter(),
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   cookies: {
     sessionToken: {
@@ -32,6 +36,10 @@ const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_ID!,
       clientSecret: process.env.GOOGLE_SECRET!,
+      // Google verifies email ownership, so it's safe to auto-link accounts
+      // that share the same verified email (e.g. user signed up with email/password
+      // and later clicks "Continue with Google").
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           prompt: 'consent',
@@ -40,10 +48,105 @@ const authOptions: AuthOptions = {
           scope: 'openid email profile https://www.googleapis.com/auth/userinfo.profile',
         },
       },
+      profile(profile) {
+        return {
+          id: profile.sub,
+          email: profile.email,
+          name: profile.given_name ?? profile.name ?? null,
+          lastName: profile.family_name ?? null,
+          image: profile.picture ?? null,
+        };
+      },
     }),
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+      // GitHub is deprecated; auto-linking is disabled for security.
+    }),
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      tenantId: process.env.AZURE_AD_TENANT_ID,
+      // Microsoft verifies email ownership, so it's safe to auto-link accounts
+      // that share the same verified email.
+      allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        // Azure AD may only provide `name` (full display name) without
+        // separate given_name / family_name fields — especially for
+        // personal Microsoft accounts. Split the full name as a fallback.
+        let firstName = profile.given_name ?? null;
+        let lastName = profile.family_name ?? null;
+
+        if (!firstName && profile.name) {
+          const parts = profile.name.trim().split(/\s+/);
+          firstName = parts[0];
+          lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
+        }
+
+        return {
+          id: profile.sub,
+          email: profile.email ?? profile.preferred_username ?? null,
+          name: firstName,
+          lastName: lastName,
+          image: null, // Azure AD doesn't return picture in the ID token by default
+        };
+      },
+    }),
+    CredentialsProvider({
+      name: 'Email',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+        preAuthToken: { label: 'Pre-auth Token', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials) return null;
+
+        // Fast path: if a pre-auth token was passed from the authenticate
+        // API route, verify it locally and skip the redundant Orchestra call.
+        if (credentials.preAuthToken) {
+          try {
+            const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+            const { payload } = await jwtVerify(credentials.preAuthToken, secret);
+            return {
+              id: payload.sub as string,
+              email: payload.email as string,
+              name: (payload.name as string) ?? null,
+              lastName: (payload.lastName as string) ?? null,
+              image: (payload.image as string) ?? null,
+              mfaPending: payload.mfaRequired === true,
+              onboardingStep: (payload.onboardingStep as string) ?? 'completed',
+            };
+          } catch {
+            // Token expired or tampered — fall through to full auth
+          }
+        }
+
+        // Full path: validate credentials via Orchestra (fallback / direct call).
+        if (!credentials.email || !credentials.password) return null;
+
+        try {
+          const res = await OrchestraAdminClient.post('/auth/authenticate', {
+            email: credentials.email,
+            password: credentials.password,
+          });
+
+          if (res.data?.id) {
+            return {
+              id: res.data.id,
+              email: res.data.email,
+              name: res.data.name,
+              lastName: res.data.lastName ?? null,
+              image: res.data.image ?? null,
+              mfaPending: res.data.mfaRequired === true,
+              onboardingStep: res.data.onboardingStep ?? 'completed',
+            };
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      },
     }),
   ],
   secret: process.env.JWT_SECRET,
@@ -53,6 +156,40 @@ const authOptions: AuthOptions = {
     logo: '@/console/static/ivy_logo_only.png',
   },
   callbacks: {
+    /**
+     * The `signIn` callback is called before a user is signed in.
+     * For OAuth providers without `allowDangerousEmailAccountLinking`, we
+     * intercept the sign-in to provide a better error message showing
+     * which providers are linked. Google and Azure AD have auto-linking
+     * enabled, so they are skipped here.
+     */
+    async signIn({ user, account }) {
+      // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
+      const autoLinkProviders = ['google', 'azure-ad'];
+
+      if (
+        account?.provider &&
+        account.provider !== 'credentials' &&
+        !autoLinkProviders.includes(account.provider) &&
+        user.email
+      ) {
+        try {
+          const res = await OrchestraAdminClient.get('/auth/providers-for-email', {
+            params: { email: user.email },
+          });
+          const providers: string[] = res.data?.providers ?? [];
+
+          if (providers.length > 0 && !providers.includes(account.provider)) {
+            const providerList = providers.join(',');
+            return `/login?error=OAuthAccountNotLinked&providers=${encodeURIComponent(providerList)}`;
+          }
+        } catch {
+          // If the check fails, let NextAuth handle it normally
+        }
+      }
+      return true;
+    },
+
     /**
      * The `redirect` callback is called when a redirect is required, either
      * due to an OAuth callback or a redirect from a login form. The
@@ -87,7 +224,77 @@ const authOptions: AuthOptions = {
      * additional information should be added to it.
      *
      */
-    async jwt({ token, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      // On initial sign-in: persist the auth provider ('credentials', 'google', 'github')
+      if (account) {
+        token.provider = account.provider;
+      }
+      // On initial sign-in: copy mfaPending from authorize() result
+      if (user?.mfaPending) {
+        token.mfaPending = true;
+      }
+      // Persist onboarding step from authorize() result (credentials login).
+      if (user?.onboardingStep && user.onboardingStep !== 'completed') {
+        token.onboardingStep = user.onboardingStep;
+      }
+      // On OAuth sign-in: check MFA and onboarding status from the backend.
+      // We query the backend directly instead of relying on trigger === 'signUp',
+      // because NextAuth fires 'signUp' even when an existing email user links
+      // a new OAuth provider (e.g. signed up with email, later signs in with Google).
+      if (account && account.provider !== 'credentials' && token.email) {
+        try {
+          const mfaRes = await OrchestraAdminClient.get('/auth/mfa/status-by-email', {
+            params: { email: token.email },
+          });
+          if (mfaRes.data?.mfaEnabled) {
+            token.mfaPending = true;
+          }
+        } catch {
+          // Don't block OAuth sign-in if MFA check fails
+          console.warn('[jwt] Failed to check MFA status for OAuth user, skipping');
+        }
+
+        // Check onboarding status — only set if not already set by credentials path
+        if (!token.onboardingStep) {
+          try {
+            const onboardingRes = await OrchestraAdminClient.get(
+              '/auth/onboarding-status-by-email',
+              { params: { email: token.email } }
+            );
+            const step = onboardingRes.data?.onboardingStep;
+            if (step && step !== 'completed') {
+              token.onboardingStep = step;
+            }
+          } catch {
+            console.warn('[jwt] Failed to check onboarding status for OAuth user, skipping');
+          }
+        }
+      }
+      // mfaPending is cleared exclusively by the server-side MFA verify
+      // route handlers (src/app/api/auth/mfa/verify and verify-recovery),
+      // which patch the JWT cookie directly after Orchestra confirms the
+      // TOTP/recovery code. Client-side update() cannot clear this flag.
+
+      // On session update: advance or clear onboarding step
+      if (trigger === 'update' && session?.onboardingStep) {
+        if (session.onboardingStep === 'completed') {
+          try {
+            const onboardingRes = await OrchestraAdminClient.get(
+              '/auth/onboarding-status-by-email',
+              { params: { email: token.email } }
+            );
+            const step = onboardingRes.data?.onboardingStep;
+            if (!step || step === 'completed') {
+              delete token.onboardingStep;
+            }
+          } catch {
+            // Don't clear if verification fails
+          }
+        } else {
+          token.onboardingStep = session.onboardingStep;
+        }
+      }
+
       if (account?.provider === 'google' && !token.picture) {
         try {
           const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
@@ -106,12 +313,15 @@ const authOptions: AuthOptions = {
         }
       } else if (account?.provider === 'github') {
         if (profile && typeof profile === 'object' && 'avatar_url' in profile) {
-          if (typeof profile.avatar_url === 'string') {
-            token.picture = profile.avatar_url;
-          } else {
-            token.picture = null;
-          }
+          token.picture = typeof profile.avatar_url === 'string' ? profile.avatar_url : null;
         } else {
+          token.picture = null;
+        }
+      } else if (account?.provider === 'azure-ad') {
+        // Azure AD does not return a profile picture in the ID token;
+        // fetching it requires MS Graph API with User.Read scope, so we
+        // leave it null for now.
+        if (!token.picture) {
           token.picture = null;
         }
       }
@@ -134,9 +344,28 @@ const authOptions: AuthOptions = {
         session.user.name = token.name;
         session.user.image = token.picture || null;
       }
+      // Expose the JWT issued-at timestamp so getCurrentUser() can compare it
+      // against password_changed_at for session invalidation.
+      if (token.iat) {
+        session.iat = token.iat;
+      }
+      // Expose mfaPending so the middleware and /login/mfa page can react.
+      if (token.mfaPending) {
+        session.mfaPending = true;
+      }
+      // Expose onboardingStep so the middleware can redirect to /login/onboarding.
+      if (token.onboardingStep) {
+        session.onboardingStep = token.onboardingStep;
+      }
+      // Expose the auth provider so downstream logic can distinguish
+      // email/password sessions from OAuth sessions.
+      if (token.provider) {
+        session.provider = token.provider as string;
+      }
       return session;
     },
   },
 };
 
+export { authOptions };
 export default authOptions;

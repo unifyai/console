@@ -94,6 +94,43 @@ export function useAssistantProfileChat(
   const SSE_MAX_RECONNECT_ATTEMPTS = 5;
   const SSE_RECONNECT_BASE_DELAY = 1000;
 
+  // Connection banner: suppress brief connecting/reconnecting flashes (e.g. the
+  // 60-second SSE cycle). Only surface the banner after a grace period, so
+  // transient reconnections are invisible to the user.
+  const CONNECTION_BANNER_GRACE_MS = 3000;
+  const [showConnectionBanner, setShowConnectionBanner] = React.useState(false);
+  const connectionBannerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (connectionStatus === 'connected') {
+      if (connectionBannerTimerRef.current) {
+        clearTimeout(connectionBannerTimerRef.current);
+        connectionBannerTimerRef.current = null;
+      }
+      setShowConnectionBanner(false);
+    } else if (connectionStatus === 'error') {
+      if (connectionBannerTimerRef.current) {
+        clearTimeout(connectionBannerTimerRef.current);
+        connectionBannerTimerRef.current = null;
+      }
+      setShowConnectionBanner(true);
+    } else {
+      // connecting or reconnecting — start grace period
+      if (!connectionBannerTimerRef.current) {
+        connectionBannerTimerRef.current = setTimeout(() => {
+          connectionBannerTimerRef.current = null;
+          setShowConnectionBanner(true);
+        }, CONNECTION_BANNER_GRACE_MS);
+      }
+    }
+    return () => {
+      if (connectionBannerTimerRef.current) {
+        clearTimeout(connectionBannerTimerRef.current);
+        connectionBannerTimerRef.current = null;
+      }
+    };
+  }, [connectionStatus]);
+
   // =========================================================================
   // Reset when assistant changes
   // =========================================================================
@@ -763,6 +800,7 @@ export function useAssistantProfileChat(
     handleInputChange,
     sendMessage,
     connectionStatus,
+    showConnectionBanner,
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,

@@ -1,18 +1,27 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import type { Metadata } from 'next';
-import BaseLayout from '@/components/Pages/Providers/Base';
-import Scaffold from '@/components/Layout/LandingNav/Scaffold';
+import { SessionProvider } from '@/components/Pages/Providers/SessionProvider';
+import { EnvironmentProvider } from '@/components/Pages/Providers/EnvironmentProvider';
+import LoginCardShell from '@/components/Pages/Login/LoginCardShell';
 
 export const metadata: Metadata = {
   title: 'Login',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
+  // Resolve environment config server-side (env vars aren't available in client components)
+  const envConfig = {
+    isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
+    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY,
+  };
+
   return (
-    <Scaffold footer={false}>
-      <BaseLayout>
-        <Suspense>{children}</Suspense>
-      </BaseLayout>
-    </Scaffold>
+    <SessionProvider>
+      <EnvironmentProvider config={envConfig}>
+        <LoginCardShell>
+          {children}
+        </LoginCardShell>
+      </EnvironmentProvider>
+    </SessionProvider>
   );
 }

@@ -16,7 +16,7 @@ import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
 import { filterActionTree } from '@/utils/assistants/assistant-actions';
 import type { SectionToggleSignal } from './ActionNodeItem';
-import type { ActionNode, GetToolLoopEventsFn } from '@/types/assistants/action';
+import type { ActionNode, GetToolLoopEventsFn, LoadChildrenFn } from '@/types/assistants/action';
 
 export interface LiveActionsBodyProps {
   /** Whether an assistant is selected */
@@ -27,6 +27,8 @@ export interface LiveActionsBodyProps {
   assistantId: string | null;
   /** Function to fetch ToolLoop events */
   getToolLoopEvents?: GetToolLoopEventsFn;
+  /** Function to lazy-load child events for a node on expand */
+  loadChildren?: LoadChildrenFn;
   /** Current search term for filtering */
   searchTerm: string;
   /** Whether to auto-collapse completed nodes */
@@ -58,6 +60,7 @@ export function LiveActionsBody({
   roots,
   assistantId,
   getToolLoopEvents,
+  loadChildren,
   searchTerm,
   autoCollapse,
   isLoading,
@@ -220,6 +223,7 @@ export function LiveActionsBody({
           roots={filteredRoots}
           assistantId={assistantId || ''}
           getToolLoopEvents={getToolLoopEvents}
+          loadChildren={loadChildren}
           defaultExpanded={!autoCollapse}
           expandedNodeIds={expandedNodeIds}
           onExpandedChange={onExpandedChange}

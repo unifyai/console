@@ -80,6 +80,10 @@ export interface ActionNode {
   /** Content: question, instructions, or answer */
   content?: string;
 
+  /** Original request text from the incoming ManagerMethod event.
+   *  Preserved separately because `content` gets overwritten by the outgoing answer. */
+  requestContent?: string;
+
   /** Child nodes */
   children: ActionNode[];
 
@@ -95,6 +99,9 @@ export interface ActionNode {
   /** Live ToolLoop logs accumulated from SSE. Persists after completion to
    *  serve as a bridge until lazy-loaded historical data replaces them. */
   liveToolLoopLogs?: ToolLoopLog[];
+
+  /** Whether child manager events have been lazy-loaded for this node */
+  childrenLoaded?: boolean;
 }
 
 // =============================================================================
@@ -223,11 +230,15 @@ export interface ActionsLogsResponse {
 
 /**
  * Function signature for getManagerMethodEvents server action.
+ * Optional offset enables client-driven pagination for progressive loading.
+ * Optional extraFilters adds arbitrary filter expressions (e.g. phase, hierarchy length).
  */
 export type GetManagerMethodEventsFn = (
   assistantId: string,
   startTime: string | null,
-  limit: number | null
+  limit: number | null,
+  offset?: number,
+  extraFilters?: string[]
 ) => Promise<ActionsLogsResponse | ResponseProps>;
 
 /**
@@ -242,6 +253,12 @@ export type GetToolLoopEventsFn = (
   startTime?: string,
   endTime?: string
 ) => Promise<ActionsLogsResponse | ResponseProps>;
+
+/**
+ * Function to lazy-load child manager events for a specific node on expand.
+ * Fetches all descendant ManagerMethod events and merges them into the tree.
+ */
+export type LoadChildrenFn = (nodeId: string, hierarchy: string[]) => Promise<void>;
 
 /**
  * Function signature for targeted backfill of missing incoming events.

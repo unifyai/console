@@ -149,6 +149,7 @@ export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
     status: 'running',
     startTime: event.timestamp,
     content: event.content,
+    requestContent: event.content,
     children: [],
   };
 }
@@ -330,6 +331,9 @@ function applyBackfilledIncoming(node: ActionNode, event: ParsedManagerMethodEve
   }
   if (!node.content && event.content) {
     node.content = event.content;
+  }
+  if (!node.requestContent && event.content) {
+    node.requestContent = event.content;
   }
   if (event.displayLabel && event.displayLabel.trim()) {
     node.label = event.displayLabel;

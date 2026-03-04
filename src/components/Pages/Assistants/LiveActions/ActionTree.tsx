@@ -12,7 +12,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { ActionNodeItem } from './ActionNodeItem';
 import type { SectionToggleSignal } from './ActionNodeItem';
-import type { ActionNode, GetToolLoopEventsFn } from '@/types/assistants/action';
+import type { ActionNode, GetToolLoopEventsFn, LoadChildrenFn } from '@/types/assistants/action';
 
 export interface ActionTreeProps {
   /** Root-level action nodes to display */
@@ -31,6 +31,8 @@ export interface ActionTreeProps {
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
   getToolLoopEvents?: GetToolLoopEventsFn;
+  /** Function to lazy-load child events for a node on expand */
+  loadChildren?: LoadChildrenFn;
   /** Signal to force-expand/collapse all ToolLoop step sections */
   sectionToggleSignal?: SectionToggleSignal;
   /** Additional class names */
@@ -46,6 +48,7 @@ export function ActionTree({
   onExpandedChange,
   assistantId,
   getToolLoopEvents,
+  loadChildren,
   sectionToggleSignal,
   className,
 }: ActionTreeProps) {
@@ -81,6 +84,7 @@ export function ActionTree({
           onExpandedChange={onExpandedChange}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
+          loadChildren={loadChildren}
           sectionToggleSignal={sectionToggleSignal}
         />
       ))}

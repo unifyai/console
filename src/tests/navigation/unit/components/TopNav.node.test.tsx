@@ -7,6 +7,7 @@
  *   3. Standard dropdown items (Profile, Organizations, Billing, Sign out) remain
  *   4. Workspace switcher renders correctly
  *   5. Billing is hidden for non-admin org members
+ *   6. Workspace pill is non-interactive for non-Unify org members
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -86,7 +87,7 @@ function getAllLinkTexts(container: HTMLElement): string[] {
 describe('TopNav – navigation restructuring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: personal workspace, owner of one org
+    // Default: personal workspace, owner of one org (Unify member → switchable)
     mockUseWorkspace.mockReturnValue({
       workspaces: [
         { id: 'personal', name: 'Test User', type: 'personal' },
@@ -95,6 +96,7 @@ describe('TopNav – navigation restructuring', () => {
       activeWorkspace: { id: 'personal', name: 'Test User', type: 'personal' },
       activeOrganization: null,
       currentUserId: 'u1',
+      isWorkspaceSwitchable: true,
       switchWorkspace: vi.fn(),
     });
   });
@@ -125,9 +127,9 @@ describe('TopNav – navigation restructuring', () => {
     const allLinks = await screen.findAllByRole('link');
     const dropdownLinkTexts = allLinks
       .map((link) => link.textContent?.trim() ?? '')
-      .filter((t) => ['Profile', 'Usage', 'Organizations', 'Billing'].includes(t));
+      .filter((t) => ['Account', 'Usage', 'Organizations', 'Billing'].includes(t));
 
-    expect(dropdownLinkTexts).toEqual(['Profile', 'Usage', 'Organizations', 'Billing']);
+    expect(dropdownLinkTexts).toEqual(['Account', 'Organizations', 'Usage', 'Billing']);
   });
 
   it('renders "Sign out" in the profile dropdown', async () => {
@@ -148,6 +150,7 @@ describe('TopNav – navigation restructuring', () => {
       activeWorkspace: { id: '2', name: 'Other Corp', type: 'organization' },
       activeOrganization: null,
       currentUserId: 'u1',
+      isWorkspaceSwitchable: true,
       switchWorkspace: vi.fn(),
     });
 
@@ -179,6 +182,7 @@ describe('TopNav – navigation restructuring', () => {
       activeWorkspace: { id: '1', name: 'Acme Corp', type: 'organization' },
       activeOrganization: null,
       currentUserId: 'u1',
+      isWorkspaceSwitchable: true,
       switchWorkspace: vi.fn(),
     });
 
@@ -199,5 +203,41 @@ describe('TopNav – navigation restructuring', () => {
   it('renders the workspace switcher showing the active workspace name', () => {
     render(<TopNav />);
     expect(screen.getByText('Test User')).toBeTruthy();
+  });
+
+  it('renders a non-interactive workspace label (no dropdown) when isWorkspaceSwitchable is false', () => {
+    mockUseWorkspace.mockReturnValue({
+      workspaces: [
+        { id: 'personal', name: 'Test User', type: 'personal' },
+        { id: '3', name: 'Customer Org', type: 'organization' },
+      ],
+      activeWorkspace: { id: '3', name: 'Customer Org', type: 'organization' },
+      activeOrganization: null,
+      currentUserId: 'u1',
+      isWorkspaceSwitchable: false,
+      switchWorkspace: vi.fn(),
+    });
+
+    render(<TopNav />);
+
+    // The org name should appear as a static label
+    const label = screen.getByTestId('workspace-label');
+    expect(label).toBeTruthy();
+    expect(label.textContent).toContain('Customer Org');
+
+    // No chevron / dropdown trigger should be present for the workspace pill
+    expect(screen.queryByRole('button', { name: /customer org/i })).toBeNull();
+  });
+
+  it('renders an interactive dropdown when isWorkspaceSwitchable is true', () => {
+    // Default mock already has isWorkspaceSwitchable: true
+    render(<TopNav />);
+
+    // The workspace name should be inside a button (the dropdown trigger)
+    const trigger = screen.getByRole('button', { name: /test user/i });
+    expect(trigger).toBeTruthy();
+
+    // No static label should be present
+    expect(screen.queryByTestId('workspace-label')).toBeNull();
   });
 });

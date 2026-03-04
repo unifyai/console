@@ -20,10 +20,9 @@ import { Input } from '@/components/UI/input';
 import { Search, Loader2, Users, Shield } from 'lucide-react';
 import MemberRow, { MemberSpendingInfo } from './MemberRow';
 import InviteMemberDialog from './InviteMemberDialog';
-import UpdateOrgDialog from './UpdateOrganizationDialog';
-import DeleteOrganizationDialog from './DeleteOrganizationDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
+import { MfaSettingsActions } from './SecuritySettingsPanel';
 import { MemberSpendingDialog } from './MemberSpending';
 import { Button } from '@/components/UI/button';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/UI/table';
@@ -33,9 +32,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { cn } from '@/lib/utils';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
 import { toast } from 'sonner';
+import OrganizationSettingsTab from './OrganizationSettingsTab';
+import OrganizationSecurityTab from './OrganizationSecurityTab';
 
 /** Type for member spending server actions */
 export interface MemberSpendingActions {
@@ -91,6 +91,8 @@ interface OrganizationWorkspaceViewProps {
   memberSpendingActions?: MemberSpendingActions;
   // Organization spending limit (for validation context)
   orgSpendingLimit?: number | null;
+  // MFA Settings Actions (optional - if not provided, security settings are hidden)
+  mfaSettingsActions?: MfaSettingsActions;
 }
 
 const OrganizationWorkspaceView = ({
@@ -122,18 +124,16 @@ const OrganizationWorkspaceView = ({
   onRemoveRolePermission,
   memberSpendingActions,
   orgSpendingLimit,
+  mfaSettingsActions,
 }: OrganizationWorkspaceViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
-  const [showTeamPanel, setShowTeamPanel] = useState(false);
-  const [showRolePanel, setShowRolePanel] = useState(false);
 
   // Member spending state
   const [memberSpendingMap, setMemberSpendingMap] = useState<Map<string, MemberSpendingInfo>>(
     new Map()
   );
-  const [isLoadingSpending, setIsLoadingSpending] = useState(false);
   const [selectedMemberForSpending, setSelectedMemberForSpending] = useState<UnifiedMember | null>(
     null
   );
@@ -141,22 +141,10 @@ const OrganizationWorkspaceView = ({
   // Check if spending features are available
   const spendingEnabled = !!memberSpendingActions;
 
-  // Toggle handlers that ensure exclusivity
-  const toggleTeamPanel = () => {
-    if (showRolePanel) setShowRolePanel(false);
-    setShowTeamPanel(!showTeamPanel);
-  };
-
-  const toggleRolePanel = () => {
-    if (showTeamPanel) setShowTeamPanel(false);
-    setShowRolePanel(!showRolePanel);
-  };
-
   // Fetch spending data for all active members
   const fetchMemberSpending = useCallback(async () => {
     if (!memberSpendingActions) return;
 
-    setIsLoadingSpending(true);
     const currentMonth = getCurrentMonth();
     const activeMembers = unifiedMembers.filter((m) => m.status === 'active' && m.userId);
 
@@ -224,7 +212,6 @@ const OrganizationWorkspaceView = ({
     );
 
     setMemberSpendingMap(new Map(newMap));
-    setIsLoadingSpending(false);
   }, [memberSpendingActions, unifiedMembers, organization.id]);
 
   // Fetch spending data when component mounts and spending is enabled
@@ -344,48 +331,36 @@ const OrganizationWorkspaceView = ({
     }));
 
   return (
-    <div className="flex h-full w-full flex-1 flex-col overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-      {/* Main Card Container */}
-      <section className="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
-        {/* Header Section: Title & Actions */}
-        <div className="bg-background/50 flex flex-shrink-0 items-center justify-between border-b p-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-h1 text-semibold flex items-center gap-2">
-              {organization.name}
-              <span className="rounded-full border px-2 py-0.5 text-xs font-normal capitalize text-muted-foreground">
-                {organization.roleName || 'Member'}
-              </span>
-            </h2>
-          </div>
+    <div className="h-full w-full overflow-auto px-4 py-6 sm:px-6 lg:px-8">
+      {/* Tabs */}
+      <Tabs defaultValue="members">
+        <TabsList className="w-full">
+          <TabsTrigger value="members" className="flex-1">
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="teams" className="flex-1">
+            Teams
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex-1">
+            Roles
+          </TabsTrigger>
+          {canUpdateOrg && (
+            <TabsTrigger value="organization" className="flex-1">
+              Organization
+            </TabsTrigger>
+          )}
+          {canUpdateOrg && (
+            <TabsTrigger value="security" className="flex-1">
+              Security
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-          <div className="flex items-center gap-2">
-            {canUpdateOrg && (
-              <UpdateOrgDialog
-                currentName={organization.name}
-                currentTimezone={organization.timezone}
-                onUpdate={onUpdateOrg}
-              />
-            )}
-            {canDeleteOrg && (
-              <DeleteOrganizationDialog
-                organizationName={organization.name}
-                onDelete={onDeleteOrg}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Split View Container */}
-        <div className="relative flex flex-1 overflow-hidden">
-          {/* LEFT SIDE: Member Table */}
-          <div
-            className={cn(
-              'flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out',
-              showTeamPanel || showRolePanel ? 'w-1/2 border-r' : 'w-full'
-            )}
-          >
+        {/* Members Tab */}
+        <TabsContent value="members" className="mt-4">
+          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             {/* Toolbar */}
-            <div className="bg-muted/20 flex flex-col items-center justify-between gap-4 border-b p-4 xl:flex-row">
+            <div className="bg-muted/20 flex flex-shrink-0 flex-col items-center justify-between gap-4 border-b p-4 xl:flex-row">
               <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto xl:w-auto">
                 {/* Invite Button */}
                 {canManageMembers && (
@@ -443,52 +418,12 @@ const OrganizationWorkspaceView = ({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              <div className="flex w-full justify-end gap-2 xl:w-auto">
-                {/* Role Toggle Button */}
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={showRolePanel ? 'primary' : 'outline'}
-                        size="icon"
-                        onClick={toggleRolePanel}
-                        aria-label={showRolePanel ? 'Close Roles' : 'Manage Roles'}
-                      >
-                        <Shield className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p>{showRolePanel ? 'Close Roles' : 'Manage Roles'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                {/* Teams Toggle Button */}
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={showTeamPanel ? 'primary' : 'outline'}
-                        size="icon"
-                        onClick={toggleTeamPanel}
-                        aria-label={showTeamPanel ? 'Close Teams' : 'View Teams'}
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p>{showTeamPanel ? 'Close Teams' : 'View Teams'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
             </div>
 
             {/* Member Table */}
-            <div className="min-h-0 flex-1 overflow-auto bg-background px-3">
+            <div className="flex-1 overflow-auto bg-background px-3">
               {isLoadingMembers && filteredMembers.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+                <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center text-muted-foreground">
                   <Loader2 className="mb-2 h-8 w-8 animate-spin" />
                   <p>Loading members...</p>
                 </div>
@@ -497,7 +432,7 @@ const OrganizationWorkspaceView = ({
                   <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
                     <TableRow>
                       <TableHead
-                        className={cn(spendingEnabled ? 'w-[20%]' : 'w-[30%]', 'min-w-[180px]')}
+                        className={`${spendingEnabled ? 'w-[20%]' : 'w-[30%]'} min-w-[180px]`}
                       >
                         User
                       </TableHead>
@@ -517,7 +452,7 @@ const OrganizationWorkspaceView = ({
                       <TableHead className="w-[8%] min-w-[50px] text-right"></TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <TableBody className="h-full">
                     {filteredMembers.map((member) => {
                       const userTeams = getUserTeams(member.userId).map((t) => t.name);
                       const memberSpending = member.userId
@@ -547,19 +482,12 @@ const OrganizationWorkspaceView = ({
                 </Table>
               )}
             </div>
-          </div>
+          </section>
+        </TabsContent>
 
-          {/* RIGHT SIDE: Panels */}
-
-          {/* Team Panel */}
-          <div
-            className={cn(
-              'absolute bottom-0 right-0 top-0 flex h-full flex-col overflow-hidden border-l bg-background transition-all duration-300 ease-in-out',
-              showTeamPanel
-                ? 'w-1/2 translate-x-0 opacity-100'
-                : 'pointer-events-none w-1/2 translate-x-full opacity-0'
-            )}
-          >
+        {/* Teams Tab */}
+        <TabsContent value="teams" className="mt-4">
+          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             <TeamListPanel
               teams={teams}
               members={activeMembersForProps}
@@ -569,17 +497,12 @@ const OrganizationWorkspaceView = ({
               onAddMember={onAddTeamMember}
               onRemoveMember={onRemoveTeamMember}
             />
-          </div>
+          </section>
+        </TabsContent>
 
-          {/* Role Panel */}
-          <div
-            className={cn(
-              'absolute bottom-0 right-0 top-0 flex h-full flex-col overflow-hidden border-l bg-background transition-all duration-300 ease-in-out',
-              showRolePanel
-                ? 'w-1/2 translate-x-0 opacity-100'
-                : 'pointer-events-none w-1/2 translate-x-full opacity-0'
-            )}
-          >
+        {/* Roles Tab */}
+        <TabsContent value="roles" className="mt-4">
+          <section className="flex min-h-[calc(100vh-160px)] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             <RoleListPanel
               roles={managedRoles}
               allPermissions={allPermissions}
@@ -589,9 +512,38 @@ const OrganizationWorkspaceView = ({
               onAddPermission={onAddRolePermission}
               onRemovePermission={onRemoveRolePermission}
             />
-          </div>
-        </div>
-      </section>
+          </section>
+        </TabsContent>
+
+        {/* Organization Tab (admin-gated) */}
+        {canUpdateOrg && (
+          <TabsContent value="organization" className="mt-4">
+            <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+              <OrganizationSettingsTab
+                currentName={organization.name}
+                currentTimezone={organization.timezone}
+                onUpdate={onUpdateOrg}
+              />
+            </section>
+          </TabsContent>
+        )}
+
+        {/* Security Tab (admin-gated) */}
+        {canUpdateOrg && (
+          <TabsContent value="security" className="mt-4">
+            <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+              <OrganizationSecurityTab
+                organizationId={organization.id}
+                organizationName={organization.name}
+                canEdit={canUpdateOrg}
+                canDelete={canDeleteOrg}
+                onDeleteOrg={onDeleteOrg}
+                mfaSettingsActions={mfaSettingsActions}
+              />
+            </section>
+          </TabsContent>
+        )}
+      </Tabs>
 
       {/* Member Spending Dialog */}
       {selectedMemberForSpending && (
