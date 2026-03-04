@@ -31,8 +31,9 @@ type ChatPhase =
   | 'ready'
   | 'error';
 
-const CONTACT_ID_RETRY_DELAY = 5000;
-const CONTACT_ID_MAX_RETRIES = 6;
+const CONTACT_ID_INITIAL_RETRY_DELAY = 500;
+const CONTACT_ID_MAX_RETRY_DELAY = 8000;
+const CONTACT_ID_MAX_RETRIES = 10;
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -173,12 +174,12 @@ export function useAssistantProfileChat(
       recordTranscriptTimestamp(assistantId, initialHistory);
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
-      if (cachedId !== undefined) {
-        setContactId(cachedId);
-        setPhase('ready');
-      } else {
-        setPhase('pending_contact');
-      }
+      // The hiring user is always contact_id=1 (owner). Skip the contact ID
+      // resolution round-trip and go straight to ready.
+      const ownerContactId = cachedId ?? 1;
+      contactIdCacheRef.current.set(assistantId, ownerContactId);
+      setContactId(ownerContactId);
+      setPhase('ready');
     } else if (chatHistories[assistantId] !== undefined) {
       if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
         transcriptCutoffsRef.current[assistantId] = 0;
@@ -226,6 +227,9 @@ export function useAssistantProfileChat(
     const currentAssistant = assistant;
     const skipTranscripts = phase === 'pending_contact';
 
+    const retryDelay = (attempt: number) =>
+      Math.min(CONTACT_ID_INITIAL_RETRY_DELAY * 2 ** attempt, CONTACT_ID_MAX_RETRY_DELAY);
+
     const resolve = async (attempt: number) => {
       try {
         const id = await assistantActions.chat.getContactId(
@@ -250,7 +254,7 @@ export function useAssistantProfileChat(
           setIsRetryingContactId(true);
           retryTimer = setTimeout(() => {
             if (!cancelled) resolve(attempt + 1);
-          }, CONTACT_ID_RETRY_DELAY);
+          }, retryDelay(attempt));
         } else {
           setCanChat(false);
           setIsRetryingContactId(false);
@@ -263,7 +267,7 @@ export function useAssistantProfileChat(
           setIsRetryingContactId(true);
           retryTimer = setTimeout(() => {
             if (!cancelled) resolve(attempt + 1);
-          }, CONTACT_ID_RETRY_DELAY);
+          }, retryDelay(attempt));
         } else {
           setCanChat(false);
           setIsRetryingContactId(false);
