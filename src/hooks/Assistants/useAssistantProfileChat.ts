@@ -768,7 +768,8 @@ export function useAssistantProfileChat(
         }));
         setInputValue(messageToSend);
         stopReplying();
-        toast.error('Failed to send message.');
+        const errorMsg = error instanceof Error ? error.message : 'Failed to send message.';
+        toast.error(errorMsg);
 
         if (onError && attachments && attachments.length > 0) {
           onError(attachments);

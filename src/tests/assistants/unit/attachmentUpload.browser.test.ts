@@ -14,29 +14,22 @@ import { describe, it, expect } from 'vitest';
 // =============================================================================
 
 describe('Attachment Utilities - New Features', () => {
-  describe('validateFile - 25MB limit (updated from 10MB)', () => {
-    it('should accept files under 25MB (new limit)', async () => {
+  describe('validateFile - no size limit, type check only', () => {
+    it('should accept any size file with allowed extension', async () => {
       const { validateFile } = await import('@/components/Chat/attachmentUtils');
 
-      // Create a 20MB file (over old 10MB limit, but under new 25MB limit)
-      const content = 'x'.repeat(20 * 1024 * 1024);
-      const file = new File([content], 'medium.pdf', { type: 'application/pdf' });
-
+      const file = new File(['content'], 'report.pdf', { type: 'application/pdf' });
       const result = validateFile(file);
       expect(result.valid).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
-    it('should reject files over 25MB', async () => {
+    it('should reject files with blocked extensions', async () => {
       const { validateFile } = await import('@/components/Chat/attachmentUtils');
 
-      // Create a 26MB file (over the new 25MB limit)
-      const content = 'x'.repeat(26 * 1024 * 1024);
-      const file = new File([content], 'huge.pdf', { type: 'application/pdf' });
-
+      const file = new File(['content'], 'malware.exe', { type: 'application/x-msdownload' });
       const result = validateFile(file);
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('25MB');
     });
   });
 

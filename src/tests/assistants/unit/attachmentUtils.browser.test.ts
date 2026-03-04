@@ -166,27 +166,29 @@ describe('attachmentUtils', () => {
   });
 
   describe('validateFile', () => {
-    it('should accept files under 25MB', () => {
-      const content = 'x'.repeat(20 * 1024 * 1024);
-      const file = createTestFile('small.pdf', content, 'application/pdf');
+    it('should accept allowed file types', () => {
+      const file = createTestFile('report.pdf', 'content', 'application/pdf');
       const result = validateFile(file);
       expect(result.valid).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
-    it('should reject files over 25MB', () => {
-      const content = 'x'.repeat(26 * 1024 * 1024);
-      const file = createTestFile('large.pdf', content, 'application/pdf');
-      const result = validateFile(file);
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('File exceeds 25MB limit');
-    });
-
-    it('should accept files exactly 25MB', () => {
-      const content = 'x'.repeat(25 * 1024 * 1024);
-      const file = createTestFile('exact.pdf', content, 'application/pdf');
+    it('should accept .html files', () => {
+      const file = createTestFile('map.html', '<html></html>', 'text/html');
       const result = validateFile(file);
       expect(result.valid).toBe(true);
+    });
+
+    it('should accept .py files', () => {
+      const file = createTestFile('script.py', 'print("hello")', 'text/x-python');
+      const result = validateFile(file);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject blocked file types', () => {
+      const file = createTestFile('malware.exe', 'bad', 'application/x-msdownload');
+      const result = validateFile(file);
+      expect(result.valid).toBe(false);
     });
   });
 
