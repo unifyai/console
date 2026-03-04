@@ -157,34 +157,4 @@ export function AttachmentPreview({ attachment, className }: AttachmentPreviewPr
   );
 }
 
-// =============================================================================
-// HISTORICAL ATTACHMENT LIST
-// =============================================================================
-
-export interface HistoricalAttachmentListProps {
-  /** List of attachments from transcript history */
-  attachments: Attachment[];
-  /** Optional additional CSS classes */
-  className?: string;
-}
-
-/**
- * List of historical attachments displayed in a message from transcript history.
- * Each attachment fetches its signed URL on-demand for display.
- */
-export function HistoricalAttachmentList({
-  attachments,
-  className,
-}: HistoricalAttachmentListProps) {
-  if (!attachments || attachments.length === 0) return null;
-
-  return (
-    <div className={cn('flex flex-wrap gap-2', className)} data-testid="historical-attachments">
-      {attachments.map((attachment) => (
-        <AttachmentPreview key={attachment.id} attachment={attachment} />
-      ))}
-    </div>
-  );
-}
-
 export default AttachmentPreview;

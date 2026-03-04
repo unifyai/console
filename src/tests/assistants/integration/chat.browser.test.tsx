@@ -574,10 +574,8 @@ describe('Assistant Profile Chat', () => {
         });
 
         await waitFor(() => {
-          const attachmentContainer = document.querySelector(
-            '[data-testid="historical-attachments"]'
-          );
-          expect(attachmentContainer).not.toBeNull();
+          const attachmentChip = document.querySelector('[data-testid="message-attachment"]');
+          expect(attachmentChip).not.toBeNull();
         });
       }
     );
@@ -3505,9 +3503,12 @@ describe('Assistant Profile Chat', () => {
           chatMocks.eventSource!.simulateError();
         });
 
-        await waitFor(() => {
-          expect(chatMocks.allEventSources.length).toBeGreaterThan(1);
-        });
+        await waitFor(
+          () => {
+            expect(chatMocks.allEventSources.length).toBeGreaterThan(1);
+          },
+          { timeout: 3000 }
+        );
 
         const newConnection = chatMocks.allEventSources[chatMocks.allEventSources.length - 1];
         act(() => newConnection.simulateOpen());

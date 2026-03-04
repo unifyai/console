@@ -17,12 +17,7 @@ export {
   type MessageAttachmentListProps,
 } from './ChatAttachments';
 
-export {
-  AttachmentPreview,
-  HistoricalAttachmentList,
-  type AttachmentPreviewProps,
-  type HistoricalAttachmentListProps,
-} from './AttachmentPreview';
+export { AttachmentPreview, type AttachmentPreviewProps } from './AttachmentPreview';
 
 export {
   getAttachmentType,
