@@ -1,10 +1,14 @@
 /**
  * SSE Endpoint for Live Actions Streaming
  *
- * Streams ManagerMethod and ToolLoop events from the assistant's
- * `*-actions-sub` Pub/Sub subscription to the browser via Server-Sent Events.
+ * Streams ManagerMethod and ToolLoop events from the assistant's Pub/Sub topic
+ * to the browser via Server-Sent Events.
  *
  * Architecture:
+ * - Each SSE connection creates its own ephemeral Pub/Sub subscription on the
+ *   shared topic. This gives true fan-out: every viewer (across tabs, browsers,
+ *   and users) independently receives all events. Subscriptions auto-expire
+ *   after inactivity so leaked ones don't accumulate.
  * - Per-connection pull loop inside `async start` (industry-standard SSE pattern)
  * - Server-side ACK (Orchestra is the durable store; client polls on catch-up)
  * - snake_case → camelCase transformation via shared casing utilities
@@ -13,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleAuth } from 'google-auth-library';
+import crypto from 'crypto';
 import fs from 'fs';
 import { snakeToCamelObject } from '@/utils/casing';
 import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
@@ -20,6 +25,12 @@ import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
 export const dynamic = 'force-dynamic';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
+
+/** Ephemeral subscriptions auto-delete after this much inactivity (seconds). */
+const SUBSCRIPTION_EXPIRATION_TTL = '86400s'; // 1 day
+
+/** Only retain recent messages — older history is loaded from Orchestra. */
+const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
 
 // =============================================================================
 // Auth
@@ -50,6 +61,40 @@ async function getAuthClient() {
   });
 
   return { client: await auth.getClient(), projectId: credentials.project_id };
+}
+
+// =============================================================================
+// Ephemeral Subscription Management
+// =============================================================================
+
+async function createEphemeralSubscription(
+  authClient: any,
+  projectId: string,
+  topicName: string,
+  subscriptionName: string
+): Promise<string> {
+  const subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${projectId}/subscriptions/${subscriptionName}`;
+  const topicPath = `projects/${projectId}/topics/${topicName}`;
+
+  await authClient.request({
+    url: subscriptionUrl,
+    method: 'PUT',
+    data: {
+      topic: topicPath,
+      expirationPolicy: { ttl: SUBSCRIPTION_EXPIRATION_TTL },
+      messageRetentionDuration: MESSAGE_RETENTION_DURATION,
+    },
+  });
+
+  return subscriptionUrl;
+}
+
+async function deleteSubscription(authClient: any, subscriptionUrl: string): Promise<void> {
+  try {
+    await authClient.request({ url: subscriptionUrl, method: 'DELETE' });
+  } catch {
+    // Best-effort cleanup; the expirationPolicy is the safety net.
+  }
 }
 
 // =============================================================================
@@ -120,17 +165,35 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
     const orchestraUrl = process.env.ORCHESTRA_URL || '';
     const isStaging = orchestraUrl.includes('staging');
-    const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-actions-sub`;
 
-    subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${authData.projectId}/subscriptions/${subscriptionName}`;
+    const connectionId = crypto.randomUUID().slice(0, 8);
+    const topicName = `unity-${assistantId}${isStaging ? '-staging' : ''}`;
+    const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
 
-    if (__DEV__) console.log(`[DEBUG][Actions SSE] Auth OK. Subscription: ${subscriptionName}`);
+    subscriptionUrl = await createEphemeralSubscription(
+      authClient,
+      authData.projectId,
+      topicName,
+      subscriptionName
+    );
+
+    if (__DEV__)
+      console.log(
+        `[DEBUG][Actions SSE] Auth OK. Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
+      );
   } catch (error: any) {
     console.error('[Actions SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
     });
   }
+
+  // Capture for cleanup when the client disconnects.
+  const cleanupSubscriptionUrl = subscriptionUrl;
+  const cleanupAuthClient = authClient;
+  request.signal.addEventListener('abort', () => {
+    deleteSubscription(cleanupAuthClient, cleanupSubscriptionUrl);
+  });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -261,6 +324,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
       // Cleanup
       clearInterval(keepAliveInterval);
+      deleteSubscription(authClient, subscriptionUrl);
       if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
       try {
         controller.close();
