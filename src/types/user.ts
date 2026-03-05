@@ -46,6 +46,7 @@ export interface UserOrganization {
   roleId: number;
   roleName: string;
   apiKey: string;
+  image?: string | null;
   timezone?: string | null;
 }
 
