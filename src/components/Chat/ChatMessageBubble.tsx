@@ -153,7 +153,9 @@ export function ChatMessageBubble({
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>
         )}
       </div>
-      {attachments && attachments.length > 0 && <MessageAttachmentList attachments={attachments} />}
+      {attachments && attachments.length > 0 && (
+        <MessageAttachmentList attachments={attachments} isAssistant />
+      )}
       <div className="break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
     </div>
   );

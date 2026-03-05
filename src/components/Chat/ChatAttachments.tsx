@@ -11,7 +11,9 @@ import {
   truncateFilename,
   formatFileSize,
   getSignedUrl,
+  isHtmlAttachment,
 } from './attachmentUtils';
+import { HtmlAttachmentEmbed } from './HtmlAttachmentEmbed';
 import type { Attachment } from '@/types/assistants/chat';
 
 // =============================================================================
@@ -146,23 +148,40 @@ export function PendingAttachmentList({
 
 export interface MessageAttachmentListProps {
   attachments: Attachment[];
+  isAssistant?: boolean;
   className?: string;
 }
 
 /**
  * List of attachments displayed in a sent message bubble.
- * No remove buttons - display only.
+ * When `isAssistant` is true, HTML attachments render as inline iframe previews.
  */
-export function MessageAttachmentList({ attachments, className }: MessageAttachmentListProps) {
+export function MessageAttachmentList({
+  attachments,
+  isAssistant,
+  className,
+}: MessageAttachmentListProps) {
   if (attachments.length === 0) return null;
 
+  const htmlAttachments = isAssistant ? attachments.filter(isHtmlAttachment) : [];
+  const otherAttachments = isAssistant
+    ? attachments.filter((a) => !isHtmlAttachment(a))
+    : attachments;
+
   return (
-    <div className={cn('flex flex-wrap gap-2', className)}>
-      {attachments.map((attachment) => (
-        <div key={attachment.id} data-testid="message-attachment">
-          <AttachmentChip attachment={attachment} />
-        </div>
+    <div className={cn('flex flex-col gap-2', className)}>
+      {htmlAttachments.map((attachment) => (
+        <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
       ))}
+      {otherAttachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {otherAttachments.map((attachment) => (
+            <div key={attachment.id} data-testid="message-attachment">
+              <AttachmentChip attachment={attachment} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
