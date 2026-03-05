@@ -133,26 +133,17 @@ export function PresetsPanel({
               </Tooltip>
             </TooltipProvider>
           )}
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <BillableActionGuard
-                    onAddPaymentMethod={onAddPaymentMethod}
-                    creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
-                  >
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="sr-only">Chat with Assistant</span>
-                    </Button>
-                  </BillableActionGuard>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Chat with Assistant</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <BillableActionGuard
+            onAddPaymentMethod={onAddPaymentMethod}
+            creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
+            tooltipMessage='Chat with Assistant'
+            tooltipSide='top'
+          >
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
+              <MessageSquare className="h-4 w-4" />
+              <span className="sr-only">Chat with Assistant</span>
+            </Button>
+          </BillableActionGuard>
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>

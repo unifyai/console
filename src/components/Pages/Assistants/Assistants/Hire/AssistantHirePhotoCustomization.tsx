@@ -279,7 +279,8 @@ export function PhotoCustomization({
                 <BillableActionGuard
                   onAddPaymentMethod={onAddPaymentMethod}
                   creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="bottom"
+                  tooltipSide="top"
+                  tooltipMessage='Edit photo'
                 >
                   <Button
                     aria-label="Edit photo"
@@ -300,7 +301,8 @@ export function PhotoCustomization({
                 <BillableActionGuard
                   onAddPaymentMethod={onAddPaymentMethod}
                   creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="bottom"
+                  tooltipSide="top"
+                  tooltipMessage='Generate new photo'
                 >
                   <Button
                     aria-label="Generate new photo"
@@ -342,7 +344,8 @@ export function PhotoCustomization({
               <BillableActionGuard
                 onAddPaymentMethod={onAddPaymentMethod}
                 creditsRequired={VIDEO_ANIMATION_COST}
-                tooltipSide="bottom"
+                tooltipSide="top"
+                tooltipMessage='Animate photo'
               >
                 <span tabIndex={0} className="relative inline-flex">
                   <Button

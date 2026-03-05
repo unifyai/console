@@ -54,10 +54,9 @@ describe('computeGuardDecision', () => {
     expect(result.message).toContain('credits');
   });
 
-  it('uses custom message when provided', () => {
-    const custom = 'Custom block message';
-    const result = computeGuardDecision(false, custom);
-    expect(result.message).toBe(custom);
+  it('uses default message when blocked', () => {
+    const result = computeGuardDecision(false);
+    expect(result.message).toBe('You need to purchase credits to use this feature.');
   });
 });
 
