@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ExternalLink, FileCode, Maximize2, X, Download } from 'lucide-react';
+import { ExternalLink, FileCode, Maximize2, Minimize2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { getSignedUrl, truncateFilename } from './attachmentUtils';
@@ -161,7 +161,7 @@ export function HtmlAttachmentEmbed({
             className="h-7 w-7 p-0"
             title="Collapse"
           >
-            <X className="h-3.5 w-3.5" />
+            <Minimize2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
