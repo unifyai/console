@@ -7,8 +7,11 @@ import SecondaryButton from '../../Common/Buttons/Secondary';
 import PrimaryButton from '../../Common/Buttons/Primary';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
+import { Input } from '@/components/UI/input';
+import { Label } from '@/components/UI/label';
 import { verifyUserPhone } from '@/lib/user/user';
 import { toast } from 'sonner';
+import ProfilePhoto from './ProfilePhoto';
 
 export interface PhoneVerificationState {
   phoneNumber: string;
@@ -22,13 +25,7 @@ export interface PhoneVerificationState {
   cooldown: number;
 }
 
-const ProfileForm = ({
-  user,
-  onPrem,
-}: {
-  user: User;
-  onPrem: string | undefined;
-}) => {
+const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
   // Form state
   const [formState, setFormState] = useState({
     name: user.name || '',
@@ -313,6 +310,54 @@ const ProfileForm = ({
   return (
     <div className="mt-10 w-full sm:mt-0">
       <form onSubmit={handleSave}>
+        <div className="mb-6 flex items-center gap-5">
+          <ProfilePhoto user={user} />
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <Label>First Name</Label>
+              <Input
+                type="text"
+                name="name"
+                value={formState.name}
+                className="w-full"
+                onChange={handleInputChange}
+                readOnly={Boolean(onPrem)}
+              />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input
+                type="text"
+                name="lastName"
+                value={formState.lastName}
+                className="w-full"
+                onChange={handleInputChange}
+                readOnly={Boolean(onPrem)}
+              />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="text"
+                name="email"
+                value={user?.email || ''}
+                className="w-full"
+                readOnly={true}
+              />
+            </div>
+            <div>
+              <Label>Job Title</Label>
+              <Input
+                type="text"
+                name="jobTitle"
+                value={formState.jobTitle}
+                className="w-full"
+                onChange={handleInputChange}
+                readOnly={Boolean(onPrem)}
+              />
+            </div>
+          </div>
+        </div>
         <UserInfo
           formState={formState}
           handleInputChange={handleInputChange}
@@ -329,11 +374,7 @@ const ProfileForm = ({
         />
         {changeMade && (
           <div className="mt-5 flex w-fit gap-2">
-            <SecondaryButton
-              onClick={handleCancel}
-              disabled={!changeMade}
-              label="Cancel"
-            />
+            <SecondaryButton onClick={handleCancel} disabled={!changeMade} label="Cancel" />
             <PrimaryButton
               type="submit"
               disabled={!changeMade || phoneNeedsVerification}

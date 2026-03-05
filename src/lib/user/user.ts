@@ -3,7 +3,6 @@
 import { getServerSession } from 'next-auth/next';
 import { cache } from 'react';
 import authOptions from '@/app/api/auth/[...nextauth]/options';
-import { Storage } from '@google-cloud/storage';
 import { Session, User, UserUpdateRequest } from '@/types/user';
 import { cookies, headers } from 'next/headers';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
@@ -147,23 +146,21 @@ export async function getCurrentUser(): Promise<User | null> {
   // If the user signed in with email/password and changed their password after
   // this JWT was issued, reject the session so the stale JWT is cleared.
   // Skip this check for OAuth sessions — password changes don't affect them.
-  const isCredentialsSession = session && 'provider' in session && session.provider === 'credentials';
+  const isCredentialsSession =
+    session && 'provider' in session && session.provider === 'credentials';
   if (isCredentialsSession && 'iat' in session && typeof session.iat === 'number') {
     try {
       const credRes = await OrchestraAdminClient.get('/auth/email-credentials', {
         params: { userId: user.id },
       });
       const creds = credRes.data;
-      if (
-        creds?.hasEmailAccount &&
-        creds?.passwordChangedAt
-      ) {
+      if (creds?.hasEmailAccount && creds?.passwordChangedAt) {
         const changedAtMs = new Date(creds.passwordChangedAt).getTime();
         const issuedAtMs = session.iat * 1000; // JWT iat is in seconds
         if (issuedAtMs < changedAtMs) {
           console.warn(
             `[getCurrentUser] Session invalidated: JWT issued at ${new Date(issuedAtMs).toISOString()} ` +
-            `but password changed at ${creds.passwordChangedAt}`
+              `but password changed at ${creds.passwordChangedAt}`
           );
           return null;
         }
@@ -171,7 +168,9 @@ export async function getCurrentUser(): Promise<User | null> {
     } catch {
       // If the credentials check fails, don't block the user — log and continue.
       // This avoids locking out users if the email-credentials endpoint is down.
-      console.warn('[getCurrentUser] Failed to check password_changed_at, skipping session invalidation');
+      console.warn(
+        '[getCurrentUser] Failed to check password_changed_at, skipping session invalidation'
+      );
     }
   }
 
@@ -241,9 +240,7 @@ export async function getCurrentUser(): Promise<User | null> {
   // If the active workspace is an org, check whether the org requires MFA
   // and the user hasn't set it up yet. Applies to all auth providers.
   if (effectiveWorkspaceId && effectiveWorkspaceId !== 'personal') {
-    const activeOrg = user.organizations?.find(
-      (org) => org.id.toString() === effectiveWorkspaceId
-    );
+    const activeOrg = user.organizations?.find((org) => org.id.toString() === effectiveWorkspaceId);
     if (activeOrg) {
       try {
         const enforcementRes = await OrchestraAdminClient.get('/auth/mfa-enforcement-status', {
@@ -264,22 +261,6 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   return user;
-}
-
-/**
- * Updates a user's profile image.
- *
- * @param id The ID of the user to update.
- * @param image The new profile image as a File object.
- *
- * @returns {Promise<void>} The promise resolves when the image has been uploaded.
- */
-export async function updateUserImage(userID: string, image: File) {
-  const fileName = `${process.env.BUCKET_FOLDER}/${userID}.${image.name.split('.').at(-1)}`;
-
-  const buffer = await image.arrayBuffer();
-  const storage = new Storage();
-  await storage.bucket('console-app-profile-images').file(fileName).save(Buffer.from(buffer));
 }
 
 /**
