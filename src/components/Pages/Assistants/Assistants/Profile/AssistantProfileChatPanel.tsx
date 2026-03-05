@@ -1,7 +1,16 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, MessageSquareMore, Paperclip, Mic, Square, Camera } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  MessageSquareMore,
+  Paperclip,
+  Mic,
+  Square,
+  Camera,
+  File,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -19,6 +28,12 @@ import {
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/UI/dropdown-menu';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 
@@ -433,26 +448,42 @@ export function AssistantProfileChatPanel({
           <input {...getInputProps()} data-testid="file-input" />
 
           <div className="relative">
-            {/* Paperclip button - bottom left */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute bottom-1 left-1 h-7 w-7"
-              onClick={open}
-              disabled={
-                !canChat ||
-                isLoading ||
-                initialLoadError ||
-                showConnectionBanner ||
-                isSpendingBlocked ||
-                isRecording
-              }
-              aria-label="Attach files"
-              data-testid="attach-button"
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+            {/* Attach dropdown (files + webcam) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute bottom-1 left-1 h-7 w-7"
+                  disabled={
+                    !canChat ||
+                    isLoading ||
+                    initialLoadError ||
+                    showConnectionBanner ||
+                    isSpendingBlocked ||
+                    isRecording
+                  }
+                  aria-label="Attach"
+                  data-testid="attach-button"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start">
+                <DropdownMenuItem onClick={open} data-testid="attach-files-item">
+                  <File className="h-4 w-4" />
+                  Files
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setIsCameraOpen(true)}
+                  data-testid="attach-webcam-item"
+                >
+                  <Camera className="h-4 w-4" />
+                  Webcam
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Voice recorder button */}
             <Button
@@ -484,27 +515,6 @@ export function AssistantProfileChatPanel({
               )}
             </Button>
 
-            {/* Camera capture button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute bottom-1 left-[3.75rem] h-7 w-7"
-              onClick={() => setIsCameraOpen(true)}
-              disabled={
-                !canChat ||
-                isLoading ||
-                initialLoadError ||
-                showConnectionBanner ||
-                isSpendingBlocked ||
-                isRecording
-              }
-              aria-label="Take a photo"
-              data-testid="camera-button"
-            >
-              <Camera className="h-4 w-4" />
-            </Button>
-
             <Textarea
               ref={textareaRef}
               rows={1}
@@ -534,7 +544,7 @@ export function AssistantProfileChatPanel({
                 showConnectionBanner ||
                 isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-24 pr-10"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
