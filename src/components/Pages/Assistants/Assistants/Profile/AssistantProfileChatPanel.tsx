@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, MessageSquareMore, Paperclip, Mic, Square } from 'lucide-react';
+import { Send, Loader2, MessageSquareMore, Paperclip, Mic, Square, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -18,6 +18,7 @@ import {
   isSameDay,
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
+import { CameraCapture } from '@/components/Chat/CameraCapture';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 
@@ -111,6 +112,9 @@ export function AssistantProfileChatPanel({
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
 
+  // Camera capture state
+  const [isCameraOpen, setIsCameraOpen] = React.useState(false);
+
   /* Cleanup on unmount to release File object references */
   React.useEffect(() => {
     return () => {
@@ -164,6 +168,13 @@ export function AssistantProfileChatPanel({
   const removeAttachment = React.useCallback((id: string) => {
     setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
+
+  const handleCameraCapture = React.useCallback(
+    (file: File) => {
+      handleFiles([file]);
+    },
+    [handleFiles]
+  );
 
   /* react-dropzone setup */
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -473,6 +484,27 @@ export function AssistantProfileChatPanel({
               )}
             </Button>
 
+            {/* Camera capture button */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute bottom-1 left-[3.75rem] h-7 w-7"
+              onClick={() => setIsCameraOpen(true)}
+              disabled={
+                !canChat ||
+                isLoading ||
+                initialLoadError ||
+                showConnectionBanner ||
+                isSpendingBlocked ||
+                isRecording
+              }
+              aria-label="Take a photo"
+              data-testid="camera-button"
+            >
+              <Camera className="h-4 w-4" />
+            </Button>
+
             <Textarea
               ref={textareaRef}
               rows={1}
@@ -502,7 +534,7 @@ export function AssistantProfileChatPanel({
                 showConnectionBanner ||
                 isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-24 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -531,6 +563,12 @@ export function AssistantProfileChatPanel({
           </div>
         </div>
       </form>
+
+      <CameraCapture
+        open={isCameraOpen}
+        onOpenChange={setIsCameraOpen}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 }
