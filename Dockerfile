@@ -42,8 +42,9 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED=1
+
+ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
 
 RUN apk add --no-cache python3
 
