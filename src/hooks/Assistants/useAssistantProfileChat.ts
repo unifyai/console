@@ -495,7 +495,7 @@ export function useAssistantProfileChat(
         const messagePayload: any = JSON.parse(event.data);
         const ackId = messagePayload.__ackId;
 
-        const messageContactId = messagePayload.event?.contactId ?? messagePayload.contactId;
+        const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
           return;
         }
