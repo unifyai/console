@@ -3,6 +3,7 @@ import { AssistantPreset, Voice } from '@/types/assistants/assistant';
 import assistantPresetsConstant from '@/constants/assistants/assistant_presets.js';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { fetchVisitorNationality, FALLBACK_NATIONALITY } from '@/utils/geo';
 
 const PRESETS_PAGE_LIMIT = 12;
 const PRESET_AGE_BRACKETS = ['all', '18-25', '26-35', '36-45', '46-55', '56+'];
@@ -33,7 +34,8 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
   const [allAssistantPresets, setAllAssistantPresets] = React.useState<AssistantPreset[]>([]);
 
   const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
-  const [presetNationalityFilter, setPresetNationalityFilter] = React.useState<string>('all');
+  const [presetNationalityFilter, setPresetNationalityFilter] =
+    React.useState<string>(FALLBACK_NATIONALITY);
   const [presetGenderFilter, setPresetGenderFilter] = React.useState<string>('all');
   const [presetLanguageFilter, setPresetLanguageFilter] = React.useState<string>('all');
 
@@ -62,6 +64,23 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
       setHasInitialized(true);
     }
   }, [enabled, hasInitialized]);
+
+  React.useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const presetNationalities = new Set(
+      (assistantPresetsConstant as AssistantPreset[]).map((p) => p.nationality).filter(Boolean)
+    );
+    fetchVisitorNationality().then((nationality) => {
+      if (cancelled) return;
+      if (presetNationalities.has(nationality)) {
+        setPresetNationalityFilter(nationality);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
 
   const presetsWithLanguage = React.useMemo(() => {
     if (!hasInitialized) return [];
