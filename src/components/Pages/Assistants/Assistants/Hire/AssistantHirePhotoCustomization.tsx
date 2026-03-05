@@ -226,7 +226,6 @@ export function PhotoCustomization({
             <label
               className="w/full flex h-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-background text-center transition-colors hover:border-primary"
               aria-disabled={disabled}
-              onClick={() => fileInputRef.current?.click()}
             >
               <ImagePlus className="mb-2 h-8 w-8 text-muted-foreground" />
               <span className="text-body text-muted-foreground">
