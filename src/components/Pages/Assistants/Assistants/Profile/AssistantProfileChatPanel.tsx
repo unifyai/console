@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, MessageSquareMore, Paperclip } from 'lucide-react';
+import { Send, Loader2, MessageSquareMore, Paperclip, Mic, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -19,6 +19,7 @@ import {
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
+import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -63,6 +64,7 @@ export function AssistantProfileChatPanel({
     retryInitialLoad,
     isAssistantReplying,
     handleInputChange,
+    setInputValue,
     sendMessage,
     connectionStatus,
     showConnectionBanner,
@@ -90,6 +92,21 @@ export function AssistantProfileChatPanel({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
+
+  // Voice recorder
+  const handleVoiceTranscript = React.useCallback(
+    (text: string) => {
+      setInputValue((prev: string) => (prev ? `${prev} ${text}` : text));
+    },
+    [setInputValue]
+  );
+  const { recorderError, toggleRecording, isRecording, isTranscribing } = useVoiceRecorder({
+    onTranscript: handleVoiceTranscript,
+  });
+
+  React.useEffect(() => {
+    if (recorderError) toast.error(recorderError);
+  }, [recorderError]);
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
@@ -417,7 +434,8 @@ export function AssistantProfileChatPanel({
                 isLoading ||
                 initialLoadError ||
                 showConnectionBanner ||
-                isSpendingBlocked
+                isSpendingBlocked ||
+                isRecording
               }
               aria-label="Attach files"
               data-testid="attach-button"
@@ -425,21 +443,55 @@ export function AssistantProfileChatPanel({
               <Paperclip className="h-4 w-4" />
             </Button>
 
+            {/* Voice recorder button */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'absolute bottom-1 left-8 h-7 w-7',
+                isRecording && 'animate-pulse text-red-500'
+              )}
+              onClick={toggleRecording}
+              disabled={
+                !canChat ||
+                isLoading ||
+                initialLoadError ||
+                showConnectionBanner ||
+                isSpendingBlocked ||
+                isTranscribing
+              }
+              aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+              data-testid="voice-record-button"
+            >
+              {isTranscribing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isRecording ? (
+                <Square className="h-3 w-3 fill-current" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+
             <Textarea
               ref={textareaRef}
               rows={1}
               placeholder={
-                !canChat
-                  ? isRetryingContactId
-                    ? 'Chat unavailable, retrying connection...'
-                    : 'Chat unavailable'
-                  : isSpendingBlocked
-                    ? spendingGate.blockedMessage || 'Spending limit reached'
-                    : initialLoadError
-                      ? 'Connection failed'
-                      : isLoading
-                        ? 'Loading messages...'
-                        : 'Send a message...'
+                isRecording
+                  ? 'Recording... click stop when done'
+                  : isTranscribing
+                    ? 'Transcribing...'
+                    : !canChat
+                      ? isRetryingContactId
+                        ? 'Chat unavailable, retrying connection...'
+                        : 'Chat unavailable'
+                      : isSpendingBlocked
+                        ? spendingGate.blockedMessage || 'Spending limit reached'
+                        : initialLoadError
+                          ? 'Connection failed'
+                          : isLoading
+                            ? 'Loading messages...'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
@@ -450,7 +502,7 @@ export function AssistantProfileChatPanel({
                 showConnectionBanner ||
                 isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
