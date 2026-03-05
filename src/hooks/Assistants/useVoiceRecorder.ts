@@ -107,6 +107,7 @@ export function useVoiceRecorder({ onTranscript }: UseVoiceRecorderOptions) {
     recorderState: state,
     recorderError: error,
     toggleRecording,
+    stopRecording,
     isRecording: state === 'recording',
     isTranscribing: state === 'transcribing',
   };
