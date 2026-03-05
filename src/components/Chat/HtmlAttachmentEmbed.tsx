@@ -171,7 +171,7 @@ export function HtmlAttachmentEmbed({
           src={signedUrl}
           className="h-full w-full border-0"
           title={attachment.filename}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin allow-popups"
           loading="lazy"
         />
       </div>
