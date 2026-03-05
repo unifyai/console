@@ -74,11 +74,12 @@ API routes that proxy to the Communication adapters (e.g., `/api/assistant/messa
 
 ### Required Environment Variables (Security)
 
-| Variable              | Purpose                                    |
-| --------------------- | ------------------------------------------ |
-| `JWT_SECRET`          | NextAuth JWT signing secret                |
-| `ADMIN_KEY`           | Admin header validation for `/user` routes |
-| `ORCHESTRA_ADMIN_KEY` | Bearer token for adapter webhook calls     |
+| Variable                             | Purpose                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                         | NextAuth JWT signing secret                                                                                                                                                                                                                                                                             |
+| `ADMIN_KEY`                          | Admin header validation for `/user` routes                                                                                                                                                                                                                                                              |
+| `ORCHESTRA_ADMIN_KEY`                | Bearer token for adapter webhook calls                                                                                                                                                                                                                                                                  |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | Stable AES key for server action closure encryption (base64, 32 bytes). Must be identical at build time and runtime — without it, each `next build` generates a random key and any redeployment breaks all open client sessions. Stored in Secret Manager and injected via `cloudbuild.yaml` build arg. |
 
 ### GCP Infrastructure (not tracked in code)
 
