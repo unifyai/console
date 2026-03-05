@@ -1,11 +1,13 @@
 /**
  * Tests for the Chat SSE stream route.
  *
- * Validates ephemeral per-connection Pub/Sub subscription lifecycle:
- * - Each SSE connection creates its own subscription (fan-out to multiple viewers)
- * - Subscriptions are cleaned up when the connection closes
+ * Validates persistent per-user+assistant Pub/Sub subscription behavior:
+ * - Subscription is deterministic based on contactId (not random UUID)
+ * - Same contactId reuses the same subscription (ALREADY_EXISTS handled)
+ * - Subscriptions are NOT deleted on disconnect (persistent)
  * - Messages are correctly streamed as SSE data lines
  * - Server-side ACK: messages are acknowledged immediately (no __ackId in payload)
+ * - contactId is required (400 if missing)
  *
  * Uses vi.mock to replace GoogleAuth and fs so no real GCP calls are made.
  */
@@ -39,8 +41,14 @@ vi.mock('fs', () => ({
 // ---------------------------------------------------------------------------
 
 const TEST_ASSISTANT_ID = 'assistant-chat-456';
+const TEST_CONTACT_ID = '42';
 const TEST_PROJECT_ID = 'my-gcp-project';
 const MOCK_CREDENTIALS = JSON.stringify({ project_id: TEST_PROJECT_ID });
+
+function makeUrl(assistantId: string, contactId?: string): string {
+  const base = `http://localhost/api/assistant/${assistantId}/events`;
+  return contactId ? `${base}?contactId=${contactId}` : base;
+}
 
 function makePubSubMessage(payload: Record<string, unknown>, ackId = 'ack-1') {
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
@@ -54,13 +62,6 @@ function makePubSubMessage(payload: Record<string, unknown>, ackId = 'ack-1') {
   };
 }
 
-/**
- * Creates a mock implementation that:
- * - Records subscription creation (PUT) calls
- * - Delivers `messageBatches` in sequence on pull calls, then aborts the controller
- * - Records subscription deletion (DELETE) calls
- * - Records ACK calls
- */
 function createPubSubMock(
   controller: AbortController,
   opts: {
@@ -134,12 +135,42 @@ describe('Chat SSE Stream Route', () => {
   });
 
   // =========================================================================
-  // Ephemeral subscription lifecycle
+  // Persistent subscription lifecycle
   // =========================================================================
 
-  it('creates a unique ephemeral subscription per connection', async () => {
+  it('creates a deterministic subscription based on contactId', async () => {
     const createdSubscriptions: string[] = [];
+    const controller = new AbortController();
 
+    mockRequest.mockImplementation(async (opts: { url: string; method: string; data?: any }) => {
+      if (opts.method === 'PUT' && opts.url.includes('/subscriptions/')) {
+        createdSubscriptions.push(opts.url);
+        return { status: 200, data: {} };
+      }
+      if (opts.method === 'POST' && opts.url.endsWith(':pull')) {
+        controller.abort();
+        return { status: 200, data: { receivedMessages: [] } };
+      }
+      return { status: 200, data: {} };
+    });
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+    await drainStream(res);
+
+    expect(createdSubscriptions.length).toBe(1);
+    expect(createdSubscriptions[0]).toContain(`-chat-${TEST_CONTACT_ID}`);
+    // Should NOT contain a random UUID segment
+    expect(createdSubscriptions[0]).not.toContain('-sse-');
+  });
+
+  it('different contactIds get different subscriptions', async () => {
+    const createdSubscriptions: string[] = [];
     const ctrl1 = new AbortController();
     const ctrl2 = new AbortController();
 
@@ -153,17 +184,16 @@ describe('Chat SSE Stream Route', () => {
         ctrl2.abort();
         return { status: 200, data: { receivedMessages: [] } };
       }
-      if (opts.method === 'DELETE') return { status: 200, data: {} };
       return { status: 200, data: {} };
     });
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req1 = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req1 = new NextRequest(makeUrl(TEST_ASSISTANT_ID, '42'), {
       method: 'GET',
       signal: ctrl1.signal,
     });
-    const req2 = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req2 = new NextRequest(makeUrl(TEST_ASSISTANT_ID, '99'), {
       method: 'GET',
       signal: ctrl2.signal,
     });
@@ -175,19 +205,42 @@ describe('Chat SSE Stream Route', () => {
 
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
-
     expect(createdSubscriptions.length).toBe(2);
-    expect(createdSubscriptions[0]).not.toBe(createdSubscriptions[1]);
-
-    for (const url of createdSubscriptions) {
-      expect(url).toContain(TEST_ASSISTANT_ID);
-      expect(url).toContain('-chat-sse-');
-    }
+    expect(createdSubscriptions[0]).toContain('-chat-42');
+    expect(createdSubscriptions[1]).toContain('-chat-99');
 
     await Promise.all([drainStream(res1), drainStream(res2)]);
   });
 
-  it('creates subscription with correct topic, expiration, and retention', async () => {
+  it('handles ALREADY_EXISTS (409) gracefully when subscription already exists', async () => {
+    const controller = new AbortController();
+
+    mockRequest.mockImplementation(async (opts: { url: string; method: string; data?: any }) => {
+      if (opts.method === 'PUT' && opts.url.includes('/subscriptions/')) {
+        const error: any = new Error('ALREADY_EXISTS');
+        error.response = { status: 409 };
+        throw error;
+      }
+      if (opts.method === 'POST' && opts.url.endsWith(':pull')) {
+        controller.abort();
+        return { status: 200, data: { receivedMessages: [] } };
+      }
+      return { status: 200, data: {} };
+    });
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    expect(res.status).toBe(200);
+    await drainStream(res);
+  });
+
+  it('creates subscription with correct topic, 31-day expiration, and retention', async () => {
     const controller = new AbortController();
     let createPayload: any = null;
 
@@ -201,7 +254,7 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
       method: 'GET',
       signal: controller.signal,
     });
@@ -212,11 +265,11 @@ describe('Chat SSE Stream Route', () => {
     expect(createPayload.topic).toBe(
       `projects/${TEST_PROJECT_ID}/topics/unity-${TEST_ASSISTANT_ID}`
     );
-    expect(createPayload.expirationPolicy.ttl).toBe('86400s');
+    expect(createPayload.expirationPolicy.ttl).toBe('2678400s');
     expect(createPayload.messageRetentionDuration).toBe('600s');
   });
 
-  it('deletes the ephemeral subscription when the stream ends', async () => {
+  it('does NOT delete the subscription when the stream ends', async () => {
     const controller = new AbortController();
     const deletedSubscriptions: string[] = [];
 
@@ -230,15 +283,14 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
       method: 'GET',
       signal: controller.signal,
     });
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
     await drainStream(res);
 
-    expect(deletedSubscriptions.length).toBeGreaterThanOrEqual(1);
-    expect(deletedSubscriptions[0]).toContain('-chat-sse-');
+    expect(deletedSubscriptions.length).toBe(0);
   });
 
   // =========================================================================
@@ -252,7 +304,7 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
       method: 'GET',
       signal: controller.signal,
     });
@@ -296,18 +348,16 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
       method: 'GET',
       signal: controller.signal,
     });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
     const allData = await drainStream(response);
 
-    // Server-side ACK should have happened
     expect(ackedIds.length).toBe(1);
     expect(ackedIds[0]).toContain('ack-server-side');
 
-    // Payload should NOT contain __ackId
     const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
     expect(dataLines.length).toBe(1);
 
@@ -327,9 +377,7 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
-      method: 'GET',
-    });
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), { method: 'GET' });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
 
     expect(response.status).toBe(500);
@@ -338,8 +386,17 @@ describe('Chat SSE Stream Route', () => {
   it('returns 400 when assistantId is empty', async () => {
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant//events`, { method: 'GET' });
+    const req = new NextRequest(makeUrl('', TEST_CONTACT_ID), { method: 'GET' });
     const response = await GET(req, { params: { assistantId: '' } });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('returns 400 when contactId is missing', async () => {
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID), { method: 'GET' });
+    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
 
     expect(response.status).toBe(400);
   });
@@ -363,7 +420,7 @@ describe('Chat SSE Stream Route', () => {
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
-    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events`, {
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
       method: 'GET',
       signal: controller.signal,
     });

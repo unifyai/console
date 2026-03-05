@@ -470,7 +470,9 @@ export function useAssistantProfileChat(
     setConnectionStatus('connecting');
     const userContactId = contactId;
 
-    const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
+    const eventSource = new EventSource(
+      `/api/assistant/${assistantId}/events?contactId=${contactId}`
+    );
 
     eventSource.onopen = () => {
       setConnectionStatus('connected');

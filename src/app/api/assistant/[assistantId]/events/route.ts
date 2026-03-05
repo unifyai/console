@@ -5,22 +5,21 @@
  * via Server-Sent Events.
  *
  * Architecture:
- * - Each SSE connection creates its own ephemeral Pub/Sub subscription on the
- *   shared topic. This gives true fan-out: every viewer independently receives
- *   all events. Client-side contact_id filtering ensures each user only sees
- *   their own messages.
- * - Server-side ACK: messages are acknowledged immediately after being sent to
- *   the client. Since each subscription is private to one connection, ACKing
- *   has no effect on other viewers.
- * - Subscriptions auto-expire after inactivity so leaked ones don't accumulate.
+ * - Each user+assistant pair gets a persistent Pub/Sub subscription
+ *   (`{topicName}-chat-{contactId}`). The subscription survives across SSE
+ *   reconnects, so messages published during connection gaps are preserved
+ *   in the backlog and delivered when the next connection pulls.
+ * - Server-side ACK: messages are acknowledged immediately after being sent
+ *   to the client. Since each subscription is private to one user, ACKing
+ *   has no effect on other users.
+ * - Subscriptions auto-expire after 31 days of inactivity to clean up
+ *   abandoned users.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import {
   getAuthClient,
-  createEphemeralSubscription,
-  deleteSubscription,
+  getOrCreateSubscription,
   getTopicName,
 } from '@/lib/pubsub/ephemeral-subscription';
 
@@ -30,11 +29,19 @@ export const maxDuration = 60;
 const __DEV__ = process.env.NODE_ENV === 'development';
 const encoder = new TextEncoder();
 
+const CHAT_FILTER =
+  'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready"';
+
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
+  }
+
+  const contactId = request.nextUrl.searchParams.get('contactId');
+  if (!contactId) {
+    return new NextResponse('contactId query parameter is required.', { status: 400 });
   }
 
   let authClient: any;
@@ -44,14 +51,10 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     const authData = await getAuthClient();
     authClient = authData.client;
 
-    const connectionId = crypto.randomUUID().slice(0, 8);
     const topicName = getTopicName(assistantId);
-    const subscriptionName = `${topicName}-chat-sse-${connectionId}`;
+    const subscriptionName = `${topicName}-chat-${contactId}`;
 
-    const CHAT_FILTER =
-      'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready"';
-
-    subscriptionUrl = await createEphemeralSubscription(
+    subscriptionUrl = await getOrCreateSubscription(
       authClient,
       authData.projectId,
       topicName,
@@ -60,19 +63,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     );
 
     if (__DEV__)
-      console.log(`[Chat SSE] Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`);
+      console.log(`[Chat SSE] Persistent subscription: ${subscriptionName} on topic: ${topicName}`);
   } catch (error: any) {
     console.error('[Chat SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
     });
   }
-
-  const cleanupSubscriptionUrl = subscriptionUrl;
-  const cleanupAuthClient = authClient;
-  request.signal.addEventListener('abort', () => {
-    deleteSubscription(cleanupAuthClient, cleanupSubscriptionUrl);
-  });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -147,7 +144,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
 
-              // Server-side ACK — subscription is private to this connection
               try {
                 await authClient.request({
                   url: `${subscriptionUrl}:acknowledge`,
@@ -155,7 +151,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
                   data: { ackIds: [ackId] },
                 });
               } catch {
-                // Non-fatal — message may be redelivered
+                // Non-fatal — message may be redelivered, client deduplicates
               }
             } catch (err) {
               console.error('[Chat SSE] Error processing message:', err);
@@ -170,7 +166,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       }
 
       clearInterval(keepAliveInterval);
-      deleteSubscription(authClient, subscriptionUrl);
       if (__DEV__) console.log(`[Chat SSE] Stream ended for assistant=${assistantId}`);
       try {
         controller.close();

@@ -1,17 +1,23 @@
 /**
- * Shared helpers for ephemeral per-connection Pub/Sub subscriptions.
+ * Shared Pub/Sub subscription helpers.
  *
- * Both the actions stream and chat SSE routes create a unique subscription
- * per SSE connection, attached to the assistant's shared topic. This gives
- * true fan-out: every viewer independently receives all messages.
- * Subscriptions auto-expire after inactivity so leaked ones don't accumulate.
+ * Two subscription strategies:
+ * - **Ephemeral** (actions): per-connection, deleted on disconnect, 1-day expiry
+ *   safety net. Used for the action pane where backlog loss on reconnect is
+ *   acceptable (Orchestra covers historical data).
+ * - **Persistent** (chat): per-user+assistant, survives across reconnects so
+ *   messages published during connection gaps are preserved. 31-day expiry
+ *   cleans up abandoned subscriptions.
  */
 
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 
 /** Ephemeral subscriptions auto-delete after this much inactivity. */
-export const SUBSCRIPTION_EXPIRATION_TTL = '86400s'; // 1 day
+export const EPHEMERAL_EXPIRATION_TTL = '86400s'; // 1 day
+
+/** Persistent subscriptions auto-delete after prolonged inactivity. */
+export const PERSISTENT_EXPIRATION_TTL = '2678400s'; // 31 days
 
 /** Only retain recent messages — older history is loaded from Orchestra. */
 export const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
@@ -65,7 +71,7 @@ export async function createEphemeralSubscription(
 
   const data: Record<string, unknown> = {
     topic: topicPath,
-    expirationPolicy: { ttl: SUBSCRIPTION_EXPIRATION_TTL },
+    expirationPolicy: { ttl: EPHEMERAL_EXPIRATION_TTL },
     messageRetentionDuration: MESSAGE_RETENTION_DURATION,
   };
   if (filter) {
@@ -91,6 +97,45 @@ export async function deleteSubscription(authClient: any, subscriptionUrl: strin
   } catch {
     // Best-effort cleanup; the expirationPolicy is the safety net.
   }
+}
+
+/**
+ * Gets or creates a persistent Pub/Sub subscription. If the subscription
+ * already exists (HTTP 409), returns its URL without error. Used for
+ * per-user+assistant chat subscriptions that survive across SSE reconnects.
+ */
+export async function getOrCreateSubscription(
+  authClient: any,
+  projectId: string,
+  topicName: string,
+  subscriptionName: string,
+  filter?: string
+): Promise<string> {
+  const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
+  const topicPath = `projects/${projectId}/topics/${topicName}`;
+
+  const data: Record<string, unknown> = {
+    topic: topicPath,
+    expirationPolicy: { ttl: PERSISTENT_EXPIRATION_TTL },
+    messageRetentionDuration: MESSAGE_RETENTION_DURATION,
+  };
+  if (filter) {
+    data.filter = filter;
+  }
+
+  try {
+    await authClient.request({
+      url: subscriptionUrl,
+      method: 'PUT',
+      data,
+    });
+  } catch (err: any) {
+    const status = err?.response?.status ?? err?.status;
+    if (status !== 409) throw err;
+    // 409 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
+  }
+
+  return subscriptionUrl;
 }
 
 /**
