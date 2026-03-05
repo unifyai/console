@@ -219,12 +219,12 @@ export default function TopNav() {
                         )
                       ) : orgLogoUrl ? (
                         <Image
-                          width={16}
-                          height={16}
+                          width={20}
+                          height={20}
                           unoptimized
                           src={orgLogoUrl}
                           alt=""
-                          className="h-4 w-4 shrink-0 rounded-full object-cover"
+                          className="h-5 w-5 shrink-0 rounded-full object-cover"
                         />
                       ) : (
                         <Building2 className="h-3.5 w-3.5" />
@@ -318,12 +318,12 @@ export default function TopNav() {
                           )
                         ) : orgLogoUrl ? (
                           <Image
-                            width={16}
-                            height={16}
+                            width={20}
+                            height={20}
                             unoptimized
                             src={orgLogoUrl}
                             alt=""
-                            className="h-4 w-4 shrink-0 rounded-full object-cover"
+                            className="h-5 w-5 shrink-0 rounded-full object-cover"
                           />
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
