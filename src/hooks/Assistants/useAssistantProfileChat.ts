@@ -469,30 +469,6 @@ export function useAssistantProfileChat(
 
     setConnectionStatus('connecting');
     const userContactId = contactId;
-    const currentAssistantId = assistantId;
-
-    // On reconnect, fetch recent transcripts to catch up on any messages that
-    // were ACKed server-side but lost in transit when the previous connection
-    // dropped. Dedup in setChatHistories handles overlap.
-    if (sseReconnectTrigger > 0) {
-      assistantActions.chat
-        .getTranscripts(userContactId, assistant!.userId, currentAssistantId)
-        .then((result) => {
-          if ('detail' in result) return;
-          const history = (result as ChatMessage[]).reverse();
-          setChatHistories((prev) => {
-            const current = prev[currentAssistantId] || [];
-            const existingIds = new Set(current.map((m) => m.id));
-            const newMsgs = history.filter((m) => !existingIds.has(m.id));
-            if (newMsgs.length === 0) return prev;
-            const merged = [...current, ...newMsgs].sort(
-              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            );
-            return { ...prev, [currentAssistantId]: merged };
-          });
-        })
-        .catch(() => {});
-    }
 
     const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
@@ -625,16 +601,7 @@ export function useAssistantProfileChat(
         sseReconnectTimeoutRef.current = null;
       }
     };
-  }, [
-    phase,
-    assistantId,
-    assistant,
-    contactId,
-    assistantActions.chat,
-    setChatHistories,
-    stopReplying,
-    sseReconnectTrigger,
-  ]);
+  }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
 
   // =========================================================================
   // Send message
