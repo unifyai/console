@@ -16,86 +16,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleAuth } from 'google-auth-library';
 import crypto from 'crypto';
-import fs from 'fs';
 import { snakeToCamelObject } from '@/utils/casing';
 import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
+import {
+  getAuthClient,
+  createEphemeralSubscription,
+  deleteSubscription,
+  getTopicName,
+} from '@/lib/pubsub/ephemeral-subscription';
 
 export const dynamic = 'force-dynamic';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
-
-/** Ephemeral subscriptions auto-delete after this much inactivity (seconds). */
-const SUBSCRIPTION_EXPIRATION_TTL = '86400s'; // 1 day
-
-/** Only retain recent messages — older history is loaded from Orchestra. */
-const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
-
-// =============================================================================
-// Auth
-// =============================================================================
-
-async function getAuthClient() {
-  const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
-  if (!credentialsValue) {
-    throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.');
-  }
-
-  let credentials;
-  try {
-    credentials = JSON.parse(credentialsValue);
-  } catch {
-    try {
-      const credentialsFile = fs.readFileSync(credentialsValue, 'utf8');
-      credentials = JSON.parse(credentialsFile);
-    } catch {
-      throw new Error('Invalid Pub/Sub credentials.');
-    }
-  }
-
-  const auth = new GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/pubsub'],
-    projectId: credentials.project_id,
-  });
-
-  return { client: await auth.getClient(), projectId: credentials.project_id };
-}
-
-// =============================================================================
-// Ephemeral Subscription Management
-// =============================================================================
-
-async function createEphemeralSubscription(
-  authClient: any,
-  projectId: string,
-  topicName: string,
-  subscriptionName: string
-): Promise<string> {
-  const subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${projectId}/subscriptions/${subscriptionName}`;
-  const topicPath = `projects/${projectId}/topics/${topicName}`;
-
-  await authClient.request({
-    url: subscriptionUrl,
-    method: 'PUT',
-    data: {
-      topic: topicPath,
-      expirationPolicy: { ttl: SUBSCRIPTION_EXPIRATION_TTL },
-      messageRetentionDuration: MESSAGE_RETENTION_DURATION,
-    },
-  });
-
-  return subscriptionUrl;
-}
-
-async function deleteSubscription(authClient: any, subscriptionUrl: string): Promise<void> {
-  try {
-    await authClient.request({ url: subscriptionUrl, method: 'DELETE' });
-  } catch {
-    // Best-effort cleanup; the expirationPolicy is the safety net.
-  }
-}
 
 // =============================================================================
 // Pub/Sub Payload → Frontend Log Shape
@@ -163,11 +96,8 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     const authData = await getAuthClient();
     authClient = authData.client;
 
-    const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging = orchestraUrl.includes('staging');
-
     const connectionId = crypto.randomUUID().slice(0, 8);
-    const topicName = `unity-${assistantId}${isStaging ? '-staging' : ''}`;
+    const topicName = getTopicName(assistantId);
     const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
 
     subscriptionUrl = await createEphemeralSubscription(

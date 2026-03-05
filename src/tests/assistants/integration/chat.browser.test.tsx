@@ -706,303 +706,9 @@ describe('Assistant Profile Chat', () => {
 
   // =========================================================================
   // SECTION C: ACKNOWLEDGMENT
+  // (Removed — ACK is now handled server-side via ephemeral Pub/Sub
+  // subscriptions. The client no longer participates in the ACK flow.)
   // =========================================================================
-  describe('C - Acknowledgment', () => {
-    it(
-      'sends ACK request when message contains __ackId and is rendered',
-      {
-        meta: {
-          alias: 'ACK-Basic',
-          scenario: 'Message arrives with ACK token',
-          behavior: 'ACK API is called with the token',
-        },
-      },
-      async () => {
-        render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        const ackId = 'ack-token-xyz';
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'msg-ack-test',
-            publishTime: new Date().toISOString(),
-            __ackId: ackId,
-            event: { content: 'Ack Me' },
-          });
-        });
-
-        await waitFor(() => {
-          expect(screen.getByText('Ack Me')).toBeInTheDocument();
-        });
-
-        await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalledWith(
-            expect.stringContaining('/events/ack'),
-            expect.objectContaining({
-              method: 'POST',
-              body: JSON.stringify({ ackId: ackId }),
-            })
-          );
-        });
-      }
-    );
-
-    it(
-      'triggers individual ACKs for multiple messages arriving simultaneously',
-      {
-        meta: {
-          alias: 'ACK-Burst',
-          scenario: 'Multiple messages with ACK tokens arrive at once',
-          behavior: 'API is called for each individual ACK token',
-        },
-      },
-      async () => {
-        render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        const msg1 = {
-          thread: 'unify_message_outbound',
-          id: 'msg-1',
-          __ackId: 'ack-1',
-          event: { content: 'Message 1' },
-        };
-
-        const msg2 = {
-          thread: 'unify_message_outbound',
-          id: 'msg-2',
-          __ackId: 'ack-2',
-          event: { content: 'Message 2' },
-        };
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage(msg1);
-          chatMocks.eventSource!.simulateMessage(msg2);
-        });
-
-        await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalledTimes(2);
-          expect(fetchSpy).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-1' }) })
-          );
-          expect(fetchSpy).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-2' }) })
-          );
-        });
-      }
-    );
-
-    it(
-      'does not re-ACK messages that have already been processed locally',
-      {
-        meta: {
-          alias: 'ACK-Idempotency',
-          scenario: 'Component re-renders after message is processed',
-          behavior: 'ACK API is not called again',
-        },
-      },
-      async () => {
-        render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'msg-1',
-            publishTime: new Date().toISOString(),
-            __ackId: 'unique-ack-1',
-            event: { content: 'One Time Ack' },
-          });
-        });
-
-        await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalledTimes(1);
-        });
-
-        // Trigger re-render
-        const user = userEvent.setup();
-        const input = screen.getByRole('textbox');
-        await user.type(input, 'Typing causes render...');
-        await new Promise((r) => setTimeout(r, 200));
-
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-      }
-    );
-
-    it(
-      'acks messages if they are filtered out as duplicates to clear queue',
-      {
-        meta: {
-          alias: 'ACK-Skip-Dedupe',
-          scenario: 'Server resends existing message with ACK token',
-          behavior: 'Message is deduplicated and ACK IS SENT to clear it from PubSub',
-        },
-      },
-      async () => {
-        const history = [
-          {
-            id: 'existing-id',
-            role: 'assistant',
-            content: 'Original',
-            timestamp: new Date(),
-          } as ChatMessage,
-        ];
-        render(<ChatTestWrapper initialHistory={history} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        const duplicateMsg = {
-          thread: 'unify_message_outbound',
-          id: 'existing-id',
-          __ackId: 'ack-token-deduped',
-          event: { content: 'Original' },
-        };
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage(duplicateMsg);
-        });
-
-        await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalledWith(
-            expect.stringContaining('/events/ack'),
-            expect.objectContaining({
-              method: 'POST',
-              body: JSON.stringify({ ackId: 'ack-token-deduped' }),
-            })
-          );
-        });
-      }
-    );
-
-    it(
-      'handles ACK API failure gracefully without crashing UI',
-      {
-        meta: {
-          alias: 'ACK-Fail-Resilience',
-          scenario: 'ACK API returns 500 error',
-          behavior: 'UI remains stable and rendered',
-        },
-      },
-      async () => {
-        // Need to mock fetch to reject only for ACK requests, but pass through for transcripts if needed
-        fetchSpy.mockImplementation((url) => {
-          if (String(url).includes('/ack')) return Promise.reject(new Error('Network Error'));
-          return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
-        });
-
-        render(<ChatTestWrapper initialHistory={[]} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'msg-fail',
-            __ackId: 'ack-fail-token',
-            event: { content: 'Stable UI' },
-          });
-        });
-
-        await waitFor(() => {
-          expect(screen.getByText('Stable UI')).toBeInTheDocument();
-        });
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-      }
-    );
-
-    it(
-      'acknowledges backlog messages but prevents display pollution (deduplication)',
-      {
-        meta: {
-          alias: 'ACK-Dedupe-Ack',
-          scenario: 'Transcripts load [MsgA]. SSE sends [MsgA (unacked), MsgB (unacked)].',
-          behavior: 'MsgA is displayed once. MsgB is displayed. MsgB is ACKed.',
-        },
-      },
-      async () => {
-        const assistantId = 'stress-test-id';
-        const msgA = {
-          id: 'msg-a',
-          role: 'assistant',
-          content: 'Message A',
-          timestamp: new Date('2023-01-01T10:00:00Z'),
-        } as ChatMessage;
-
-        // 1. Setup specific mock for getTranscripts to return MsgA
-        const getTranscriptsMock = vi.fn(async () => [msgA]);
-        const actionsOverride = {
-          chat: {
-            getContactId: vi.fn(async () => 1),
-            getTranscripts: getTranscriptsMock,
-            message: vi.fn(async () => ({})),
-            getAssistantOwnerById: vi.fn(async () => null),
-          },
-        };
-
-        // 2. Render with undefined history to trigger fetch
-        render(
-          <ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />
-        );
-
-        // Wait for transcripts fetch to complete (input placeholder changes from 'Loading...' to 'Send a message...')
-        await waitFor(() => {
-          expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
-        });
-
-        // Verify MsgA is present (loaded from history)
-        await waitFor(() => {
-          expect(screen.getByText('Message A')).toBeInTheDocument();
-        });
-        // Verify transcripts were fetched (setup validation)
-        expect(getTranscriptsMock).toHaveBeenCalledTimes(1);
-
-        // 3. Open SSE and send backlog
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        act(() => {
-          // Re-send MsgA (should be deduped)
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'msg-a',
-            publishTime: '2023-01-01T10:00:00Z',
-            __ackId: 'ack-for-A',
-            event: { content: 'Message A' },
-          });
-
-          // Send MsgB (New/Backlog)
-          chatMocks.eventSource!.simulateMessage({
-            thread: 'unify_message_outbound',
-            id: 'msg-b',
-            publishTime: '2023-01-01T10:00:05Z',
-            __ackId: 'ack-for-B',
-            event: { content: 'Message B' },
-          });
-        });
-
-        // 4. Verification
-        await waitFor(() => {
-          const bubbles = getChatBubbles();
-          // Ensure no duplicates
-          expect(bubbles).toEqual(['Message A', 'Message B']);
-        });
-
-        // Verify ACK for Msg B (Msg A might be skipped depending on implementation,
-        // but checking Msg B ensures the mechanism works for new items)
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/events/ack'),
-          expect.objectContaining({
-            body: JSON.stringify({ ackId: 'ack-for-B' }),
-          })
-        );
-      }
-    );
-  });
 
   // =========================================================================
   // SECTION D: CHAT HISTORY
@@ -2248,44 +1954,8 @@ describe('Assistant Profile Chat', () => {
       }
     );
 
-    it(
-      'strips __ackId from relayed messages to prevent double-acking by listeners',
-      {
-        meta: {
-          alias: 'Sync-Strip-Ack',
-          scenario: 'SSE message arrives with ackId',
-          behavior: 'Broadcasted message does NOT contain ackId',
-        },
-      },
-      async () => {
-        render(<ChatTestWrapper initialHistory={undefined} />);
-        await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-        act(() => chatMocks.eventSource!.simulateOpen());
-
-        const sseMessageWithAck = {
-          thread: 'unify_message_outbound',
-          id: 'msg-with-ack',
-          __ackId: 'secret-token-123',
-          event: { content: 'Ack Check' },
-        };
-
-        act(() => {
-          chatMocks.eventSource!.simulateMessage(sseMessageWithAck);
-        });
-
-        await waitFor(() => {
-          const postingChannels = chatMocks.allBroadcastChannels.filter(
-            (c) => c.postMessage.mock.calls.length > 0
-          );
-          const lastPost = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
-
-          // Assert content exists
-          expect(lastPost.message.content).toBe('Ack Check');
-          // Assert ACK ID is stripped
-          expect(lastPost.message.__ackId).toBeUndefined();
-        });
-      }
-    );
+    // "Sync-Strip-Ack" test removed — __ackId no longer exists in payloads
+    // (ACK is now handled server-side via ephemeral Pub/Sub subscriptions).
 
     it(
       'does not re-broadcast messages received via BroadcastChannel (loop prevention)',
@@ -3218,7 +2888,6 @@ describe('Assistant Profile Chat', () => {
             thread: 'unify_message_outbound',
             id: 'msg-mine',
             contactId: userContactId,
-            __ackId: 'ack-mine',
             publishTime: new Date().toISOString(),
             event: { content: 'My message' },
           });
@@ -3230,31 +2899,18 @@ describe('Assistant Profile Chat', () => {
             thread: 'unify_message_outbound',
             id: 'msg-other',
             contactId: otherContactId,
-            __ackId: 'ack-other',
             publishTime: new Date().toISOString(),
             event: { content: 'Other message' },
           });
         });
 
+        // Current user's message should be visible
         await waitFor(() => {
           expect(screen.getByText('My message')).toBeInTheDocument();
         });
 
-        // Verify only the current user's message was acked
-        await waitFor(() => {
-          expect(fetchSpy).toHaveBeenCalledWith(
-            expect.stringContaining('/events/ack'),
-            expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-mine' }) })
-          );
-        });
-
-        // Other user's message should not have been acked
-        const ackCalls = fetchSpy.mock.calls.filter(
-          (call) =>
-            String(call[0]).includes('/events/ack') &&
-            call[1]?.body === JSON.stringify({ ackId: 'ack-other' })
-        );
-        expect(ackCalls.length).toBe(0);
+        // Other user's message should NOT be visible
+        expect(screen.queryByText('Other message')).not.toBeInTheDocument();
       }
     );
 
@@ -5880,112 +5536,9 @@ describe('Assistant Profile Chat', () => {
       );
     });
 
-    describe('ACK Robustness', () => {
-      it(
-        'does not double-ack messages when render triggers during ack processing',
-        {
-          meta: {
-            alias: 'Stress-Double-Ack-Prevention',
-            scenario:
-              'Message with ackId arrives, component re-renders during ack effect execution',
-            behavior: 'ACK is sent exactly once per message',
-          },
-        },
-        async () => {
-          render(<ChatTestWrapper initialHistory={[]} />);
-          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-          act(() => chatMocks.eventSource!.simulateOpen());
-
-          const ackId = 'single-ack-token';
-
-          // Send message with ack
-          act(() => {
-            chatMocks.eventSource!.simulateMessage({
-              thread: 'unify_message_outbound',
-              id: 'ack-once-msg',
-              publishTime: new Date().toISOString(),
-              __ackId: ackId,
-              event: { content: 'Ack me once' },
-            });
-          });
-
-          // Wait for message to appear
-          await waitFor(() => {
-            expect(screen.getByText('Ack me once')).toBeInTheDocument();
-          });
-
-          // Force multiple re-renders by typing
-          const user = userEvent.setup();
-          const input = screen.getByRole('textbox');
-          await user.type(input, 'trigger render 1');
-          await user.clear(input);
-          await user.type(input, 'trigger render 2');
-
-          // Wait for any pending effects
-          await new Promise((r) => setTimeout(r, 200));
-
-          // Count ACK calls for this specific ackId
-          const ackCalls = fetchSpy.mock.calls.filter(
-            (call) =>
-              String(call[0]).includes('/events/ack') &&
-              call[1]?.body === JSON.stringify({ ackId: ackId })
-          );
-
-          // Should have exactly 1 ACK call
-          expect(ackCalls.length).toBe(1);
-        }
-      );
-
-      it(
-        'maintains ACK queue when multiple ack-required messages arrive rapidly',
-        {
-          meta: {
-            alias: 'Stress-Ack-Queue-Burst',
-            scenario: '10 messages with ackIds arrive in rapid succession',
-            behavior: 'All messages are ACKed without any being lost',
-          },
-        },
-        async () => {
-          render(<ChatTestWrapper initialHistory={[]} />);
-          await waitFor(() => expect(chatMocks.eventSource).not.toBeNull());
-          act(() => chatMocks.eventSource!.simulateOpen());
-
-          const messageCount = 10;
-
-          // Send burst of messages with acks
-          act(() => {
-            for (let i = 0; i < messageCount; i++) {
-              chatMocks.eventSource!.simulateMessage({
-                thread: 'unify_message_outbound',
-                id: `ack-burst-${i}`,
-                publishTime: new Date(Date.now() + i).toISOString(),
-                __ackId: `ack-token-${i}`,
-                event: { content: `Ack burst ${i}` },
-              });
-            }
-          });
-
-          // Wait for all messages to appear
-          await waitFor(() => {
-            const bubbles = getChatBubbles();
-            expect(bubbles).toHaveLength(messageCount);
-          });
-
-          // Wait for ACK processing
-          await new Promise((r) => setTimeout(r, 500));
-
-          // Verify all acks were sent
-          for (let i = 0; i < messageCount; i++) {
-            const ackCalls = fetchSpy.mock.calls.filter(
-              (call) =>
-                String(call[0]).includes('/events/ack') &&
-                call[1]?.body === JSON.stringify({ ackId: `ack-token-${i}` })
-            );
-            expect(ackCalls.length).toBeGreaterThanOrEqual(1);
-          }
-        }
-      );
-    });
+    // "ACK Robustness" section removed — ACK is now handled server-side via
+    // ephemeral Pub/Sub subscriptions. The client no longer participates in the
+    // ACK flow.
 
     describe('State Consistency Under Concurrent Operations', () => {
       it(

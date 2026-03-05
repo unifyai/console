@@ -65,7 +65,6 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   messageId?: number;
-  __ackId?: string;
   attachments?: Attachment[];
 }
 

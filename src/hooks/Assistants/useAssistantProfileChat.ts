@@ -439,9 +439,6 @@ export function useAssistantProfileChat(
         ...incomingMsg,
         timestamp: new Date(incomingMsg.timestamp),
       };
-      if (messageWithDate.__ackId) {
-        delete messageWithDate.__ackId;
-      }
       setChatHistories((prev) => {
         const current = prev[assistantId] || [];
         if (current.some((m) => m.id === messageWithDate.id)) {
@@ -474,16 +471,6 @@ export function useAssistantProfileChat(
     const userContactId = contactId;
     const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
-    const ack = (ackId: string) => {
-      fetch(`/api/assistant/${assistantId}/events/ack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ackId }),
-      }).catch(() => {
-        /* noop */
-      });
-    };
-
     eventSource.onopen = () => {
       setConnectionStatus('connected');
       sseReconnectAttemptsRef.current = 0;
@@ -493,7 +480,6 @@ export function useAssistantProfileChat(
       stopReplying();
       try {
         const messagePayload: any = JSON.parse(event.data);
-        const ackId = messagePayload.__ackId;
 
         const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
@@ -504,13 +490,11 @@ export function useAssistantProfileChat(
           const msgTime = new Date(messagePayload.publishTime).getTime();
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
           if (msgTime < cutoff) {
-            if (ackId) ack(ackId);
             return;
           }
         }
 
         if (messagePayload.thread === 'assistant_desktop_ready') {
-          if (ackId) ack(ackId);
           const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
           desktopChannel.postMessage(messagePayload.event ?? {});
           desktopChannel.close();
@@ -548,14 +532,12 @@ export function useAssistantProfileChat(
             role: 'assistant',
             content: String(content),
             timestamp: timestamp,
-            __ackId: ackId,
             ...(attachments && attachments.length > 0 ? { attachments } : {}),
           };
 
           setChatHistories((prev) => {
             const currentHistory = prev[assistantId] || [];
             if (serverMsgId && currentHistory.some((m) => m.id === serverMsgId)) {
-              if (ackId) ack(ackId);
               return prev;
             }
 
@@ -577,11 +559,9 @@ export function useAssistantProfileChat(
           });
 
           const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
-          const broadcastMsg = { ...newAssistantMessage };
-          delete broadcastMsg.__ackId;
           const payload: BroadcastMessagePayload = {
             type: 'NEW_MESSAGE',
-            message: broadcastMsg,
+            message: newAssistantMessage,
           };
           channel.postMessage(payload);
           channel.close();
@@ -621,32 +601,6 @@ export function useAssistantProfileChat(
       }
     };
   }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
-
-  // =========================================================================
-  // Ack displayed messages
-  // =========================================================================
-  React.useEffect(() => {
-    if (!assistantId) return;
-    messages.forEach((msg) => {
-      if (msg.role === 'assistant' && msg.__ackId) {
-        const ackId = msg.__ackId;
-        fetch(`/api/assistant/${assistantId}/events/ack`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ackId }),
-        }).catch(() => {
-          /* noop */
-        });
-        setChatHistories((prev) => {
-          const current = prev[assistantId] || [];
-          return {
-            ...prev,
-            [assistantId]: current.map((m) => (m.id === msg.id ? { ...m, __ackId: undefined } : m)),
-          };
-        });
-      }
-    });
-  }, [messages, assistantId, setChatHistories]);
 
   // =========================================================================
   // Send message
