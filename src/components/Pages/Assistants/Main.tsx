@@ -601,14 +601,16 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     setPresetLanguageFilter,
   ]);
 
-  // Auto-select a random preset when presets become available after opening dialog
+  // Auto-select the first filtered preset (top of the "Available Hires" list)
+  // whenever the filtered list changes (e.g. the async geo lookup narrows by
+  // region) — but only while the dialog is freshly opened and the user hasn't
+  // manually picked a preset yet. needsPresetSelection is intentionally NOT
+  // cleared here so the effect re-fires when the geo lookup resolves.
   React.useEffect(() => {
-    if (needsPresetSelection && allAssistantPresets.length > 0) {
-      const randomIndex = Math.floor(Math.random() * allAssistantPresets.length);
-      selectPresetForHireForm(allAssistantPresets[randomIndex]);
-      setNeedsPresetSelection(false);
+    if (needsPresetSelection && currentFilteredPresets.length > 0 && !userHasChangedPreset) {
+      selectPresetForHireForm(currentFilteredPresets[0]);
     }
-  }, [needsPresetSelection, allAssistantPresets, selectPresetForHireForm]);
+  }, [needsPresetSelection, currentFilteredPresets, userHasChangedPreset, selectPresetForHireForm]);
 
   const handleOpenEditDialog = React.useCallback(
     (assistant: Assistant) => {

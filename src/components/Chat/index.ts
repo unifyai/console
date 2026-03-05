@@ -35,3 +35,5 @@ export { ChatMarkdown } from './ChatMarkdown';
 export { ChatMessageBubble } from './ChatMessageBubble';
 
 export { ChatDateDivider, isSameDay } from './ChatDateDivider';
+
+export { CameraCapture } from './CameraCapture';

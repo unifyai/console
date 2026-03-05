@@ -27,7 +27,8 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 
-type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'>;
+type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
+  Partial<Pick<AssistantActions, 'voice'>>;
 
 interface AssistantCommunicationFullScreenProps {
   assistant: Assistant;
@@ -338,7 +339,7 @@ const FullScreenCallUI: React.FC<{
                 onAudioOutputDeviceChange={setActiveAudioOutputDevice}
                 callType={callType}
                 assistant={assistant}
-                assistantActions={{ chat: assistantActions.chat }}
+                assistantActions={{ chat: assistantActions.chat, voice: assistantActions.voice }}
                 chatHistories={chatHistories}
                 setChatHistories={setChatHistories}
                 userEmail={userEmail}

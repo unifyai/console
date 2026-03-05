@@ -319,11 +319,7 @@ export function HireForm({
       <form onSubmit={onSubmit} className="flex h-full flex-col space-y-6">
         <ScrollArea className="min-h-0 flex-1">
           <fieldset disabled={isSubmitting} className="group px-4 py-2">
-            <Accordion
-              type="multiple"
-              defaultValue={['profile', 'photo', 'voice']}
-              className="w-full"
-            >
+            <Accordion type="multiple" defaultValue={['photo', 'voice']} className="w-full">
               {/* Profile Section */}
               <AccordionItem value="profile" aria-label="profile trigger">
                 <AccordionTrigger className="text-title">

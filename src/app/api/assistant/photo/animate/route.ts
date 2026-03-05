@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_utils/auth';
-import { snakeToCamelObject } from '@/utils/casing';
+import { snakeToCamelObject, camelToSnake } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -22,13 +22,19 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
 
+    // Convert camelCase FormData keys to snake_case for Orchestra API
+    const convertedFormData = new FormData();
+    formData.forEach((value, key) => {
+      convertedFormData.append(camelToSnake(key), value);
+    });
+
     const response = await fetch(`${ORCHESTRA_BASE_URL}/assistant/photo/animate`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         // Content-Type is set automatically by fetch for FormData
       },
-      body: formData,
+      body: convertedFormData,
     });
 
     const responseData = await response.json().catch((e) => {
@@ -49,7 +55,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Expects { info: "video_url" } from backend
     return NextResponse.json(snakeToCamelObject(responseData), { status: response.status });
   } catch (error: any) {
     console.error('Error proxying to backend (photo/animate):', error);

@@ -799,6 +799,7 @@ export function useAssistantProfileChat(
     retryInitialLoad,
     isAssistantReplying,
     handleInputChange,
+    setInputValue,
     sendMessage,
     connectionStatus,
     showConnectionBanner,

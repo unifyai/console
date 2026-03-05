@@ -333,8 +333,13 @@ const OrganizationWorkspaceView = ({
   return (
     <div className="h-full w-full overflow-auto px-4 py-6 sm:px-6 lg:px-8">
       {/* Tabs */}
-      <Tabs defaultValue="members">
+      <Tabs defaultValue="organization">
         <TabsList className="w-full">
+          {canUpdateOrg && (
+            <TabsTrigger value="organization" className="flex-1">
+              Organization
+            </TabsTrigger>
+          )}
           <TabsTrigger value="members" className="flex-1">
             Members
           </TabsTrigger>
@@ -344,11 +349,6 @@ const OrganizationWorkspaceView = ({
           <TabsTrigger value="roles" className="flex-1">
             Roles
           </TabsTrigger>
-          {canUpdateOrg && (
-            <TabsTrigger value="organization" className="flex-1">
-              Organization
-            </TabsTrigger>
-          )}
           {canUpdateOrg && (
             <TabsTrigger value="security" className="flex-1">
               Security
@@ -520,7 +520,9 @@ const OrganizationWorkspaceView = ({
           <TabsContent value="organization" className="mt-4">
             <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
               <OrganizationSettingsTab
+                orgId={organization.id}
                 currentName={organization.name}
+                currentImage={organization.image}
                 currentTimezone={organization.timezone}
                 onUpdate={onUpdateOrg}
               />

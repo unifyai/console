@@ -226,7 +226,6 @@ export function PhotoCustomization({
             <label
               className="w/full flex h-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-background text-center transition-colors hover:border-primary"
               aria-disabled={disabled}
-              onClick={() => fileInputRef.current?.click()}
             >
               <ImagePlus className="mb-2 h-8 w-8 text-muted-foreground" />
               <span className="text-body text-muted-foreground">
@@ -280,7 +279,8 @@ export function PhotoCustomization({
                 <BillableActionGuard
                   onAddPaymentMethod={onAddPaymentMethod}
                   creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="bottom"
+                  tooltipSide="top"
+                  tooltipMessage='Edit photo'
                 >
                   <Button
                     aria-label="Edit photo"
@@ -301,7 +301,8 @@ export function PhotoCustomization({
                 <BillableActionGuard
                   onAddPaymentMethod={onAddPaymentMethod}
                   creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="bottom"
+                  tooltipSide="top"
+                  tooltipMessage='Generate new photo'
                 >
                   <Button
                     aria-label="Generate new photo"
@@ -343,7 +344,8 @@ export function PhotoCustomization({
               <BillableActionGuard
                 onAddPaymentMethod={onAddPaymentMethod}
                 creditsRequired={VIDEO_ANIMATION_COST}
-                tooltipSide="bottom"
+                tooltipSide="top"
+                tooltipMessage='Animate photo'
               >
                 <span tabIndex={0} className="relative inline-flex">
                   <Button

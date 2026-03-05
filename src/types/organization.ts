@@ -28,6 +28,7 @@ export interface Organization {
   roleId?: number;
   roleName?: string;
   apiKey?: string;
+  image?: string | null;
   timezone?: string | null;
 }
 

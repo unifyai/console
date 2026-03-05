@@ -33,17 +33,13 @@
  * </BillableActionGuard>
  * ```
  *
- * When the user has sufficient credits, children render normally with
- * no wrapper overhead.
+ * When the user has sufficient credits, children render normally.
+ * If `tooltipMessage` is provided, an informational tooltip wraps the
+ * children in the non-gated state; otherwise there is no wrapper overhead.
  */
 
 import * as React from 'react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/UI/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
@@ -63,7 +59,7 @@ export interface BillableActionGuardProps {
   creditsRequired?: number;
   /** Callback to open the Stripe payment panel */
   onAddPaymentMethod?: () => void;
-  /** Override the default tooltip message */
+  /** Tooltip shown on the child when the action is NOT gated. No tooltip if omitted. */
   tooltipMessage?: string;
   /** Tooltip placement (default: "top") */
   tooltipSide?: 'top' | 'bottom' | 'left' | 'right';
@@ -81,15 +77,12 @@ export interface GuardDecision {
  * Determines whether a billable action should be blocked and why.
  * Exported for unit testing without React.
  */
-export function computeGuardDecision(
-  hasCredits: boolean,
-  customMessage?: string
-): GuardDecision {
+export function computeGuardDecision(hasCredits: boolean): GuardDecision {
   if (!hasCredits) {
     return {
       blocked: true,
       reason: 'no_credits',
-      message: customMessage ?? 'You need to purchase credits to use this feature.',
+      message: 'You need to purchase credits to use this feature.',
     };
   }
   return { blocked: false, reason: null, message: '' };
@@ -110,19 +103,30 @@ export function BillableActionGuard({
 
   // Use explicit props when provided, otherwise derive from hook data
   const hasCredits =
-    hasCreditsProp ?? (creditsRequired > 0
-      ? billingStatus.credits >= creditsRequired
-      : billingStatus.hasCredits);
+    hasCreditsProp ??
+    (creditsRequired > 0 ? billingStatus.credits >= creditsRequired : billingStatus.hasCredits);
 
-  const decision = computeGuardDecision(hasCredits, tooltipMessage);
+  const decision = computeGuardDecision(hasCredits);
 
   // Still loading and no explicit props → render children as-is (not blocked)
   if (billingStatus.isLoading && hasCreditsProp === undefined) {
     return <>{children}</>;
   }
 
-  // Not blocked → render children as-is
+  // Not blocked → optionally wrap with a plain tooltip
   if (!decision.blocked) {
+    if (tooltipMessage) {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side={tooltipSide} className="max-w-xs p-2">
+              <p className="text-caption leading-relaxed">{tooltipMessage}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
     return <>{children}</>;
   }
 
@@ -130,10 +134,12 @@ export function BillableActionGuard({
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {/* Wrap in a span so disabled children still trigger the tooltip */}
+          {/* Wrap in a clickable span so disabled children still trigger the tooltip,
+             and clicking redirects to the payment flow */}
           <span
             data-testid="billable-action-guard"
-            className="inline-flex"
+            className="inline-flex cursor-pointer"
+            onClick={onAddPaymentMethod}
           >
             {React.cloneElement(children, {
               disabled: true,
@@ -149,7 +155,7 @@ export function BillableActionGuard({
             <button
               type="button"
               onClick={onAddPaymentMethod}
-              className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+              className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
               data-testid="buy-credits-link"
             >
               purchase credits

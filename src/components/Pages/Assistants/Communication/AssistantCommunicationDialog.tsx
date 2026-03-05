@@ -434,7 +434,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 selectedAudioOutputDevice={activeAudioOutputDeviceId}
                 onAudioOutputDeviceChange={handleAudioOutputDeviceChange}
                 assistant={assistant}
-                assistantActions={{ chat: assistantActions.chat }}
+                assistantActions={{ chat: assistantActions.chat, voice: assistantActions.voice }}
                 chatHistories={chatHistories}
                 setChatHistories={setChatHistories}
                 userEmail={userEmail}

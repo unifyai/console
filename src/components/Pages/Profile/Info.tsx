@@ -49,52 +49,9 @@ const UserInfo = ({
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
 
   return (
-    <div className="profile-form tutorial-user-information mt-4">
-      <div className="text-body grid grid-cols-2 gap-4">
-        <div className="mt-2">
-          <Label>First Name</Label>
-          <Input
-            type="text"
-            name="name"
-            value={formState.name}
-            className="w-full"
-            onChange={handleInputChange}
-            readOnly={Boolean(onPrem)}
-          />
-        </div>
-        <div className="mt-2">
-          <Label>Last Name</Label>
-          <Input
-            type="text"
-            name="lastName"
-            value={formState.lastName}
-            className="w-full"
-            onChange={handleInputChange}
-            readOnly={Boolean(onPrem)}
-          />
-        </div>
-        <div className="mt-2">
-          <Label>Email</Label>
-          <Input
-            type="text"
-            name="email"
-            value={user?.email || ''}
-            className="w-full"
-            readOnly={true}
-          />
-        </div>
-        <div className="mt-2">
-          <Label>Job Title</Label>
-          <Input
-            type="text"
-            name="jobTitle"
-            value={formState.jobTitle}
-            className="w-full"
-            onChange={handleInputChange}
-            readOnly={Boolean(onPrem)}
-          />
-        </div>
-        <div className="col-span-2 mt-2">
+    <div className="profile-form tutorial-user-information">
+      <div className="text-body flex flex-col gap-4">
+        <div>
           <div className="flex flex-row items-center gap-2 pb-1">
             <Label>About</Label>
             <TooltipProvider delayDuration={100}>
@@ -120,7 +77,7 @@ const UserInfo = ({
             readOnly={Boolean(onPrem)}
           />
         </div>
-        <div className="col-span-2 mt-2">
+        <div>
           <Label>Timezone</Label>
           <Select
             value={formState.timezone}
@@ -139,7 +96,7 @@ const UserInfo = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="col-span-2 mt-2">
+        <div>
           <Label>Phone Number</Label>
           <div className="space-y-2">
             <div className="flex items-center gap-2">

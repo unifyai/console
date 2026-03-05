@@ -1,7 +1,16 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2, MessageSquareMore, Paperclip } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  MessageSquareMore,
+  Paperclip,
+  Mic,
+  Square,
+  Camera,
+  File,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -18,14 +27,23 @@ import {
   isSameDay,
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
+import { CameraCapture } from '@/components/Chat/CameraCapture';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/UI/dropdown-menu';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
+import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 
 /* --------------------------
    AssistantProfileChatPanel 
 ----------------------------- */
 interface AssistantProfileChatPanelProps {
   assistant: Assistant;
-  assistantActions: Pick<AssistantActions, 'chat'>;
+  assistantActions: Pick<AssistantActions, 'chat'> & Partial<Pick<AssistantActions, 'voice'>>;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   userEmail: string | null | undefined;
@@ -52,6 +70,12 @@ export function AssistantProfileChatPanel({
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
+  const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
+    voiceId: assistant.voiceId,
+    voiceProvider: assistant.voiceProvider,
+    generateSpeechAction: assistantActions.voice?.generate,
+  });
+
   // Spending gate blocks new messages when limit is reached
   const isSpendingBlocked = spendingGate.isBlocked;
 
@@ -63,6 +87,7 @@ export function AssistantProfileChatPanel({
     retryInitialLoad,
     isAssistantReplying,
     handleInputChange,
+    setInputValue,
     sendMessage,
     connectionStatus,
     showConnectionBanner,
@@ -87,12 +112,32 @@ export function AssistantProfileChatPanel({
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
+  const isAtBottomRef = React.useRef(true);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
 
+  // Voice recorder
+  const handleVoiceTranscript = React.useCallback(
+    (text: string) => {
+      setInputValue((prev: string) => (prev ? `${prev} ${text}` : text));
+    },
+    [setInputValue]
+  );
+  const { recorderError, toggleRecording, stopRecording, isRecording, isTranscribing } =
+    useVoiceRecorder({
+      onTranscript: handleVoiceTranscript,
+    });
+
+  React.useEffect(() => {
+    if (recorderError) toast.error(recorderError);
+  }, [recorderError]);
+
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
+
+  // Camera capture state
+  const [isCameraOpen, setIsCameraOpen] = React.useState(false);
 
   /* Cleanup on unmount to release File object references */
   React.useEffect(() => {
@@ -148,6 +193,13 @@ export function AssistantProfileChatPanel({
     setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+  const handleCameraCapture = React.useCallback(
+    (file: File) => {
+      handleFiles([file]);
+    },
+    [handleFiles]
+  );
+
   /* react-dropzone setup */
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: handleFiles,
@@ -180,22 +232,25 @@ export function AssistantProfileChatPanel({
     }
   }, [inputValue]);
 
-  /* Infinite scroll trigger */
+  /* Infinite scroll trigger + track bottom stickiness on manual scroll */
   React.useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
       '[data-radix-scroll-area-viewport]'
     );
     if (!viewport) return;
     const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      isAtBottomRef.current = scrollHeight - scrollTop - clientHeight <= 20;
+
       if (
-        viewport.scrollTop < 10 &&
+        scrollTop < 10 &&
         hasMoreMessages &&
         !isLoadingMore &&
         !isLoading &&
         !loadMoreError &&
         !initialLoadError
       ) {
-        preserveScrollRef.current = viewport.scrollHeight;
+        preserveScrollRef.current = scrollHeight;
         loadMoreMessages();
       }
     };
@@ -239,6 +294,7 @@ export function AssistantProfileChatPanel({
 
     const wasBottom =
       prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
+    isAtBottomRef.current = wasBottom;
 
     // Only auto-scroll to bottom if we aren't currently loading old history (which keeps us at top)
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
@@ -247,6 +303,23 @@ export function AssistantProfileChatPanel({
 
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
+
+  /* Maintain bottom stickiness on viewport resize (e.g. window resize causing
+   * text reflow or container height change). */
+  React.useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport) return;
+
+    const ro = new ResizeObserver(() => {
+      if (isAtBottomRef.current) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    });
+    ro.observe(viewport);
+    return () => ro.disconnect();
+  }, []);
 
   /* Handle send with attachments */
   const handleSendWithAttachments = React.useCallback(
@@ -271,12 +344,17 @@ export function AssistantProfileChatPanel({
 
   const sendMessageOnEnter = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isRecording) {
+        event.preventDefault();
+        stopRecording();
+        return;
+      }
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         handleSendWithAttachments({ preventDefault: () => {} } as React.FormEvent);
       }
     },
-    [handleSendWithAttachments]
+    [isRecording, stopRecording, handleSendWithAttachments]
   );
 
   const connectionStatusText = {
@@ -349,6 +427,13 @@ export function AssistantProfileChatPanel({
                     timezone={userTimezone}
                     index={i}
                     attachments={msg.attachments}
+                    {...(hasVoice && msg.role === 'assistant' && msg.content
+                      ? {
+                          onPlayAudio: () => playMessage(msg.id, msg.content),
+                          onStopAudio: stopPlayback,
+                          audioState: getAudioState(msg.id),
+                        }
+                      : {})}
                   />
                 </React.Fragment>
               );
@@ -405,41 +490,92 @@ export function AssistantProfileChatPanel({
           <input {...getInputProps()} data-testid="file-input" />
 
           <div className="relative">
-            {/* Paperclip button - bottom left */}
+            {/* Attach dropdown (files + webcam) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute bottom-1 left-1 h-7 w-7"
+                  disabled={
+                    !canChat ||
+                    isLoading ||
+                    initialLoadError ||
+                    showConnectionBanner ||
+                    isSpendingBlocked ||
+                    isRecording
+                  }
+                  aria-label="Attach"
+                  data-testid="attach-button"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start">
+                <DropdownMenuItem
+                  onClick={() => setIsCameraOpen(true)}
+                  data-testid="attach-webcam-item"
+                >
+                  <Camera className="h-4 w-4" />
+                  Camera
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={open} data-testid="attach-files-item">
+                  <File className="h-4 w-4" />
+                  Files
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Voice recorder button */}
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute bottom-1 left-1 h-7 w-7"
-              onClick={open}
+              className={cn(
+                'absolute bottom-1 left-8 h-7 w-7',
+                isRecording && 'animate-pulse text-red-500'
+              )}
+              onClick={toggleRecording}
               disabled={
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
                 showConnectionBanner ||
-                isSpendingBlocked
+                isSpendingBlocked ||
+                isTranscribing
               }
-              aria-label="Attach files"
-              data-testid="attach-button"
+              aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+              data-testid="voice-record-button"
             >
-              <Paperclip className="h-4 w-4" />
+              {isTranscribing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isRecording ? (
+                <Square className="h-3 w-3 fill-current" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
             </Button>
 
             <Textarea
               ref={textareaRef}
               rows={1}
               placeholder={
-                !canChat
-                  ? isRetryingContactId
-                    ? 'Chat unavailable, retrying connection...'
-                    : 'Chat unavailable'
-                  : isSpendingBlocked
-                    ? spendingGate.blockedMessage || 'Spending limit reached'
-                    : initialLoadError
-                      ? 'Connection failed'
-                      : isLoading
-                        ? 'Loading messages...'
-                        : 'Send a message...'
+                isRecording
+                  ? 'Recording...'
+                  : isTranscribing
+                    ? 'Transcribing...'
+                    : !canChat
+                      ? isRetryingContactId
+                        ? 'Chat unavailable, retrying connection...'
+                        : 'Chat unavailable'
+                      : isSpendingBlocked
+                        ? spendingGate.blockedMessage || 'Spending limit reached'
+                        : initialLoadError
+                          ? 'Connection failed'
+                          : isLoading
+                            ? 'Loading messages...'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
@@ -450,7 +586,7 @@ export function AssistantProfileChatPanel({
                 showConnectionBanner ||
                 isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-10 pr-10"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -479,6 +615,12 @@ export function AssistantProfileChatPanel({
           </div>
         </div>
       </form>
+
+      <CameraCapture
+        open={isCameraOpen}
+        onOpenChange={setIsCameraOpen}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 }

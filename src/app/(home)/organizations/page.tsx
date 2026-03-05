@@ -27,6 +27,7 @@ const OrganizationPage = async () => {
       roleId: org.roleId,
       roleName: org.roleName,
       apiKey: org.apiKey,
+      image: org.image,
       timezone: org.timezone,
     })) || [];
 

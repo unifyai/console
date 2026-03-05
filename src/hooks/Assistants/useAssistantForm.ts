@@ -442,10 +442,13 @@ export function useAssistantForm(
         payload.voiceProvider = data.voiceProvider;
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
-      // Image/Video upload logic
+      // Image/Video upload logic — include assistant_id so files are stored
+      // under the correct assistant-centric GCS path.
+      const editAssistantId = String(editingAssistant.agentId);
       if (data.photoFile) {
         const formData = new FormData();
         formData.append('file', data.photoFile);
+        formData.append('assistant_id', editAssistantId);
         const photoUploadResult = await assistantActions.photo.upload(formData);
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
@@ -454,6 +457,7 @@ export function useAssistantForm(
       if (data.videoFile) {
         const formData = new FormData();
         formData.append('file', data.videoFile);
+        formData.append('assistant_id', editAssistantId);
         const videoUploadResult = await assistantActions.photo.uploadVideo(formData);
         if ((videoUploadResult as ResponseProps).detail)
           throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
@@ -538,89 +542,68 @@ export function useAssistantForm(
         throw new Error('No voice selected.');
       }
 
+      // Generate initial greeting if no pre-hire chat exists
+      let finalChatHistory = chatHistory;
+      if (!chatHistory || chatHistory.length === 0) {
+        try {
+          const greetingResult = await generatePostHireGreeting(
+            `${data.firstName} ${data.surname}`,
+            data.age,
+            data.about,
+            data.nationality
+          );
+          if (greetingResult.error) {
+            throw new Error(greetingResult.error);
+          }
+          if (!greetingResult.content) throw new Error('Generated an empty greeting.');
+          finalChatHistory = [
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: greetingResult.content,
+              timestamp: new Date(),
+            },
+          ];
+        } catch (greetingError) {
+          /* no-op */
+        }
+      }
+
+      // Register voice if needed
       const voiceProviderVal =
         data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
-
-      const photoFormData = data.photoFile
-        ? (() => {
-            const fd = new FormData();
-            fd.append('file', data.photoFile!);
-            return fd;
-          })()
-        : null;
-
-      const videoFormData = data.videoFile
-        ? (() => {
-            const fd = new FormData();
-            fd.append('file', data.videoFile!);
-            return fd;
-          })()
-        : null;
-
-      const [greetingResult, photoUploadResult, videoUploadResult, voiceCreationResponse] =
-        await Promise.all([
-          !chatHistory || chatHistory.length === 0
-            ? generatePostHireGreeting(
-                `${data.firstName} ${data.surname}`,
-                data.age,
-                data.about,
-                data.nationality
-              ).catch(() => null)
-            : Promise.resolve(null),
-          photoFormData ? assistantActions.photo.upload(photoFormData) : Promise.resolve(null),
-          videoFormData ? assistantActions.photo.uploadVideo(videoFormData) : Promise.resolve(null),
-          !data.voiceExists && data.voiceId
-            ? assistantActions.voice.register(
-                data.voiceId,
-                voiceProviderVal,
-                data.voiceName!,
-                data.voiceDescription || data.voiceName!,
-                data.voiceGender!,
-                data.voiceLanguage!,
-                voicePresetsConstant.map((v) => v.voiceId).includes(data.voiceId)
-              )
-            : Promise.resolve(null),
-        ]);
-
-      let finalChatHistory = chatHistory;
-      if (greetingResult && 'content' in greetingResult && greetingResult.content) {
-        finalChatHistory = [
-          {
-            id: uuidv4(),
-            role: 'assistant',
-            content: greetingResult.content,
-            timestamp: new Date(),
-          },
-        ];
+      if (!data.voiceExists && data.voiceId) {
+        const voiceCreationResponse = await assistantActions.voice.register(
+          data.voiceId,
+          voiceProviderVal,
+          data.voiceName!,
+          data.voiceDescription || data.voiceName!,
+          data.voiceGender!,
+          data.voiceLanguage!,
+          voicePresetsConstant.map((v) => v.voiceId).includes(data.voiceId)
+        );
+        if (
+          'detail' in voiceCreationResponse &&
+          !voiceCreationResponse.detail?.includes('already exists')
+        ) {
+          throw new Error(
+            `Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`
+          );
+        }
       }
 
+      // For presets, use the preset URLs directly.
+      // For custom file uploads, pass null — we upload after getting the assistant_id.
       let finalImageUrlToSend: string | null = data.profilePhotoUrl || null;
-      if (photoUploadResult) {
-        if ((photoUploadResult as ResponseProps).detail)
-          throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
-        finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcsUrl;
-      }
-
       let finalVideoUrlToSend: string | null = data.profileVideoUrl || null;
-      if (videoUploadResult) {
-        if ((videoUploadResult as ResponseProps).detail)
-          throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
-        finalVideoUrlToSend = (videoUploadResult as PhotoUploadResponse).gcsUrl;
-      }
 
       if (data.isPresetPristine) {
         finalImageUrlToSend = data.profilePhotoUrl ?? null;
         finalVideoUrlToSend = data.profileVideoUrl ?? null;
-      }
-
-      if (
-        voiceCreationResponse &&
-        'detail' in voiceCreationResponse &&
-        !(voiceCreationResponse as ResponseProps).detail?.includes('already exists')
-      ) {
-        throw new Error(
-          `Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`
-        );
+      } else {
+        // Custom uploads will happen after assistant creation, so pass null
+        if (data.photoFile) finalImageUrlToSend = null;
+        if (data.videoFile) finalVideoUrlToSend = null;
       }
 
       const isUserDesktop = data.setup === 'local';
@@ -629,7 +612,8 @@ export function useAssistantForm(
         role,
         msg: content,
       }));
-      // Loading message updated to finalizing hire
+
+      // Create assistant first to get the assistant_id
       const assistantCreationResult = await assistantActions.assistant.create(
         data.firstName,
         data.surname,
@@ -645,16 +629,54 @@ export function useAssistantForm(
         desktopModePayload,
         formattedPreHireChat
       );
-      if ('assistant' in assistantCreationResult && assistantCreationResult.assistant) {
-        toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
-        resetFormAndHints();
-        if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, finalChatHistory);
-      } else {
+
+      if (!('assistant' in assistantCreationResult) || !assistantCreationResult.assistant) {
         const errorDetail =
           (assistantCreationResult as ResponseProps).detail ||
           'Failed to hire assistant (unknown error)';
         throw new Error(errorDetail);
       }
+
+      const createdAssistant = assistantCreationResult.assistant;
+      const assistantId = String(createdAssistant.agentId);
+
+      // Upload custom photo/video with assistant_id so files are stored
+      // under the correct assistant-centric GCS path ({assistant_id}/{media_type}/{filename}).
+      const mediaUpdate: Partial<AssistantUpdatePayload> = {};
+
+      if (data.photoFile) {
+        const photoFormData = new FormData();
+        photoFormData.append('file', data.photoFile);
+        photoFormData.append('assistant_id', assistantId);
+        const photoUploadResult = await assistantActions.photo.upload(photoFormData);
+        if ((photoUploadResult as ResponseProps).detail)
+          throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
+        mediaUpdate.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;
+      }
+
+      if (data.videoFile) {
+        const videoFormData = new FormData();
+        videoFormData.append('file', data.videoFile);
+        videoFormData.append('assistant_id', assistantId);
+        const videoUploadResult = await assistantActions.photo.uploadVideo(videoFormData);
+        if ((videoUploadResult as ResponseProps).detail)
+          throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
+        mediaUpdate.profileVideo = (videoUploadResult as PhotoUploadResponse).gcsUrl;
+      }
+
+      // Update assistant with the uploaded media URLs
+      if (Object.keys(mediaUpdate).length > 0) {
+        const updateResult = await assistantActions.assistant.update(assistantId, mediaUpdate);
+        if ((updateResult as ResponseProps).detail) {
+          console.error(
+            `Failed to update assistant media: ${(updateResult as ResponseProps).detail}`
+          );
+        }
+      }
+
+      toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
+      resetFormAndHints();
+      if (onHireSuccess) onHireSuccess(createdAssistant, data, finalChatHistory);
     } catch (error: any) {
       const isRHFError = !!(
         formMethods.formState.errors.age ||

@@ -95,6 +95,7 @@ export function AssistantHire({
   }, [isHireDialogOpen]);
 
   const { watch, getValues } = useFormContext<AssistantFormData>();
+  const selectedPreset = watch('currentPreset');
   const watchedConfigFields = watch(['firstName', 'surname', 'age', 'nationality', 'about']);
 
   const assistantConfigKey = React.useMemo(() => {
@@ -362,6 +363,7 @@ export function AssistantHire({
                   {rightPanelView === 'presets' ? (
                     React.cloneElement(presetsPanel as React.ReactElement<any>, {
                       onPresetSelect: handlePresetSelect,
+                      selectedPreset: selectedPreset,
                       layoutMode: layoutMode,
                       setLayoutMode: setLayoutMode,
                       onClose: () => setIsAssistantPresetsOpen(false),

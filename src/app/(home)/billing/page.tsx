@@ -31,29 +31,37 @@ const BillingPage: React.FC = async () => {
   const cookieStore = await cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
 
-  // Determine organization context
+  // Determine organization context.
+  // Priority: explicit cookie → non-Unify org lock → personal.
   let orgContext: {
     orgId: number;
     orgName: string;
     canEdit: boolean;
   } | null = null;
 
-  if (workspaceId && workspaceId !== 'personal') {
-    const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
-    if (activeOrg) {
-      const roleName = activeOrg.roleName?.toLowerCase();
-      // Only admins and owners can access billing in org context
-      if (roleName !== 'owner' && roleName !== 'admin') {
-        redirect('/profile');
-      }
-      orgContext = {
-        orgId: activeOrg.id,
-        orgName: activeOrg.name,
-        canEdit: roleName === 'owner' || roleName === 'admin',
-      };
-    } else {
+  let activeOrg =
+    workspaceId && workspaceId !== 'personal'
+      ? user.organizations?.find((o) => o.id.toString() === workspaceId)
+      : undefined;
+
+  // Non-Unify org members are locked to their org even without a cookie
+  if (!activeOrg) {
+    const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+    if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
+      activeOrg = user.organizations[0];
+    }
+  }
+
+  if (activeOrg) {
+    const roleName = activeOrg.roleName?.toLowerCase();
+    if (roleName !== 'owner' && roleName !== 'admin') {
       redirect('/profile');
     }
+    orgContext = {
+      orgId: activeOrg.id,
+      orgName: activeOrg.name,
+      canEdit: roleName === 'owner' || roleName === 'admin',
+    };
   }
 
   return (

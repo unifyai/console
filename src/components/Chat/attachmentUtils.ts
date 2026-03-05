@@ -393,3 +393,11 @@ export async function getSignedUrl(
   // API returns snake_case
   return data.signed_url;
 }
+
+/**
+ * Check whether an attachment is an HTML file by extension.
+ */
+export function isHtmlAttachment(attachment: Attachment): boolean {
+  const ext = attachment.filename.split('.').pop()?.toLowerCase();
+  return ext === 'html' || ext === 'htm';
+}
