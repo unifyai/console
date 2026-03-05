@@ -513,16 +513,16 @@ export function AssistantProfileChatPanel({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start">
-                <DropdownMenuItem onClick={open} data-testid="attach-files-item">
-                  <File className="h-4 w-4" />
-                  Files
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setIsCameraOpen(true)}
                   data-testid="attach-webcam-item"
                 >
                   <Camera className="h-4 w-4" />
-                  Webcam
+                  Camera
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={open} data-testid="attach-files-item">
+                  <File className="h-4 w-4" />
+                  Files
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
