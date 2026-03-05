@@ -48,24 +48,34 @@ export async function getAuthClient(): Promise<{ client: any; projectId: string 
 /**
  * Creates an ephemeral Pub/Sub subscription attached to an existing topic.
  * Returns the full subscription URL for use in pull/ack/delete calls.
+ *
+ * @param filter - Optional Pub/Sub filter expression (e.g.
+ *   `attributes.thread = "unify_message_outbound"`) to restrict which
+ *   messages the subscription receives from the shared topic.
  */
 export async function createEphemeralSubscription(
   authClient: any,
   projectId: string,
   topicName: string,
-  subscriptionName: string
+  subscriptionName: string,
+  filter?: string
 ): Promise<string> {
   const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
   const topicPath = `projects/${projectId}/topics/${topicName}`;
 
+  const data: Record<string, unknown> = {
+    topic: topicPath,
+    expirationPolicy: { ttl: SUBSCRIPTION_EXPIRATION_TTL },
+    messageRetentionDuration: MESSAGE_RETENTION_DURATION,
+  };
+  if (filter) {
+    data.filter = filter;
+  }
+
   await authClient.request({
     url: subscriptionUrl,
     method: 'PUT',
-    data: {
-      topic: topicPath,
-      expirationPolicy: { ttl: SUBSCRIPTION_EXPIRATION_TTL },
-      messageRetentionDuration: MESSAGE_RETENTION_DURATION,
-    },
+    data,
   });
 
   return subscriptionUrl;
