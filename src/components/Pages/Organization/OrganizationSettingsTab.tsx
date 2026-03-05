@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/components/UI/select';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
+import { toast } from 'sonner';
 import OrgPhoto from './OrgPhoto';
 
 interface OrganizationSettingsTabProps {
@@ -29,17 +31,55 @@ const OrganizationSettingsTab = ({
   currentTimezone,
   onUpdate,
 }: OrganizationSettingsTabProps) => {
+  const router = useRouter();
   const [orgName, setOrgName] = useState(currentName);
   const [timezone, setTimezone] = useState(currentTimezone || '');
 
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
 
-  const hasChanges = orgName !== currentName || timezone !== (currentTimezone || '');
+  const hasChanges =
+    orgName !== currentName || timezone !== (currentTimezone || '') || pendingPhoto !== null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePhotoSelect = (file: File) => {
+    setPendingPhoto(file);
+    setPendingPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (orgName.trim() && hasChanges) {
-      onUpdate(orgName, timezone || null);
+    if (!orgName.trim() || !hasChanges) return;
+
+    setIsSaving(true);
+    const minDelay = new Promise((r) => setTimeout(r, 800));
+    try {
+      if (pendingPhoto) {
+        const formData = new FormData();
+        formData.append('file', pendingPhoto);
+        const res = await fetch(`/api/organization/photo/upload?orgId=${orgId}`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err.detail || 'Failed to upload photo.');
+          return;
+        }
+        setPendingPhoto(null);
+        router.refresh();
+      }
+
+      if (orgName !== currentName || timezone !== (currentTimezone || '')) {
+        onUpdate(orgName, timezone || null);
+      }
+
+      await minDelay;
+      toast.success('Settings saved.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -47,7 +87,12 @@ const OrganizationSettingsTab = ({
     <div className="flex flex-col gap-6 p-6" data-testid="organization-settings-tab">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center gap-5">
-          <OrgPhoto orgId={orgId} orgName={currentName} currentImage={currentImage} />
+          <OrgPhoto
+            orgName={currentName}
+            currentImage={currentImage}
+            onFileSelect={handlePhotoSelect}
+            previewUrl={pendingPhotoPreview}
+          />
           <div className="flex min-w-0 flex-1 flex-col gap-x-4 gap-y-3">
             <div>
               <Label htmlFor="org-name">Organization Name</Label>
@@ -78,9 +123,10 @@ const OrganizationSettingsTab = ({
 
         <div className="flex justify-start">
           <PrimaryButton
-            label="Save Changes"
+            label={hasChanges ? 'Save Changes' : 'Saved'}
             type="submit"
-            disabled={!orgName.trim() || !hasChanges}
+            disabled={!orgName.trim() || !hasChanges || isSaving}
+            isLoading={isSaving}
           />
         </div>
       </form>

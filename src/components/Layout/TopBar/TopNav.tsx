@@ -51,8 +51,37 @@ export default function TopNav() {
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([]);
   const [showPersonalWorkspaceConfirm, setShowPersonalWorkspaceConfirm] = useState(false);
+  const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
 
-  const { workspaces, activeWorkspace, switchWorkspace, isWorkspaceSwitchable } = useWorkspace();
+  const {
+    workspaces,
+    activeWorkspace,
+    activeOrganization,
+    switchWorkspace,
+    isWorkspaceSwitchable,
+  } = useWorkspace();
+
+  const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!activeOrganization?.image) {
+      setOrgLogoUrl(null);
+      return;
+    }
+    const img = activeOrganization.image;
+    if (!img.startsWith('gs://')) {
+      setOrgLogoUrl(img);
+      return;
+    }
+    fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      body: JSON.stringify({ gs_url: img }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setOrgLogoUrl(d?.signed_url ?? null))
+      .catch(() => setOrgLogoUrl(null));
+  }, [activeOrganization?.image]);
 
   const router = useRouter();
 
@@ -93,9 +122,38 @@ export default function TopNav() {
               .join('')
               .toUpperCase()
               .slice(0, 2);
+
+          const photos: Record<string, string> = {};
+          const resolve = async (gsUrl: string): Promise<string> => {
+            if (!gsUrl.startsWith('gs://')) return gsUrl;
+            const r = await fetch('/api/storage/signed-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              body: JSON.stringify({ gs_url: gsUrl }),
+            });
+            if (!r.ok) return '';
+            const d = await r.json();
+            return d.signed_url ?? '';
+          };
+          if (user.image) {
+            const url = await resolve(user.image).catch(() => '');
+            if (url) photos['personal'] = url;
+          }
+          await Promise.all(
+            (user.organizations || []).map(async (org) => {
+              if (org.image) {
+                const url = await resolve(org.image).catch(() => '');
+                if (url) photos[org.id.toString()] = url;
+              }
+            })
+          );
+          setWorkspacePhotos(photos);
+
+          const resolvedAvatarUrl = photos['personal'] || imageUrl;
           setAvatarJSX(
             <Avatar className="h-6 w-6">
-              <AvatarImage src={imageUrl} alt="User Avatar" />
+              <AvatarImage src={resolvedAvatarUrl} alt="User Avatar" />
               <AvatarFallback className="text-label">{getInitials(userName)}</AvatarFallback>
             </Avatar>
           );
@@ -147,7 +205,27 @@ export default function TopNav() {
                       className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
                     >
                       {activeWorkspace.type === 'personal' ? (
-                        <User className="h-3.5 w-3.5" />
+                        workspacePhotos['personal'] ? (
+                          <Image
+                            width={16}
+                            height={16}
+                            unoptimized
+                            src={workspacePhotos['personal']}
+                            alt=""
+                            className="h-4 w-4 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-3.5 w-3.5" />
+                        )
+                      ) : orgLogoUrl ? (
+                        <Image
+                          width={16}
+                          height={16}
+                          unoptimized
+                          src={orgLogoUrl}
+                          alt=""
+                          className="h-4 w-4 shrink-0 rounded-full object-cover"
+                        />
                       ) : (
                         <Building2 className="h-3.5 w-3.5" />
                       )}
@@ -165,7 +243,18 @@ export default function TopNav() {
                           onSelect={() => handlePersonalWorkspaceSwitch()}
                           className="cursor-pointer items-center gap-2"
                         >
-                          <User className="h-4 w-4" />
+                          {workspacePhotos['personal'] ? (
+                            <Image
+                              width={16}
+                              height={16}
+                              unoptimized
+                              src={workspacePhotos['personal']}
+                              alt=""
+                              className="h-4 w-4 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="h-4 w-4" />
+                          )}
                           {w.name}
                           {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
                         </DropdownMenuItem>
@@ -187,7 +276,18 @@ export default function TopNav() {
                           onSelect={() => switchWorkspace(w.id)}
                           className="cursor-pointer items-center gap-2"
                         >
-                          <Building2 className="h-4 w-4" />
+                          {workspacePhotos[w.id] ? (
+                            <Image
+                              width={16}
+                              height={16}
+                              unoptimized
+                              src={workspacePhotos[w.id]}
+                              alt=""
+                              className="h-4 w-4 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Building2 className="h-4 w-4" />
+                          )}
                           {w.name}
                           {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
                         </DropdownMenuItem>
@@ -204,7 +304,27 @@ export default function TopNav() {
                         data-testid="workspace-label"
                       >
                         {activeWorkspace.type === 'personal' ? (
-                          <User className="h-3.5 w-3.5" />
+                          workspacePhotos['personal'] ? (
+                            <Image
+                              width={16}
+                              height={16}
+                              unoptimized
+                              src={workspacePhotos['personal']}
+                              alt=""
+                              className="h-4 w-4 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="h-3.5 w-3.5" />
+                          )
+                        ) : orgLogoUrl ? (
+                          <Image
+                            width={16}
+                            height={16}
+                            unoptimized
+                            src={orgLogoUrl}
+                            alt=""
+                            className="h-4 w-4 shrink-0 rounded-full object-cover"
+                          />
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
                         )}

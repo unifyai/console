@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 async function resolvePhotoUrl(image: string): Promise<string> {
@@ -19,23 +19,25 @@ async function resolvePhotoUrl(image: string): Promise<string> {
 }
 
 interface OrgPhotoProps {
-  orgId: number;
   orgName: string;
   currentImage?: string | null;
+  onFileSelect: (file: File) => void;
+  previewUrl: string | null;
 }
 
-const OrgPhoto = ({ orgId, orgName, currentImage }: OrgPhotoProps) => {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoProps) => {
+  const [savedPhotoUrl, setSavedPhotoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentImage) {
       resolvePhotoUrl(currentImage)
-        .then(setPhotoUrl)
-        .catch(() => setPhotoUrl(currentImage));
+        .then(setSavedPhotoUrl)
+        .catch(() => setSavedPhotoUrl(currentImage));
     }
   }, [currentImage]);
+
+  const displayUrl = previewUrl ?? savedPhotoUrl;
 
   const initials = orgName
     .split(/\s+/)
@@ -43,8 +45,8 @@ const OrgPhoto = ({ orgId, orgName, currentImage }: OrgPhotoProps) => {
     .map((w) => w.charAt(0).toUpperCase())
     .join('');
 
-  const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
@@ -60,46 +62,22 @@ const OrgPhoto = ({ orgId, orgName, currentImage }: OrgPhotoProps) => {
         return;
       }
 
-      setIsUploading(true);
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const res = await fetch(`/api/organization/photo/upload?orgId=${orgId}`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || 'Upload failed');
-        }
-
-        const data = await res.json();
-        const url = await resolvePhotoUrl(data.gcs_url);
-        setPhotoUrl(url);
-        toast.success('Organization photo updated.');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to upload photo.');
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
+      onFileSelect(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [orgId]
+    [onFileSelect]
   );
 
   return (
     <>
       <button
         type="button"
-        disabled={isUploading}
         onClick={() => fileInputRef.current?.click()}
-        className="hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait"
+        className="hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {photoUrl ? (
+        {displayUrl ? (
           <Image
-            src={photoUrl}
+            src={displayUrl}
             alt="Organization photo"
             fill
             className="object-cover"
@@ -111,15 +89,9 @@ const OrgPhoto = ({ orgId, orgName, currentImage }: OrgPhotoProps) => {
           </span>
         )}
 
-        {isUploading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <Loader2 className="h-7 w-7 animate-spin text-white" />
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-            <Camera className="h-7 w-7 text-white" />
-          </div>
-        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+          <Camera className="h-7 w-7 text-white" />
+        </div>
       </button>
 
       <input
@@ -127,7 +99,7 @@ const OrgPhoto = ({ orgId, orgName, currentImage }: OrgPhotoProps) => {
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="hidden"
-        onChange={handleFileSelect}
+        onChange={handleFileChange}
       />
     </>
   );

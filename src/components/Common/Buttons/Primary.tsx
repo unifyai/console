@@ -46,7 +46,7 @@ const PrimaryButton = ({
         className={`w-fit px-3 py-1 ${className}`}
         disabled={disabled || isLoading}
         type={type}
-        text={isLoading ? 'Loading...' : label}
+        text={isLoading ? 'Saving...' : label}
         icon={icon}
         onClick={onClick}
       />

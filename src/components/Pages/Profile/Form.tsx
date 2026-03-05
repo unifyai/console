@@ -37,6 +37,17 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
   const [initialFormState, setInitialFormState] = useState({ ...formState });
   const [changeMade, setChangeMade] = useState(false);
 
+  // Pending photo (preview only until save)
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handlePhotoSelect = (file: File) => {
+    setPendingPhoto(file);
+    setPendingPhotoPreview(URL.createObjectURL(file));
+    setChangeMade(true);
+  };
+
   // Phone verification state
   const [phoneState, setPhoneState] = useState<PhoneVerificationState>({
     phoneNumber: user.phoneNumber || '',
@@ -259,8 +270,9 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
 
   // Handle cancel
   const handleCancel = () => {
-    // Reset form state to initial values
     setFormState(initialFormState);
+    setPendingPhoto(null);
+    setPendingPhotoPreview(null);
     setChangeMade(false);
     // Reset phone state
     setPhoneState({
@@ -285,18 +297,37 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
       return;
     }
 
-    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const formEl = e.currentTarget as HTMLFormElement;
+    setIsSaving(true);
+    const minDelay = new Promise((r) => setTimeout(r, 800));
+
+    if (pendingPhoto) {
+      const photoFormData = new FormData();
+      photoFormData.append('file', pendingPhoto);
+      const photoRes = await fetch('/api/user/photo/upload', {
+        method: 'POST',
+        body: photoFormData,
+      });
+      if (!photoRes.ok) {
+        setAlert({ type: 'error', message: 'Error uploading photo.' });
+        setIsSaving(false);
+        return;
+      }
+      setPendingPhoto(null);
+    }
+
+    const formData = new FormData(formEl);
     formData.append('timezone', formState.timezone);
 
-    // Include phone number (empty string if cleared, or verified phone number)
     const phoneToSave = phoneState.phoneNumber.trim() === '' ? '' : phoneState.phoneNumber;
     formData.append('phoneNumber', phoneToSave);
 
-    // Update profile info
     const profileResponse = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
       method: 'POST',
       body: formData,
     });
+
+    await minDelay;
 
     if (profileResponse.ok) {
       setAlert({ type: 'success', message: 'Profile updated successfully!' });
@@ -305,13 +336,18 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     } else {
       setAlert({ type: 'error', message: 'Error updating profile.' });
     }
+    setIsSaving(false);
   };
 
   return (
     <div className="mt-10 w-full sm:mt-0">
       <form onSubmit={handleSave}>
         <div className="mb-6 flex items-center gap-5">
-          <ProfilePhoto user={user} />
+          <ProfilePhoto
+            user={user}
+            onFileSelect={handlePhotoSelect}
+            previewUrl={pendingPhotoPreview}
+          />
           <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">
             <div>
               <Label>First Name</Label>
@@ -377,8 +413,9 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
             <SecondaryButton onClick={handleCancel} disabled={!changeMade} label="Cancel" />
             <PrimaryButton
               type="submit"
-              disabled={!changeMade || phoneNeedsVerification}
-              label={phoneNeedsVerification ? 'Verify Phone First' : 'Save'}
+              disabled={!changeMade || phoneNeedsVerification || isSaving}
+              isLoading={isSaving}
+              label={phoneNeedsVerification ? 'Verify Phone First' : changeMade ? 'Save' : 'Saved'}
             />
           </div>
         )}
