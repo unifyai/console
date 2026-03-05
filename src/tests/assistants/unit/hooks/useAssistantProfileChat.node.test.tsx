@@ -15,13 +15,20 @@ import { renderHook, act } from '@testing-library/react';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 
-// Mock EventSource
+// Mock EventSource (tracks instances for test introspection)
+let lastEventSource: MockEventSource | null = null;
+
 class MockEventSource {
+  url: string;
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   readyState = 1;
   close = vi.fn();
+  constructor(url: string) {
+    this.url = url;
+    lastEventSource = this;
+  }
 }
 
 (global as any).EventSource = MockEventSource;
@@ -725,5 +732,122 @@ describe('SSE Reconnection Edge Cases', () => {
       handleChange(false);
       expect(reconnectCount).toBe(1); // Still 1, not 2
     });
+  });
+});
+
+// =============================================================================
+// SECTION 4: SSE Contact Filtering
+// =============================================================================
+describe('useAssistantProfileChat - SSE Contact Filtering', () => {
+  const USER_CONTACT_ID = 42;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    lastEventSource = null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  async function renderReady(contactId: number = USER_CONTACT_ID) {
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater: any) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const hookResult = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: vi.fn(async () => contactId) }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    const es = lastEventSource!;
+    expect(es).not.toBeNull();
+    await act(async () => {
+      es.onopen?.();
+    });
+
+    return { ...hookResult, es, setChatHistories, chatHistories, assistant };
+  }
+
+  it('accepts messages whose contact_id matches the current user', async () => {
+    const { es, setChatHistories } = await renderReady();
+
+    await act(async () => {
+      es.onmessage?.({
+        data: JSON.stringify({
+          thread: 'unify_message_outbound',
+          id: 'msg-1',
+          publishTime: new Date().toISOString(),
+          event: { content: 'hello Adam', role: 'assistant', contact_id: USER_CONTACT_ID },
+        }),
+      });
+    });
+
+    const lastCall = setChatHistories.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    const updater = lastCall![0] as (prev: Record<string, any[]>) => Record<string, any[]>;
+    const result = updater({ 'test-assistant-1': [] });
+    expect(result['test-assistant-1'].some((m: any) => m.content === 'hello Adam')).toBe(true);
+  });
+
+  it('filters out messages whose contact_id belongs to a different user', async () => {
+    const { es, setChatHistories } = await renderReady();
+    const callCountBefore = setChatHistories.mock.calls.length;
+
+    await act(async () => {
+      es.onmessage?.({
+        data: JSON.stringify({
+          thread: 'unify_message_outbound',
+          id: 'msg-wrong',
+          publishTime: new Date().toISOString(),
+          event: { content: 'hello Daniel', role: 'assistant', contact_id: 99 },
+        }),
+      });
+    });
+
+    const newCalls = setChatHistories.mock.calls.slice(callCountBefore);
+    for (const call of newCalls) {
+      const fn = call[0];
+      if (typeof fn === 'function') {
+        const result = fn({ 'test-assistant-1': [] });
+        const msgs = result['test-assistant-1'] || [];
+        expect(msgs.some((m: any) => m.content === 'hello Daniel')).toBe(false);
+      }
+    }
+  });
+
+  it('accepts messages with no contact_id (backward compatible)', async () => {
+    const { es, setChatHistories } = await renderReady();
+
+    await act(async () => {
+      es.onmessage?.({
+        data: JSON.stringify({
+          thread: 'unify_message_outbound',
+          id: 'msg-nocontact',
+          publishTime: new Date().toISOString(),
+          event: { content: 'no contact', role: 'assistant' },
+        }),
+      });
+    });
+
+    const lastCall = setChatHistories.mock.calls.at(-1);
+    expect(lastCall).toBeDefined();
+    const updater = lastCall![0] as (prev: Record<string, any[]>) => Record<string, any[]>;
+    const result = updater({ 'test-assistant-1': [] });
+    expect(result['test-assistant-1'].some((m: any) => m.content === 'no contact')).toBe(true);
   });
 });

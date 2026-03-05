@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
+import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { toast } from 'sonner';
 import OrgPhoto from './OrgPhoto';
@@ -47,6 +48,13 @@ const OrganizationSettingsTab = ({
   const handlePhotoSelect = (file: File) => {
     setPendingPhoto(file);
     setPendingPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleCancel = () => {
+    setOrgName(currentName);
+    setTimezone(currentTimezone || '');
+    setPendingPhoto(null);
+    setPendingPhotoPreview(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,14 +129,17 @@ const OrganizationSettingsTab = ({
           </div>
         </div>
 
-        <div className="flex justify-start">
-          <PrimaryButton
-            label={hasChanges ? 'Save Changes' : 'Saved'}
-            type="submit"
-            disabled={!orgName.trim() || !hasChanges || isSaving}
-            isLoading={isSaving}
-          />
-        </div>
+        {hasChanges && (
+          <div className="flex w-fit gap-2">
+            <SecondaryButton onClick={handleCancel} disabled={isSaving} label="Cancel" />
+            <PrimaryButton
+              label="Save"
+              type="submit"
+              disabled={!orgName.trim() || isSaving}
+              isLoading={isSaving}
+            />
+          </div>
+        )}
       </form>
     </div>
   );
