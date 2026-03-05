@@ -48,7 +48,8 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     const topicName = getTopicName(assistantId);
     const subscriptionName = `${topicName}-chat-sse-${connectionId}`;
 
-    const CHAT_FILTER = 'attributes.thread = "unify_message_outbound"';
+    const CHAT_FILTER =
+      'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready"';
 
     subscriptionUrl = await createEphemeralSubscription(
       authClient,
