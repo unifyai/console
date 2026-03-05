@@ -36,13 +36,14 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 
 /* --------------------------
    AssistantProfileChatPanel 
 ----------------------------- */
 interface AssistantProfileChatPanelProps {
   assistant: Assistant;
-  assistantActions: Pick<AssistantActions, 'chat'>;
+  assistantActions: Pick<AssistantActions, 'chat'> & Partial<Pick<AssistantActions, 'voice'>>;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   userEmail: string | null | undefined;
@@ -68,6 +69,12 @@ export function AssistantProfileChatPanel({
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
+
+  const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
+    voiceId: assistant.voiceId || 'alloy',
+    voiceProvider: assistant.voiceProvider || 'openai',
+    generateSpeechAction: assistantActions.voice?.generate,
+  });
 
   // Spending gate blocks new messages when limit is reached
   const isSpendingBlocked = spendingGate.isBlocked;
@@ -105,6 +112,7 @@ export function AssistantProfileChatPanel({
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
+  const isAtBottomRef = React.useRef(true);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const preserveScrollRef = React.useRef<number | null>(null);
   const prevSpendingBlockedRef = React.useRef<boolean>(isSpendingBlocked);
@@ -116,9 +124,10 @@ export function AssistantProfileChatPanel({
     },
     [setInputValue]
   );
-  const { recorderError, toggleRecording, isRecording, isTranscribing } = useVoiceRecorder({
-    onTranscript: handleVoiceTranscript,
-  });
+  const { recorderError, toggleRecording, stopRecording, isRecording, isTranscribing } =
+    useVoiceRecorder({
+      onTranscript: handleVoiceTranscript,
+    });
 
   React.useEffect(() => {
     if (recorderError) toast.error(recorderError);
@@ -223,22 +232,25 @@ export function AssistantProfileChatPanel({
     }
   }, [inputValue]);
 
-  /* Infinite scroll trigger */
+  /* Infinite scroll trigger + track bottom stickiness on manual scroll */
   React.useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
       '[data-radix-scroll-area-viewport]'
     );
     if (!viewport) return;
     const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      isAtBottomRef.current = scrollHeight - scrollTop - clientHeight <= 20;
+
       if (
-        viewport.scrollTop < 10 &&
+        scrollTop < 10 &&
         hasMoreMessages &&
         !isLoadingMore &&
         !isLoading &&
         !loadMoreError &&
         !initialLoadError
       ) {
-        preserveScrollRef.current = viewport.scrollHeight;
+        preserveScrollRef.current = scrollHeight;
         loadMoreMessages();
       }
     };
@@ -282,6 +294,7 @@ export function AssistantProfileChatPanel({
 
     const wasBottom =
       prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
+    isAtBottomRef.current = wasBottom;
 
     // Only auto-scroll to bottom if we aren't currently loading old history (which keeps us at top)
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
@@ -290,6 +303,23 @@ export function AssistantProfileChatPanel({
 
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
+
+  /* Maintain bottom stickiness on viewport resize (e.g. window resize causing
+   * text reflow or container height change). */
+  React.useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+      '[data-radix-scroll-area-viewport]'
+    );
+    if (!viewport) return;
+
+    const ro = new ResizeObserver(() => {
+      if (isAtBottomRef.current) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    });
+    ro.observe(viewport);
+    return () => ro.disconnect();
+  }, []);
 
   /* Handle send with attachments */
   const handleSendWithAttachments = React.useCallback(
@@ -314,12 +344,17 @@ export function AssistantProfileChatPanel({
 
   const sendMessageOnEnter = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isRecording) {
+        event.preventDefault();
+        stopRecording();
+        return;
+      }
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         handleSendWithAttachments({ preventDefault: () => {} } as React.FormEvent);
       }
     },
-    [handleSendWithAttachments]
+    [isRecording, stopRecording, handleSendWithAttachments]
   );
 
   const connectionStatusText = {
@@ -392,6 +427,13 @@ export function AssistantProfileChatPanel({
                     timezone={userTimezone}
                     index={i}
                     attachments={msg.attachments}
+                    {...(hasVoice && msg.role === 'assistant' && msg.content
+                      ? {
+                          onPlayAudio: () => playMessage(msg.id, msg.content),
+                          onStopAudio: stopPlayback,
+                          audioState: getAudioState(msg.id),
+                        }
+                      : {})}
                   />
                 </React.Fragment>
               );
@@ -520,7 +562,7 @@ export function AssistantProfileChatPanel({
               rows={1}
               placeholder={
                 isRecording
-                  ? 'Recording... click stop when done'
+                  ? 'Recording...'
                   : isTranscribing
                     ? 'Transcribing...'
                     : !canChat
