@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from '@/components/UI/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle';
 import ivyLogoOnly from '@/public/ivy_logo_only.png';
 import { getCurrentUser } from '@/lib/user/user';
@@ -143,14 +144,14 @@ export default function TopNav() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="text-body-muted h-6 gap-1.5 px-2 hover:text-foreground items-center"
+                      className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
                     >
                       {activeWorkspace.type === 'personal' ? (
                         <User className="h-3.5 w-3.5" />
                       ) : (
                         <Building2 className="h-3.5 w-3.5" />
                       )}
-                      <span className="max-w-[120px] truncate">{activeWorkspace.name}</span>
+                      <span className="max-w-[250px] truncate">{activeWorkspace.name}</span>
                       <ChevronDown className="h-3 w-3 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -162,7 +163,7 @@ export default function TopNav() {
                         <DropdownMenuItem
                           key={w.id}
                           onSelect={() => handlePersonalWorkspaceSwitch()}
-                          className="cursor-pointer gap-2 items-center"
+                          className="cursor-pointer items-center gap-2"
                         >
                           <User className="h-4 w-4" />
                           {w.name}
@@ -184,7 +185,7 @@ export default function TopNav() {
                         <DropdownMenuItem
                           key={w.id}
                           onSelect={() => switchWorkspace(w.id)}
-                          className="cursor-pointer gap-2 items-center"
+                          className="cursor-pointer items-center gap-2"
                         >
                           <Building2 className="h-4 w-4" />
                           {w.name}
@@ -194,22 +195,32 @@ export default function TopNav() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                /* Non-interactive workspace label for non-Unify org members */
-                <div
-                  className="text-body-muted flex h-6 items-center gap-1.5 px-2"
-                  data-testid="workspace-label"
-                >
-                  {activeWorkspace.type === 'personal' ? (
-                    <User className="h-3.5 w-3.5" />
-                  ) : (
-                    <Building2 className="h-3.5 w-3.5" />
-                  )}
-                  <span className="max-w-[120px] truncate pt-0.5">{activeWorkspace.name}</span>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href="/organizations"
+                        className="text-body-muted flex h-6 items-center gap-1.5 px-2 transition-colors hover:text-foreground"
+                        data-testid="workspace-label"
+                      >
+                        {activeWorkspace.type === 'personal' ? (
+                          <User className="h-3.5 w-3.5" />
+                        ) : (
+                          <Building2 className="h-3.5 w-3.5" />
+                        )}
+                        <span className="max-w-[250px] truncate pt-0.5">
+                          {activeWorkspace.name}
+                        </span>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>{activeWorkspace.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </>
           )}
-
         </div>
 
         {/* Right side */}
