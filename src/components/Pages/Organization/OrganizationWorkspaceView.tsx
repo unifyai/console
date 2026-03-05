@@ -265,6 +265,8 @@ const OrganizationWorkspaceView = ({
   );
 
   // Permission Logic
+  const isOrgOwner = organization.ownerId === currentUserId;
+
   const currentUserPermissions = useMemo(() => {
     const currentUserMember = unifiedMembers.find((m) => m.userId === currentUserId);
     if (!currentUserMember || !currentUserMember.roleId) return [];
@@ -273,6 +275,9 @@ const OrganizationWorkspaceView = ({
   }, [unifiedMembers, roles, currentUserId]);
 
   const hasPermission = (resource: string, action: string) => {
+    // Org owner always has full permissions (mirrors backend behaviour in
+    // ResourceAccessDAO.check_org_member_permission).
+    if (isOrgOwner) return true;
     return currentUserPermissions.some((p) => p.resourceType === resource && p.action === action);
   };
 
@@ -466,7 +471,7 @@ const OrganizationWorkspaceView = ({
                           roles={roles}
                           currentUserId={currentUserId}
                           canManageMembers={canManageMembers}
-                          isOrgOwner={organization.ownerId === currentUserId}
+                          isOrgOwner={isOrgOwner}
                           onRemove={onRemoveMember}
                           onUpdateRole={onUpdateRole}
                           onTransferOwnership={onTransferOwnership}
