@@ -38,12 +38,7 @@
  */
 
 import * as React from 'react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/UI/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
@@ -81,10 +76,7 @@ export interface GuardDecision {
  * Determines whether a billable action should be blocked and why.
  * Exported for unit testing without React.
  */
-export function computeGuardDecision(
-  hasCredits: boolean,
-  customMessage?: string
-): GuardDecision {
+export function computeGuardDecision(hasCredits: boolean, customMessage?: string): GuardDecision {
   if (!hasCredits) {
     return {
       blocked: true,
@@ -110,9 +102,8 @@ export function BillableActionGuard({
 
   // Use explicit props when provided, otherwise derive from hook data
   const hasCredits =
-    hasCreditsProp ?? (creditsRequired > 0
-      ? billingStatus.credits >= creditsRequired
-      : billingStatus.hasCredits);
+    hasCreditsProp ??
+    (creditsRequired > 0 ? billingStatus.credits >= creditsRequired : billingStatus.hasCredits);
 
   const decision = computeGuardDecision(hasCredits, tooltipMessage);
 
@@ -130,10 +121,12 @@ export function BillableActionGuard({
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {/* Wrap in a span so disabled children still trigger the tooltip */}
+          {/* Wrap in a clickable span so disabled children still trigger the tooltip,
+             and clicking redirects to the payment flow */}
           <span
             data-testid="billable-action-guard"
-            className="inline-flex"
+            className="inline-flex cursor-pointer"
+            onClick={onAddPaymentMethod}
           >
             {React.cloneElement(children, {
               disabled: true,
@@ -149,7 +142,7 @@ export function BillableActionGuard({
             <button
               type="button"
               onClick={onAddPaymentMethod}
-              className="inline cursor-pointer font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+              className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
               data-testid="buy-credits-link"
             >
               purchase credits
