@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { Volume2, Loader2, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
@@ -52,6 +53,9 @@ interface ChatMessageBubbleProps {
   index?: number;
   attachments?: Attachment[];
   variant?: ChatBubbleVariant;
+  onPlayAudio?: () => void;
+  onStopAudio?: () => void;
+  audioState?: 'idle' | 'generating' | 'playing';
 }
 
 export function ChatMessageBubble({
@@ -65,6 +69,9 @@ export function ChatMessageBubble({
   index,
   attachments,
   variant = 'profile',
+  onPlayAudio,
+  onStopAudio,
+  audioState = 'idle',
 }: ChatMessageBubbleProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -151,6 +158,23 @@ export function ChatMessageBubble({
         <span className="text-body-muted font-medium">{assistantName}</span>
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>
+        )}
+        {onPlayAudio && (
+          <button
+            type="button"
+            onClick={audioState === 'playing' ? onStopAudio : onPlayAudio}
+            disabled={audioState === 'generating'}
+            className={cn(
+              'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
+              audioState === 'playing'
+                ? 'hover:text-primary/80 text-primary'
+                : 'text-muted-foreground/50 hover:text-muted-foreground'
+            )}
+          >
+            {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
+            {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
+          </button>
         )}
       </div>
       {attachments && attachments.length > 0 && (

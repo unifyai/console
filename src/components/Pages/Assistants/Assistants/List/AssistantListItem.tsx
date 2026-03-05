@@ -153,6 +153,8 @@ export function AssistantListItem({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       data-testid={`assistant-list-item-${assistant.agentId}`}
       className={cn(
         'group flex cursor-pointer items-center justify-between rounded-md p-2',
@@ -160,6 +162,9 @@ export function AssistantListItem({
         isSelected && 'bg-primary text-primary-foreground'
       )}
       onClick={handleProfileClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') handleProfileClick(e as any);
+      }}
     >
       <div className="flex min-w-0 items-center gap-3">
         <HoverCard openDelay={200} closeDelay={100}>

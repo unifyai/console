@@ -71,8 +71,8 @@ export function AssistantProfileChatPanel({
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
-    voiceId: assistant.voiceId || 'alloy',
-    voiceProvider: assistant.voiceProvider || 'openai',
+    voiceId: assistant.voiceId,
+    voiceProvider: assistant.voiceProvider,
     generateSpeechAction: assistantActions.voice?.generate,
   });
 

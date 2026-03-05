@@ -31,6 +31,14 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     }
   }
 
+  if (process.env.ON_PREM) {
+    if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
+      console.error('ON_PREM must not be set in cloud deployments');
+      return new Response('Misconfiguration detected', { status: 500 });
+    }
+    return NextResponse.next();
+  }
+
   if (request.url.includes('/user')) {
     const providedKey = request.headers.get('ADMIN_KEY');
     const expectedKey = process.env.ADMIN_KEY;
@@ -45,13 +53,6 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     ) {
       return new Response('Unauthorized', { status: 403 });
     }
-  }
-  if (process.env.ON_PREM) {
-    if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
-      console.error('ON_PREM must not be set in cloud deployments');
-      return new Response('Misconfiguration detected', { status: 500 });
-    }
-    return NextResponse.next();
   }
 
   // MFA-pending check: redirect to /login/mfa when the JWT has mfaPending=true.
