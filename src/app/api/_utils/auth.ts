@@ -124,11 +124,12 @@ export interface WorkspaceBillingContext {
 }
 
 /**
- * Resolves the billing-relevant workspace context from the session cookie.
+ * Resolves the billing-relevant workspace context.
  *
- * Reads `unify_workspace_id` to determine whether the user is operating
- * in a personal or organization workspace, and returns identifiers needed
- * for admin API calls that accept `user_id` or `organization_id`.
+ * Priority order (mirrors getCurrentUser):
+ *   1. `unify_workspace_id` cookie → explicit workspace selection
+ *   2. Non-Unify org members → locked to their organization workspace
+ *   3. Fallback → personal workspace
  *
  * @returns WorkspaceBillingContext or null if the user is not authenticated.
  */
@@ -140,7 +141,6 @@ export async function getWorkspaceBillingContext(): Promise<WorkspaceBillingCont
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
 
   if (workspaceId && workspaceId !== 'personal') {
-    // Validate the user is a member of this organization
     const org = user.organizations?.find((o: any) => o.id?.toString() === workspaceId);
     if (org) {
       return {
@@ -150,6 +150,18 @@ export async function getWorkspaceBillingContext(): Promise<WorkspaceBillingCont
         organizationId: org.id,
       };
     }
+  }
+
+  // Non-Unify org members are locked to their organization workspace,
+  // even when the cookie hasn't been set yet.
+  const isUnifyMember = user.organizations?.some((o: any) => o.name === 'Unify') ?? false;
+  if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
+    return {
+      type: 'organization',
+      userId: user.id,
+      email: user.email,
+      organizationId: user.organizations[0].id,
+    };
   }
 
   return {
