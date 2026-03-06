@@ -51,6 +51,7 @@ import type {
   LoadChildrenFn,
   ToolLoopLog,
 } from '@/types/assistants/action';
+import { isToolLoopNoise } from '@/lib/assistants/event-filters';
 
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -556,7 +557,13 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
 
   if (message.role === 'assistant') {
     if (message.toolCalls && message.toolCalls.length > 0) {
-      const toolNames = message.toolCalls.map((tc) => `${tc.function.name}()`).join(', ');
+      const aliases = log.entries.toolAliases;
+      const toolNames = message.toolCalls
+        .map((tc) => {
+          const alias = aliases?.[tc.function.name];
+          return alias ?? `${tc.function.name}()`;
+        })
+        .join(', ');
 
       const codeBlocks: Array<{ lang: string; code: string }> = [];
       if (SHOW_EXECUTE_CODE_CONTENT) {
@@ -788,7 +795,7 @@ function PromotedContent({
       title={!isOpen ? 'Click to expand' : undefined}
     >
       <div
-        className="flex cursor-pointer items-baseline gap-1 py-0.5 text-[11px] hover:bg-muted/40 rounded-sm pr-1"
+        className="hover:bg-muted/40 flex cursor-pointer items-baseline gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
         onClick={() => setIsOpen((v) => !v)}
       >
         <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
@@ -799,7 +806,7 @@ function PromotedContent({
         )}
         <ChevronRight
           className={cn(
-            'h-2.5 w-2.5 shrink-0 self-center text-muted-foreground/40 opacity-0 transition-all duration-150 group-hover:opacity-100',
+            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
             isOpen && 'rotate-90'
           )}
         />
@@ -1045,8 +1052,7 @@ export function ActionNodeItem({
       if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
-    // primitive proxy for node.children which is mutated in place by mergeNewEvents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [rawToolLoopLogs, childCount]);
 
   const hasChildren = node.children && node.children.length > 0;
@@ -1058,7 +1064,11 @@ export function ActionNodeItem({
   // polled rendering exactly (no duplication of descendant ToolLoop events).
   const filteredLiveToolLoopLogs = React.useMemo(() => {
     if (!node.liveToolLoopLogs) return [];
-    const logs = node.liveToolLoopLogs.filter((l) => l.entries.message.role !== 'system');
+    const logs = node.liveToolLoopLogs.filter((l) => {
+      const msg = l.entries.message;
+      if (msg.role === 'system') return false;
+      return !isToolLoopNoise(msg);
+    });
     const children = node.children || [];
     if (children.length === 0) return logs;
     const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
@@ -1069,16 +1079,14 @@ export function ActionNodeItem({
       if (childPrefixes.some((p) => logKey.startsWith(p))) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
-    // primitive proxy for node.children which is mutated in place by mergeNewEvents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [node.liveToolLoopLogs, childCount]);
 
   // Unified data source: prefer polled data when available, fall back to
   // filtered live data. Every downstream consumer uses this instead of
   // referencing completedToolLoopLogs or liveToolLoopLogs directly.
-  const effectiveLogs = completedToolLoopLogs.length > 0
-    ? completedToolLoopLogs
-    : filteredLiveToolLoopLogs;
+  const effectiveLogs =
+    completedToolLoopLogs.length > 0 ? completedToolLoopLogs : filteredLiveToolLoopLogs;
 
   // Label comes directly from the ManagerMethod incoming event's
   // question/instructions/request field, stored as requestContent.
@@ -1090,11 +1098,12 @@ export function ActionNodeItem({
   // label (requestContent or displayLabel fallback for old data).
   // Boundary nodes are visible only when they have children.
   // Other inner nodes need requestContent, children, or to be running.
-  const isVisible = depth === 0
-    ? true
-    : node.type === 'boundary'
-      ? hasChildren
-      : !!node.requestContent || hasChildren || node.status === 'running';
+  const isVisible =
+    depth === 0
+      ? true
+      : node.type === 'boundary'
+        ? hasChildren
+        : !!node.requestContent || hasChildren || node.status === 'running';
 
   // Extract the full request text and the final response text as standalone
   // values so they can be rendered prominently outside the collapsed steps.
@@ -1103,7 +1112,11 @@ export function ActionNodeItem({
     const userMsg = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (userMsg) {
       const text = extractTextContent(userMsg.entries.message.content);
-      if (text) req = { content: text, time: formatEventTime(userMsg.entries.eventTimestamp || userMsg.ts) };
+      if (text)
+        req = {
+          content: text,
+          time: formatEventTime(userMsg.entries.eventTimestamp || userMsg.ts),
+        };
     }
 
     let resp: { content: string; time: string } | null = null;
@@ -1112,7 +1125,10 @@ export function ActionNodeItem({
       if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
         const text = extractTextContent(msg.content);
         if (text) {
-          resp = { content: text, time: formatEventTime(effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts) };
+          resp = {
+            content: text,
+            time: formatEventTime(effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts),
+          };
           break;
         }
       }
@@ -1131,12 +1147,14 @@ export function ActionNodeItem({
       const msg = effectiveLogs[i].entries.message;
       if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
         const text = extractTextContent(msg.content);
-        if (text) { ids.add(effectiveLogs[i].id); break; }
+        if (text) {
+          ids.add(effectiveLogs[i].id);
+          break;
+        }
       }
     }
     return ids;
   }, [effectiveLogs]);
-
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -1194,7 +1212,11 @@ export function ActionNodeItem({
         // Store raw logs (minus system messages). Child-event filtering
         // happens reactively in the completedToolLoopLogs memo.
         setRawToolLoopLogs(
-          logs.filter((l) => l.entries.message.role !== 'system')
+          logs.filter((l) => {
+            const msg = l.entries.message;
+            if (msg.role === 'system') return false;
+            return !isToolLoopNoise(msg);
+          })
         );
       } catch {
         // Silently fail
@@ -1257,8 +1279,7 @@ export function ActionNodeItem({
   // Content is ready when polled data is fully loaded, OR we're running
   // (streaming), OR we have live data to show as a bridge during transition.
   const hasLiveData = filteredLiveToolLoopLogs.length > 0;
-  const contentReady =
-    (childrenReady && toolLoopReady) || node.status === 'running' || hasLiveData;
+  const contentReady = (childrenReady && toolLoopReady) || node.status === 'running' || hasLiveData;
 
   const showFallbackContent = isExpanded && contentReady && !canLoadToolLoop && !!fallbackContent;
   const hasInteractions = (node.interactions?.length ?? 0) > 0;
@@ -1412,8 +1433,7 @@ export function ActionNodeItem({
     }
 
     return merged;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a
-    // primitive proxy for node.children which is mutated in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [
     hasToolLoopData,
     hasChildren,
@@ -1465,10 +1485,7 @@ export function ActionNodeItem({
 
         {/* Label + Duration */}
         <span
-          className={cn(
-            'flex min-w-0 items-baseline gap-0 text-xs',
-            getLabelStyles(node.status)
-          )}
+          className={cn('flex min-w-0 items-baseline gap-0 text-xs', getLabelStyles(node.status))}
         >
           <span className="min-w-0 truncate">
             <TruncatedMarkdown content={effectiveLabel} />
@@ -1595,7 +1612,7 @@ export function ActionNodeItem({
       {/* Children loading indicator — shown while content isn't ready */}
       {isExpanded && !contentReady && (
         <div
-          className="flex items-center gap-1.5 py-1 text-[11px] text-muted-foreground/40"
+          className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]"
           style={{ paddingLeft: `${28 + depth * 16}px` }}
         >
           <Loader2 className="h-3 w-3 animate-spin" />
