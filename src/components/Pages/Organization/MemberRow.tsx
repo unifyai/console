@@ -39,7 +39,8 @@ import {
 import { TableRow, TableCell } from '@/components/UI/table';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
-import { useState } from 'react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
 import { UnifiedMember } from '@/hooks/useOrganization';
@@ -109,6 +110,36 @@ const MemberRow = ({
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const image = member.image;
+    if (!image) {
+      setResolvedImageUrl(null);
+      return;
+    }
+    if (!image.startsWith('gs://')) {
+      setResolvedImageUrl(image);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      body: JSON.stringify({ gs_url: image }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setResolvedImageUrl(data.signed_url);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedImageUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [member.image]);
 
   const isSelf = member.userId === currentUserId;
   const currentRoleName = member.role || 'Member';
@@ -122,19 +153,24 @@ const MemberRow = ({
         {/* User */}
         <TableCell className="font-medium">
           <div className="flex items-center gap-3">
-            <div
+            <Avatar
               className={cn(
-                'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border',
+                'h-9 w-9 flex-shrink-0 border',
                 member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-secondary'
               )}
             >
-              <User
-                className={cn(
-                  'h-4 w-4',
-                  member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
-                )}
-              />
-            </div>
+              {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
+              <AvatarFallback
+                className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-secondary')}
+              >
+                <User
+                  className={cn(
+                    'h-4 w-4',
+                    member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                  )}
+                />
+              </AvatarFallback>
+            </Avatar>
             <div className="flex max-w-[180px] flex-col">
               <span className="text-title truncate leading-none">
                 {member.name}
