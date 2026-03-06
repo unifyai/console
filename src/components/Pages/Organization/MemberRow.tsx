@@ -8,7 +8,6 @@ import {
   CheckCircle,
   HelpCircle,
   Send,
-  DollarSign,
   AlertTriangle,
   Infinity,
 } from 'lucide-react';
@@ -291,22 +290,40 @@ const MemberRow = ({
         </TableCell>
 
         {/* Monthly Limit - only shown if showSpending is true */}
-        {showSpending && (
-          <TableCell className="text-center">
-            {member.status === 'pending' ? (
-              <span className="text-caption">-</span>
-            ) : spendingInfo?.isLoading ? (
-              <span className="text-caption">...</span>
-            ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
-              <span className="text-sm">{formatSpendAmount(spendingInfo.limit)}</span>
-            ) : (
-              <span className="text-body-muted flex items-center justify-center gap-1">
-                <Infinity className="h-3 w-3" />
-                <span>Unlimited</span>
-              </span>
-            )}
-          </TableCell>
-        )}
+        {showSpending &&
+          (() => {
+            const canEditLimit =
+              !!onEditSpendingLimit && !!member.userId && (canManageMembers || isSelf);
+            const handleClick = canEditLimit
+              ? () => onEditSpendingLimit!(member.userId!)
+              : undefined;
+            const clickableClass = canEditLimit ? 'cursor-pointer hover:underline' : '';
+
+            return (
+              <TableCell className="text-center">
+                {member.status === 'pending' ? (
+                  <span className="text-caption">-</span>
+                ) : spendingInfo?.isLoading ? (
+                  <span className="text-caption">...</span>
+                ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
+                  <span className={cn('text-sm', clickableClass)} onClick={handleClick}>
+                    {formatSpendAmount(spendingInfo.limit)}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'text-body-muted flex items-center justify-center gap-1',
+                      clickableClass
+                    )}
+                    onClick={handleClick}
+                  >
+                    <Infinity className="h-3 w-3" />
+                    <span>Unlimited</span>
+                  </span>
+                )}
+              </TableCell>
+            );
+          })()}
 
         {/* Spent - only shown if showSpending is true */}
         {showSpending && (
@@ -367,12 +384,6 @@ const MemberRow = ({
               {isSelf ? (
                 <>
                   <DropdownMenuLabel>My Membership</DropdownMenuLabel>
-                  {showSpending && onEditSpendingLimit && member.userId && (
-                    <DropdownMenuItem onClick={() => onEditSpendingLimit(member.userId!)}>
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      <span>Edit Spending Limit</span>
-                    </DropdownMenuItem>
-                  )}
                   {isTargetOwner ? (
                     <DropdownMenuItem disabled className="text-muted-foreground">
                       <Shield className="mr-2 h-4 w-4" />
@@ -442,14 +453,6 @@ const MemberRow = ({
                             </DropdownMenuSubContent>
                           </DropdownMenuPortal>
                         </DropdownMenuSub>
-                      )}
-
-                      {/* Edit Spending Limit - shown when spending is enabled */}
-                      {showSpending && canManageMembers && onEditSpendingLimit && member.userId && (
-                        <DropdownMenuItem onClick={() => onEditSpendingLimit(member.userId!)}>
-                          <DollarSign className="mr-2 h-4 w-4" />
-                          <span>Edit Spending Limit</span>
-                        </DropdownMenuItem>
                       )}
 
                       {isOrgOwner && !isTargetOwner && (
