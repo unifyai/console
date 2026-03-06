@@ -48,14 +48,15 @@ export function useAssistantPermissions(): AssistantPermissions {
 
   const isOrgContext = activeWorkspace?.type === 'organization';
   const isOrgOwner = activeOrganization?.roleName === 'Owner';
+  const isOrgAdmin = activeOrganization?.roleName === 'Admin';
 
   return useMemo(
     () => ({
       isOrgContext,
       isOrgOwner,
 
-      // v0: Only org Owner can hire in org context; anyone can hire in personal workspace
-      canHire: !isOrgContext || isOrgOwner,
+      // v0: Owner or Admin can hire in org context; anyone can hire in personal workspace
+      canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
       // v0: Only assistant creator can write in org context
       // In personal workspace, user always has full access
@@ -75,6 +76,6 @@ export function useAssistantPermissions(): AssistantPermissions {
         // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agentId)
       },
     }),
-    [isOrgContext, isOrgOwner, currentUserId]
+    [isOrgContext, isOrgOwner, isOrgAdmin, currentUserId]
   );
 }
