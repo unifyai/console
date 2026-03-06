@@ -333,30 +333,40 @@ const MemberRow = ({
             ) : spendingInfo?.isLoading ? (
               <span className="text-caption">...</span>
             ) : (
-              <div className="flex flex-col items-center gap-0.5">
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    spendingInfo?.display?.isOverLimit && 'text-destructive',
-                    spendingInfo?.display?.isNearLimit &&
-                      !spendingInfo?.display?.isOverLimit &&
-                      'text-amber-600 dark:text-amber-500'
-                  )}
-                >
-                  {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
-                  {spendingInfo?.display && !spendingInfo.display.isUnlimited && (
-                    <span className="text-caption ml-1">
-                      ({spendingInfo.display.percentUsed.toFixed(0)}%)
-                    </span>
-                  )}
-                </span>
-                {spendingInfo?.display?.isNearLimit && !spendingInfo?.display?.isOverLimit && (
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
-                )}
-                {spendingInfo?.display?.isOverLimit && (
-                  <AlertTriangle className="h-3 w-3 text-destructive" />
-                )}
-              </div>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/usage" className="flex flex-col items-center gap-0.5">
+                      <span
+                        className={cn(
+                          'text-sm font-medium hover:underline',
+                          spendingInfo?.display?.isOverLimit && 'text-destructive',
+                          spendingInfo?.display?.isNearLimit &&
+                            !spendingInfo?.display?.isOverLimit &&
+                            'text-amber-600 dark:text-amber-500'
+                        )}
+                      >
+                        {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
+                        {spendingInfo?.display && !spendingInfo.display.isUnlimited && (
+                          <span className="text-caption ml-1">
+                            ({spendingInfo.display.percentUsed.toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                      {spendingInfo?.display?.isNearLimit &&
+                        !spendingInfo?.display?.isOverLimit && (
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        )}
+                      {spendingInfo?.display?.isOverLimit && (
+                        <AlertTriangle className="h-3 w-3 text-destructive" />
+                      )}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View usage details</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </TableCell>
         )}
