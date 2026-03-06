@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Clock } from 'lucide-react';
+import Image from 'next/image';
+import { Info } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -12,7 +13,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
-import { Button } from '@/components/UI/button';
+
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
@@ -30,7 +31,6 @@ interface AssistantProfileInfoPanelProps {
 
 export function AssistantProfileInfoPanel({
   assistant,
-  userTimezone,
   onEdit,
   canWrite = true,
   spendingActions,
@@ -107,22 +107,14 @@ export function AssistantProfileInfoPanel({
   };
 
   const timezoneInfo = React.useMemo(() => {
-    if (!assistant.timezone) return { friendlyName: 'Not set', relativeOffsetString: null };
+    if (!assistant.timezone) return { friendlyName: 'Not set' };
 
     const assistantOffset = getTimezoneOffsetInMinutes(assistant.timezone);
-    const localTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localOffset = getTimezoneOffsetInMinutes(localTimezone);
-
-    const offsetDiffHours = (assistantOffset - localOffset) / 60;
-
-    let relativeOffsetString: string | null = null;
-    relativeOffsetString = `${offsetDiffHours >= 0 ? '+' : ''}${offsetDiffHours}H`;
-
     const assistantUtcOffset = formatOffset(assistantOffset);
     const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
 
-    return { friendlyName, relativeOffsetString };
-  }, [assistant.timezone, userTimezone]);
+    return { friendlyName };
+  }, [assistant.timezone]);
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
@@ -183,36 +175,66 @@ export function AssistantProfileInfoPanel({
           </div>
         </div>
 
-        {/* Timezone Section */}
-        <div className="group/assistant-timezone pt-2">
-          <h3 className="text-title">Timezone</h3>
-          <div className="grid max-w-sm grid-cols-2 items-center">
+        {/* Supervisor & Timezone Section */}
+        <div
+          className={cn(
+            'grid gap-x-4 pt-2',
+            assistant.organizationId ? 'grid-cols-2' : 'grid-cols-1'
+          )}
+        >
+          {assistant.organizationId && (
+            <div className="group/assistant-supervisor">
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-title">Supervisor</h3>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>
+                        {assistant.firstName} directly reports to{' '}
+                        {[assistant.userFirstName, assistant.userLastName]
+                          .filter(Boolean)
+                          .join(' ') || 'their supervisor'}
+                        . The tasks {assistant.firstName} can and cannot assist with are at the
+                        discretion of{' '}
+                        {[assistant.userFirstName, assistant.userLastName]
+                          .filter(Boolean)
+                          .join(' ') || 'their supervisor'}
+                        .
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {assistant.userImage && (
+                  <Image
+                    src={assistant.userImage}
+                    alt=""
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 rounded-full object-cover"
+                    unoptimized
+                  />
+                )}
+                <span className="text-caption">
+                  {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
+                    'N/A'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="group/assistant-timezone">
+            <h3 className="text-title">Timezone</h3>
             <span
               className={cn('text-caption', canWrite && 'cursor-pointer hover:underline')}
               onClick={canWrite ? onEdit : undefined}
             >
               {timezoneInfo.friendlyName}
             </span>
-            {timezoneInfo.relativeOffsetString && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-caption mr-3 h-auto gap-1 px-2 py-1"
-                      onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}
-                    >
-                      {timezoneInfo.relativeOffsetString}
-                      <Clock className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Assistant&apos;s time relative to yours</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
         </div>
 
@@ -229,7 +251,6 @@ export function AssistantProfileInfoPanel({
             <Markdown>{assistant.about || 'No description provided.'}</Markdown>
           </div>
         </div>
-
       </ScrollArea>
     </div>
   );

@@ -31,6 +31,7 @@ export interface Assistant {
   organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
   userFirstName?: string | null; // Owner's first name
   userLastName?: string | null; // Owner's last name
+  userImage?: string | null; // Owner's profile image URL
   firstName: string;
   surname: string;
   profilePhoto: string | null;
