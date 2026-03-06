@@ -25,7 +25,7 @@ import {
   getMockManagerMethodEvents,
   getMockToolLoopEvents,
 } from '../../utils/assistants/action-mock-data';
-import { buildExcludedManagerFilters } from './excluded-managers';
+import { buildExcludedManagerFilters } from './event-filters';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
 
