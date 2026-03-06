@@ -27,7 +27,7 @@ export function PresetListItem({ preset, onSelect, isSelected }: PresetListItemP
     <div
       className={cn(
         'flex cursor-pointer items-start gap-4 rounded-md border p-3',
-        isSelected ? 'border-primary bg-muted' : 'border-transparent hover:bg-muted'
+        isSelected ? 'border-primary' : 'border-transparent hover:bg-muted'
       )}
       onClick={() => onSelect(preset)}
       role="button"
