@@ -10,6 +10,7 @@ import {
   Send,
   AlertTriangle,
   Infinity,
+  Camera,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,7 +41,8 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
 import { UnifiedMember } from '@/hooks/useOrganization';
@@ -114,6 +116,42 @@ const MemberRow = ({
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, WebP, or GIF image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/user/photo/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      setResolvedImageUrl(URL.createObjectURL(file));
+      toast.success('Profile photo updated.');
+    } catch {
+      toast.error('Failed to upload photo.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, []);
 
   useEffect(() => {
     const image = member.image;
@@ -156,24 +194,47 @@ const MemberRow = ({
         {/* User */}
         <TableCell className="font-medium">
           <div className="flex items-center gap-3">
-            <Avatar
-              className={cn(
-                'h-9 w-9 flex-shrink-0 border',
-                member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-muted'
-              )}
+            <div
+              className={cn('group/avatar relative flex-shrink-0', isSelf && 'cursor-pointer')}
+              onClick={isSelf ? () => fileInputRef.current?.click() : undefined}
             >
-              {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
-              <AvatarFallback
-                className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-muted')}
+              <Avatar
+                className={cn(
+                  'h-9 w-9 border',
+                  member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-muted'
+                )}
               >
-                <User
-                  className={cn(
-                    'h-4 w-4',
-                    member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
+                <AvatarFallback
+                  className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-muted')}
+                >
+                  <User
+                    className={cn(
+                      'h-4 w-4',
+                      member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                    )}
+                  />
+                </AvatarFallback>
+              </Avatar>
+              {isSelf && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition-all group-hover/avatar:bg-black/40 group-hover/avatar:opacity-100">
+                  {isUploading ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <Camera className="h-3.5 w-3.5 text-white" />
                   )}
-                />
-              </AvatarFallback>
-            </Avatar>
+                </div>
+              )}
+            </div>
+            {isSelf && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+            )}
             <div className="flex max-w-[180px] flex-col">
               <span className="text-title truncate leading-none">
                 {member.name}
