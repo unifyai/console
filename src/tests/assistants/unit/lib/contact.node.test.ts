@@ -16,6 +16,8 @@ import {
   listAvailableSocialPlatforms,
   verifySocialAccount,
   deleteAssistantContact,
+  fetchContactCosts,
+  createAssistantContact,
 } from '@/lib/assistants/contact';
 
 // Mock environment variables
@@ -480,6 +482,270 @@ describe('contact.ts', () => {
         // Act
         const verifyFn = await verifySocialAccount(TEST_API_KEY);
         const result = await verifyFn('twitter', '@user');
+
+        // Assert
+        expect(result).toHaveProperty('detail');
+      }
+    );
+  });
+
+  describe('fetchContactCosts', () => {
+    it(
+      'returns ContactCosts map on success',
+      {
+        meta: {
+          alias: 'FetchCosts-Success',
+          scenario: 'API returns cost rows',
+          behavior: 'Returns keyed ContactCosts object',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
+            return HttpResponse.json([
+              { id: 1, contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
+              { id: 2, contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
+              { id: 3, contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+            ]);
+          })
+        );
+
+        // Act
+        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const result = await fetchFn();
+
+        // Assert - should return ContactCosts map, not raw array
+        expect(result).not.toHaveProperty('detail');
+        const costs = result as any;
+        expect(costs.phone.monthlyCost).toBe(1.5);
+        expect(costs.email.monthlyCost).toBe(14.0);
+        expect(costs.whatsapp.monthlyCost).toBe(5.0);
+        expect(costs.whatsapp.oneTimeCost).toBe(5.0);
+      }
+    );
+
+    it(
+      'returns error response when API fails',
+      {
+        meta: {
+          alias: 'FetchCosts-Fallback',
+          scenario: 'API returns error',
+          behavior: 'Returns ResponseProps with detail describing the error',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
+            return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+          })
+        );
+
+        // Act
+        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const result = await fetchFn();
+
+        // Assert - should return error response
+        expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'returns error response on network failure',
+      {
+        meta: {
+          alias: 'FetchCosts-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Returns ResponseProps with detail describing the error',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const result = await fetchFn();
+
+        // Assert - should return error response
+        expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'returns error response when response format is unexpected',
+      {
+        meta: {
+          alias: 'FetchCosts-UnexpectedFormat',
+          scenario: 'API returns non-array response',
+          behavior: 'Returns ResponseProps with detail describing the error',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
+            return HttpResponse.json({ data: 'unexpected' });
+          })
+        );
+
+        // Act
+        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const result = await fetchFn();
+
+        // Assert - should return error response
+        expect(result).toHaveProperty('detail');
+      }
+    );
+
+    it(
+      'picks default row when multiple rows per type',
+      {
+        meta: {
+          alias: 'FetchCosts-DefaultRow',
+          scenario: 'API returns multiple rows per contact type',
+          behavior: 'Picks the default row (provider=null, countryCode=null)',
+        },
+      },
+      async () => {
+        // Arrange - two phone rows, one default, one US-specific
+        server.use(
+          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
+            return HttpResponse.json([
+              { id: 1, contactType: 'phone', provider: 'twilio', countryCode: 'US', monthlyCost: 2.0, oneTimeCost: 5.0 },
+              { id: 2, contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
+              { id: 3, contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
+              { id: 4, contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+            ]);
+          })
+        );
+
+        // Act
+        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const result = await fetchFn();
+
+        // Assert - should prefer the default row (1.5) over US-specific (2.0)
+        const costs = result as any;
+        expect(costs.phone.monthlyCost).toBe(1.5);
+      }
+    );
+  });
+
+  describe('createAssistantContact', () => {
+    it(
+      'creates contact and returns result',
+      {
+        meta: {
+          alias: 'CreateContact-Success',
+          scenario: 'API successfully creates contact',
+          behavior: 'Returns info message and updated assistant',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/:id/contact`, () => {
+            return HttpResponse.json({
+              info: { agent_id: 'a1', first_name: 'Jane', email: 'jane@unify.ai' },
+            });
+          })
+        );
+
+        // Act
+        const createFn = await createAssistantContact(TEST_API_KEY);
+        const result = await createFn('a1', { contactType: 'email', emailLocal: 'jane' });
+
+        // Assert
+        expect(result).toHaveProperty('info');
+        expect(result).toHaveProperty('assistant');
+      }
+    );
+
+    it(
+      'sends payload in snake_case',
+      {
+        meta: {
+          alias: 'CreateContact-Payload',
+          scenario: 'Verify request body is converted to snake_case',
+          behavior: 'Request body keys should be snake_case',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedBody: any = null;
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/:id/contact`, async ({ request }) => {
+            capturedBody = await request.json();
+            return HttpResponse.json({ info: { agent_id: 'a1' } });
+          })
+        );
+
+        // Act
+        const createFn = await createAssistantContact(TEST_API_KEY);
+        await createFn('a1', {
+          contactType: 'phone',
+          phoneCountry: 'US',
+          userPhone: '+15551234567',
+        });
+
+        // Assert - payload should be in snake_case
+        expect(capturedBody).toHaveProperty('contact_type', 'phone');
+        expect(capturedBody).toHaveProperty('phone_country', 'US');
+        expect(capturedBody).toHaveProperty('user_phone', '+15551234567');
+      }
+    );
+
+    it(
+      'returns error when create fails',
+      {
+        meta: {
+          alias: 'CreateContact-Error',
+          scenario: 'API returns error',
+          behavior: 'Returns error detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/:id/contact`, () => {
+            return HttpResponse.json({ detail: 'Email already provisioned' }, { status: 409 });
+          })
+        );
+
+        // Act
+        const createFn = await createAssistantContact(TEST_API_KEY);
+        const result = await createFn('a1', { contactType: 'email', emailLocal: 'taken' });
+
+        // Assert
+        expect(result).toHaveProperty('detail', 'Email already provisioned');
+      }
+    );
+
+    it(
+      'returns error on network failure',
+      {
+        meta: {
+          alias: 'CreateContact-NetworkError',
+          scenario: 'Network error during fetch',
+          behavior: 'Catches error and returns detail',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_BASE_URL}/api/assistant/:id/contact`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act
+        const createFn = await createAssistantContact(TEST_API_KEY);
+        const result = await createFn('a1', { contactType: 'phone', phoneCountry: 'US' });
 
         // Assert
         expect(result).toHaveProperty('detail');

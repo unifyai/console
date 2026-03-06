@@ -17,6 +17,7 @@ import {
   AvailableSocialPlatform,
   AvailablePhoneCountry,
 } from '@/types/assistants/assistant';
+import { ContactCosts } from '@/types/assistants/contact';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 
 // Mock sonner toast
@@ -69,6 +70,12 @@ const createMockAssistantActions = (): AssistantActions => ({
     listAvailableSocialPlatforms: vi.fn().mockResolvedValue([{ name: 'whatsapp', cost: 5.0 }]),
     verifySocialAccount: vi.fn(),
     delete: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue({ info: 'Contact created' }),
+    fetchContactCosts: vi.fn().mockResolvedValue({
+      phone: { monthlyCost: 1.5, oneTimeCost: 5.0 },
+      email: { monthlyCost: 14.0, oneTimeCost: 5.0 },
+      whatsapp: { monthlyCost: 5.0, oneTimeCost: 5.0 },
+    } as ContactCosts),
   },
   photo: {
     upload: vi.fn(),
@@ -352,6 +359,11 @@ describe('useAssistantContactManager', () => {
         });
 
         expect(result.current.availableSocialPlatforms).toHaveLength(1);
+
+        // After fetched costs load, creationCost uses the fetched whatsapp oneTimeCost
+        await waitFor(() => {
+          expect(result.current.contactCosts).not.toBeNull();
+        });
         expect(result.current.creationCost).toBe(5.0);
       }
     );
@@ -382,6 +394,160 @@ describe('useAssistantContactManager', () => {
         expect(mockActions.contact.listAvailablePhoneCountries).not.toHaveBeenCalled();
         expect(mockActions.contact.listAllAssistantEmails).not.toHaveBeenCalled();
         expect(mockActions.contact.listAvailableSocialPlatforms).not.toHaveBeenCalled();
+        expect(mockActions.contact.fetchContactCosts).not.toHaveBeenCalled();
+      }
+    );
+  });
+
+  // ===========================================================================
+  // Contact Costs Fetching Tests
+  // These tests verify that costs are fetched from the backend and used
+  // ===========================================================================
+
+  describe('Contact Costs Fetching', () => {
+    it(
+      'fetches contact costs when dialog opens',
+      {
+        meta: {
+          alias: 'ContactManager-FetchesCosts',
+          scenario: 'Contact manager dialog opens',
+          behavior: 'Should fetch contact costs from the backend',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+          })
+        );
+
+        await waitFor(() => {
+          expect(mockActions.contact.fetchContactCosts).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+          expect(result.current.contactCosts).not.toBeNull();
+        });
+
+        expect(result.current.contactCosts!.phone.monthlyCost).toBe(1.5);
+        expect(result.current.contactCosts!.email.monthlyCost).toBe(14.0);
+        expect(result.current.contactCosts!.whatsapp.monthlyCost).toBe(5.0);
+        expect(result.current.contactCosts!.whatsapp.oneTimeCost).toBe(5.0);
+      }
+    );
+
+    it(
+      'exposes isLoadingContactCosts state',
+      {
+        meta: {
+          alias: 'ContactManager-CostsLoadingState',
+          scenario: 'Contact costs are being fetched',
+          behavior: 'isLoadingContactCosts should track loading state',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+          })
+        );
+
+        // Eventually should finish loading
+        await waitFor(() => {
+          expect(result.current.isLoadingContactCosts).toBe(false);
+        });
+      }
+    );
+
+    it(
+      'falls back to hardcoded costs when fetch fails',
+      {
+        meta: {
+          alias: 'ContactManager-CostsFallback',
+          scenario: 'Contact costs fetch returns error',
+          behavior: 'contactCosts should be null, monthlyCost should be null',
+        },
+      },
+      async () => {
+        const actionsWithFailedCosts = createMockAssistantActions();
+        actionsWithFailedCosts.contact.fetchContactCosts = vi
+          .fn()
+          .mockResolvedValue({ detail: 'Service unavailable' });
+
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: actionsWithFailedCosts,
+            onSuccess,
+            initialTab: 'email',
+          })
+        );
+
+        await waitFor(() => {
+          expect(actionsWithFailedCosts.contact.fetchContactCosts).toHaveBeenCalled();
+        });
+
+        // contactCosts stays null on error
+        expect(result.current.contactCosts).toBeNull();
+
+        // monthlyCost is null when costs could not be fetched
+        expect(result.current.monthlyCost).toBeNull();
+      }
+    );
+
+    it(
+      'uses fetched costs for monthlyCost instead of hardcoded',
+      {
+        meta: {
+          alias: 'ContactManager-FetchedMonthlyCost',
+          scenario: 'Contact costs are fetched with custom values',
+          behavior: 'monthlyCost should reflect the fetched values',
+        },
+      },
+      async () => {
+        const customCostActions = createMockAssistantActions();
+        customCostActions.contact.fetchContactCosts = vi.fn().mockResolvedValue({
+          phone: { monthlyCost: 2.5, oneTimeCost: 0 },
+          email: { monthlyCost: 20.0, oneTimeCost: 0 },
+          whatsapp: { monthlyCost: 15.0, oneTimeCost: 8.0 },
+        } as ContactCosts);
+
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: customCostActions,
+            onSuccess,
+            initialTab: 'email',
+          })
+        );
+
+        await waitFor(() => {
+          expect(result.current.contactCosts).not.toBeNull();
+        });
+
+        // Should use fetched cost (20.0) not fallback (14.0)
+        expect(result.current.monthlyCost).toBe(20.0);
+
+        // Switch to phone
+        act(() => {
+          result.current.setActiveTab('phone');
+        });
+        expect(result.current.monthlyCost).toBe(2.5);
+
+        // Switch to whatsapp
+        act(() => {
+          result.current.setActiveTab('whatsapp');
+        });
+        expect(result.current.monthlyCost).toBe(15.0);
+        expect(result.current.creationCost).toBe(8.0);
       }
     );
   });
@@ -417,12 +583,12 @@ describe('useAssistantContactManager', () => {
     );
 
     it(
-      'submitContact calls assistant.update with email payload',
+      'submitContact calls contact.create with email payload',
       {
         meta: {
           alias: 'ContactManager-SubmitEmail',
           scenario: 'User creates email and submits',
-          behavior: 'Should call update API with ONLY email field',
+          behavior: 'Should call dedicated contact create endpoint with email payload',
         },
       },
       async () => {
@@ -450,20 +616,21 @@ describe('useAssistantContactManager', () => {
           await result.current.submitContact();
         });
 
-        // Verify assistant.update was called with only email-related payload
-        expect(mockActions.assistant.update).toHaveBeenCalledWith(mockAssistant.agentId, {
-          email: 'newassistant@unify.ai',
+        // Verify contact.create was called with email payload
+        expect(mockActions.contact.create).toHaveBeenCalledWith(mockAssistant.agentId, {
+          contactType: 'email',
+          emailLocal: 'newassistant',
         });
       }
     );
 
     it(
-      'submitContact calls assistant.update with phone payload',
+      'submitContact calls contact.create with phone payload',
       {
         meta: {
           alias: 'ContactManager-SubmitPhone',
           scenario: 'User verifies phone and submits',
-          behavior: 'Should call update API with phone fields',
+          behavior: 'Should call dedicated contact create endpoint with phone fields',
         },
       },
       async () => {
@@ -498,9 +665,10 @@ describe('useAssistantContactManager', () => {
           await result.current.submitContact();
         });
 
-        expect(mockActions.assistant.update).toHaveBeenCalledWith(mockAssistant.agentId, {
-          userPhone: '+15551234567',
+        expect(mockActions.contact.create).toHaveBeenCalledWith(mockAssistant.agentId, {
+          contactType: 'phone',
           phoneCountry: 'US',
+          userPhone: '+15551234567',
         });
       }
     );
@@ -558,7 +726,7 @@ describe('useAssistantContactManager', () => {
         const { toast } = await import('sonner');
 
         const mockActionsWithError = createMockAssistantActions();
-        mockActionsWithError.assistant.update = vi.fn().mockResolvedValue({
+        mockActionsWithError.contact.create = vi.fn().mockResolvedValue({
           detail: 'Email already exists in the system',
         });
 
@@ -635,8 +803,8 @@ describe('useAssistantContactManager', () => {
           expect.stringContaining('verified'),
           expect.any(Object)
         );
-        // Should NOT call update
-        expect(mockActions.assistant.update).not.toHaveBeenCalled();
+        // Should NOT call create
+        expect(mockActions.contact.create).not.toHaveBeenCalled();
       }
     );
 
@@ -650,8 +818,8 @@ describe('useAssistantContactManager', () => {
         },
       },
       async () => {
-        // Make update take some time
-        mockActions.assistant.update = vi
+        // Make create take some time
+        mockActions.contact.create = vi
           .fn()
           .mockImplementation(
             () => new Promise((resolve) => setTimeout(() => resolve({ info: 'ok' }), 100))
@@ -693,6 +861,134 @@ describe('useAssistantContactManager', () => {
         });
 
         expect(result.current.isSubmittingContact).toBe(false);
+      }
+    );
+  });
+
+  // ===========================================================================
+  // Monthly Cost Computation Tests
+  // ===========================================================================
+
+  describe('Monthly Cost', () => {
+    it(
+      'returns email monthly cost when email tab is active',
+      {
+        meta: {
+          alias: 'ContactManager-MonthlyCostEmail',
+          scenario: 'Active tab is email',
+          behavior: 'monthlyCost should reflect the email monthly rate',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+            initialTab: 'email',
+          })
+        );
+
+        // Initially uses fallback (fetched costs arrive async)
+        // After costs load, should still be 14.0 (mock returns same values)
+        await waitFor(() => {
+          expect(result.current.monthlyCost).toBe(14.0);
+        });
+      }
+    );
+
+    it(
+      'returns phone monthly cost when phone tab is active',
+      {
+        meta: {
+          alias: 'ContactManager-MonthlyCostPhone',
+          scenario: 'Active tab is phone',
+          behavior: 'monthlyCost should reflect the phone monthly rate',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+            initialTab: 'phone',
+          })
+        );
+
+        await waitFor(() => {
+          expect(result.current.monthlyCost).toBe(1.5);
+        });
+      }
+    );
+
+    it(
+      'returns whatsapp monthly cost when whatsapp tab is active',
+      {
+        meta: {
+          alias: 'ContactManager-MonthlyCostWhatsApp',
+          scenario: 'Active tab is whatsapp',
+          behavior: 'monthlyCost should reflect the WhatsApp monthly rate',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+            initialTab: 'whatsapp',
+          })
+        );
+
+        await waitFor(() => {
+          expect(result.current.monthlyCost).toBe(5.0);
+        });
+      }
+    );
+
+    it(
+      'updates monthlyCost when active tab changes',
+      {
+        meta: {
+          alias: 'ContactManager-MonthlyCostTabSwitch',
+          scenario: 'User switches between tabs',
+          behavior: 'monthlyCost should update to reflect the new tab cost',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+            initialTab: 'email',
+          })
+        );
+
+        // Wait for costs to load
+        await waitFor(() => {
+          expect(result.current.contactCosts).not.toBeNull();
+        });
+
+        // Initially email tab
+        expect(result.current.monthlyCost).toBe(14.0);
+
+        // Switch to phone tab
+        act(() => {
+          result.current.setActiveTab('phone');
+        });
+        expect(result.current.monthlyCost).toBe(1.5);
+
+        // Switch to whatsapp tab
+        act(() => {
+          result.current.setActiveTab('whatsapp');
+        });
+        expect(result.current.monthlyCost).toBe(5.0);
       }
     );
   });

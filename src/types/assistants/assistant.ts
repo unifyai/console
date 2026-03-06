@@ -4,6 +4,7 @@ import { AssistantHiringApprovalResponse, HiringProfileData } from '../user';
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
+import { ContactCosts, AssistantContactCreatePayload } from './contact';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -45,7 +46,7 @@ export interface Assistant {
   // Voice fields
   voiceId: string | null; // Provider Voice ID
   voiceProvider: VoiceProvider | null;
-  // Contact fields
+  // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;
@@ -439,6 +440,10 @@ export interface AssistantActions {
       assistantId: string,
       contactType: 'phone' | 'email' | 'whatsapp'
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
+    create: (
+      assistantId: string,
+      payload: AssistantContactCreatePayload
+    ) => Promise<ResponseProps & { assistant?: Assistant }>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
@@ -446,6 +451,7 @@ export interface AssistantActions {
       platform: string,
       accountIdentifier: string
     ) => Promise<{ verificationCode: string; sentAt: string } | ResponseProps>;
+    fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
   };
   secret: SecretActions;
   approval: {

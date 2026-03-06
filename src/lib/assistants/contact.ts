@@ -5,7 +5,12 @@ import {
   Assistant,
 } from '../../types/assistants/assistant';
 import { getCountryFlag, getCountryName } from '../../utils/assistants/country-utils';
-import { snakeToCamelObject } from '@/utils/casing';
+import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import {
+  AssistantContactCost,
+  AssistantContactCreatePayload,
+  ContactCosts,
+} from '@/types/assistants/contact';
 
 export const listAllAssistantEmails = async (apiKey: string) => {
   return async (): Promise<string[] | ResponseProps> => {
@@ -177,3 +182,129 @@ export const deleteAssistantContact = async (apiKey: string) => {
     }
   };
 };
+
+/**
+ * Create a new contact detail for an assistant.
+ *
+ * Calls POST /api/assistant/{assistantId}/contact which proxies to
+ * POST /v0/assistant/{assistant_id}/contact in Orchestra.
+ *
+ * This provisions the external infrastructure (phone, email, WhatsApp) and
+ * creates a billing-tracked AssistantContact record.
+ */
+export const createAssistantContact = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    payload: AssistantContactCreatePayload
+  ): Promise<ResponseProps & { assistant?: Assistant }> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/contact`,
+        {
+          method: 'POST',
+          headers: {
+            apiKey: apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(camelToSnakeObject(payload)),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.detail || `Failed to create contact: ${response.statusText}`;
+        return { detail: errorMessage };
+      }
+
+      const successMessage = data.info || `Contact created successfully.`;
+      const updatedAssistant = data.info ? snakeToCamelObject<Assistant>(data.info) : undefined;
+      return { info: successMessage, assistant: updatedAssistant };
+    } catch (error) {
+      console.error(
+        `[contact.ts createAssistantContact] Error creating contact for assistant ${assistantId}:`,
+        error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown server error occurred.';
+      return { detail: errorMessage };
+    }
+  };
+};
+
+/**
+ * Fetch contact costs from the admin billing endpoint.
+ *
+ * Calls GET /api/admin/contact-costs which proxies to
+ * GET /v0/admin/billing/contact-costs in Orchestra.
+ *
+ * Returns a keyed map of costs per contact type. Falls back to hardcoded
+ * defaults if the fetch fails.
+ */
+export const fetchContactCosts = async (adminKey: string) => {
+  return async (): Promise<ContactCosts | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-costs`, {
+        method: 'GET',
+        headers: { apiKey: adminKey },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.warn(
+          '[contact.ts fetchContactCosts] Backend returned error:',
+          data.detail
+        );
+        return { detail: data.detail || 'Failed to fetch contact costs' };
+      }
+
+      // data is an array of AssistantContactCost rows (already camelCase from the route)
+      if (Array.isArray(data)) {
+        return buildCostsFromRows(data as AssistantContactCost[]);
+      }
+
+      console.warn(
+        '[contact.ts fetchContactCosts] Unexpected response format'
+      );
+      return { detail: 'Unexpected response format when fetching contact costs' };
+    } catch (error) {
+      console.error('[contact.ts fetchContactCosts] Error fetching contact costs:', error);
+      return { detail: error instanceof Error ? error.message : 'Unknown error fetching contact costs' };
+    }
+  };
+};
+
+/**
+ * Build a ContactCosts map from an array of AssistantContactCost rows.
+ *
+ * For each contact type, picks the default row (provider=null, countryCode=null)
+ * or falls back to the first row matching that type.
+ */
+function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
+  const costs: ContactCosts = {
+    phone: { monthlyCost: 0, oneTimeCost: 0 },
+    email: { monthlyCost: 0, oneTimeCost: 0 },
+    whatsapp: { monthlyCost: 0, oneTimeCost: 0 },
+  };
+
+  for (const type of ['phone', 'email', 'whatsapp'] as const) {
+    const typeRows = rows.filter((r) => r.contactType === type);
+    if (typeRows.length === 0) continue;
+
+    // Prefer the default row (no specific provider/country)
+    const defaultRow =
+      typeRows.find((r) => r.provider === null && r.countryCode === null) || typeRows[0];
+
+    costs[type] = {
+      monthlyCost: defaultRow.monthlyCost,
+      oneTimeCost: defaultRow.oneTimeCost,
+    };
+  }
+
+  return costs;
+}

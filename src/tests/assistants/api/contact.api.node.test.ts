@@ -201,6 +201,178 @@ describe('Contact API Routes', () => {
     );
   });
 
+  describe('GET /api/admin/contact-costs', () => {
+    it(
+      'returns contact cost rows from backend',
+      {
+        meta: {
+          alias: 'ContactCosts-List',
+          scenario: 'Backend returns cost rows',
+          behavior: 'Returns array of contact costs',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/billing/contact-costs`, () => {
+            return HttpResponse.json([
+              { id: 1, contact_type: 'phone', provider: null, country_code: null, monthly_cost: 1.5, one_time_cost: 5.0 },
+              { id: 2, contact_type: 'email', provider: null, country_code: null, monthly_cost: 14.0, one_time_cost: 5.0 },
+              { id: 3, contact_type: 'whatsapp', provider: null, country_code: null, monthly_cost: 5.0, one_time_cost: 5.0 },
+            ]);
+          })
+        );
+
+        // Act
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/billing/contact-costs`, {
+          headers: { Authorization: `Bearer admin-key` },
+        });
+        const data = await response.json();
+
+        // Assert
+        expect(response.ok).toBe(true);
+        expect(data).toHaveLength(3);
+        expect(data[0].contact_type).toBe('phone');
+        expect(data[2].one_time_cost).toBe(5.0);
+      }
+    );
+
+    it(
+      'handles backend error',
+      {
+        meta: {
+          alias: 'ContactCosts-Error',
+          scenario: 'Backend returns error',
+          behavior: 'Returns error status',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/billing/contact-costs`, () => {
+            return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+          })
+        );
+
+        // Act
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/admin/billing/contact-costs`, {
+          headers: { Authorization: `Bearer bad-key` },
+        });
+
+        // Assert
+        expect(response.status).toBe(401);
+      }
+    );
+  });
+
+  describe('POST /api/assistant/{id}/contact', () => {
+    it(
+      'creates a contact for the assistant',
+      {
+        meta: {
+          alias: 'AssistantContact-Create',
+          scenario: 'Valid contact creation request',
+          behavior: 'Returns created contact info',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_ORCHESTRA_URL}/v0/assistant/:id/contact`, () => {
+            return HttpResponse.json({
+              info: { agent_id: 'a1', email: 'test@unify.ai' },
+            });
+          })
+        );
+
+        // Act
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/assistant/a1/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${TEST_API_KEY}`,
+          },
+          body: JSON.stringify({ contact_type: 'email', email_local: 'test' }),
+        });
+        const data = await response.json();
+
+        // Assert
+        expect(response.ok).toBe(true);
+        expect(data.info.email).toBe('test@unify.ai');
+      }
+    );
+
+    it(
+      'handles creation failure',
+      {
+        meta: {
+          alias: 'AssistantContact-CreateError',
+          scenario: 'Backend rejects contact creation',
+          behavior: 'Returns error response',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.post(`${MOCK_ORCHESTRA_URL}/v0/assistant/:id/contact`, () => {
+            return HttpResponse.json({ detail: 'Email already provisioned' }, { status: 409 });
+          })
+        );
+
+        // Act
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/assistant/a1/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${TEST_API_KEY}`,
+          },
+          body: JSON.stringify({ contact_type: 'email', email_local: 'existing' }),
+        });
+
+        // Assert
+        expect(response.status).toBe(409);
+      }
+    );
+  });
+
+  describe('PUT /api/assistant/{id}/contact', () => {
+    it(
+      'updates a contact for the assistant',
+      {
+        meta: {
+          alias: 'AssistantContact-Update',
+          scenario: 'Valid contact update request',
+          behavior: 'Returns updated contact info',
+        },
+      },
+      async () => {
+        // Arrange
+        server.use(
+          http.put(`${MOCK_ORCHESTRA_URL}/v0/assistant/:id/contact`, () => {
+            return HttpResponse.json({
+              info: { agent_id: 'a1', email: 'updated@unify.ai' },
+            });
+          })
+        );
+
+        // Act
+        const response = await fetch(`${MOCK_ORCHESTRA_URL}/v0/assistant/a1/contact`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${TEST_API_KEY}`,
+          },
+          body: JSON.stringify({ contact_type: 'email', email_local: 'updated' }),
+        });
+        const data = await response.json();
+
+        // Assert
+        expect(response.ok).toBe(true);
+        expect(data.info.email).toBe('updated@unify.ai');
+      }
+    );
+  });
+
   describe('GET /api/contact/phone/available-countries', () => {
     it(
       'returns processed country list',

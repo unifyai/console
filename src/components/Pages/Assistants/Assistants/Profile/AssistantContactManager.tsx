@@ -24,7 +24,11 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { Assistant, ContactFormData, AssistantActions } from '@/types/assistants/assistant';
+import {
+  Assistant,
+  ContactFormData,
+  AssistantActions,
+} from '@/types/assistants/assistant';
 import { FormProvider, useFormContext, useWatch, useFieldArray } from 'react-hook-form';
 import {
   EMAIL_DOMAIN_WITH_AT,
@@ -44,7 +48,7 @@ import { WhatsApp } from '@mui/icons-material';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
-import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
+import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({
   assistantActions,
@@ -207,7 +211,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
 
 const WhatsAppVerificationSection: React.FC<{
   assistantActions: AssistantActions;
-  cost: number;
+  cost: number | null;
 }> = ({ assistantActions, cost }) => {
   const {
     control,
@@ -324,8 +328,9 @@ const WhatsAppVerificationSection: React.FC<{
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>
-                  Costs ${cost.toFixed(2)} credits to pair with your assistant. Verify first to
-                  link.
+                  {cost !== null
+                    ? `Costs $${cost.toFixed(2)} credits to pair with your assistant. Verify first to link.`
+                    : 'A setup fee applies to pair with your assistant. Verify first to link.'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -402,9 +407,14 @@ interface AssistantContactManagerProps {
   initialTab?: 'email' | 'phone' | 'whatsapp';
   /** Whether the current user can edit contact details */
   canWrite?: boolean;
+  /** Callback to open the Stripe payment panel when credits are insufficient */
+  onAddPaymentMethod?: () => void;
 }
 
-const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+const DisplayContactField: React.FC<{
+  label: string;
+  value: string;
+}> = ({ label, value }) => {
   const [isCopied, setIsCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -454,6 +464,7 @@ export function AssistantContactManager({
   onSuccess,
   initialTab,
   canWrite = true,
+  onAddPaymentMethod,
 }: AssistantContactManagerProps) {
   const {
     // Self-contained form methods from the hook
@@ -466,6 +477,7 @@ export function AssistantContactManager({
     availablePhoneCountries,
     isLoadingPhoneCountries,
     creationCost,
+    monthlyCost,
     isCreateButtonDisabled,
     showCreateButton,
     showDeleteButton,
@@ -509,40 +521,6 @@ export function AssistantContactManager({
     }
   };
 
-  // In non-staging environments, show a "Coming Soon" placeholder instead of the full manager.
-  const { isStaging } = useEnvironment();
-  if (!isStaging) {
-    const handleDialogClose = (open: boolean) => {
-      if (!open) onClose();
-    };
-
-    return (
-      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-title">Contact Channels</DialogTitle>
-            <DialogDescription className="text-subtitle">
-              Manage contact details for {assistant.firstName}.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 flex items-center gap-3 text-muted-foreground">
-              <Mail className="h-6 w-6" />
-              <Phone className="h-6 w-6" />
-              <WhatsApp sx={{ fontSize: '24px' }} />
-            </div>
-            <h3 className="text-h2 mb-2">Coming Soon</h3>
-            <p className="text-body mx-auto max-w-sm text-muted-foreground">
-              Email, phone, and WhatsApp contact channels for your assistants will be available
-              soon.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent onInteractOutside={handleInteractOutside as any}>
@@ -582,7 +560,10 @@ export function AssistantContactManager({
               </TabsList>
               <TabsContent value="email" className="py-4">
                 {assistant.email ? (
-                  <DisplayContactField label="Email Address" value={assistant.email} />
+                  <DisplayContactField
+                    label="Email Address"
+                    value={assistant.email}
+                  />
                 ) : canWrite ? (
                   <div className="space-y-2">
                     <Label htmlFor="email_local_part">Email address</Label>
@@ -630,7 +611,10 @@ export function AssistantContactManager({
               </TabsContent>
               <TabsContent value="phone" className="py-4">
                 {assistant.phone ? (
-                  <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
+                  <DisplayContactField
+                    label="Assistant Phone Number"
+                    value={assistant.phone}
+                  />
                 ) : canWrite ? (
                   <div className="space-y-4">
                     <div>
@@ -791,17 +775,60 @@ export function AssistantContactManager({
                 </Button>
               </div>
             ) : showCreateButton && canWrite ? (
-              <div className="flex w-full items-center justify-between">
-                <p className="text-body text-muted-foreground">
-                  Cost:{' '}
-                  <span className="text-strong text-foreground">
-                    {creationCost.toFixed(2)} Credits
-                  </span>
-                </p>
-                <Button onClick={submitContact} disabled={isCreateButtonDisabled || isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create
-                </Button>
+              <div className="flex w-full flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-body text-muted-foreground">
+                    {creationCost !== null && creationCost > 0 ? (
+                      <p>
+                        Setup:{' '}
+                        <span className="text-strong text-foreground">
+                          {creationCost.toFixed(2)} Credits
+                        </span>
+                      </p>
+                    ) : creationCost === null ? (
+                      <p>
+                        <span className="text-strong text-foreground">Setup fee applies</span>
+                      </p>
+                    ) : null}
+                    {monthlyCost !== null && monthlyCost > 0 ? (
+                      <p>
+                        Monthly:{' '}
+                        <span className="text-strong text-foreground">
+                          {monthlyCost.toFixed(2)} Credits/mo
+                        </span>
+                      </p>
+                    ) : monthlyCost === null ? (
+                      <p>
+                        <span className="text-strong text-foreground">
+                          Monthly fee applies
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
+                  <BillableActionGuard
+                    creditsRequired={
+                      creationCost !== null && creationCost > 0
+                        ? creationCost
+                        : monthlyCost !== null && monthlyCost > 0
+                          ? monthlyCost
+                          : 0
+                    }
+                    onAddPaymentMethod={onAddPaymentMethod}
+                    tooltipMessage={
+                      monthlyCost !== null && monthlyCost > 0
+                        ? `This will add $${monthlyCost.toFixed(2)}/month to your bill.`
+                        : undefined
+                    }
+                  >
+                    <Button
+                      onClick={submitContact}
+                      disabled={isCreateButtonDisabled || isSubmitting}
+                    >
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create
+                    </Button>
+                  </BillableActionGuard>
+                </div>
               </div>
             ) : null}
           </DialogFooter>

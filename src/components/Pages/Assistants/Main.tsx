@@ -960,6 +960,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             onSuccess={handleUpdateSuccess}
             initialTab={contactManagerInitialTab}
             canWrite={canWrite(contactManagerAssistant)}
+            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
           />
         )}
       </FormProvider>
