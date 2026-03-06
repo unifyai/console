@@ -510,6 +510,7 @@ export function useAssistantActions(
               hierarchy: toolEntries.hierarchy,
               hierarchyLabel: toolEntries.hierarchyLabel ?? '',
               eventTimestamp: eventTs,
+              toolAliases: toolEntries.toolAliases ?? null,
             },
           };
 
