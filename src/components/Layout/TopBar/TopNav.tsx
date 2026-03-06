@@ -193,115 +193,20 @@ export default function TopNav() {
             />
           </Link>
 
-          {/* Workspace Pill */}
-          {activeWorkspace && (
-            <>
-              <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
-              {isWorkspaceSwitchable ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
-                    >
-                      {activeWorkspace.type === 'personal' ? (
-                        workspacePhotos['personal'] ? (
-                          <Image
-                            width={16}
-                            height={16}
-                            unoptimized
-                            src={workspacePhotos['personal']}
-                            alt=""
-                            className="h-4 w-4 shrink-0 rounded-full object-cover"
-                          />
-                        ) : (
-                          <User className="h-3.5 w-3.5" />
-                        )
-                      ) : orgLogoUrl ? (
-                        <Image
-                          width={20}
-                          height={20}
-                          unoptimized
-                          src={orgLogoUrl}
-                          alt=""
-                          className="h-5 w-5 shrink-0 rounded-full object-cover"
-                        />
-                      ) : (
-                        <Building2 className="h-3.5 w-3.5" />
-                      )}
-                      <span className="max-w-[250px] truncate">{activeWorkspace.name}</span>
-                      <ChevronDown className="h-3 w-3 opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[200px]" align="start">
-                    <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
-                    {workspaces
-                      .filter((w) => w.type === 'personal')
-                      .map((w) => (
-                        <DropdownMenuItem
-                          key={w.id}
-                          onSelect={() => handlePersonalWorkspaceSwitch()}
-                          className="cursor-pointer items-center gap-2"
-                        >
-                          {workspacePhotos['personal'] ? (
-                            <Image
-                              width={16}
-                              height={16}
-                              unoptimized
-                              src={workspacePhotos['personal']}
-                              alt=""
-                              className="h-4 w-4 shrink-0 rounded-full object-cover"
-                            />
-                          ) : (
-                            <User className="h-4 w-4" />
-                          )}
-                          {w.name}
-                          {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-
-                    <DropdownMenuSeparator />
-
-                    <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
-                    {workspaces.filter((w) => w.type === 'organization').length === 0 && (
-                      <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
-                        No organizations
-                      </div>
-                    )}
-                    {workspaces
-                      .filter((w) => w.type === 'organization')
-                      .map((w) => (
-                        <DropdownMenuItem
-                          key={w.id}
-                          onSelect={() => switchWorkspace(w.id)}
-                          className="cursor-pointer items-center gap-2"
-                        >
-                          {workspacePhotos[w.id] ? (
-                            <Image
-                              width={16}
-                              height={16}
-                              unoptimized
-                              src={workspacePhotos[w.id]}
-                              alt=""
-                              className="h-4 w-4 shrink-0 rounded-full object-cover"
-                            />
-                          ) : (
-                            <Building2 className="h-4 w-4" />
-                          )}
-                          {w.name}
-                          {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
-                        </DropdownMenuItem>
-                      ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href="/organizations"
-                        className="text-body-muted flex h-6 items-center gap-1.5 px-2 transition-colors hover:text-foreground"
-                        data-testid="workspace-label"
+          {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}
+          {activeWorkspace &&
+            (activeWorkspace.type === 'organization' || isWorkspaceSwitchable) && (
+              <>
+                <div
+                  className="mx-[13px] h-5 w-px bg-[color:var(--border)]"
+                  aria-hidden="true"
+                ></div>
+                {isWorkspaceSwitchable ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
                       >
                         {activeWorkspace.type === 'personal' ? (
                           workspacePhotos['personal'] ? (
@@ -328,19 +233,118 @@ export default function TopNav() {
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
                         )}
-                        <span className="max-w-[250px] truncate pt-0.5">
-                          {activeWorkspace.name}
-                        </span>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>{activeWorkspace.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </>
-          )}
+                        <span className="max-w-[250px] truncate">{activeWorkspace.name}</span>
+                        <ChevronDown className="h-3 w-3 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[200px]" align="start">
+                      <DropdownMenuLabel className="text-caption">Personal</DropdownMenuLabel>
+                      {workspaces
+                        .filter((w) => w.type === 'personal')
+                        .map((w) => (
+                          <DropdownMenuItem
+                            key={w.id}
+                            onSelect={() => handlePersonalWorkspaceSwitch()}
+                            className="cursor-pointer items-center gap-2"
+                          >
+                            {workspacePhotos['personal'] ? (
+                              <Image
+                                width={16}
+                                height={16}
+                                unoptimized
+                                src={workspacePhotos['personal']}
+                                alt=""
+                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <User className="h-4 w-4" />
+                            )}
+                            {w.name}
+                            {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                          </DropdownMenuItem>
+                        ))}
+
+                      <DropdownMenuSeparator />
+
+                      <DropdownMenuLabel className="text-caption">Organizations</DropdownMenuLabel>
+                      {workspaces.filter((w) => w.type === 'organization').length === 0 && (
+                        <div className="px-2 py-1.5 text-sm italic text-muted-foreground">
+                          No organizations
+                        </div>
+                      )}
+                      {workspaces
+                        .filter((w) => w.type === 'organization')
+                        .map((w) => (
+                          <DropdownMenuItem
+                            key={w.id}
+                            onSelect={() => switchWorkspace(w.id)}
+                            className="cursor-pointer items-center gap-2"
+                          >
+                            {workspacePhotos[w.id] ? (
+                              <Image
+                                width={16}
+                                height={16}
+                                unoptimized
+                                src={workspacePhotos[w.id]}
+                                alt=""
+                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <Building2 className="h-4 w-4" />
+                            )}
+                            {w.name}
+                            {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                          </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href="/organizations"
+                          className="text-body-muted flex h-6 items-center gap-1.5 px-2 transition-colors hover:text-foreground"
+                          data-testid="workspace-label"
+                        >
+                          {activeWorkspace.type === 'personal' ? (
+                            workspacePhotos['personal'] ? (
+                              <Image
+                                width={16}
+                                height={16}
+                                unoptimized
+                                src={workspacePhotos['personal']}
+                                alt=""
+                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <User className="h-3.5 w-3.5" />
+                            )
+                          ) : orgLogoUrl ? (
+                            <Image
+                              width={20}
+                              height={20}
+                              unoptimized
+                              src={orgLogoUrl}
+                              alt=""
+                              className="h-5 w-5 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Building2 className="h-3.5 w-3.5" />
+                          )}
+                          <span className="max-w-[250px] truncate pt-0.5">
+                            {activeWorkspace.name}
+                          </span>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>{activeWorkspace.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </>
+            )}
         </div>
 
         {/* Right side */}
