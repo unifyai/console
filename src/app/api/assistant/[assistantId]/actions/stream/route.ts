@@ -18,13 +18,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { snakeToCamelObject } from '@/utils/casing';
-import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
 import {
   getAuthClient,
   createEphemeralSubscription,
   deleteSubscription,
   getTopicName,
 } from '@/lib/pubsub/ephemeral-subscription';
+import { isManagerExcluded } from '@/lib/assistants/event-filters';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +71,7 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
         errorType: camelEvent.errorType,
         traceback: camelEvent.traceback,
         message: camelEvent.message,
+        toolAliases: camelEvent.toolAliases ?? null,
       },
     },
   };
