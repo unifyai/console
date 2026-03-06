@@ -40,10 +40,12 @@ import { TableRow, TableCell } from '@/components/UI/table';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
 import { UnifiedMember } from '@/hooks/useOrganization';
+import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { formatSpendAmount } from '@/types/assistants/spending';
 
@@ -62,6 +64,7 @@ export interface MemberSpendingInfo {
 interface MemberRowProps {
   member: UnifiedMember;
   userTeams?: string[];
+  memberAssistants?: MemberAssistantInfo[];
   roles: OrganizationRole[];
   currentUserId: string;
   canManageMembers: boolean;
@@ -95,6 +98,7 @@ const getRoleBadgeColor = (roleName: string) => {
 const MemberRow = ({
   member,
   userTeams,
+  memberAssistants,
   roles,
   currentUserId,
   canManageMembers,
@@ -190,6 +194,26 @@ const MemberRow = ({
         {/* Email */}
         <TableCell className="hidden lg:table-cell">
           <span className="text-body-muted block max-w-[200px] truncate">{member.email}</span>
+        </TableCell>
+
+        {/* Assistants */}
+        <TableCell className="text-center">
+          <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
+            {member.status === 'active' && memberAssistants && memberAssistants.length > 0 ? (
+              memberAssistants.map((a) => (
+                <Link key={a.agentId} href={`/assistants?profile=${a.agentId}`}>
+                  <Badge
+                    variant="secondary"
+                    className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
+                  >
+                    {a.firstName} {a.surname}
+                  </Badge>
+                </Link>
+              ))
+            ) : (
+              <span className="text-caption">-</span>
+            )}
+          </div>
         </TableCell>
 
         {/* Teams - Aligned Center */}

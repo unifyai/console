@@ -20,6 +20,7 @@ import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
 import { Search, Loader2, Users, Shield } from 'lucide-react';
 import MemberRow, { MemberSpendingInfo } from './MemberRow';
+import { MemberAssistantInfo } from './Main';
 import InviteMemberDialog from './InviteMemberDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
@@ -94,6 +95,8 @@ interface OrganizationWorkspaceViewProps {
   orgSpendingLimit?: number | null;
   // MFA Settings Actions (optional - if not provided, security settings are hidden)
   mfaSettingsActions?: MfaSettingsActions;
+  // Assistants grouped by supervisor userId
+  memberAssistantsMap?: Map<string, MemberAssistantInfo[]>;
 }
 
 const OrganizationWorkspaceView = ({
@@ -126,6 +129,7 @@ const OrganizationWorkspaceView = ({
   memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
+  memberAssistantsMap,
 }: OrganizationWorkspaceViewProps) => {
   const searchParams = useSearchParams();
   const validTabs = ['organization', 'members', 'teams', 'roles', 'security'];
@@ -448,10 +452,13 @@ const OrganizationWorkspaceView = ({
                       >
                         User
                       </TableHead>
-                      <TableHead className="hidden w-[20%] min-w-[180px] lg:table-cell">
+                      <TableHead className="hidden w-[15%] min-w-[180px] lg:table-cell">
                         Email
                       </TableHead>
-                      <TableHead className="w-[15%] min-w-[100px] text-center">Teams</TableHead>
+                      <TableHead className="w-[15%] min-w-[100px] text-center">
+                        Assistants
+                      </TableHead>
+                      <TableHead className="w-[12%] min-w-[100px] text-center">Teams</TableHead>
                       <TableHead className="w-[12%] min-w-[80px] text-center">Role</TableHead>
                       {spendingEnabled && (
                         <TableHead className="w-[12%] min-w-[100px] text-center">
@@ -475,6 +482,9 @@ const OrganizationWorkspaceView = ({
                           key={member.id}
                           member={member}
                           userTeams={userTeams}
+                          memberAssistants={
+                            member.userId ? memberAssistantsMap?.get(member.userId) : undefined
+                          }
                           roles={roles}
                           currentUserId={currentUserId}
                           canManageMembers={canManageMembers}
