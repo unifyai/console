@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Organization,
   OrganizationRole,
@@ -132,10 +132,25 @@ const OrganizationWorkspaceView = ({
   memberAssistantsMap,
 }: OrganizationWorkspaceViewProps) => {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const validTabs = ['organization', 'members', 'teams', 'roles', 'security'];
   const tabParam = searchParams.get('tab');
-  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'organization';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const activeTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'organization';
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === 'organization') {
+        params.delete('tab');
+      } else {
+        params.set('tab', tab);
+      }
+      const query = params.toString();
+      router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
+    },
+    [searchParams, router, pathname]
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');

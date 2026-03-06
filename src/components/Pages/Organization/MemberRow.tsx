@@ -238,23 +238,25 @@ const MemberRow = ({
         {/* Role - Aligned Center */}
         <TableCell className="text-center">
           <div className="flex justify-center">
-            <Badge
-              variant="outline"
-              className={cn(
-                'whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize',
-                badgeColor
-              )}
-            >
-              {member.status === 'pending' ? (
-                <>
-                  <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
-                </>
-              )}
-            </Badge>
+            <Link href="/organizations?tab=roles">
+              <Badge
+                variant="outline"
+                className={cn(
+                  'cursor-pointer whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize hover:opacity-80',
+                  badgeColor
+                )}
+              >
+                {member.status === 'pending' ? (
+                  <>
+                    <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
+                  </>
+                )}
+              </Badge>
+            </Link>
           </div>
         </TableCell>
 
