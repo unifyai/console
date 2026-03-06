@@ -114,29 +114,70 @@ Console is deployed as the `saas-web-app` Cloud Run service in the `gcp-project-
 
 - **Node.js** 20.x or higher (LTS recommended)
 - **npm** 10.x or higher
+- **Docker** (for local PostgreSQL)
+- **Poetry** (for Orchestra backend)
+- [Orchestra repo](https://github.com/unifyai/orchestra) cloned as a sibling directory (`../orchestra`)
 
 ```bash
 # Check your versions
-node --version  # Should be v20.x.x or higher
-npm --version   # Should be 10.x.x or higher
+node --version    # Should be v20.x.x or higher
+npm --version     # Should be 10.x.x or higher
+docker --version  # Any recent version
+poetry --version  # Any recent version
 ```
 
 ---
 
 ## Quick Start
 
+The fastest way to get a fully working local environment:
+
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Get environment variables from a team member
-# Copy to .env.local
+# 2. Create .env.local (if you don't have one)
+cat > .env.local << 'EOF'
+NEXTAUTH_URL=http://localhost:3333
+ORCHESTRA_URL=http://localhost:8000
+JWT_SECRET=local-sandbox-dev-secret
+ORCHESTRA_ADMIN_KEY=local-dev-admin-key
+EOF
 
-# 3. Start development server
-npm run dev
+# 3. Start everything (Orchestra + Console + seed data)
+./scripts/local.sh
 
-# 4. Open http://localhost:3000
+# 4. Open http://localhost:3333
+#    Login: test@example.com / testpass123
 ```
+
+This starts a local Orchestra backend (PostgreSQL + FastAPI), seeds a test user with an organization and sample assistant, and starts the Next.js dev server.
+
+### What gets seeded
+
+| Entity       | Details                                          |
+| ------------ | ------------------------------------------------ |
+| User         | `test@example.com` / `testpass123` (email login) |
+| Organization | "Acme Corp" (user is Owner)                      |
+| Assistant    | "Karen Myers" (assigned to the organization)     |
+| API keys     | Personal key + org key (auto-created)            |
+
+### Managing the local environment
+
+```bash
+./scripts/local.sh start    # Start everything (default)
+./scripts/local.sh stop     # Stop Console and Orchestra
+./scripts/local.sh restart  # Stop then start (wipes database)
+./scripts/local.sh status   # Show service status
+```
+
+### Configuration
+
+| Variable              | Default        | Description             |
+| --------------------- | -------------- | ----------------------- |
+| `ORCHESTRA_REPO_PATH` | `../orchestra` | Path to Orchestra repo  |
+| `CONSOLE_PORT`        | `3333`         | Next.js dev server port |
+| `ORCHESTRA_PORT`      | `8000`         | Orchestra API port      |
 
 ---
 
@@ -144,11 +185,12 @@ npm run dev
 
 ### Development
 
-| Script          | Description                               |
-| --------------- | ----------------------------------------- |
-| `npm run dev`   | Start development server with hot reload  |
-| `npm run build` | Build production bundle                   |
-| `npm run start` | Start production server (run after build) |
+| Script               | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| `./scripts/local.sh` | Start full local environment (Orchestra + Console)         |
+| `npm run dev`        | Start Console dev server only (needs Orchestra separately) |
+| `npm run build`      | Build production bundle                                    |
+| `npm run start`      | Start production server (run after build)                  |
 
 ### Code Quality
 
@@ -281,7 +323,7 @@ npm run build
 # Start the production server
 npm run start
 
-# Open http://localhost:3000
+# Open http://localhost:3333
 ```
 
 ### Why Test Production Locally?

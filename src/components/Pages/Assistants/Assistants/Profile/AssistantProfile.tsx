@@ -182,7 +182,6 @@ export function AssistantProfilePanel({
           >
             <AssistantProfileInfoPanel
               assistant={assistant}
-              userTimezone={userTimezone}
               onEdit={() => onEdit(assistant)}
               canWrite={canWrite}
               spendingActions={showSpending ? assistantActions.spending : undefined}

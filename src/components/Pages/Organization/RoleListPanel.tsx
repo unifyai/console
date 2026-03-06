@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Role, Permission } from '@/types/role';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/UI/input';
 import { Search, MoreVertical, Trash2, Pencil, Shield } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -70,10 +71,7 @@ const RoleListPanel = ({
   };
 
   return (
-    <div
-      className="flex w-full flex-1 flex-col bg-background"
-      data-testid="role-list-panel"
-    >
+    <div className="flex w-full flex-1 flex-col bg-background" data-testid="role-list-panel">
       {/* Header */}
       <div className="flex flex-shrink-0 flex-col gap-4 border-b p-4">
         <div className="flex items-center gap-2">
@@ -117,8 +115,11 @@ const RoleListPanel = ({
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={role.isSystemRole ? 'secondary' : 'outline'}
-                      className="h-5 text-[10px] font-normal"
+                      variant={role.isSystemRole ? undefined : 'outline'}
+                      className={cn(
+                        'h-5 text-[10px] font-normal',
+                        role.isSystemRole && 'border-transparent bg-muted text-muted-foreground'
+                      )}
                     >
                       {role.isSystemRole ? 'System' : 'Custom'}
                     </Badge>

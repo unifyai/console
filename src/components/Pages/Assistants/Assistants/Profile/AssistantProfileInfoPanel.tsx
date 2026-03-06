@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Clock } from 'lucide-react';
+import Image from 'next/image';
+import { Info } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -11,14 +12,57 @@ import { AssistantPhotoViewer } from '../Hire/AssistantHirePhotoPreview';
 import { Skeleton } from '@/components/UI/skeleton';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
-import { Button } from '@/components/UI/button';
+
+import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
+const signedUrlCache = new Map<string, string>();
+
+function useResolvedImageUrl(image: string | null | undefined): string | null {
+  const cached = image
+    ? (signedUrlCache.get(image) ?? (image.startsWith('gs://') ? null : image))
+    : null;
+  const [url, setUrl] = React.useState<string | null>(cached);
+
+  React.useEffect(() => {
+    if (!image) {
+      setUrl(null);
+      return;
+    }
+    if (signedUrlCache.has(image)) {
+      setUrl(signedUrlCache.get(image)!);
+      return;
+    }
+    if (!image.startsWith('gs://')) {
+      setUrl(image);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      body: JSON.stringify({ gs_url: image }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.signed_url) {
+          signedUrlCache.set(image, data.signed_url);
+          setUrl(data.signed_url);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [image]);
+
+  return url;
+}
+
 interface AssistantProfileInfoPanelProps {
   assistant: Assistant;
-  userTimezone?: string | null;
   onEdit: () => void;
   /** Whether the current user can edit this assistant */
   canWrite?: boolean;
@@ -30,7 +74,6 @@ interface AssistantProfileInfoPanelProps {
 
 export function AssistantProfileInfoPanel({
   assistant,
-  userTimezone,
   onEdit,
   canWrite = true,
   spendingActions,
@@ -40,6 +83,7 @@ export function AssistantProfileInfoPanel({
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
   const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const resolvedSupervisorImage = useResolvedImageUrl(assistant.userImage);
 
   // Spending data (only if actions are provided)
   const spendingData = useAssistantSpending(
@@ -106,24 +150,6 @@ export function AssistantProfileInfoPanel({
     toast.error('Video preview failed to load.');
   };
 
-  const timezoneInfo = React.useMemo(() => {
-    if (!assistant.timezone) return { friendlyName: 'Not set', relativeOffsetString: null };
-
-    const assistantOffset = getTimezoneOffsetInMinutes(assistant.timezone);
-    const localTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localOffset = getTimezoneOffsetInMinutes(localTimezone);
-
-    const offsetDiffHours = (assistantOffset - localOffset) / 60;
-
-    let relativeOffsetString: string | null = null;
-    relativeOffsetString = `${offsetDiffHours >= 0 ? '+' : ''}${offsetDiffHours}H`;
-
-    const assistantUtcOffset = formatOffset(assistantOffset);
-    const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
-
-    return { friendlyName, relativeOffsetString };
-  }, [assistant.timezone, userTimezone]);
-
   return (
     <div className="flex h-full w-full flex-col bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -183,38 +209,58 @@ export function AssistantProfileInfoPanel({
           </div>
         </div>
 
-        {/* Timezone Section */}
-        <div className="group/assistant-timezone pt-2">
-          <h3 className="text-title">Timezone</h3>
-          <div className="grid max-w-sm grid-cols-2 items-center">
-            <span
-              className={cn('text-caption', canWrite && 'cursor-pointer hover:underline')}
-              onClick={canWrite ? onEdit : undefined}
-            >
-              {timezoneInfo.friendlyName}
-            </span>
-            {timezoneInfo.relativeOffsetString && (
+        {/* Supervisor Section */}
+        {assistant.organizationId && (
+          <div className="pt-2">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-title">Supervisor</h3>
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-caption mr-3 h-auto gap-1 px-2 py-1"
-                      onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}
-                    >
-                      {timezoneInfo.relativeOffsetString}
-                      <Clock className="h-3 w-3" />
-                    </Button>
+                    <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
                   </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Assistant&apos;s time relative to yours</p>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p>
+                      {assistant.firstName} directly reports to{' '}
+                      {[assistant.userFirstName, assistant.userLastName]
+                        .filter(Boolean)
+                        .join(' ') || 'their supervisor'}
+                      . The tasks {assistant.firstName} can and cannot assist with are at the
+                      discretion of{' '}
+                      {[assistant.userFirstName, assistant.userLastName]
+                        .filter(Boolean)
+                        .join(' ') || 'their supervisor'}
+                      .
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )}
+            </div>
+            <Link
+              href="/organizations?tab=members"
+              className="flex items-center gap-1.5 hover:underline"
+            >
+              {assistant.userImage && (
+                <span className="inline-block h-4 w-4 flex-shrink-0">
+                  {resolvedSupervisorImage && (
+                    <Image
+                      src={resolvedSupervisorImage}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded-full object-cover"
+                      unoptimized
+                    />
+                  )}
+                </span>
+              )}
+              <span className="text-caption">
+                {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
+                  'N/A'}
+              </span>
+            </Link>
           </div>
-        </div>
+        )}
 
         {/* About Section */}
         <div className="group/assistant-about pt-2">
@@ -229,7 +275,6 @@ export function AssistantProfileInfoPanel({
             <Markdown>{assistant.about || 'No description provided.'}</Markdown>
           </div>
         </div>
-
       </ScrollArea>
     </div>
   );

@@ -8,9 +8,9 @@ import {
   CheckCircle,
   HelpCircle,
   Send,
-  DollarSign,
   AlertTriangle,
   Infinity,
+  Camera,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -39,10 +39,14 @@ import {
 import { TableRow, TableCell } from '@/components/UI/table';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
-import { useState } from 'react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
+import Link from 'next/link';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
 import { UnifiedMember } from '@/hooks/useOrganization';
+import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { formatSpendAmount } from '@/types/assistants/spending';
 
@@ -61,6 +65,7 @@ export interface MemberSpendingInfo {
 interface MemberRowProps {
   member: UnifiedMember;
   userTeams?: string[];
+  memberAssistants?: MemberAssistantInfo[];
   roles: OrganizationRole[];
   currentUserId: string;
   canManageMembers: boolean;
@@ -94,6 +99,7 @@ const getRoleBadgeColor = (roleName: string) => {
 const MemberRow = ({
   member,
   userTeams,
+  memberAssistants,
   roles,
   currentUserId,
   canManageMembers,
@@ -109,6 +115,72 @@ const MemberRow = ({
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, WebP, or GIF image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/user/photo/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      setResolvedImageUrl(URL.createObjectURL(file));
+      toast.success('Profile photo updated.');
+    } catch {
+      toast.error('Failed to upload photo.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, []);
+
+  useEffect(() => {
+    const image = member.image;
+    if (!image) {
+      setResolvedImageUrl(null);
+      return;
+    }
+    if (!image.startsWith('gs://')) {
+      setResolvedImageUrl(image);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      body: JSON.stringify({ gs_url: image }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setResolvedImageUrl(data.signed_url);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedImageUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [member.image]);
 
   const isSelf = member.userId === currentUserId;
   const currentRoleName = member.role || 'Member';
@@ -123,21 +195,64 @@ const MemberRow = ({
         <TableCell className="font-medium">
           <div className="flex items-center gap-3">
             <div
-              className={cn(
-                'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border',
-                member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-secondary'
-              )}
+              className={cn('group/avatar relative flex-shrink-0', isSelf && 'cursor-pointer')}
+              onClick={isSelf ? () => fileInputRef.current?.click() : undefined}
             >
-              <User
+              <Avatar
                 className={cn(
-                  'h-4 w-4',
-                  member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                  'h-9 w-9 border',
+                  member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-muted'
                 )}
-              />
+              >
+                {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
+                <AvatarFallback
+                  className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-muted')}
+                >
+                  <User
+                    className={cn(
+                      'h-4 w-4',
+                      member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                    )}
+                  />
+                </AvatarFallback>
+              </Avatar>
+              {isSelf && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition-all group-hover/avatar:bg-black/40 group-hover/avatar:opacity-100">
+                  {isUploading ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <Camera className="h-3.5 w-3.5 text-white" />
+                  )}
+                </div>
+              )}
             </div>
+            {isSelf && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+            )}
             <div className="flex max-w-[180px] flex-col">
               <span className="text-title truncate leading-none">
-                {member.name}
+                {isSelf ? (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link href="/account" className="hover:underline">
+                          {member.name}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Go to Account settings</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  member.name
+                )}
                 {isSelf && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">(You)</span>
                 )}
@@ -156,18 +271,53 @@ const MemberRow = ({
           <span className="text-body-muted block max-w-[200px] truncate">{member.email}</span>
         </TableCell>
 
+        {/* Assistants */}
+        <TableCell className="text-center">
+          <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
+            {member.status === 'active' && memberAssistants && memberAssistants.length > 0 ? (
+              memberAssistants.map((a) => (
+                <TooltipProvider key={a.agentId} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={`/assistants?profile=${a.agentId}`}>
+                        <Badge className="hover:bg-muted/80 h-5 cursor-pointer border-transparent bg-muted px-1 py-0 text-[10px] font-normal text-muted-foreground">
+                          {a.firstName} {a.surname}
+                        </Badge>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Open {a.firstName} {a.surname}&apos;s profile
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))
+            ) : (
+              <span className="text-caption">-</span>
+            )}
+          </div>
+        </TableCell>
+
         {/* Teams - Aligned Center */}
         <TableCell className="text-center">
           <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
             {member.status === 'active' && userTeams && userTeams.length > 0 ? (
               userTeams.map((t) => (
-                <Badge
-                  key={t}
-                  variant="secondary"
-                  className="h-5 px-1 py-0 text-[10px] font-normal"
-                >
-                  {t}
-                </Badge>
+                <TooltipProvider key={t} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href="/organizations?tab=teams">
+                        <Badge className="hover:bg-muted/80 h-5 cursor-pointer border-transparent bg-muted px-1 py-0 text-[10px] font-normal text-muted-foreground">
+                          {t}
+                        </Badge>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Go to Teams page</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ))
             ) : (
               <span className="text-caption">-</span>
@@ -178,43 +328,72 @@ const MemberRow = ({
         {/* Role - Aligned Center */}
         <TableCell className="text-center">
           <div className="flex justify-center">
-            <Badge
-              variant="outline"
-              className={cn(
-                'whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize',
-                badgeColor
-              )}
-            >
-              {member.status === 'pending' ? (
-                <>
-                  <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
-                </>
-              )}
-            </Badge>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/organizations?tab=roles">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'cursor-pointer whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize hover:opacity-80',
+                        badgeColor
+                      )}
+                    >
+                      {member.status === 'pending' ? (
+                        <>
+                          <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
+                        </>
+                      )}
+                    </Badge>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Go to Roles page</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </TableCell>
 
         {/* Monthly Limit - only shown if showSpending is true */}
-        {showSpending && (
-          <TableCell className="text-center">
-            {member.status === 'pending' ? (
-              <span className="text-caption">-</span>
-            ) : spendingInfo?.isLoading ? (
-              <span className="text-caption">...</span>
-            ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
-              <span className="text-sm">{formatSpendAmount(spendingInfo.limit)}</span>
-            ) : (
-              <span className="text-body-muted flex items-center justify-center gap-1">
-                <Infinity className="h-3 w-3" />
-                <span>Unlimited</span>
-              </span>
-            )}
-          </TableCell>
-        )}
+        {showSpending &&
+          (() => {
+            const canEditLimit =
+              !!onEditSpendingLimit && !!member.userId && (canManageMembers || isSelf);
+            const handleClick = canEditLimit
+              ? () => onEditSpendingLimit!(member.userId!)
+              : undefined;
+            const clickableClass = canEditLimit ? 'cursor-pointer hover:underline' : '';
+
+            return (
+              <TableCell className="text-center">
+                {member.status === 'pending' ? (
+                  <span className="text-caption">-</span>
+                ) : spendingInfo?.isLoading ? (
+                  <span className="text-caption">...</span>
+                ) : spendingInfo?.limit !== null && spendingInfo?.limit !== undefined ? (
+                  <span className={cn('text-sm', clickableClass)} onClick={handleClick}>
+                    {formatSpendAmount(spendingInfo.limit)}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'text-body-muted flex items-center justify-center gap-1',
+                      clickableClass
+                    )}
+                    onClick={handleClick}
+                  >
+                    <Infinity className="h-3 w-3" />
+                    <span>Unlimited</span>
+                  </span>
+                )}
+              </TableCell>
+            );
+          })()}
 
         {/* Spent - only shown if showSpending is true */}
         {showSpending && (
@@ -224,30 +403,40 @@ const MemberRow = ({
             ) : spendingInfo?.isLoading ? (
               <span className="text-caption">...</span>
             ) : (
-              <div className="flex flex-col items-center gap-0.5">
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    spendingInfo?.display?.isOverLimit && 'text-destructive',
-                    spendingInfo?.display?.isNearLimit &&
-                      !spendingInfo?.display?.isOverLimit &&
-                      'text-amber-600 dark:text-amber-500'
-                  )}
-                >
-                  {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
-                  {spendingInfo?.display && !spendingInfo.display.isUnlimited && (
-                    <span className="text-caption ml-1">
-                      ({spendingInfo.display.percentUsed.toFixed(0)}%)
-                    </span>
-                  )}
-                </span>
-                {spendingInfo?.display?.isNearLimit && !spendingInfo?.display?.isOverLimit && (
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
-                )}
-                {spendingInfo?.display?.isOverLimit && (
-                  <AlertTriangle className="h-3 w-3 text-destructive" />
-                )}
-              </div>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/usage" className="flex flex-col items-center gap-0.5">
+                      <span
+                        className={cn(
+                          'text-sm font-medium hover:underline',
+                          spendingInfo?.display?.isOverLimit && 'text-destructive',
+                          spendingInfo?.display?.isNearLimit &&
+                            !spendingInfo?.display?.isOverLimit &&
+                            'text-amber-600 dark:text-amber-500'
+                        )}
+                      >
+                        {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
+                        {spendingInfo?.display && !spendingInfo.display.isUnlimited && (
+                          <span className="text-caption ml-1">
+                            ({spendingInfo.display.percentUsed.toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                      {spendingInfo?.display?.isNearLimit &&
+                        !spendingInfo?.display?.isOverLimit && (
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        )}
+                      {spendingInfo?.display?.isOverLimit && (
+                        <AlertTriangle className="h-3 w-3 text-destructive" />
+                      )}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View usage details</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </TableCell>
         )}
@@ -344,14 +533,6 @@ const MemberRow = ({
                             </DropdownMenuSubContent>
                           </DropdownMenuPortal>
                         </DropdownMenuSub>
-                      )}
-
-                      {/* Edit Spending Limit - shown when spending is enabled */}
-                      {showSpending && canManageMembers && onEditSpendingLimit && member.userId && (
-                        <DropdownMenuItem onClick={() => onEditSpendingLimit(member.userId!)}>
-                          <DollarSign className="mr-2 h-4 w-4" />
-                          <span>Edit Spending Limit</span>
-                        </DropdownMenuItem>
                       )}
 
                       {isOrgOwner && !isTargetOwner && (

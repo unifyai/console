@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import PersonalWorkspaceView from './PersonalWorkspaceView';
 import OrganizationWorkspaceView, { MemberSpendingActions } from './OrganizationWorkspaceView';
 import { Organization, OrganizationActions } from '@/types/organization';
@@ -9,7 +10,15 @@ import { MfaSettingsActions } from './SecuritySettingsPanel';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useTeams } from '@/hooks/useTeams';
 import { useRoles } from '@/hooks/useRoles';
+import { snakeToCamelObject } from '@/utils/casing';
 import { Toaster } from 'sonner';
+
+export interface MemberAssistantInfo {
+  agentId: string;
+  firstName: string;
+  surname: string;
+  userId: string;
+}
 
 interface MainProps {
   initialOrganizations: Organization[];
@@ -75,6 +84,49 @@ const Main = ({
     handleRemovePermission,
   } = useRoles(currentOrg?.id, roleActions);
 
+  // 4. Org Assistants (grouped by supervisor userId)
+  const [orgAssistants, setOrgAssistants] = useState<MemberAssistantInfo[]>([]);
+
+  useEffect(() => {
+    if (!currentOrg) {
+      setOrgAssistants([]);
+      return;
+    }
+    fetch('/api/assistant?list_all_org=true')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOrgAssistants(
+            data.map((a: Record<string, unknown>) => {
+              const camel = snakeToCamelObject<Record<string, string>>(a);
+              return {
+                agentId: camel.agentId,
+                firstName: camel.firstName,
+                surname: camel.surname,
+                userId: camel.userId,
+              };
+            })
+          );
+        }
+      })
+      .catch(() => setOrgAssistants([]));
+  }, [currentOrg]);
+
+  const memberAssistantsMap = useMemo(() => {
+    const map = new Map<string, MemberAssistantInfo[]>();
+    for (const a of orgAssistants) {
+      const list = map.get(a.userId) || [];
+      list.push({
+        agentId: a.agentId,
+        firstName: a.firstName,
+        surname: a.surname,
+        userId: a.userId,
+      });
+      map.set(a.userId, list);
+    }
+    return map;
+  }, [orgAssistants]);
+
   return (
     <>
       <Toaster richColors position="bottom-right" closeButton />
@@ -115,6 +167,8 @@ const Main = ({
             orgSpendingLimit={orgSpendingLimit}
             // MFA Settings
             mfaSettingsActions={mfaSettingsActions}
+            // Assistants per member
+            memberAssistantsMap={memberAssistantsMap}
           />
         ) : (
           <PersonalWorkspaceView

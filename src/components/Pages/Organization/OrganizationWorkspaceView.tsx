@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Organization,
   OrganizationRole,
@@ -19,6 +20,7 @@ import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
 import { Search, Loader2, Users, Shield } from 'lucide-react';
 import MemberRow, { MemberSpendingInfo } from './MemberRow';
+import { MemberAssistantInfo } from './Main';
 import InviteMemberDialog from './InviteMemberDialog';
 import TeamListPanel from './TeamListPanel';
 import RoleListPanel from './RoleListPanel';
@@ -93,6 +95,8 @@ interface OrganizationWorkspaceViewProps {
   orgSpendingLimit?: number | null;
   // MFA Settings Actions (optional - if not provided, security settings are hidden)
   mfaSettingsActions?: MfaSettingsActions;
+  // Assistants grouped by supervisor userId
+  memberAssistantsMap?: Map<string, MemberAssistantInfo[]>;
 }
 
 const OrganizationWorkspaceView = ({
@@ -125,7 +129,29 @@ const OrganizationWorkspaceView = ({
   memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
+  memberAssistantsMap,
 }: OrganizationWorkspaceViewProps) => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const validTabs = ['organization', 'members', 'teams', 'roles', 'security'];
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'organization';
+
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === 'organization') {
+        params.delete('tab');
+      } else {
+        params.set('tab', tab);
+      }
+      const query = params.toString();
+      router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
+    },
+    [searchParams, router, pathname]
+  );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
@@ -338,7 +364,7 @@ const OrganizationWorkspaceView = ({
   return (
     <div className="h-full w-full overflow-auto px-4 py-6 sm:px-6 lg:px-8">
       {/* Tabs */}
-      <Tabs defaultValue="organization">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
           {canUpdateOrg && (
             <TabsTrigger value="organization" className="flex-1">
@@ -441,10 +467,13 @@ const OrganizationWorkspaceView = ({
                       >
                         User
                       </TableHead>
-                      <TableHead className="hidden w-[20%] min-w-[180px] lg:table-cell">
+                      <TableHead className="hidden w-[15%] min-w-[180px] lg:table-cell">
                         Email
                       </TableHead>
-                      <TableHead className="w-[15%] min-w-[100px] text-center">Teams</TableHead>
+                      <TableHead className="w-[15%] min-w-[100px] text-center">
+                        Assistants
+                      </TableHead>
+                      <TableHead className="w-[12%] min-w-[100px] text-center">Teams</TableHead>
                       <TableHead className="w-[12%] min-w-[80px] text-center">Role</TableHead>
                       {spendingEnabled && (
                         <TableHead className="w-[12%] min-w-[100px] text-center">
@@ -468,6 +497,9 @@ const OrganizationWorkspaceView = ({
                           key={member.id}
                           member={member}
                           userTeams={userTeams}
+                          memberAssistants={
+                            member.userId ? memberAssistantsMap?.get(member.userId) : undefined
+                          }
                           roles={roles}
                           currentUserId={currentUserId}
                           canManageMembers={canManageMembers}

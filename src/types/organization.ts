@@ -41,6 +41,7 @@ export interface OrganizationMember {
   createdAt: string;
   name?: string;
   email?: string;
+  image?: string | null;
   jobTitle?: string;
   bio?: string;
 }

@@ -45,6 +45,7 @@ import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
 import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
+import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
@@ -221,6 +222,20 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
     deleteAssistant,
     updateAssistantProfile,
   } = useAssistants(assistantActions);
+
+  // --- Deep-link to a specific assistant via ?profile=<agentId> ---
+  const searchParams = useSearchParams();
+  const profileParam = searchParams.get('profile');
+  const hasOpenedDeepLink = React.useRef(false);
+  React.useEffect(() => {
+    if (profileParam && assistants.length > 0 && !hasOpenedDeepLink.current) {
+      const match = assistants.find((a) => a.agentId === profileParam);
+      if (match) {
+        hasOpenedDeepLink.current = true;
+        handleShowProfile(match.agentId);
+      }
+    }
+  }, [profileParam, assistants, handleShowProfile]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses } = useAssistantStatus(

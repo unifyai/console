@@ -1,10 +1,14 @@
 /**
  * SSE Endpoint for Live Actions Streaming
  *
- * Streams ManagerMethod and ToolLoop events from the assistant's
- * `*-actions-sub` Pub/Sub subscription to the browser via Server-Sent Events.
+ * Streams ManagerMethod and ToolLoop events from the assistant's Pub/Sub topic
+ * to the browser via Server-Sent Events.
  *
  * Architecture:
+ * - Each SSE connection creates its own ephemeral Pub/Sub subscription on the
+ *   shared topic. This gives true fan-out: every viewer (across tabs, browsers,
+ *   and users) independently receives all events. Subscriptions auto-expire
+ *   after inactivity so leaked ones don't accumulate.
  * - Per-connection pull loop inside `async start` (industry-standard SSE pattern)
  * - Server-side ACK (Orchestra is the durable store; client polls on catch-up)
  * - snake_case → camelCase transformation via shared casing utilities
@@ -12,45 +16,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleAuth } from 'google-auth-library';
-import fs from 'fs';
+import crypto from 'crypto';
 import { snakeToCamelObject } from '@/utils/casing';
 import { isManagerExcluded } from '@/lib/assistants/excluded-managers';
+import {
+  getAuthClient,
+  createEphemeralSubscription,
+  deleteSubscription,
+  getTopicName,
+} from '@/lib/pubsub/ephemeral-subscription';
 
 export const dynamic = 'force-dynamic';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
-
-// =============================================================================
-// Auth
-// =============================================================================
-
-async function getAuthClient() {
-  const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
-  if (!credentialsValue) {
-    throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.');
-  }
-
-  let credentials;
-  try {
-    credentials = JSON.parse(credentialsValue);
-  } catch {
-    try {
-      const credentialsFile = fs.readFileSync(credentialsValue, 'utf8');
-      credentials = JSON.parse(credentialsFile);
-    } catch {
-      throw new Error('Invalid Pub/Sub credentials.');
-    }
-  }
-
-  const auth = new GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/pubsub'],
-    projectId: credentials.project_id,
-  });
-
-  return { client: await auth.getClient(), projectId: credentials.project_id };
-}
 
 // =============================================================================
 // Pub/Sub Payload → Frontend Log Shape
@@ -118,19 +96,34 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     const authData = await getAuthClient();
     authClient = authData.client;
 
-    const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging = orchestraUrl.includes('staging');
-    const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-actions-sub`;
+    const connectionId = crypto.randomUUID().slice(0, 8);
+    const topicName = getTopicName(assistantId);
+    const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
 
-    subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${authData.projectId}/subscriptions/${subscriptionName}`;
+    subscriptionUrl = await createEphemeralSubscription(
+      authClient,
+      authData.projectId,
+      topicName,
+      subscriptionName
+    );
 
-    if (__DEV__) console.log(`[DEBUG][Actions SSE] Auth OK. Subscription: ${subscriptionName}`);
+    if (__DEV__)
+      console.log(
+        `[DEBUG][Actions SSE] Auth OK. Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
+      );
   } catch (error: any) {
     console.error('[Actions SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
     });
   }
+
+  // Capture for cleanup when the client disconnects.
+  const cleanupSubscriptionUrl = subscriptionUrl;
+  const cleanupAuthClient = authClient;
+  request.signal.addEventListener('abort', () => {
+    deleteSubscription(cleanupAuthClient, cleanupSubscriptionUrl);
+  });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -261,6 +254,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
       // Cleanup
       clearInterval(keepAliveInterval);
+      deleteSubscription(authClient, subscriptionUrl);
       if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
       try {
         controller.close();

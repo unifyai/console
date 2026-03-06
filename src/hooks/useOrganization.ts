@@ -15,6 +15,7 @@ export interface UnifiedMember {
   userId?: string; // only for active members
   name: string; // name or email
   email: string;
+  image?: string | null;
   role: string;
   roleId: number | null;
   status: 'active' | 'pending';
@@ -106,6 +107,7 @@ export const useOrganization = (
       userId: m.userId,
       name: m.name || m.email || 'Unknown',
       email: m.email || '',
+      image: m.image,
       role: m.roleName || 'Member',
       roleId: m.roleId,
       jobTitle: m.jobTitle,
