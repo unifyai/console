@@ -18,6 +18,50 @@ import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
+const signedUrlCache = new Map<string, string>();
+
+function useResolvedImageUrl(image: string | null | undefined): string | null {
+  const cached = image
+    ? (signedUrlCache.get(image) ?? (image.startsWith('gs://') ? null : image))
+    : null;
+  const [url, setUrl] = React.useState<string | null>(cached);
+
+  React.useEffect(() => {
+    if (!image) {
+      setUrl(null);
+      return;
+    }
+    if (signedUrlCache.has(image)) {
+      setUrl(signedUrlCache.get(image)!);
+      return;
+    }
+    if (!image.startsWith('gs://')) {
+      setUrl(image);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      body: JSON.stringify({ gs_url: image }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.signed_url) {
+          signedUrlCache.set(image, data.signed_url);
+          setUrl(data.signed_url);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [image]);
+
+  return url;
+}
+
 interface AssistantProfileInfoPanelProps {
   assistant: Assistant;
   userTimezone?: string | null;
@@ -41,6 +85,7 @@ export function AssistantProfileInfoPanel({
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
   const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const resolvedSupervisorImage = useResolvedImageUrl(assistant.userImage);
 
   // Spending data (only if actions are provided)
   const spendingData = useAssistantSpending(
@@ -214,14 +259,18 @@ export function AssistantProfileInfoPanel({
                 className="flex items-center gap-1.5 hover:underline"
               >
                 {assistant.userImage && (
-                  <Image
-                    src={assistant.userImage}
-                    alt=""
-                    width={16}
-                    height={16}
-                    className="h-4 w-4 rounded-full object-cover"
-                    unoptimized
-                  />
+                  <span className="inline-block h-4 w-4 flex-shrink-0">
+                    {resolvedSupervisorImage && (
+                      <Image
+                        src={resolvedSupervisorImage}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="h-4 w-4 rounded-full object-cover"
+                        unoptimized
+                      />
+                    )}
+                  </span>
                 )}
                 <span className="text-caption">
                   {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
