@@ -367,6 +367,12 @@ const MemberRow = ({
               {isSelf ? (
                 <>
                   <DropdownMenuLabel>My Membership</DropdownMenuLabel>
+                  {showSpending && onEditSpendingLimit && member.userId && (
+                    <DropdownMenuItem onClick={() => onEditSpendingLimit(member.userId!)}>
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      <span>Edit Spending Limit</span>
+                    </DropdownMenuItem>
+                  )}
                   {isTargetOwner ? (
                     <DropdownMenuItem disabled className="text-muted-foreground">
                       <Shield className="mr-2 h-4 w-4" />
