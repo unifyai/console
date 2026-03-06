@@ -237,7 +237,22 @@ const MemberRow = ({
             )}
             <div className="flex max-w-[180px] flex-col">
               <span className="text-title truncate leading-none">
-                {member.name}
+                {isSelf ? (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link href="/account" className="hover:underline">
+                          {member.name}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Go to Account settings</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  member.name
+                )}
                 {isSelf && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">(You)</span>
                 )}
