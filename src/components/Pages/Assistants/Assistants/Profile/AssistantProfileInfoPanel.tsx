@@ -12,7 +12,6 @@ import { AssistantPhotoViewer } from '../Hire/AssistantHirePhotoPreview';
 import { Skeleton } from '@/components/UI/skeleton';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 
 import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
@@ -64,7 +63,6 @@ function useResolvedImageUrl(image: string | null | undefined): string | null {
 
 interface AssistantProfileInfoPanelProps {
   assistant: Assistant;
-  userTimezone?: string | null;
   onEdit: () => void;
   /** Whether the current user can edit this assistant */
   canWrite?: boolean;
@@ -152,16 +150,6 @@ export function AssistantProfileInfoPanel({
     toast.error('Video preview failed to load.');
   };
 
-  const timezoneInfo = React.useMemo(() => {
-    if (!assistant.timezone) return { friendlyName: 'Not set' };
-
-    const assistantOffset = getTimezoneOffsetInMinutes(assistant.timezone);
-    const assistantUtcOffset = formatOffset(assistantOffset);
-    const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
-
-    return { friendlyName };
-  }, [assistant.timezone]);
-
   return (
     <div className="flex h-full w-full flex-col bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -221,75 +209,58 @@ export function AssistantProfileInfoPanel({
           </div>
         </div>
 
-        {/* Supervisor & Timezone Section */}
-        <div
-          className={cn(
-            'grid gap-x-4 pt-2',
-            assistant.organizationId ? 'grid-cols-2' : 'grid-cols-1'
-          )}
-        >
-          {assistant.organizationId && (
-            <div className="group/assistant-supervisor">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-title">Supervisor</h3>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p>
-                        {assistant.firstName} directly reports to{' '}
-                        {[assistant.userFirstName, assistant.userLastName]
-                          .filter(Boolean)
-                          .join(' ') || 'their supervisor'}
-                        . The tasks {assistant.firstName} can and cannot assist with are at the
-                        discretion of{' '}
-                        {[assistant.userFirstName, assistant.userLastName]
-                          .filter(Boolean)
-                          .join(' ') || 'their supervisor'}
-                        .
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Link
-                href="/organizations?tab=members"
-                className="flex items-center gap-1.5 hover:underline"
-              >
-                {assistant.userImage && (
-                  <span className="inline-block h-4 w-4 flex-shrink-0">
-                    {resolvedSupervisorImage && (
-                      <Image
-                        src={resolvedSupervisorImage}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="h-4 w-4 rounded-full object-cover"
-                        unoptimized
-                      />
-                    )}
-                  </span>
-                )}
-                <span className="text-caption">
-                  {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
-                    'N/A'}
-                </span>
-              </Link>
+        {/* Supervisor Section */}
+        {assistant.organizationId && (
+          <div className="pt-2">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-title">Supervisor</h3>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p>
+                      {assistant.firstName} directly reports to{' '}
+                      {[assistant.userFirstName, assistant.userLastName]
+                        .filter(Boolean)
+                        .join(' ') || 'their supervisor'}
+                      . The tasks {assistant.firstName} can and cannot assist with are at the
+                      discretion of{' '}
+                      {[assistant.userFirstName, assistant.userLastName]
+                        .filter(Boolean)
+                        .join(' ') || 'their supervisor'}
+                      .
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-          )}
-
-          <div className="group/assistant-timezone">
-            <h3 className="text-title">Timezone</h3>
-            <span
-              className={cn('text-caption', canWrite && 'cursor-pointer hover:underline')}
-              onClick={canWrite ? onEdit : undefined}
+            <Link
+              href="/organizations?tab=members"
+              className="flex items-center gap-1.5 hover:underline"
             >
-              {timezoneInfo.friendlyName}
-            </span>
+              {assistant.userImage && (
+                <span className="inline-block h-4 w-4 flex-shrink-0">
+                  {resolvedSupervisorImage && (
+                    <Image
+                      src={resolvedSupervisorImage}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded-full object-cover"
+                      unoptimized
+                    />
+                  )}
+                </span>
+              )}
+              <span className="text-caption">
+                {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
+                  'N/A'}
+              </span>
+            </Link>
           </div>
-        </div>
+        )}
 
         {/* About Section */}
         <div className="group/assistant-about pt-2">
