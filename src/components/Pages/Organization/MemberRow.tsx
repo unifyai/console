@@ -201,14 +201,25 @@ const MemberRow = ({
           <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
             {member.status === 'active' && memberAssistants && memberAssistants.length > 0 ? (
               memberAssistants.map((a) => (
-                <Link key={a.agentId} href={`/assistants?profile=${a.agentId}`}>
-                  <Badge
-                    variant="secondary"
-                    className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
-                  >
-                    {a.firstName} {a.surname}
-                  </Badge>
-                </Link>
+                <TooltipProvider key={a.agentId} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={`/assistants?profile=${a.agentId}`}>
+                        <Badge
+                          variant="secondary"
+                          className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
+                        >
+                          {a.firstName} {a.surname}
+                        </Badge>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Open {a.firstName} {a.surname}&apos;s profile
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ))
             ) : (
               <span className="text-caption">-</span>
@@ -221,14 +232,23 @@ const MemberRow = ({
           <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
             {member.status === 'active' && userTeams && userTeams.length > 0 ? (
               userTeams.map((t) => (
-                <Link key={t} href="/organizations?tab=teams">
-                  <Badge
-                    variant="secondary"
-                    className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
-                  >
-                    {t}
-                  </Badge>
-                </Link>
+                <TooltipProvider key={t} delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href="/organizations?tab=teams">
+                        <Badge
+                          variant="secondary"
+                          className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
+                        >
+                          {t}
+                        </Badge>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Go to Teams page</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ))
             ) : (
               <span className="text-caption">-</span>
@@ -239,25 +259,34 @@ const MemberRow = ({
         {/* Role - Aligned Center */}
         <TableCell className="text-center">
           <div className="flex justify-center">
-            <Link href="/organizations?tab=roles">
-              <Badge
-                variant="outline"
-                className={cn(
-                  'cursor-pointer whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize hover:opacity-80',
-                  badgeColor
-                )}
-              >
-                {member.status === 'pending' ? (
-                  <>
-                    <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
-                  </>
-                )}
-              </Badge>
-            </Link>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/organizations?tab=roles">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'cursor-pointer whitespace-nowrap px-2 py-0.5 text-xs font-normal capitalize hover:opacity-80',
+                        badgeColor
+                      )}
+                    >
+                      {member.status === 'pending' ? (
+                        <>
+                          <HelpCircle className="mr-1.5 h-3 w-3" /> Pending ({currentRoleName})
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-1.5 h-3 w-3" /> {currentRoleName}
+                        </>
+                      )}
+                    </Badge>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Go to Roles page</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </TableCell>
 
