@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Organization,
   OrganizationRole,
@@ -126,6 +127,12 @@ const OrganizationWorkspaceView = ({
   orgSpendingLimit,
   mfaSettingsActions,
 }: OrganizationWorkspaceViewProps) => {
+  const searchParams = useSearchParams();
+  const validTabs = ['organization', 'members', 'teams', 'roles', 'security'];
+  const tabParam = searchParams.get('tab');
+  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'organization';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
   const [teamFilter, setTeamFilter] = useState<string>('All');
@@ -338,7 +345,7 @@ const OrganizationWorkspaceView = ({
   return (
     <div className="h-full w-full overflow-auto px-4 py-6 sm:px-6 lg:px-8">
       {/* Tabs */}
-      <Tabs defaultValue="organization">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
           {canUpdateOrg && (
             <TabsTrigger value="organization" className="flex-1">

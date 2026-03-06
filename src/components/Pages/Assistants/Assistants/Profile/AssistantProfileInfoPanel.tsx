@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
 
+import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
@@ -208,7 +209,10 @@ export function AssistantProfileInfoPanel({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <div className="flex items-center gap-1.5">
+              <Link
+                href="/organizations?tab=members"
+                className="flex items-center gap-1.5 hover:underline"
+              >
                 {assistant.userImage && (
                   <Image
                     src={assistant.userImage}
@@ -223,7 +227,7 @@ export function AssistantProfileInfoPanel({
                   {[assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ') ||
                     'N/A'}
                 </span>
-              </div>
+              </Link>
             </div>
           )}
 
