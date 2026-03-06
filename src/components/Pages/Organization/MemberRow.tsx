@@ -159,12 +159,12 @@ const MemberRow = ({
             <Avatar
               className={cn(
                 'h-9 w-9 flex-shrink-0 border',
-                member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-secondary'
+                member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-muted'
               )}
             >
               {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
               <AvatarFallback
-                className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-secondary')}
+                className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-muted')}
               >
                 <User
                   className={cn(
@@ -204,10 +204,7 @@ const MemberRow = ({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link href={`/assistants?profile=${a.agentId}`}>
-                        <Badge
-                          variant="secondary"
-                          className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
-                        >
+                        <Badge className="hover:bg-muted/80 h-5 cursor-pointer border-transparent bg-muted px-1 py-0 text-[10px] font-normal text-muted-foreground">
                           {a.firstName} {a.surname}
                         </Badge>
                       </Link>
@@ -235,10 +232,7 @@ const MemberRow = ({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link href="/organizations?tab=teams">
-                        <Badge
-                          variant="secondary"
-                          className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
-                        >
+                        <Badge className="hover:bg-muted/80 h-5 cursor-pointer border-transparent bg-muted px-1 py-0 text-[10px] font-normal text-muted-foreground">
                           {t}
                         </Badge>
                       </Link>
