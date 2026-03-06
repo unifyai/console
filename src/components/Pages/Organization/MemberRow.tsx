@@ -221,13 +221,14 @@ const MemberRow = ({
           <div className="flex h-full min-h-[36px] flex-wrap items-center justify-center gap-1">
             {member.status === 'active' && userTeams && userTeams.length > 0 ? (
               userTeams.map((t) => (
-                <Badge
-                  key={t}
-                  variant="secondary"
-                  className="h-5 px-1 py-0 text-[10px] font-normal"
-                >
-                  {t}
-                </Badge>
+                <Link key={t} href="/organizations?tab=teams">
+                  <Badge
+                    variant="secondary"
+                    className="hover:bg-primary/10 h-5 cursor-pointer px-1 py-0 text-[10px] font-normal"
+                  >
+                    {t}
+                  </Badge>
+                </Link>
               ))
             ) : (
               <span className="text-caption">-</span>
