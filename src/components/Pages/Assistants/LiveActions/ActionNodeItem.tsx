@@ -52,6 +52,7 @@ import type {
   ToolLoopLog,
 } from '@/types/assistants/action';
 import { isToolLoopNoise } from '@/lib/assistants/event-filters';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -77,6 +78,10 @@ export interface ActionNodeItemProps {
   loadChildren?: LoadChildrenFn;
   /** Signal to force-expand/collapse all ToolLoop step sections */
   sectionToggleSignal?: SectionToggleSignal;
+  /** IDs of nodes that directly matched the current search */
+  matchedIds?: Set<string>;
+  /** Current search term for text highlighting */
+  searchTerm?: string;
   /** Additional class names */
   className?: string;
 }
@@ -113,6 +118,28 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
   if (displayLabel.includes('Conversation') || displayLabel.includes('Transcript'))
     return MessageSquare;
   return CircleDot;
+}
+
+function getNodeTooltip(displayLabel?: string): string {
+  if (!displayLabel) return 'event';
+  if (displayLabel === 'Taking Action') return 'action';
+  if (displayLabel === 'Running Code') return 'code execution';
+  if (displayLabel.startsWith('Running:')) return 'function execution';
+  if (displayLabel === 'Storing Reusable Skills') return 'skill storage';
+  if (displayLabel === 'Reading File') return 'file read';
+  if (displayLabel === 'Processing Memory Chunk') return 'memory processing';
+  if (displayLabel === 'Working on Task') return 'task';
+  if (displayLabel === 'Reorganizing Notes') return 'note reorganization';
+  if (displayLabel === 'Searching the Web') return 'web search';
+  if (displayLabel === 'Answering Question') return 'question answering';
+  if (displayLabel.includes('Contact')) return 'contact lookup';
+  if (displayLabel.includes('Notes') || displayLabel.includes('Knowledge')) return 'knowledge base';
+  if (displayLabel.includes('Credential') || displayLabel.includes('Secret'))
+    return 'credential access';
+  if (displayLabel.includes('Task')) return 'task management';
+  if (displayLabel.includes('Conversation') || displayLabel.includes('Transcript'))
+    return 'conversation';
+  return 'event';
 }
 
 /**
@@ -461,6 +488,33 @@ function TruncatedMarkdown({ content }: { content: string }) {
 }
 
 /**
+ * Wraps substrings matching `term` in a styled <mark> for search highlighting.
+ * Case-insensitive. Returns the original text unchanged when `term` is empty.
+ */
+function HighlightText({ text, term }: { text: string; term?: string }) {
+  if (!term || term.trim() === '') return <>{text}</>;
+
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+
+  if (parts.length === 1) return <>{text}</>;
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === term.toLowerCase() ? (
+          <mark key={i} className="rounded-sm bg-accent text-accent-foreground">
+            {part}
+          </mark>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
+/**
  * Scrollable content area with sleek styling and fade effect.
  */
 function ContentArea({
@@ -528,7 +582,7 @@ function ContentArea({
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
-function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
+function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: string }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
   const { theme } = useTheme();
@@ -541,15 +595,20 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     </span>
   );
 
+  const renderContent = (content: string) =>
+    searchTerm ? (
+      <HighlightText text={content} term={searchTerm} />
+    ) : (
+      <RichContent content={content} />
+    );
+
   if (message.role === 'user') {
     const content = extractTextContent(message.content);
     if (!content) return null;
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-blue-500/60">request</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">
-          <RichContent content={content} />
-        </div>
+        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
         {timeLabel}
       </div>
     );
@@ -584,7 +643,9 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
           <div className="text-muted-foreground/70 min-w-0 flex-1">
-            <span>{toolNames}</span>
+            <span>
+              <HighlightText text={toolNames} term={searchTerm} />
+            </span>
             {codeBlocks.map((block, i) => (
               <SyntaxHighlighter
                 key={i}
@@ -611,9 +672,7 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-green-500/60">response</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">
-          <RichContent content={content} />
-        </div>
+        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
         {timeLabel}
       </div>
     );
@@ -625,9 +684,7 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
     return (
       <div className="flex gap-2">
         <span className="shrink-0 font-medium text-purple-500/60">result</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">
-          <RichContent content={content} />
-        </div>
+        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
         {timeLabel}
       </div>
     );
@@ -641,7 +698,15 @@ function ToolLoopMessage({ log }: { log: ToolLoopLog }) {
  * Styled with top/bottom fade edges and a scrollbar that appears on overflow,
  * similar to Cursor's thinking/tool-call step display.
  */
-function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: number }) {
+function ToolLoopConversation({
+  logs,
+  depth,
+  searchTerm,
+}: {
+  logs: ToolLoopLog[];
+  depth: number;
+  searchTerm?: string;
+}) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
 
@@ -674,7 +739,7 @@ function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: num
       >
         <div className="space-y-0.5 py-3">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} />
+            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} />
           ))}
         </div>
       </div>
@@ -699,7 +764,15 @@ function ToolLoopConversation({ logs, depth }: { logs: ToolLoopLog[]; depth: num
  * Auto-scrolls to the bottom as new events arrive unless the user
  * has manually scrolled up to inspect older events.
  */
-function LiveToolLoopTimeline({ logs, depth }: { logs: ToolLoopLog[]; depth: number }) {
+function LiveToolLoopTimeline({
+  logs,
+  depth,
+  searchTerm,
+}: {
+  logs: ToolLoopLog[];
+  depth: number;
+  searchTerm?: string;
+}) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const isUserScrolledUpRef = React.useRef(false);
   const prevLogCountRef = React.useRef(0);
@@ -737,7 +810,7 @@ function LiveToolLoopTimeline({ logs, depth }: { logs: ToolLoopLog[]; depth: num
       >
         <div className="space-y-0.5 py-2">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} />
+            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} />
           ))}
         </div>
       </div>
@@ -768,6 +841,7 @@ function PromotedContent({
   depth,
   defaultOpen = false,
   timestamp,
+  searchTerm,
 }: {
   label: string;
   labelColor: string;
@@ -775,6 +849,7 @@ function PromotedContent({
   depth: number;
   defaultOpen?: boolean;
   timestamp?: string;
+  searchTerm?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
@@ -801,7 +876,11 @@ function PromotedContent({
         <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
         {!isOpen && (
           <span className="text-muted-foreground/50 min-w-0 truncate">
-            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
+            {searchTerm ? (
+              <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
+            ) : (
+              <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
+            )}
           </span>
         )}
         <ChevronRight
@@ -840,7 +919,11 @@ function PromotedContent({
               (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
             }}
           >
-            <RichContent content={content} />
+            {searchTerm ? (
+              <HighlightText text={content} term={searchTerm} />
+            ) : (
+              <RichContent content={content} />
+            )}
           </div>
           {isOverflowing && (
             <div
@@ -866,11 +949,13 @@ function CollapsibleToolLoopSection({
   depth,
   defaultOpen = false,
   sectionToggleSignal,
+  searchTerm,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
+  searchTerm?: string;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -931,7 +1016,7 @@ function CollapsibleToolLoopSection({
           isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <ToolLoopConversation logs={logs} depth={depth} />
+        <ToolLoopConversation logs={logs} depth={depth} searchTerm={searchTerm} />
       </div>
     </div>
   );
@@ -1016,6 +1101,8 @@ export function ActionNodeItem({
   getToolLoopEvents,
   loadChildren,
   sectionToggleSignal,
+  matchedIds,
+  searchTerm,
   className,
 }: ActionNodeItemProps) {
   // Determine if we're in controlled mode
@@ -1434,14 +1521,18 @@ export function ActionNodeItem({
   const useTimeline = isExpanded && contentReady && (hasToolLoopData || hasInteractions);
 
   const NodeIcon = getNodeIcon(node.displayLabel);
+  const isMatch = !!matchedIds && matchedIds.has(node.id);
+  const nodeRef = React.useRef<HTMLDivElement>(null);
 
   if (!isVisible) return null;
 
   return (
     <div
+      ref={nodeRef}
       data-testid="action-node"
       data-type={node.type}
       data-status={node.status}
+      data-match={isMatch || undefined}
       className={cn('min-w-0', className)}
       style={{ contain: 'inline-size' }}
     >
@@ -1458,17 +1549,26 @@ export function ActionNodeItem({
         data-testid={isExpandable ? 'expand-button' : undefined}
         title={isExpandable && !isExpanded ? 'Click to expand' : undefined}
       >
-        {/* Type icon */}
-        <NodeIcon
-          className={cn(
-            'h-3.5 w-3.5 shrink-0',
-            node.status === 'error'
-              ? 'text-red-500/50'
-              : node.status === 'running'
-                ? 'text-muted-foreground/50 animate-shimmer'
-                : 'text-muted-foreground/40'
-          )}
-        />
+        {/* Type icon with tooltip */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex shrink-0">
+              <NodeIcon
+                className={cn(
+                  'h-3.5 w-3.5',
+                  node.status === 'error'
+                    ? 'text-red-500/50'
+                    : node.status === 'running'
+                      ? 'text-muted-foreground/50 animate-shimmer'
+                      : 'text-muted-foreground/40'
+                )}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            {getNodeTooltip(node.displayLabel)}
+          </TooltipContent>
+        </Tooltip>
 
         {/* Label + Duration */}
         <span
@@ -1506,6 +1606,7 @@ export function ActionNodeItem({
           content={promoted.request.content}
           depth={depth}
           timestamp={promoted.request.time}
+          searchTerm={searchTerm}
         />
       )}
       {isExpanded && contentReady && promoted.response && (
@@ -1515,6 +1616,7 @@ export function ActionNodeItem({
           content={promoted.response.content}
           depth={depth}
           timestamp={promoted.response.time}
+          searchTerm={searchTerm}
         />
       )}
 
@@ -1532,6 +1634,7 @@ export function ActionNodeItem({
                 logs={filtered}
                 depth={depth}
                 sectionToggleSignal={sectionToggleSignal}
+                searchTerm={searchTerm}
               />
             );
           }
@@ -1560,6 +1663,8 @@ export function ActionNodeItem({
                 getToolLoopEvents={getToolLoopEvents}
                 loadChildren={loadChildren}
                 sectionToggleSignal={sectionToggleSignal}
+                matchedIds={matchedIds}
+                searchTerm={searchTerm}
               />
             </div>
           );
@@ -1590,6 +1695,8 @@ export function ActionNodeItem({
               getToolLoopEvents={getToolLoopEvents}
               loadChildren={loadChildren}
               sectionToggleSignal={sectionToggleSignal}
+              matchedIds={matchedIds}
+              searchTerm={searchTerm}
             />
           ))}
         </div>

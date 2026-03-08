@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ActionNodeItem } from './ActionNodeItem';
 import type { SectionToggleSignal } from './ActionNodeItem';
 import type { ActionNode, GetToolLoopEventsFn, LoadChildrenFn } from '@/types/assistants/action';
+import { TooltipProvider } from '@/components/UI/tooltip';
 
 export interface ActionTreeProps {
   /** Root-level action nodes to display */
@@ -35,6 +36,10 @@ export interface ActionTreeProps {
   loadChildren?: LoadChildrenFn;
   /** Signal to force-expand/collapse all ToolLoop step sections */
   sectionToggleSignal?: SectionToggleSignal;
+  /** IDs of nodes that directly matched the current search */
+  matchedIds?: Set<string>;
+  /** Current search term for text highlighting */
+  searchTerm?: string;
   /** Additional class names */
   className?: string;
 }
@@ -50,6 +55,8 @@ export function ActionTree({
   getToolLoopEvents,
   loadChildren,
   sectionToggleSignal,
+  matchedIds,
+  searchTerm,
   className,
 }: ActionTreeProps) {
   if (roots.length === 0 && showEmptyState) {
@@ -70,24 +77,28 @@ export function ActionTree({
   }
 
   return (
-    <div
-      className={cn('min-w-0 space-y-0.5 overflow-hidden', className)}
-      style={{ contain: 'inline-size', maxWidth: '100%' }}
-    >
-      {roots.map((node) => (
-        <ActionNodeItem
-          key={node.id}
-          node={node}
-          depth={0}
-          defaultExpanded={defaultExpanded}
-          expandedNodeIds={expandedNodeIds}
-          onExpandedChange={onExpandedChange}
-          assistantId={assistantId}
-          getToolLoopEvents={getToolLoopEvents}
-          loadChildren={loadChildren}
-          sectionToggleSignal={sectionToggleSignal}
-        />
-      ))}
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <div
+        className={cn('min-w-0 space-y-0.5 overflow-hidden', className)}
+        style={{ contain: 'inline-size', maxWidth: '100%' }}
+      >
+        {roots.map((node) => (
+          <ActionNodeItem
+            key={node.id}
+            node={node}
+            depth={0}
+            defaultExpanded={defaultExpanded}
+            expandedNodeIds={expandedNodeIds}
+            onExpandedChange={onExpandedChange}
+            assistantId={assistantId}
+            getToolLoopEvents={getToolLoopEvents}
+            loadChildren={loadChildren}
+            sectionToggleSignal={sectionToggleSignal}
+            matchedIds={matchedIds}
+            searchTerm={searchTerm}
+          />
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
