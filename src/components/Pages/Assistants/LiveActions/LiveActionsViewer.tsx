@@ -147,8 +147,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Computed Values
   // ==========================================================================
 
-  const displayRoots =
-    USE_MOCK_DATA && hasAssistant && roots.length === 0 && !isLoading ? MOCK_ACTION_ROOTS : roots;
+  const displayRoots = USE_MOCK_DATA ? MOCK_ACTION_ROOTS : roots;
 
   const counts = React.useMemo(() => countActionNodes(displayRoots), [displayRoots]);
 
@@ -313,6 +312,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           completedCount={counts.completed}
           lastUpdated={lastUpdated}
           connectionStatus={connectionStatus}
+          isMockData={USE_MOCK_DATA}
         />
       )}
     </div>

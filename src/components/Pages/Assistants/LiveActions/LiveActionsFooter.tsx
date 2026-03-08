@@ -26,6 +26,8 @@ export interface LiveActionsFooterProps {
   lastUpdated: Date | null;
   /** Current connection strategy */
   connectionStatus?: ActionConnectionStatus;
+  /** Whether the displayed data is mock/simulated */
+  isMockData?: boolean;
   /** Additional class names */
   className?: string;
 }
@@ -53,6 +55,7 @@ export function LiveActionsFooter({
   completedCount,
   lastUpdated,
   connectionStatus = 'idle',
+  isMockData = false,
   className,
 }: LiveActionsFooterProps) {
   // Update relative time every second
@@ -104,6 +107,7 @@ export function LiveActionsFooter({
 
         {/* Event counts */}
         <span data-testid="event-counts">
+          {isMockData && <span className="font-medium text-orange-500/70">(mock) </span>}
           {runningText}, {completedText}
         </span>
       </div>
