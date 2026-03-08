@@ -1021,8 +1021,7 @@ export function ActionNodeItem({
   // Determine if we're in controlled mode
   const isControlled = expandedNodeIds !== undefined && onExpandedChange !== undefined;
 
-  // Running nodes are expanded by default
-  const initialExpanded = defaultExpanded ?? node.status === 'running';
+  const initialExpanded = defaultExpanded ?? false;
   const [localIsExpanded, setLocalIsExpanded] = React.useState(initialExpanded);
 
   // Use controlled state if provided, otherwise use local state
@@ -1253,18 +1252,6 @@ export function ActionNodeItem({
       setRawToolLoopLogs([]);
       setIsToolLoopLoading(false);
     }
-  }, [node.status]);
-
-  // Update expansion when status changes (auto-expand running nodes)
-  React.useEffect(() => {
-    if (node.status === 'running' && !isExpanded) {
-      if (isControlled) {
-        onExpandedChange(node.id, true);
-      } else {
-        setLocalIsExpanded(true);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only trigger on status change
   }, [node.status]);
 
   // Determine what to render in the detail area.
@@ -1518,7 +1505,6 @@ export function ActionNodeItem({
           labelColor="text-blue-500/60"
           content={promoted.request.content}
           depth={depth}
-          defaultOpen
           timestamp={promoted.request.time}
         />
       )}

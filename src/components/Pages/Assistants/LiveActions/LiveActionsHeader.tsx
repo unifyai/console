@@ -5,15 +5,12 @@
  * - Time window picker (preset relative windows)
  * - Search input for filtering events by label
  * - Expand/Collapse All toggle button
- * - Auto-collapse completed checkbox
  */
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
-import { Checkbox } from '@/components/UI/checkbox';
-import { Label } from '@/components/UI/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Search, X, ChevronsUpDown, ChevronsDownUp, Clock, Check, RefreshCw } from 'lucide-react';
 
@@ -65,10 +62,6 @@ export interface LiveActionsHeaderProps {
   onCollapseAll: () => void;
   /** Whether expand/collapse button is disabled (no nodes) */
   expandCollapseDisabled?: boolean;
-  /** Whether auto-collapse completed is enabled */
-  autoCollapse: boolean;
-  /** Callback when auto-collapse setting changes */
-  onAutoCollapseChange: (enabled: boolean) => void;
   /** Currently selected time window key */
   timeWindowKey: string;
   /** Callback when time window changes */
@@ -90,8 +83,6 @@ export function LiveActionsHeader({
   onExpandAll,
   onCollapseAll,
   expandCollapseDisabled = false,
-  autoCollapse,
-  onAutoCollapseChange,
   timeWindowKey,
   onTimeWindowChange,
   onRefresh,
@@ -224,29 +215,6 @@ export function LiveActionsHeader({
           </>
         )}
       </Button>
-
-      {/* Auto-Collapse Toggle */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="auto-collapse"
-          checked={autoCollapse}
-          onCheckedChange={(checked) => onAutoCollapseChange(checked === true)}
-          data-testid="live-actions-auto-collapse"
-        />
-        <Label
-          htmlFor="auto-collapse"
-          className="text-body-muted hidden cursor-pointer whitespace-nowrap sm:inline"
-        >
-          Auto-collapse completed
-        </Label>
-        <Label
-          htmlFor="auto-collapse"
-          className="text-body-muted cursor-pointer whitespace-nowrap sm:hidden"
-          title="Auto-collapse completed"
-        >
-          Auto-fold
-        </Label>
-      </div>
     </div>
   );
 }

@@ -31,8 +31,6 @@ export interface LiveActionsBodyProps {
   loadChildren?: LoadChildrenFn;
   /** Current search term for filtering */
   searchTerm: string;
-  /** Whether to auto-collapse completed nodes */
-  autoCollapse: boolean;
   /** Whether data is loading */
   isLoading: boolean;
   /** Error message if fetch failed */
@@ -62,7 +60,6 @@ export function LiveActionsBody({
   getToolLoopEvents,
   loadChildren,
   searchTerm,
-  autoCollapse,
   isLoading,
   error,
   onRetry,
@@ -224,7 +221,7 @@ export function LiveActionsBody({
           assistantId={assistantId || ''}
           getToolLoopEvents={getToolLoopEvents}
           loadChildren={loadChildren}
-          defaultExpanded={!autoCollapse}
+          defaultExpanded={false}
           expandedNodeIds={expandedNodeIds}
           onExpandedChange={onExpandedChange}
           sectionToggleSignal={sectionToggleSignal}
