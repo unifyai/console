@@ -141,7 +141,7 @@ export function HtmlAttachmentEmbed({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-foreground">
+          <div className="text-title text-foreground">
             {truncateFilename(attachment.filename, 40)}
           </div>
         </div>
@@ -229,7 +229,7 @@ export function HtmlAttachmentEmbed({
             className="absolute inset-0 flex cursor-pointer items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/5"
             onClick={() => setIsInteractive(true)}
           >
-            <span className="rounded-md bg-black/60 px-3 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity [div:hover>&]:opacity-100">
+            <span className="text-label rounded-md bg-black/60 px-3 py-1.5 text-white opacity-0 transition-opacity [div:hover>&]:opacity-100">
               Click to interact
             </span>
           </div>
