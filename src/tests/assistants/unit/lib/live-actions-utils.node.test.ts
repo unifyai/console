@@ -120,7 +120,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'ContactManager.ask');
+        const { filteredRoots: result } = filterActionTree(tree, 'ContactManager.ask');
 
         // Should include root (ancestor), execute_code (ancestor), and ContactManager.ask (match)
         expect(result.length).toBe(1);
@@ -142,7 +142,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'Contact');
+        const { filteredRoots: result } = filterActionTree(tree, 'Contact');
 
         // Should match ContactManager.ask
         expect(result.length).toBe(1);
@@ -163,9 +163,9 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const resultLower = filterActionTree(tree, 'contact');
-        const resultUpper = filterActionTree(tree, 'CONTACT');
-        const resultMixed = filterActionTree(tree, 'CoNtAcT');
+        const { filteredRoots: resultLower } = filterActionTree(tree, 'contact');
+        const { filteredRoots: resultUpper } = filterActionTree(tree, 'CONTACT');
+        const { filteredRoots: resultMixed } = filterActionTree(tree, 'CoNtAcT');
 
         // All should match ContactManager.ask
         expect(resultLower.length).toBe(1);
@@ -187,7 +187,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'SearchManager');
+        const { filteredRoots: result } = filterActionTree(tree, 'SearchManager');
 
         // SearchManager.search is nested: root > execute_function > SearchManager.search
         // All ancestors should be included
@@ -212,7 +212,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'execute_code');
+        const { filteredRoots: result } = filterActionTree(tree, 'execute_code');
 
         // execute_code has 2 children: ContactManager.ask and TaskManager.get
         // Both should be included
@@ -238,7 +238,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'Manager');
+        const { filteredRoots: result } = filterActionTree(tree, 'Manager');
 
         // Should match ContactManager, TaskManager, and SearchManager
         expect(result.length).toBe(1);
@@ -268,7 +268,7 @@ describe('filterActionTree', () => {
       },
       () => {
         const tree = createSampleTree();
-        const result = filterActionTree(tree, 'XYZNotFound');
+        const { filteredRoots: result } = filterActionTree(tree, 'XYZNotFound');
 
         expect(result).toEqual([]);
       }
@@ -286,7 +286,7 @@ describe('filterActionTree', () => {
         },
       },
       () => {
-        const result = filterActionTree([], 'search');
+        const { filteredRoots: result } = filterActionTree([], 'search');
         expect(result).toEqual([]);
       }
     );
@@ -303,10 +303,10 @@ describe('filterActionTree', () => {
       () => {
         const tree = [createNode('single', 'SingleManager.action')];
 
-        const matchResult = filterActionTree(tree, 'Single');
+        const { filteredRoots: matchResult } = filterActionTree(tree, 'Single');
         expect(matchResult.length).toBe(1);
 
-        const noMatchResult = filterActionTree(tree, 'Other');
+        const { filteredRoots: noMatchResult } = filterActionTree(tree, 'Other');
         expect(noMatchResult.length).toBe(0);
       }
     );
