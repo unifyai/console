@@ -155,12 +155,26 @@ seed_test_data() {
 
   local psql="docker exec $db_container psql -U orchestra -d orchestra -tAc"
 
-  # 1. Update test user's name and email (local.sh seeds a bare user)
-  $psql "UPDATE \"user\" SET name = 'Test', last_name = 'User', email = 'test@example.com' WHERE id = 'test-user-001';" >/dev/null 2>&1
+  # Resolve the actual user ID (Orchestra may prefix it)
+  local test_user_id
+  test_user_id=$($psql "SELECT id FROM \"user\" WHERE email = 'test@example.com' LIMIT 1;" 2>/dev/null || echo "")
+  if [[ -z "$test_user_id" ]]; then
+    test_user_id=$($psql "SELECT id FROM \"user\" LIMIT 1;" 2>/dev/null || echo "")
+  fi
+
+  if [[ -z "$test_user_id" ]]; then
+    log_warn "No user found in database — skipping seed"
+    return 0
+  fi
+
+  log_info "Found test user: $test_user_id"
+
+  # 1. Update test user's name and email
+  $psql "UPDATE \"user\" SET name = 'Test', last_name = 'User', email = 'test@example.com' WHERE id = '$test_user_id';" >/dev/null 2>&1
 
   # 2. Create email_account (password login) if not exists
   local has_email_account
-  has_email_account=$($psql "SELECT 1 FROM email_account WHERE user_id = 'test-user-001';" 2>/dev/null || echo "")
+  has_email_account=$($psql "SELECT 1 FROM email_account WHERE user_id = '$test_user_id';" 2>/dev/null || echo "")
 
   if [[ "$has_email_account" != "1" ]]; then
     log_info "Creating email/password login for test user..."
@@ -168,7 +182,7 @@ seed_test_data() {
     pw_hash=$("$ORCHESTRA_REPO_PATH/.venv/bin/python" -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('testpass123'))" 2>/dev/null)
     if [[ -n "$pw_hash" ]]; then
       docker exec "$db_container" psql -U orchestra -d orchestra -c \
-        "INSERT INTO email_account (user_id, password_hash, email_verified) VALUES ('test-user-001', '$pw_hash', true) ON CONFLICT (user_id) DO NOTHING;" >/dev/null 2>&1
+        "INSERT INTO email_account (user_id, password_hash, email_verified) VALUES ('$test_user_id', '$pw_hash', true) ON CONFLICT (user_id) DO NOTHING;" >/dev/null 2>&1
       log_success "Email login created (test@example.com / testpass123)"
     else
       log_warn "Could not generate password hash — email login not created"
@@ -179,7 +193,7 @@ seed_test_data() {
 
   # 3. Create organization if not exists
   local has_org
-  has_org=$($psql "SELECT 1 FROM organization WHERE owner_id = 'test-user-001' LIMIT 1;" 2>/dev/null || echo "")
+  has_org=$($psql "SELECT 1 FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
 
   if [[ "$has_org" != "1" ]]; then
     log_info "Creating test organization..."
@@ -194,14 +208,14 @@ BEGIN
   RETURNING id INTO _ba_id;
 
   INSERT INTO organization (owner_id, name, billing_account_id, verified)
-  VALUES ('test-user-001', 'Acme Corp', _ba_id, true)
+  VALUES ('$test_user_id', 'Acme Corp', _ba_id, true)
   RETURNING id INTO _org_id;
 
   INSERT INTO organization_member (organization_id, user_id, role_id)
-  VALUES (_org_id, 'test-user-001', 1);
+  VALUES (_org_id, '$test_user_id', 1);
 
   INSERT INTO api_key (user_id, organization_id, key, name)
-  VALUES ('test-user-001', _org_id, 'org-test-api-key', 'Org Key');
+  VALUES ('$test_user_id', _org_id, 'org-test-api-key', 'Org Key');
 END
 \$\$;
 " >/dev/null 2>&1
@@ -212,12 +226,12 @@ END
 
   # 4. Create a sample assistant if none exist
   local has_assistant
-  has_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = 'test-user-001' LIMIT 1;" 2>/dev/null || echo "")
+  has_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
 
   if [[ "$has_assistant" != "1" ]]; then
     log_info "Creating sample assistant..."
     local org_id
-    org_id=$($psql "SELECT id FROM organization WHERE owner_id = 'test-user-001' LIMIT 1;" 2>/dev/null || echo "")
+    org_id=$($psql "SELECT id FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
 
     local org_clause="NULL"
     if [[ -n "$org_id" ]]; then
@@ -225,7 +239,7 @@ END
     fi
 
     docker exec "$db_container" psql -U orchestra -d orchestra -c \
-      "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, organization_id) VALUES ('test-user-001', 'Karen', 'Myers', 58, 'United Kingdom', 'Europe/London', 'A highly experienced professional bringing years of expertise and strong problem-solving skills.', $org_clause);" >/dev/null 2>&1
+      "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, organization_id) VALUES ('$test_user_id', 'Karen', 'Myers', 58, 'United Kingdom', 'Europe/London', 'A highly experienced professional bringing years of expertise and strong problem-solving skills.', $org_clause);" >/dev/null 2>&1
     log_success "Sample assistant 'Karen Myers' created"
   else
     log_success "Assistant(s) already exist"

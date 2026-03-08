@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ChevronDown,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -371,7 +372,11 @@ export default function TopNav() {
                 className="relative h-6 w-6 rounded-full p-0"
                 data-testid="profile-dropdown-trigger"
               >
-                {avatarJSX || <User className="h-6 w-6" />}
+                {isWorkspaceSwitchable && activeWorkspace?.type === 'personal' ? (
+                  <Settings className="h-4 w-4" />
+                ) : (
+                  avatarJSX || <User className="h-6 w-6" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
