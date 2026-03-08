@@ -89,6 +89,8 @@ const createMockAssistantActions = (): AssistantActions => ({
     listAvailableSocialPlatforms: vi.fn(),
     verifySocialAccount: vi.fn(),
     delete: vi.fn(),
+    create: vi.fn(),
+    fetchContactCosts: vi.fn(),
   },
   photo: {
     upload: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/photo.jpg' }),

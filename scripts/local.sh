@@ -4,11 +4,13 @@
 # =============================================================================
 #
 # Starts a fully local Console deployment with a local Orchestra backend,
-# PostgreSQL database, and seeded test data (user, organization, assistant).
+# PostgreSQL database, and seeded test data (user, assistant).
+# Pass --org to also seed an organization workspace with its own assistant.
 #
 # Usage:
-#   ./scripts/local.sh              # Start everything (default)
+#   ./scripts/local.sh              # Start with personal workspace (default)
 #   ./scripts/local.sh start        # Same as above
+#   ./scripts/local.sh start --org  # Start with org workspace seeded
 #   ./scripts/local.sh stop         # Stop Console and Orchestra
 #   ./scripts/local.sh restart      # Stop then start (wipes database)
 #   ./scripts/local.sh status       # Show status of all services
@@ -140,7 +142,8 @@ stop_orchestra() {
 # =============================================================================
 
 seed_test_data() {
-  log_info "Seeding test data..."
+  local with_org="${1:-false}"
+  log_info "Seeding test data (org=$with_org)..."
 
   local db_container
   db_container=$(docker ps --filter "publish=${ORCHESTRA_PORT:-5432}" --format "{{.Names}}" 2>/dev/null | head -1)
@@ -191,13 +194,14 @@ seed_test_data() {
     log_success "Email login already exists"
   fi
 
-  # 3. Create organization if not exists
-  local has_org
-  has_org=$($psql "SELECT 1 FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
+  # 3. Create organization if --org mode
+  if [[ "$with_org" == "true" ]]; then
+    local has_org
+    has_org=$($psql "SELECT 1 FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
 
-  if [[ "$has_org" != "1" ]]; then
-    log_info "Creating test organization..."
-    docker exec "$db_container" psql -U orchestra -d orchestra -c "
+    if [[ "$has_org" != "1" ]]; then
+      log_info "Creating test organization..."
+      docker exec "$db_container" psql -U orchestra -d orchestra -c "
 DO \$\$
 DECLARE
   _org_id integer;
@@ -219,30 +223,61 @@ BEGIN
 END
 \$\$;
 " >/dev/null 2>&1
-    log_success "Organization 'Acme Corp' created"
-  else
-    log_success "Organization already exists"
+      log_success "Organization 'Acme Corp' created"
+    else
+      log_success "Organization already exists"
+    fi
   fi
 
-  # 4. Create a sample assistant if none exist
-  local has_assistant
-  has_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
+  # 4. Register voice presets (required FK for assistants)
+  docker exec "$db_container" psql -U orchestra -d orchestra -c "
+    INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
+    VALUES ('9BWtsMINqrJLrRacOk9x', '$test_user_id', 'English Female Husky 1', 'A middle-aged female with an African-American accent. Calm with a hint of rasp.', 'female', 'en', true, 'elevenlabs')
+    ON CONFLICT DO NOTHING;
+  " >/dev/null 2>&1
 
-  if [[ "$has_assistant" != "1" ]]; then
-    log_info "Creating sample assistant..."
+  if [[ "$with_org" == "true" ]]; then
+    docker exec "$db_container" psql -U orchestra -d orchestra -c "
+      INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
+      VALUES ('nPczCjzI2devNBz1zQrb', '$test_user_id', 'English Male Well-rounded 1', 'A middle aged, male, well-rounded voice with a american accent.', 'male', 'en', true, 'elevenlabs')
+      ON CONFLICT DO NOTHING;
+    " >/dev/null 2>&1
+  fi
+
+  # 5. Create sample assistants
+  # 5a. Personal assistant (always)
+  local has_personal_assistant
+  has_personal_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' AND organization_id IS NULL LIMIT 1;" 2>/dev/null || echo "")
+
+  if [[ "$has_personal_assistant" != "1" ]]; then
+    log_info "Creating personal assistant..."
+    docker exec "$db_container" psql -U orchestra -d orchestra -c \
+      "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel) VALUES ('$test_user_id', 'Karen', 'Myers', 58, 'United Kingdom', 'Europe/London', 'A highly experienced professional bringing years of expertise and strong problem-solving skills.', '9BWtsMINqrJLrRacOk9x', 'elevenlabs', 40, 10);" >/dev/null 2>&1
+    log_success "Personal assistant 'Karen Myers' created"
+  else
+    log_success "Personal assistant already exists"
+  fi
+
+  # 5b. Organization assistant (only with --org)
+  if [[ "$with_org" == "true" ]]; then
     local org_id
     org_id=$($psql "SELECT id FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
 
-    local org_clause="NULL"
     if [[ -n "$org_id" ]]; then
-      org_clause="$org_id"
-    fi
+      local has_org_assistant
+      has_org_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' AND organization_id = $org_id LIMIT 1;" 2>/dev/null || echo "")
 
-    docker exec "$db_container" psql -U orchestra -d orchestra -c \
-      "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, organization_id) VALUES ('$test_user_id', 'Karen', 'Myers', 58, 'United Kingdom', 'Europe/London', 'A highly experienced professional bringing years of expertise and strong problem-solving skills.', $org_clause);" >/dev/null 2>&1
-    log_success "Sample assistant 'Karen Myers' created"
-  else
-    log_success "Assistant(s) already exist"
+      if [[ "$has_org_assistant" != "1" ]]; then
+        log_info "Creating organization assistant..."
+        docker exec "$db_container" psql -U orchestra -d orchestra -c \
+          "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id) VALUES ('$test_user_id', 'James', 'Whitfield', 34, 'United States', 'America/New_York', 'A sharp and resourceful assistant with a knack for streamlining complex workflows.', 'nPczCjzI2devNBz1zQrb', 'elevenlabs', 40, 10, $org_id);" >/dev/null 2>&1
+        log_success "Organization assistant 'James Whitfield' created"
+      else
+        log_success "Organization assistant already exists"
+      fi
+    else
+      log_warn "No organization found — skipping org assistant seed"
+    fi
   fi
 
   log_success "Test data seeded"
@@ -331,9 +366,16 @@ stop_console() {
 # =============================================================================
 
 cmd_start() {
+  local with_org="$1"
+
+  local mode_label="personal"
+  if [[ "$with_org" == "true" ]]; then
+    mode_label="personal + org"
+  fi
+
   echo ""
   echo "=============================================="
-  echo "  Starting Local Console + Orchestra"
+  echo "  Starting Local Console + Orchestra ($mode_label)"
   echo "=============================================="
   echo ""
 
@@ -344,7 +386,7 @@ cmd_start() {
   echo ""
   start_orchestra || return 1
   echo ""
-  seed_test_data
+  seed_test_data "$with_org"
   echo ""
   start_console || return 1
 
@@ -357,6 +399,9 @@ cmd_start() {
   echo "  Orchestra: http://127.0.0.1:${ORCHESTRA_PORT}/v0"
   echo ""
   echo "  Login:     test@example.com / testpass123"
+  if [[ "$with_org" == "true" ]]; then
+    echo "  Org:       Acme Corp (switch workspace in UI)"
+  fi
   echo ""
 }
 
@@ -370,9 +415,10 @@ cmd_stop() {
 }
 
 cmd_restart() {
+  local with_org="$1"
   cmd_stop
   echo ""
-  cmd_start
+  cmd_start "$with_org"
 }
 
 cmd_status() {
@@ -403,21 +449,37 @@ cmd_status() {
 # =============================================================================
 
 main() {
-  local cmd="${1:-start}"
+  local cmd=""
+  local with_org="false"
+
+  while (( "$#" )); do
+    case "$1" in
+      --org)   with_org="true"; shift ;;
+      -h|--help|help) cmd="help"; shift ;;
+      -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
+      *)       [[ -z "$cmd" ]] && cmd="$1"; shift ;;
+    esac
+  done
+
+  cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start ;;
+    start)   cmd_start "$with_org" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart ;;
+    restart) cmd_restart "$with_org" ;;
     status)  cmd_status ;;
-    -h|--help|help)
-      echo "Usage: $0 [start|stop|restart|status]"
+    help)
+      echo "Usage: $0 [start|stop|restart|status] [--org]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console and Orchestra"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
+      echo ""
+      echo "Flags:"
+      echo "  --org    Seed organization workspace (Acme Corp) with org assistant"
+      echo "           Without this flag, only a personal assistant is seeded."
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)"
