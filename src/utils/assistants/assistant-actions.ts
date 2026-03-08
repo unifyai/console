@@ -714,23 +714,26 @@ export function buildTimestampFilter(startTime: string): string {
  * @param searchTerm - The search term to filter by
  * @returns Filtered tree with matching nodes and their context
  */
-export function filterActionTree(roots: ActionNode[], searchTerm: string): ActionNode[] {
+export function filterActionTree(
+  roots: ActionNode[],
+  searchTerm: string
+): { filteredRoots: ActionNode[]; matchedIds: Set<string> } {
   const trimmed = searchTerm.trim().toLowerCase();
 
-  // Empty search returns original tree
   if (!trimmed) {
-    return roots;
+    return { filteredRoots: roots, matchedIds: new Set() };
   }
 
-  // First pass: mark all nodes that match or have matching descendants
   const matchingNodeIds = new Set<string>();
   const hasMatchingDescendant = new Map<string, boolean>();
 
   function checkMatches(node: ActionNode): boolean {
-    // Check if this node matches
-    const nodeMatches = node.label.toLowerCase().includes(trimmed);
+    const searchable = [node.requestContent, node.label, node.content]
+      .filter(Boolean)
+      .join('\0')
+      .toLowerCase();
+    const nodeMatches = searchable.includes(trimmed);
 
-    // Check if any children match
     let childMatches = false;
     for (const child of node.children) {
       if (checkMatches(child)) {
@@ -738,21 +741,16 @@ export function filterActionTree(roots: ActionNode[], searchTerm: string): Actio
       }
     }
 
-    // If this node matches, mark it
     if (nodeMatches) {
       matchingNodeIds.add(node.id);
     }
 
-    // Track if this node has matching descendants
     hasMatchingDescendant.set(node.id, childMatches);
-
     return nodeMatches || childMatches;
   }
 
-  // Run first pass on all roots
   roots.forEach(checkMatches);
 
-  // Second pass: build filtered tree
   function buildFilteredTree(nodes: ActionNode[]): ActionNode[] {
     const result: ActionNode[] = [];
 
@@ -761,12 +759,7 @@ export function filterActionTree(roots: ActionNode[], searchTerm: string): Actio
       const descendantMatches = hasMatchingDescendant.get(node.id) || false;
 
       if (nodeMatches || descendantMatches) {
-        // This node should be included
-        // If this node matches, include ALL children (unfiltered)
-        // If only descendants match, filter children recursively
-        const filteredChildren = nodeMatches
-          ? node.children // Include all children when node itself matches
-          : buildFilteredTree(node.children);
+        const filteredChildren = nodeMatches ? node.children : buildFilteredTree(node.children);
 
         result.push({
           ...node,
@@ -778,7 +771,7 @@ export function filterActionTree(roots: ActionNode[], searchTerm: string): Actio
     return result;
   }
 
-  return buildFilteredTree(roots);
+  return { filteredRoots: buildFilteredTree(roots), matchedIds: matchingNodeIds };
 }
 
 // =============================================================================

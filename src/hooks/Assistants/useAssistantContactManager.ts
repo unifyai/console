@@ -2,17 +2,16 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Assistant,
-  AssistantUpdatePayload,
   AvailableSocialPlatform,
   AvailablePhoneCountry,
   AssistantActions,
   ContactFormData,
   SocialAccount,
 } from '@/types/assistants/assistant';
+import { ContactCosts, AssistantContactCreatePayload } from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
 import {
   EMAIL_DOMAIN_WITH_AT,
-  ASSISTANT_ONBOARDING_FEE,
   FALLBACK_DEFAULT_COUNTRY_CODE,
 } from '@/constants/assistants/settings';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
@@ -68,6 +67,10 @@ export function useAssistantContactManager({
     AvailableSocialPlatform[]
   >([]);
   const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(false);
+
+  // Contact costs state - fetched from the admin billing endpoint
+  const [contactCosts, setContactCosts] = React.useState<ContactCosts | null>(null);
+  const [isLoadingContactCosts, setIsLoadingContactCosts] = React.useState(false);
 
   // Reset form when dialog opens with new assistant data
   React.useEffect(() => {
@@ -199,6 +202,41 @@ export function useAssistantContactManager({
     };
   }, [isOpen, assistantActions.contact]);
 
+  // Fetch contact costs from the admin billing endpoint when dialog opens
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    async function loadContactCosts() {
+      setIsLoadingContactCosts(true);
+      try {
+        const result = await assistantActions.contact.fetchContactCosts();
+        if (cancelled) return;
+
+        if ('detail' in result && typeof (result as ResponseProps).detail === 'string') {
+          // Fetch failed; contactCosts stays null → fallback values will be used
+          console.warn('[useAssistantContactManager] Failed to fetch contact costs:', (result as ResponseProps).detail);
+        } else {
+          setContactCosts(result as ContactCosts);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('[useAssistantContactManager] Error fetching contact costs:', error);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingContactCosts(false);
+        }
+      }
+    }
+
+    loadContactCosts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, assistantActions.contact]);
+
   const [activeTab, setActiveTab] = React.useState<'email' | 'phone' | 'whatsapp'>(
     initialTab || 'email'
   );
@@ -293,18 +331,18 @@ export function useAssistantContactManager({
 
   /**
    * Self-contained contact submission.
-   * Builds a payload with ONLY contact-specific fields based on the active tab,
-   * then calls the assistant update API.
+   * Builds a payload based on the active tab, then calls the dedicated
+   * POST /assistant/{id}/contact endpoint to provision the contact.
    */
   const submitContact = React.useCallback(async () => {
     if (isSubmittingContact) return;
 
     setIsSubmittingContact(true);
-    toastIdRef.current = toast.loading('Updating contact...', { id: toastIdRef.current });
+    toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
 
     try {
-      // Build payload based on active tab - only include contact-specific fields
-      const payload: Partial<AssistantUpdatePayload> = {};
+      // Build contact creation payload based on active tab
+      const payload: AssistantContactCreatePayload = { contactType: activeTab };
 
       switch (activeTab) {
         case 'email': {
@@ -319,7 +357,11 @@ export function useAssistantContactManager({
             throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
           }
 
-          payload.email = email;
+          // Extract local part for the backend
+          const emailLocal = email.substring(0, email.length - EMAIL_DOMAIN_WITH_AT.length);
+          payload.emailLocal = emailLocal;
+          payload.firstName = assistant.firstName || '';
+          payload.lastName = assistant.surname || '';
           break;
         }
 
@@ -337,8 +379,8 @@ export function useAssistantContactManager({
             throw new Error('Your phone number must be verified before saving.');
           }
 
-          payload.userPhone = userPhone || null;
-          payload.phoneCountry = phoneCountry || null;
+          payload.phoneCountry = phoneCountry || 'US';
+          payload.userPhone = userPhone || undefined;
           break;
         }
 
@@ -357,20 +399,21 @@ export function useAssistantContactManager({
         }
       }
 
-      // Call the update API with contact-only payload
-      const updateResult = await assistantActions.assistant.update(assistant.agentId, payload);
+      // Call the dedicated contact creation endpoint
+      const createResult = await assistantActions.contact.create(assistant.agentId, payload);
 
-      if ((updateResult as ResponseProps).detail) {
-        throw new Error((updateResult as ResponseProps).detail);
+      if ((createResult as ResponseProps).detail) {
+        throw new Error((createResult as ResponseProps).detail);
       }
 
-      toast.success('Contact updated successfully!', { id: toastIdRef.current });
+      toast.success('Contact created successfully!', { id: toastIdRef.current });
       toastIdRef.current = undefined;
       onSuccess();
     } catch (error: any) {
       // Show specific error message if available
-      const errorMessage = error?.message || 'An error occurred while updating contact.';
-      toast.error(errorMessage, { id: toastIdRef.current });
+      const errorMessage = error?.message || 'An error occurred while creating contact.';
+      console.log(errorMessage);
+      toast.error('An error occurred while creating contact. Please try again.', { id: toastIdRef.current });
       toastIdRef.current = undefined;
     } finally {
       setIsSubmittingContact(false);
@@ -380,7 +423,9 @@ export function useAssistantContactManager({
     activeTab,
     getValues,
     assistant.agentId,
-    assistantActions.assistant,
+    assistant.firstName,
+    assistant.surname,
+    assistantActions.contact,
     onSuccess,
   ]);
 
@@ -391,18 +436,29 @@ export function useAssistantContactManager({
   const socialAccounts = watch('socialAccounts');
   const whatsAppAccount = socialAccounts?.find((acc) => acc.platform === 'whatsapp');
 
-  const creationCost = React.useMemo(() => {
-    switch (activeTab) {
-      case 'email':
-      case 'phone':
-        return 0;
-      case 'whatsapp':
-        const platformInfo = availableSocialPlatforms.find((p) => p.name === 'whatsapp');
-        return platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
-      default:
-        return 0;
+  /**
+   * One-time setup cost for the contact type on the active tab.
+   * Returns null when costs haven't been fetched yet so the UI can
+   * show a generic "setup fee applies" message instead of a wrong number.
+   */
+  const creationCost = React.useMemo((): number | null => {
+    if (contactCosts) {
+      return contactCosts[activeTab]?.oneTimeCost ?? 0;
     }
-  }, [activeTab, availableSocialPlatforms]);
+    return null;
+  }, [activeTab, contactCosts]);
+
+  /**
+   * Estimated monthly cost for the contact type on the active tab.
+   * Returns null when costs haven't been fetched yet so the UI can
+   * show a generic "monthly fee applies" message instead of a wrong number.
+   */
+  const monthlyCost = React.useMemo((): number | null => {
+    if (contactCosts) {
+      return contactCosts[activeTab]?.monthlyCost ?? 0;
+    }
+    return null;
+  }, [activeTab, contactCosts]);
 
   const isCreateButtonDisabled = React.useMemo(() => {
     if (isSubmittingContact) return true;
@@ -459,8 +515,12 @@ export function useAssistantContactManager({
     // Social platforms (WhatsApp)
     availableSocialPlatforms,
     isLoadingSocialPlatforms,
-    // Button states
+    // Contact costs (fetched from backend)
+    contactCosts,
+    isLoadingContactCosts,
+    // Button states & cost info
     creationCost,
+    monthlyCost,
     isCreateButtonDisabled,
     showCreateButton,
     showDeleteButton,

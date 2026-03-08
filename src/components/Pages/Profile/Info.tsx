@@ -11,11 +11,82 @@ import {
 } from '@/components/UI/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
-import { Info } from 'lucide-react';
+import { Info, Eye, EyeOff, Check } from 'lucide-react';
 import * as React from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PhoneVerificationState } from './Form';
+
+const ApiKeyField: React.FC<{ apiKey: string }> = ({ apiKey }) => {
+  const [isVisible, setIsVisible] = React.useState(false);
+  const [isCopied, setIsCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(apiKey);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-row items-center gap-2 pb-1">
+        <Label>API Key</Label>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-caption max-w-xs">
+              <p>
+                Used for programmatic integration, see{' '}
+                <a
+                  href="https://docs.unify.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  docs
+                </a>
+                .
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Input
+            type="text"
+            value={isVisible ? apiKey : '••••••••••••••••••••••••••••••••'}
+            className="text-code cursor-pointer"
+            readOnly
+            onClick={handleCopy}
+          />
+          {isCopied && (
+            <span className="text-caption absolute right-3 top-1/2 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 duration-150 animate-in fade-in">
+              Copied!
+            </span>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 flex-shrink-0"
+          onClick={() => setIsVisible(!isVisible)}
+        >
+          {isCopied ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : isVisible ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 interface UserInfoProps {
   formState: { name: any; lastName: any; jobTitle: any; bio: any; timezone: any };
@@ -198,6 +269,7 @@ const UserInfo = ({
               )}
           </div>
         </div>
+        <ApiKeyField apiKey={user.apiKey} />
       </div>
     </div>
   );

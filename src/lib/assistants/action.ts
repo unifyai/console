@@ -6,9 +6,6 @@
  *
  * Uses paginated fetching (limit + offset) to safely retrieve all matching
  * logs without sending unbounded queries that could choke bandwidth.
- *
- * Set USE_MOCK_DATA to true in action-mock-data.ts to use simulated
- * progressive event data for UI testing.
  */
 
 import { ResponseProps } from '@/types/common';
@@ -20,12 +17,7 @@ import {
 import { buildTimestampFilter } from '@/utils/assistants/assistant-actions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
-import {
-  USE_MOCK_DATA,
-  getMockManagerMethodEvents,
-  getMockToolLoopEvents,
-} from '../../utils/assistants/action-mock-data';
-import { buildExcludedManagerFilters } from './excluded-managers';
+import { buildExcludedManagerFilters } from './event-filters';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
 
@@ -185,10 +177,6 @@ export const getManagerMethodEvents = async (apiKey: string) => {
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
 
-    if (USE_MOCK_DATA) {
-      return getMockManagerMethodEvents(assistantId, startTime, limit);
-    }
-
     try {
       const context = 'All/Events/ManagerMethod';
       let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
@@ -266,10 +254,6 @@ export const getToolLoopEvents = async (apiKey: string) => {
     endTime?: string
   ): Promise<ActionsLogsResponse | ResponseProps> => {
     'use server';
-
-    if (USE_MOCK_DATA) {
-      return getMockToolLoopEvents(assistantId, hierarchy, limit);
-    }
 
     try {
       const context = 'All/Events/ToolLoop';

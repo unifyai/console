@@ -11,7 +11,7 @@
  * - Polls for new events when an assistant is selected
  * - Supports search filtering
  * - Supports expand/collapse all
- * - Auto-collapses completed nodes (configurable)
+ * - All nodes start collapsed; manual expand/collapse only
  */
 
 import * as React from 'react';
@@ -28,10 +28,12 @@ import {
   countActionNodes,
   areAllNodesExpanded,
   getExpandableNodeIds,
+  filterActionTree,
 } from '@/utils/assistants/assistant-actions';
 import type { SectionToggleSignal } from './ActionNodeItem';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant } from '@/types/assistants/assistant';
+import { USE_MOCK_DATA, MOCK_ACTION_ROOTS } from '@/utils/assistants/action-mock-data';
 
 export interface LiveActionsViewerProps {
   /** The currently selected assistant (null if none selected) */
@@ -48,7 +50,6 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // ==========================================================================
 
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [autoCollapse, setAutoCollapse] = React.useState(true);
   const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
   const [isVisible, setIsVisible] = React.useState(true);
@@ -146,14 +147,21 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Computed Values
   // ==========================================================================
 
-  const counts = React.useMemo(() => countActionNodes(roots), [roots]);
+  const displayRoots = USE_MOCK_DATA ? MOCK_ACTION_ROOTS : roots;
 
-  const expandableNodeIds = React.useMemo(() => getExpandableNodeIds(roots), [roots]);
+  const counts = React.useMemo(() => countActionNodes(displayRoots), [displayRoots]);
+
+  const expandableNodeIds = React.useMemo(() => getExpandableNodeIds(displayRoots), [displayRoots]);
 
   const allExpanded = React.useMemo(() => {
     if (expandableNodeIds.size === 0) return true;
-    return areAllNodesExpanded(roots, expandedNodeIds);
-  }, [roots, expandedNodeIds, expandableNodeIds]);
+    return areAllNodesExpanded(displayRoots, expandedNodeIds);
+  }, [displayRoots, expandedNodeIds, expandableNodeIds]);
+
+  const { filteredRoots, matchedIds } = React.useMemo(
+    () => filterActionTree(displayRoots, searchTerm),
+    [displayRoots, searchTerm]
+  );
 
   // ==========================================================================
   // Handlers
@@ -187,12 +195,6 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const handleCollapseAll = React.useCallback(() => {
     setExpandedNodeIds(new Set());
     setSectionToggleSignal((prev) => ({ open: false, gen: prev.gen + 1 }));
-  }, []);
-
-  const handleAutoCollapseChange = React.useCallback((enabled: boolean) => {
-    // Note: Per design decision, changing this setting does NOT
-    // auto-expand/collapse existing nodes mid-session
-    setAutoCollapse(enabled);
   }, []);
 
   // When the time window preset changes, clear events and re-fetch with the new window.
@@ -235,41 +237,11 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     });
   }, []);
 
+  const totalMatches = searchTerm.trim() !== '' ? matchedIds.size : 0;
+
   // ==========================================================================
   // Effects
   // ==========================================================================
-
-  // Track which nodes were running so we can auto-collapse on completion
-  const prevRunningRef = React.useRef<Set<string>>(new Set());
-
-  // Auto-expand running nodes, auto-collapse nodes that just completed
-  React.useEffect(() => {
-    if (roots.length === 0) return;
-
-    const currentRunning = new Set<string>();
-    const collectRunning = (nodes: typeof roots) => {
-      for (const node of nodes) {
-        if (node.status === 'running') currentRunning.add(node.id);
-        collectRunning(node.children);
-      }
-    };
-    collectRunning(roots);
-
-    const rootIds = new Set(roots.map((r) => r.id));
-
-    setExpandedNodeIds((prev) => {
-      const next = new Set(prev);
-      currentRunning.forEach((id) => next.add(id));
-      if (autoCollapse) {
-        prevRunningRef.current.forEach((id) => {
-          if (!currentRunning.has(id) && !rootIds.has(id)) next.delete(id);
-        });
-      }
-      return next;
-    });
-
-    prevRunningRef.current = currentRunning;
-  }, [roots, autoCollapse]);
 
   // Reset state when assistant changes
   React.useEffect(() => {
@@ -295,12 +267,11 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
         <LiveActionsHeader
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
+          searchMatchCount={searchTerm.trim() !== '' ? totalMatches : undefined}
           allExpanded={allExpanded}
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
           expandCollapseDisabled={expandableNodeIds.size === 0}
-          autoCollapse={autoCollapse}
-          onAutoCollapseChange={handleAutoCollapseChange}
           timeWindowKey={timeWindowKey}
           onTimeWindowChange={handleTimeWindowChange}
           onRefresh={handleManualRefresh}
@@ -312,12 +283,14 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       {/* Body - main content area */}
       <LiveActionsBody
         hasAssistant={hasAssistant}
-        roots={roots}
+        roots={displayRoots}
+        filteredRoots={filteredRoots}
+        hasActiveSearch={searchTerm.trim() !== ''}
+        matchedIds={searchTerm.trim() !== '' ? matchedIds : undefined}
+        searchTerm={searchTerm.trim() !== '' ? searchTerm : undefined}
         assistantId={assistant?.agentId || null}
         getToolLoopEvents={actions?.getToolLoopEvents}
         loadChildren={loadChildren}
-        searchTerm={searchTerm}
-        autoCollapse={autoCollapse}
         isLoading={isLoading}
         error={error}
         onRetry={refresh}
@@ -339,6 +312,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
           completedCount={counts.completed}
           lastUpdated={lastUpdated}
           connectionStatus={connectionStatus}
+          isMockData={USE_MOCK_DATA}
         />
       )}
     </div>

@@ -5,15 +5,12 @@
  * - Time window picker (preset relative windows)
  * - Search input for filtering events by label
  * - Expand/Collapse All toggle button
- * - Auto-collapse completed checkbox
  */
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
-import { Checkbox } from '@/components/UI/checkbox';
-import { Label } from '@/components/UI/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { Search, X, ChevronsUpDown, ChevronsDownUp, Clock, Check, RefreshCw } from 'lucide-react';
 
@@ -65,10 +62,6 @@ export interface LiveActionsHeaderProps {
   onCollapseAll: () => void;
   /** Whether expand/collapse button is disabled (no nodes) */
   expandCollapseDisabled?: boolean;
-  /** Whether auto-collapse completed is enabled */
-  autoCollapse: boolean;
-  /** Callback when auto-collapse setting changes */
-  onAutoCollapseChange: (enabled: boolean) => void;
   /** Currently selected time window key */
   timeWindowKey: string;
   /** Callback when time window changes */
@@ -77,6 +70,8 @@ export interface LiveActionsHeaderProps {
   onRefresh?: () => void;
   /** Whether a refresh is in progress */
   isRefreshing?: boolean;
+  /** Total number of matched nodes when search is active (undefined when no search) */
+  searchMatchCount?: number;
   /** Whether actions are currently loading */
   isLoading?: boolean;
   /** Additional class names */
@@ -90,20 +85,29 @@ export function LiveActionsHeader({
   onExpandAll,
   onCollapseAll,
   expandCollapseDisabled = false,
-  autoCollapse,
-  onAutoCollapseChange,
   timeWindowKey,
   onTimeWindowChange,
+  searchMatchCount,
   onRefresh,
   isRefreshing = false,
   isLoading = false,
   className,
 }: LiveActionsHeaderProps) {
   const [timeWindowOpen, setTimeWindowOpen] = React.useState(false);
+  const [localSearch, setLocalSearch] = React.useState(searchTerm);
+
+  React.useEffect(() => {
+    setLocalSearch(searchTerm);
+  }, [searchTerm]);
 
   const activePreset = TIME_WINDOW_PRESETS.find((p) => p.key === timeWindowKey);
 
+  const commitSearch = () => {
+    onSearchChange(localSearch);
+  };
+
   const handleClearSearch = () => {
+    setLocalSearch('');
     onSearchChange('');
   };
 
@@ -165,7 +169,7 @@ export function LiveActionsHeader({
       </Popover>
 
       {/* Manual Refresh Button */}
-      {onRefresh && (
+      {/* {onRefresh && (
         <Button
           variant="outline"
           size="sm"
@@ -177,29 +181,49 @@ export function LiveActionsHeader({
         >
           <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
         </Button>
-      )}
+      )} */}
 
       {/* Search Input */}
       <div className="relative min-w-0 flex-1">
         <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="h-7 pl-7 pr-7 text-xs"
+          placeholder="Search... (Enter to filter)"
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              handleClearSearch();
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (localSearch !== searchTerm) {
+                commitSearch();
+              }
+            }
+          }}
+          className={cn('h-7 pl-7 text-xs', localSearch || searchTerm ? 'pr-20' : 'pr-7')}
           data-testid="live-actions-search"
         />
-        {searchTerm && (
-          <button
-            type="button"
-            onClick={handleClearSearch}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-            data-testid="live-actions-search-clear"
-          >
-            <X className="h-4 w-4" />
-          </button>
+        {(localSearch || searchTerm) && (
+          <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            {searchTerm && searchMatchCount !== undefined && (
+              <span className="text-muted-foreground/50 mr-0.5 text-[10px] tabular-nums">
+                {searchMatchCount > 0
+                  ? `${searchMatchCount} result${searchMatchCount !== 1 ? 's' : ''}`
+                  : '0 results'}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="text-muted-foreground/50 rounded-sm p-0.5 hover:text-foreground"
+              aria-label="Clear search"
+              data-testid="live-actions-search-clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </span>
         )}
       </div>
 
@@ -224,29 +248,6 @@ export function LiveActionsHeader({
           </>
         )}
       </Button>
-
-      {/* Auto-Collapse Toggle */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="auto-collapse"
-          checked={autoCollapse}
-          onCheckedChange={(checked) => onAutoCollapseChange(checked === true)}
-          data-testid="live-actions-auto-collapse"
-        />
-        <Label
-          htmlFor="auto-collapse"
-          className="text-body-muted hidden cursor-pointer whitespace-nowrap sm:inline"
-        >
-          Auto-collapse completed
-        </Label>
-        <Label
-          htmlFor="auto-collapse"
-          className="text-body-muted cursor-pointer whitespace-nowrap sm:hidden"
-          title="Auto-collapse completed"
-        >
-          Auto-fold
-        </Label>
-      </div>
     </div>
   );
 }

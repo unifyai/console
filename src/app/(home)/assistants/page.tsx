@@ -42,6 +42,8 @@ import {
   listAvailableSocialPlatforms,
   verifySocialAccount,
   deleteAssistantContact,
+  fetchContactCosts,
+  createAssistantContact,
 } from '@/lib/assistants/contact';
 import { TaskActions } from '@/types/assistants/task';
 import { AssistantActions } from '@/types/assistants/assistant';
@@ -138,10 +140,12 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     },
     contact: {
       delete: await deleteAssistantContact(apiKey),
+      create: await createAssistantContact(apiKey),
       listAllAssistantEmails: await listAllAssistantEmails(adminKey),
       listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
       listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
       verifySocialAccount: await verifySocialAccount(adminKey),
+      fetchContactCosts: await fetchContactCosts(adminKey),
     },
     secret: {
       get: await getSecrets(apiKey, user.id, isOrgContext),

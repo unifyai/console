@@ -1,12 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ExternalLink, FileCode, Maximize2, Minimize2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { getSignedUrl, truncateFilename } from './attachmentUtils';
 import { AttachmentChip } from './ChatAttachments';
 import type { Attachment } from '@/types/assistants/chat';
+
+async function fetchHtmlContent(gsUrl: string): Promise<string> {
+  const res = await fetch('/api/storage/html-content', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+  if (!res.ok) throw new Error('Failed to fetch HTML content');
+  const data = await res.json();
+  return data.html;
+}
 
 interface HtmlAttachmentEmbedProps {
   attachment: Attachment;
@@ -19,9 +31,12 @@ export function HtmlAttachmentEmbed({
   defaultHeight = 400,
   className,
 }: HtmlAttachmentEmbedProps) {
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isInteractive, setIsInteractive] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!attachment.gsUrl) {
@@ -29,9 +44,9 @@ export function HtmlAttachmentEmbed({
       return;
     }
     let cancelled = false;
-    getSignedUrl(attachment.gsUrl, false)
-      .then((url) => {
-        if (!cancelled) setSignedUrl(url);
+    fetchHtmlContent(attachment.gsUrl)
+      .then((html) => {
+        if (!cancelled) setHtmlContent(html);
       })
       .catch(() => {
         if (!cancelled) setError(true);
@@ -40,6 +55,39 @@ export function HtmlAttachmentEmbed({
       cancelled = true;
     };
   }, [attachment.gsUrl]);
+
+  useEffect(() => {
+    if (!attachment.gsUrl) return;
+    let cancelled = false;
+    getSignedUrl(attachment.gsUrl, false)
+      .then((url) => {
+        if (!cancelled) setSignedUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [attachment.gsUrl]);
+
+  useEffect(() => {
+    if (!isInteractive) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsInteractive(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isInteractive]);
+
+  useEffect(() => {
+    if (!isInteractive) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsInteractive(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isInteractive]);
 
   const handleOpenInNewTab = useCallback(() => {
     if (signedUrl) window.open(signedUrl, '_blank', 'noopener,noreferrer');
@@ -58,7 +106,7 @@ export function HtmlAttachmentEmbed({
     return <AttachmentChip attachment={attachment} />;
   }
 
-  if (!signedUrl) {
+  if (!htmlContent) {
     return (
       <div
         className={cn(
@@ -84,19 +132,18 @@ export function HtmlAttachmentEmbed({
     return (
       <div
         className={cn(
-          'bg-muted/30 hover:bg-muted/50 group my-2 flex items-center gap-3 rounded-lg border border-border p-3 transition-colors',
+          'bg-muted/30 hover:bg-muted/50 group my-2 flex items-center gap-2.5 rounded-lg border border-border px-3 py-2 transition-colors',
           className
         )}
       >
-        <div className="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
-          <FileCode className="h-5 w-5 text-primary" />
+        <div className="bg-primary/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
+          <FileCode className="h-4 w-4 text-primary" />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="font-medium text-foreground">
+          <div className="text-title text-foreground">
             {truncateFilename(attachment.filename, 40)}
           </div>
-          <div className="text-caption text-muted-foreground">HTML page</div>
         </div>
 
         <div className="flex shrink-0 gap-1">
@@ -125,6 +172,7 @@ export function HtmlAttachmentEmbed({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         'my-2 overflow-hidden rounded-lg border border-border bg-background shadow-sm',
         className
@@ -157,7 +205,10 @@ export function HtmlAttachmentEmbed({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsExpanded(false)}
+            onClick={() => {
+              setIsExpanded(false);
+              setIsInteractive(false);
+            }}
             className="h-7 w-7 p-0"
             title="Collapse"
           >
@@ -168,12 +219,21 @@ export function HtmlAttachmentEmbed({
 
       <div style={{ height: defaultHeight }} className="relative">
         <iframe
-          src={signedUrl}
-          className="h-full w-full border-0"
+          srcDoc={htmlContent}
+          className={cn('h-full w-full border-0', !isInteractive && 'pointer-events-none')}
           title={attachment.filename}
-          sandbox="allow-scripts allow-same-origin allow-popups"
-          loading="lazy"
+          sandbox="allow-scripts allow-popups"
         />
+        {!isInteractive && (
+          <div
+            className="absolute inset-0 flex cursor-pointer items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+            onClick={() => setIsInteractive(true)}
+          >
+            <span className="text-label rounded-md bg-black/60 px-3 py-1.5 text-white opacity-0 transition-opacity [div:hover>&]:opacity-100">
+              Click to interact
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

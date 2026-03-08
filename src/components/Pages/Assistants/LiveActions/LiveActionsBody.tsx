@@ -14,25 +14,28 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
-import { filterActionTree } from '@/utils/assistants/assistant-actions';
 import type { SectionToggleSignal } from './ActionNodeItem';
 import type { ActionNode, GetToolLoopEventsFn, LoadChildrenFn } from '@/types/assistants/action';
 
 export interface LiveActionsBodyProps {
   /** Whether an assistant is selected */
   hasAssistant: boolean;
-  /** Root nodes of the action tree */
+  /** Root nodes of the action tree (unfiltered, for state checks) */
   roots: ActionNode[];
+  /** Pre-filtered root nodes from the viewer */
+  filteredRoots: ActionNode[];
+  /** Whether a search is currently active */
+  hasActiveSearch: boolean;
+  /** IDs of nodes that directly matched the search */
+  matchedIds?: Set<string>;
+  /** Current search term (for text highlighting) */
+  searchTerm?: string;
   /** Assistant ID for ToolLoop queries */
   assistantId: string | null;
   /** Function to fetch ToolLoop events */
   getToolLoopEvents?: GetToolLoopEventsFn;
   /** Function to lazy-load child events for a node on expand */
   loadChildren?: LoadChildrenFn;
-  /** Current search term for filtering */
-  searchTerm: string;
-  /** Whether to auto-collapse completed nodes */
-  autoCollapse: boolean;
   /** Whether data is loading */
   isLoading: boolean;
   /** Error message if fetch failed */
@@ -58,11 +61,13 @@ export interface LiveActionsBodyProps {
 export function LiveActionsBody({
   hasAssistant,
   roots,
+  filteredRoots,
+  hasActiveSearch,
+  matchedIds,
+  searchTerm,
   assistantId,
   getToolLoopEvents,
   loadChildren,
-  searchTerm,
-  autoCollapse,
   isLoading,
   error,
   onRetry,
@@ -74,12 +79,6 @@ export function LiveActionsBody({
   sectionToggleSignal,
   className,
 }: LiveActionsBodyProps) {
-  // Filter tree based on search term
-  const filteredRoots = React.useMemo(() => {
-    return filterActionTree(roots, searchTerm);
-  }, [roots, searchTerm]);
-
-  // Scroll container ref for infinite scroll and position preservation
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isLoadingMoreRef = React.useRef(isLoadingMore);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -122,9 +121,7 @@ export function LiveActionsBody({
     prevRootsLengthRef.current = roots.length;
   }, [roots.length]);
 
-  // Check for search with no matches
-  const hasSearchNoMatches =
-    searchTerm.trim() !== '' && filteredRoots.length === 0 && roots.length > 0;
+  const hasSearchNoMatches = hasActiveSearch && filteredRoots.length === 0 && roots.length > 0;
 
   // No assistant selected state
   if (!hasAssistant) {
@@ -224,10 +221,12 @@ export function LiveActionsBody({
           assistantId={assistantId || ''}
           getToolLoopEvents={getToolLoopEvents}
           loadChildren={loadChildren}
-          defaultExpanded={!autoCollapse}
+          defaultExpanded={false}
           expandedNodeIds={expandedNodeIds}
           onExpandedChange={onExpandedChange}
           sectionToggleSignal={sectionToggleSignal}
+          matchedIds={matchedIds}
+          searchTerm={searchTerm}
         />
       </div>
 
