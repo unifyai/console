@@ -1547,15 +1547,14 @@ export function ActionNodeItem({
         style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}
         onClick={isExpandable ? handleToggle : undefined}
         data-testid={isExpandable ? 'expand-button' : undefined}
-        title={isExpandable && !isExpanded ? 'Click to expand' : undefined}
       >
-        {/* Type icon with tooltip */}
+        {/* Icon + Label with shared tooltip */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="inline-flex shrink-0">
+            <span className="flex min-w-0 items-center gap-1.5">
               <NodeIcon
                 className={cn(
-                  'h-3.5 w-3.5',
+                  'h-3.5 w-3.5 shrink-0',
                   node.status === 'error'
                     ? 'text-red-500/50'
                     : node.status === 'running'
@@ -1563,22 +1562,23 @@ export function ActionNodeItem({
                       : 'text-muted-foreground/40'
                 )}
               />
+              <span
+                className={cn(
+                  'flex min-w-0 items-baseline gap-0 text-xs',
+                  getLabelStyles(node.status)
+                )}
+              >
+                <span className="min-w-0 truncate">
+                  <TruncatedMarkdown content={effectiveLabel} />
+                </span>
+                <LiveDuration node={node} />
+              </span>
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
             {getNodeTooltip(node.displayLabel)}
           </TooltipContent>
         </Tooltip>
-
-        {/* Label + Duration */}
-        <span
-          className={cn('flex min-w-0 items-baseline gap-0 text-xs', getLabelStyles(node.status))}
-        >
-          <span className="min-w-0 truncate">
-            <TruncatedMarkdown content={effectiveLabel} />
-          </span>
-          <LiveDuration node={node} />
-        </span>
 
         {/* Expand/collapse chevron — next to duration, visible on hover */}
         {isExpandable && (
