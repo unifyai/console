@@ -12,7 +12,6 @@ interface AssistantResourcesManagerProps {
   onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
   /** Whether the current user can edit this assistant's resources */
   canWrite?: boolean;
-  apiKey?: string;
 }
 
 const ContactItem: React.FC<{
@@ -76,7 +75,6 @@ export function AssistantResourcesManager({
   onOpenContactManager,
   onAssistantUpdated,
   canWrite = true,
-  apiKey,
 }: AssistantResourcesManagerProps) {
   const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
   const [isDesktopLinkerOpen, setIsDesktopLinkerOpen] = React.useState(false);
@@ -146,7 +144,6 @@ export function AssistantResourcesManager({
           onClose={() => setIsDesktopLinkerOpen(false)}
           assistant={assistant}
           assistantActions={assistantActions}
-          apiKey={apiKey}
           onLinked={(userDesktopId) => {
             onAssistantUpdated?.(assistant.agentId, { userDesktopId });
           }}

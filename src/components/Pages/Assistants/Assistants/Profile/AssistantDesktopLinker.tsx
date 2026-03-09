@@ -22,7 +22,8 @@ interface AssistantDesktopLinkerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onLinked?: (userDesktopId: number | null) => void;
-  apiKey?: string;
+  /** Server action to retrieve the user's API key (keeps key out of client-side props) */
+  getApiKey?: () => Promise<string>;
 }
 
 const osLabels: Record<string, string> = {
@@ -43,13 +44,14 @@ export function AssistantDesktopLinker({
   assistant,
   assistantActions,
   onLinked,
-  apiKey,
+  getApiKey,
 }: AssistantDesktopLinkerProps) {
   const [desktops, setDesktops] = React.useState<UserDesktop[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [assigningId, setAssigningId] = React.useState<number | null>(null);
   const [setupOs, setSetupOs] = React.useState<string | null>(null);
   const [keyCopied, setKeyCopied] = React.useState(false);
+  const [isCopyingKey, setIsCopyingKey] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -187,19 +189,30 @@ export function AssistantDesktopLinker({
 
         <div className="border-t border-border pt-3">
           <p className="text-title leading-none tracking-tight">Local Setup Instructions</p>
-          {apiKey && (
+          {getApiKey && (
             <Button
               variant="ghost"
               size="sm"
               className="mt-1.5 h-7 gap-1.5 px-2 text-muted-foreground"
-              onClick={() => {
-                navigator.clipboard.writeText(apiKey);
-                setKeyCopied(true);
-                setTimeout(() => setKeyCopied(false), 2000);
+              disabled={isCopyingKey}
+              onClick={async () => {
+                setIsCopyingKey(true);
+                try {
+                  const key = await getApiKey();
+                  navigator.clipboard.writeText(key);
+                  setKeyCopied(true);
+                  setTimeout(() => setKeyCopied(false), 2000);
+                } catch {
+                  toast.error('Failed to retrieve API key');
+                } finally {
+                  setIsCopyingKey(false);
+                }
               }}
             >
               {keyCopied ? (
                 <Check className="h-3.5 w-3.5 text-green-500" />
+              ) : isCopyingKey ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <ClipboardCopy className="h-3.5 w-3.5" />
               )}

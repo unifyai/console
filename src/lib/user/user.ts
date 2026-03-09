@@ -264,6 +264,19 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 /**
+ * Creates a server action that returns the user's API key.
+ * This keeps the API key in a server-side closure so it's never embedded
+ * in client-side props/HTML — the client must explicitly call the action
+ * to retrieve it.
+ */
+export const getUserApiKey = async (apiKey: string) => {
+  return async (): Promise<string> => {
+    'use server';
+    return apiKey;
+  };
+};
+
+/**
  * Sends a verification code to the user's phone number via SMS.
  * Uses admin authentication to call the communication service.
  *

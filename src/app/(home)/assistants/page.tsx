@@ -204,7 +204,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     email: user.email,
     orgId,
     mfaSetupRequired: !!user.mfaSetupRequired,
-    apiKey,
   };
 
   return (
