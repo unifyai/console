@@ -661,10 +661,40 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     }
     window.addEventListener('beforeunload', handleUnload);
 
+    const READY_FALLBACK_TIMEOUT = 10_000;
+    let readyFallbackTimer: NodeJS.Timeout | null = null;
+
     const clearWaitingState = () => {
       assistantEverJoinedRef.current = true;
       setIsWaitingForAssistant(false);
+      if (readyFallbackTimer) {
+        clearTimeout(readyFallbackTimer);
+        readyFallbackTimer = null;
+      }
     };
+
+    const onDataReceived = (
+      payload: Uint8Array,
+      _participant?: any,
+      _kind?: any,
+      topic?: string
+    ) => {
+      if (topic !== 'agent_status') return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data.type === 'ready_to_speak') {
+          clearWaitingState();
+        }
+      } catch {
+        // ignore malformed data messages
+      }
+    };
+
+    const onParticipantConnected = () => {
+      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
+      readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
+    };
+
     // Only auto-close the tab if the assistant had actually joined (i.e. we had
     // a real call). During the pop-out transition the room may disconnect before
     // the assistant arrives — in that case we should stay open and let the
@@ -675,8 +705,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       }
     };
 
-    room.on(RoomEvent.ParticipantConnected, clearWaitingState);
-    room.on(RoomEvent.TrackSubscribed, clearWaitingState);
+    room.on(RoomEvent.DataReceived, onDataReceived);
+    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.on(RoomEvent.Disconnected, handleDisconnect);
 
     // Add ping-pong listener for state verification
@@ -693,9 +723,10 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('storage', handlePing);
       handleUnload();
-      room.off(RoomEvent.ParticipantConnected, clearWaitingState);
-      room.off(RoomEvent.TrackSubscribed, clearWaitingState);
+      room.off(RoomEvent.DataReceived, onDataReceived);
+      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.Disconnected, handleDisconnect);
+      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       if (room.state !== 'disconnected') {
         room.disconnect();
       }
