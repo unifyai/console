@@ -258,6 +258,10 @@ export interface ReplicatePredictionResponse {
 }
 
 export interface AssistantUpdatePayload {
+  firstName?: string;
+  surname?: string;
+  age?: number;
+  nationality?: string;
   about?: string | null;
   weeklyLimit?: number | null;
   maxParallel?: number | null;

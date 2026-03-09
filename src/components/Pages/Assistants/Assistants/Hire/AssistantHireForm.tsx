@@ -322,7 +322,6 @@ export function HireForm({
                           {...register('firstName', {
                             required: 'First name is required',
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.firstName && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -337,7 +336,6 @@ export function HireForm({
                           {...register('surname', {
                             required: 'Last name is required',
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.surname && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -355,7 +353,6 @@ export function HireForm({
                             min: { value: 18, message: 'Age must be at least 18' },
                             max: { value: 70, message: 'Age must be 70 or less' },
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.age && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -370,7 +367,7 @@ export function HireForm({
                           onValueChange={(value) =>
                             setValue('nationality', value, { shouldValidate: true })
                           }
-                          disabled={isSubmitting || isEditMode}
+                          disabled={isSubmitting}
                         >
                           <SelectTrigger
                             id="nationality"
