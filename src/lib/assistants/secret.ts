@@ -10,6 +10,37 @@ import {
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
 
+/**
+ * Mirrors log IDs to the All aggregation contexts so reads from All/
+ * see data written to a primary user/assistant context.
+ */
+async function mirrorToAllContexts(
+  apiKey: string,
+  logIds: number[],
+  userId: string,
+  suffix: string
+): Promise<void> {
+  const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+  const allContexts = [`${userId}/All${suffix}`, `All${suffix}`];
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const results = await Promise.all(
+    allContexts.map((ctx) =>
+      fetch(`${orchestraUrl}/v0/project/${PROJECT}/contexts/add_logs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context_name: ctx, log_ids: logIds }),
+      })
+    )
+  );
+  /* eslint-enable @typescript-eslint/naming-convention */
+  for (const res of results) {
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error(`[mirrorToAllContexts] Failed to mirror logs: ${res.status} ${text}`);
+    }
+  }
+}
+
 const mapLogToSecret = (log: LogProps): Secret | null => {
   const { id, entries } = log;
   const numericId = parseInt(id, 10);
@@ -85,11 +116,7 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
   return async (assistantId: string, payload: SecretPayload): Promise<ResponseProps> => {
     'use server';
     try {
-      const context = `All${CONTEXT_SUFFIX}`;
-      // Include all private fields that Unity's log_utils would inject
-      // (Unity injects these automatically, but console creates logs directly via API)
-      // See: unity/unity/common/log_utils.py _inject_private_fields
-      // Note: These field names intentionally use Unity's underscore-prefixed naming convention
+      const primaryContext = `${userId}/${assistantId}${CONTEXT_SUFFIX}`;
       /* eslint-disable @typescript-eslint/naming-convention */
       const entriesWithPrivateFields = {
         ...payload,
@@ -97,7 +124,11 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
         _assistant_id: assistantId,
       };
       /* eslint-enable @typescript-eslint/naming-convention */
-      const body = { projectName: PROJECT, context, entries: [entriesWithPrivateFields] };
+      const body = {
+        projectName: PROJECT,
+        context: primaryContext,
+        entries: [entriesWithPrivateFields],
+      };
 
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
         method: 'POST',
@@ -108,6 +139,12 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
       if (!response.ok) {
         const data = await response.json();
         return { detail: data.detail || `Failed to create secret: ${response.statusText}` };
+      }
+
+      const data = await response.json();
+      const logIds: number[] | undefined = data?.logEventIds;
+      if (logIds?.length) {
+        await mirrorToAllContexts(apiKey, logIds, userId, CONTEXT_SUFFIX);
       }
 
       return { info: 'Secret created successfully.' };
