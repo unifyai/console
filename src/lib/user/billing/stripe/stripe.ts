@@ -62,9 +62,9 @@ async function getCheckoutData(ctx: CheckoutContext) {
         // The billing profile comes from the billing account; tax data
         // is synced there by the update_billing_profile endpoint.
         const ba = orgBillingResponse.data;
-        taxId = ba?.tax_id;
-        taxIdType = ba?.tax_id_type || 'eu_vat';
-        billingEmail = ba?.billing_email;
+        taxId = ba?.taxId;
+        taxIdType = ba?.taxIdType || 'eu_vat';
+        billingEmail = ba?.billingEmail;
         billingName = ba?.name;
       } catch (e) {
         console.warn('[Checkout] Failed to fetch org billing profile, falling back to user', e);
@@ -73,14 +73,14 @@ async function getCheckoutData(ctx: CheckoutContext) {
 
     // Fall back to user-level values for personal context or if org fetch failed
     if (!ctx.organizationId || (!taxId && !billingName)) {
-      taxId = taxId || (userResponse.data?.tax_id as string | undefined);
-      taxIdType = taxIdType || userResponse.data?.tax_id_type || 'eu_vat';
+      taxId = taxId || (userResponse.data?.taxId as string | undefined);
+      taxIdType = taxIdType || userResponse.data?.taxIdType || 'eu_vat';
       billingName = billingName || (userResponse.data?.name as string | undefined);
     }
 
     return {
-      createdAt: userResponse.data?.created_at,
-      totalSpending: (eligibilityResponse.data?.total_spending ?? 0) as number,
+      createdAt: userResponse.data?.createdAt,
+      totalSpending: (eligibilityResponse.data?.totalSpending ?? 0) as number,
       email: billingEmail || (userResponse.data?.email as string | undefined),
       name: billingName,
       taxId,

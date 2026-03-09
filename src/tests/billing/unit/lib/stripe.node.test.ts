@@ -97,19 +97,21 @@ const LIVE_CUSTOMER_ID = 'cus_live_ABC123';
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default Orchestra admin responses for getCheckoutData
+  // Default Orchestra admin responses for getCheckoutData.
+  // The real OrchestraAdminClient response interceptor transforms snake_case
+  // keys to camelCase, so mock data must use camelCase to match production.
   mockAdminGet.mockImplementation((url: string) => {
     if (url.includes('/user/by-user-id') || url.includes('/auth-user/by-user-id')) {
       return Promise.resolve({
         data: {
-          created_at: '2024-01-01T00:00:00Z',
+          createdAt: '2024-01-01T00:00:00Z',
           email: 'test@example.com',
           name: 'Test User',
         },
       });
     }
     if (url.includes('/billing_eligibility')) {
-      return Promise.resolve({ data: { total_spending: 0 } });
+      return Promise.resolve({ data: { totalSpending: 0 } });
     }
     if (url.includes('/billing/account-info')) {
       return Promise.resolve({ data: {} });

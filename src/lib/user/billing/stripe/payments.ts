@@ -3,7 +3,7 @@ import { createRecharge } from '@/lib/user/billing/billing';
 
 export async function handleCheckoutSessionCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
-  const userID = session.metadata?.userID;
+  const userID = session.metadata?.user_id;
 
   if (session.payment_status === 'paid') {
     const amountPaid = session.amount_total;
