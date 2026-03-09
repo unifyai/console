@@ -580,9 +580,10 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
   const { theme } = useTheme();
-
-  // Steering events (pause/resume/stop) are system messages with _steering marker
+  const [isOpen, setIsOpen] = React.useState(false);
   const msg = message as Record<string, unknown>;
+
+  // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
     const action = String(msg._steeringAction || msg._steering_action || 'unknown');
     const STEERING_STYLES: Record<string, { label: string; color: string }> = {
@@ -590,17 +591,12 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       resume: { label: 'resumed', color: 'text-green-500/70' },
       stop: { label: 'stopped', color: 'text-red-500/70' },
     };
-    const style = STEERING_STYLES[action] ?? {
-      label: action,
-      color: 'text-muted-foreground/70',
-    };
+    const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70' };
     const content = extractTextContent(message.content);
     return (
       <div className="flex gap-2">
         <span className={cn('shrink-0 font-medium', style.color)}>{style.label}</span>
-        {content && (
-          <div className="text-muted-foreground/70 min-w-0 flex-1">{content}</div>
-        )}
+        {content && <span className="text-muted-foreground/50 min-w-0 truncate">{content}</span>}
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -610,36 +606,41 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   if (message.role === 'system') return null;
 
-  const timeLabel = (
-    <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-      {time}
-    </span>
-  );
-
-  const renderContent = (content: string) =>
-    searchTerm ? (
-      <HighlightText text={content} term={searchTerm} />
-    ) : (
-      <RichContent content={content} />
-    );
+  // Classify the message into label + color + content
+  let label: string;
+  let color: string;
+  let content: string | null = null;
 
   if (message.role === 'user') {
-    const content = extractTextContent(message.content);
-    if (!content) return null;
     const isInterjection = !!(msg._interjection || msg._Interjection);
-    const label = isInterjection ? 'interjected' : 'request';
-    const color = isInterjection ? 'text-amber-500/60' : 'text-blue-500/60';
-    return (
-      <div className="flex gap-2">
-        <span className={cn('shrink-0 font-medium', color)}>{label}</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
-        {timeLabel}
-      </div>
-    );
-  }
+    label = isInterjection ? 'interjected' : 'request';
+    color = isInterjection ? 'text-amber-500/60' : 'text-blue-500/60';
+    content = extractTextContent(message.content);
+  } else if (message.role === 'assistant') {
+    // Check for thinking blocks first
+    const blocks =
+      msg.thinkingBlocks ??
+      msg.thinking_blocks ??
+      (msg.providerSpecificFields as Record<string, unknown> | undefined)?.thinkingBlocks ??
+      (msg.provider_specific_fields as Record<string, unknown> | undefined)?.thinking_blocks;
+    let thinkingText: string | null = null;
+    if (Array.isArray(blocks)) {
+      thinkingText = blocks
+        .map((b: Record<string, unknown>) => (b.thinking as string) || '')
+        .filter(Boolean)
+        .join('\n\n');
+    }
+    if (!thinkingText) {
+      const rc = (msg.reasoningContent ?? msg.reasoning_content) as string | undefined;
+      if (rc) thinkingText = rc;
+    }
 
-  if (message.role === 'assistant') {
-    if (message.toolCalls && message.toolCalls.length > 0) {
+    if (thinkingText) {
+      label = 'thought';
+      color = 'text-cyan-500/60';
+      content = thinkingText;
+    } else if (message.toolCalls && message.toolCalls.length > 0) {
+      // Tool calls are short one-liners — render inline, not collapsible
       const aliases = log.entries.toolAliases;
       const toolNames = message.toolCalls
         .map((tc) => {
@@ -667,9 +668,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-500/60">call</span>
           <div className="text-muted-foreground/70 min-w-0 flex-1">
-            <span>
-              <HighlightText text={toolNames} term={searchTerm} />
-            </span>
+            <span><HighlightText text={toolNames} term={searchTerm} /></span>
             {codeBlocks.map((block, i) => (
               <SyntaxHighlighter
                 key={i}
@@ -687,34 +686,61 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
               </SyntaxHighlighter>
             ))}
           </div>
-          {timeLabel}
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {time}
+          </span>
         </div>
       );
+    } else {
+      label = 'response';
+      color = 'text-green-500/60';
+      content = extractTextContent(message.content);
     }
-    const content = extractTextContent(message.content);
-    if (!content) return null;
-    return (
-      <div className="flex gap-2">
-        <span className="shrink-0 font-medium text-green-500/60">response</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
-        {timeLabel}
-      </div>
-    );
+  } else if (message.role === 'tool') {
+    label = 'result';
+    color = 'text-purple-500/60';
+    content = extractTextContent(message.content);
+  } else {
+    return null;
   }
 
-  if (message.role === 'tool') {
-    const content = extractTextContent(message.content);
-    if (!content) return null;
-    return (
-      <div className="flex gap-2">
-        <span className="shrink-0 font-medium text-purple-500/60">result</span>
-        <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
-        {timeLabel}
-      </div>
-    );
-  }
+  if (!content) return null;
 
-  return null;
+  const renderContent = (text: string) =>
+    searchTerm ? <HighlightText text={text} term={searchTerm} /> : <RichContent content={text} />;
+
+  const preview = content.split(/\n\n|\n/)[0];
+
+  return (
+    <div
+      className={cn('group rounded-sm transition-colors duration-150', isOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
+      onClick={!isOpen ? () => setIsOpen(true) : undefined}
+    >
+      <div className={cn('flex gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
+        <span className={cn('shrink-0 font-medium', color)}>{label}</span>
+        {!isOpen && (
+          <span className="text-muted-foreground/50 min-w-0 truncate">
+            <TruncatedMarkdown content={preview} />
+          </span>
+        )}
+        {isOpen && <span className="min-w-0 flex-1" />}
+        <ChevronRight
+          className={cn(
+            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
+            isOpen && 'rotate-90'
+          )}
+        />
+        <span className="text-muted-foreground/30 shrink-0 pl-1 text-[10px] tabular-nums">
+          {time}
+        </span>
+      </div>
+      {isOpen && (
+        <div className="text-muted-foreground/70 mt-1 text-[11px] leading-relaxed">
+          {renderContent(content)}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
