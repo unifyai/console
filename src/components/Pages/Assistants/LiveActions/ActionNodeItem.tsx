@@ -614,7 +614,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   if (message.role === 'user') {
     const isInterjection = !!(msg._interjection || msg._Interjection);
-    label = isInterjection ? 'interjected' : 'request';
+    label = isInterjection ? 'interjection' : 'request';
     color = isInterjection ? 'text-blue-500/70 dark:text-blue-400/60' : 'text-blue-600/80 dark:text-blue-500/60';
     content = extractTextContent(message.content);
   } else if (message.role === 'assistant') {
@@ -640,13 +640,10 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
     const renderCallLine = () => {
       if (!message.toolCalls || message.toolCalls.length === 0) return null;
-      const aliases = log.entries.toolAliases;
-      const toolNames = message.toolCalls
-        .map((tc) => {
-          const alias = aliases?.[tc.function.name];
-          return alias ?? `${tc.function.name}()`;
-        })
-        .join(', ');
+      const rawAliases = log.entries.toolAliases;
+      const aliases = rawAliases ? Object.fromEntries(
+        Object.entries(rawAliases).map(([k, v]) => [k.replace(/([A-Z])/g, '_$1').toLowerCase(), v])
+      ) : null;
 
       const codeBlocks: Array<{ lang: string; code: string }> = [];
       if (SHOW_EXECUTE_CODE_CONTENT) {
@@ -661,13 +658,23 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         }
       }
 
+      const toolNames = message.toolCalls
+        .map((tc) => {
+          const alias = aliases?.[tc.function.name];
+          if (alias) return alias;
+          if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
+          return `${tc.function.name}()`;
+        })
+        .filter(Boolean)
+        .join(', ');
+
       const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
 
       return (
         <div className="flex gap-2">
-          <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">call</span>
+          <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
           <div className="text-muted-foreground/70 min-w-0 flex-1">
-            <span><HighlightText text={toolNames} term={searchTerm} /></span>
+            {toolNames && <span><HighlightText text={toolNames} term={searchTerm} /></span>}
             {codeBlocks.map((block, i) => (
               <SyntaxHighlighter
                 key={i}
