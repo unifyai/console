@@ -22,6 +22,7 @@ describe('secret.ts', () => {
 
   beforeEach(() => {
     vi.stubEnv('NEXTAUTH_URL', MOCK_BASE_URL);
+    vi.stubEnv('ORCHESTRA_URL', MOCK_BASE_URL);
   });
 
   afterEach(() => {
@@ -257,10 +258,19 @@ describe('secret.ts', () => {
       },
       async () => {
         // Arrange
+        const mirrorContexts: string[] = [];
         server.use(
           http.post(`${MOCK_BASE_URL}/api/logs`, () => {
-            return HttpResponse.json({ info: 'Log created' });
-          })
+            return HttpResponse.json({ info: 'Log created', logEventIds: [101] });
+          }),
+          http.post(
+            `${MOCK_BASE_URL}/v0/project/Assistants/contexts/add_logs`,
+            async ({ request }) => {
+              const body = (await request.json()) as { context_name: string };
+              mirrorContexts.push(body.context_name);
+              return HttpResponse.json({ info: 'OK' });
+            }
+          )
         );
 
         // Act
@@ -272,6 +282,8 @@ describe('secret.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('info', 'Secret created successfully.');
+        expect(mirrorContexts).toContain(`${USER_ID}/All/Secrets`);
+        expect(mirrorContexts).toContain('All/Secrets');
       }
     );
 
@@ -291,6 +303,9 @@ describe('secret.ts', () => {
         server.use(
           http.post(`${MOCK_BASE_URL}/api/logs`, async ({ request }) => {
             capturedBody = await request.json();
+            return HttpResponse.json({ info: 'OK', logEventIds: [1] });
+          }),
+          http.post(`${MOCK_BASE_URL}/v0/project/Assistants/contexts/add_logs`, () => {
             return HttpResponse.json({ info: 'OK' });
           })
         );
@@ -303,14 +318,12 @@ describe('secret.ts', () => {
           description: 'My API key',
         });
 
-        // Assert
+        // Assert — writes to the primary user/assistant context
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'All/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'test-user-id/test-assistant-id/Secrets');
         expect(capturedBody.entries).toHaveLength(1);
         expect(capturedBody.entries[0]).toHaveProperty('name', 'API_KEY');
         expect(capturedBody.entries[0]).toHaveProperty('value', 'secret123');
-        // Verify all private fields are included (matching Unity's log_utils injection)
-        // Note: These use Unity's underscore-prefixed naming convention (_user_id, _assistant_id)
         /* eslint-disable @typescript-eslint/naming-convention */
         expect(capturedBody.entries[0]).toHaveProperty('_user_id', 'test-user-id');
         expect(capturedBody.entries[0]).toHaveProperty('_assistant_id', 'test-assistant-id');

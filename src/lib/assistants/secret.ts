@@ -23,7 +23,7 @@ async function mirrorToAllContexts(
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
   const allContexts = [`${userId}/All${suffix}`, `All${suffix}`];
   /* eslint-disable @typescript-eslint/naming-convention */
-  await Promise.all(
+  const results = await Promise.all(
     allContexts.map((ctx) =>
       fetch(`${orchestraUrl}/v0/project/${PROJECT}/contexts/add_logs`, {
         method: 'POST',
@@ -33,6 +33,12 @@ async function mirrorToAllContexts(
     )
   );
   /* eslint-enable @typescript-eslint/naming-convention */
+  for (const res of results) {
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error(`[mirrorToAllContexts] Failed to mirror logs: ${res.status} ${text}`);
+    }
+  }
 }
 
 const mapLogToSecret = (log: LogProps): Secret | null => {
@@ -136,7 +142,7 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
       }
 
       const data = await response.json();
-      const logIds: number[] | undefined = data?.log_event_ids;
+      const logIds: number[] | undefined = data?.logEventIds;
       if (logIds?.length) {
         await mirrorToAllContexts(apiKey, logIds, userId, CONTEXT_SUFFIX);
       }
