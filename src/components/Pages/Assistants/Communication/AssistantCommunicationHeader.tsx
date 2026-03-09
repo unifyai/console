@@ -2,14 +2,12 @@
 
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { ExternalLink, Hand, Maximize2, X } from 'lucide-react';
+import { Hand, Maximize2, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 
 interface AssistantCommunicationHeaderProps {
   assistantName: string;
-  onPopOut?: () => void;
-  isPopOutDisabled?: boolean;
   onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
@@ -18,8 +16,6 @@ interface AssistantCommunicationHeaderProps {
 
 export function AssistantCommunicationHeader({
   assistantName,
-  onPopOut,
-  isPopOutDisabled,
   onHeaderPointerDown,
   onExpand,
   onMinimize,
@@ -76,29 +72,6 @@ export function AssistantCommunicationHeader({
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p>Fullscreen Mode</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {onPopOut && (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={onPopOut}
-                    disabled={isPopOutDisabled}
-                    aria-label="Open in new tab"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{isPopOutDisabled ? 'Available when call is ready' : 'Open in new tab'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

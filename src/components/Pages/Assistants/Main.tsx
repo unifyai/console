@@ -998,7 +998,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             toggleRemoteControlInteractive={toggleRemoteControlInteractive}
             isDesktopReady={isDesktopReady}
             callType={callType}
-            connectionDetails={connectionDetails}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={toggleSpeakerMute}
           />
