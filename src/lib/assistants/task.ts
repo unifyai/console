@@ -1,5 +1,10 @@
 import { ResponseProps } from '@/types/common';
 import { LogItemProps, LogsResponseProps } from '@/types/interfaces/logs';
+import {
+  buildUserIdFilter,
+  buildAssistantIdFilter,
+  combineFilters,
+} from '@/utils/assistants/filterExpressions';
 
 /**
  * Factory for getTasks server action.
@@ -8,7 +13,11 @@ import { LogItemProps, LogsResponseProps } from '@/types/interfaces/logs';
  *                       The API key scopes data to the organization, preventing cross-org leaks.
  *                       In personal workspaces, _user_id filtering prevents same-name user leaks.
  */
-export const getTasks = async (apiKey: string, userId: string, _isOrgContext: boolean) => {
+export const getTasks = async (
+  apiKey: string,
+  userId: string,
+  isOrgContext: boolean
+) => {
   return async (
     assistantId: string | null,
     filterExpression: string | null,
@@ -18,14 +27,29 @@ export const getTasks = async (apiKey: string, userId: string, _isOrgContext: bo
     'use server';
 
     try {
-      if (!assistantId) {
-        return { detail: 'assistantId is required to fetch tasks.' };
-      }
-      const context = `${userId}/${assistantId}/Tasks`;
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=All/Tasks`;
 
-      if (filterExpression) {
-        url += `&filterExpr=${encodeURIComponent(filterExpression)}`;
+      // Build security filters based on workspace context
+      // - Org workspace: API key scopes to org, all members see all tasks, no _user_id filter needed
+      // - Personal workspace: Filter by _user_id to prevent same-name user data leaks
+      const securityFilters: string[] = [];
+      if (!isOrgContext) {
+        securityFilters.push(buildUserIdFilter(userId));
+      }
+      if (assistantId) {
+        securityFilters.push(buildAssistantIdFilter(assistantId));
+      }
+
+      // Build the full filter expression
+      let fullFilter = filterExpression;
+      if (securityFilters.length > 0) {
+        const securityFilter = combineFilters(securityFilters);
+        fullFilter = filterExpression
+          ? combineFilters([securityFilter, filterExpression])
+          : securityFilter;
+      }
+      if (fullFilter) {
+        url += `&filterExpr=${encodeURIComponent(fullFilter)}`;
       }
       if (limit !== null) {
         url += `&limit=${limit}`;
@@ -66,16 +90,14 @@ export const getTasks = async (apiKey: string, userId: string, _isOrgContext: bo
   };
 };
 
-export const updateTask = async (apiKey: string, userId: string) => {
+export const updateTask = async (apiKey: string) => {
   return async (
-    assistantId: string,
     logs: number[],
     entries: LogItemProps
   ): Promise<ResponseProps> => {
     'use server';
 
     try {
-      const context = `${userId}/${assistantId}/Tasks`;
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
         method: 'PUT',
         headers: {
@@ -85,7 +107,7 @@ export const updateTask = async (apiKey: string, userId: string) => {
         body: JSON.stringify({
           logs: logs,
           projectName: 'Assistants',
-          context,
+          context: 'All/Tasks',
           params: {},
           entries: entries,
           overwrite: true,

@@ -150,7 +150,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     secret: {
       get: await getSecrets(apiKey, user.id, isOrgContext),
       create: await createSecret(apiKey, user.id, isOrgContext),
-      delete: await deleteSecret(apiKey, user.id),
+      delete: await deleteSecret(apiKey),
     },
     approval: {
       getProfile: await fetchCurrentUserHiringProfile(),
@@ -195,7 +195,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
 
   const taskActions: TaskActions = {
     get: await getTasks(apiKey, user.id, isOrgContext),
-    update: await updateTask(apiKey, user.id),
+    update: await updateTask(apiKey),
   };
 
   const userMeta = {

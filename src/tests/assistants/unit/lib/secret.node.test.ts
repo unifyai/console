@@ -75,7 +75,7 @@ describe('secret.ts', () => {
         meta: {
           alias: 'GetSecrets-ContextPath-Personal',
           scenario: 'Verify URL contains _user_id and _assistant_id filters in personal context',
-          behavior: 'URL includes user/assistant-scoped Secrets context',
+          behavior: 'URL includes All/Secrets context with both security filters',
         },
       },
       async () => {
@@ -92,7 +92,11 @@ describe('secret.ts', () => {
         const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', false);
         await getSecretsFn('test-assistant-id');
 
-        expect(capturedUrl).toContain('test-user-id/test-assistant-id/Secrets');
+        // Assert - URL should contain All/Secrets context and both security filters
+        expect(capturedUrl).toContain('All/Secrets');
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).toContain("_user_id == 'test-user-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
 
@@ -101,8 +105,8 @@ describe('secret.ts', () => {
       {
         meta: {
           alias: 'GetSecrets-ContextPath-Org',
-          scenario: 'Verify URL uses user-scoped context in org context',
-          behavior: 'URL uses user/assistant context path (same as personal)',
+          scenario: 'Verify URL omits _user_id filter in org context',
+          behavior: 'URL includes _assistant_id but NOT _user_id filter',
         },
       },
       async () => {
@@ -119,7 +123,11 @@ describe('secret.ts', () => {
         const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', true);
         await getSecretsFn('test-assistant-id');
 
-        expect(capturedUrl).toContain('test-user-id/test-assistant-id/Secrets');
+        // Assert - URL should contain _assistant_id but NOT _user_id
+        expect(capturedUrl).toContain('All/Secrets');
+        const decodedUrl = decodeURIComponent(capturedUrl);
+        expect(decodedUrl).not.toContain("_user_id == 'test-user-id'");
+        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
       }
     );
 
@@ -297,7 +305,7 @@ describe('secret.ts', () => {
 
         // Assert
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody.context).toContain('/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'All/Secrets');
         expect(capturedBody.entries).toHaveLength(1);
         expect(capturedBody.entries[0]).toHaveProperty('name', 'API_KEY');
         expect(capturedBody.entries[0]).toHaveProperty('value', 'secret123');
@@ -388,8 +396,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_ID);
-        const result = await deleteFn(ASSISTANT_ID, 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('info', 'Secret deleted successfully.');
@@ -416,12 +424,12 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_ID);
-        await deleteFn(ASSISTANT_ID, 42);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        await deleteFn(42);
 
         // Assert
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody.context).toContain('/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'All/Secrets');
         expect(capturedBody.idsAndFields).toEqual([[42, null]]);
       }
     );
@@ -444,8 +452,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_ID);
-        const result = await deleteFn(ASSISTANT_ID, 999);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(999);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Secret not found');
@@ -470,8 +478,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_ID);
-        const result = await deleteFn(ASSISTANT_ID, 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -496,8 +504,8 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const deleteFn = await deleteSecret(TEST_API_KEY, USER_ID);
-        const result = await deleteFn(ASSISTANT_ID, 1);
+        const deleteFn = await deleteSecret(TEST_API_KEY);
+        const result = await deleteFn(1);
 
         // Assert
         expect(result).toHaveProperty('detail');

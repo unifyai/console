@@ -118,9 +118,7 @@ export function TaskListItem({
     const toastId = toast.loading('Saving description...');
 
     try {
-      const response = await updateTask(assistant.agentId, [task.logId], {
-        description: description,
-      });
+      const response = await updateTask([task.logId], { description: description });
 
       if (response && (response.message || response.detail)) {
         throw new Error(

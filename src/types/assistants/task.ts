@@ -76,5 +76,5 @@ export interface TaskActions {
     limit: number | null,
     offset: number | null
   ) => Promise<LogsResponseProps | ResponseProps>;
-  update: (assistantId: string, logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  update: (logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
 }

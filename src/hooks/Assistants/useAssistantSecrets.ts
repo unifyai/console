@@ -4,7 +4,10 @@ import { toast } from 'sonner';
 import { Secret, SecretPayload, SecretActions } from '@/types/assistants/secret';
 import { ResponseProps } from '@/types/common';
 
-export function useAssistantSecrets(assistantId: string | null, secretActions: SecretActions) {
+export function useAssistantSecrets(
+  assistantId: string | null,
+  secretActions: SecretActions
+) {
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -65,7 +68,7 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
     if (!assistantId) return;
     const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
     try {
-      const result = await secretActions.delete(assistantId, secretToDelete.logId);
+      const result = await secretActions.delete(secretToDelete.logId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });

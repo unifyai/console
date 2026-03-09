@@ -151,17 +151,11 @@ export function createMockTaskActions(options: MockTaskActionsOptions = {}): Tas
         };
       }
     ),
-    update: vi.fn(
-      async (
-        _assistantId: string,
-        _logs: number[],
-        _entries: LogItemProps
-      ): Promise<ResponseProps> => {
-        await maybeDelay();
-        if (!updateSuccess) return { detail: errorMessage };
-        return { info: 'Task updated' };
-      }
-    ),
+    update: vi.fn(async (_logs: number[], _entries: LogItemProps): Promise<ResponseProps> => {
+      await maybeDelay();
+      if (!updateSuccess) return { detail: errorMessage };
+      return { info: 'Task updated' };
+    }),
   };
 }
 
@@ -179,8 +173,7 @@ export function createPendingTaskActions(): TaskActions {
       ): Promise<LogsResponseProps | ResponseProps> => new Promise(() => {})
     ),
     update: vi.fn(
-      (_assistantId: string, _logs: number[], _entries: LogItemProps): Promise<ResponseProps> =>
-        new Promise(() => {})
+      (_logs: number[], _entries: LogItemProps): Promise<ResponseProps> => new Promise(() => {})
     ),
   };
 }
