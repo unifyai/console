@@ -158,40 +158,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     setProspectPhone('');
   };
 
-  // Check if the name matches an existing assistant
-  const nameConflict = React.useMemo(() => {
-    if (!firstName.trim() && !surname.trim()) {
-      return null;
-    }
-
-    const normalizedFirst = firstName.trim().toLowerCase();
-    const normalizedSurname = surname.trim().toLowerCase();
-
-    // Check against source assistants
-    const matchingSource = sourceAssistants.find(
-      (a) =>
-        a.firstName?.trim().toLowerCase() === normalizedFirst &&
-        a.surname?.trim().toLowerCase() === normalizedSurname
-    );
-
-    if (matchingSource) {
-      return `An assistant named "${matchingSource.firstName} ${matchingSource.surname}" already exists`;
-    }
-
-    // Check against demo assistants
-    const matchingDemo = demoAssistants.find(
-      (a) =>
-        a.firstName?.trim().toLowerCase() === normalizedFirst &&
-        a.surname?.trim().toLowerCase() === normalizedSurname
-    );
-
-    if (matchingDemo) {
-      return `A demo assistant named "${matchingDemo.firstName} ${matchingDemo.surname}" already exists`;
-    }
-
-    return null;
-  }, [firstName, surname, sourceAssistants, demoAssistants]);
-
   // Validate phone number format (E.164: + followed by 7-15 digits)
   const phoneError = React.useMemo(() => {
     if (!demoerPhone.trim()) {
@@ -240,7 +206,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
     firstName &&
     surname &&
     demoerPhone &&
-    !nameConflict &&
     !phoneError &&
     !prospectPhoneError;
 
@@ -311,7 +276,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                               placeholder="Demo assistant first name"
                               value={firstName}
                               onChange={(e) => setFirstName(e.target.value)}
-                              className={nameConflict ? 'border-destructive' : ''}
                             />
                           </div>
                           <div className="grid gap-2">
@@ -321,11 +285,9 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                               placeholder="Demo assistant surname"
                               value={surname}
                               onChange={(e) => setSurname(e.target.value)}
-                              className={nameConflict ? 'border-destructive' : ''}
                             />
                           </div>
                         </div>
-                        {nameConflict && <p className="text-error text-sm">{nameConflict}</p>}
                         <div className="grid gap-2">
                           <Label htmlFor="spendingCap">Monthly Spending Cap ($)</Label>
                           <Input

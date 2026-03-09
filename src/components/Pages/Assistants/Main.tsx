@@ -877,7 +877,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           isStripePanelOpen={isStripePanelOpen}
         >
           <HireForm
-            assistants={assistants}
             formMethods={formMethods}
             isSubmitting={isFormSubmitting}
             assistantActions={assistantActions}
@@ -932,7 +931,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             canDelete={canDelete(assistantToEdit)}
           >
             <HireForm
-              assistants={assistants}
               formMethods={formMethods}
               onSubmit={initiateUpdate}
               isSubmitting={isFormSubmitting}

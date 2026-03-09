@@ -386,7 +386,7 @@ describe('useDemoAssistants', () => {
     });
 
     it('shows error toast on creation failure', async () => {
-      mockCreateDemo.mockResolvedValue({ detail: 'Creation failed: duplicate name' });
+      mockCreateDemo.mockResolvedValue({ detail: 'Creation failed: database error' });
 
       const { result } = renderHook(() => useDemoAssistants(mockActions));
 
@@ -398,7 +398,7 @@ describe('useDemoAssistants', () => {
         await result.current.createDemoAssistant(createMockPayload(1));
       });
 
-      expect(toast.error).toHaveBeenCalledWith('Creation failed: duplicate name', {
+      expect(toast.error).toHaveBeenCalledWith('Creation failed: database error', {
         id: 'toast-id',
       });
     });

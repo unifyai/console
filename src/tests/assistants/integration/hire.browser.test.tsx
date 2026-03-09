@@ -30,14 +30,12 @@ import * as preHireChatModule from '@/lib/assistants/preHireChat';
 // Test Wrapper Component to mimic Main.tsx integration
 const HireFlowTestWrapper = ({
   onClose,
-  existingAssistants = [],
   customVoices,
   onHireSuccess,
   presetsToUse = mockPresets,
   useRealPresetHook = false,
 }: {
   onClose?: () => void;
-  existingAssistants?: Assistant[];
   customVoices?: VoiceOption[];
   onHireSuccess?: (assistant: Assistant, formData: any) => void;
   presetsToUse?: any[];
@@ -136,7 +134,6 @@ const HireFlowTestWrapper = ({
             isLoadingUserVoices={false}
             fetchUserVoices={fetchUserVoices}
             handleDeleteVoice={handleDeleteVoice}
-            assistants={existingAssistants}
             mode="hire"
           />
           <PresetsPanel
@@ -383,28 +380,6 @@ describe('Assistant Hire Flow', () => {
             })
           );
         });
-      }
-    );
-
-    it(
-      'should prevent creating a duplicate assistant by name',
-      {
-        meta: {
-          alias: 'Hire-Duplicate-Name',
-          behavior: 'Shows validation error for duplicate name',
-          scenario: 'Entering existing assistant name',
-        },
-      },
-      async () => {
-        const user = userEvent.setup();
-        render(<HireFlowTestWrapper existingAssistants={mockAssistants} />);
-        await waitForFormReady();
-        await user.type(screen.getByLabelText(/first name/i), 'Jane');
-        await user.type(screen.getByLabelText(/last name/i), 'Doe');
-        await user.tab();
-        expect(
-          await screen.findByText(/an assistant with this full name already exists/i)
-        ).toBeInTheDocument();
       }
     );
 
