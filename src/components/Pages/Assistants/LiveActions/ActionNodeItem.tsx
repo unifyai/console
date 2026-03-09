@@ -626,9 +626,12 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   if (message.role === 'user') {
     const content = extractTextContent(message.content);
     if (!content) return null;
+    const isInterjection = !!(msg._interjection || msg._Interjection);
+    const label = isInterjection ? 'interjected' : 'request';
+    const color = isInterjection ? 'text-amber-500/60' : 'text-blue-500/60';
     return (
       <div className="flex gap-2">
-        <span className="shrink-0 font-medium text-blue-500/60">request</span>
+        <span className={cn('shrink-0 font-medium', color)}>{label}</span>
         <div className="text-muted-foreground/70 min-w-0 flex-1">{renderContent(content)}</div>
         {timeLabel}
       </div>
