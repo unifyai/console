@@ -610,6 +610,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   let label: string;
   let color: string;
   let content: string | null = null;
+  let trailingCallLine: React.ReactNode = null;
 
   if (message.role === 'user') {
     const isInterjection = !!(msg._interjection || msg._Interjection);
@@ -635,12 +636,10 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       if (rc) thinkingText = rc;
     }
 
-    if (thinkingText) {
-      label = 'thought';
-      color = 'text-slate-500/80 dark:text-slate-400/50';
-      content = thinkingText;
-    } else if (message.toolCalls && message.toolCalls.length > 0) {
-      // Tool calls are short one-liners — render inline, not collapsible
+    const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
+
+    const renderCallLine = () => {
+      if (!message.toolCalls || message.toolCalls.length === 0) return null;
       const aliases = log.entries.toolAliases;
       const toolNames = message.toolCalls
         .map((tc) => {
@@ -691,6 +690,15 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
           </span>
         </div>
       );
+    };
+
+    if (thinkingText) {
+      label = 'thought';
+      color = 'text-slate-500/80 dark:text-slate-400/50';
+      content = thinkingText;
+      if (hasToolCalls) trailingCallLine = renderCallLine();
+    } else if (hasToolCalls) {
+      return renderCallLine();
     } else {
       label = 'response';
       color = 'text-emerald-600/80 dark:text-emerald-400/60';
@@ -711,7 +719,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   const preview = content.split(/\n\n|\n/)[0];
 
-  return (
+  return (<>
     <div
       className={cn('group rounded-sm transition-colors duration-150', isOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
       onClick={!isOpen ? () => setIsOpen(true) : undefined}
@@ -740,6 +748,8 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         </div>
       )}
     </div>
+    {trailingCallLine}
+  </>
   );
 }
 
