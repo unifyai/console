@@ -15,7 +15,6 @@ import {
   mergeNewEvents,
   hasActiveRootAction,
   ACTION_LOOKBACK_MS,
-  isUserFacingAction,
 } from '@/utils/assistants/assistant-actions';
 import type {
   ActionNode,
@@ -463,10 +462,7 @@ export function useAssistantActions(
         if (!parsed?.data) return;
 
         if (parsed.type === 'ManagerMethod') {
-          const isLifecycleEvent = entries?.phase === 'incoming' || entries?.phase === 'outgoing';
-          const isActionEvent = isUserFacingAction(entries?.action);
-
-          if (!isLifecycleEvent && !isActionEvent) {
+          if (entries?.phase !== 'incoming' && entries?.phase !== 'outgoing') {
             return;
           }
 

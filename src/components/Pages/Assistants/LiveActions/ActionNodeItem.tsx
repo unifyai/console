@@ -21,7 +21,6 @@ import {
   Users,
   FileText,
   BookOpen,
-  PenLine,
   RefreshCw,
   ListChecks,
   Cpu,
@@ -31,10 +30,6 @@ import {
   Globe,
   MessageCircle,
   CircleDot,
-  HelpCircle,
-  XCircle,
-  Pause,
-  CheckCircle,
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
@@ -44,7 +39,6 @@ import { useTheme } from 'next-themes';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { dracula, docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import type {
-  ActionInteraction,
   ActionNode,
   ActionNodeStatus,
   GetToolLoopEventsFn,
@@ -587,6 +581,33 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
   const { theme } = useTheme();
 
+  // Steering events (pause/resume/stop) are system messages with _steering marker
+  const msg = message as Record<string, unknown>;
+  if (message.role === 'system' && msg._steering) {
+    const action = String(msg._steeringAction || msg._steering_action || 'unknown');
+    const STEERING_STYLES: Record<string, { label: string; color: string }> = {
+      pause: { label: 'paused', color: 'text-yellow-500/70' },
+      resume: { label: 'resumed', color: 'text-green-500/70' },
+      stop: { label: 'stopped', color: 'text-red-500/70' },
+    };
+    const style = STEERING_STYLES[action] ?? {
+      label: action,
+      color: 'text-muted-foreground/70',
+    };
+    const content = extractTextContent(message.content);
+    return (
+      <div className="flex gap-2">
+        <span className={cn('shrink-0 font-medium', style.color)}>{style.label}</span>
+        {content && (
+          <div className="text-muted-foreground/70 min-w-0 flex-1">{content}</div>
+        )}
+        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+          {time}
+        </span>
+      </div>
+    );
+  }
+
   if (message.role === 'system') return null;
 
   const timeLabel = (
@@ -1022,75 +1043,6 @@ function CollapsibleToolLoopSection({
   );
 }
 
-const INTERACTION_LABELS: Record<string, { label: string; color: string; icon: LucideIcon }> = {
-  interject: { label: 'interjected', color: 'text-amber-500/70', icon: PenLine },
-  stop: { label: 'stopped', color: 'text-red-500/70', icon: XCircle },
-  pause: { label: 'paused', color: 'text-yellow-500/70', icon: Pause },
-  resume: { label: 'resumed', color: 'text-green-500/70', icon: Play },
-  ask: { label: 'asked', color: 'text-blue-500/70', icon: HelpCircle },
-  answerClarification: { label: 'clarified', color: 'text-violet-500/70', icon: CheckCircle },
-};
-
-/**
- * Renders a mid-flight interaction annotation (e.g. "interjected", "stopped").
- */
-function InteractionEvent({
-  interaction,
-  depth,
-}: {
-  interaction: ActionInteraction;
-  depth: number;
-}) {
-  const config = INTERACTION_LABELS[interaction.action] ?? {
-    label: interaction.action,
-    color: 'text-muted-foreground/70',
-    icon: CircleDot,
-  };
-  const InteractionIcon = config.icon;
-
-  const hasContent = !!interaction.content;
-  const [isOpen, setIsOpen] = React.useState(false);
-
-  return (
-    <div
-      className={cn(
-        'group rounded-sm py-0.5 text-[11px] transition-colors duration-150',
-        hasContent && 'hover:bg-muted/40 cursor-pointer'
-      )}
-      style={{ paddingLeft: `${28 + depth * 16}px` }}
-      onClick={hasContent ? () => setIsOpen((v) => !v) : undefined}
-      title={hasContent && !isOpen ? 'Click to expand' : undefined}
-    >
-      <div className="flex items-center gap-1.5">
-        <InteractionIcon className={cn('h-3 w-3 shrink-0', config.color)} />
-        <span className={cn('shrink-0 text-[11px] font-medium', config.color)}>{config.label}</span>
-        {hasContent && !isOpen && (
-          <span className="text-muted-foreground/50 line-clamp-1 min-w-0 flex-1">
-            <TruncatedMarkdown content={interaction.content!} />
-          </span>
-        )}
-        {hasContent && (
-          <ChevronRight
-            className={cn(
-              'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
-              isOpen && 'rotate-90'
-            )}
-          />
-        )}
-        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-          {formatEventTime(interaction.timestamp)}
-        </span>
-      </div>
-
-      {hasContent && isOpen && (
-        <div className="text-muted-foreground/70 styled-scrollbar mt-1 max-h-[120px] overflow-y-auto text-[11px] leading-relaxed">
-          <RichContent content={interaction.content!} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ActionNodeItem({
   node,
   depth = 0,
@@ -1151,9 +1103,9 @@ export function ActionNodeItem({
   const filteredLiveToolLoopLogs = React.useMemo(() => {
     if (!node.liveToolLoopLogs) return [];
     const logs = node.liveToolLoopLogs.filter((l) => {
-      const msg = l.entries.message;
-      if (msg.role === 'system') return false;
-      return !isToolLoopNoise(msg);
+      const msg = l.entries.message as Record<string, unknown>;
+      if (msg.role === 'system' && !msg._steering) return false;
+      return !isToolLoopNoise(msg as Record<string, unknown>);
     });
     const children = node.children || [];
     if (children.length === 0) return logs;
@@ -1299,9 +1251,9 @@ export function ActionNodeItem({
         // happens reactively in the completedToolLoopLogs memo.
         setRawToolLoopLogs(
           logs.filter((l) => {
-            const msg = l.entries.message;
-            if (msg.role === 'system') return false;
-            return !isToolLoopNoise(msg);
+            const msg = l.entries.message as Record<string, unknown>;
+            if (msg.role === 'system' && !msg._steering) return false;
+            return !isToolLoopNoise(msg as Record<string, unknown>);
           })
         );
       } catch {
@@ -1356,82 +1308,41 @@ export function ActionNodeItem({
   const contentReady = (childrenReady && toolLoopReady) || node.status === 'running' || hasLiveData;
 
   const showFallbackContent = isExpanded && contentReady && !canLoadToolLoop && !!fallbackContent;
-  const hasInteractions = (node.interactions?.length ?? 0) > 0;
 
-  // Enrich interactions with content extracted from ToolLoop data.
-  // interject() injects a message into the existing loop queue — the next
-  // ToolLoop "user" message IS the interjection text. Show it inline.
-  const enrichedInteractions = React.useMemo(() => {
-    if (!node.interactions?.length || !effectiveLogs.length) return node.interactions;
-    return node.interactions.map((interaction) => {
-      if (interaction.content || interaction.action !== 'interject') return interaction;
-      const interactionTime = new Date(interaction.timestamp).getTime();
-      const nextUserMsg = effectiveLogs.find((log) => {
-        const logTime = new Date(log.entries.eventTimestamp || log.ts).getTime();
-        return logTime >= interactionTime && log.entries.message.role === 'user';
-      });
-      if (nextUserMsg) {
-        const content = extractTextContent(nextUserMsg.entries.message.content);
-        if (content) return { ...interaction, content };
-      }
-      return interaction;
-    });
-  }, [node.interactions, effectiveLogs]);
-
-  // Build a strictly chronological timeline that interleaves ToolLoop segments,
-  // child nodes, and interaction annotations. Each child/interaction timestamp
-  // acts as a split point so ToolLoop events before it render above, after below.
+  // Build a strictly chronological timeline that interleaves ToolLoop segments
+  // and child nodes. Each child timestamp acts as a split point so ToolLoop
+  // events before it render above, after below.
   type TimelineSegment =
     | { kind: 'steps'; logs: ToolLoopLog[]; key: string }
-    | { kind: 'child'; node: ActionNode }
-    | { kind: 'interaction'; interaction: ActionInteraction };
+    | { kind: 'child'; node: ActionNode };
 
-  type TimelineEvent =
-    | { kind: 'child'; node: ActionNode; time: number }
-    | { kind: 'interaction'; interaction: ActionInteraction; time: number };
+  type TimelineEvent = { kind: 'child'; node: ActionNode; time: number };
 
   const timeline = React.useMemo((): TimelineSegment[] => {
-    if (!hasToolLoopData && !hasChildren && !hasInteractions) return [];
+    if (!hasToolLoopData && !hasChildren) return [];
 
-    // Only include children that will actually render (same logic as isVisible).
-    // Invisible children (e.g. empty boundary nodes) must not split step
-    // sections — otherwise consecutive steps get fragmented.
     const visibleChildren = node.children.filter((c) =>
       c.type === 'boundary'
         ? (c.children?.length ?? 0) > 0
         : !!c.requestContent || (c.children?.length ?? 0) > 0 || c.status === 'running'
     );
 
-    // Merge children and interactions into a unified chronological event list
-    const timelineEvents: TimelineEvent[] = [
-      ...visibleChildren.map((c) => ({
+    const timelineEvents: TimelineEvent[] = visibleChildren
+      .map((c) => ({
         kind: 'child' as const,
         node: c,
         time: new Date(c.startTime).getTime(),
-      })),
-      ...(enrichedInteractions ?? []).map((i) => ({
-        kind: 'interaction' as const,
-        interaction: i,
-        time: new Date(i.timestamp).getTime(),
-      })),
-    ].sort((a, b) => a.time - b.time);
+      }))
+      .sort((a, b) => a.time - b.time);
 
-    // No ToolLoop data — just list events in chronological order
     if (!hasToolLoopData) {
-      return timelineEvents.map((evt) =>
-        evt.kind === 'child'
-          ? { kind: 'child' as const, node: evt.node }
-          : { kind: 'interaction' as const, interaction: evt.interaction }
-      );
+      return timelineEvents.map((evt) => ({ kind: 'child' as const, node: evt.node }));
     }
 
-    // No events — single steps block
     if (timelineEvents.length === 0) {
       return [{ kind: 'steps' as const, logs: effectiveLogs, key: 'all' }];
     }
 
-    // Interleave: walk through ToolLoop logs and events together,
-    // splitting ToolLoop logs at each event's timestamp.
     const result: TimelineSegment[] = [];
     let logIdx = 0;
 
@@ -1451,19 +1362,13 @@ export function ActionNodeItem({
         }
       }
 
-      const evtKey = evt.kind === 'child' ? evt.node.id : `int-${evt.interaction.id}`;
       if (segment.length > 0) {
-        result.push({ kind: 'steps', logs: segment, key: `pre-${evtKey}` });
+        result.push({ kind: 'steps', logs: segment, key: `pre-${evt.node.id}` });
       }
 
-      if (evt.kind === 'child') {
-        result.push({ kind: 'child', node: evt.node });
-      } else {
-        result.push({ kind: 'interaction', interaction: evt.interaction });
-      }
+      result.push({ kind: 'child', node: evt.node });
     }
 
-    // Remaining logs after the last event
     if (logIdx < effectiveLogs.length) {
       result.push({
         kind: 'steps',
@@ -1472,30 +1377,8 @@ export function ActionNodeItem({
       });
     }
 
-    // When an interject interaction already shows its content inline,
-    // drop the duplicate ToolLoop user message from the steps segment
-    // that immediately follows it (interject() injects the message into
-    // the loop queue, so it appears as the first user turn in the next
-    // steps block — showing it twice is redundant).
-    for (let i = 0; i < result.length; i++) {
-      const seg = result[i];
-      if (
-        seg.kind === 'interaction' &&
-        seg.interaction.action === 'interject' &&
-        seg.interaction.content
-      ) {
-        const next = result[i + 1];
-        if (next?.kind === 'steps' && next.logs.length > 0) {
-          const first = next.logs[0];
-          if (first.entries.message.role === 'user') {
-            next.logs = next.logs.slice(1);
-          }
-        }
-      }
-    }
-
     // Merge consecutive step sections so that adjacent ToolLoop segments
-    // (with no child/interaction between them) appear as a single block.
+    // (with no child between them) appear as a single block.
     const merged: TimelineSegment[] = [];
     for (const seg of result) {
       const last = merged[merged.length - 1];
@@ -1511,14 +1394,11 @@ export function ActionNodeItem({
   }, [
     hasToolLoopData,
     hasChildren,
-    hasInteractions,
     effectiveLogs,
     childCount,
-    enrichedInteractions,
   ]);
 
-  // Whether to use the interleaved timeline renderer
-  const useTimeline = isExpanded && contentReady && (hasToolLoopData || hasInteractions);
+  const useTimeline = isExpanded && contentReady && hasToolLoopData;
 
   const NodeIcon = getNodeIcon(node.displayLabel);
   const isMatch = !!matchedIds && matchedIds.has(node.id);
@@ -1620,9 +1500,9 @@ export function ActionNodeItem({
         />
       )}
 
-      {/* Interleaved timeline: ToolLoop segments, children, and interactions
-          in strict chronological order. Promoted request/response logs are
-          filtered out since they're shown above. */}
+      {/* Interleaved timeline: ToolLoop segments and children in strict
+          chronological order. Promoted request/response logs are filtered
+          out since they're shown above. */}
       {useTimeline &&
         timeline.map((segment) => {
           if (segment.kind === 'steps') {
@@ -1635,15 +1515,6 @@ export function ActionNodeItem({
                 depth={depth}
                 sectionToggleSignal={sectionToggleSignal}
                 searchTerm={searchTerm}
-              />
-            );
-          }
-          if (segment.kind === 'interaction') {
-            return (
-              <InteractionEvent
-                key={`int-${segment.interaction.id}`}
-                interaction={segment.interaction}
-                depth={depth}
               />
             );
           }
