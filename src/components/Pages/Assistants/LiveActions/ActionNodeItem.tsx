@@ -1148,7 +1148,10 @@ export function ActionNodeItem({
 
   // Extract the full request text and the final response text as standalone
   // values so they can be rendered prominently outside the collapsed steps.
+  // Persistent actions skip this — they have no single privileged request/response.
   const promoted = React.useMemo(() => {
+    if (node.persist) return { request: null, response: null };
+
     let req: { content: string; time: string } | null = null;
     const userMsg = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (userMsg) {
@@ -1176,11 +1179,14 @@ export function ActionNodeItem({
     }
 
     return { request: req, response: resp };
-  }, [effectiveLogs]);
+  }, [effectiveLogs, node.persist]);
 
   // IDs of the ToolLoop logs that are promoted (request + response) so they
   // can be excluded from intermediate step sections.
+  // Persistent actions have no promoted logs — everything renders in the timeline.
   const promotedLogIds = React.useMemo(() => {
+    if (node.persist) return new Set<number>();
+
     const ids = new Set<number>();
     const firstUser = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (firstUser) ids.add(firstUser.id);
@@ -1195,7 +1201,7 @@ export function ActionNodeItem({
       }
     }
     return ids;
-  }, [effectiveLogs]);
+  }, [effectiveLogs, node.persist]);
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -1511,6 +1517,16 @@ export function ActionNodeItem({
           if (segment.kind === 'steps') {
             const filtered = segment.logs.filter((l) => !promotedLogIds.has(l.id));
             if (filtered.length === 0) return null;
+            if (node.persist) {
+              return (
+                <ToolLoopConversation
+                  key={segment.key}
+                  logs={filtered}
+                  depth={depth}
+                  searchTerm={searchTerm}
+                />
+              );
+            }
             return (
               <CollapsibleToolLoopSection
                 key={segment.key}

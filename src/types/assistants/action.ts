@@ -72,6 +72,9 @@ export interface ActionNode {
    *  Preserved separately because `content` gets overwritten by the outgoing answer. */
   requestContent?: string;
 
+  /** Whether this action uses persist mode (open-ended session with interjections) */
+  persist?: boolean;
+
   /** Child nodes */
   children: ActionNode[];
 
@@ -160,6 +163,8 @@ export interface ParsedManagerMethodEvent {
   errorType?: string;
   /** Full traceback — present when status="error" */
   traceback?: string;
+  /** Whether this action uses persist mode */
+  persist?: boolean;
 }
 
 /**

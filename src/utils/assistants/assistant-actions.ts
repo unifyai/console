@@ -79,6 +79,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     eventId: entries.eventId,
     errorType: entries.errorType,
     traceback: entries.traceback,
+    persist: (entries as Record<string, unknown>).persist === true ? true : undefined,
   };
 }
 
@@ -102,6 +103,7 @@ export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
     type: 'manager',
     label: event.displayLabel || rawLabel,
     displayLabel: event.displayLabel,
+    persist: event.persist,
     hierarchy: event.hierarchy,
     hierarchyLabel: event.hierarchyLabel,
     status: 'running',
