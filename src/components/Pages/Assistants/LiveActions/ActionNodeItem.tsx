@@ -587,9 +587,9 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   if (message.role === 'system' && msg._steering) {
     const action = String(msg._steeringAction || msg._steering_action || 'unknown');
     const STEERING_STYLES: Record<string, { label: string; color: string }> = {
-      pause: { label: 'paused', color: 'text-yellow-500/70' },
-      resume: { label: 'resumed', color: 'text-green-500/70' },
-      stop: { label: 'stopped', color: 'text-red-500/70' },
+      pause: { label: 'paused', color: 'text-amber-600/80 dark:text-amber-400/70' },
+      resume: { label: 'resumed', color: 'text-teal-600/80 dark:text-teal-400/70' },
+      stop: { label: 'stopped', color: 'text-rose-600/80 dark:text-rose-400/70' },
     };
     const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70' };
     const content = extractTextContent(message.content);
@@ -614,7 +614,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   if (message.role === 'user') {
     const isInterjection = !!(msg._interjection || msg._Interjection);
     label = isInterjection ? 'interjected' : 'request';
-    color = isInterjection ? 'text-amber-500/60' : 'text-blue-500/60';
+    color = isInterjection ? 'text-blue-500/70 dark:text-blue-400/60' : 'text-blue-600/80 dark:text-blue-500/60';
     content = extractTextContent(message.content);
   } else if (message.role === 'assistant') {
     // Check for thinking blocks first
@@ -637,7 +637,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
     if (thinkingText) {
       label = 'thought';
-      color = 'text-cyan-500/60';
+      color = 'text-slate-500/80 dark:text-slate-400/50';
       content = thinkingText;
     } else if (message.toolCalls && message.toolCalls.length > 0) {
       // Tool calls are short one-liners — render inline, not collapsible
@@ -666,7 +666,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
       return (
         <div className="flex gap-2">
-          <span className="shrink-0 font-medium text-orange-500/60">call</span>
+          <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">call</span>
           <div className="text-muted-foreground/70 min-w-0 flex-1">
             <span><HighlightText text={toolNames} term={searchTerm} /></span>
             {codeBlocks.map((block, i) => (
@@ -693,12 +693,12 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       );
     } else {
       label = 'response';
-      color = 'text-green-500/60';
+      color = 'text-emerald-600/80 dark:text-emerald-400/60';
       content = extractTextContent(message.content);
     }
   } else if (message.role === 'tool') {
     label = 'result';
-    color = 'text-purple-500/60';
+    color = 'text-violet-600/70 dark:text-violet-500/50';
     content = extractTextContent(message.content);
   } else {
     return null;
@@ -1517,7 +1517,7 @@ export function ActionNodeItem({
       {isExpanded && contentReady && promoted.request && (
         <PromotedContent
           label="request"
-          labelColor="text-blue-500/60"
+          labelColor="text-blue-600/80 dark:text-blue-500/60"
           content={promoted.request.content}
           depth={depth}
           timestamp={promoted.request.time}
@@ -1527,7 +1527,7 @@ export function ActionNodeItem({
       {isExpanded && contentReady && promoted.response && (
         <PromotedContent
           label="response"
-          labelColor="text-green-500/60"
+          labelColor="text-emerald-600/80 dark:text-emerald-400/60"
           content={promoted.response.content}
           depth={depth}
           timestamp={promoted.response.time}
