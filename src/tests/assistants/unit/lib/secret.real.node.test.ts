@@ -56,10 +56,10 @@ describe('@real secret.ts - Orchestra Integration', () => {
   afterEach(async () => {
     // Cleanup any secrets created during tests
     if (createdSecretIds.length > 0 && API_KEY) {
-      const deleteAction = await deleteSecret(API_KEY);
+      const deleteAction = await deleteSecret(API_KEY, TEST_USER_ID);
       for (const logId of createdSecretIds) {
         try {
-          await deleteAction(logId);
+          await deleteAction(TEST_ASSISTANT_ID, logId);
         } catch {
           // Ignore cleanup errors
         }
@@ -71,10 +71,10 @@ describe('@real secret.ts - Orchestra Integration', () => {
   afterAll(async () => {
     // Final cleanup
     if (createdSecretIds.length > 0 && API_KEY) {
-      const deleteAction = await deleteSecret(API_KEY);
+      const deleteAction = await deleteSecret(API_KEY, TEST_USER_ID);
       for (const logId of createdSecretIds) {
         try {
-          await deleteAction(logId);
+          await deleteAction(TEST_ASSISTANT_ID, logId);
         } catch {
           // Ignore cleanup errors
         }
@@ -184,8 +184,8 @@ describe('@real secret.ts - Orchestra Integration', () => {
       }
 
       // Now delete it
-      const deleteAction = await deleteSecret(API_KEY);
-      const result = await deleteAction(createdSecret.logId);
+      const deleteAction = await deleteSecret(API_KEY, TEST_USER_ID);
+      const result = await deleteAction(TEST_ASSISTANT_ID, createdSecret.logId);
 
       expect(isError(result)).toBe(false);
       expect(result).toHaveProperty('info');
@@ -200,8 +200,8 @@ describe('@real secret.ts - Orchestra Integration', () => {
     });
 
     it('@real should handle deleting non-existent secret gracefully', realTestOptions, async () => {
-      const deleteAction = await deleteSecret(API_KEY);
-      const result = await deleteAction(999999999);
+      const deleteAction = await deleteSecret(API_KEY, TEST_USER_ID);
+      const result = await deleteAction(TEST_ASSISTANT_ID, 999999999);
 
       // Should either succeed (idempotent) or return an error detail
       // Either way, should not throw

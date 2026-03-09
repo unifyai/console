@@ -115,13 +115,11 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
   };
 
   return {
-    get: vi.fn(
-      async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
-        await maybeDelay();
-        if (!getSuccess) return { detail: errorMessage };
-        return secrets;
-      }
-    ),
+    get: vi.fn(async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
+      await maybeDelay();
+      if (!getSuccess) return { detail: errorMessage };
+      return secrets;
+    }),
     create: vi.fn(
       async (
         _assistantId: string,
@@ -133,7 +131,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
       }
     ),
     delete: vi.fn(
-      async (_logId: number): Promise<{ info?: string; detail?: string }> => {
+      async (_assistantId: string, _logId: number): Promise<{ info?: string; detail?: string }> => {
         await maybeDelay();
         if (!deleteSuccess) return { detail: errorMessage };
         return { info: 'Secret deleted' };

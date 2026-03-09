@@ -134,8 +134,8 @@ describe('@real task.ts - Orchestra Integration', () => {
       const logId = typeof firstTask.id === 'string' ? parseInt(firstTask.id, 10) : firstTask.id;
 
       // Update the task's description
-      const updateAction = await updateTask(API_KEY);
-      const result = await updateAction([logId], {
+      const updateAction = await updateTask(API_KEY, TEST_USER_ID);
+      const result = await updateAction(TEST_ASSISTANT_ID, [logId], {
         description: `Updated by integration test at ${new Date().toISOString()}`,
       });
 
@@ -144,8 +144,8 @@ describe('@real task.ts - Orchestra Integration', () => {
     });
 
     it('@real should handle updating non-existent task gracefully', realTestOptions, async () => {
-      const updateAction = await updateTask(API_KEY);
-      const result = await updateAction([999999999], {
+      const updateAction = await updateTask(API_KEY, TEST_USER_ID);
+      const result = await updateAction(TEST_ASSISTANT_ID, [999999999], {
         description: 'This should fail gracefully',
       });
 
@@ -183,8 +183,8 @@ describe('@real task.ts - Orchestra Integration', () => {
       }
 
       // Batch update
-      const updateAction = await updateTask(API_KEY);
-      const result = await updateAction(logIds, {
+      const updateAction = await updateTask(API_KEY, TEST_USER_ID);
+      const result = await updateAction(TEST_ASSISTANT_ID, logIds, {
         notes: `Batch updated at ${new Date().toISOString()}`,
       });
 

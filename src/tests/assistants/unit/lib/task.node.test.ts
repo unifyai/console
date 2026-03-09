@@ -69,7 +69,7 @@ describe('task.ts', () => {
         meta: {
           alias: 'GetTasks-ContextPath',
           scenario: 'Verify URL contains correct context and _user_id/_assistant_id filters',
-          behavior: 'URL includes All/Tasks context with security filterExpr',
+          behavior: 'URL includes user/assistant-scoped Tasks context',
         },
       },
       async () => {
@@ -86,74 +86,41 @@ describe('task.ts', () => {
         const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', false);
         await getTasksFn('test-assistant-id', null, null, null);
 
-        // Assert - URL should contain All/Tasks context and security filters
-        expect(capturedUrl).toContain('All/Tasks');
-        // Check for security filter parameters (URL encoded)
-        const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).toContain("_user_id == 'test-user-id'");
-        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
+        expect(capturedUrl).toContain('test-user-id/test-assistant-id/Tasks');
       }
     );
 
     it(
-      'only includes _user_id filter when assistantId is null in personal workspace (All context)',
+      'returns error when assistantId is null',
       {
         meta: {
-          alias: 'GetTasks-AllContext-Personal',
-          scenario: 'Using All context with null assistantId in personal workspace',
-          behavior: 'URL includes only _user_id filter, not _assistant_id',
+          alias: 'GetTasks-NullAssistant',
+          scenario: 'Calling getTasks with null assistantId',
+          behavior: 'Returns error detail since assistantId is required for context path',
         },
       },
       async () => {
-        // Arrange
-        let capturedUrl = '';
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
-            capturedUrl = request.url;
-            return HttpResponse.json({ logs: [] });
-          })
-        );
-
-        // Act - isOrgContext=false for personal workspace
         const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', false);
-        await getTasksFn(null, null, null, null);
+        const result = await getTasksFn(null, null, null, null);
 
-        // Assert - URL should contain only _user_id filter
-        const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).toContain("_user_id == 'test-user-id'");
-        expect(decodedUrl).not.toContain('_assistant_id');
+        expect(result).toHaveProperty('detail');
       }
     );
 
     it(
-      'skips _user_id filter in organization workspace (All context)',
+      'returns error for null assistantId in org workspace too',
       {
         meta: {
           alias: 'GetTasks-AllContext-Org',
-          scenario: 'Using All context in organization workspace',
-          behavior: 'URL has no _user_id filter, API key scopes data to org',
+          scenario: 'Calling getTasks with null assistantId in org workspace',
+          behavior: 'Returns error since assistantId is always required',
         },
       },
       async () => {
-        // Arrange
-        let capturedUrl = '';
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/logs`, ({ request }) => {
-            capturedUrl = request.url;
-            return HttpResponse.json({ logs: [] });
-          })
-        );
-
-        // Act - isOrgContext=true for organization workspace
         const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', true);
-        await getTasksFn(null, null, null, null);
+        const result = await getTasksFn(null, null, null, null);
 
-        // Assert - URL should NOT contain _user_id filter (org members see all tasks)
-        const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).not.toContain('_user_id');
-        expect(decodedUrl).not.toContain('_assistant_id');
-        // Should not have filterExpr at all when no filters
-        expect(decodedUrl).not.toContain('filterExpr');
+        expect(result).toHaveProperty('detail');
       }
     );
 
@@ -163,7 +130,7 @@ describe('task.ts', () => {
         meta: {
           alias: 'GetTasks-OrgContext-SpecificAssistant',
           scenario: 'Fetching tasks for specific assistant in org workspace',
-          behavior: 'URL includes only _assistant_id filter, not _user_id',
+          behavior: 'URL uses user/assistant-scoped context path',
         },
       },
       async () => {
@@ -180,10 +147,7 @@ describe('task.ts', () => {
         const getTasksFn = await getTasks(TEST_API_KEY, 'test-user-id', true);
         await getTasksFn('test-assistant-id', null, null, null);
 
-        // Assert - URL should contain only _assistant_id filter
-        const decodedUrl = decodeURIComponent(capturedUrl);
-        expect(decodedUrl).not.toContain('_user_id');
-        expect(decodedUrl).toContain("_assistant_id == 'test-assistant-id'");
+        expect(capturedUrl).toContain('test-user-id/test-assistant-id/Tasks');
       }
     );
 
@@ -210,11 +174,9 @@ describe('task.ts', () => {
         const getTasksFn = await getTasks(TEST_API_KEY, USER_ID, false);
         await getTasksFn(ASSISTANT_ID, 'status = "pending"', null, null);
 
-        // Assert - should contain both security filter and user filter
         const decodedUrl = decodeURIComponent(capturedUrl);
         expect(decodedUrl).toContain('filterExpr=');
         expect(decodedUrl).toContain('status = "pending"');
-        expect(decodedUrl).toContain('_user_id ==');
       }
     );
 
@@ -348,8 +310,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY);
-        const result = await updateFn([1, 2], { status: 'completed' });
+        const updateFn = await updateTask(TEST_API_KEY, USER_ID);
+        const result = await updateFn(ASSISTANT_ID, [1, 2], { status: 'completed' });
 
         // Assert
         expect(result).toHaveProperty('info');
@@ -376,13 +338,13 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY);
-        await updateFn([1, 2, 3], { status: 'failed', reason: 'timeout' });
+        const updateFn = await updateTask(TEST_API_KEY, USER_ID);
+        await updateFn(ASSISTANT_ID, [1, 2, 3], { status: 'failed', reason: 'timeout' });
 
         // Assert
         expect(capturedBody).toHaveProperty('logs', [1, 2, 3]);
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'All/Tasks');
+        expect(capturedBody.context).toContain('/Tasks');
         expect(capturedBody.entries).toHaveProperty('status', 'failed');
         expect(capturedBody.entries).toHaveProperty('reason', 'timeout');
         expect(capturedBody).toHaveProperty('overwrite', true);
@@ -409,8 +371,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY);
-        const result = await updateFn([1], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY, USER_ID);
+        const result = await updateFn(ASSISTANT_ID, [1], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -436,8 +398,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY);
-        const result = await updateFn([999], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY, USER_ID);
+        const result = await updateFn(ASSISTANT_ID, [999], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail', 'Tasks not found');
@@ -462,8 +424,8 @@ describe('task.ts', () => {
         );
 
         // Act
-        const updateFn = await updateTask(TEST_API_KEY);
-        const result = await updateFn([1], { status: 'x' });
+        const updateFn = await updateTask(TEST_API_KEY, USER_ID);
+        const result = await updateFn(ASSISTANT_ID, [1], { status: 'x' });
 
         // Assert
         expect(result).toHaveProperty('detail');

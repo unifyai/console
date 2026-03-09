@@ -1,14 +1,12 @@
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { Secret, SecretPayload } from '@/types/assistants/secret';
-import {
-  buildUserIdFilter,
-  buildAssistantIdFilter,
-  combineFilters,
-} from '@/utils/assistants/filterExpressions';
 
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
+
+const buildContext = (userId: string, assistantId: string) =>
+  `${userId}/${assistantId}${CONTEXT_SUFFIX}`;
 
 const mapLogToSecret = (log: LogProps): Secret | null => {
   const { id, entries } = log;
@@ -38,21 +36,12 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
  *                       The API key scopes data to the organization, preventing cross-org leaks.
  *                       In personal workspaces, _user_id filtering prevents same-name user leaks.
  */
-export const getSecrets = async (apiKey: string, userId: string, isOrgContext: boolean) => {
+export const getSecrets = async (apiKey: string, userId: string, _isOrgContext: boolean) => {
   return async (assistantId: string): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
-      const context = `All${CONTEXT_SUFFIX}`;
-      // Build security filters based on workspace context
-      // - Org workspace: API key scopes to org, all members see all secrets, no _user_id filter needed
-      // - Personal workspace: Filter by _user_id to prevent same-name user data leaks
-      const securityFilters: string[] = [];
-      if (!isOrgContext) {
-        securityFilters.push(buildUserIdFilter(userId));
-      }
-      securityFilters.push(buildAssistantIdFilter(assistantId));
-      const securityFilter = combineFilters(securityFilters);
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}`;
+      const context = buildContext(userId, assistantId);
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey } });
 
@@ -85,11 +74,7 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
   return async (assistantId: string, payload: SecretPayload): Promise<ResponseProps> => {
     'use server';
     try {
-      const context = `All${CONTEXT_SUFFIX}`;
-      // Include all private fields that Unity's log_utils would inject
-      // (Unity injects these automatically, but console creates logs directly via API)
-      // See: unity/unity/common/log_utils.py _inject_private_fields
-      // Note: These field names intentionally use Unity's underscore-prefixed naming convention
+      const context = buildContext(userId, assistantId);
       /* eslint-disable @typescript-eslint/naming-convention */
       const entriesWithPrivateFields = {
         ...payload,
@@ -118,11 +103,11 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
   };
 };
 
-export const deleteSecret = async (apiKey: string) => {
-  return async (logId: number): Promise<ResponseProps> => {
+export const deleteSecret = async (apiKey: string, userId: string) => {
+  return async (assistantId: string, logId: number): Promise<ResponseProps> => {
     'use server';
     try {
-      const context = `All${CONTEXT_SUFFIX}`;
+      const context = buildContext(userId, assistantId);
       const url = `${process.env.NEXTAUTH_URL}/api/logs`;
       const body = {
         projectName: PROJECT,
