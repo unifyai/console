@@ -63,24 +63,19 @@ import {
   SelectItem,
 } from '@/components/UI/select';
 
-import { createContext, useContextSelector } from 'use-context-selector';
 import { TableActions } from '@/contexts/hooks/tile/useTableTile';
 import { useTab } from '@/contexts/hooks/tab';
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 
-// Create a custom context for panel-specific state
-type PanelExpandContextType = {
-  openKeys: Set<string>;
-  setOpenKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
-  forceExpandAll: boolean;
-  forceCollapseAll: boolean;
-  toggleKey: (path: string) => void;
-  expandAll: () => void;
-  collapseAll: () => void;
-  expandRecursively: (paths: string[]) => void;
-  collapseRecursively: (paths: string[]) => void;
-};
+import {
+  PanelExpandProvider,
+  usePanelExpandContextSelector,
+  type PanelExpandContextType,
+} from '@/components/Common/Views/PanelExpandContext';
+
+// Re-export for backwards compatibility
+export { usePanelExpandContextSelector };
 
 // Define PanelState interface to match what's in Selection.tsx
 interface PanelState {
@@ -94,57 +89,6 @@ interface PanelState {
   entryOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-}
-
-const PanelExpandContext = createContext<PanelExpandContextType>(null as any);
-
-function PanelExpandProvider({
-  children,
-  openKeys,
-  setOpenKeys,
-  forceExpandAll,
-  forceCollapseAll,
-  toggleKey,
-  expandAll,
-  collapseAll,
-  expandRecursively,
-  collapseRecursively,
-}: React.PropsWithChildren<PanelExpandContextType>) {
-  const value = useMemo(
-    () => ({
-      openKeys,
-      setOpenKeys,
-      forceExpandAll,
-      forceCollapseAll,
-      toggleKey,
-      expandAll,
-      collapseAll,
-      expandRecursively,
-      collapseRecursively,
-    }),
-    [
-      openKeys,
-      setOpenKeys,
-      forceExpandAll,
-      forceCollapseAll,
-      toggleKey,
-      expandAll,
-      collapseAll,
-      expandRecursively,
-      collapseRecursively,
-    ]
-  );
-
-  return <PanelExpandContext.Provider value={value}>{children}</PanelExpandContext.Provider>;
-}
-
-// This works like useExpandContextSelector but gets values from our panel context
-export function usePanelExpandContextSelector<T>(selector: (ctx: PanelExpandContextType) => T): T {
-  const selected = useContextSelector(PanelExpandContext, selector);
-  if (selected === undefined) {
-    throw new Error('usePanelExpandContextSelector must be used within a PanelExpandProvider');
-  }
-  return selected;
 }
 
 /*******************************************************************************
