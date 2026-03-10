@@ -1426,9 +1426,6 @@ function ToolLoopConversation({
     const el = scrollRef.current;
     if (!el) return;
     setIsOverflowing(el.scrollHeight > el.clientHeight);
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
   }, [logs]);
 
   React.useEffect(() => {
