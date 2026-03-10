@@ -993,7 +993,7 @@ function ToolLoopMessage({
               {label}
             </TooltipContent>
           </Tooltip>
-          {canExpand && isOpen && isJson && (
+          {isOpen && (
             <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100" />
           )}
           {!isOpen && (
@@ -1001,20 +1001,19 @@ function ToolLoopMessage({
               <TruncatedMarkdown content={preview} />
             </span>
           )}
-          {isOpen && isJson && (
-            <span className="min-w-0 truncate text-muted-foreground">{content!.trim()[0]}</span>
+          {isOpen && (
+            <span className="min-w-0 truncate text-muted-foreground">
+              {isJson ? content!.trim()[0] : <TruncatedMarkdown content={preview} />}
+            </span>
           )}
-          {canExpand && !(isOpen && isJson) && (
-            <ChevronRight
-              className={cn(
-                'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
-                isOpen && 'rotate-90'
-              )}
-            />
+          {!isOpen && canExpand && (
+            <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100" />
           )}
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
-            {time}
-          </span>
+          {!isOpen && (
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+              {time}
+            </span>
+          )}
         </div>
         {isOpen &&
           (() => {
@@ -1033,12 +1032,14 @@ function ToolLoopMessage({
                 return null;
               }
             }
+            const rest = content!.split(/\n/).slice(1).join('\n').trim();
+            if (!rest) return null;
             return (
               <div
                 className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
                 onClick={() => setIsOpen(false)}
               >
-                <RichContent content={content!} />
+                <RichContent content={rest} />
               </div>
             );
           })()}
