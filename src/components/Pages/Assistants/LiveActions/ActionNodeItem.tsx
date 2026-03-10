@@ -1755,6 +1755,7 @@ function LiveToolLoopTimeline({
  * step sections. Matches the faded/scrollable style of ContentArea.
  */
 function PromotedContent({
+  icon: Icon,
   label,
   labelColor,
   content,
@@ -1763,6 +1764,7 @@ function PromotedContent({
   timestamp,
   searchTerm,
 }: {
+  icon?: LucideIcon;
   label: string;
   labelColor: string;
   content: string;
@@ -1794,7 +1796,19 @@ function PromotedContent({
         className="hover:bg-muted/40 flex cursor-pointer items-baseline gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
         onClick={() => setIsOpen((v) => !v)}
       >
-        <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
+        {Icon && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('mt-0.5 shrink-0 self-center', labelColor)}>
+                <Icon className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
         {!isOpen && (
           <span className="min-w-0 truncate text-muted-foreground">
             {searchTerm ? (
@@ -2365,6 +2379,7 @@ export function ActionNodeItem({
       {/* Promoted request/response — shown prominently when expanded */}
       {isExpanded && contentReady && promoted.request && (
         <PromotedContent
+          icon={ArrowDown}
           label="request"
           labelColor="text-blue-600/80 dark:text-blue-500/60"
           content={promoted.request.content}
@@ -2375,6 +2390,7 @@ export function ActionNodeItem({
       )}
       {isExpanded && contentReady && promoted.response && (
         <PromotedContent
+          icon={ArrowUp}
           label="response"
           labelColor="text-emerald-600/80 dark:text-emerald-400/60"
           content={promoted.response.content}
