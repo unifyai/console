@@ -56,6 +56,67 @@ import { isToolLoopNoise } from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
+// ---------------------------------------------------------------------------
+// Drag-to-resize hook + handle for scrollable regions
+// ---------------------------------------------------------------------------
+
+function useResizableHeight(defaultHeight: number, minHeight = 40) {
+  const [height, setHeight] = React.useState(defaultHeight);
+  const dragState = React.useRef<{ startY: number; startH: number } | null>(null);
+
+  const onPointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      dragState.current = { startY: e.clientY, startH: height };
+      const target = e.currentTarget as HTMLElement;
+      target.setPointerCapture(e.pointerId);
+    },
+    [height]
+  );
+
+  const onPointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragState.current) return;
+      const dy = e.clientY - dragState.current.startY;
+      setHeight(Math.max(minHeight, dragState.current.startH + dy));
+    },
+    [minHeight]
+  );
+
+  const onPointerUp = React.useCallback(() => {
+    dragState.current = null;
+  }, []);
+
+  const handleProps = { onPointerDown, onPointerMove, onPointerUp };
+
+  return { height, handleProps } as const;
+}
+
+function ResizeHandle({
+  handleProps,
+  paddingLeft,
+}: {
+  handleProps: {
+    onPointerDown: (e: React.PointerEvent) => void;
+    onPointerMove: (e: React.PointerEvent) => void;
+    onPointerUp: () => void;
+  };
+  paddingLeft?: string;
+}) {
+  return (
+    <div
+      {...handleProps}
+      className="group/resize relative z-20 -mt-1 flex h-2 cursor-row-resize touch-none select-none items-center"
+      style={paddingLeft ? { paddingLeft } : undefined}
+    >
+      <div
+        className="group-hover/resize:bg-muted-foreground/25 group-active/resize:bg-muted-foreground/40 h-px w-full rounded-full transition-colors"
+        style={{ background: 'hsl(0 0% 100% / 0.08)' }}
+      />
+    </div>
+  );
+}
+
 interface BracketGeom {
   topY: number;
   midYs: number[];
@@ -738,7 +799,7 @@ function HighlightText({ text, term }: { text: string; term?: string }) {
 function ContentArea({
   content,
   depth,
-  maxHeight = 80,
+  maxHeight: defaultMaxHeight = 80,
 }: {
   content: string;
   depth: number;
@@ -746,14 +807,14 @@ function ContentArea({
 }) {
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const { height: maxH, handleProps } = useResizableHeight(defaultMaxHeight);
 
-  // Check if content overflows
   React.useEffect(() => {
     const el = contentRef.current;
     if (el) {
       setIsOverflowing(el.scrollHeight > el.clientHeight);
     }
-  }, [content]);
+  }, [content, maxH]);
 
   return (
     <div
@@ -770,7 +831,7 @@ function ContentArea({
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
-          maxHeight: `${maxHeight}px`,
+          maxHeight: `${maxH}px`,
           scrollbarWidth: 'none',
         }}
         onMouseEnter={(e) => {
@@ -783,7 +844,6 @@ function ContentArea({
         <RichContent content={content} />
       </div>
 
-      {/* Subtle fade at bottom when overflowing */}
       {isOverflowing && (
         <div
           className="pointer-events-none absolute bottom-0 left-0 right-0 h-4"
@@ -793,6 +853,8 @@ function ContentArea({
           }}
         />
       )}
+
+      <ResizeHandle handleProps={handleProps} />
     </div>
   );
 }
@@ -1494,6 +1556,7 @@ function ToolLoopConversation({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
+  const { height: maxH, handleProps } = useResizableHeight(240);
   const signalLayoutChange = React.useCallback(() => {
     setLayoutGen((n) => n + 1);
     parentLayoutChange?.();
@@ -1503,7 +1566,7 @@ function ToolLoopConversation({
     const el = scrollRef.current;
     if (!el) return;
     setIsOverflowing(el.scrollHeight > el.clientHeight);
-  }, [logs]);
+  }, [logs, maxH]);
 
   React.useEffect(() => {
     if (!hoveredTcId || !contentRef.current) {
@@ -1547,7 +1610,7 @@ function ToolLoopConversation({
         style={
           compact
             ? { paddingLeft: pad }
-            : { maxHeight: '240px', paddingLeft: pad, paddingRight: '4px' }
+            : { maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }
         }
       >
         <div ref={contentRef} className={cn('relative space-y-0.5', compact ? 'py-0.5' : 'py-3')}>
@@ -1578,6 +1641,8 @@ function ToolLoopConversation({
           }}
         />
       )}
+
+      {!compact && <ResizeHandle handleProps={handleProps} paddingLeft={pad} />}
     </div>
   );
 }
@@ -1607,9 +1672,9 @@ function LiveToolLoopTimeline({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
+  const { height: maxH, handleProps } = useResizableHeight(260);
   const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
-  // Detect manual scroll: mark as "scrolled up" if not near the bottom
   const handleScroll = React.useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -1617,7 +1682,6 @@ function LiveToolLoopTimeline({
     isUserScrolledUpRef.current = distFromBottom > 40;
   }, []);
 
-  // Auto-scroll when new logs arrive (unless user scrolled up)
   React.useEffect(() => {
     if (logs.length > prevLogCountRef.current && !isUserScrolledUpRef.current) {
       const el = scrollRef.current;
@@ -1650,7 +1714,7 @@ function LiveToolLoopTimeline({
         ref={scrollRef}
         onScroll={handleScroll}
         className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '260px', paddingLeft: pad, paddingRight: '4px' }}
+        style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }}
       >
         <div ref={contentRef} className="relative space-y-0.5 py-2">
           {logs.map((log) => (
@@ -1669,7 +1733,6 @@ function LiveToolLoopTimeline({
         </div>
       </div>
 
-      {/* Bottom fade when scrolled up */}
       {isUserScrolledUpRef.current && (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
@@ -1680,6 +1743,8 @@ function LiveToolLoopTimeline({
           }}
         />
       )}
+
+      <ResizeHandle handleProps={handleProps} paddingLeft={pad} />
     </div>
   );
 }
@@ -1708,6 +1773,7 @@ function PromotedContent({
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const { height: maxH, handleProps } = useResizableHeight(200);
   const pad = `${20 + depth * 8}px`;
 
   React.useEffect(() => {
@@ -1715,7 +1781,7 @@ function PromotedContent({
       const el = contentRef.current;
       if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
     }
-  }, [isOpen, content]);
+  }, [isOpen, content, maxH]);
 
   return (
     <div
@@ -1765,7 +1831,7 @@ function PromotedContent({
               'overflow-y-auto py-1 text-[11px] leading-relaxed text-muted-foreground',
               'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
             )}
-            style={{ maxHeight: '200px', scrollbarWidth: 'none' }}
+            style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
             onMouseEnter={(e) => {
               (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
             }}
@@ -1787,6 +1853,7 @@ function PromotedContent({
               }}
             />
           )}
+          <ResizeHandle handleProps={handleProps} />
         </div>
       )}
     </div>
