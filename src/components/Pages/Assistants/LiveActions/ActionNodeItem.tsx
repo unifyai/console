@@ -601,11 +601,15 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
     const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70', Icon: CircleDot };
     const content = extractTextContent(message.content);
     return (
-      <div className="flex gap-2">
-        <span className={cn('flex shrink-0 items-center gap-1 font-medium', style.color)}>
-          <style.Icon className="h-2.5 w-2.5" />
-          {style.label}
-        </span>
+      <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn('shrink-0', style.color)}>
+              <style.Icon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{style.label}</TooltipContent>
+        </Tooltip>
         {content && <span className="text-muted-foreground/50 min-w-0 truncate">{content}</span>}
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
@@ -682,10 +686,15 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
       if (codeBlocks.length === 0) {
         return (
-          <div className="flex gap-2">
-            <span className="flex shrink-0 items-center gap-1 font-medium text-orange-600/80 dark:text-orange-500/60">
-              <Zap className="h-2.5 w-2.5" />action
-            </span>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
+                  <Zap className="h-2.5 w-2.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
+            </Tooltip>
             <span className="text-muted-foreground/70 min-w-0 truncate">
               {toolNames && <HighlightText text={toolNames} term={searchTerm} />}
             </span>
@@ -705,12 +714,17 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
           onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
         >
           <div
-            className={cn('flex gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
+            className={cn('flex items-center gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
             onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
           >
-            <span className="flex shrink-0 items-center gap-1 font-medium text-orange-600/80 dark:text-orange-500/60">
-              <Zap className="h-2.5 w-2.5" />action
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
+                  <Zap className="h-2.5 w-2.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
+            </Tooltip>
             {!isCodeOpen && (
               <span className="text-muted-foreground/70 min-w-0 truncate">
                 {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
@@ -782,10 +796,15 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       className={cn('group rounded-sm transition-colors duration-150', isOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
       onClick={!isOpen ? () => setIsOpen(true) : undefined}
     >
-      <div className={cn('flex gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
-        <span className={cn('flex shrink-0 items-center gap-1 font-medium', color)}>
-          <LabelIcon className="h-2.5 w-2.5" />{label}
-        </span>
+      <div className={cn('flex items-center gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn('shrink-0', color)}>
+              <LabelIcon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
+        </Tooltip>
         {!isOpen && (
           <span className="text-muted-foreground/50 min-w-0 truncate">
             <TruncatedMarkdown content={preview} />
