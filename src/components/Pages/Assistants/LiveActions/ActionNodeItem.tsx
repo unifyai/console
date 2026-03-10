@@ -786,9 +786,6 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   if (!content) return null;
 
-  const renderContent = (text: string) =>
-    searchTerm ? <HighlightText text={text} term={searchTerm} /> : <RichContent content={text} />;
-
   const preview = content.split(/\n\n|\n/)[0];
 
   return (<>
@@ -797,29 +794,23 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       onClick={!isOpen ? () => setIsOpen(true) : undefined}
     >
       <div
-        className={cn('flex gap-2', isOpen ? 'items-start cursor-pointer hover:bg-muted/40 rounded-sm' : 'items-center')}
+        className={cn('flex items-center gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
         onClick={isOpen ? () => setIsOpen(false) : undefined}
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className={cn('mt-px shrink-0', color)}>
+            <span className={cn('shrink-0', color)}>
               <LabelIcon className="h-2.5 w-2.5" />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
         </Tooltip>
-        {!isOpen ? (
-          <span className="text-muted-foreground min-w-0 truncate">
-            <TruncatedMarkdown content={preview} />
-          </span>
-        ) : (
-          <div className="text-muted-foreground min-w-0 flex-1 text-[11px] leading-relaxed">
-            {renderContent(content)}
-          </div>
-        )}
+        <span className={cn('text-muted-foreground min-w-0', isOpen ? 'break-words' : 'truncate')}>
+          {isOpen ? content : <TruncatedMarkdown content={preview} />}
+        </span>
         <ChevronRight
           className={cn(
-            'text-muted-foreground/40 mt-px h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
             isOpen && 'rotate-90'
           )}
         />
