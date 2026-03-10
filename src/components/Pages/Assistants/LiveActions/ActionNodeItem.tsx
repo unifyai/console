@@ -574,12 +574,55 @@ function ContentArea({
 }
 
 /**
+ * Collapsible code block for execute_code actions. Shows a chevron toggle
+ * that reveals syntax-highlighted code on click.
+ */
+function CollapsibleCodeBlock({ blocks }: { blocks: Array<{ lang: string; code: string }> }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const { theme } = useTheme();
+  const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="group/code text-muted-foreground/40 hover:text-muted-foreground/70 flex items-center gap-1 py-0.5 text-[10px] transition-colors"
+      >
+        <ChevronRight
+          className={cn(
+            'h-2.5 w-2.5 shrink-0 transition-transform duration-150',
+            isOpen && 'rotate-90'
+          )}
+        />
+        <span>{isOpen ? 'hide code' : 'show code'}</span>
+      </button>
+      {isOpen && blocks.map((block, i) => (
+        <SyntaxHighlighter
+          key={i}
+          language={block.lang}
+          style={hlStyle}
+          customStyle={{
+            fontSize: '10px',
+            lineHeight: '1.4',
+            padding: '6px 8px',
+            borderRadius: '4px',
+            margin: '2px 0 0 0',
+          }}
+        >
+          {block.code.trim()}
+        </SyntaxHighlighter>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
 function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: string }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
-  const { theme } = useTheme();
   const [isOpen, setIsOpen] = React.useState(false);
   const msg = message as Record<string, unknown>;
 
@@ -668,29 +711,23 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         .filter(Boolean)
         .join(', ');
 
-      const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
+      const codePreview = codeBlocks.length > 0
+        ? codeBlocks[0].code.trim().split('\n')[0]
+        : null;
 
       return (
         <div className="flex gap-2">
           <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
           <div className="text-muted-foreground/70 min-w-0 flex-1">
             {toolNames && <span><HighlightText text={toolNames} term={searchTerm} /></span>}
-            {codeBlocks.map((block, i) => (
-              <SyntaxHighlighter
-                key={i}
-                language={block.lang}
-                style={hlStyle}
-                customStyle={{
-                  fontSize: '10px',
-                  lineHeight: '1.4',
-                  padding: '6px 8px',
-                  borderRadius: '4px',
-                  margin: '4px 0 0 0',
-                }}
-              >
-                {block.code.trim()}
-              </SyntaxHighlighter>
-            ))}
+            {codePreview && (
+              <span className={cn('block truncate font-mono text-[10px]', toolNames ? 'opacity-50' : 'opacity-70')}>
+                {codePreview}
+              </span>
+            )}
+            {codeBlocks.length > 0 && (
+              <CollapsibleCodeBlock blocks={codeBlocks} />
+            )}
           </div>
           <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
             {time}
