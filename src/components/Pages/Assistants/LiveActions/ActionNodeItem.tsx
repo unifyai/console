@@ -734,7 +734,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       <div className={cn('flex gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
         <span className={cn('shrink-0 font-medium', color)}>{label}</span>
         {!isOpen && (
-          <span className="text-muted-foreground/50 min-w-0 truncate">
+          <span className="text-muted-foreground/50 min-w-0 flex-1 truncate">
             <TruncatedMarkdown content={preview} />
           </span>
         )}
@@ -745,7 +745,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
             isOpen && 'rotate-90'
           )}
         />
-        <span className="text-muted-foreground/30 shrink-0 pl-1 text-[10px] tabular-nums">
+        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
           {time}
         </span>
       </div>
