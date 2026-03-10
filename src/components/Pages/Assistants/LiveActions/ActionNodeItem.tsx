@@ -548,7 +548,7 @@ function ContentArea({
       <div
         ref={contentRef}
         className={cn(
-          'text-muted-foreground/70 overflow-y-auto text-[11px] leading-relaxed',
+          'text-muted-foreground overflow-y-auto text-[11px] leading-relaxed',
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
@@ -610,7 +610,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
           </TooltipTrigger>
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{style.label}</TooltipContent>
         </Tooltip>
-        {content && <span className="text-muted-foreground/50 min-w-0 truncate">{content}</span>}
+        {content && <span className="text-muted-foreground min-w-0 truncate">{content}</span>}
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -695,7 +695,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
               </TooltipTrigger>
               <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
             </Tooltip>
-            <span className="text-muted-foreground/70 min-w-0 truncate">
+            <span className="text-muted-foreground min-w-0 truncate">
               {toolNames && <HighlightText text={toolNames} term={searchTerm} />}
             </span>
             <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
@@ -726,7 +726,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
               <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
             </Tooltip>
             {!isCodeOpen && (
-              <span className="text-muted-foreground/70 min-w-0 truncate">
+              <span className="text-muted-foreground min-w-0 truncate">
                 {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
                 <span className="font-mono text-[10px]">{codePreview}</span>
               </span>
@@ -806,7 +806,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
         </Tooltip>
         {!isOpen && (
-          <span className="text-muted-foreground/50 min-w-0 truncate">
+          <span className="text-muted-foreground min-w-0 truncate">
             <TruncatedMarkdown content={preview} />
           </span>
         )}
@@ -821,7 +821,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         </span>
       </div>
       {isOpen && (
-        <div className="text-muted-foreground/70 mt-1 text-[11px] leading-relaxed">
+        <div className="text-muted-foreground mt-1 text-[11px] leading-relaxed">
           {renderContent(content)}
         </div>
       )}
@@ -1017,7 +1017,7 @@ function PromotedContent({
       >
         <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
         {!isOpen && (
-          <span className="text-muted-foreground/50 min-w-0 truncate">
+          <span className="text-muted-foreground min-w-0 truncate">
             {searchTerm ? (
               <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
             ) : (
@@ -1050,7 +1050,7 @@ function PromotedContent({
           <div
             ref={contentRef}
             className={cn(
-              'text-muted-foreground/70 overflow-y-auto py-1 text-[11px] leading-relaxed',
+              'text-muted-foreground overflow-y-auto py-1 text-[11px] leading-relaxed',
               'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
             )}
             style={{ maxHeight: '200px', scrollbarWidth: 'none' }}
