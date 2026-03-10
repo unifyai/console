@@ -1448,8 +1448,8 @@ function ToolLoopConversation({
 
   return (
     <div className="relative">
-      {/* Top fade */}
-      {isOverflowing && (
+      {/* Top fade — skip in compact mode (parent handles scroll) */}
+      {!compact && isOverflowing && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 rounded-t-md"
           style={{
@@ -1461,11 +1461,21 @@ function ToolLoopConversation({
       )}
 
       {/* Scrollable content — padding is inside the scroll container so
-          absolutely-positioned bracket lines in the left margin aren't clipped */}
+          absolutely-positioned bracket lines in the left margin aren't clipped.
+          Compact mode (nested child) skips its own padding/scroll since the
+          parent container already handles both — this keeps the right edge
+          (and therefore timestamps) aligned at arbitrary nesting depths. */}
       <div
         ref={scrollRef}
-        className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '240px', paddingLeft: pad, paddingRight: '4px' }}
+        className={cn(
+          'rounded-md text-[11px] leading-relaxed',
+          !compact && 'styled-scrollbar overflow-y-auto'
+        )}
+        style={
+          compact
+            ? { paddingLeft: pad }
+            : { maxHeight: '240px', paddingLeft: pad, paddingRight: '4px' }
+        }
       >
         <div ref={contentRef} className={cn('relative space-y-0.5', compact ? 'py-0.5' : 'py-3')}>
           {logs.map((log) => (
@@ -1484,8 +1494,8 @@ function ToolLoopConversation({
         </div>
       </div>
 
-      {/* Bottom fade */}
-      {isOverflowing && (
+      {/* Bottom fade — skip in compact mode (parent handles scroll) */}
+      {!compact && isOverflowing && (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
           style={{
