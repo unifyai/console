@@ -13,10 +13,6 @@ export const defaultBillingDetails = {
   hasCustomerId: true,
 };
 
-export const defaultPaymentMethod = {
-  defaultPaymentMethod: 'pm_test_card_visa',
-};
-
 export const defaultBalance = {
   balance: '25.00',
   fullBalance: 25,
@@ -34,11 +30,6 @@ export const billingHandlers = [
   // GET /api/billing/hasCustomerId
   http.get('/api/billing/hasCustomerId', () => {
     return HttpResponse.json(defaultBillingDetails);
-  }),
-
-  // GET /api/stripe/defaultPaymentMethod
-  http.get('/api/stripe/defaultPaymentMethod', () => {
-    return HttpResponse.json(defaultPaymentMethod);
   }),
 
   // GET /api/billing/balance

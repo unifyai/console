@@ -7,9 +7,7 @@
  *
  *  1. createCheckoutSession retries without the customer ID so Stripe creates
  *     a fresh one (the webhook then overwrites the stale ID in Orchestra).
- *  2. createEmbeddedCheckoutSession does the same.
- *  3. getCustomerDefaultPaymentMethod returns null instead of throwing.
- *  4. createCustomerPortalSession throws a user-friendly error.
+ *  2. createCustomerPortalSession throws a user-friendly error.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -65,8 +63,6 @@ vi.mock('@/lib/orchestra/orchestra-client', () => ({
 
 import {
   createCheckoutSession,
-  createEmbeddedCheckoutSession,
-  getCustomerDefaultPaymentMethod,
   createCustomerPortalSession,
 } from '@/lib/user/billing/stripe/stripe';
 
@@ -219,105 +215,7 @@ describe('createCheckoutSession – mode conflict retry', () => {
   });
 });
 
-// ─── 2. createEmbeddedCheckoutSession ───────────────────────────────────────
-
-describe('createEmbeddedCheckoutSession – mode conflict retry', () => {
-  it('retries without customer ID when a mode conflict error occurs', async () => {
-    mockCheckoutSessionsCreate
-      .mockRejectedValueOnce(makeModeConflictError(LIVE_CUSTOMER_ID))
-      .mockResolvedValueOnce({ client_secret: 'cs_secret_retry' });
-
-    const secret = await createEmbeddedCheckoutSession(TEST_CTX, LIVE_CUSTOMER_ID);
-
-    expect(mockCheckoutSessionsCreate).toHaveBeenCalledTimes(2);
-
-    // First call should include the customer ID
-    const firstCallParams = mockCheckoutSessionsCreate.mock.calls[0][0];
-    expect(firstCallParams.customer).toBe(LIVE_CUSTOMER_ID);
-
-    // Retry call should NOT include customer
-    const retryCallParams = mockCheckoutSessionsCreate.mock.calls[1][0];
-    expect(retryCallParams.customer).toBeUndefined();
-    expect(retryCallParams.customer_update).toBeUndefined();
-    expect(retryCallParams.customer_creation).toBe('always');
-
-    expect(secret).toBe('cs_secret_retry');
-  });
-
-  it('does not retry for non-mode-conflict Stripe errors', async () => {
-    mockCheckoutSessionsCreate.mockRejectedValueOnce(makeGenericStripeError());
-
-    await expect(
-      createEmbeddedCheckoutSession(TEST_CTX, LIVE_CUSTOMER_ID),
-    ).rejects.toThrow('Something went wrong');
-
-    expect(mockCheckoutSessionsCreate).toHaveBeenCalledTimes(1);
-  });
-
-  it('succeeds on first attempt when customer ID is valid', async () => {
-    mockCheckoutSessionsCreate.mockResolvedValueOnce({
-      client_secret: 'cs_secret_ok',
-    });
-
-    const secret = await createEmbeddedCheckoutSession(TEST_CTX, 'cus_test_valid');
-
-    expect(mockCheckoutSessionsCreate).toHaveBeenCalledTimes(1);
-    expect(secret).toBe('cs_secret_ok');
-  });
-});
-
-// ─── 3. getCustomerDefaultPaymentMethod ─────────────────────────────────────
-
-describe('getCustomerDefaultPaymentMethod – mode conflict', () => {
-  it('returns null instead of throwing on mode conflict', async () => {
-    mockCustomersRetrieve.mockRejectedValueOnce(
-      makeModeConflictError(LIVE_CUSTOMER_ID),
-    );
-
-    const result = await getCustomerDefaultPaymentMethod(LIVE_CUSTOMER_ID);
-    expect(result).toBeNull();
-  });
-
-  it('still throws for non-mode-conflict errors', async () => {
-    mockCustomersRetrieve.mockRejectedValueOnce(makeGenericStripeError());
-
-    await expect(
-      getCustomerDefaultPaymentMethod(LIVE_CUSTOMER_ID),
-    ).rejects.toThrow('Something went wrong');
-  });
-
-  it('returns payment method ID for valid test-mode customer', async () => {
-    mockCustomersRetrieve.mockResolvedValueOnce({
-      id: 'cus_test_valid',
-      invoice_settings: { default_payment_method: 'pm_test_visa' },
-    });
-
-    const result = await getCustomerDefaultPaymentMethod('cus_test_valid');
-    expect(result).toBe('pm_test_visa');
-  });
-
-  it('returns null for deleted customer', async () => {
-    mockCustomersRetrieve.mockResolvedValueOnce({
-      id: 'cus_test_deleted',
-      deleted: true,
-    });
-
-    const result = await getCustomerDefaultPaymentMethod('cus_test_deleted');
-    expect(result).toBeNull();
-  });
-
-  it('returns null when no default payment method is set', async () => {
-    mockCustomersRetrieve.mockResolvedValueOnce({
-      id: 'cus_test_nopay',
-      invoice_settings: { default_payment_method: null },
-    });
-
-    const result = await getCustomerDefaultPaymentMethod('cus_test_nopay');
-    expect(result).toBeNull();
-  });
-});
-
-// ─── 4. createCustomerPortalSession ─────────────────────────────────────────
+// ─── 2. createCustomerPortalSession ─────────────────────────────────────────
 
 describe('createCustomerPortalSession – mode conflict', () => {
   it('throws a user-friendly error on mode conflict', async () => {

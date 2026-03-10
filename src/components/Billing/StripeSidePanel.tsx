@@ -38,7 +38,7 @@ import {
 // Types
 // =============================================================================
 
-export type StripePanelStep = 'loading' | 'waiting' | 'success' | 'error';
+export type StripePanelStep = 'loading' | 'waiting' | 'error';
 
 export interface StripeSidePanelProps {
   /** Whether the panel is open */
@@ -86,20 +86,6 @@ export async function checkSessionStatus(sessionId: string): Promise<boolean> {
 }
 
 /**
- * Checks if the user now has a payment method.
- */
-export async function checkPaymentMethod(): Promise<boolean> {
-  try {
-    const response = await fetch('/api/stripe/defaultPaymentMethod');
-    if (!response.ok) return false;
-    const data = await response.json();
-    return !!data.defaultPaymentMethod;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Claims a credit grant token.
  * Returns true on success, false on failure.
  */
@@ -114,20 +100,6 @@ export async function claimCreditGrantToken(token: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/**
- * Determines the next step based on current state.
- */
-export function resolveStep(
-  hasPaymentMethod: boolean,
-  isCheckingOut: boolean,
-  error: string | null
-): StripePanelStep {
-  if (error) return 'error';
-  if (hasPaymentMethod) return 'success';
-  if (isCheckingOut) return 'waiting';
-  return 'loading';
 }
 
 // =============================================================================

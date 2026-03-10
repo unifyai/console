@@ -12,23 +12,6 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 // Types
 // =============================================================================
 
-export interface BillingDetails {
-  id: string;
-  credits: number;
-  stripeCustomerId: string;
-  autorecharge: boolean;
-  autorechargeThreshold: number;
-  autorechargeQty: number;
-  storePrompts: boolean;
-}
-
-export interface RechargeModelRequest {
-  userId: string;
-  quantity: number;
-  type: string;
-  transactionId: string;
-}
-
 export interface AutoRechargeEligibility {
   userId: string;
   totalSpending: number;
@@ -81,20 +64,6 @@ export async function getBillingAccountInfo(params: {
   });
 
   return response.data as BillingAccountInfo;
-}
-
-/**
- * Retrieves billing details for a given user.
- * @deprecated Use getBillingAccountInfo instead — supports both user and org contexts.
- * @param userID The ID of the user to retrieve billing details for.
- * @returns An array of billing details objects.
- */
-export async function getUserBillingDetails(userID: string) {
-  const response = await OrchestraAdminClient.get('/get_user', {
-    params: { id: userID },
-  });
-
-  return response.data as BillingDetails[];
 }
 
 /**
@@ -162,107 +131,6 @@ export async function setAutoRechargeQty(
 
   const response = await OrchestraAdminClient.put('/autorecharge_qty', null, { params });
   return response.data;
-}
-
-/**
- * Creates a new recharge record for a user.
- *
- * @param userID - The ID of the user.
- * @param credits - The amount of credits to add.
- * @param type - The type of recharge (e.g. "payment", "free", etc.).
- * @param transactionID - The transaction ID associated with the recharge.
- * @throws Will throw an error if the recharge amount is invalid or if the API call fails.
- * @returns The response from the API call.
- */
-export async function createRecharge(
-  userID: string,
-  credits: number,
-  type: string,
-  transactionID: string
-) {
-  if (credits <= 0) {
-    throw new Error('Invalid recharge amount');
-  }
-
-  const rechargeData = {
-    userId: userID,
-    quantity: credits,
-    type: type,
-    transactionId: transactionID,
-  };
-
-  const response = await OrchestraAdminClient.post('/create_recharge', rechargeData);
-  return response;
-}
-
-/**
- * Retrieves the user's card fingerprints from Stripe.
- * @param userID - The user ID.
- * @returns An array of card fingerprints.
- */
-export const getUserCards = async (userID: string) => {
-  const response = await OrchestraAdminClient.get('credit_card_fingerprint', {
-    params: { userId: userID },
-  });
-  return response.data;
-};
-
-/**
- * Stores a new card fingerprint for a user.
- * @param userID - The ID of the user to store the card fingerprint for.
- * @param fingerprint - The card fingerprint to store.
- * @returns The response from the API call, which should contain the stored card fingerprint details.
- * @throws Will throw an error if the card fingerprint storage fails.
- */
-export const storeUserCard = async (userID: string, fingerprint: string) => {
-  const response = await OrchestraAdminClient.post('credit_card_fingerprint', null, {
-    params: { userId: userID, fingerprint },
-  });
-  return response.data;
-};
-
-/**
- * Checks if a card fingerprint is a duplicate in Orchestra
- * @param userID - The ID of the user to check.
- * @param fingerprint - The card fingerprint to check.
- * @returns A boolean indicating whether the card fingerprint is a duplicate.
- */
-export const isDuplicateCard = async (userID: string, fingerprint: string) => {
-  const response = await OrchestraAdminClient.get('duplicated_credit_card_fingerprint', {
-    params: { userId: userID, fingerprint },
-  });
-  return response.data;
-};
-
-/**
- * Retrieves recharges for a user based on specified parameters.
- *
- * @param userID - The ID of the user to retrieve recharges for.
- * @param id - Optional ID of the recharge.
- * @param at - Optional date of the recharge (ISO date string).
- * @param quantity - Optional quantity of the recharge.
- * @param type - Optional type of the recharge.
- * @returns An array of recharge objects.
- */
-export async function getRecharges(
-  userID: string,
-  id?: number,
-  at?: string,
-  quantity?: number,
-  type?: string
-) {
-  // Use a plain object so the OrchestraAdminClient request interceptor can
-  // transform keys from camelCase to snake_case. URLSearchParams would bypass
-  // the interceptor because Object.entries() returns [] for URLSearchParams.
-  const params: Record<string, string> = { userId: userID };
-
-  if (id !== undefined) params.id = id.toString();
-  if (at !== undefined) params.at = at;
-  if (quantity !== undefined) params.quantity = quantity.toString();
-  if (type !== undefined) params.type = type;
-
-  const response = await OrchestraAdminClient.get('/get_recharge', { params });
-  return response.data as unknown[];
 }
 
 /**

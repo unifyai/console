@@ -2,11 +2,10 @@
  * Tests for the simplified Billing page Main component.
  *
  * Validates that:
- *   1. Removed sections: spending limits, subscriptions/plan selection, eligibility alerts
- *   2. Kept sections: Account Balance, Billing Profile, Automatic Refill
- *   3. Checkout return status is displayed correctly
- *   4. Billing setup check runs on mount
- *   5. Org context displays correct heading
+ *   1. Kept sections: Account Balance, Billing Profile, Automatic Refill
+ *   2. Checkout return status is displayed correctly
+ *   3. Billing setup check runs on mount
+ *   4. Org context displays correct heading
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -25,41 +24,12 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/billing',
 }));
 
-// Mock Balance component to isolate Main testing
-vi.mock('@/components/Pages/Billing/Balance', () => ({
-  default: () => <div data-testid="balance-section">Balance Component</div>,
-}));
-
-// Mock AutomaticRefill
-vi.mock('@/components/Pages/Billing/Refill', () => ({
-  default: () => <div data-testid="auto-refill-section">AutomaticRefill Component</div>,
-}));
-
-// Mock TaxClassification (now "Billing Profile" section)
-vi.mock('@/components/Pages/Billing/TaxClassification', () => ({
+// Mock BillingProfile component to isolate Main testing
+vi.mock('@/components/Pages/Billing/BillingProfile', () => ({
   default: ({ isEditing }: { isEditing: boolean }) => (
     <div data-testid="billing-profile-section">
-      TaxClassification {isEditing ? '(editing)' : '(view)'}
+      BillingProfile {isEditing ? '(editing)' : '(view)'}
     </div>
-  ),
-}));
-
-// Mock Subscriptions (should NOT be rendered)
-vi.mock('@/components/Pages/Billing/Subscriptions', () => ({
-  default: () => <div data-testid="subscriptions-section">Subscriptions</div>,
-}));
-
-// Mock OrgSpendingLimitSection (should NOT be rendered)
-vi.mock('@/components/Pages/Billing/OrgSpendingLimitSection', () => ({
-  OrgSpendingLimitSection: () => (
-    <div data-testid="org-spending-limit-section">OrgSpendingLimit</div>
-  ),
-}));
-
-// Mock UserSpendingLimitSection (should NOT be rendered)
-vi.mock('@/components/Pages/Billing/UserSpendingLimitSection', () => ({
-  UserSpendingLimitSection: () => (
-    <div data-testid="user-spending-limit-section">UserSpendingLimit</div>
   ),
 }));
 
@@ -67,15 +37,32 @@ import Main from '@/components/Pages/Billing/Main';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
+// Default MSW handlers for Main.tsx data fetching
+const defaultHandlers = [
+  http.get('/api/billing/balance', () =>
+    HttpResponse.json({ balance: '25.00', fullBalance: 25 })
+  ),
+  http.get('/api/billing/eligibility', () =>
+    HttpResponse.json({
+      totalSpending: 100,
+      canEnableAutoRecharge: true,
+      minimumSpendRequired: 50,
+      remainingSpendNeeded: 0,
+    })
+  ),
+  http.get('/api/billing/auto-recharge/settings', () =>
+    HttpResponse.json({
+      autoRechargeEnabled: false,
+      autoRechargeThreshold: 10,
+      autoRechargeQty: 25,
+    })
+  ),
+];
+
 describe('Billing Main – simplified layout', () => {
   beforeEach(() => {
     server.listen();
-    // Default: customer already exists
-    server.use(
-      http.get('/api/billing/hasCustomerId', () =>
-        HttpResponse.json({ hasCustomerId: true })
-      )
-    );
+    server.use(...defaultHandlers);
   });
 
   afterEach(() => {
@@ -84,24 +71,23 @@ describe('Billing Main – simplified layout', () => {
     vi.clearAllMocks();
   });
 
-  it('renders Account Balance section', async () => {
+  it('renders Balance section', async () => {
     render(<Main />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
+      expect(screen.getByText('Balance')).toBeTruthy();
     });
-    expect(screen.getByText('Account Balance')).toBeTruthy();
   });
 
-  it('renders Automatic Refill section', async () => {
+  it('renders Auto-Recharge section', async () => {
     render(<Main />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('auto-refill-section')).toBeTruthy();
+      expect(screen.getByText('Auto-Recharge')).toBeTruthy();
     });
   });
 
-  it('renders Billing Profile section (not "Tax Classification")', async () => {
+  it('renders Billing Profile section', async () => {
     render(<Main />);
 
     await waitFor(() => {
@@ -110,49 +96,12 @@ describe('Billing Main – simplified layout', () => {
     expect(screen.getByText('Billing Profile')).toBeTruthy();
   });
 
-  it('does NOT render Subscriptions / Plan Selection section', async () => {
-    render(<Main />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
-    });
-    expect(screen.queryByTestId('subscriptions-section')).toBeNull();
-    expect(screen.queryByText('Plan Selection')).toBeNull();
-  });
-
-  it('does NOT render Organization Spending Limit section', async () => {
-    render(<Main orgContext={{ orgId: 1, orgName: 'Acme', canEdit: true }} />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
-    });
-    expect(screen.queryByTestId('org-spending-limit-section')).toBeNull();
-  });
-
-  it('does NOT render User Spending Limit section', async () => {
-    render(<Main />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
-    });
-    expect(screen.queryByTestId('user-spending-limit-section')).toBeNull();
-  });
-
-  it('does NOT render auto-recharge eligibility alert', async () => {
-    render(<Main />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
-    });
-    expect(screen.queryByText(/Spend \$.*to Access Automated Top-ups/)).toBeNull();
-  });
-
-  it('shows loading state before billing setup completes', () => {
-    // Delay the billing check
+  it('shows loading state before data loads', () => {
+    // Delay the balance fetch
     server.use(
-      http.get('/api/billing/hasCustomerId', async () => {
+      http.get('/api/billing/balance', async () => {
         await new Promise((r) => setTimeout(r, 5000));
-        return HttpResponse.json({ hasCustomerId: true });
+        return HttpResponse.json({ balance: '25.00', fullBalance: 25 });
       })
     );
 
@@ -191,11 +140,7 @@ describe('Billing Main – simplified layout', () => {
 describe('Billing Main – checkout return handling', () => {
   beforeEach(() => {
     server.listen();
-    server.use(
-      http.get('/api/billing/hasCustomerId', () =>
-        HttpResponse.json({ hasCustomerId: true })
-      )
-    );
+    server.use(...defaultHandlers);
   });
 
   afterEach(() => {
@@ -249,7 +194,7 @@ describe('Billing Main – checkout return handling', () => {
     render(<Main />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('balance-section')).toBeTruthy();
+      expect(screen.getByText('Balance')).toBeTruthy();
     });
     expect(screen.queryByText('Payment Successful')).toBeNull();
     expect(screen.queryByText('Payment Issue')).toBeNull();
