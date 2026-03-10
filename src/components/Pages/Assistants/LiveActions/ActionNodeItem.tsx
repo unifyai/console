@@ -1211,20 +1211,28 @@ function ToolLoopMessage({
             </div>
             {isCodeOpen &&
               codeBlocks.map((block, i) => (
-                <SyntaxHighlighter
+                <div
                   key={i}
-                  language={block.lang}
-                  style={hlStyle}
-                  customStyle={{
-                    fontSize: '10px',
-                    lineHeight: '1.4',
-                    padding: '6px 8px',
-                    borderRadius: '4px',
-                    margin: '4px 0 2px 18px',
+                  className="hover:bg-muted/40 cursor-pointer rounded-sm"
+                  onClick={() => {
+                    setIsCodeOpen(false);
+                    onLayoutChange?.();
                   }}
                 >
-                  {block.code.trim()}
-                </SyntaxHighlighter>
+                  <SyntaxHighlighter
+                    language={block.lang}
+                    style={hlStyle}
+                    customStyle={{
+                      fontSize: '10px',
+                      lineHeight: '1.4',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      margin: '4px 0 2px 18px',
+                    }}
+                  >
+                    {block.code.trim()}
+                  </SyntaxHighlighter>
+                </div>
               ))}
           </div>
         );
