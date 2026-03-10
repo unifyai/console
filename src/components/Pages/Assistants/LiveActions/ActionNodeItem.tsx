@@ -69,16 +69,49 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
   return (
     <>
       {/* top horizontal */}
-      <div className="pointer-events-none" style={{ position: 'absolute', top, left: geom.barX, width: geom.lineWidth, height: 1, background: bg }} />
+      <div
+        className="pointer-events-none"
+        style={{
+          position: 'absolute',
+          top,
+          left: geom.barX,
+          width: geom.lineWidth,
+          height: 1,
+          background: bg,
+        }}
+      />
       {/* vertical — inset by 1px at each end to avoid corner overlap */}
-      <div className="pointer-events-none" style={{ position: 'absolute', top: top + 1, left: geom.barX, width: 1, height: bot - top - 1, background: bg }} />
+      <div
+        className="pointer-events-none"
+        style={{
+          position: 'absolute',
+          top: top + 1,
+          left: geom.barX,
+          width: 1,
+          height: bot - top - 1,
+          background: bg,
+        }}
+      />
       {/* bottom horizontal */}
-      <div className="pointer-events-none" style={{ position: 'absolute', top: bot, left: geom.barX, width: geom.lineWidth, height: 1, background: bg }} />
+      <div
+        className="pointer-events-none"
+        style={{
+          position: 'absolute',
+          top: bot,
+          left: geom.barX,
+          width: geom.lineWidth,
+          height: 1,
+          background: bg,
+        }}
+      />
     </>
   );
 }
 
-function findIconCenter(rowEl: HTMLElement, containerRect: DOMRect): { x: number; y: number } | null {
+function findIconCenter(
+  rowEl: HTMLElement,
+  containerRect: DOMRect
+): { x: number; y: number } | null {
   const svg = rowEl.querySelector<SVGElement>('svg');
   if (svg) {
     const r = svg.getBoundingClientRect();
@@ -90,15 +123,12 @@ function findIconCenter(rowEl: HTMLElement, containerRect: DOMRect): { x: number
   return null;
 }
 
-function computeBracketGeom(
-  container: HTMLElement,
-  hoveredTcId: string,
-): BracketGeom | null {
+function computeBracketGeom(container: HTMLElement, hoveredTcId: string): BracketGeom | null {
   const callEl = container.querySelector<HTMLElement>(
-    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="call"]`,
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="call"]`
   );
   const resultEl = container.querySelector<HTMLElement>(
-    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="result"]`,
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="result"]`
   );
   if (!callEl || !resultEl) return null;
 
@@ -289,8 +319,8 @@ function LiveDuration({ node }: { node: ActionNode }) {
  */
 function extractTextContent(
   content: string | Array<{ type: string; text: string }> | undefined
-): string | undefined {
-  if (!content) return undefined;
+): string | null {
+  if (!content) return null;
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
@@ -298,7 +328,7 @@ function extractTextContent(
       .map((block) => block.text)
       .join('\n');
   }
-  return undefined;
+  return null;
 }
 
 /**
@@ -611,7 +641,7 @@ function ContentArea({
       <div
         ref={contentRef}
         className={cn(
-          'text-muted-foreground overflow-y-auto text-[11px] leading-relaxed',
+          'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
@@ -645,35 +675,66 @@ function ContentArea({
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
-function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: ToolLoopLog; searchTerm?: string; onTcHover?: (tcId: string | null) => void; hoveredTcId?: string | null }) {
+function ToolLoopMessage({
+  log,
+  searchTerm,
+  onTcHover,
+  hoveredTcId,
+}: {
+  log: ToolLoopLog;
+  searchTerm?: string;
+  onTcHover?: (tcId: string | null) => void;
+  hoveredTcId?: string | null;
+}) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
   const { theme: themeVal } = useTheme();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isCodeOpen, setIsCodeOpen] = React.useState(false);
+  const collapsedContentRef = React.useRef<HTMLSpanElement>(null);
+  const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
+  const textContent = extractTextContent(message.content);
+
+  React.useEffect(() => {
+    const el = collapsedContentRef.current;
+    if (el && textContent) {
+      const hasMulti = textContent.includes('\n');
+      setIsTruncated(hasMulti || el.scrollWidth > el.clientWidth);
+    }
+  }, [textContent]);
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
     const action = String(msg._steeringAction || msg._steering_action || 'unknown');
-    const STEERING_STYLES: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
-      pause: { label: 'paused', color: 'text-amber-600/80 dark:text-amber-400/70', Icon: Pause },
-      resume: { label: 'resumed', color: 'text-teal-600/80 dark:text-teal-400/70', Icon: Play },
-      stop: { label: 'stopped', color: 'text-rose-600/80 dark:text-rose-400/70', Icon: Square },
+    const STEERING_STYLES: Record<
+      string,
+      { inlineLabel: string; color: string; Icon: LucideIcon }
+    > = {
+      pause: {
+        inlineLabel: 'Pause',
+        color: 'text-amber-600/80 dark:text-amber-400/70',
+        Icon: Pause,
+      },
+      resume: {
+        inlineLabel: 'Resume',
+        color: 'text-teal-600/80 dark:text-teal-400/70',
+        Icon: Play,
+      },
+      stop: { inlineLabel: 'Stop', color: 'text-rose-600/80 dark:text-rose-400/70', Icon: Square },
     };
-    const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70', Icon: CircleDot };
-    const content = extractTextContent(message.content);
+    const style = STEERING_STYLES[action] ?? {
+      inlineLabel: action,
+      color: 'text-muted-foreground/70',
+      Icon: CircleDot,
+    };
+    const displayText = textContent || style.inlineLabel;
     return (
       <div className="flex items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={cn('shrink-0', style.color)}>
-              <style.Icon className="h-2.5 w-2.5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{style.label}</TooltipContent>
-        </Tooltip>
-        {content && <span className="text-muted-foreground min-w-0 truncate">{content}</span>}
+        <span className={cn('shrink-0', style.color)}>
+          <style.Icon className="h-2.5 w-2.5" />
+        </span>
+        <span className={cn('min-w-0 truncate', style.color)}>{displayText}</span>
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -693,9 +754,11 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
   if (message.role === 'user') {
     const isInterjection = !!(msg._interjection || msg._Interjection);
     label = isInterjection ? 'interjection' : 'request';
-    color = isInterjection ? 'text-blue-500/70 dark:text-blue-400/60' : 'text-blue-600/80 dark:text-blue-500/60';
+    color = isInterjection
+      ? 'text-blue-500/70 dark:text-blue-400/60'
+      : 'text-blue-600/80 dark:text-blue-500/60';
     LabelIcon = ArrowDown;
-    content = extractTextContent(message.content);
+    content = textContent;
   } else if (message.role === 'assistant') {
     // Check for thinking blocks first
     const blocks =
@@ -720,9 +783,14 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
     const renderCallLine = () => {
       if (!message.toolCalls || message.toolCalls.length === 0) return null;
       const rawAliases = log.entries.toolAliases;
-      const aliases = rawAliases ? Object.fromEntries(
-        Object.entries(rawAliases).map(([k, v]) => [k.replace(/([A-Z])/g, '_$1').toLowerCase(), v])
-      ) : null;
+      const aliases = rawAliases
+        ? Object.fromEntries(
+            Object.entries(rawAliases).map(([k, v]) => [
+              k.replace(/([A-Z])/g, '_$1').toLowerCase(),
+              v,
+            ])
+          )
+        : null;
 
       const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
       if (SHOW_EXECUTE_CODE_CONTENT) {
@@ -730,7 +798,12 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
           if (tc.function.name !== 'execute_code') continue;
           try {
             const args = JSON.parse(tc.function.arguments);
-            if (args.code) codeBlocks.push({ lang: args.language || 'python', code: args.code, toolCallId: tc.id });
+            if (args.code)
+              codeBlocks.push({
+                lang: args.language || 'python',
+                code: args.code,
+                toolCallId: tc.id,
+              });
           } catch {
             /* skip malformed arguments */
           }
@@ -752,7 +825,9 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
               <Zap className="h-2.5 w-2.5" />
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            action
+          </TooltipContent>
         </Tooltip>
       );
 
@@ -761,9 +836,19 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
       for (let i = 0; i < toolEntries.length; i++) {
         const entry = toolEntries[i];
         rows.push(
-          <div key={`tool-${i}`} className={cn('flex items-center gap-2', hoveredTcId && hoveredTcId === entry.toolCallId && 'bg-muted/40 rounded-sm')} data-tc-id={entry.toolCallId} data-tc-role="call" onMouseEnter={() => onTcHover?.(entry.toolCallId)} onMouseLeave={() => onTcHover?.(null)}>
+          <div
+            key={`tool-${i}`}
+            className={cn(
+              'flex items-center gap-2',
+              hoveredTcId && hoveredTcId === entry.toolCallId && 'bg-muted/40 rounded-sm'
+            )}
+            data-tc-id={entry.toolCallId}
+            data-tc-role="call"
+            onMouseEnter={() => onTcHover?.(entry.toolCallId)}
+            onMouseLeave={() => onTcHover?.(null)}
+          >
             {actionIcon}
-            <span className="text-muted-foreground min-w-0 truncate">
+            <span className="min-w-0 truncate text-muted-foreground">
               <HighlightText text={entry.label} term={searchTerm} />
             </span>
             <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
@@ -780,7 +865,11 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
         rows.push(
           <div
             key="code"
-            className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer', hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40')}
+            className={cn(
+              'group rounded-sm transition-colors duration-150',
+              isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer',
+              hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40'
+            )}
             onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
             data-tc-id={codeBlocks[0].toolCallId}
             data-tc-role="call"
@@ -788,12 +877,15 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
             onMouseLeave={() => onTcHover?.(null)}
           >
             <div
-              className={cn('flex items-center gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
+              className={cn(
+                'flex items-center gap-2',
+                isCodeOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+              )}
               onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
             >
               {actionIcon}
               {!isCodeOpen && (
-                <span className="text-muted-foreground min-w-0 truncate">
+                <span className="min-w-0 truncate text-muted-foreground">
                   <span className="font-mono text-[10px]">{codePreview}</span>
                 </span>
               )}
@@ -807,22 +899,23 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
                 {time}
               </span>
             </div>
-            {isCodeOpen && codeBlocks.map((block, i) => (
-              <SyntaxHighlighter
-                key={i}
-                language={block.lang}
-                style={hlStyle}
-                customStyle={{
-                  fontSize: '10px',
-                  lineHeight: '1.4',
-                  padding: '6px 8px',
-                  borderRadius: '4px',
-                  margin: '4px 0 2px 0',
-                }}
-              >
-                {block.code.trim()}
-              </SyntaxHighlighter>
-            ))}
+            {isCodeOpen &&
+              codeBlocks.map((block, i) => (
+                <SyntaxHighlighter
+                  key={i}
+                  language={block.lang}
+                  style={hlStyle}
+                  customStyle={{
+                    fontSize: '10px',
+                    lineHeight: '1.4',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    margin: '4px 0 2px 0',
+                  }}
+                >
+                  {block.code.trim()}
+                </SyntaxHighlighter>
+              ))}
           </div>
         );
       }
@@ -842,13 +935,13 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
       label = 'response';
       color = 'text-emerald-600/80 dark:text-emerald-400/60';
       LabelIcon = ArrowUp;
-      content = extractTextContent(message.content);
+      content = textContent;
     }
   } else if (message.role === 'tool') {
     label = 'result';
     color = 'text-violet-600/70 dark:text-violet-500/50';
     LabelIcon = CornerDownLeft;
-    content = extractTextContent(message.content);
+    content = textContent;
   } else {
     return null;
   }
@@ -857,75 +950,100 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
-  const contentRef = React.useRef<HTMLSpanElement>(null);
   const hasMultipleLines = content.includes('\n');
-  const [isTruncated, setIsTruncated] = React.useState(hasMultipleLines);
-
-  React.useEffect(() => {
-    const el = contentRef.current;
-    if (el) setIsTruncated(hasMultipleLines || el.scrollWidth > el.clientWidth);
-  }, [content, hasMultipleLines]);
-
   const canExpand = isTruncated || isJson;
 
-  const tcResultId = message.role === 'tool' ? (message.toolCallId ?? (msg as Record<string, unknown>).tool_call_id as string | undefined) : undefined;
+  const tcResultId =
+    message.role === 'tool'
+      ? (message.toolCallId ??
+        ((msg as Record<string, unknown>).tool_call_id as string | undefined))
+      : undefined;
 
-  return (<>
-    <div
-      className={cn('group rounded-sm transition-colors duration-150', !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer', tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40')}
-      onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
-      {...(tcResultId ? { 'data-tc-id': tcResultId, 'data-tc-role': 'result', onMouseEnter: () => onTcHover?.(tcResultId), onMouseLeave: () => onTcHover?.(null) } : {})}
-    >
+  return (
+    <>
       <div
-        className={cn('flex items-start gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
-        onClick={isOpen ? () => setIsOpen(false) : undefined}
+        className={cn(
+          'group rounded-sm transition-colors duration-150',
+          !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+          tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40'
+        )}
+        onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
+        {...(tcResultId
+          ? {
+              'data-tc-id': tcResultId,
+              'data-tc-role': 'result',
+              onMouseEnter: () => onTcHover?.(tcResultId),
+              onMouseLeave: () => onTcHover?.(null),
+            }
+          : {})}
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={cn('mt-0.5 shrink-0', color)}>
-              <LabelIcon className="h-2.5 w-2.5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
-        </Tooltip>
-        {canExpand && isOpen && isJson && (
-          <ChevronRight
-            className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100"
-          />
-        )}
-        <span
-          ref={contentRef}
-          className={cn('text-muted-foreground min-w-0', isOpen && !isJson ? 'break-words' : 'truncate')}
+        <div
+          className={cn(
+            'flex items-start gap-2',
+            isOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+          )}
+          onClick={isOpen ? () => setIsOpen(false) : undefined}
         >
-          {isOpen && isJson
-            ? content!.trim()[0]
-            : isOpen ? content : <TruncatedMarkdown content={preview} />}
-        </span>
-        {canExpand && !(isOpen && isJson) && (
-          <ChevronRight
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('mt-0.5 shrink-0', color)}>
+                <LabelIcon className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+          {canExpand && isOpen && isJson && (
+            <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100" />
+          )}
+          <span
+            ref={collapsedContentRef}
             className={cn(
-              'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
-              isOpen && 'rotate-90'
+              'min-w-0 text-muted-foreground',
+              isOpen && !isJson ? 'break-words' : 'truncate'
             )}
-          />
-        )}
-        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
-          {time}
-        </span>
+          >
+            {isOpen && isJson ? (
+              content!.trim()[0]
+            ) : isOpen ? (
+              content
+            ) : (
+              <TruncatedMarkdown content={preview} />
+            )}
+          </span>
+          {canExpand && !(isOpen && isJson) && (
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+                isOpen && 'rotate-90'
+              )}
+            />
+          )}
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        </div>
+        {isOpen &&
+          isJson &&
+          (() => {
+            try {
+              const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
+              return (
+                <pre
+                  className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {lines.slice(1).join('\n')}
+                </pre>
+              );
+            } catch {
+              return null;
+            }
+          })()}
       </div>
-      {isOpen && isJson && (() => {
-        try {
-          const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
-          return (
-            <pre className="text-muted-foreground hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed" onClick={() => setIsOpen(false)}>
-              {lines.slice(1).join('\n')}
-            </pre>
-          );
-        } catch { return null; }
-      })()}
-    </div>
-    {trailingCallLine}
-  </>
+      {trailingCallLine}
+    </>
   );
 }
 
@@ -995,7 +1113,13 @@ function ToolLoopConversation({
       >
         <div ref={contentRef} className="relative space-y-0.5 py-3">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} onTcHover={setHoveredTcId} hoveredTcId={hoveredTcId} />
+            <ToolLoopMessage
+              key={log.id}
+              log={log}
+              searchTerm={searchTerm}
+              onTcHover={setHoveredTcId}
+              hoveredTcId={hoveredTcId}
+            />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
@@ -1082,7 +1206,13 @@ function LiveToolLoopTimeline({
       >
         <div ref={contentRef} className="relative space-y-0.5 py-2">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} onTcHover={setHoveredTcId} hoveredTcId={hoveredTcId} />
+            <ToolLoopMessage
+              key={log.id}
+              log={log}
+              searchTerm={searchTerm}
+              onTcHover={setHoveredTcId}
+              hoveredTcId={hoveredTcId}
+            />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
@@ -1148,7 +1278,7 @@ function PromotedContent({
       >
         <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
         {!isOpen && (
-          <span className="text-muted-foreground min-w-0 truncate">
+          <span className="min-w-0 truncate text-muted-foreground">
             {searchTerm ? (
               <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
             ) : (
@@ -1181,7 +1311,7 @@ function PromotedContent({
           <div
             ref={contentRef}
             className={cn(
-              'text-muted-foreground overflow-y-auto py-1 text-[11px] leading-relaxed',
+              'overflow-y-auto py-1 text-[11px] leading-relaxed text-muted-foreground',
               'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
             )}
             style={{ maxHeight: '200px', scrollbarWidth: 'none' }}
@@ -1649,12 +1779,7 @@ export function ActionNodeItem({
 
     return merged;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
-  }, [
-    hasToolLoopData,
-    hasChildren,
-    effectiveLogs,
-    childCount,
-  ]);
+  }, [hasToolLoopData, hasChildren, effectiveLogs, childCount]);
 
   const useTimeline = isExpanded && contentReady && hasToolLoopData;
 

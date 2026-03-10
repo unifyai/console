@@ -7,7 +7,6 @@ import { http, HttpResponse } from 'msw';
 import { worker } from '../../../../vitest.browser.setup';
 import { Assistant, VoiceOption } from '@/types/assistants/assistant';
 
-
 // Mock the Server Action module before importing components that use it
 // This prevents loading next-auth dependencies in the browser environment
 vi.mock('@/lib/assistants/preHireChat', () => ({
@@ -207,7 +206,6 @@ const EditFlowTestWrapper = ({ assistant }: { assistant: Assistant }) => {
           isLoadingUserVoices={false}
           fetchUserVoices={vi.fn()}
           handleDeleteVoice={vi.fn()}
-          assistants={[]}
           mode="edit"
         />
       </AssistantEdit>
