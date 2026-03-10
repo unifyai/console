@@ -945,6 +945,7 @@ function ToolLoopMessage({
                 return !isToolLoopNoise(m);
               })
             );
+            requestAnimationFrame(() => onLayoutChange?.());
           })
           .catch(() => {})
           .finally(() => setChildLoading(false));
