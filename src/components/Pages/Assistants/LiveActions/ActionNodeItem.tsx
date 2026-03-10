@@ -1011,6 +1011,7 @@ function ToolLoopMessage({
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               compact
+              onLayoutChange={onLayoutChange}
             />
           </div>
         )}
@@ -1407,6 +1408,7 @@ function ToolLoopConversation({
   assistantId,
   getToolLoopEvents,
   compact,
+  onLayoutChange: parentLayoutChange,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -1414,6 +1416,7 @@ function ToolLoopConversation({
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   compact?: boolean;
+  onLayoutChange?: () => void;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1421,7 +1424,10 @@ function ToolLoopConversation({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
-  const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
+  const signalLayoutChange = React.useCallback(() => {
+    setLayoutGen((n) => n + 1);
+    parentLayoutChange?.();
+  }, [parentLayoutChange]);
 
   React.useEffect(() => {
     const el = scrollRef.current;
@@ -1733,6 +1739,7 @@ function CollapsibleToolLoopSection({
   searchTerm,
   assistantId,
   getToolLoopEvents,
+  onLayoutChange,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -1741,6 +1748,7 @@ function CollapsibleToolLoopSection({
   searchTerm?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
+  onLayoutChange?: () => void;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -1807,6 +1815,7 @@ function CollapsibleToolLoopSection({
           searchTerm={searchTerm}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
+          onLayoutChange={onLayoutChange}
         />
       </div>
     </div>
