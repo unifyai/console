@@ -574,56 +574,14 @@ function ContentArea({
 }
 
 /**
- * Collapsible code block for execute_code actions. Shows a chevron toggle
- * that reveals syntax-highlighted code on click.
- */
-function CollapsibleCodeBlock({ blocks }: { blocks: Array<{ lang: string; code: string }> }) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const { theme } = useTheme();
-  const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="group/code text-muted-foreground/40 hover:text-muted-foreground/70 flex items-center gap-1 py-0.5 text-[10px] transition-colors"
-      >
-        <ChevronRight
-          className={cn(
-            'h-2.5 w-2.5 shrink-0 transition-transform duration-150',
-            isOpen && 'rotate-90'
-          )}
-        />
-        <span>{isOpen ? 'hide code' : 'show code'}</span>
-      </button>
-      {isOpen && blocks.map((block, i) => (
-        <SyntaxHighlighter
-          key={i}
-          language={block.lang}
-          style={hlStyle}
-          customStyle={{
-            fontSize: '10px',
-            lineHeight: '1.4',
-            padding: '6px 8px',
-            borderRadius: '4px',
-            margin: '2px 0 0 0',
-          }}
-        >
-          {block.code.trim()}
-        </SyntaxHighlighter>
-      ))}
-    </div>
-  );
-}
-
-/**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
 function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: string }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
+  const { theme: themeVal } = useTheme();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isCodeOpen, setIsCodeOpen] = React.useState(false);
   const msg = message as Record<string, unknown>;
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
@@ -711,27 +669,65 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         .filter(Boolean)
         .join(', ');
 
-      const codePreview = codeBlocks.length > 0
-        ? codeBlocks[0].code.trim().split('\n')[0]
-        : null;
+      if (codeBlocks.length === 0) {
+        return (
+          <div className="flex gap-2">
+            <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
+            <span className="text-muted-foreground/70 min-w-0 truncate">
+              {toolNames && <HighlightText text={toolNames} term={searchTerm} />}
+            </span>
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+              {time}
+            </span>
+          </div>
+        );
+      }
+
+      const codePreview = codeBlocks[0].code.trim().split('\n')[0];
+      const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
 
       return (
-        <div className="flex gap-2">
-          <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
-          <div className="text-muted-foreground/70 min-w-0 flex-1">
-            {toolNames && <span><HighlightText text={toolNames} term={searchTerm} /></span>}
-            {codePreview && (
-              <span className={cn('block truncate font-mono text-[10px]', toolNames ? 'opacity-50' : 'opacity-70')}>
-                {codePreview}
+        <div
+          className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
+          onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
+        >
+          <div
+            className={cn('flex gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
+            onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
+          >
+            <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
+            {!isCodeOpen && (
+              <span className="text-muted-foreground/70 min-w-0 truncate">
+                {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
+                <span className="font-mono text-[10px] opacity-60">{codePreview}</span>
               </span>
             )}
-            {codeBlocks.length > 0 && (
-              <CollapsibleCodeBlock blocks={codeBlocks} />
-            )}
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
+                isCodeOpen && 'rotate-90'
+              )}
+            />
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+              {time}
+            </span>
           </div>
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-            {time}
-          </span>
+          {isCodeOpen && codeBlocks.map((block, i) => (
+            <SyntaxHighlighter
+              key={i}
+              language={block.lang}
+              style={hlStyle}
+              customStyle={{
+                fontSize: '10px',
+                lineHeight: '1.4',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                margin: '4px 0 2px 0',
+              }}
+            >
+              {block.code.trim()}
+            </SyntaxHighlighter>
+          ))}
         </div>
       );
     };
