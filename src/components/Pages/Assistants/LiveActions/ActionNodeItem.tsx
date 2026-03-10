@@ -699,7 +699,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
             {!isCodeOpen && (
               <span className="text-muted-foreground/70 min-w-0 truncate">
                 {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
-                <span className="font-mono text-[10px] opacity-60">{codePreview}</span>
+                <span className="font-mono text-[10px]">{codePreview}</span>
               </span>
             )}
             <ChevronRight
