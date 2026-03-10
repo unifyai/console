@@ -29,6 +29,8 @@ export interface BillingStatusData {
   credits: number;
   /** Convenience: credits > 0 */
   hasCredits: boolean;
+  /** Account status: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED */
+  accountStatus: string;
 }
 
 export interface UseBillingStatusReturn extends BillingStatusData {
@@ -48,7 +50,7 @@ export interface UseBillingStatusReturn extends BillingStatusData {
 export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const res = await fetch('/api/billing/balance');
   if (!res.ok) {
-    return { hasBillingHistory: false, credits: 0, hasCredits: false };
+    return { hasBillingHistory: false, credits: 0, hasCredits: false, accountStatus: 'ACTIVE' };
   }
 
   const data = await res.json();
@@ -61,6 +63,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
     hasBillingHistory: data.lastRechargeAt != null,
     credits,
     hasCredits: credits > 0,
+    accountStatus: data.accountStatus ?? 'ACTIVE',
   };
 }
 
@@ -82,6 +85,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
     hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
+    accountStatus: 'ACTIVE',
   };
 
   return {

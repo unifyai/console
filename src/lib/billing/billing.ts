@@ -58,6 +58,7 @@ export const getBalance = async (apiKey: string) => {
         balance: credits.toFixed(2),
         fullBalance: credits,
         lastRechargeAt: data.lastRechargeAt ?? null,
+        accountStatus: data.accountStatus ?? 'ACTIVE',
       };
     } catch (error) {
       return errorResponse(error, 'Failed to fetch balance');

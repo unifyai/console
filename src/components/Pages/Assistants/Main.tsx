@@ -249,6 +249,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
   const {
     hasBillingHistory,
     hasCredits,
+    accountStatus,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
   } = useBillingStatus();
@@ -743,6 +744,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         isBillingLoading={isBillingLoading}
         spendingGateStatus={spendingGateStatus}
         isOrgWorkspace={!!userMeta.orgId}
+        accountStatus={accountStatus}
       />
 
       {/* StripeSidePanel — for adding payment method */}

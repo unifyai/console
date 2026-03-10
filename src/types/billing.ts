@@ -33,6 +33,8 @@ export interface BalanceData {
   fullBalance: number;
   /** ISO-8601 timestamp of last paid recharge, or null */
   lastRechargeAt: string | null;
+  /** Account status: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED */
+  accountStatus: string;
 }
 
 // =============================================================================

@@ -294,13 +294,6 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
               </Button>
             </div>
 
-            {/* Read-only billing profile view */}
-            <BillingProfile
-              actions={actions}
-              isEditing={false}
-              onEditingChange={() => {}}
-            />
-
             {/* Edit Dialog */}
             <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
               <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
@@ -314,12 +307,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                 </DialogHeader>
                 <BillingProfile
                   actions={actions}
-                  isEditing={true}
-                  onEditingChange={(editing) => {
-                    if (!editing) {
-                      setIsProfileDialogOpen(false);
-                    }
-                  }}
+                  onClose={() => setIsProfileDialogOpen(false)}
                 />
               </DialogContent>
             </Dialog>

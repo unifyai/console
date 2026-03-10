@@ -1,19 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/user/user';
-import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
+import { getBalance } from '@/lib/billing/billing';
+import { isBillingError } from '@/types/billing';
 
 /**
  * Returns the billing status for the active workspace's billing account.
  *
- * Delegates to the backend GET /billing/account-info endpoint, which
- * resolves workspace context (personal vs org) from the API key.
+ * Delegates to the shared `getBalance` server action factory so the
+ * transform logic (credits → formatted balance) lives in one place.
  *
  * Response shape:
  *   - balance: formatted string (e.g. "25.00")
  *   - fullBalance: raw number
  *   - lastRechargeAt: ISO-8601 timestamp of last paid recharge, or null
+ *   - accountStatus: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   const user = await getCurrentUser();
 
   if (!user || !user.apiKey) {
@@ -22,20 +24,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const client = await getOrchestraUserClient(user.apiKey);
-    const response = await client.get('/billing/account-info');
-    const data = response.data;
+    const fetchBalance = await getBalance(user.apiKey);
+    const result = await fetchBalance();
 
-    const credits = typeof data.credits === 'number' ? data.credits : 0;
-    const balance = credits.toFixed(2);
+    if (isBillingError(result)) {
+      return NextResponse.json({ error: result.detail }, { status: 500 });
+    }
 
-    return NextResponse.json({
-      balance,
-      fullBalance: credits,
-      lastRechargeAt: data.lastRechargeAt ?? null,
-    });
+    return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Error fetching billing balance:', error?.response?.data || error);
+    console.error('Error fetching billing balance:', error?.message || error);
     return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });
   }
 }
