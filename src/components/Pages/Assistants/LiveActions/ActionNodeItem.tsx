@@ -999,7 +999,12 @@ function ToolLoopMessage({
             </span>
           )}
           {isOpen && (
-            <span className="min-w-0 truncate text-muted-foreground">
+            <span
+              className={cn(
+                'min-w-0 text-muted-foreground',
+                hasMoreLines || isJson ? 'truncate' : 'break-words'
+              )}
+            >
               {isJson ? content!.trim()[0] : <TruncatedMarkdown content={preview} />}
             </span>
           )}
