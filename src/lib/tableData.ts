@@ -13,6 +13,11 @@
  */
 
 import { snakeToCamelObject } from '@/utils/casing';
+import {
+  USE_MOCK_EMBEDS,
+  MOCK_TABLE_TOKEN,
+  getMockTableData,
+} from '@/utils/assistants/chat-embed-mock-data';
 import type {
   TableConfig,
   FieldMetadata,
@@ -183,6 +188,12 @@ export async function fetchTableData(
     };
   }
   console.log('[tableData] Token format valid');
+
+  // Mock data path: return pre-built data for the mock token (no backend needed)
+  if (USE_MOCK_EMBEDS && normalizedToken === MOCK_TABLE_TOKEN) {
+    console.log('[tableData] Returning mock data for token:', normalizedToken);
+    return { success: true, data: getMockTableData() as TableDataResult };
+  }
 
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, requestedPageSize));
   console.log('[tableData] Page:', page, 'PageSize:', pageSize, 'Timeout:', timeoutMs);
