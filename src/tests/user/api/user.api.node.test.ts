@@ -47,32 +47,6 @@ async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Re
   }
 }
 
-describe('@real User Business Status Route', () => {
-  beforeAll(async () => {
-    await skipIfServerNotReachable();
-  });
-
-  describe('GET /api/user/business-status', () => {
-    it('@real returns business status with API key', realTestOptions, async () => {
-      const res = await apiFetch('/api/user/business-status');
-
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      // Response structure may vary - just verify it's an object
-      expect(typeof data).toBe('object');
-    });
-
-    it('@real returns 401 without API key', realTestOptions, async () => {
-      const res = await fetch(`${BASE_URL}/api/user/business-status`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      expect(res.status).toBe(401);
-    });
-  });
-});
-
 describe('@real User Onboarding Status Route', () => {
   beforeAll(async () => {
     await skipIfServerNotReachable();
@@ -98,14 +72,14 @@ describe('@real User Onboarding Status Route', () => {
   });
 });
 
-describe('@real User Tax Routes', () => {
+describe('@real Billing Tax Routes', () => {
   beforeAll(async () => {
     await skipIfServerNotReachable();
   });
 
-  describe('GET /api/user/supported-tax-countries', () => {
+  describe('GET /api/billing/supported-tax-countries', () => {
     it('@real returns supported tax countries with API key', realTestOptions, async () => {
-      const res = await apiFetch('/api/user/supported-tax-countries');
+      const res = await apiFetch('/api/billing/supported-tax-countries');
 
       expect(res.status).toBe(200);
 
@@ -114,7 +88,7 @@ describe('@real User Tax Routes', () => {
     });
 
     it('@real returns 401 without API key', realTestOptions, async () => {
-      const res = await fetch(`${BASE_URL}/api/user/supported-tax-countries`, {
+      const res = await fetch(`${BASE_URL}/api/billing/supported-tax-countries`, {
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -122,9 +96,9 @@ describe('@real User Tax Routes', () => {
     });
   });
 
-  describe('POST /api/user/validate-tax-id', () => {
+  describe('POST /api/billing/validate-tax-id', () => {
     it('@real returns 400 for missing required fields', realTestOptions, async () => {
-      const res = await apiFetch('/api/user/validate-tax-id', {
+      const res = await apiFetch('/api/billing/validate-tax-id', {
         method: 'POST',
         body: JSON.stringify({}),
       });
@@ -133,7 +107,7 @@ describe('@real User Tax Routes', () => {
     });
 
     it('@real validates tax ID with proper input', realTestOptions, async () => {
-      const res = await apiFetch('/api/user/validate-tax-id', {
+      const res = await apiFetch('/api/billing/validate-tax-id', {
         method: 'POST',
         body: JSON.stringify({
           country: 'US',
@@ -146,7 +120,7 @@ describe('@real User Tax Routes', () => {
     });
 
     it('@real returns 401 without API key', realTestOptions, async () => {
-      const res = await fetch(`${BASE_URL}/api/user/validate-tax-id`, {
+      const res = await fetch(`${BASE_URL}/api/billing/validate-tax-id`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ country: 'US', taxId: '123' }),

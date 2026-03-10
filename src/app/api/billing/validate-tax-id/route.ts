@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
-import { validateTaxId } from '@/lib/user/tax';
+import { validateTaxId } from '@/lib/orchestra/api/user';
 
 export async function POST(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -20,3 +20,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to validate tax ID' }, { status: 500 });
   }
 }
+

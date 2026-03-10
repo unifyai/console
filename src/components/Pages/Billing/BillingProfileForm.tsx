@@ -261,7 +261,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
     useEffect(() => {
       const fetchSupportedCountries = async () => {
         try {
-          const response = await fetch('/api/user/supported-tax-countries');
+          const response = await fetch('/api/billing/supported-tax-countries');
           if (response.ok) {
             const data: SupportedTaxCountriesResponse = await response.json();
             const list: TaxCountry[] = Object.entries(data.supportedCountries)
@@ -294,7 +294,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
           setValidatingTaxId(true);
           try {
             const sanitized = formData.taxId.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-            const res = await fetch('/api/user/validate-tax-id', {
+            const res = await fetch('/api/billing/validate-tax-id', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ taxId: sanitized, country: taxCountry }),

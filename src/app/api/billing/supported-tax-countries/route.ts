@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
-import { getSupportedTaxCountries } from '@/lib/user/tax';
+import { getSupportedTaxCountries } from '@/lib/orchestra/api/user';
 
 export async function GET(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -16,3 +16,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Error fetching supported tax countries' }, { status: 500 });
   }
 }
+

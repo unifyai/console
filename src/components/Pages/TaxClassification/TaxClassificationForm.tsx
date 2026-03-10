@@ -176,7 +176,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
     useEffect(() => {
       const fetchSupportedCountries = async () => {
         try {
-          const response = await fetch('/api/user/supported-tax-countries');
+          const response = await fetch('/api/billing/supported-tax-countries');
 
           if (response.ok) {
             const data: SupportedTaxCountriesResponse = await response.json();
@@ -240,7 +240,7 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
           try {
             const sanitizedId = formData.taxId.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
-            const response = await fetch('/api/user/validate-tax-id', {
+            const response = await fetch('/api/billing/validate-tax-id', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
