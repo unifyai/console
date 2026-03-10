@@ -908,15 +908,6 @@ function ToolLoopMessage({
     const childTime = formatEventTime(child.startTime);
     const canExpand = !!(getToolLoopEvents && assistantId);
 
-    const duration = (() => {
-      const startMs = child.startTime ? new Date(child.startTime).getTime() : 0;
-      if (!startMs) return '';
-      const endMs = child.endTime ? new Date(child.endTime).getTime() : 0;
-      if (!endMs) return '';
-      const elapsed = Math.max(0, endMs - startMs);
-      return elapsed > 0 ? formatCompactDuration(elapsed) : '';
-    })();
-
     const handleChildToggle = () => {
       if (!canExpand) return;
       const opening = !childLogsOpen;
@@ -979,11 +970,6 @@ function ToolLoopMessage({
             </TooltipContent>
           </Tooltip>
           <span className="min-w-0 truncate text-muted-foreground">{childLabel}</span>
-          {duration && (
-            <span className="text-muted-foreground/40 shrink-0 text-[10px] tabular-nums">
-              · {duration}
-            </span>
-          )}
           {canExpand && (
             <ChevronRight
               className={cn(
