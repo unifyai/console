@@ -923,6 +923,7 @@ function ToolCallRow({
  */
 function ToolLoopMessage({
   log,
+  isLatestLog,
   searchTerm,
   onTcHover,
   hoveredTcId,
@@ -931,6 +932,7 @@ function ToolLoopMessage({
   getToolLoopEvents,
 }: {
   log: ToolLoopLog;
+  isLatestLog?: boolean;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
@@ -1141,6 +1143,29 @@ function ToolLoopMessage({
     LabelIcon = ArrowDown;
     content = textContent;
   } else if (message.role === 'assistant') {
+    // In-flight thinking sentinel — LLM is currently generating
+    if (msg._thinkingInFlight || msg._thinking_in_flight) {
+      if (!isLatestLog) return null;
+      return (
+        <div className="flex items-start gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
+                <Brain className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              thought
+            </TooltipContent>
+          </Tooltip>
+          <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
+            Thinking
+          </span>
+          <span className="text-muted-foreground/30 ml-auto shrink-0 tabular-nums">{time}</span>
+        </div>
+      );
+    }
+
     // Check for thinking blocks first
     const blocks =
       msg.thinkingBlocks ??
@@ -1561,10 +1586,11 @@ function ToolLoopConversation({
         style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: nested ? 0 : '4px' }}
       >
         <div ref={contentRef} className={cn('relative space-y-0.5', nested ? 'pt-1' : 'py-3')}>
-          {logs.map((log) => (
+          {logs.map((log, idx) => (
             <ToolLoopMessage
               key={log.id}
               log={log}
+              isLatestLog={idx === logs.length - 1}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
@@ -1652,10 +1678,11 @@ function LiveToolLoopTimeline({
         style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }}
       >
         <div ref={contentRef} className="relative space-y-0.5 py-2">
-          {logs.map((log) => (
+          {logs.map((log, idx) => (
             <ToolLoopMessage
               key={log.id}
               log={log}
+              isLatestLog={idx === logs.length - 1}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
