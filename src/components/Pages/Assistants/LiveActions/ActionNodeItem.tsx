@@ -24,6 +24,7 @@ import {
   FileText,
   BookOpen,
   RefreshCw,
+  Repeat,
   ListChecks,
   Cpu,
   KeyRound,
@@ -277,6 +278,7 @@ function getLabelStyles(status: ActionNodeStatus): string {
  */
 function getNodeIcon(displayLabel?: string): LucideIcon {
   if (!displayLabel) return CircleDot;
+  if (displayLabel === 'Session') return Repeat;
   if (displayLabel === 'Taking Action') return Zap;
   if (displayLabel === 'Running Code') return SquareTerminal;
   if (displayLabel.startsWith('Running:')) return Play;
@@ -298,6 +300,7 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
 
 function getNodeTooltip(displayLabel?: string): string {
   if (!displayLabel) return 'event';
+  if (displayLabel === 'Session') return 'persistent session';
   if (displayLabel === 'Taking Action') return 'action';
   if (displayLabel === 'Running Code') return 'code execution';
   if (displayLabel.startsWith('Running:')) return 'function execution';
@@ -2309,7 +2312,7 @@ export function ActionNodeItem({
         onClick={isExpandable ? handleToggle : undefined}
         data-testid={isExpandable ? 'expand-button' : undefined}
       >
-        {/* Icon + Label with shared tooltip */}
+        {/* Icon + Label with tooltip */}
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="flex min-w-0 items-center gap-1.5">
@@ -2336,7 +2339,7 @@ export function ActionNodeItem({
               </span>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+          <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
             {getNodeTooltip(node.displayLabel)}
           </TooltipContent>
         </Tooltip>
