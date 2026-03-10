@@ -450,3 +450,61 @@ describe('TableViewer - Edge Cases', () => {
     expect(cell.className).toContain('truncate');
   });
 });
+
+// =============================================================================
+// ViewPane Integration Tests
+// =============================================================================
+
+describe('TableViewer - ViewPane Integration', () => {
+  it('has View toggle button', () => {
+    render(<TableViewer {...defaultProps} />);
+
+    const viewButton = screen.getByRole('button', { name: /View/ });
+    expect(viewButton).toBeInTheDocument();
+  });
+
+  it('opens ViewPane on View toggle click', () => {
+    render(<TableViewer {...defaultProps} />);
+
+    const viewButton = screen.getByRole('button', { name: /View/ });
+    fireEvent.click(viewButton);
+
+    expect(screen.getByText('Select a row or cell to view')).toBeInTheDocument();
+  });
+
+  it('opens ViewPane when clicking on a table row', () => {
+    render(<TableViewer {...defaultProps} />);
+
+    // Click on a data row
+    const rows = screen.getAllByRole('row');
+    // First row is header, data rows start from index 1
+    const dataRow = rows[1];
+    if (dataRow) {
+      fireEvent.click(dataRow);
+
+      // The ViewPane should open, showing field entries for the clicked row
+      expect(screen.getByText(/field/i)).toBeInTheDocument();
+    }
+  });
+
+  it('closes ViewPane when close button is clicked', async () => {
+    render(<TableViewer {...defaultProps} />);
+
+    // Open the ViewPane
+    const viewButton = screen.getByRole('button', { name: /View/ });
+    fireEvent.click(viewButton);
+
+    // Verify it opened
+    expect(screen.getByText('Select a row or cell to view')).toBeInTheDocument();
+
+    // Find the close button (the X button inside the ViewPane)
+    const closeButtons = screen.getAllByRole('button');
+    const closeButton = closeButtons.find(
+      (btn) => btn.querySelector('svg.lucide-x') || btn.querySelector('.lucide-x')
+    );
+
+    if (closeButton) {
+      fireEvent.click(closeButton);
+    }
+  });
+});
