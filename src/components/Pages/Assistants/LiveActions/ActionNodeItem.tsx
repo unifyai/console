@@ -931,6 +931,7 @@ function ToolCallRow({
 function ToolLoopMessage({
   log,
   isLatestLog,
+  nodeCompleted,
   resolvedToolCallIds,
   searchTerm,
   onTcHover,
@@ -941,6 +942,7 @@ function ToolLoopMessage({
 }: {
   log: ToolLoopLog;
   isLatestLog?: boolean;
+  nodeCompleted?: boolean;
   /** Tool call IDs that already have a matching result in the logs. */
   resolvedToolCallIds?: Set<string>;
   searchTerm?: string;
@@ -1162,7 +1164,7 @@ function ToolLoopMessage({
   } else if (message.role === 'assistant') {
     // In-flight thinking sentinel — LLM is currently generating
     if (msg._thinkingInFlight || msg._thinking_in_flight) {
-      if (!isLatestLog) return null;
+      if (!isLatestLog || nodeCompleted) return null;
       return (
         <div className="flex items-start gap-2">
           <Tooltip>
@@ -1538,6 +1540,7 @@ function ToolLoopMessage({
 function ToolLoopConversation({
   logs,
   depth,
+  nodeCompleted,
   searchTerm,
   assistantId,
   getToolLoopEvents,
@@ -1546,6 +1549,7 @@ function ToolLoopConversation({
 }: {
   logs: ToolLoopLog[];
   depth: number;
+  nodeCompleted?: boolean;
   searchTerm?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
@@ -1629,6 +1633,7 @@ function ToolLoopConversation({
               key={log.id}
               log={log}
               isLatestLog={idx === logs.length - 1}
+              nodeCompleted={nodeCompleted}
               resolvedToolCallIds={resolvedToolCallIds}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
@@ -1883,6 +1888,7 @@ function PromotedContent({
 function CollapsibleToolLoopSection({
   logs,
   depth,
+  nodeCompleted,
   defaultOpen = false,
   sectionToggleSignal,
   searchTerm,
@@ -1892,6 +1898,7 @@ function CollapsibleToolLoopSection({
 }: {
   logs: ToolLoopLog[];
   depth: number;
+  nodeCompleted?: boolean;
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
   searchTerm?: string;
@@ -1961,6 +1968,7 @@ function CollapsibleToolLoopSection({
         <ToolLoopConversation
           logs={logs}
           depth={depth}
+          nodeCompleted={nodeCompleted}
           searchTerm={searchTerm}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
@@ -2425,6 +2433,7 @@ export function ActionNodeItem({
               <ToolLoopConversation
                 logs={filtered}
                 depth={depth}
+                nodeCompleted
                 searchTerm={searchTerm}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
@@ -2436,6 +2445,7 @@ export function ActionNodeItem({
             <CollapsibleToolLoopSection
               logs={filtered}
               depth={depth}
+              nodeCompleted
               sectionToggleSignal={sectionToggleSignal}
               searchTerm={searchTerm}
               assistantId={assistantId}
