@@ -673,6 +673,87 @@ function ContentArea({
 }
 
 /**
+ * A single tool-call row that expands to show the full JSON arguments on click.
+ */
+function ToolCallRow({
+  entry,
+  time,
+  actionIcon,
+  searchTerm,
+  onTcHover,
+  hoveredTcId,
+}: {
+  entry: { label: string; toolCallId: string; arguments: string };
+  time: string;
+  actionIcon: React.ReactNode;
+  searchTerm?: string;
+  onTcHover?: (tcId: string | null) => void;
+  hoveredTcId?: string | null;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  let formattedArgs: string | null = null;
+  try {
+    const parsed = JSON.parse(entry.arguments);
+    if (typeof parsed === 'object' && parsed !== null && Object.keys(parsed).length > 0) {
+      formattedArgs = expandStringNewlines(JSON.stringify(parsed, null, 2));
+    }
+  } catch {
+    /* not valid JSON */
+  }
+
+  const canExpand = !!formattedArgs;
+  const isHighlighted = hoveredTcId === entry.toolCallId;
+
+  return (
+    <div
+      className={cn(
+        'group rounded-sm transition-colors duration-150',
+        !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+        isHighlighted && 'bg-muted/40'
+      )}
+      data-tc-id={entry.toolCallId}
+      data-tc-role="call"
+      onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
+      onMouseEnter={() => onTcHover?.(entry.toolCallId)}
+      onMouseLeave={() => onTcHover?.(null)}
+    >
+      <div
+        className={cn(
+          'flex items-center gap-2',
+          isOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+        )}
+        onClick={isOpen ? () => setIsOpen(false) : undefined}
+      >
+        {actionIcon}
+        <span className="min-w-0 truncate text-muted-foreground">
+          <HighlightText text={entry.label} term={searchTerm} />
+        </span>
+        {canExpand && (
+          <ChevronRight
+            className={cn(
+              'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+              isOpen && 'rotate-90'
+            )}
+          />
+        )}
+        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+          {time}
+        </span>
+      </div>
+      {isOpen && formattedArgs && (
+        <pre
+          className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+          onClick={() => setIsOpen(false)}
+        >
+          {formattedArgs}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+/**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
 function ToolLoopMessage({
@@ -819,9 +900,13 @@ function ToolLoopMessage({
         .map((tc) => {
           if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
           const alias = aliases?.[tc.function.name];
-          return { label: alias || `${tc.function.name}()`, toolCallId: tc.id };
+          return {
+            label: alias || `${tc.function.name}()`,
+            toolCallId: tc.id,
+            arguments: tc.function.arguments,
+          };
         })
-        .filter(Boolean) as Array<{ label: string; toolCallId: string }>;
+        .filter(Boolean) as Array<{ label: string; toolCallId: string; arguments: string }>;
 
       const actionIcon = (
         <Tooltip>
@@ -841,25 +926,15 @@ function ToolLoopMessage({
       for (let i = 0; i < toolEntries.length; i++) {
         const entry = toolEntries[i];
         rows.push(
-          <div
+          <ToolCallRow
             key={`tool-${i}`}
-            className={cn(
-              'flex items-center gap-2',
-              hoveredTcId && hoveredTcId === entry.toolCallId && 'bg-muted/40 rounded-sm'
-            )}
-            data-tc-id={entry.toolCallId}
-            data-tc-role="call"
-            onMouseEnter={() => onTcHover?.(entry.toolCallId)}
-            onMouseLeave={() => onTcHover?.(null)}
-          >
-            {actionIcon}
-            <span className="min-w-0 truncate text-muted-foreground">
-              <HighlightText text={entry.label} term={searchTerm} />
-            </span>
-            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-              {time}
-            </span>
-          </div>
+            entry={entry}
+            time={time}
+            actionIcon={actionIcon}
+            searchTerm={searchTerm}
+            onTcHover={onTcHover}
+            hoveredTcId={hoveredTcId}
+          />
         );
       }
 
