@@ -771,11 +771,10 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       <div className={cn('flex gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
         <span className={cn('shrink-0 font-medium', color)}>{label}</span>
         {!isOpen && (
-          <span className="text-muted-foreground/50 min-w-0 flex-1 truncate">
+          <span className="text-muted-foreground/50 min-w-0 truncate">
             <TruncatedMarkdown content={preview} />
           </span>
         )}
-        {isOpen && <span className="min-w-0 flex-1" />}
         <ChevronRight
           className={cn(
             'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
