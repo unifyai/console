@@ -1,18 +1,21 @@
 /**
- * Tests for the simplified Billing page Main component.
+ * Tests for the Billing page Main component.
+ *
+ * Now uses mock BillingActions (server actions) instead of MSW HTTP
+ * handlers, matching the new architecture where page.tsx passes
+ * bound server actions to Main.
  *
  * Validates that:
  *   1. Kept sections: Account Balance, Billing Profile, Automatic Refill
  *   2. Checkout return status is displayed correctly
- *   3. Billing setup check runs on mount
+ *   3. Loading state on mount
  *   4. Org context displays correct heading
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
-import { server } from '@/tests/server';
 import React from 'react';
+import type { BillingActions } from '@/types/billing';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -35,15 +38,16 @@ vi.mock('@/components/Pages/Billing/BillingProfile', () => ({
 
 import Main from '@/components/Pages/Billing/Main';
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
+// ─── Default mock actions ────────────────────────────────────────────────────
 
-// Default MSW handlers for Main.tsx data fetching
-const defaultHandlers = [
-  http.get('/api/billing/balance', () =>
-    HttpResponse.json({ balance: '25.00', fullBalance: 25 })
-  ),
-  http.get('/api/billing/auto-recharge/settings', () =>
-    HttpResponse.json({
+function createMockActions(overrides?: Partial<BillingActions>): BillingActions {
+  return {
+    getBalance: vi.fn().mockResolvedValue({
+      balance: '25.00',
+      fullBalance: 25,
+      lastRechargeAt: null,
+    }),
+    getAutoRecharge: vi.fn().mockResolvedValue({
       autoRechargeEnabled: false,
       autoRechargeThreshold: 10,
       autoRechargeQty: 25,
@@ -52,24 +56,33 @@ const defaultHandlers = [
       canEnableAutoRecharge: true,
       minimumSpendRequired: 50,
       remainingSpendNeeded: 0,
-    })
-  ),
-];
+    }),
+    updateAutoRecharge: vi.fn().mockResolvedValue(undefined),
+    toggleAutoRecharge: vi.fn().mockResolvedValue(undefined),
+    getProfile: vi.fn().mockResolvedValue({}),
+    updateProfile: vi.fn().mockResolvedValue({}),
+    createCheckoutSession: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/test' }),
+    createPortalSession: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/test' }),
+    getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'unpaid' }),
+    getSupportedTaxCountries: vi.fn().mockResolvedValue({
+      supportedCountries: {},
+      totalCountries: 0,
+    }),
+    validateTaxId: vi.fn().mockResolvedValue({ valid: true }),
+    ...overrides,
+  };
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('Billing Main – simplified layout', () => {
-  beforeEach(() => {
-    server.listen();
-    server.use(...defaultHandlers);
-  });
-
   afterEach(() => {
-    server.resetHandlers();
-    server.close();
     vi.clearAllMocks();
   });
 
   it('renders Balance section', async () => {
-    render(<Main />);
+    const actions = createMockActions();
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Balance')).toBeTruthy();
@@ -77,7 +90,8 @@ describe('Billing Main – simplified layout', () => {
   });
 
   it('renders Auto-Recharge section', async () => {
-    render(<Main />);
+    const actions = createMockActions();
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Auto-Recharge')).toBeTruthy();
@@ -85,7 +99,8 @@ describe('Billing Main – simplified layout', () => {
   });
 
   it('renders Billing Profile section', async () => {
-    render(<Main />);
+    const actions = createMockActions();
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('billing-profile-section')).toBeTruthy();
@@ -94,20 +109,23 @@ describe('Billing Main – simplified layout', () => {
   });
 
   it('shows loading state before data loads', () => {
-    // Delay the balance fetch
-    server.use(
-      http.get('/api/billing/balance', async () => {
-        await new Promise((r) => setTimeout(r, 5000));
-        return HttpResponse.json({ balance: '25.00', fullBalance: 25 });
-      })
-    );
+    // Create actions that never resolve the balance
+    const actions = createMockActions({
+      getBalance: vi.fn().mockReturnValue(new Promise(() => {})),
+    });
 
-    render(<Main />);
+    render(<Main actions={actions} />);
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
   it('shows org name in billing profile description when in org context', async () => {
-    render(<Main orgContext={{ orgId: 1, orgName: 'Acme Corp', canEdit: true }} />);
+    const actions = createMockActions();
+    render(
+      <Main
+        actions={actions}
+        orgContext={{ orgId: 1, orgName: 'Acme Corp', canEdit: true }}
+      />
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('billing-profile-section')).toBeTruthy();
@@ -116,7 +134,8 @@ describe('Billing Main – simplified layout', () => {
   });
 
   it('shows personal billing profile description when not in org context', async () => {
-    render(<Main />);
+    const actions = createMockActions();
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('billing-profile-section')).toBeTruthy();
@@ -125,7 +144,8 @@ describe('Billing Main – simplified layout', () => {
   });
 
   it('renders Edit button for billing profile', async () => {
-    render(<Main />);
+    const actions = createMockActions();
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('billing-profile-section')).toBeTruthy();
@@ -135,27 +155,18 @@ describe('Billing Main – simplified layout', () => {
 });
 
 describe('Billing Main – checkout return handling', () => {
-  beforeEach(() => {
-    server.listen();
-    server.use(...defaultHandlers);
-  });
-
   afterEach(() => {
-    server.resetHandlers();
-    server.close();
     vi.clearAllMocks();
+    mockSearchParams.delete('sessionId');
   });
 
   it('shows success alert when checkout session was paid', async () => {
-    // Simulate returning from Stripe with sessionId
     mockSearchParams.set('sessionId', 'cs_test_123');
-    server.use(
-      http.get('/api/stripe/session-status', () =>
-        HttpResponse.json({ paymentStatus: 'paid' })
-      )
-    );
+    const actions = createMockActions({
+      getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'paid' }),
+    });
 
-    render(<Main />);
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Payment Successful')).toBeTruthy();
@@ -163,32 +174,26 @@ describe('Billing Main – checkout return handling', () => {
     expect(
       screen.getByText('Payment successful! Your new balance will be reflected shortly.')
     ).toBeTruthy();
-
-    // Clean up
-    mockSearchParams.delete('sessionId');
   });
 
   it('shows error alert when checkout session was not paid', async () => {
     mockSearchParams.set('sessionId', 'cs_test_fail');
-    server.use(
-      http.get('/api/stripe/session-status', () =>
-        HttpResponse.json({ paymentStatus: 'unpaid' })
-      )
-    );
+    const actions = createMockActions({
+      getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'unpaid' }),
+    });
 
-    render(<Main />);
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Payment Issue')).toBeTruthy();
     });
-
-    mockSearchParams.delete('sessionId');
   });
 
   it('does not show checkout alert when no sessionId in URL', async () => {
     mockSearchParams.delete('sessionId');
+    const actions = createMockActions();
 
-    render(<Main />);
+    render(<Main actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Balance')).toBeTruthy();
@@ -197,4 +202,3 @@ describe('Billing Main – checkout return handling', () => {
     expect(screen.queryByText('Payment Issue')).toBeNull();
   });
 });
-
