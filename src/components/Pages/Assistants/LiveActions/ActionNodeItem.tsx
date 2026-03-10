@@ -950,7 +950,6 @@ function ToolLoopMessage({
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
-  const hasMultipleLines = content.includes('\n');
   const canExpand = isTruncated || isJson;
 
   const tcResultId =
@@ -997,21 +996,14 @@ function ToolLoopMessage({
           {canExpand && isOpen && isJson && (
             <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100" />
           )}
-          <span
-            ref={collapsedContentRef}
-            className={cn(
-              'min-w-0 text-muted-foreground',
-              isOpen && !isJson ? 'break-words' : 'truncate'
-            )}
-          >
-            {isOpen && isJson ? (
-              content!.trim()[0]
-            ) : isOpen ? (
-              content
-            ) : (
+          {!isOpen && (
+            <span ref={collapsedContentRef} className="min-w-0 truncate text-muted-foreground">
               <TruncatedMarkdown content={preview} />
-            )}
-          </span>
+            </span>
+          )}
+          {isOpen && isJson && (
+            <span className="min-w-0 truncate text-muted-foreground">{content!.trim()[0]}</span>
+          )}
           {canExpand && !(isOpen && isJson) && (
             <ChevronRight
               className={cn(
@@ -1025,21 +1017,30 @@ function ToolLoopMessage({
           </span>
         </div>
         {isOpen &&
-          isJson &&
           (() => {
-            try {
-              const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
-              return (
-                <pre
-                  className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {lines.slice(1).join('\n')}
-                </pre>
-              );
-            } catch {
-              return null;
+            if (isJson) {
+              try {
+                const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
+                return (
+                  <pre
+                    className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {lines.slice(1).join('\n')}
+                  </pre>
+                );
+              } catch {
+                return null;
+              }
             }
+            return (
+              <div
+                className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+                onClick={() => setIsOpen(false)}
+              >
+                <RichContent content={content!} />
+              </div>
+            );
           })()}
       </div>
       {trailingCallLine}
