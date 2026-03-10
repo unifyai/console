@@ -1,72 +1,80 @@
 'use client';
 
 import type { Cell, Header, Table } from '@tanstack/react-table';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, type MutableRefObject } from 'react';
 
 /**
  * Cell Selection Hook for TableViewer
  *
- * Provides full cell selection functionality:
- * - Single click to select a cell
- * - Ctrl/Cmd+click to toggle cells (multi-select)
- * - Shift+click to select a range
- * - Click row to select entire row
- * - Click column header to select entire column
- * - Drag to select range
- * - Keyboard navigation (arrows, Escape)
- *
- * Adapted from Interfaces useCellSelection but simplified for read-only table views.
+ * Mirrors the interfaces useCellSelection hook, simplified for read-only table views.
+ * Handles: single click, Ctrl/Cmd multi-select, Shift range, drag range,
+ * row selection via RowNumbering cells, column selection via header clicks/drag,
+ * keyboard navigation (arrows, Escape, Ctrl+A, Ctrl+C).
  */
 
 // =============================================================================
 // Types
 // =============================================================================
 
+type AnyCell = Cell<Record<string, unknown>, unknown>;
+type AnyHeader = Header<Record<string, unknown>, unknown>;
+type AnyTable = Table<Record<string, unknown>>;
+
 export interface UseCellSelectionProps {
-  table: Table<Record<string, unknown>>;
+  table: AnyTable;
   selectedCells: string[];
   setSelectedCells: (cells: string[]) => void;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
-  /** Column ID to exclude from selection (e.g., row number column) */
+  /** Column ID to treat as the row-index column (e.g. 'RowNumbering') */
   excludeColumnId?: string;
-  /** Callback for Ctrl+C - copies selected cells */
   onCopy?: () => void;
 }
 
 export interface UseCellSelectionReturn {
-  handleCellMouseDown: (
-    e: React.MouseEvent<HTMLElement>,
-    cell: Cell<Record<string, unknown>, unknown>
-  ) => void;
-  handleCellMouseUp: (e: React.MouseEvent<HTMLElement>) => void;
-  handleCellMouseOver: (
-    e: React.MouseEvent<HTMLElement>,
-    cell: Cell<Record<string, unknown>, unknown>
-  ) => void;
-  handleHeaderMouseDown: (
-    e: React.MouseEvent<HTMLElement>,
-    header: Header<Record<string, unknown>, unknown>
-  ) => void;
+  /** Unified mouse-down for cells (including RowNumbering) and headers */
+  handleCellMouseDown: (e: React.MouseEvent<HTMLElement>, target: AnyCell | AnyHeader) => void;
+  handleCellMouseUp: () => void;
+  /** Unified mouse-over for cells (including RowNumbering) and headers during drag */
+  handleCellMouseOver: (e: React.MouseEvent<HTMLElement>, target: AnyCell | AnyHeader) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
-  isCellSelected: (cell: Cell<Record<string, unknown>, unknown>) => boolean;
-  isRowSelected: (rowId: string) => boolean;
+  isCellSelected: (cell: AnyCell) => boolean;
+  /** True when ALL data cells of the row are selected (for RowNumbering highlight) */
+  isAllRowSelected: (rowId: string) => boolean;
   clearSelection: () => void;
   selectAll: () => void;
+  wasDraggingRef: MutableRefObject<boolean>;
 }
 
 // =============================================================================
-// Helper Functions
+// Helpers
 // =============================================================================
 
-const getCellId = (cell: Cell<Record<string, unknown>, unknown>): string => cell.id;
+const getCellId = (cell: AnyCell): string => cell.id;
 
-// A cell is valid for selection if it's not a placeholder
-// We allow null/undefined values (shown as em-dash) to be selected
-const isValidCell = (cell: Cell<Record<string, unknown>, unknown>): boolean =>
-  !cell.getIsPlaceholder();
+const isRowIndexCell = (cell: AnyCell, excludeId?: string): boolean =>
+  !!excludeId && cell.column.id === excludeId;
+
+const isValidCell = (cell: AnyCell): boolean => !cell.getIsPlaceholder();
+
+const isDataCell = (cell: AnyCell, excludeId?: string): boolean =>
+  isValidCell(cell) && !isRowIndexCell(cell, excludeId);
+
+const getCellsFromHeader = (header: AnyHeader): AnyCell[] => {
+  const leafColumns = header.column.getLeafColumns().map((col) => col.id);
+  return header
+    .getContext()
+    .table.getRowModel()
+    .rows.flatMap((row) => row.getAllCells())
+    .filter((cell) => leafColumns.includes(cell.column.id));
+};
+
+const getSelectableTableCells = (table: AnyTable, excludeId?: string): AnyCell[] => {
+  const headers = table.getLeafHeaders().filter((h) => !excludeId || h.column.id !== excludeId);
+  return headers.flatMap((h) => getCellsFromHeader(h)).filter((cell) => isValidCell(cell));
+};
 
 // =============================================================================
-// Hook Implementation
+// Hook
 // =============================================================================
 
 export function useCellSelection({
@@ -77,30 +85,13 @@ export function useCellSelection({
   excludeColumnId,
   onCopy,
 }: UseCellSelectionProps): UseCellSelectionReturn {
-  // Track the starting cell for range selection
   const [selectedStartCell, setSelectedStartCell] = useState<string | null>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
+  const wasDraggingRef = useRef(false);
 
-  // Get all cells from the table (excluding specified column)
-  const getAllCells = useCallback(
-    () =>
-      table
-        .getRowModel()
-        .rows.flatMap((row) =>
-          row.getAllCells().filter((c) => !excludeColumnId || c.column.id !== excludeColumnId)
-        ),
-    [table, excludeColumnId]
-  );
-
-  const getCellFromId = useCallback(
-    (cellId: string): Cell<Record<string, unknown>, unknown> | undefined =>
-      getAllCells().find((c) => c.id === cellId),
-    [getAllCells]
-  );
-
-  // ==========================================================================
-  // Selection State Helpers
-  // ==========================================================================
+  // ──────────────────────────────────────────────────────────────────────────
+  // Selection state helpers
+  // ──────────────────────────────────────────────────────────────────────────
 
   const clearSelection = useCallback(() => {
     setSelectedCells([]);
@@ -108,18 +99,44 @@ export function useCellSelection({
   }, [setSelectedCells]);
 
   const isCellSelected = useCallback(
-    (cell: Cell<Record<string, unknown>, unknown>): boolean => selectedCells.includes(cell.id),
+    (cell: AnyCell): boolean => selectedCells.includes(cell.id),
     [selectedCells]
   );
 
-  const isRowSelected = useCallback(
-    (rowId: string): boolean => selectedCells.some((cellId) => cellId.startsWith(`${rowId}_`)),
-    [selectedCells]
+  const isAllRowSelected = useCallback(
+    (rowId: string): boolean => {
+      const row = table.getRowModel().rows.find((r) => r.id === rowId);
+      if (!row) return false;
+      const dataCells = row
+        .getAllCells()
+        .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+      if (dataCells.length === 0) return false;
+      return dataCells.every((c) => selectedCells.includes(c.id));
+    },
+    [table, selectedCells, excludeColumnId]
   );
 
-  // ==========================================================================
-  // Range Selection
-  // ==========================================================================
+  const selectAll = useCallback(() => {
+    const allCellIds = getSelectableTableCells(table, excludeColumnId).map(getCellId);
+    setSelectedCells(allCellIds);
+    if (allCellIds.length > 0) setSelectedStartCell(allCellIds[0]);
+  }, [table, excludeColumnId, setSelectedCells]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Range helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const getCellFromId = useCallback(
+    (cellId: string): AnyCell | undefined => {
+      const rows = table.getRowModel().rows;
+      for (const row of rows) {
+        const cell = row.getAllCells().find((c) => c.id === cellId);
+        if (cell) return cell;
+      }
+      return undefined;
+    },
+    [table]
+  );
 
   const getCellsBetween = useCallback(
     (cell1Id: string, cell2Id: string): string[] => {
@@ -128,160 +145,109 @@ export function useCellSelection({
       if (!cell1 || !cell2) return [];
 
       const rows = table.getRowModel().rows;
-      const visibleColumns = table.getVisibleLeafColumns();
+      const visibleColumns = table
+        .getVisibleLeafColumns()
+        .filter((c) => !excludeColumnId || c.id !== excludeColumnId);
 
-      // Find row indices
       const row1Idx = rows.findIndex((r) => r.id === cell1.row.id);
       const row2Idx = rows.findIndex((r) => r.id === cell2.row.id);
-      const [startRowIdx, endRowIdx] = row1Idx < row2Idx ? [row1Idx, row2Idx] : [row2Idx, row1Idx];
+      const [startRow, endRow] = row1Idx < row2Idx ? [row1Idx, row2Idx] : [row2Idx, row1Idx];
 
-      // Find column indices
       const col1Idx = visibleColumns.findIndex((c) => c.id === cell1.column.id);
       const col2Idx = visibleColumns.findIndex((c) => c.id === cell2.column.id);
-      const [startColIdx, endColIdx] = col1Idx < col2Idx ? [col1Idx, col2Idx] : [col2Idx, col1Idx];
+      const [startCol, endCol] = col1Idx < col2Idx ? [col1Idx, col2Idx] : [col2Idx, col1Idx];
 
-      // Collect all cells in the rectangle
-      const cellIds: string[] = [];
-      for (let rowIdx = startRowIdx; rowIdx <= endRowIdx; rowIdx++) {
-        const row = rows[rowIdx];
-        for (let colIdx = startColIdx; colIdx <= endColIdx; colIdx++) {
-          const column = visibleColumns[colIdx];
-          const cell = row.getAllCells().find((c) => c.column.id === column.id);
-          if (cell && isValidCell(cell)) {
-            cellIds.push(getCellId(cell));
-          }
+      const ids: string[] = [];
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const col = visibleColumns[c];
+          const cell = rows[r].getAllCells().find((x) => x.column.id === col.id);
+          if (cell && isValidCell(cell)) ids.push(getCellId(cell));
         }
       }
-
-      return cellIds;
+      return ids;
     },
-    [getCellFromId, table]
+    [getCellFromId, table, excludeColumnId]
+  );
+
+  /** Select all data cells in a contiguous range of rows */
+  const selectRowRange = useCallback(
+    (startRowId: string, endRowId: string) => {
+      const rows = table.getRowModel().rows;
+      const startIdx = rows.findIndex((r) => r.id === startRowId);
+      const endIdx = rows.findIndex((r) => r.id === endRowId);
+      if (startIdx === -1 || endIdx === -1) return;
+      const [lo, hi] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+
+      const ids: string[] = [];
+      for (let i = lo; i <= hi; i++) {
+        rows[i]
+          .getAllCells()
+          .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible())
+          .forEach((c) => ids.push(getCellId(c)));
+      }
+      setSelectedCells(ids);
+    },
+    [table, setSelectedCells, excludeColumnId]
   );
 
   const updateRangeSelection = useCallback(
-    (endCell: Cell<Record<string, unknown>, unknown>) => {
+    (target: AnyCell | AnyHeader) => {
       if (!selectedStartCell) return;
 
-      const cellsInRange = getCellsBetween(selectedStartCell, getCellId(endCell));
+      // RowNumbering cell drag → row range selection
+      if ('row' in target) {
+        const cell = target as AnyCell;
+        if (isRowIndexCell(cell, excludeColumnId)) {
+          const startRowId = selectedStartCell.split('_')[0];
+          selectRowRange(startRowId, cell.row.id);
+          return;
+        }
+      }
 
-      // Keep any cells selected before the start cell, then add the range
+      // Determine end cell id
+      let endCellId = selectedStartCell;
+      if ('row' in target) {
+        const cell = target as AnyCell;
+        if (isDataCell(cell, excludeColumnId)) endCellId = getCellId(cell);
+      } else if ('depth' in target) {
+        const header = target as AnyHeader;
+        const columnCells = getCellsFromHeader(header).filter((c) =>
+          isDataCell(c, excludeColumnId)
+        );
+        const last = columnCells.at(-1);
+        if (last) endCellId = getCellId(last);
+      }
+
+      const range = getCellsBetween(selectedStartCell, endCellId);
       const startIdx = selectedCells.indexOf(selectedStartCell);
-      const prevCells = startIdx >= 0 ? selectedCells.slice(0, startIdx) : [];
-
-      // Dedupe and set
-      const newSelection = Array.from(new Set([...prevCells, ...cellsInRange]));
-      setSelectedCells(newSelection);
+      const prev = startIdx >= 0 ? selectedCells.slice(0, startIdx) : [];
+      setSelectedCells(Array.from(new Set([...prev, ...range])));
     },
-    [selectedStartCell, selectedCells, getCellsBetween, setSelectedCells]
+    [
+      selectedStartCell,
+      selectedCells,
+      getCellsBetween,
+      setSelectedCells,
+      excludeColumnId,
+      selectRowRange,
+    ]
   );
 
-  // ==========================================================================
-  // Row Selection
-  // ==========================================================================
-
-  const selectEntireRow = useCallback(
-    (rowId: string, addToSelection: boolean = false) => {
-      const row = table.getRowModel().rows.find((r) => r.id === rowId);
-      if (!row) return;
-
-      const rowCellIds = row
-        .getVisibleCells()
-        .filter((c) => isValidCell(c))
-        .map((c) => getCellId(c));
-
-      if (addToSelection) {
-        // Check if row is already fully selected
-        const allSelected = rowCellIds.every((id) => selectedCells.includes(id));
-        if (allSelected) {
-          // Deselect the row
-          setSelectedCells(selectedCells.filter((id) => !rowCellIds.includes(id)));
-        } else {
-          // Add row to selection
-          setSelectedCells(Array.from(new Set([...selectedCells, ...rowCellIds])));
-        }
-      } else {
-        // Replace selection with this row
-        const allSelected = rowCellIds.every((id) => selectedCells.includes(id));
-        setSelectedCells(allSelected ? [] : rowCellIds);
-      }
-
-      // Set start cell for potential range extension
-      if (rowCellIds.length > 0) {
-        setSelectedStartCell(rowCellIds[0]);
-      }
-    },
-    [table, selectedCells, setSelectedCells]
-  );
-
-  // ==========================================================================
-  // Column Selection
-  // ==========================================================================
-
-  const selectEntireColumn = useCallback(
-    (columnId: string, addToSelection: boolean = false) => {
-      const rows = table.getRowModel().rows;
-      const columnCellIds: string[] = [];
-
-      rows.forEach((row) => {
-        const cell = row.getAllCells().find((c) => c.column.id === columnId);
-        if (cell && isValidCell(cell)) {
-          columnCellIds.push(getCellId(cell));
-        }
-      });
-
-      if (addToSelection) {
-        const allSelected = columnCellIds.every((id) => selectedCells.includes(id));
-        if (allSelected) {
-          setSelectedCells(selectedCells.filter((id) => !columnCellIds.includes(id)));
-        } else {
-          setSelectedCells(Array.from(new Set([...selectedCells, ...columnCellIds])));
-        }
-      } else {
-        const allSelected = columnCellIds.every((id) => selectedCells.includes(id));
-        setSelectedCells(allSelected ? [] : columnCellIds);
-      }
-
-      if (columnCellIds.length > 0) {
-        setSelectedStartCell(columnCellIds[0]);
-      }
-    },
-    [table, selectedCells, setSelectedCells]
-  );
-
-  // ==========================================================================
-  // Select All
-  // ==========================================================================
-
-  const selectAll = useCallback(() => {
-    const allCellIds = getAllCells()
-      .filter((c) => isValidCell(c))
-      .map((c) => getCellId(c));
-    setSelectedCells(allCellIds);
-    if (allCellIds.length > 0) {
-      setSelectedStartCell(allCellIds[0]);
-    }
-  }, [getAllCells, setSelectedCells]);
-
-  // ==========================================================================
-  // Keyboard Navigation
-  // ==========================================================================
+  // ──────────────────────────────────────────────────────────────────────────
+  // Keyboard navigation
+  // ──────────────────────────────────────────────────────────────────────────
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
-      // Don't intercept if user is in an input
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return;
-      }
+      const tgt = e.target as HTMLElement;
+      if (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable) return;
 
-      // Ctrl+A: Select all
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         selectAll();
         return;
       }
-
-      // Ctrl+C: Copy selected cells
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         if (selectedCells.length > 0 && onCopy) {
           e.preventDefault();
@@ -290,28 +256,46 @@ export function useCellSelection({
         return;
       }
 
-      const lastSelected = selectedCells[selectedCells.length - 1];
-      if (!lastSelected && e.key !== 'Escape') return;
+      const lastId = selectedCells[selectedCells.length - 1];
+      if (!lastId && e.key !== 'Escape') return;
+      const lastCell = lastId ? getCellFromId(lastId) : undefined;
 
-      const lastCell = lastSelected ? getCellFromId(lastSelected) : undefined;
+      const dataCols = table
+        .getVisibleLeafColumns()
+        .filter((c) => !excludeColumnId || c.id !== excludeColumnId);
+
+      // Check if entire row is selected
+      const isRowMode = (() => {
+        if (!lastCell) return false;
+        const rowDataCells = lastCell.row
+          .getAllCells()
+          .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+        return rowDataCells.length > 0 && rowDataCells.every((c) => selectedCells.includes(c.id));
+      })();
 
       switch (e.key) {
-        case 'Escape': {
+        case 'Escape':
           e.preventDefault();
           clearSelection();
           break;
-        }
         case 'ArrowUp': {
           e.preventDefault();
           if (!lastCell) return;
           const rows = table.getRowModel().rows;
-          const currentRowIdx = rows.findIndex((r) => r.id === lastCell.row.id);
-          if (currentRowIdx > 0) {
-            const prevRow = rows[currentRowIdx - 1];
-            const newCell = prevRow.getAllCells().find((c) => c.column.id === lastCell.column.id);
-            if (newCell && isValidCell(newCell)) {
-              setSelectedCells([getCellId(newCell)]);
-              setSelectedStartCell(getCellId(newCell));
+          const idx = rows.findIndex((r) => r.id === lastCell.row.id);
+          if (idx <= 0) return;
+          const prevRow = rows[idx - 1];
+          if (isRowMode) {
+            const cells = prevRow
+              .getAllCells()
+              .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+            setSelectedCells(cells.map(getCellId));
+            if (cells.length) setSelectedStartCell(getCellId(cells[0]));
+          } else {
+            const nc = prevRow.getAllCells().find((c) => c.column.id === lastCell.column.id);
+            if (nc && isValidCell(nc)) {
+              setSelectedCells([getCellId(nc)]);
+              setSelectedStartCell(getCellId(nc));
             }
           }
           break;
@@ -320,85 +304,174 @@ export function useCellSelection({
           e.preventDefault();
           if (!lastCell) return;
           const rows = table.getRowModel().rows;
-          const currentRowIdx = rows.findIndex((r) => r.id === lastCell.row.id);
-          if (currentRowIdx < rows.length - 1) {
-            const nextRow = rows[currentRowIdx + 1];
-            const newCell = nextRow.getAllCells().find((c) => c.column.id === lastCell.column.id);
-            if (newCell && isValidCell(newCell)) {
-              setSelectedCells([getCellId(newCell)]);
-              setSelectedStartCell(getCellId(newCell));
+          const idx = rows.findIndex((r) => r.id === lastCell.row.id);
+          if (idx >= rows.length - 1) return;
+          const nextRow = rows[idx + 1];
+          if (isRowMode) {
+            const cells = nextRow
+              .getAllCells()
+              .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+            setSelectedCells(cells.map(getCellId));
+            if (cells.length) setSelectedStartCell(getCellId(cells[0]));
+          } else {
+            const nc = nextRow.getAllCells().find((c) => c.column.id === lastCell.column.id);
+            if (nc && isValidCell(nc)) {
+              setSelectedCells([getCellId(nc)]);
+              setSelectedStartCell(getCellId(nc));
             }
           }
           break;
         }
         case 'ArrowLeft': {
           e.preventDefault();
-          if (!lastCell) return;
-          const visibleCells = lastCell.row.getVisibleCells().filter((c) => isValidCell(c));
-          const currentIdx = visibleCells.findIndex((c) => c.id === lastCell.id);
-          if (currentIdx > 0) {
-            const prevCell = visibleCells[currentIdx - 1];
-            setSelectedCells([getCellId(prevCell)]);
-            setSelectedStartCell(getCellId(prevCell));
+          if (!lastCell || isRowMode) return;
+          const colIdx = dataCols.findIndex((c) => c.id === lastCell.column.id);
+          if (colIdx > 0) {
+            const prevCol = dataCols[colIdx - 1];
+            const nc = lastCell.row.getAllCells().find((c) => c.column.id === prevCol.id);
+            if (nc && isValidCell(nc)) {
+              setSelectedCells([getCellId(nc)]);
+              setSelectedStartCell(getCellId(nc));
+            }
           }
           break;
         }
         case 'ArrowRight': {
           e.preventDefault();
           if (!lastCell) return;
-          const visibleCells = lastCell.row.getVisibleCells().filter((c) => isValidCell(c));
-          const currentIdx = visibleCells.findIndex((c) => c.id === lastCell.id);
-          if (currentIdx < visibleCells.length - 1) {
-            const nextCell = visibleCells[currentIdx + 1];
-            setSelectedCells([getCellId(nextCell)]);
-            setSelectedStartCell(getCellId(nextCell));
+          if (isRowMode) {
+            const firstDataCell = lastCell.row
+              .getAllCells()
+              .find((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+            if (firstDataCell) {
+              setSelectedCells([getCellId(firstDataCell)]);
+              setSelectedStartCell(getCellId(firstDataCell));
+            }
+            return;
+          }
+          const colIdx = dataCols.findIndex((c) => c.id === lastCell.column.id);
+          if (colIdx < dataCols.length - 1) {
+            const nextCol = dataCols[colIdx + 1];
+            const nc = lastCell.row.getAllCells().find((c) => c.column.id === nextCol.id);
+            if (nc && isValidCell(nc)) {
+              setSelectedCells([getCellId(nc)]);
+              setSelectedStartCell(getCellId(nc));
+            }
           }
           break;
         }
       }
     },
-    [selectedCells, getCellFromId, table, clearSelection, setSelectedCells, selectAll, onCopy]
+    [
+      selectedCells,
+      getCellFromId,
+      table,
+      clearSelection,
+      setSelectedCells,
+      selectAll,
+      onCopy,
+      excludeColumnId,
+    ]
   );
 
-  // ==========================================================================
-  // Mouse Event Handlers
-  // ==========================================================================
+  // ──────────────────────────────────────────────────────────────────────────
+  // Mouse handlers — unified Cell | Header (mirrors interfaces approach)
+  // ──────────────────────────────────────────────────────────────────────────
 
   const handleCellMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLElement>, cell: Cell<Record<string, unknown>, unknown>) => {
-      if (!isValidCell(cell)) return;
+    (e: React.MouseEvent<HTMLElement>, target: AnyCell | AnyHeader) => {
+      wasDraggingRef.current = false;
 
-      const cellId = getCellId(cell);
+      if ('row' in target) {
+        // ── Cell click ──
+        const cell = target as AnyCell;
+        if (!isValidCell(cell)) return;
 
-      // Shift+click: Range selection
-      if (e.shiftKey && selectedStartCell) {
-        updateRangeSelection(cell);
-        setIsMouseDown(true);
-        return;
-      }
+        if (isRowIndexCell(cell, excludeColumnId)) {
+          // Row index click → select all data cells in the row
+          const rowDataCells = cell.row
+            .getAllCells()
+            .filter((c) => isDataCell(c, excludeColumnId) && c.column.getIsVisible());
+          const ids = rowDataCells.map(getCellId);
+          const first = rowDataCells[0];
+          const startId = first ? getCellId(first) : null;
 
-      // Ctrl/Cmd+click: Toggle cell in selection
-      if (e.ctrlKey || e.metaKey) {
-        if (selectedCells.includes(cellId)) {
-          setSelectedCells(selectedCells.filter((id) => id !== cellId));
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            const allSelected = ids.every((id) => selectedCells.includes(id));
+            setSelectedCells(allSelected ? [] : ids);
+          } else if (e.ctrlKey || e.metaKey) {
+            const allSelected = ids.every((id) => selectedCells.includes(id));
+            setSelectedCells(
+              allSelected
+                ? selectedCells.filter((id) => !ids.includes(id))
+                : [...selectedCells, ...ids]
+            );
+          } else if (e.shiftKey) {
+            updateRangeSelection(cell);
+            setIsMouseDown(true);
+            return;
+          }
+          if (startId && !isMouseDown) setSelectedStartCell(startId);
         } else {
-          setSelectedCells([...selectedCells, cellId]);
-          setSelectedStartCell(cellId);
+          // Data cell click
+          const cellId = getCellId(cell);
+
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            const already = selectedCells.length === 1 && selectedCells[0] === cellId;
+            setSelectedCells(already ? [] : [cellId]);
+            if (!isMouseDown) setSelectedStartCell(cellId);
+          } else if (e.ctrlKey || e.metaKey) {
+            setSelectedCells(
+              selectedCells.includes(cellId)
+                ? selectedCells.filter((id) => id !== cellId)
+                : [...selectedCells, cellId]
+            );
+            if (!isMouseDown) setSelectedStartCell(cellId);
+          } else if (e.shiftKey) {
+            updateRangeSelection(cell);
+            setIsMouseDown(true);
+            return;
+          }
         }
-        setIsMouseDown(true);
-        return;
+      } else if ('depth' in target) {
+        // ── Header click ──
+        const header = target as AnyHeader;
+
+        // RowNumbering header → select all
+        if (excludeColumnId && header.column.id === excludeColumnId) {
+          selectAll();
+          setIsMouseDown(true);
+          return;
+        }
+
+        const columnCells = getCellsFromHeader(header).filter((c) =>
+          isDataCell(c, excludeColumnId)
+        );
+        const ids = columnCells.map(getCellId);
+        const first = columnCells[0];
+
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          const allSelected = ids.length > 0 && ids.every((id) => selectedCells.includes(id));
+          setSelectedCells(allSelected ? [] : ids);
+          if (first && !isMouseDown) setSelectedStartCell(getCellId(first));
+        } else if (e.ctrlKey || e.metaKey) {
+          const allSelected = ids.length > 0 && ids.every((id) => selectedCells.includes(id));
+          setSelectedCells(
+            allSelected
+              ? selectedCells.filter((id) => !ids.includes(id))
+              : [...selectedCells, ...ids]
+          );
+          if (first && !isMouseDown) setSelectedStartCell(getCellId(first));
+        } else if (e.shiftKey) {
+          updateRangeSelection(header);
+          setIsMouseDown(true);
+          return;
+        }
       }
 
-      // Simple click: Select single cell (or deselect if already selected)
-      if (selectedCells.length === 1 && selectedCells[0] === cellId) {
-        clearSelection();
-      } else {
-        setSelectedCells([cellId]);
-        setSelectedStartCell(cellId);
-      }
       setIsMouseDown(true);
     },
-    [selectedCells, selectedStartCell, setSelectedCells, clearSelection, updateRangeSelection]
+    [selectedCells, setSelectedCells, isMouseDown, excludeColumnId, updateRangeSelection, selectAll]
   );
 
   const handleCellMouseUp = useCallback(() => {
@@ -406,37 +479,25 @@ export function useCellSelection({
   }, []);
 
   const handleCellMouseOver = useCallback(
-    (e: React.MouseEvent<HTMLElement>, cell: Cell<Record<string, unknown>, unknown>) => {
-      // Only extend selection if mouse is down (drag selection)
+    (e: React.MouseEvent<HTMLElement>, target: AnyCell | AnyHeader) => {
       if (!isMouseDown || !selectedStartCell) return;
-
-      // Extend range selection
       if (e.buttons === 1) {
-        updateRangeSelection(cell);
+        wasDraggingRef.current = true;
+        updateRangeSelection(target);
       }
     },
     [isMouseDown, selectedStartCell, updateRangeSelection]
-  );
-
-  const handleHeaderMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLElement>, header: Header<Record<string, unknown>, unknown>) => {
-      const columnId = header.column.id;
-      const isCtrlClick = e.ctrlKey || e.metaKey;
-
-      selectEntireColumn(columnId, isCtrlClick);
-    },
-    [selectEntireColumn]
   );
 
   return {
     handleCellMouseDown,
     handleCellMouseUp,
     handleCellMouseOver,
-    handleHeaderMouseDown,
     handleKeyDown,
     isCellSelected,
-    isRowSelected,
+    isAllRowSelected,
     clearSelection,
     selectAll,
+    wasDraggingRef,
   };
 }
