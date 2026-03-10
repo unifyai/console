@@ -113,7 +113,7 @@ function computeBracketGeom(
   if (topY >= bottomY) return null;
 
   const iconLeftEdge = callIcon.x - 7;
-  const barX = iconLeftEdge - 12;
+  const barX = iconLeftEdge - 6;
   const lineWidth = iconLeftEdge - barX;
 
   return { topY, bottomY, barX, lineWidth };
