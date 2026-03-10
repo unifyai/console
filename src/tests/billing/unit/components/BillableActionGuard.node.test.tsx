@@ -26,7 +26,7 @@ import {
 // runs internally; returning safe defaults avoids errors.
 vi.mock('@/hooks/Billing/useBillingStatus', () => ({
   useBillingStatus: () => ({
-    hasCustomerId: false,
+    hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
     isLoading: false,

@@ -32,7 +32,7 @@ vi.mock('next/navigation', () => ({
 
 const mockBillingStatus = {
   isLoading: false,
-  hasCustomerId: true,
+  hasBillingHistory: true,
   hasCredits: false,
   credits: 0,
   error: null,

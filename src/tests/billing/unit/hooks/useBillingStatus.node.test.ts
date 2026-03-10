@@ -2,14 +2,18 @@
  * Tests for useBillingStatus hook.
  *
  * Strategy:
- *  1. Pure-function tests for fetchBillingStatus and its helpers —
+ *  1. Pure-function tests for fetchBillingStatus —
  *     these exercise the core logic without React.
  *  2. React-hook tests via renderHook to verify React Query integration.
  *
  * All network calls are intercepted by MSW so we never hit real endpoints.
+ *
+ * The hook now makes a single call to `/api/billing/balance` which returns
+ * balance, fullBalance, and lastRechargeAt.  `hasBillingHistory` is derived
+ * from `lastRechargeAt != null`.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -17,28 +21,25 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/server';
 
 import {
-  fetchHasCustomerId,
-  fetchCreditBalance,
   fetchBillingStatus,
   useBillingStatus,
   type BillingStatusData,
 } from '@/hooks/Billing/useBillingStatus';
 
 // ─── Baseline handlers ─────────────────────────────────────────────────────
-// Other feature handlers (assistants, etc.) may also register /api/billing/*
-// endpoints. We install our own baseline at the start of every test to
-// guarantee deterministic responses.
 
 const BASELINE_BALANCE = 25;
+const BASELINE_LAST_RECHARGE = '2025-01-15T10:30:00+00:00';
 
 function installBaselineHandlers() {
   server.use(
-    http.get('/api/billing/hasCustomerId', () => {
-      return HttpResponse.json({ hasCustomerId: true });
-    }),
     http.get('/api/billing/balance', () => {
-      return HttpResponse.json({ balance: '25.00', fullBalance: BASELINE_BALANCE });
-    })
+      return HttpResponse.json({
+        balance: '25.00',
+        fullBalance: BASELINE_BALANCE,
+        lastRechargeAt: BASELINE_LAST_RECHARGE,
+      });
+    }),
   );
 }
 
@@ -61,69 +62,11 @@ function createWrapper() {
 
 // ─── 1. Pure function tests ─────────────────────────────────────────────────
 
-describe('fetchHasCustomerId', () => {
-  it('returns true when API returns hasCustomerId: true', async () => {
-    // default handler already returns true
-    expect(await fetchHasCustomerId()).toBe(true);
-  });
-
-  it('returns false when API returns hasCustomerId: false', async () => {
-    server.use(
-      http.get('/api/billing/hasCustomerId', () => {
-        return HttpResponse.json({ hasCustomerId: false });
-      })
-    );
-    expect(await fetchHasCustomerId()).toBe(false);
-  });
-
-  it('returns false on network/server error', async () => {
-    server.use(
-      http.get('/api/billing/hasCustomerId', () => {
-        return new HttpResponse(null, { status: 500 });
-      })
-    );
-    expect(await fetchHasCustomerId()).toBe(false);
-  });
-});
-
-describe('fetchCreditBalance', () => {
-  it('returns fullBalance as a number', async () => {
-    expect(await fetchCreditBalance()).toBe(25);
-  });
-
-  it('falls back to parsing string balance', async () => {
-    server.use(
-      http.get('/api/billing/balance', () => {
-        return HttpResponse.json({ balance: '42.50' });
-      })
-    );
-    expect(await fetchCreditBalance()).toBe(42.5);
-  });
-
-  it('returns 0 on server error', async () => {
-    server.use(
-      http.get('/api/billing/balance', () => {
-        return new HttpResponse(null, { status: 500 });
-      })
-    );
-    expect(await fetchCreditBalance()).toBe(0);
-  });
-
-  it('returns 0 for zero balance', async () => {
-    server.use(
-      http.get('/api/billing/balance', () => {
-        return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
-      })
-    );
-    expect(await fetchCreditBalance()).toBe(0);
-  });
-});
-
 describe('fetchBillingStatus', () => {
   it('returns ready status with default mocks', async () => {
     const status = await fetchBillingStatus();
     expect(status).toEqual<BillingStatusData>({
-      hasCustomerId: true,
+      hasBillingHistory: true,
       credits: 25,
       hasCredits: true,
     });
@@ -132,38 +75,72 @@ describe('fetchBillingStatus', () => {
   it('hasCredits is false when zero credits', async () => {
     server.use(
       http.get('/api/billing/balance', () => {
-        return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
-      })
-    );
-    const status = await fetchBillingStatus();
-    expect(status.hasCredits).toBe(false);
-  });
-
-  it('hasCredits is false when both customer ID and balance missing', async () => {
-    server.use(
-      http.get('/api/billing/hasCustomerId', () => {
-        return HttpResponse.json({ hasCustomerId: false });
+        return HttpResponse.json({
+          balance: '0.00',
+          fullBalance: 0,
+          lastRechargeAt: BASELINE_LAST_RECHARGE,
+        });
       }),
-      http.get('/api/billing/balance', () => {
-        return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
-      })
     );
     const status = await fetchBillingStatus();
-    expect(status.hasCustomerId).toBe(false);
+    expect(status.hasCredits).toBe(false);
+    expect(status.hasBillingHistory).toBe(true);
+  });
+
+  it('hasBillingHistory is false when lastRechargeAt is null', async () => {
+    server.use(
+      http.get('/api/billing/balance', () => {
+        return HttpResponse.json({
+          balance: '10.00',
+          fullBalance: 10,
+          lastRechargeAt: null,
+        });
+      }),
+    );
+    const status = await fetchBillingStatus();
+    expect(status.hasBillingHistory).toBe(false);
+    expect(status.hasCredits).toBe(true);
+  });
+
+  it('returns defaults when both billing history and balance are empty', async () => {
+    server.use(
+      http.get('/api/billing/balance', () => {
+        return HttpResponse.json({
+          balance: '0.00',
+          fullBalance: 0,
+          lastRechargeAt: null,
+        });
+      }),
+    );
+    const status = await fetchBillingStatus();
+    expect(status.hasBillingHistory).toBe(false);
     expect(status.hasCredits).toBe(false);
   });
 
-  it('handles partial API failures gracefully', async () => {
-    // Customer ID check fails, but balance succeeds
+  it('handles server error gracefully', async () => {
     server.use(
-      http.get('/api/billing/hasCustomerId', () => {
+      http.get('/api/billing/balance', () => {
         return new HttpResponse(null, { status: 500 });
-      })
+      }),
     );
     const status = await fetchBillingStatus();
-    expect(status.hasCustomerId).toBe(false);
-    // Balance still works
-    expect(status.credits).toBe(25);
+    expect(status.hasBillingHistory).toBe(false);
+    expect(status.credits).toBe(0);
+    expect(status.hasCredits).toBe(false);
+  });
+
+  it('falls back to parsing string balance when fullBalance is missing', async () => {
+    server.use(
+      http.get('/api/billing/balance', () => {
+        return HttpResponse.json({
+          balance: '42.50',
+          lastRechargeAt: BASELINE_LAST_RECHARGE,
+        });
+      }),
+    );
+    const status = await fetchBillingStatus();
+    expect(status.credits).toBe(42.5);
+    expect(status.hasCredits).toBe(true);
   });
 });
 
@@ -185,14 +162,19 @@ describe('useBillingStatus', () => {
 
     expect(result.current.hasCredits).toBe(true);
     expect(result.current.credits).toBe(25);
+    expect(result.current.hasBillingHistory).toBe(true);
     expect(result.current.error).toBeNull();
   });
 
   it('reports no credits when balance is zero', async () => {
     server.use(
       http.get('/api/billing/balance', () => {
-        return HttpResponse.json({ balance: '0.00', fullBalance: 0 });
-      })
+        return HttpResponse.json({
+          balance: '0.00',
+          fullBalance: 0,
+          lastRechargeAt: BASELINE_LAST_RECHARGE,
+        });
+      }),
     );
 
     const { result } = renderHook(() => useBillingStatus(), {
@@ -212,8 +194,12 @@ describe('useBillingStatus', () => {
       http.get('/api/billing/balance', () => {
         callCount++;
         const balance = callCount === 1 ? 0 : 50;
-        return HttpResponse.json({ balance: String(balance), fullBalance: balance });
-      })
+        return HttpResponse.json({
+          balance: String(balance),
+          fullBalance: balance,
+          lastRechargeAt: BASELINE_LAST_RECHARGE,
+        });
+      }),
     );
 
     const { result } = renderHook(() => useBillingStatus(), {

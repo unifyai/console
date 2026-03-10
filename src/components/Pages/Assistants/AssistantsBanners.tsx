@@ -7,8 +7,8 @@ import { formatSpendAmount } from '@/types/assistants/spending';
 interface AssistantsBannersProps {
   /** Whether the billing account has any credits */
   hasCredits: boolean;
-  /** Whether the billing account has a Stripe customer ID (indicates prior billing activity) */
-  hasCustomerId: boolean;
+  /** Whether the account has prior billing history (at least one paid recharge) */
+  hasBillingHistory: boolean;
   /** Whether billing data is still loading */
   isBillingLoading: boolean;
   /** Spending gate status for limit-reached banners */
@@ -23,20 +23,20 @@ interface AssistantsBannersProps {
  *
  * Currently handles two mutually-exclusive cases:
  * 1. **Out of credits** — credit balance is depleted for a user/org that has
- *    prior billing history (`hasCustomerId`). Brand-new users who have never
+ *    prior billing history (`hasBillingHistory`). Brand-new users who have never
  *    interacted with billing are excluded.
  * 2. **Spending limit reached** — a user, org, or assistant spending limit has
  *    been exceeded.
  */
 export function AssistantsBanners({
   hasCredits,
-  hasCustomerId,
+  hasBillingHistory,
   isBillingLoading,
   spendingGateStatus,
   isOrgWorkspace,
 }: AssistantsBannersProps) {
   // Out of credits — shown when balance is depleted for users who have billing history
-  if (!hasCredits && !isBillingLoading && hasCustomerId && !spendingGateStatus.isBlocked) {
+  if (!hasCredits && !isBillingLoading && hasBillingHistory && !spendingGateStatus.isBlocked) {
     return (
       <div
         className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"

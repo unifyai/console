@@ -9,13 +9,10 @@ import { http, HttpResponse } from 'msw';
 
 // ─── Default mock data ──────────────────────────────────────────────────────
 
-export const defaultBillingDetails = {
-  hasCustomerId: true,
-};
-
 export const defaultBalance = {
   balance: '25.00',
   fullBalance: 25,
+  lastRechargeAt: '2025-01-15T10:30:00+00:00',
 };
 
 export const defaultCreditGrantClaim = {
@@ -27,12 +24,7 @@ export const defaultCreditGrantClaim = {
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
 export const billingHandlers = [
-  // GET /api/billing/hasCustomerId
-  http.get('/api/billing/hasCustomerId', () => {
-    return HttpResponse.json(defaultBillingDetails);
-  }),
-
-  // GET /api/billing/balance
+  // GET /api/billing/balance (returns balance + billing history indicator)
   http.get('/api/billing/balance', () => {
     return HttpResponse.json(defaultBalance);
   }),
@@ -42,6 +34,3 @@ export const billingHandlers = [
     return HttpResponse.json(defaultCreditGrantClaim);
   }),
 ];
-
-
-

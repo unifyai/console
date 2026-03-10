@@ -2,8 +2,8 @@
  * useBillingStatus - Hook for querying the billing readiness of the current workspace.
  *
  * Returns whether the active billing account has:
- *   - A Stripe customer ID
  *   - A positive credit balance
+ *   - Prior billing history (at least one paid recharge)
  *
  * This is the foundational hook used by BillableActionGuard to decide
  * whether to gate billable actions behind a "purchase credits" prompt.
@@ -23,8 +23,8 @@ import { useQuery } from '@tanstack/react-query';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface BillingStatusData {
-  /** Whether the account has a Stripe customer ID */
-  hasCustomerId: boolean;
+  /** Whether the account has prior billing history (at least one paid recharge) */
+  hasBillingHistory: boolean;
   /** Current credit balance */
   credits: number;
   /** Convenience: credits > 0 */
@@ -38,46 +38,29 @@ export interface UseBillingStatusReturn extends BillingStatusData {
   refetch: () => void;
 }
 
-// ─── Fetch helpers (pure functions, easily testable) ────────────────────────
+// ─── Fetch helper (single call) ─────────────────────────────────────────────
 
 /**
- * Fetches whether the current user has a Stripe customer ID.
- * Returns `true` / `false`.
- */
-export async function fetchHasCustomerId(): Promise<boolean> {
-  const res = await fetch('/api/billing/hasCustomerId');
-  if (!res.ok) return false;
-  const data = await res.json();
-  return !!data.hasCustomerId;
-}
-
-/**
- * Fetches the current credit balance.
- * Returns the numeric balance or `0` on failure.
- */
-export async function fetchCreditBalance(): Promise<number> {
-  const res = await fetch('/api/billing/balance');
-  if (!res.ok) return 0;
-  const data = await res.json();
-  return typeof data.fullBalance === 'number' ? data.fullBalance : parseFloat(data.balance) || 0;
-}
-
-/**
- * Aggregates billing status from multiple endpoints into a single object.
+ * Fetches billing status from a single endpoint.
+ * Returns balance, billing history, and derived flags.
  * Exported for unit testing without React.
  */
 export async function fetchBillingStatus(): Promise<BillingStatusData> {
-  const [hasCustomerId, credits] = await Promise.all([
-    fetchHasCustomerId(),
-    fetchCreditBalance(),
-  ]);
+  const res = await fetch('/api/billing/balance');
+  if (!res.ok) {
+    return { hasBillingHistory: false, credits: 0, hasCredits: false };
+  }
 
-  const hasCredits = credits > 0;
+  const data = await res.json();
+  const credits =
+    typeof data.fullBalance === 'number'
+      ? data.fullBalance
+      : parseFloat(data.balance) || 0;
 
   return {
-    hasCustomerId,
+    hasBillingHistory: data.lastRechargeAt != null,
     credits,
-    hasCredits,
+    hasCredits: credits > 0,
   };
 }
 
@@ -96,7 +79,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
   });
 
   const defaults: BillingStatusData = {
-    hasCustomerId: false,
+    hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
   };
@@ -110,6 +93,3 @@ export function useBillingStatus(): UseBillingStatusReturn {
     },
   };
 }
-
-
-

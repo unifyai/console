@@ -4,7 +4,7 @@
  * Tests cover:
  * - Out of credits banner visibility and messaging
  * - Spending limit reached banner visibility and messaging
- * - Brand-new user exclusion (no banner when hasCustomerId is false)
+ * - Brand-new user exclusion (no banner when hasBillingHistory is false)
  * - Mutual exclusivity of banners
  * - Loading state handling
  * - Personal vs organization workspace messaging
@@ -102,7 +102,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -116,7 +116,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={false}
+          hasBillingHistory={false}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -130,7 +130,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={true}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -144,7 +144,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('assistant_limit')}
           isOrgWorkspace={false}
@@ -167,7 +167,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -181,7 +181,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -196,7 +196,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={true}
@@ -215,7 +215,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -230,7 +230,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={false}
+          hasBillingHistory={false}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -244,7 +244,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={true}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -258,7 +258,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('user_limit')}
           isOrgWorkspace={false}
@@ -279,7 +279,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('assistant_limit')}
           isOrgWorkspace={false}
@@ -294,7 +294,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('user_limit')}
           isOrgWorkspace={false}
@@ -309,7 +309,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('org_limit')}
           isOrgWorkspace={true}
@@ -324,7 +324,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('assistant_limit')}
           isOrgWorkspace={false}
@@ -338,7 +338,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('user_limit')}
           isOrgWorkspace={false}
@@ -352,7 +352,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('org_limit')}
           isOrgWorkspace={true}
@@ -366,7 +366,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('user_limit')}
           isOrgWorkspace={false}
@@ -380,7 +380,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('org_limit')}
           isOrgWorkspace={true}
@@ -396,7 +396,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('assistant_limit')}
           isOrgWorkspace={false}
@@ -416,7 +416,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={loadingGate}
           isOrgWorkspace={false}
@@ -449,7 +449,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={true}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={gateWithNullLimit}
           isOrgWorkspace={false}
@@ -471,7 +471,7 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={true}
+          hasBillingHistory={true}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('user_limit')}
           isOrgWorkspace={false}
@@ -489,7 +489,7 @@ describe('AssistantsBanners', () => {
         const { unmount } = render(
           <AssistantsBanners
             hasCredits={false}
-            hasCustomerId={true}
+            hasBillingHistory={true}
             isBillingLoading={false}
             spendingGateStatus={createBlockedGate(reason)}
             isOrgWorkspace={reason === 'org_limit'}
@@ -518,7 +518,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={false}
+          hasBillingHistory={false}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={false}
@@ -532,7 +532,7 @@ describe('AssistantsBanners', () => {
       const { container } = render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={false}
+          hasBillingHistory={false}
           isBillingLoading={false}
           spendingGateStatus={createUnblockedGate()}
           isOrgWorkspace={true}
@@ -546,14 +546,14 @@ describe('AssistantsBanners', () => {
       render(
         <AssistantsBanners
           hasCredits={false}
-          hasCustomerId={false}
+          hasBillingHistory={false}
           isBillingLoading={false}
           spendingGateStatus={createBlockedGate('org_limit')}
           isOrgWorkspace={true}
         />
       );
 
-      // Spending limit banner should still show — hasCustomerId is irrelevant for spending limits
+      // Spending limit banner should still show — hasBillingHistory is irrelevant for spending limits
       expect(screen.getByTestId('spending-limit-banner')).toBeInTheDocument();
     });
   });

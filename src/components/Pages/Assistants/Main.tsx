@@ -247,7 +247,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Billing Status & Credit Grant Link ---
   const {
-    hasCustomerId,
+    hasBillingHistory,
     hasCredits,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
@@ -739,7 +739,7 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
       <AssistantsBanners
         hasCredits={hasCredits}
-        hasCustomerId={hasCustomerId}
+        hasBillingHistory={hasBillingHistory}
         isBillingLoading={isBillingLoading}
         spendingGateStatus={spendingGateStatus}
         isOrgWorkspace={!!userMeta.orgId}
