@@ -785,7 +785,7 @@ function ToolLoopConversation({
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
   return (
-    <div className="relative" style={{ paddingLeft: pad, paddingRight: '8px' }}>
+    <div className="relative" style={{ paddingLeft: pad, paddingRight: '4px' }}>
       {/* Top fade */}
       {isOverflowing && (
         <div
@@ -868,7 +868,7 @@ function LiveToolLoopTimeline({
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
   return (
-    <div className="relative" style={{ paddingLeft: pad, paddingRight: '8px' }}>
+    <div className="relative" style={{ paddingLeft: pad, paddingRight: '4px' }}>
       <div
         ref={scrollRef}
         onScroll={handleScroll}
