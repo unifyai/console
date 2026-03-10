@@ -698,10 +698,9 @@ function ToolLoopMessage({
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
-    if (el && textContent) {
-      const hasMulti = textContent.includes('\n');
-      setIsTruncated(hasMulti || el.scrollWidth > el.clientWidth);
-    }
+    if (!el) return;
+    const elText = el.textContent || '';
+    setIsTruncated(elText.includes('\n') || el.scrollWidth > el.clientWidth);
   }, [textContent]);
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
@@ -950,7 +949,8 @@ function ToolLoopMessage({
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
-  const canExpand = isTruncated || isJson;
+  const hasMoreLines = content.includes('\n');
+  const canExpand = isTruncated || hasMoreLines || isJson;
 
   const tcResultId =
     message.role === 'tool'
