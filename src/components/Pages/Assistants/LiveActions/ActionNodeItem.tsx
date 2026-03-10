@@ -1220,7 +1220,7 @@ function ToolLoopMessage({
                     lineHeight: '1.4',
                     padding: '6px 8px',
                     borderRadius: '4px',
-                    margin: '4px 0 2px 0',
+                    margin: '4px 0 2px 18px',
                   }}
                 >
                   {block.code.trim()}
