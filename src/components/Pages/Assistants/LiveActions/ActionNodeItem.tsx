@@ -794,12 +794,12 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       onClick={!isOpen ? () => setIsOpen(true) : undefined}
     >
       <div
-        className={cn('flex items-center gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
+        className={cn('flex items-start gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
         onClick={isOpen ? () => setIsOpen(false) : undefined}
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className={cn('shrink-0', color)}>
+            <span className={cn('mt-0.5 shrink-0', color)}>
               <LabelIcon className="h-2.5 w-2.5" />
             </span>
           </TooltipTrigger>
@@ -810,7 +810,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         </span>
         <ChevronRight
           className={cn(
-            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+            'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
             isOpen && 'rotate-90'
           )}
         />
