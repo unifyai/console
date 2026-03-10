@@ -90,8 +90,14 @@ interface TaxCountry {
   taxIdFormat: string;
 }
 
+interface SupportedTaxCountryEntry {
+  description: string;
+  tax_id_name: string;
+  tax_id_format: string;
+}
+
 interface SupportedTaxCountriesResponse {
-  supportedCountries: Record<string, string>;
+  supportedCountries: Record<string, SupportedTaxCountryEntry>;
   totalCountries: number;
 }
 
@@ -164,46 +170,6 @@ const countryNames: Record<string, string> = {
   SK: 'Slovakia',
 };
 
-/** Map from tax country description to { name, format } */
-const extractTaxIdInfo = (description: string): { name: string; format: string } => {
-  const match = description.match(/\(([^)]+)\)/);
-  if (match) {
-    const taxType = match[1];
-    const taxTypeMap: Record<string, { name: string; format: string }> = {
-      'us.ein': { name: 'EIN', format: 'XX-XXXXXXX' },
-      'gb.vat': { name: 'VAT Number', format: 'GB999999999' },
-      'au.abn': { name: 'ABN', format: 'XX XXX XXX XXX' },
-      'ca.gst_hst': { name: 'GST/HST Number', format: 'XXXXXXXXX' },
-      'de.vat': { name: 'VAT Number', format: 'DEXXXXXXXXX' },
-      'fr.tva': { name: 'TVA Number', format: 'FRXXXXXXXXXXX' },
-      'it.iva': { name: 'IVA Number', format: 'ITXXXXXXXXXXX' },
-      'es.vat': { name: 'VAT Number', format: 'ESXXXXXXXXX' },
-      'jp.cn': { name: 'Corporate Number', format: 'XXXXXXXXXXXXX' },
-      'nl.btw': { name: 'BTW Number', format: 'NLXXXXXXXXX' },
-      'be.vat': { name: 'VAT Number', format: 'BEXXXXXXXXX' },
-      'at.uid': { name: 'UID Number', format: 'ATXXXXXXXXX' },
-      'se.vat': { name: 'VAT Number', format: 'SEXXXXXXXXX' },
-      'dk.cvr': { name: 'CVR Number', format: 'XXXXXXXX' },
-      'pt.nif': { name: 'NIF Number', format: 'XXXXXXXXX' },
-      'no.mva': { name: 'MVA Number', format: 'XXXXXXXXX' },
-      'ch.vat': { name: 'VAT Number', format: 'CHXXXXXXXXX' },
-      'kr.brn': { name: 'Business Registration Number', format: 'XXX-XX-XXXXX' },
-      'in.gstin': { name: 'GSTIN', format: 'XXXXXXXXXXXX' },
-      'sg.uen': { name: 'UEN', format: 'XXXXXXXXX' },
-      'my.nric': { name: 'NRIC/Company No.', format: 'XXXXXXXXX' },
-      'th.moa': { name: 'MOA Number', format: 'XXXXXXXXX' },
-      'br.cnpj': { name: 'CNPJ', format: 'XX.XXX.XXX/XXXX-XX' },
-      'mx.rfc': { name: 'RFC', format: 'XXXXXXXXXXX' },
-      'ru.inn': { name: 'INN', format: 'XXXXXXXXXX' },
-      'cn.uscc': { name: 'USCC', format: 'XXXXXXXXXXXXXXXXX' },
-    };
-    return taxTypeMap[taxType] || { name: 'Tax ID', format: 'Enter tax ID' };
-  }
-  if (description.includes('EU VAT')) {
-    return { name: 'VAT Number', format: 'Enter VAT number' };
-  }
-  return { name: 'Tax ID', format: 'Enter tax ID' };
-};
 
 // Map country code to Stripe tax ID type string
 const countryToStripeTaxIdType: Record<string, string> = {
@@ -265,15 +231,12 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
           if (response.ok) {
             const data: SupportedTaxCountriesResponse = await response.json();
             const list: TaxCountry[] = Object.entries(data.supportedCountries)
-              .map(([code, description]) => {
-                const info = extractTaxIdInfo(description);
-                return {
-                  code,
-                  name: countryNames[code] || code,
-                  taxIdName: info.name,
-                  taxIdFormat: info.format,
-                };
-              })
+              .map(([code, entry]) => ({
+                code,
+                name: countryNames[code] || code,
+                taxIdName: entry.tax_id_name,
+                taxIdFormat: entry.tax_id_format,
+              }))
               .sort((a, b) => a.name.localeCompare(b.name));
             setSupportedCountries(list);
           }

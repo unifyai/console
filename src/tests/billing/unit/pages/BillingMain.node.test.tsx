@@ -42,19 +42,16 @@ const defaultHandlers = [
   http.get('/api/billing/balance', () =>
     HttpResponse.json({ balance: '25.00', fullBalance: 25 })
   ),
-  http.get('/api/billing/eligibility', () =>
-    HttpResponse.json({
-      totalSpending: 100,
-      canEnableAutoRecharge: true,
-      minimumSpendRequired: 50,
-      remainingSpendNeeded: 0,
-    })
-  ),
   http.get('/api/billing/auto-recharge/settings', () =>
     HttpResponse.json({
       autoRechargeEnabled: false,
       autoRechargeThreshold: 10,
       autoRechargeQty: 25,
+      minRechargeAmount: 25,
+      totalSpending: 100,
+      canEnableAutoRecharge: true,
+      minimumSpendRequired: 50,
+      remainingSpendNeeded: 0,
     })
   ),
 ];

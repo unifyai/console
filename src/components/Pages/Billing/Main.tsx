@@ -47,8 +47,13 @@ export interface BillingMainProps {
   orgContext?: OrgContext | null;
 }
 
-interface AutoRechargeEligibility {
-  userId: string;
+interface AutoRechargeData {
+  // Settings
+  autoRechargeEnabled: boolean;
+  autoRechargeThreshold: number;
+  autoRechargeQty: number;
+  minRechargeAmount: number;
+  // Eligibility
   totalSpending: number;
   canEnableAutoRecharge: boolean;
   minimumSpendRequired: number;
@@ -75,7 +80,7 @@ const Main = ({ orgContext }: BillingMainProps) => {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [eligibility, setEligibility] = useState<AutoRechargeEligibility | null>(null);
+  const [autoRechargeData, setAutoRechargeData] = useState<AutoRechargeData | null>(null);
 
   // Billing Profile Dialog
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -146,22 +151,17 @@ const Main = ({ orgContext }: BillingMainProps) => {
       await fetchBalance();
       setLoadingBalance(false);
 
-      // Load auto-recharge eligibility + settings
+      // Load auto-recharge settings + eligibility in a single call
       try {
-        const [eligRes, settingsRes] = await Promise.all([
-          fetch('/api/billing/eligibility'),
-          fetch('/api/billing/auto-recharge/settings'),
-        ]);
-        if (eligRes.ok) {
-          setEligibility(await eligRes.json());
-        }
-        if (settingsRes.ok) {
-          const s = await settingsRes.json();
-          setIsAutoRechargeEnabled(s.autoRechargeEnabled);
-          setMinBalance(s.autoRechargeThreshold.toString());
-          setRechargeAmount(s.autoRechargeQty.toString());
-          setInitialMinBalance(s.autoRechargeThreshold.toString());
-          setInitialRechargeAmount(s.autoRechargeQty.toString());
+        const res = await fetch('/api/billing/auto-recharge/settings');
+        if (res.ok) {
+          const data: AutoRechargeData = await res.json();
+          setAutoRechargeData(data);
+          setIsAutoRechargeEnabled(data.autoRechargeEnabled);
+          setMinBalance(data.autoRechargeThreshold.toString());
+          setRechargeAmount(data.autoRechargeQty.toString());
+          setInitialMinBalance(data.autoRechargeThreshold.toString());
+          setInitialRechargeAmount(data.autoRechargeQty.toString());
         }
       } catch (error) {
         console.error('Error loading auto-recharge data:', error);
@@ -213,10 +213,10 @@ const Main = ({ orgContext }: BillingMainProps) => {
   };
 
   const handleToggleAutoRecharge = async () => {
-    if (!isAutoRechargeEnabled && !eligibility?.canEnableAutoRecharge) {
+    if (!isAutoRechargeEnabled && !autoRechargeData?.canEnableAutoRecharge) {
       setAutoRechargeAlert({
         type: 'error',
-        message: `You need to spend $${eligibility?.minimumSpendRequired ?? 100} to access automated top-ups. ${eligibility?.totalSpending ? `You've spent ${eligibility?.totalSpending?.toFixed(2)}` : ''}`,
+        message: `You need to spend $${autoRechargeData?.minimumSpendRequired ?? 100} to access automated top-ups. ${autoRechargeData?.totalSpending ? `You've spent $${autoRechargeData?.totalSpending?.toFixed(2)}` : ''}`,
       });
       return;
     }
@@ -249,10 +249,11 @@ const Main = ({ orgContext }: BillingMainProps) => {
       return;
     }
 
-    if (Number(rechargeAmount) < 25) {
+    const minAmount = autoRechargeData?.minRechargeAmount ?? 25;
+    if (Number(rechargeAmount) < minAmount) {
       setAutoRechargeAlert({
         type: 'error',
-        message: 'Recharge amount must be at least $25 to save changes.',
+        message: `Recharge amount must be at least $${minAmount} to save changes.`,
       });
       return;
     }
@@ -296,7 +297,7 @@ const Main = ({ orgContext }: BillingMainProps) => {
     minBalance !== initialMinBalance || rechargeAmount !== initialRechargeAmount;
 
   const isIneligibleForAutoRecharge =
-    eligibility && !eligibility.canEnableAutoRecharge && !isAutoRechargeEnabled;
+    autoRechargeData && !autoRechargeData.canEnableAutoRecharge && !isAutoRechargeEnabled;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -391,10 +392,10 @@ const Main = ({ orgContext }: BillingMainProps) => {
                       {isIneligibleForAutoRecharge && (
                         <TooltipContent className="max-w-xs">
                           <p>
-                            You need to spend ${eligibility?.minimumSpendRequired} before enabling
+                            You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
                             auto-recharge. You&apos;ve spent $
-                            {eligibility?.totalSpending?.toFixed(2)}, spend $
-                            {eligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock.
+                            {autoRechargeData?.totalSpending?.toFixed(2)}, spend $
+                            {autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock.
                           </p>
                         </TooltipContent>
                       )}
@@ -403,7 +404,7 @@ const Main = ({ orgContext }: BillingMainProps) => {
                 </div>
                 <CardDescription className="text-body-muted">
                   {isIneligibleForAutoRecharge
-                    ? `Spend $${eligibility?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
+                    ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
                     : 'Automatically top up your balance when it falls below a threshold.'}
                 </CardDescription>
               </CardHeader>
@@ -437,7 +438,7 @@ const Main = ({ orgContext }: BillingMainProps) => {
                         onChange={(e) => setRechargeAmount(e.target.value)}
                       />
                       <p className="text-caption mt-1 text-muted-foreground">
-                        Minimum recharge amount: $25
+                        Minimum recharge amount: ${autoRechargeData?.minRechargeAmount ?? 25}
                       </p>
                     </div>
                   </div>

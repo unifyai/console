@@ -3,7 +3,8 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
- * GET: Returns auto-recharge settings for the active workspace's billing account.
+ * GET: Returns auto-recharge settings AND eligibility for the active
+ * workspace's billing account in a single call.
  *
  * Delegates to backend GET /billing/auto-recharge, which resolves context
  * from the API key and returns combined settings + eligibility.
@@ -21,14 +22,21 @@ export async function GET(request: NextRequest) {
     const data = response.data;
 
     return NextResponse.json({
+      // Settings
       autoRechargeEnabled: data.enabled,
       autoRechargeThreshold: data.threshold,
       autoRechargeQty: data.qty,
+      minRechargeAmount: data.minRechargeAmount,
+      // Eligibility
+      totalSpending: data.totalSpending,
+      canEnableAutoRecharge: data.eligible,
+      minimumSpendRequired: data.minimumSpendRequired,
+      remainingSpendNeeded: data.remainingSpendNeeded,
     });
   } catch (error: any) {
-    console.error('Error fetching auto-recharge settings:', error?.response?.data || error);
+    console.error('Error fetching auto-recharge data:', error?.response?.data || error);
     return NextResponse.json(
-      { error: 'Error fetching billing details' },
+      { error: 'Error fetching auto-recharge data' },
       { status: error?.response?.status || 500 }
     );
   }
