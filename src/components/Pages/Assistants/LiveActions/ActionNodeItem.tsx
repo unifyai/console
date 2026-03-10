@@ -716,52 +716,6 @@ function TruncatedMarkdown({ content }: { content: string }) {
 }
 
 /**
- * Lightweight inline JSON syntax highlighter. Tokenizes pre-formatted JSON
- * and wraps keys, string values, numbers, and booleans/null in colored spans.
- * Structural characters ({, }, [, ], :, ,) inherit the parent's text color.
- */
-function HighlightedJson({ text }: { text: string }) {
-  const parts: React.ReactNode[] = [];
-  const tokenRegex =
-    /"(?:\\.|[^"\\])*"|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let i = 0;
-
-  while ((match = tokenRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const token = match[0];
-    const rest = text.slice(match.index + token.length);
-
-    let cls: string;
-    if (token.startsWith('"')) {
-      cls = /^\s*:/.test(rest)
-        ? 'text-muted-foreground/80'
-        : 'text-amber-700/80 dark:text-amber-300/60';
-    } else if (token === 'true' || token === 'false' || token === 'null') {
-      cls = 'text-violet-600/70 dark:text-violet-400/55';
-    } else {
-      cls = 'text-teal-600/70 dark:text-teal-400/55';
-    }
-
-    parts.push(
-      <span key={i++} className={cls}>
-        {token}
-      </span>
-    );
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return <>{parts}</>;
-}
-
-/**
  * Wraps substrings matching `term` in a styled <mark> for search highlighting.
  * Case-insensitive. Returns the original text unchanged when `term` is empty.
  */
@@ -950,13 +904,13 @@ function ToolCallRow({
       </div>
       {isOpen && formattedArgs && (
         <pre
-          className="hover:bg-muted/40 text-muted-foreground/50 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed"
+          className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
           onClick={() => {
             setIsOpen(false);
             onLayoutChange?.();
           }}
         >
-          <HighlightedJson text={formattedArgs} />
+          {formattedArgs}
         </pre>
       )}
     </div>
@@ -1490,13 +1444,13 @@ function ToolLoopMessage({
                 const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
                 return (
                   <pre
-                    className="hover:bg-muted/40 text-muted-foreground/50 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed"
+                    className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
                     onClick={() => {
                       setIsOpen(false);
                       onLayoutChange?.();
                     }}
                   >
-                    <HighlightedJson text={lines.slice(1).join('\n')} />
+                    {lines.slice(1).join('\n')}
                   </pre>
                 );
               } catch {
