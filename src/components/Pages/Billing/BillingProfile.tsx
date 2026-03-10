@@ -25,7 +25,6 @@ interface BillingProfileState {
   taxId?: string | null;
   taxIdType?: string | null;
   billingAddress?: Record<string, string> | null;
-  billingSetupComplete?: boolean;
 }
 
 const BillingProfile = ({ isEditing, onEditingChange }: BillingProfileProps) => {
@@ -53,7 +52,6 @@ const BillingProfile = ({ isEditing, onEditingChange }: BillingProfileProps) => 
           taxId: raw.tax_id ?? raw.taxId,
           taxIdType: raw.tax_id_type ?? raw.taxIdType,
           billingAddress: raw.billing_address ?? raw.billingAddress,
-          billingSetupComplete: raw.billing_setup_complete ?? raw.billingSetupComplete,
         });
       }
     } catch (error) {

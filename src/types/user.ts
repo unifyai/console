@@ -180,13 +180,3 @@ export interface UpdateOnboardingStatusRequest {
 export interface UpdateOnboardingStatusResponse {
   message: string;
 }
-
-export interface TaxClassificationFormData {
-  accountType: AccountType;
-  businessName: string;
-  taxId: string;
-  businessType: string;
-  businessAddress: BusinessAddress;
-  taxExempt: boolean;
-  taxCountry: string;
-}

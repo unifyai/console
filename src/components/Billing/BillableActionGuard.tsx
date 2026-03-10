@@ -41,7 +41,6 @@
 import * as React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
-import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
