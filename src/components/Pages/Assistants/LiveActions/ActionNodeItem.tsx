@@ -53,8 +53,71 @@ import type {
 } from '@/types/assistants/action';
 import { isToolLoopNoise } from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
-
 const SHOW_EXECUTE_CODE_CONTENT = true;
+
+interface BracketGeom {
+  topY: number;
+  bottomY: number;
+  barX: number;
+  lineWidth: number;
+}
+
+function BracketLines({ geom }: { geom: BracketGeom }) {
+  const bg = 'hsl(0 0% 100% / 0.18)';
+  const top = geom.topY - 1;
+  const bot = geom.bottomY - 1;
+  return (
+    <>
+      {/* top horizontal */}
+      <div className="pointer-events-none" style={{ position: 'absolute', top, left: geom.barX, width: geom.lineWidth, height: 1, background: bg }} />
+      {/* vertical — inset by 1px at each end to avoid corner overlap */}
+      <div className="pointer-events-none" style={{ position: 'absolute', top: top + 1, left: geom.barX, width: 1, height: bot - top - 1, background: bg }} />
+      {/* bottom horizontal */}
+      <div className="pointer-events-none" style={{ position: 'absolute', top: bot, left: geom.barX, width: geom.lineWidth, height: 1, background: bg }} />
+    </>
+  );
+}
+
+function findIconCenter(rowEl: HTMLElement, containerRect: DOMRect): { x: number; y: number } | null {
+  const svg = rowEl.querySelector<SVGElement>('svg');
+  if (svg) {
+    const r = svg.getBoundingClientRect();
+    return {
+      x: r.left - containerRect.left + r.width / 2,
+      y: r.top - containerRect.top + r.height / 2,
+    };
+  }
+  return null;
+}
+
+function computeBracketGeom(
+  container: HTMLElement,
+  hoveredTcId: string,
+): BracketGeom | null {
+  const callEl = container.querySelector<HTMLElement>(
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="call"]`,
+  );
+  const resultEl = container.querySelector<HTMLElement>(
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="result"]`,
+  );
+  if (!callEl || !resultEl) return null;
+
+  const containerRect = container.getBoundingClientRect();
+
+  const callIcon = findIconCenter(callEl, containerRect);
+  const resultIcon = findIconCenter(resultEl, containerRect);
+  if (!callIcon || !resultIcon) return null;
+
+  const topY = callIcon.y;
+  const bottomY = resultIcon.y;
+  if (topY >= bottomY) return null;
+
+  const iconLeftEdge = callIcon.x - 7;
+  const barX = iconLeftEdge - 12;
+  const lineWidth = iconLeftEdge - barX;
+
+  return { topY, bottomY, barX, lineWidth };
+}
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
 export type SectionToggleSignal = { open: boolean; gen: number };
@@ -582,7 +645,7 @@ function ContentArea({
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  */
-function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: string }) {
+function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: ToolLoopLog; searchTerm?: string; onTcHover?: (tcId: string | null) => void; hoveredTcId?: string | null }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
   const { theme: themeVal } = useTheme();
@@ -661,13 +724,13 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         Object.entries(rawAliases).map(([k, v]) => [k.replace(/([A-Z])/g, '_$1').toLowerCase(), v])
       ) : null;
 
-      const codeBlocks: Array<{ lang: string; code: string }> = [];
+      const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
       if (SHOW_EXECUTE_CODE_CONTENT) {
         for (const tc of message.toolCalls) {
           if (tc.function.name !== 'execute_code') continue;
           try {
             const args = JSON.parse(tc.function.arguments);
-            if (args.code) codeBlocks.push({ lang: args.language || 'python', code: args.code });
+            if (args.code) codeBlocks.push({ lang: args.language || 'python', code: args.code, toolCallId: tc.id });
           } catch {
             /* skip malformed arguments */
           }
@@ -678,9 +741,9 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         .map((tc) => {
           if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
           const alias = aliases?.[tc.function.name];
-          return alias || `${tc.function.name}()`;
+          return { label: alias || `${tc.function.name}()`, toolCallId: tc.id };
         })
-        .filter(Boolean) as string[];
+        .filter(Boolean) as Array<{ label: string; toolCallId: string }>;
 
       const actionIcon = (
         <Tooltip>
@@ -696,12 +759,13 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       const rows: React.ReactNode[] = [];
 
       for (let i = 0; i < toolEntries.length; i++) {
+        const entry = toolEntries[i];
         const isLast = i === toolEntries.length - 1 && codeBlocks.length === 0;
         rows.push(
-          <div key={`tool-${i}`} className="flex items-center gap-2">
+          <div key={`tool-${i}`} className={cn('flex items-center gap-2', hoveredTcId && hoveredTcId === entry.toolCallId && 'bg-muted/40 rounded-sm')} data-tc-id={entry.toolCallId} data-tc-role="call" onMouseEnter={() => onTcHover?.(entry.toolCallId)} onMouseLeave={() => onTcHover?.(null)}>
             {actionIcon}
             <span className="text-muted-foreground min-w-0 truncate">
-              <HighlightText text={toolEntries[i]} term={searchTerm} />
+              <HighlightText text={entry.label} term={searchTerm} />
             </span>
             {isLast && (
               <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
@@ -719,8 +783,12 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         rows.push(
           <div
             key="code"
-            className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
+            className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer', hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40')}
             onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
+            data-tc-id={codeBlocks[0].toolCallId}
+            data-tc-role="call"
+            onMouseEnter={() => onTcHover?.(codeBlocks[0].toolCallId)}
+            onMouseLeave={() => onTcHover?.(null)}
           >
             <div
               className={cn('flex items-center gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
@@ -802,10 +870,13 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   const canExpand = isTruncated;
 
+  const tcResultId = message.role === 'tool' ? (message.toolCallId ?? (msg as Record<string, unknown>).tool_call_id as string | undefined) : undefined;
+
   return (<>
     <div
-      className={cn('group rounded-sm transition-colors duration-150', !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer')}
+      className={cn('group rounded-sm transition-colors duration-150', !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer', tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40')}
       onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
+      {...(tcResultId ? { 'data-tc-id': tcResultId, 'data-tc-role': 'result', onMouseEnter: () => onTcHover?.(tcResultId), onMouseLeave: () => onTcHover?.(null) } : {})}
     >
       <div
         className={cn('flex items-start gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
@@ -858,7 +929,10 @@ function ToolLoopConversation({
   searchTerm?: string;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
+  const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
+  const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
 
   React.useEffect(() => {
     const el = scrollRef.current;
@@ -869,10 +943,22 @@ function ToolLoopConversation({
     });
   }, [logs]);
 
+  React.useEffect(() => {
+    if (!hoveredTcId || !contentRef.current) {
+      setBracketGeom(null);
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (contentRef.current) {
+        setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
+      }
+    });
+  }, [hoveredTcId]);
+
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
   return (
-    <div className="relative" style={{ paddingLeft: pad, paddingRight: '4px' }}>
+    <div className="relative">
       {/* Top fade */}
       {isOverflowing && (
         <div
@@ -885,16 +971,18 @@ function ToolLoopConversation({
         />
       )}
 
-      {/* Scrollable content */}
+      {/* Scrollable content — padding is inside the scroll container so
+          absolutely-positioned bracket lines in the left margin aren't clipped */}
       <div
         ref={scrollRef}
         className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '240px' }}
+        style={{ maxHeight: '240px', paddingLeft: pad, paddingRight: '4px' }}
       >
-        <div className="space-y-0.5 py-3">
+        <div ref={contentRef} className="relative space-y-0.5 py-3">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} />
+            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} onTcHover={setHoveredTcId} hoveredTcId={hoveredTcId} />
           ))}
+          {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
 
@@ -928,8 +1016,11 @@ function LiveToolLoopTimeline({
   searchTerm?: string;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const isUserScrolledUpRef = React.useRef(false);
   const prevLogCountRef = React.useRef(0);
+  const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
+  const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
 
   // Detect manual scroll: mark as "scrolled up" if not near the bottom
   const handleScroll = React.useCallback(() => {
@@ -952,20 +1043,33 @@ function LiveToolLoopTimeline({
     prevLogCountRef.current = logs.length;
   }, [logs.length]);
 
+  React.useEffect(() => {
+    if (!hoveredTcId || !contentRef.current) {
+      setBracketGeom(null);
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (contentRef.current) {
+        setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
+      }
+    });
+  }, [hoveredTcId]);
+
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
   return (
-    <div className="relative" style={{ paddingLeft: pad, paddingRight: '4px' }}>
+    <div className="relative">
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '260px' }}
+        style={{ maxHeight: '260px', paddingLeft: pad, paddingRight: '4px' }}
       >
-        <div className="space-y-0.5 py-2">
+        <div ref={contentRef} className="relative space-y-0.5 py-2">
           {logs.map((log) => (
-            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} />
+            <ToolLoopMessage key={log.id} log={log} searchTerm={searchTerm} onTcHover={setHoveredTcId} hoveredTcId={hoveredTcId} />
           ))}
+          {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
 

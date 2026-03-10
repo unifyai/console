@@ -182,6 +182,8 @@ export interface ToolLoopLogEntries {
       id: string;
       function: { name: string; arguments: string };
     }>;
+    toolCallId?: string;
+    name?: string;
   };
   method: string;
   hierarchy: string[];
