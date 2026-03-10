@@ -94,7 +94,7 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           background: bg,
         }}
       />
-      {/* middle horizontal bars (nest rows) */}
+      {/* middle horizontal bars (nest rows) — start 1px right to avoid overlap with the vertical */}
       {geom.midYs.map((midY, i) => (
         <div
           key={i}
@@ -102,8 +102,8 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           style={{
             position: 'absolute',
             top: midY - 1,
-            left: geom.barX,
-            width: geom.lineWidth,
+            left: geom.barX + 1,
+            width: geom.lineWidth - 1,
             height: 1,
             background: bg,
           }}
