@@ -1155,7 +1155,6 @@ function ToolLoopMessage({
       }
 
       if (codeBlocks.length > 0) {
-        const codePreview = codeBlocks[0].code.trim().split('\n')[0];
         const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
 
         rows.push(
@@ -1194,11 +1193,7 @@ function ToolLoopMessage({
               }
             >
               {actionIcon}
-              {!isCodeOpen && (
-                <span className="min-w-0 truncate text-muted-foreground">
-                  <span className="font-mono text-[10px]">{codePreview}</span>
-                </span>
-              )}
+              <span className="min-w-0 truncate text-muted-foreground">Run code</span>
               <ChevronRight
                 className={cn(
                   'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
