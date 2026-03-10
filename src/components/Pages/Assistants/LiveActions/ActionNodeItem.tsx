@@ -811,7 +811,11 @@ function ToolLoopConversation({
 
   React.useEffect(() => {
     const el = scrollRef.current;
-    if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
+    if (!el) return;
+    setIsOverflowing(el.scrollHeight > el.clientHeight);
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [logs]);
 
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
