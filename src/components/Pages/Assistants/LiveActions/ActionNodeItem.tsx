@@ -1217,12 +1217,16 @@ function ToolLoopMessage({
                   <SyntaxHighlighter
                     language={block.lang}
                     style={hlStyle}
+                    wrapLongLines
                     customStyle={{
                       fontSize: '10px',
                       lineHeight: '1.4',
                       padding: '6px 8px',
                       borderRadius: '4px',
                       margin: '4px 0 2px 18px',
+                      overflowX: 'hidden',
+                      width: 'fit-content',
+                      maxWidth: 'calc(100% - 18px)',
                     }}
                   >
                     {block.code.trim()}
