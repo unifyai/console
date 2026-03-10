@@ -545,13 +545,13 @@
       transform: translateX(0);
     }
     25% {
-      transform: translateX(2px);
+      transform: translateX(1px);
     }
     75% {
-      transform: translateX(-2px);
+      transform: translateX(-1px);
     }
   }
   .animate-nudge {
-    animation: nudge 0.2s ease-in-out;
+    animation: nudge 0.12s ease-in-out;
   }
 }
