@@ -431,10 +431,37 @@ export function useAssistantForm(
     clearErrors();
 
     try {
+      // Input validity checks (same as creation path)
+      if (!data.firstName) {
+        setError('firstName', { type: 'manual', message: 'Missing assistant first name.' });
+        throw new Error('Missing assistant first name.');
+      }
+      if (!data.surname) {
+        setError('surname', { type: 'manual', message: 'Missing assistant surname.' });
+        throw new Error('Missing assistant surname.');
+      }
+      const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
+      if (
+        data.age != null &&
+        (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
+      ) {
+        setError('age', { type: 'manual', message: 'Age must be between 18 and 70.' });
+        throw new Error('Invalid age provided.');
+      }
+      if (!data.nationality) {
+        setError('nationality', { type: 'manual', message: 'Missing assistant nationality.' });
+        throw new Error('Missing assistant nationality.');
+      }
+
       // Construct payload with only changed fields
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
+      if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
+      if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
+      if (data.nationality !== editingAssistant.nationality)
+        payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       if (data.voiceId !== editingAssistant.voiceId) payload.voiceId = data.voiceId;

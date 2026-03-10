@@ -59,7 +59,6 @@ interface MainProps {
     email?: string | null;
     orgId?: number | null;
     mfaSetupRequired?: boolean;
-    apiKey?: string;
   };
 }
 
@@ -828,7 +827,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
-                  apiKey={userMeta.apiKey}
                   onAssistantUpdated={(id, patch) => {
                     setAssistants((prev) =>
                       prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
@@ -879,7 +877,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
           isStripePanelOpen={isStripePanelOpen}
         >
           <HireForm
-            assistants={assistants}
             formMethods={formMethods}
             isSubmitting={isFormSubmitting}
             assistantActions={assistantActions}
@@ -934,7 +931,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             canDelete={canDelete(assistantToEdit)}
           >
             <HireForm
-              assistants={assistants}
               formMethods={formMethods}
               onSubmit={initiateUpdate}
               isSubmitting={isFormSubmitting}
@@ -998,7 +994,6 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
             toggleRemoteControlInteractive={toggleRemoteControlInteractive}
             isDesktopReady={isDesktopReady}
             callType={callType}
-            connectionDetails={connectionDetails}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={toggleSpeakerMute}
           />

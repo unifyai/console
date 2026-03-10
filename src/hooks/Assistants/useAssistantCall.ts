@@ -392,11 +392,43 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   }, [activeCallAssistant]);
 
   React.useEffect(() => {
+    const READY_FALLBACK_TIMEOUT = 10_000;
+    let readyFallbackTimer: NodeJS.Timeout | null = null;
+
     const clearWaitingState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
       isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
+      if (readyFallbackTimer) {
+        clearTimeout(readyFallbackTimer);
+        readyFallbackTimer = null;
+      }
+    };
+
+    const onDataReceived = (
+      payload: Uint8Array,
+      _participant?: any,
+      _kind?: any,
+      topic?: string
+    ) => {
+      if (topic !== 'agent_status') return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data.type === 'ready_to_speak') {
+          clearWaitingState();
+        }
+      } catch {
+        // ignore malformed data messages
+      }
+    };
+
+    const onParticipantConnected = () => {
+      // Don't clear waiting state immediately — wait for the agent's
+      // "ready_to_speak" data message so the avatar appears right before
+      // speech.  Start a safety fallback in case the message never arrives.
+      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
+      readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
     };
 
     const onParticipantDisconnected = () => {
@@ -435,15 +467,16 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       }
     };
 
-    room.on(RoomEvent.ParticipantConnected, clearWaitingState);
-    room.on(RoomEvent.TrackSubscribed, clearWaitingState);
+    room.on(RoomEvent.DataReceived, onDataReceived);
+    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
-      room.off(RoomEvent.ParticipantConnected, clearWaitingState);
-      room.off(RoomEvent.TrackSubscribed, clearWaitingState);
+      room.off(RoomEvent.DataReceived, onDataReceived);
+      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
+      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       clearAssistantJoinTimeout();
     };
   }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call]);

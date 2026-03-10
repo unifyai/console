@@ -7,7 +7,6 @@
 'use server';
 
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
-import { snakeToCamelObject } from '@/utils/casing';
 
 // =============================================================================
 // Types
@@ -81,7 +80,7 @@ export async function getBillingAccountInfo(params: {
     params: queryParams,
   });
 
-  return snakeToCamelObject<BillingAccountInfo>(response.data);
+  return response.data as BillingAccountInfo;
 }
 
 /**
@@ -95,8 +94,7 @@ export async function getUserBillingDetails(userID: string) {
     params: { id: userID },
   });
 
-  const billingDetails = snakeToCamelObject<BillingDetails[]>(response.data);
-  return billingDetails;
+  return response.data as BillingDetails[];
 }
 
 /**
@@ -253,12 +251,15 @@ export async function getRecharges(
   quantity?: number,
   type?: string
 ) {
-  const params = new URLSearchParams({ userId: userID });
+  // Use a plain object so the OrchestraAdminClient request interceptor can
+  // transform keys from camelCase to snake_case. URLSearchParams would bypass
+  // the interceptor because Object.entries() returns [] for URLSearchParams.
+  const params: Record<string, string> = { userId: userID };
 
-  if (id !== undefined) params.append('id', id.toString());
-  if (at !== undefined) params.append('at', at);
-  if (quantity !== undefined) params.append('quantity', quantity.toString());
-  if (type !== undefined) params.append('type', type);
+  if (id !== undefined) params.id = id.toString();
+  if (at !== undefined) params.at = at;
+  if (quantity !== undefined) params.quantity = quantity.toString();
+  if (type !== undefined) params.type = type;
 
   const response = await OrchestraAdminClient.get('/get_recharge', { params });
   return response.data as unknown[];
@@ -289,5 +290,5 @@ export async function getAutoRechargeEligibility(
   const response = await OrchestraAdminClient.get('/billing_eligibility', {
     params,
   });
-  return snakeToCamelObject<AutoRechargeEligibility>(response.data);
+  return response.data as AutoRechargeEligibility;
 }

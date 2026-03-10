@@ -10,7 +10,6 @@ import {
   AssistantFormData,
   AssistantActions,
   VoiceOption,
-  Assistant,
   Voice,
 } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
@@ -54,7 +53,6 @@ export interface HireFormProps {
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
   handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
-  assistants: Assistant[];
   mode?: 'hire' | 'edit';
   /** Callback to open the Stripe side panel for payment setup */
   onAddPaymentMethod?: () => void;
@@ -74,7 +72,6 @@ export function HireForm({
   isLoadingUserVoices,
   fetchUserVoices,
   handleDeleteVoice,
-  assistants,
   mode = 'hire',
   onAddPaymentMethod,
   userHasChangedPreset = false,
@@ -118,19 +115,6 @@ export function HireForm({
   const age = watch('age');
   const rhfNationality = watch('nationality');
   const nationalityRef = React.useRef(rhfNationality);
-
-  // Re-validate the other name field when one changes to give immediate feedback on the duplicate check.
-  React.useEffect(() => {
-    if (getValues('surname')?.length > 0) {
-      trigger('surname');
-    }
-  }, [firstName, trigger, getValues]);
-
-  React.useEffect(() => {
-    if (getValues('firstName')?.length > 0) {
-      trigger('firstName');
-    }
-  }, [surname, trigger, getValues]);
 
   React.useEffect(() => {
     const isPristine = getValues('isPresetPristine');
@@ -337,22 +321,7 @@ export function HireForm({
                           id="firstName"
                           {...register('firstName', {
                             required: 'First name is required',
-                            validate: (value) => {
-                              if (isEditMode) return true;
-                              const currentSurname = getValues('surname') || '';
-                              const isDuplicate = assistants.some(
-                                (a) =>
-                                  a.firstName?.trim().toLowerCase() ===
-                                    value.trim().toLowerCase() &&
-                                  a.surname?.trim().toLowerCase() ===
-                                    currentSurname.trim().toLowerCase()
-                              );
-                              return isDuplicate
-                                ? 'An assistant with this full name already exists.'
-                                : true;
-                            },
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.firstName && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -366,21 +335,7 @@ export function HireForm({
                           id="surname"
                           {...register('surname', {
                             required: 'Last name is required',
-                            validate: (value) => {
-                              if (isEditMode) return true;
-                              const currentFirstName = getValues('firstName') || '';
-                              const isDuplicate = assistants.some(
-                                (a) =>
-                                  a.surname?.trim().toLowerCase() === value.trim().toLowerCase() &&
-                                  a.firstName?.trim().toLowerCase() ===
-                                    currentFirstName.trim().toLowerCase()
-                              );
-                              return isDuplicate
-                                ? 'An assistant with this full name already exists.'
-                                : true;
-                            },
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.surname && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -398,7 +353,6 @@ export function HireForm({
                             min: { value: 18, message: 'Age must be at least 18' },
                             max: { value: 70, message: 'Age must be 70 or less' },
                           })}
-                          disabled={isEditMode}
                         />
                         {errors.age && (
                           <p className="text-body text-strong mt-1 text-destructive">
@@ -413,7 +367,7 @@ export function HireForm({
                           onValueChange={(value) =>
                             setValue('nationality', value, { shouldValidate: true })
                           }
-                          disabled={isSubmitting || isEditMode}
+                          disabled={isSubmitting}
                         >
                           <SelectTrigger
                             id="nationality"

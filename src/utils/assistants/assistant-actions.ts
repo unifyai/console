@@ -9,32 +9,12 @@
  */
 
 import type {
-  ActionInteraction,
   ActionNode,
   ActionNodeType,
   ActionTreeResult,
   ManagerMethodLog,
   ParsedManagerMethodEvent,
 } from '@/types/assistants/action';
-
-/**
- * User-facing actions from phase=null events that should be rendered
- * as interaction annotations on nodes. Everything else is infrastructure
- * noise and gets discarded.
- */
-const USER_FACING_ACTIONS = new Set([
-  'interject',
-  'stop',
-  'pause',
-  'resume',
-  'ask',
-  'answerClarification',
-]);
-
-/** Returns true if the given action string is a user-facing action that should be rendered. */
-export function isUserFacingAction(action: string | null | undefined): boolean {
-  return !!action && USER_FACING_ACTIONS.has(action);
-}
 
 // =============================================================================
 // Constants
@@ -49,21 +29,18 @@ export const ACTION_LOOKBACK_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Parses a raw ManagerMethod log entry into a structured event.
- * Returns null if the log is missing required fields or is infrastructure noise.
+ * Returns null if the log is missing required fields or has a non-lifecycle phase.
  *
- * Three categories of events are accepted:
+ * Only two phases are accepted:
  * - phase='incoming'  — operation started (creates a tree node)
  * - phase='outgoing'  — operation returned a value (updates a tree node)
- * - phase=null + user-facing action — mid-flight interaction (e.g. interject,
- *   stop, pause, resume, ask, answer_clarification). Returned with phase='action'.
  *
- * Infrastructure noise (phase=null with action in done, result,
- * next_notification, next_clarification) is discarded.
+ * All other events (phase=null) are discarded. Steering annotations
+ * (interject, pause, resume, stop) are now represented as ToolLoop entries.
  */
 export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMethodEvent | null {
   const { entries } = log;
 
-  // Validate required fields (camelCase after Orchestra client transformation)
   if (
     !entries ||
     !entries.callingId ||
@@ -75,29 +52,10 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     return null;
   }
 
-  // Handle phase=null events: only keep user-facing actions
   if (entries.phase !== 'incoming' && entries.phase !== 'outgoing') {
-    if (!entries.action || !USER_FACING_ACTIONS.has(entries.action)) {
-      return null;
-    }
-    return {
-      id: log.id,
-      timestamp: entries.eventTimestamp || log.ts,
-      manager: entries.manager,
-      method: entries.method,
-      phase: 'action',
-      callingId: entries.callingId,
-      hierarchy: entries.hierarchy,
-      hierarchyLabel: entries.hierarchyLabel,
-      status: entries.status,
-      action: entries.action,
-      content: entries.question || entries.instructions || entries.request,
-      displayLabel: entries.displayLabel,
-      eventId: entries.eventId,
-    };
+    return null;
   }
 
-  // Determine content based on phase
   let content: string | undefined;
   if (entries.phase === 'outgoing') {
     content = entries.answer;
@@ -121,6 +79,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
     eventId: entries.eventId,
     errorType: entries.errorType,
     traceback: entries.traceback,
+    persist: (entries as unknown as Record<string, unknown>).persist === true ? true : undefined,
   };
 }
 
@@ -144,6 +103,7 @@ export function createActionNode(event: ParsedManagerMethodEvent): ActionNode {
     type: 'manager',
     label: event.displayLabel || rawLabel,
     displayLabel: event.displayLabel,
+    persist: event.persist,
     hierarchy: event.hierarchy,
     hierarchyLabel: event.hierarchyLabel,
     status: 'running',
@@ -264,34 +224,6 @@ export function applyOutgoingEvent(node: ActionNode, event: ParsedManagerMethodE
   if (wasRunning && node.status !== 'running') {
     node.toolLoopSteps = undefined;
     node.isToolLoopLoaded = false;
-  }
-}
-
-/**
- * Applies a user-facing action event (phase=null with a meaningful action)
- * as an interaction annotation on the node.
- */
-function applyActionEvent(node: ActionNode, event: ParsedManagerMethodEvent): void {
-  if (!event.action) return;
-
-  const interaction: ActionInteraction = {
-    id: event.id,
-    timestamp: event.timestamp,
-    action: event.action,
-    content: event.content,
-    eventId: event.eventId,
-  };
-
-  if (!node.interactions) {
-    node.interactions = [];
-  }
-
-  // Deduplicate by eventId or id
-  const isDuplicate = node.interactions.some(
-    (i) => (event.eventId && i.eventId === event.eventId) || i.id === event.id
-  );
-  if (!isDuplicate) {
-    node.interactions.push(interaction);
   }
 }
 
@@ -535,11 +467,6 @@ export function buildActionTree(logs: ManagerMethodLog[]): ActionTreeResult {
         applyOutgoingEvent(node, orphan);
         orphanOutgoing.splice(orphanIndex, 1);
       }
-    } else if (event.phase === 'action') {
-      const existingNode = nodeMap.get(event.callingId);
-      if (existingNode) {
-        applyActionEvent(existingNode, event);
-      }
     } else {
       // outgoing
       const existingNode = nodeMap.get(event.callingId);
@@ -589,20 +516,12 @@ export function mergeNewEvents(
     if (event.phase === 'incoming') {
       const existing = nodeMap.get(event.callingId);
       if (existing) {
-        // Node already exists (promoted from boundary or from a prior batch).
-        // Backfill it with data only the incoming event carries: the true
-        // startTime, content (question/instructions), and displayLabel.
         applyBackfilledIncoming(existing, event);
         continue;
       }
 
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
-    } else if (event.phase === 'action') {
-      const existingNode = nodeMap.get(event.callingId);
-      if (existingNode) {
-        applyActionEvent(existingNode, event);
-      }
     } else {
       // outgoing — Unity sends multiple outgoings per calling_id;
       // applyOutgoingEvent is safe to call repeatedly (content is only

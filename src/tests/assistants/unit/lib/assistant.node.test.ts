@@ -547,8 +547,8 @@ describe('assistant.ts', () => {
         server.use(
           http.post(`${MOCK_BASE_URL}/api/assistant`, () => {
             return HttpResponse.json(
-              { detail: 'Assistant with this name already exists' },
-              { status: 409 }
+              { detail: 'Database error creating assistant' },
+              { status: 400 }
             );
           })
         );
@@ -572,7 +572,7 @@ describe('assistant.ts', () => {
 
         // Assert
         expect(result).toHaveProperty('detail');
-        expect((result as any).detail).toContain('already exists');
+        expect((result as any).detail).toContain('Database error');
       }
     );
   });

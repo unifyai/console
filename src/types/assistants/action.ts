@@ -35,18 +35,6 @@ export interface ToolLoopStep {
 }
 
 /**
- * A mid-flight interaction on a running node (e.g. user interjected, stopped, paused).
- * These come from ManagerMethod events with phase=null and a user-facing action field.
- */
-export interface ActionInteraction {
-  id: number;
-  timestamp: string;
-  action: string;
-  content?: string;
-  eventId?: string;
-}
-
-/**
  * A node in the action tree representing a manager invocation or boundary.
  */
 export interface ActionNode {
@@ -84,11 +72,11 @@ export interface ActionNode {
    *  Preserved separately because `content` gets overwritten by the outgoing answer. */
   requestContent?: string;
 
+  /** Whether this action uses persist mode (open-ended session with interjections) */
+  persist?: boolean;
+
   /** Child nodes */
   children: ActionNode[];
-
-  /** Mid-flight interactions (interject, stop, pause, resume, ask, etc.) */
-  interactions?: ActionInteraction[];
 
   /** Lazy-loaded tool loop steps */
   toolLoopSteps?: ToolLoopStep[];
@@ -160,15 +148,13 @@ export interface ParsedManagerMethodEvent {
   timestamp: string;
   manager: string;
   method: string;
-  phase: 'incoming' | 'outgoing' | 'action';
+  phase: 'incoming' | 'outgoing';
   callingId: string;
   hierarchy: string[];
   hierarchyLabel: string;
   status: 'ok' | 'error';
   content?: string;
   error?: string;
-  /** The action type for phase='action' events (e.g. "interject", "stop") */
-  action?: string;
   /** User-facing alias from Unity (e.g., "Checking Contact Book") */
   displayLabel?: string;
   /** Globally unique event identifier */
@@ -177,6 +163,8 @@ export interface ParsedManagerMethodEvent {
   errorType?: string;
   /** Full traceback — present when status="error" */
   traceback?: string;
+  /** Whether this action uses persist mode */
+  persist?: boolean;
 }
 
 /**
@@ -194,6 +182,8 @@ export interface ToolLoopLogEntries {
       id: string;
       function: { name: string; arguments: string };
     }>;
+    toolCallId?: string;
+    name?: string;
   };
   method: string;
   hierarchy: string[];

@@ -214,58 +214,16 @@ describe('parseManagerMethodLog', () => {
   );
 
   it(
-    'parses user-facing phase: null events as action events',
+    'discards user-facing phase: null action events',
     {
       meta: {
         alias: 'ParseLog-UserFacingAction',
         scenario: 'Log has phase: null with user-facing action (interject, stop, etc.)',
-        behavior: 'Returns parsed event with phase="action" and action field preserved',
+        behavior: 'Returns null — steering annotations are now represented in ToolLoop data',
       },
     },
     () => {
-      const log = createMockLog({
-        entries: {
-          manager: 'CodeActActor',
-          method: 'act',
-          phase: null,
-          callingId: 'act-123',
-          hierarchy: ['CodeActActor.act'],
-          hierarchyLabel: 'CodeActActor.act(30d0)',
-          action: 'interject',
-          instructions: 'Focus on AAPL only',
-          status: 'ok',
-          displayLabel: 'Taking Action',
-        },
-      });
-
-      const result = parseManagerMethodLog(log);
-
-      expect(result).not.toBeNull();
-      expect(result!.phase).toBe('action');
-      expect(result!.action).toBe('interject');
-      expect(result!.content).toBe('Focus on AAPL only');
-      expect(result!.callingId).toBe('act-123');
-    }
-  );
-
-  it(
-    'parses all six user-facing action types',
-    {
-      meta: {
-        alias: 'ParseLog-AllUserFacingActions',
-        scenario: 'Each user-facing action type is parsed correctly',
-        behavior: 'All six return parsed events with phase="action"',
-      },
-    },
-    () => {
-      for (const action of [
-        'interject',
-        'stop',
-        'pause',
-        'resume',
-        'ask',
-        'answer_clarification',
-      ]) {
+      for (const action of ['interject', 'stop', 'pause', 'resume', 'ask', 'answerClarification']) {
         const log = createMockLog({
           entries: {
             manager: 'CodeActActor',
@@ -279,10 +237,7 @@ describe('parseManagerMethodLog', () => {
           },
         });
 
-        const result = parseManagerMethodLog(log);
-        expect(result).not.toBeNull();
-        expect(result!.phase).toBe('action');
-        expect(result!.action).toBe(action);
+        expect(parseManagerMethodLog(log)).toBeNull();
       }
     }
   );
@@ -1452,12 +1407,12 @@ describe('buildActionTree', () => {
   );
 
   it(
-    'attaches user-facing action events as interactions on the matching node',
+    'discards phase=null action events from tree building',
     {
       meta: {
-        alias: 'BuildTree-ActionInteractions',
-        scenario: 'Log stream includes an interject and a stop action event for a running node',
-        behavior: 'Interactions are attached to the node, infrastructure noise is discarded',
+        alias: 'BuildTree-ActionEventsDiscarded',
+        scenario: 'Log stream includes phase=null action events alongside incoming events',
+        behavior: 'Action events are silently discarded; only the incoming event creates a node',
       },
     },
     () => {
@@ -1476,24 +1431,8 @@ describe('buildActionTree', () => {
             status: 'ok',
           },
         }),
-        // Infrastructure noise — should be discarded
         createMockLog({
           id: 2,
-          ts: '2024-01-15T10:30:01.000Z',
-          entries: {
-            manager: 'CodeActActor',
-            method: 'act',
-            phase: null,
-            callingId: 'root-1',
-            hierarchy: ['CodeActActor.act'],
-            hierarchyLabel: 'CodeActActor.act(r001)',
-            action: 'done',
-            status: 'ok',
-          },
-        }),
-        // User-facing interject — should be captured
-        createMockLog({
-          id: 3,
           ts: '2024-01-15T10:30:10.000Z',
           entries: {
             manager: 'CodeActActor',
@@ -1507,32 +1446,12 @@ describe('buildActionTree', () => {
             status: 'ok',
           },
         }),
-        // User-facing stop — should be captured
-        createMockLog({
-          id: 4,
-          ts: '2024-01-15T10:30:20.000Z',
-          entries: {
-            manager: 'CodeActActor',
-            method: 'act',
-            phase: null,
-            callingId: 'root-1',
-            hierarchy: ['CodeActActor.act'],
-            hierarchyLabel: 'CodeActActor.act(r001)',
-            action: 'stop',
-            status: 'ok',
-          },
-        }),
       ];
 
       const { roots } = buildActionTree(logs);
 
       expect(roots).toHaveLength(1);
-      const root = roots[0];
-      expect(root.interactions).toBeDefined();
-      expect(root.interactions).toHaveLength(2);
-      expect(root.interactions![0].action).toBe('interject');
-      expect(root.interactions![0].content).toBe('Focus on AAPL only');
-      expect(root.interactions![1].action).toBe('stop');
+      expect(roots[0].id).toBe('root-1');
     }
   );
 });

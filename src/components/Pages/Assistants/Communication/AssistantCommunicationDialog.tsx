@@ -24,8 +24,6 @@ import {
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
 import { ChatMessage } from '@/types/assistants/chat';
-import { ConnectionDetails } from '@/types/assistants/call';
-import { toast } from 'sonner';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -53,7 +51,6 @@ interface AssistantCommunicationDialogContentProps {
   isCallConnected: boolean;
   isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
-  connectionDetails: ConnectionDetails | null;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -82,7 +79,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   isCallConnected,
   isDesktopReady,
   callType,
-  connectionDetails,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
@@ -193,57 +189,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     room: room,
   });
 
-  const handlePopOut = () => {
-    if (!connectionDetails || !assistant || !callType) return;
-
-    const { serverUrl, token } = connectionDetails;
-    const assistantId = assistant.agentId;
-    const assistantName = `${assistant.firstName} ${assistant.surname}`;
-
-    const tempKey = `call-data-${Date.now()}`;
-    const callData = {
-      serverUrl,
-      token,
-      callType,
-      assistantName,
-      assistantPhoto: assistant.signedProfilePhotoUrl || assistant.profilePhoto || '',
-      userImage: userImage || '',
-      // Handoff state for seamless transition
-      handoffState: {
-        assistantJoined: !isWaitingForAssistant,
-        micEnabled: micToggle.enabled,
-        cameraEnabled: camToggle.enabled,
-        remoteControlActive: isRemoteControlActive,
-        liveviewUrl: liveviewUrl,
-        remoteControlInteractive: isRemoteControlInteractive,
-        isDesktopReady: isDesktopReady,
-      },
-    };
-
-    try {
-      localStorage.setItem(tempKey, JSON.stringify(callData));
-      localStorage.setItem('activePopOutCall', JSON.stringify({ assistantId, assistantName }));
-      window.dispatchEvent(
-        new StorageEvent('storage', {
-          key: 'activePopOutCall',
-          newValue: localStorage.getItem('activePopOutCall'),
-        })
-      );
-    } catch (e) {
-      console.error('Could not write to localStorage for pop-out call:', e);
-      // If localStorage fails, we cannot proceed as essential data is missing.
-      toast.error('Could not open call in new tab. Please try again.');
-      return;
-    }
-
-    const url = new URL(`${window.location.origin}/assistants/call/${assistantId}`);
-    url.searchParams.set('dataKey', tempKey);
-
-    window.open(url.toString(), '_blank', 'noopener,noreferrer');
-
-    onHangUp();
-  };
-
   React.useEffect(() => {
     if (!isCallConnected) return;
     const getDevices = async () => {
@@ -305,8 +250,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     <>
       <AssistantCommunicationHeader
         assistantName={displayName}
-        onPopOut={handlePopOut}
-        isPopOutDisabled={!connectionDetails}
         onHeaderPointerDown={onHeaderPointerDown}
         onExpand={onExpand}
         onMinimize={onMinimize}
@@ -502,7 +445,6 @@ interface AssistantCommunicationDialogProps {
   isCallConnected: boolean;
   isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
-  connectionDetails: ConnectionDetails | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
 }
@@ -532,7 +474,6 @@ export function AssistantCommunicationDialog({
   isCallConnected,
   isDesktopReady,
   callType,
-  connectionDetails,
   isSpeakerMuted,
   onToggleSpeaker,
 }: AssistantCommunicationDialogProps) {
@@ -762,7 +703,6 @@ export function AssistantCommunicationDialog({
             isCallConnected={isCallConnected}
             isDesktopReady={isDesktopReady}
             callType={callType}
-            connectionDetails={connectionDetails}
           />
         )}
 
