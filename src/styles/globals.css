@@ -539,4 +539,19 @@
     -webkit-mask-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(2px);
+    }
+    75% {
+      transform: translateX(-2px);
+    }
+  }
+  .animate-nudge {
+    animation: nudge 0.2s ease-in-out;
+  }
 }

@@ -785,24 +785,33 @@ function ToolCallRow({
 
   const canExpand = !!formattedArgs;
   const isHighlighted = hoveredTcId === entry.toolCallId;
+  const tcRowRef = React.useRef<HTMLDivElement>(null);
+
+  const handleTcRowClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+      onLayoutChange?.();
+    } else if (!isOpen && !canExpand) {
+      const el = tcRowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
 
   return (
     <div
+      ref={tcRowRef}
       className={cn(
-        'group rounded-sm transition-colors duration-150',
-        !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+        'group cursor-pointer rounded-sm transition-colors duration-150',
+        !isOpen && canExpand && 'hover:bg-muted/40',
         isHighlighted && 'bg-muted/40'
       )}
       data-tc-id={entry.toolCallId}
       data-tc-role="call"
-      onClick={
-        !isOpen && canExpand
-          ? () => {
-              setIsOpen(true);
-              onLayoutChange?.();
-            }
-          : undefined
-      }
+      onClick={handleTcRowClick}
       onMouseEnter={() => onTcHover?.(entry.toolCallId)}
       onMouseLeave={() => onTcHover?.(null)}
     >
@@ -885,6 +894,8 @@ function ToolLoopMessage({
   const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
   const [childLoading, setChildLoading] = React.useState(false);
   const childFetchedRef = React.useRef(false);
+  const steeringRef = React.useRef<HTMLDivElement>(null);
+  const rowRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
@@ -1031,7 +1042,18 @@ function ToolLoopMessage({
     };
     const displayText = textContent || style.inlineLabel;
     return (
-      <div className="flex items-center gap-2">
+      <div
+        ref={steeringRef}
+        className="flex cursor-pointer items-center gap-2"
+        onClick={() => {
+          const el = steeringRef.current;
+          if (el) {
+            el.classList.remove('animate-nudge');
+            void el.offsetWidth;
+            el.classList.add('animate-nudge');
+          }
+        }}
+      >
         <span className={cn('shrink-0', style.color)}>
           <style.Icon className="h-2.5 w-2.5" />
         </span>
@@ -1276,22 +1298,30 @@ function ToolLoopMessage({
         ((msg as Record<string, unknown>).tool_call_id as string | undefined))
       : undefined;
 
+  const handleRowClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+      onLayoutChange?.();
+    } else if (!isOpen && !canExpand) {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
+
   return (
     <>
       <div
+        ref={rowRef}
         className={cn(
-          'group rounded-sm transition-colors duration-150',
-          !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+          'group cursor-pointer rounded-sm transition-colors duration-150',
+          !isOpen && canExpand && 'hover:bg-muted/40',
           tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40'
         )}
-        onClick={
-          !isOpen && canExpand
-            ? () => {
-                setIsOpen(true);
-                onLayoutChange?.();
-              }
-            : undefined
-        }
+        onClick={handleRowClick}
         {...(tcResultId
           ? {
               'data-tc-id': tcResultId,
