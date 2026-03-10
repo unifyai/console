@@ -856,6 +856,7 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
   if (!content) return null;
 
   const preview = content.split(/\n\n|\n/)[0];
+  const isJson = isLikelyJson(content);
   const contentRef = React.useRef<HTMLSpanElement>(null);
   const hasMultipleLines = content.includes('\n');
   const [isTruncated, setIsTruncated] = React.useState(hasMultipleLines);
@@ -865,7 +866,7 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
     if (el) setIsTruncated(hasMultipleLines || el.scrollWidth > el.clientWidth);
   }, [content, hasMultipleLines]);
 
-  const canExpand = isTruncated;
+  const canExpand = isTruncated || isJson;
 
   const tcResultId = message.role === 'tool' ? (message.toolCallId ?? (msg as Record<string, unknown>).tool_call_id as string | undefined) : undefined;
 
@@ -887,13 +888,20 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
           </TooltipTrigger>
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
         </Tooltip>
+        {canExpand && isOpen && isJson && (
+          <ChevronRight
+            className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100"
+          />
+        )}
         <span
           ref={contentRef}
-          className={cn('text-muted-foreground min-w-0', isOpen ? 'break-words' : 'truncate')}
+          className={cn('text-muted-foreground min-w-0', isOpen && !isJson ? 'break-words' : 'truncate')}
         >
-          {isOpen ? content : <TruncatedMarkdown content={preview} />}
+          {isOpen && isJson
+            ? content!.trim()[0]
+            : isOpen ? content : <TruncatedMarkdown content={preview} />}
         </span>
-        {canExpand && (
+        {canExpand && !(isOpen && isJson) && (
           <ChevronRight
             className={cn(
               'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
@@ -905,6 +913,16 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
           {time}
         </span>
       </div>
+      {isOpen && isJson && (() => {
+        try {
+          const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
+          return (
+            <pre className="text-muted-foreground hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed" onClick={() => setIsOpen(false)}>
+              {lines.slice(1).join('\n')}
+            </pre>
+          );
+        } catch { return null; }
+      })()}
     </div>
     {trailingCallLine}
   </>
