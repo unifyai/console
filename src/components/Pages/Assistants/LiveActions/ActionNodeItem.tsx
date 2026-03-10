@@ -674,91 +674,95 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
         }
       }
 
-      const toolNames = message.toolCalls
+      const toolEntries = message.toolCalls
         .map((tc) => {
-          const alias = aliases?.[tc.function.name];
-          if (alias) return alias;
           if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
-          return `${tc.function.name}()`;
+          const alias = aliases?.[tc.function.name];
+          return alias || `${tc.function.name}()`;
         })
-        .filter(Boolean)
-        .join(', ');
+        .filter(Boolean) as string[];
 
-      if (codeBlocks.length === 0) {
-        return (
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
-                  <Zap className="h-2.5 w-2.5" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
-            </Tooltip>
+      const actionIcon = (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
+              <Zap className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
+        </Tooltip>
+      );
+
+      const rows: React.ReactNode[] = [];
+
+      for (let i = 0; i < toolEntries.length; i++) {
+        const isLast = i === toolEntries.length - 1 && codeBlocks.length === 0;
+        rows.push(
+          <div key={`tool-${i}`} className="flex items-center gap-2">
+            {actionIcon}
             <span className="text-muted-foreground min-w-0 truncate">
-              {toolNames && <HighlightText text={toolNames} term={searchTerm} />}
+              <HighlightText text={toolEntries[i]} term={searchTerm} />
             </span>
-            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-              {time}
-            </span>
+            {isLast && (
+              <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+                {time}
+              </span>
+            )}
           </div>
         );
       }
 
-      const codePreview = codeBlocks[0].code.trim().split('\n')[0];
-      const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
+      if (codeBlocks.length > 0) {
+        const codePreview = codeBlocks[0].code.trim().split('\n')[0];
+        const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
 
-      return (
-        <div
-          className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
-          onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
-        >
+        rows.push(
           <div
-            className={cn('flex items-center gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
-            onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
+            key="code"
+            className={cn('group rounded-sm transition-colors duration-150', isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
+            onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
           >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
-                  <Zap className="h-2.5 w-2.5" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">action</TooltipContent>
-            </Tooltip>
-            {!isCodeOpen && (
-              <span className="text-muted-foreground min-w-0 truncate">
-                {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
-                <span className="font-mono text-[10px]">{codePreview}</span>
-              </span>
-            )}
-            <ChevronRight
-              className={cn(
-                'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
-                isCodeOpen && 'rotate-90'
-              )}
-            />
-            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-              {time}
-            </span>
-          </div>
-          {isCodeOpen && codeBlocks.map((block, i) => (
-            <SyntaxHighlighter
-              key={i}
-              language={block.lang}
-              style={hlStyle}
-              customStyle={{
-                fontSize: '10px',
-                lineHeight: '1.4',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                margin: '4px 0 2px 0',
-              }}
+            <div
+              className={cn('flex items-center gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
+              onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
             >
-              {block.code.trim()}
-            </SyntaxHighlighter>
-          ))}
-        </div>
-      );
+              {actionIcon}
+              {!isCodeOpen && (
+                <span className="text-muted-foreground min-w-0 truncate">
+                  <span className="font-mono text-[10px]">{codePreview}</span>
+                </span>
+              )}
+              <ChevronRight
+                className={cn(
+                  'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
+                  isCodeOpen && 'rotate-90'
+                )}
+              />
+              <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+                {time}
+              </span>
+            </div>
+            {isCodeOpen && codeBlocks.map((block, i) => (
+              <SyntaxHighlighter
+                key={i}
+                language={block.lang}
+                style={hlStyle}
+                customStyle={{
+                  fontSize: '10px',
+                  lineHeight: '1.4',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  margin: '4px 0 2px 0',
+                }}
+              >
+                {block.code.trim()}
+              </SyntaxHighlighter>
+            ))}
+          </div>
+        );
+      }
+
+      return rows.length === 1 ? rows[0] : <>{rows}</>;
     };
 
     if (thinkingText) {
