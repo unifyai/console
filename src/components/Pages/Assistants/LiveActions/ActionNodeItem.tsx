@@ -1517,6 +1517,17 @@ function ToolLoopConversation({
     setIsOverflowing(el.scrollHeight > el.clientHeight);
   }, [logs, maxH]);
 
+  // Scroll to bottom on mount so the most recent events are visible first
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   React.useEffect(() => {
     if (!hoveredTcId || !contentRef.current) {
       setBracketGeom(null);
@@ -2297,11 +2308,25 @@ export function ActionNodeItem({
       )}
 
       {/* Merged timeline: ToolLoop messages and inline child nodes in strict
-          chronological order. Promoted request/response logs are filtered out. */}
+          chronological order. Promoted request/response logs are filtered out.
+          Running nodes use LiveToolLoopTimeline for auto-scroll-to-bottom. */}
       {useTimeline &&
         (() => {
           const filtered = mergedLogs.filter((l) => !promotedLogIds.has(l.id));
           if (filtered.length === 0) return null;
+
+          if (node.status === 'running') {
+            return (
+              <LiveToolLoopTimeline
+                logs={filtered}
+                depth={depth}
+                searchTerm={searchTerm}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
+              />
+            );
+          }
+
           if (node.persist) {
             return (
               <ToolLoopConversation
@@ -2313,6 +2338,7 @@ export function ActionNodeItem({
               />
             );
           }
+
           return (
             <CollapsibleToolLoopSection
               logs={filtered}
