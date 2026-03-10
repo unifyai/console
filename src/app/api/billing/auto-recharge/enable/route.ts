@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enableAutoRecharge } from '@/lib/user/billing/billing';
-import { getWorkspaceBillingContext } from '../../../_utils/auth';
+import { getCurrentUser } from '@/lib/user/user';
+import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
+/**
+ * POST: Toggle auto-recharge on/off for the active workspace's billing account.
+ *
+ * Delegates to backend PUT /billing/auto-recharge with only the enabled flag.
+ * Threshold and qty are left unchanged.
+ */
 export async function POST(request: NextRequest) {
-  const ctx = await getWorkspaceBillingContext();
+  const user = await getCurrentUser();
 
-  if (!ctx) {
+  if (!user || !user.apiKey) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
@@ -17,16 +23,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
     }
 
-    const entityParams =
-      ctx.type === 'organization'
-        ? { organizationId: ctx.organizationId }
-        : { userId: ctx.userId };
-
-    await enableAutoRecharge(enabled, entityParams);
+    const client = await getOrchestraUserClient(user.apiKey);
+    await client.put('/billing/auto-recharge', { enabled });
 
     return NextResponse.json({ message: 'Auto-recharge status updated successfully' });
-  } catch (error) {
-    console.error('Error updating auto-recharge status:', error);
-    return NextResponse.json({ error: 'Error updating auto-recharge status' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error updating auto-recharge status:', error?.response?.data || error);
+    const status = error?.response?.status || 500;
+    const detail =
+      error?.response?.data?.detail || 'Error updating auto-recharge status';
+    return NextResponse.json({ error: detail }, { status });
   }
 }
