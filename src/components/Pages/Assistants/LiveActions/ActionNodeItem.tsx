@@ -37,6 +37,7 @@ import {
   ArrowDown,
   ArrowUp,
   CornerDownLeft,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -57,6 +58,7 @@ const SHOW_EXECUTE_CODE_CONTENT = true;
 
 interface BracketGeom {
   topY: number;
+  midYs: number[];
   bottomY: number;
   barX: number;
   lineWidth: number;
@@ -92,6 +94,21 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           background: bg,
         }}
       />
+      {/* middle horizontal bars (nest rows) */}
+      {geom.midYs.map((midY, i) => (
+        <div
+          key={i}
+          className="pointer-events-none"
+          style={{
+            position: 'absolute',
+            top: midY - 1,
+            left: geom.barX,
+            width: geom.lineWidth,
+            height: 1,
+            background: bg,
+          }}
+        />
+      ))}
       {/* bottom horizontal */}
       <div
         className="pointer-events-none"
@@ -146,7 +163,17 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   const barX = iconLeftEdge - 6;
   const lineWidth = iconLeftEdge - barX;
 
-  return { topY, bottomY, barX, lineWidth };
+  const nestEls = container.querySelectorAll<HTMLElement>(
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="nest"]`
+  );
+  const midYs: number[] = [];
+  nestEls.forEach((el) => {
+    const center = findIconCenter(el, containerRect);
+    if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
+  });
+  midYs.sort((a, b) => a - b);
+
+  return { topY, midYs, bottomY, barX, lineWidth };
 }
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
@@ -285,6 +312,58 @@ function formatCompactDuration(ms: number): string {
   if (hrs < 24) return `${hrs.toFixed(1)}h`;
   const days = hrs / 24;
   return `${days.toFixed(1)}d`;
+}
+
+/**
+ * Create a synthetic ToolLoopLog that wraps a child ActionNode so it can
+ * be rendered inline among regular ToolLoop messages.
+ */
+function makeSyntheticLog(child: ActionNode, toolCallId: string | null): ToolLoopLog {
+  return {
+    id: hashStringToInt(child.id),
+    ts: child.startTime,
+    entries: {
+      message: { role: 'system', content: child.displayLabel || child.label },
+      method: '',
+      hierarchy: child.hierarchy,
+      hierarchyLabel: child.hierarchyLabel,
+      eventTimestamp: child.startTime,
+    },
+    syntheticChildNode: child,
+    syntheticToolCallId: toolCallId,
+  };
+}
+
+function hashStringToInt(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  }
+  return hash < 0 ? -hash : hash;
+}
+
+/**
+ * Scan backwards through already-placed logs to find the tool_call_id of
+ * the execute_function / execute_code call that spawned this child node.
+ * Matches by comparing the child's hierarchy segment (which encodes the
+ * function name) against tool call names and their aliases.
+ */
+function findSpawningToolCallId(precedingLogs: ToolLoopLog[], child: ActionNode): string | null {
+  const lastSeg = child.hierarchy[child.hierarchy.length - 1] || '';
+  for (let i = precedingLogs.length - 1; i >= 0; i--) {
+    const msg = precedingLogs[i].entries.message;
+    if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+    for (const tc of msg.toolCalls) {
+      if (lastSeg.includes(tc.function.name)) return tc.id;
+      try {
+        const args = JSON.parse(tc.function.arguments);
+        if (args.function_name && lastSeg.includes(args.function_name)) return tc.id;
+      } catch {
+        /* skip */
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -774,6 +853,7 @@ function ToolCallRow({
 
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
+ * When log._actionNode is set, renders an inline child node row instead.
  */
 function ToolLoopMessage({
   log,
@@ -781,12 +861,16 @@ function ToolLoopMessage({
   onTcHover,
   hoveredTcId,
   onLayoutChange,
+  assistantId,
+  getToolLoopEvents,
 }: {
   log: ToolLoopLog;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
   onLayoutChange?: () => void;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
@@ -797,6 +881,10 @@ function ToolLoopMessage({
   const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
   const textContent = extractTextContent(message.content);
+  const [childLogsOpen, setChildLogsOpen] = React.useState(false);
+  const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
+  const [childLoading, setChildLoading] = React.useState(false);
+  const childFetchedRef = React.useRef(false);
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
@@ -810,6 +898,124 @@ function ToolLoopMessage({
     ro.observe(el);
     return () => ro.disconnect();
   }, [textContent, isOpen]);
+
+  // Inline child node — renders as a one-liner that expands to show its own ToolLoop
+  if (log.syntheticChildNode) {
+    const child = log.syntheticChildNode;
+    const tcId = log.syntheticToolCallId ?? null;
+    const isHighlighted = tcId != null && hoveredTcId === tcId;
+    const childLabel = child.displayLabel || child.label;
+    const childTime = formatEventTime(child.startTime);
+    const canExpand = !!(getToolLoopEvents && assistantId);
+
+    const duration = (() => {
+      const startMs = child.startTime ? new Date(child.startTime).getTime() : 0;
+      if (!startMs) return '';
+      const endMs = child.endTime ? new Date(child.endTime).getTime() : 0;
+      if (!endMs) return '';
+      const elapsed = Math.max(0, endMs - startMs);
+      return elapsed > 0 ? formatCompactDuration(elapsed) : '';
+    })();
+
+    const handleChildToggle = () => {
+      if (!canExpand) return;
+      const opening = !childLogsOpen;
+      setChildLogsOpen(opening);
+      onLayoutChange?.();
+
+      if (opening && !childFetchedRef.current) {
+        childFetchedRef.current = true;
+        setChildLoading(true);
+        getToolLoopEvents!(
+          assistantId!,
+          child.hierarchy,
+          null,
+          child.startTime || undefined,
+          child.endTime || undefined
+        )
+          .then((response) => {
+            if ('detail' in response) return;
+            const logs = (response.logs || []) as ToolLoopLog[];
+            setChildLogs(
+              logs.filter((l) => {
+                const m = l.entries.message as Record<string, unknown>;
+                if (m.role === 'system' && !m._steering) return false;
+                return !isToolLoopNoise(m);
+              })
+            );
+          })
+          .catch(() => {})
+          .finally(() => setChildLoading(false));
+      }
+    };
+
+    return (
+      <div
+        className={cn(
+          'group rounded-sm transition-colors duration-150',
+          canExpand && !childLogsOpen && 'hover:bg-muted/40 cursor-pointer',
+          isHighlighted && 'bg-muted/40'
+        )}
+        data-tc-id={tcId ?? undefined}
+        data-tc-role="nest"
+        onMouseEnter={tcId ? () => onTcHover?.(tcId) : undefined}
+        onMouseLeave={tcId ? () => onTcHover?.(null) : undefined}
+      >
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            childLogsOpen && canExpand && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+          )}
+          onClick={canExpand ? handleChildToggle : undefined}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="shrink-0 text-indigo-500/70 dark:text-indigo-400/60">
+                <ArrowRight className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              nested action
+            </TooltipContent>
+          </Tooltip>
+          <span className="min-w-0 truncate text-muted-foreground">{childLabel}</span>
+          {duration && (
+            <span className="text-muted-foreground/40 shrink-0 text-[10px] tabular-nums">
+              · {duration}
+            </span>
+          )}
+          {canExpand && (
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+                childLogsOpen && 'rotate-90'
+              )}
+            />
+          )}
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {childTime}
+          </span>
+        </div>
+        {childLogsOpen && childLoading && (
+          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 pl-[18px] text-[11px]">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Loading...</span>
+          </div>
+        )}
+        {childLogsOpen && childLogs.length > 0 && (
+          <div className="pl-[18px]">
+            <ToolLoopConversation
+              logs={childLogs}
+              depth={0}
+              searchTerm={searchTerm}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
@@ -1197,10 +1403,14 @@ function ToolLoopConversation({
   logs,
   depth,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1263,6 +1473,8 @@ function ToolLoopConversation({
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
               onLayoutChange={signalLayoutChange}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
@@ -1293,10 +1505,14 @@ function LiveToolLoopTimeline({
   logs,
   depth,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1359,6 +1575,8 @@ function LiveToolLoopTimeline({
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
               onLayoutChange={signalLayoutChange}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
@@ -1500,12 +1718,16 @@ function CollapsibleToolLoopSection({
   defaultOpen = false,
   sectionToggleSignal,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -1566,7 +1788,13 @@ function CollapsibleToolLoopSection({
           isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <ToolLoopConversation logs={logs} depth={depth} searchTerm={searchTerm} />
+        <ToolLoopConversation
+          logs={logs}
+          depth={depth}
+          searchTerm={searchTerm}
+          assistantId={assistantId}
+          getToolLoopEvents={getToolLoopEvents}
+        />
       </div>
     </div>
   );
@@ -1844,16 +2072,11 @@ export function ActionNodeItem({
 
   const showFallbackContent = isExpanded && contentReady && !canLoadToolLoop && !!fallbackContent;
 
-  // Build a strictly chronological timeline that interleaves ToolLoop segments
-  // and child nodes. Each child timestamp acts as a split point so ToolLoop
-  // events before it render above, after below.
-  type TimelineSegment =
-    | { kind: 'steps'; logs: ToolLoopLog[]; key: string }
-    | { kind: 'child'; node: ActionNode };
-
-  type TimelineEvent = { kind: 'child'; node: ActionNode; time: number };
-
-  const timeline = React.useMemo((): TimelineSegment[] => {
+  // Build a flat log list that interleaves real ToolLoop messages with
+  // synthetic entries for child nodes, positioned chronologically.
+  // Each child is correlated with the tool_call_id that spawned it by
+  // scanning preceding assistant messages for a matching tool call.
+  const mergedLogs = React.useMemo((): ToolLoopLog[] => {
     if (!hasToolLoopData && !hasChildren) return [];
 
     const visibleChildren = node.children.filter((c) =>
@@ -1862,73 +2085,47 @@ export function ActionNodeItem({
         : !!c.requestContent || (c.children?.length ?? 0) > 0 || c.status === 'running'
     );
 
-    const timelineEvents: TimelineEvent[] = visibleChildren
-      .map((c) => ({
-        kind: 'child' as const,
-        node: c,
-        time: new Date(c.startTime).getTime(),
-      }))
+    if (visibleChildren.length === 0) return effectiveLogs;
+    if (effectiveLogs.length === 0) {
+      return visibleChildren
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .map((child) => makeSyntheticLog(child, null));
+    }
+
+    const childEvents = visibleChildren
+      .map((c) => ({ node: c, time: new Date(c.startTime).getTime() }))
       .sort((a, b) => a.time - b.time);
 
-    if (!hasToolLoopData) {
-      return timelineEvents.map((evt) => ({ kind: 'child' as const, node: evt.node }));
-    }
-
-    if (timelineEvents.length === 0) {
-      return [{ kind: 'steps' as const, logs: effectiveLogs, key: 'all' }];
-    }
-
-    const result: TimelineSegment[] = [];
+    const result: ToolLoopLog[] = [];
     let logIdx = 0;
 
-    for (const evt of timelineEvents) {
-      const segment: ToolLoopLog[] = [];
-
+    for (const evt of childEvents) {
       while (logIdx < effectiveLogs.length) {
-        if (
-          new Date(
-            effectiveLogs[logIdx].entries.eventTimestamp || effectiveLogs[logIdx].ts
-          ).getTime() < evt.time
-        ) {
-          segment.push(effectiveLogs[logIdx]);
+        const logTime = new Date(
+          effectiveLogs[logIdx].entries.eventTimestamp || effectiveLogs[logIdx].ts
+        ).getTime();
+        if (logTime < evt.time) {
+          result.push(effectiveLogs[logIdx]);
           logIdx++;
         } else {
           break;
         }
       }
-
-      if (segment.length > 0) {
-        result.push({ kind: 'steps', logs: segment, key: `pre-${evt.node.id}` });
-      }
-
-      result.push({ kind: 'child', node: evt.node });
+      const tcId = findSpawningToolCallId(result, evt.node);
+      result.push(makeSyntheticLog(evt.node, tcId));
     }
 
-    if (logIdx < effectiveLogs.length) {
-      result.push({
-        kind: 'steps',
-        logs: effectiveLogs.slice(logIdx),
-        key: 'post',
-      });
+    while (logIdx < effectiveLogs.length) {
+      result.push(effectiveLogs[logIdx]);
+      logIdx++;
     }
 
-    // Merge consecutive step sections so that adjacent ToolLoop segments
-    // (with no child between them) appear as a single block.
-    const merged: TimelineSegment[] = [];
-    for (const seg of result) {
-      const last = merged[merged.length - 1];
-      if (seg.kind === 'steps' && last?.kind === 'steps') {
-        last.logs = [...last.logs, ...seg.logs];
-      } else {
-        merged.push(seg);
-      }
-    }
-
-    return merged;
+    return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [hasToolLoopData, hasChildren, effectiveLogs, childCount]);
 
-  const useTimeline = isExpanded && contentReady && hasToolLoopData;
+  const hasMergedData = mergedLogs.length > 0;
+  const useTimeline = isExpanded && contentReady && hasMergedData;
 
   const NodeIcon = getNodeIcon(node.displayLabel);
   const isMatch = !!matchedIds && matchedIds.has(node.id);
@@ -2030,88 +2227,34 @@ export function ActionNodeItem({
         />
       )}
 
-      {/* Interleaved timeline: ToolLoop segments and children in strict
-          chronological order. Promoted request/response logs are filtered
-          out since they're shown above. */}
+      {/* Merged timeline: ToolLoop messages and inline child nodes in strict
+          chronological order. Promoted request/response logs are filtered out. */}
       {useTimeline &&
-        timeline.map((segment) => {
-          if (segment.kind === 'steps') {
-            const filtered = segment.logs.filter((l) => !promotedLogIds.has(l.id));
-            if (filtered.length === 0) return null;
-            if (node.persist) {
-              return (
-                <ToolLoopConversation
-                  key={segment.key}
-                  logs={filtered}
-                  depth={depth}
-                  searchTerm={searchTerm}
-                />
-              );
-            }
+        (() => {
+          const filtered = mergedLogs.filter((l) => !promotedLogIds.has(l.id));
+          if (filtered.length === 0) return null;
+          if (node.persist) {
             return (
-              <CollapsibleToolLoopSection
-                key={segment.key}
+              <ToolLoopConversation
                 logs={filtered}
                 depth={depth}
-                sectionToggleSignal={sectionToggleSignal}
                 searchTerm={searchTerm}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
               />
             );
           }
           return (
-            <div key={segment.node.id} className="relative">
-              <div
-                className="absolute bottom-0 left-[7px] top-0 w-px bg-border"
-                style={{ marginLeft: depth > 0 ? `${depth * 16 + 12}px` : '0' }}
-              />
-              <ActionNodeItem
-                node={segment.node}
-                depth={depth + 1}
-                defaultExpanded={defaultExpanded}
-                expandedNodeIds={expandedNodeIds}
-                onExpandedChange={onExpandedChange}
-                assistantId={assistantId}
-                getToolLoopEvents={getToolLoopEvents}
-                loadChildren={loadChildren}
-                sectionToggleSignal={sectionToggleSignal}
-                matchedIds={matchedIds}
-                searchTerm={searchTerm}
-              />
-            </div>
-          );
-        })}
-
-      {/* Standard children rendering — while running (no ToolLoop yet) or
-          for completed nodes without ToolLoop data. */}
-      {!useTimeline && contentReady && hasChildren && (
-        <div
-          className={cn(
-            'relative overflow-hidden transition-all duration-200 ease-out',
-            isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
-          )}
-        >
-          <div
-            className="absolute bottom-2 left-[7px] top-0 w-px bg-border"
-            style={{ marginLeft: depth > 0 ? `${depth * 16 + 12}px` : '0' }}
-          />
-          {node.children.map((child) => (
-            <ActionNodeItem
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              defaultExpanded={defaultExpanded}
-              expandedNodeIds={expandedNodeIds}
-              onExpandedChange={onExpandedChange}
+            <CollapsibleToolLoopSection
+              logs={filtered}
+              depth={depth}
+              sectionToggleSignal={sectionToggleSignal}
+              searchTerm={searchTerm}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
-              loadChildren={loadChildren}
-              sectionToggleSignal={sectionToggleSignal}
-              matchedIds={matchedIds}
-              searchTerm={searchTerm}
             />
-          ))}
-        </div>
-      )}
+          );
+        })()}
 
       {/* Children loading indicator — shown while content isn't ready */}
       {isExpanded && !contentReady && (
