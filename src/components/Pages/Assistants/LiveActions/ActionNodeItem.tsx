@@ -426,7 +426,7 @@ function isLikelyJson(text: string): boolean {
 const markdownComponents = {
   p: ({ children }: any) => <p className="my-0.5 whitespace-pre-wrap break-words">{children}</p>,
   pre: ({ children }: any) => (
-    <pre className="bg-muted/50 my-1 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0">
+    <pre className="bg-muted/50 my-1 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0">
       {children}
     </pre>
   ),
@@ -597,7 +597,7 @@ function RichContent({ content }: { content: string }) {
 
       if (!hasCodeBlocks) {
         return (
-          <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+          <pre className="bg-muted/50 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed">
             <code>{formatted}</code>
           </pre>
         );
@@ -606,7 +606,7 @@ function RichContent({ content }: { content: string }) {
       const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
 
       return (
-        <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+        <pre className="bg-muted/50 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed">
           {segments.map((seg, i) =>
             seg.kind === 'text' ? (
               <code key={i}>{seg.text}</code>
@@ -847,7 +847,7 @@ function ToolCallRow({
       </div>
       {isOpen && formattedArgs && (
         <pre
-          className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+          className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
           onClick={() => {
             setIsOpen(false);
             onLayoutChange?.();
@@ -1387,7 +1387,7 @@ function ToolLoopMessage({
                 const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
                 return (
                   <pre
-                    className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+                    className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
                     onClick={() => {
                       setIsOpen(false);
                       onLayoutChange?.();
