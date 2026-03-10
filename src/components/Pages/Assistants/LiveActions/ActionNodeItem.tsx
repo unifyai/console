@@ -699,9 +699,15 @@ function ToolLoopMessage({
   React.useEffect(() => {
     const el = collapsedContentRef.current;
     if (!el) return;
-    const elText = el.textContent || '';
-    setIsTruncated(elText.includes('\n') || el.scrollWidth > el.clientWidth);
-  }, [textContent]);
+    const check = () => {
+      const elText = el.textContent || '';
+      setIsTruncated(elText.includes('\n') || el.scrollWidth > el.clientWidth);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [textContent, isOpen]);
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
