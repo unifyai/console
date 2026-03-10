@@ -72,7 +72,7 @@ export interface BillingAddress {
 }
 
 export interface BillingProfileData {
-  individualName: string;
+  name: string;
   billingEmail: string;
   taxId: string;
   taxIdType: string;
@@ -81,8 +81,7 @@ export interface BillingProfileData {
 
 /** Billing profile response (camelCase — casing handled by interceptor). */
 export interface BillingProfileApiResponse {
-  individualName?: string;
-  businessName?: string;
+  name?: string;
   billingEmail?: string;
   taxId?: string;
   taxIdType?: string;

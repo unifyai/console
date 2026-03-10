@@ -80,7 +80,7 @@ export function useBillingProfile(
     if (!profile) return undefined;
     const addr = profile.billingAddress;
     return {
-      individualName: profile.individualName || '',
+      name: profile.name || '',
       billingEmail: profile.billingEmail || '',
       taxId: profile.taxId || '',
       taxIdType: profile.taxIdType || '',

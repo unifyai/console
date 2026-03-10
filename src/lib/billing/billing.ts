@@ -148,7 +148,7 @@ export const updateProfile = async (apiKey: string) => {
       // Build payload — the axios interceptor handles camelCase → snake_case.
       // Only include fields that have actual values (strip empty strings).
       const payload: Record<string, unknown> = {};
-      if (data.individualName) payload.individualName = data.individualName;
+      if (data.name) payload.name = data.name;
       if (data.billingEmail) payload.billingEmail = data.billingEmail;
       if (data.taxId) payload.taxId = data.taxId;
       if (data.taxIdType) payload.taxIdType = data.taxIdType;

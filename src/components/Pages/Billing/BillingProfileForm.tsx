@@ -46,7 +46,7 @@ interface BillingProfileFormHandle {
 const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFormProps>(
   ({ actions, onSubmit, onValidationChange, onCancel, isLoading, error, initialData }, ref) => {
     const [formData, setFormData] = useState<BillingProfileData>({
-      individualName: '',
+      name: '',
       billingEmail: '',
       taxId: '',
       taxIdType: '',
@@ -195,7 +195,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
     // ── Validation ───────────────────────────────────────────────────────
     const isFormValid = useCallback(() => {
       // Name is the only strictly required field
-      if (!formData.individualName.trim()) return false;
+      if (!formData.name.trim()) return false;
       // If a tax ID is entered, it should be valid
       if (formData.taxId && taxIdValidation && !taxIdValidation.valid) return false;
       return true;
@@ -217,8 +217,8 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
           </Label>
           <Input
             id="billingName"
-            value={formData.individualName}
-            onChange={(e) => handleInputChange('individualName', e.target.value)}
+            value={formData.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
             placeholder="Your name or business name"
             required
             className="h-10"
