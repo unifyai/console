@@ -682,6 +682,7 @@ function ToolCallRow({
   searchTerm,
   onTcHover,
   hoveredTcId,
+  onLayoutChange,
 }: {
   entry: { label: string; toolCallId: string; arguments: string };
   time: string;
@@ -689,6 +690,7 @@ function ToolCallRow({
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
+  onLayoutChange?: () => void;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -714,7 +716,14 @@ function ToolCallRow({
       )}
       data-tc-id={entry.toolCallId}
       data-tc-role="call"
-      onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
+      onClick={
+        !isOpen && canExpand
+          ? () => {
+              setIsOpen(true);
+              onLayoutChange?.();
+            }
+          : undefined
+      }
       onMouseEnter={() => onTcHover?.(entry.toolCallId)}
       onMouseLeave={() => onTcHover?.(null)}
     >
@@ -723,7 +732,14 @@ function ToolCallRow({
           'flex items-center gap-2',
           isOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
         )}
-        onClick={isOpen ? () => setIsOpen(false) : undefined}
+        onClick={
+          isOpen
+            ? () => {
+                setIsOpen(false);
+                onLayoutChange?.();
+              }
+            : undefined
+        }
       >
         {actionIcon}
         <span className="min-w-0 truncate text-muted-foreground">
@@ -744,7 +760,10 @@ function ToolCallRow({
       {isOpen && formattedArgs && (
         <pre
           className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
-          onClick={() => setIsOpen(false)}
+          onClick={() => {
+            setIsOpen(false);
+            onLayoutChange?.();
+          }}
         >
           {formattedArgs}
         </pre>
@@ -761,11 +780,13 @@ function ToolLoopMessage({
   searchTerm,
   onTcHover,
   hoveredTcId,
+  onLayoutChange,
 }: {
   log: ToolLoopLog;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
+  onLayoutChange?: () => void;
 }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
@@ -934,6 +955,7 @@ function ToolLoopMessage({
             searchTerm={searchTerm}
             onTcHover={onTcHover}
             hoveredTcId={hoveredTcId}
+            onLayoutChange={onLayoutChange}
           />
         );
       }
@@ -950,7 +972,14 @@ function ToolLoopMessage({
               isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer',
               hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40'
             )}
-            onClick={!isCodeOpen ? () => setIsCodeOpen(true) : undefined}
+            onClick={
+              !isCodeOpen
+                ? () => {
+                    setIsCodeOpen(true);
+                    onLayoutChange?.();
+                  }
+                : undefined
+            }
             data-tc-id={codeBlocks[0].toolCallId}
             data-tc-role="call"
             onMouseEnter={() => onTcHover?.(codeBlocks[0].toolCallId)}
@@ -961,7 +990,14 @@ function ToolLoopMessage({
                 'flex items-center gap-2',
                 isCodeOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
               )}
-              onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
+              onClick={
+                isCodeOpen
+                  ? () => {
+                      setIsCodeOpen(false);
+                      onLayoutChange?.();
+                    }
+                  : undefined
+              }
             >
               {actionIcon}
               {!isCodeOpen && (
@@ -1047,7 +1083,14 @@ function ToolLoopMessage({
           !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
           tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40'
         )}
-        onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
+        onClick={
+          !isOpen && canExpand
+            ? () => {
+                setIsOpen(true);
+                onLayoutChange?.();
+              }
+            : undefined
+        }
         {...(tcResultId
           ? {
               'data-tc-id': tcResultId,
@@ -1062,7 +1105,14 @@ function ToolLoopMessage({
             'flex items-start gap-2',
             isOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
           )}
-          onClick={isOpen ? () => setIsOpen(false) : undefined}
+          onClick={
+            isOpen
+              ? () => {
+                  setIsOpen(false);
+                  onLayoutChange?.();
+                }
+              : undefined
+          }
         >
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1106,7 +1156,10 @@ function ToolLoopMessage({
                 return (
                   <pre
                     className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      setIsOpen(false);
+                      onLayoutChange?.();
+                    }}
                   >
                     {lines.slice(1).join('\n')}
                   </pre>
@@ -1120,7 +1173,10 @@ function ToolLoopMessage({
             return (
               <div
                 className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  onLayoutChange?.();
+                }}
               >
                 <RichContent content={rest} />
               </div>
@@ -1151,6 +1207,8 @@ function ToolLoopConversation({
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
+  const [layoutGen, setLayoutGen] = React.useState(0);
+  const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
   React.useEffect(() => {
     const el = scrollRef.current;
@@ -1171,7 +1229,7 @@ function ToolLoopConversation({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId]);
+  }, [hoveredTcId, layoutGen]);
 
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
@@ -1204,6 +1262,7 @@ function ToolLoopConversation({
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
+              onLayoutChange={signalLayoutChange}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
@@ -1245,6 +1304,8 @@ function LiveToolLoopTimeline({
   const prevLogCountRef = React.useRef(0);
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
+  const [layoutGen, setLayoutGen] = React.useState(0);
+  const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
   // Detect manual scroll: mark as "scrolled up" if not near the bottom
   const handleScroll = React.useCallback(() => {
@@ -1277,7 +1338,7 @@ function LiveToolLoopTimeline({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId]);
+  }, [hoveredTcId, layoutGen]);
 
   const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
 
@@ -1297,6 +1358,7 @@ function LiveToolLoopTimeline({
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
+              onLayoutChange={signalLayoutChange}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
