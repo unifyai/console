@@ -787,11 +787,21 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   if (!content) return null;
 
   const preview = content.split(/\n\n|\n/)[0];
+  const contentRef = React.useRef<HTMLSpanElement>(null);
+  const hasMultipleLines = content.includes('\n');
+  const [isTruncated, setIsTruncated] = React.useState(hasMultipleLines);
+
+  React.useEffect(() => {
+    const el = contentRef.current;
+    if (el) setIsTruncated(hasMultipleLines || el.scrollWidth > el.clientWidth);
+  }, [content, hasMultipleLines]);
+
+  const canExpand = isTruncated;
 
   return (<>
     <div
-      className={cn('group rounded-sm transition-colors duration-150', isOpen ? '' : 'hover:bg-muted/40 cursor-pointer')}
-      onClick={!isOpen ? () => setIsOpen(true) : undefined}
+      className={cn('group rounded-sm transition-colors duration-150', !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer')}
+      onClick={!isOpen && canExpand ? () => setIsOpen(true) : undefined}
     >
       <div
         className={cn('flex items-start gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
@@ -805,15 +815,20 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
           </TooltipTrigger>
           <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">{label}</TooltipContent>
         </Tooltip>
-        <span className={cn('text-muted-foreground min-w-0', isOpen ? 'break-words' : 'truncate')}>
+        <span
+          ref={contentRef}
+          className={cn('text-muted-foreground min-w-0', isOpen ? 'break-words' : 'truncate')}
+        >
           {isOpen ? content : <TruncatedMarkdown content={preview} />}
         </span>
-        <ChevronRight
-          className={cn(
-            'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
-            isOpen && 'rotate-90'
-          )}
-        />
+        {canExpand && (
+          <ChevronRight
+            className={cn(
+              'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+              isOpen && 'rotate-90'
+            )}
+          />
+        )}
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
           {time}
         </span>
