@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiKeyFromRequest, unauthorized, internalError, getWorkspaceBillingContext } from '../../_utils/auth';
+import { getApiKeyFromRequest, unauthorized, internalError } from '../../_utils/auth';
 
 const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
 /**
  * Billing Profile API route
  *
- * Proxies GET and PATCH to the backend's billing-profile endpoints:
- * - Personal workspace: /v0/user/billing/billing-profile
- * - Organization workspace: /v0/organizations/{org_id}/billing/billing-profile
+ * Proxies GET and PATCH to the backend's unified billing-profile endpoint:
+ *   /v0/billing/billing-profile
  *
- * This replaces the old account-type + business-info + client-side Stripe sync flow
- * with a single backend-managed endpoint that handles all billing profile fields
- * and Stripe synchronisation.
+ * Context (personal vs org) is derived from the API key on the backend.
  */
 
-function buildUrl(ctx: NonNullable<Awaited<ReturnType<typeof getWorkspaceBillingContext>>>) {
-  if (ctx.type === 'organization' && ctx.organizationId) {
-    return `${ORCHESTRA_BASE_URL}/v0/organizations/${ctx.organizationId}/billing/billing-profile`;
-  }
-  return `${ORCHESTRA_BASE_URL}/v0/user/billing/billing-profile`;
+function buildUrl() {
+  return `${ORCHESTRA_BASE_URL}/v0/billing/billing-profile`;
 }
 
 /**
@@ -31,11 +25,8 @@ export async function GET(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
-  const ctx = await getWorkspaceBillingContext();
-  if (!ctx) return unauthorized('No workspace context');
-
   try {
-    const url = buildUrl(ctx);
+    const url = buildUrl();
     const res = await fetch(url, {
       method: 'GET',
       headers: {
@@ -68,12 +59,9 @@ export async function PATCH(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
-  const ctx = await getWorkspaceBillingContext();
-  if (!ctx) return unauthorized('No workspace context');
-
   try {
     const body = await request.json();
-    const url = buildUrl(ctx);
+    const url = buildUrl();
 
     const res = await fetch(url, {
       method: 'PATCH',
