@@ -760,18 +760,15 @@ function ToolLoopMessage({ log, searchTerm, onTcHover, hoveredTcId }: { log: Too
 
       for (let i = 0; i < toolEntries.length; i++) {
         const entry = toolEntries[i];
-        const isLast = i === toolEntries.length - 1 && codeBlocks.length === 0;
         rows.push(
           <div key={`tool-${i}`} className={cn('flex items-center gap-2', hoveredTcId && hoveredTcId === entry.toolCallId && 'bg-muted/40 rounded-sm')} data-tc-id={entry.toolCallId} data-tc-role="call" onMouseEnter={() => onTcHover?.(entry.toolCallId)} onMouseLeave={() => onTcHover?.(null)}>
             {actionIcon}
             <span className="text-muted-foreground min-w-0 truncate">
               <HighlightText text={entry.label} term={searchTerm} />
             </span>
-            {isLast && (
-              <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-                {time}
-              </span>
-            )}
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+              {time}
+            </span>
           </div>
         );
       }
