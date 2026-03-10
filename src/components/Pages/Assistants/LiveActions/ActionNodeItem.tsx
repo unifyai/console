@@ -62,51 +62,46 @@ const SHOW_EXECUTE_CODE_CONTENT = true;
 
 function useResizableHeight(defaultHeight: number, minHeight = 40) {
   const [height, setHeight] = React.useState(defaultHeight);
-  const dragState = React.useRef<{ startY: number; startH: number } | null>(null);
+  const heightRef = React.useRef(height);
+  heightRef.current = height;
 
   const onPointerDown = React.useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-      dragState.current = { startY: e.clientY, startH: height };
-      const target = e.currentTarget as HTMLElement;
-      target.setPointerCapture(e.pointerId);
-    },
-    [height]
-  );
+      e.stopPropagation();
+      const startY = e.clientY;
+      const startH = heightRef.current;
 
-  const onPointerMove = React.useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragState.current) return;
-      const dy = e.clientY - dragState.current.startY;
-      setHeight(Math.max(minHeight, dragState.current.startH + dy));
+      const onMove = (ev: PointerEvent) => {
+        ev.preventDefault();
+        setHeight(Math.max(minHeight, startH + (ev.clientY - startY)));
+      };
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
     },
     [minHeight]
   );
 
-  const onPointerUp = React.useCallback(() => {
-    dragState.current = null;
-  }, []);
-
-  const handleProps = { onPointerDown, onPointerMove, onPointerUp };
-
-  return { height, handleProps } as const;
+  return { height, onPointerDown } as const;
 }
 
 function ResizeHandle({
-  handleProps,
+  onPointerDown,
   paddingLeft,
 }: {
-  handleProps: {
-    onPointerDown: (e: React.PointerEvent) => void;
-    onPointerMove: (e: React.PointerEvent) => void;
-    onPointerUp: () => void;
-  };
+  onPointerDown: (e: React.PointerEvent) => void;
   paddingLeft?: string;
 }) {
   return (
     <div
-      {...handleProps}
-      className="group/resize relative z-20 -mt-1 flex h-2 cursor-row-resize touch-none select-none items-center"
+      onPointerDown={onPointerDown}
+      className="group/resize z-20 flex h-1 cursor-row-resize touch-none select-none items-center"
       style={paddingLeft ? { paddingLeft } : undefined}
     >
       <div
@@ -807,7 +802,7 @@ function ContentArea({
 }) {
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const { height: maxH, handleProps } = useResizableHeight(defaultMaxHeight);
+  const { height: maxH, onPointerDown } = useResizableHeight(defaultMaxHeight);
 
   React.useEffect(() => {
     const el = contentRef.current;
@@ -854,7 +849,7 @@ function ContentArea({
         />
       )}
 
-      <ResizeHandle handleProps={handleProps} />
+      <ResizeHandle onPointerDown={onPointerDown} />
     </div>
   );
 }
@@ -1116,7 +1111,7 @@ function ToolLoopMessage({
               searchTerm={searchTerm}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
-              compact
+              nested
               onLayoutChange={onLayoutChange}
             />
           </div>
@@ -1539,7 +1534,7 @@ function ToolLoopConversation({
   searchTerm,
   assistantId,
   getToolLoopEvents,
-  compact,
+  nested,
   onLayoutChange: parentLayoutChange,
 }: {
   logs: ToolLoopLog[];
@@ -1547,7 +1542,7 @@ function ToolLoopConversation({
   searchTerm?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
-  compact?: boolean;
+  nested?: boolean;
   onLayoutChange?: () => void;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -1556,7 +1551,7 @@ function ToolLoopConversation({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
-  const { height: maxH, handleProps } = useResizableHeight(240);
+  const { height: maxH, onPointerDown } = useResizableHeight(240);
   const signalLayoutChange = React.useCallback(() => {
     setLayoutGen((n) => n + 1);
     parentLayoutChange?.();
@@ -1584,8 +1579,7 @@ function ToolLoopConversation({
 
   return (
     <div className="relative">
-      {/* Top fade — skip in compact mode (parent handles scroll) */}
-      {!compact && isOverflowing && (
+      {isOverflowing && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 rounded-t-md"
           style={{
@@ -1596,24 +1590,12 @@ function ToolLoopConversation({
         />
       )}
 
-      {/* Scrollable content — padding is inside the scroll container so
-          absolutely-positioned bracket lines in the left margin aren't clipped.
-          Compact mode (nested child) skips its own padding/scroll since the
-          parent container already handles both — this keeps the right edge
-          (and therefore timestamps) aligned at arbitrary nesting depths. */}
       <div
         ref={scrollRef}
-        className={cn(
-          'rounded-md text-[11px] leading-relaxed',
-          !compact && 'styled-scrollbar overflow-y-auto'
-        )}
-        style={
-          compact
-            ? { paddingLeft: pad }
-            : { maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }
-        }
+        className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
+        style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: nested ? 0 : '4px' }}
       >
-        <div ref={contentRef} className={cn('relative space-y-0.5', compact ? 'py-0.5' : 'py-3')}>
+        <div ref={contentRef} className={cn('relative space-y-0.5', nested ? 'pt-1' : 'py-3')}>
           {logs.map((log) => (
             <ToolLoopMessage
               key={log.id}
@@ -1630,19 +1612,7 @@ function ToolLoopConversation({
         </div>
       </div>
 
-      {/* Bottom fade — skip in compact mode (parent handles scroll) */}
-      {!compact && isOverflowing && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
-          style={{
-            marginLeft: pad,
-            marginRight: '8px',
-            background: 'linear-gradient(to top, var(--background), transparent)',
-          }}
-        />
-      )}
-
-      {!compact && <ResizeHandle handleProps={handleProps} paddingLeft={pad} />}
+      <ResizeHandle onPointerDown={onPointerDown} paddingLeft={pad} />
     </div>
   );
 }
@@ -1672,7 +1642,7 @@ function LiveToolLoopTimeline({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
-  const { height: maxH, handleProps } = useResizableHeight(260);
+  const { height: maxH, onPointerDown } = useResizableHeight(260);
   const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
   const handleScroll = React.useCallback(() => {
@@ -1733,18 +1703,7 @@ function LiveToolLoopTimeline({
         </div>
       </div>
 
-      {isUserScrolledUpRef.current && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
-          style={{
-            marginLeft: pad,
-            marginRight: '8px',
-            background: 'linear-gradient(to top, var(--background), transparent)',
-          }}
-        />
-      )}
-
-      <ResizeHandle handleProps={handleProps} paddingLeft={pad} />
+      <ResizeHandle onPointerDown={onPointerDown} paddingLeft={pad} />
     </div>
   );
 }
@@ -1773,7 +1732,7 @@ function PromotedContent({
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const { height: maxH, handleProps } = useResizableHeight(200);
+  const { height: maxH, onPointerDown } = useResizableHeight(200);
   const pad = `${20 + depth * 8}px`;
 
   React.useEffect(() => {
@@ -1853,7 +1812,7 @@ function PromotedContent({
               }}
             />
           )}
-          <ResizeHandle handleProps={handleProps} />
+          <ResizeHandle onPointerDown={onPointerDown} />
         </div>
       )}
     </div>
