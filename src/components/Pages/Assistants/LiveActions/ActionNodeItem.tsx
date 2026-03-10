@@ -997,13 +997,13 @@ function ToolLoopMessage({
           </span>
         </div>
         {childLogsOpen && childLoading && (
-          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 pl-[5px] text-[11px]">
+          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Loading...</span>
           </div>
         )}
         {childLogsOpen && childLogs.length > 0 && (
-          <div className="pl-[5px]">
+          <div>
             <ToolLoopConversation
               logs={childLogs}
               depth={0}
