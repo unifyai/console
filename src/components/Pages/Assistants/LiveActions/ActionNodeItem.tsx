@@ -17,6 +17,8 @@ import {
   Zap,
   SquareTerminal,
   Play,
+  Pause,
+  Square,
   Bookmark,
   Users,
   FileText,
@@ -31,6 +33,10 @@ import {
   MessageCircle,
   CircleDot,
   Loader2,
+  Brain,
+  ArrowDown,
+  ArrowUp,
+  CornerDownLeft,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -587,16 +593,19 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
     const action = String(msg._steeringAction || msg._steering_action || 'unknown');
-    const STEERING_STYLES: Record<string, { label: string; color: string }> = {
-      pause: { label: 'paused', color: 'text-amber-600/80 dark:text-amber-400/70' },
-      resume: { label: 'resumed', color: 'text-teal-600/80 dark:text-teal-400/70' },
-      stop: { label: 'stopped', color: 'text-rose-600/80 dark:text-rose-400/70' },
+    const STEERING_STYLES: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
+      pause: { label: 'paused', color: 'text-amber-600/80 dark:text-amber-400/70', Icon: Pause },
+      resume: { label: 'resumed', color: 'text-teal-600/80 dark:text-teal-400/70', Icon: Play },
+      stop: { label: 'stopped', color: 'text-rose-600/80 dark:text-rose-400/70', Icon: Square },
     };
-    const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70' };
+    const style = STEERING_STYLES[action] ?? { label: action, color: 'text-muted-foreground/70', Icon: CircleDot };
     const content = extractTextContent(message.content);
     return (
       <div className="flex gap-2">
-        <span className={cn('shrink-0 font-medium', style.color)}>{style.label}</span>
+        <span className={cn('flex shrink-0 items-center gap-1 font-medium', style.color)}>
+          <style.Icon className="h-2.5 w-2.5" />
+          {style.label}
+        </span>
         {content && <span className="text-muted-foreground/50 min-w-0 truncate">{content}</span>}
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
@@ -607,9 +616,10 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
 
   if (message.role === 'system') return null;
 
-  // Classify the message into label + color + content
+  // Classify the message into label + icon + color + content
   let label: string;
   let color: string;
+  let LabelIcon: LucideIcon = CircleDot;
   let content: string | null = null;
   let trailingCallLine: React.ReactNode = null;
 
@@ -617,6 +627,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
     const isInterjection = !!(msg._interjection || msg._Interjection);
     label = isInterjection ? 'interjection' : 'request';
     color = isInterjection ? 'text-blue-500/70 dark:text-blue-400/60' : 'text-blue-600/80 dark:text-blue-500/60';
+    LabelIcon = ArrowDown;
     content = extractTextContent(message.content);
   } else if (message.role === 'assistant') {
     // Check for thinking blocks first
@@ -672,7 +683,9 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       if (codeBlocks.length === 0) {
         return (
           <div className="flex gap-2">
-            <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
+            <span className="flex shrink-0 items-center gap-1 font-medium text-orange-600/80 dark:text-orange-500/60">
+              <Zap className="h-2.5 w-2.5" />action
+            </span>
             <span className="text-muted-foreground/70 min-w-0 truncate">
               {toolNames && <HighlightText text={toolNames} term={searchTerm} />}
             </span>
@@ -695,7 +708,9 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
             className={cn('flex gap-2', isCodeOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')}
             onClick={isCodeOpen ? () => setIsCodeOpen(false) : undefined}
           >
-            <span className="shrink-0 font-medium text-orange-600/80 dark:text-orange-500/60">action</span>
+            <span className="flex shrink-0 items-center gap-1 font-medium text-orange-600/80 dark:text-orange-500/60">
+              <Zap className="h-2.5 w-2.5" />action
+            </span>
             {!isCodeOpen && (
               <span className="text-muted-foreground/70 min-w-0 truncate">
                 {toolNames && <><HighlightText text={toolNames} term={searchTerm} />{' '}</>}
@@ -735,6 +750,7 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
     if (thinkingText) {
       label = 'thought';
       color = 'text-slate-500/80 dark:text-slate-400/50';
+      LabelIcon = Brain;
       content = thinkingText;
       if (hasToolCalls) trailingCallLine = renderCallLine();
     } else if (hasToolCalls) {
@@ -742,11 +758,13 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
     } else {
       label = 'response';
       color = 'text-emerald-600/80 dark:text-emerald-400/60';
+      LabelIcon = ArrowUp;
       content = extractTextContent(message.content);
     }
   } else if (message.role === 'tool') {
     label = 'result';
     color = 'text-violet-600/70 dark:text-violet-500/50';
+    LabelIcon = CornerDownLeft;
     content = extractTextContent(message.content);
   } else {
     return null;
@@ -765,7 +783,9 @@ function ToolLoopMessage({ log, searchTerm }: { log: ToolLoopLog; searchTerm?: s
       onClick={!isOpen ? () => setIsOpen(true) : undefined}
     >
       <div className={cn('flex gap-2', isOpen && 'cursor-pointer hover:bg-muted/40 rounded-sm')} onClick={isOpen ? () => setIsOpen(false) : undefined}>
-        <span className={cn('shrink-0 font-medium', color)}>{label}</span>
+        <span className={cn('flex shrink-0 items-center gap-1 font-medium', color)}>
+          <LabelIcon className="h-2.5 w-2.5" />{label}
+        </span>
         {!isOpen && (
           <span className="text-muted-foreground/50 min-w-0 truncate">
             <TruncatedMarkdown content={preview} />
