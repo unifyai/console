@@ -993,9 +993,6 @@ function ToolLoopMessage({
               {label}
             </TooltipContent>
           </Tooltip>
-          {isOpen && (
-            <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 rotate-90 opacity-0 transition-all duration-150 group-hover:opacity-100" />
-          )}
           {!isOpen && (
             <span ref={collapsedContentRef} className="min-w-0 truncate text-muted-foreground">
               <TruncatedMarkdown content={preview} />
