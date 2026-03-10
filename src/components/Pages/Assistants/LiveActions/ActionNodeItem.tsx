@@ -815,6 +815,7 @@ function ToolCallRow({
   entry,
   time,
   actionIcon,
+  isPending,
   searchTerm,
   onTcHover,
   hoveredTcId,
@@ -823,6 +824,7 @@ function ToolCallRow({
   entry: { label: string; toolCallId: string; arguments: string };
   time: string;
   actionIcon: React.ReactNode;
+  isPending?: boolean;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
@@ -887,7 +889,9 @@ function ToolCallRow({
         }
       >
         {actionIcon}
-        <span className="min-w-0 truncate text-muted-foreground">
+        <span
+          className={cn('min-w-0 truncate text-muted-foreground', isPending && 'animate-shimmer')}
+        >
           <HighlightText text={entry.label} term={searchTerm} />
         </span>
         {canExpand && (
@@ -924,6 +928,7 @@ function ToolCallRow({
 function ToolLoopMessage({
   log,
   isLatestLog,
+  resolvedToolCallIds,
   searchTerm,
   onTcHover,
   hoveredTcId,
@@ -933,6 +938,8 @@ function ToolLoopMessage({
 }: {
   log: ToolLoopLog;
   isLatestLog?: boolean;
+  /** Tool call IDs that already have a matching result in the logs. */
+  resolvedToolCallIds?: Set<string>;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
@@ -1040,7 +1047,14 @@ function ToolLoopMessage({
               nested action
             </TooltipContent>
           </Tooltip>
-          <span className="min-w-0 truncate text-muted-foreground">{childLabel}</span>
+          <span
+            className={cn(
+              'min-w-0 truncate text-muted-foreground',
+              child.status === 'running' && 'animate-shimmer'
+            )}
+          >
+            {childLabel}
+          </span>
           {canExpand && (
             <ChevronRight
               className={cn(
@@ -1245,12 +1259,14 @@ function ToolLoopMessage({
 
       for (let i = 0; i < toolEntries.length; i++) {
         const entry = toolEntries[i];
+        const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
         rows.push(
           <ToolCallRow
             key={`tool-${i}`}
             entry={entry}
             time={time}
             actionIcon={actionIcon}
+            isPending={pending}
             searchTerm={searchTerm}
             onTcHover={onTcHover}
             hoveredTcId={hoveredTcId}
@@ -1298,7 +1314,16 @@ function ToolLoopMessage({
               }
             >
               {actionIcon}
-              <span className="min-w-0 truncate text-muted-foreground">Run code</span>
+              <span
+                className={cn(
+                  'min-w-0 truncate text-muted-foreground',
+                  resolvedToolCallIds &&
+                    !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
+                    'animate-shimmer'
+                )}
+              >
+                Run code
+              </span>
               <ChevronRight
                 className={cn(
                   'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
@@ -1536,6 +1561,16 @@ function ToolLoopConversation({
     parentLayoutChange?.();
   }, [parentLayoutChange]);
 
+  const resolvedToolCallIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of logs) {
+      const m = l.entries.message as Record<string, unknown>;
+      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+      if (m.role === 'tool' && tcId) ids.add(tcId);
+    }
+    return ids;
+  }, [logs]);
+
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -1591,6 +1626,7 @@ function ToolLoopConversation({
               key={log.id}
               log={log}
               isLatestLog={idx === logs.length - 1}
+              resolvedToolCallIds={resolvedToolCallIds}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
@@ -1635,6 +1671,16 @@ function LiveToolLoopTimeline({
   const [layoutGen, setLayoutGen] = React.useState(0);
   const { height: maxH, onPointerDown } = useResizableHeight(260);
   const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
+
+  const resolvedToolCallIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of logs) {
+      const m = l.entries.message as Record<string, unknown>;
+      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+      if (m.role === 'tool' && tcId) ids.add(tcId);
+    }
+    return ids;
+  }, [logs]);
 
   const handleScroll = React.useCallback(() => {
     const el = scrollRef.current;
@@ -1683,6 +1729,7 @@ function LiveToolLoopTimeline({
               key={log.id}
               log={log}
               isLatestLog={idx === logs.length - 1}
+              resolvedToolCallIds={resolvedToolCallIds}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
