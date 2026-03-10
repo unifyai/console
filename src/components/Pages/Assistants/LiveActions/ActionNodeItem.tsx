@@ -713,8 +713,8 @@ function ContentArea({
     <div
       className="relative min-w-0"
       style={{
-        paddingLeft: `${28 + depth * 16}px`,
-        maxWidth: `calc(100% - ${depth * 16 + 16}px)`,
+        paddingLeft: `${14 + depth * 8}px`,
+        maxWidth: `calc(100% - ${depth * 8 + 8}px)`,
       }}
     >
       <div
@@ -742,7 +742,7 @@ function ContentArea({
         <div
           className="pointer-events-none absolute bottom-0 left-0 right-0 h-4"
           style={{
-            paddingLeft: `${28 + depth * 16}px`,
+            paddingLeft: `${14 + depth * 8}px`,
             background: 'linear-gradient(to bottom, transparent, var(--background))',
           }}
         />
@@ -997,13 +997,13 @@ function ToolLoopMessage({
           </span>
         </div>
         {childLogsOpen && childLoading && (
-          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 pl-[18px] text-[11px]">
+          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 pl-[9px] text-[11px]">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Loading...</span>
           </div>
         )}
         {childLogsOpen && childLogs.length > 0 && (
-          <div className="pl-[18px]">
+          <div className="pl-[9px]">
             <ToolLoopConversation
               logs={childLogs}
               depth={0}
@@ -1441,7 +1441,7 @@ function ToolLoopConversation({
     });
   }, [hoveredTcId, layoutGen]);
 
-  const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
+  const pad = depth > 0 ? `${depth * 8 + 18}px` : '18px';
 
   return (
     <div className="relative">
@@ -1556,7 +1556,7 @@ function LiveToolLoopTimeline({
     });
   }, [hoveredTcId, layoutGen]);
 
-  const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
+  const pad = depth > 0 ? `${depth * 8 + 18}px` : '18px';
 
   return (
     <div className="relative">
@@ -1622,7 +1622,7 @@ function PromotedContent({
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const pad = `${28 + depth * 16}px`;
+  const pad = `${14 + depth * 8}px`;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -1741,7 +1741,7 @@ function CollapsibleToolLoopSection({
     }
   }, [sectionToggleSignal]);
 
-  const pad = `${28 + depth * 16}px`;
+  const pad = `${14 + depth * 8}px`;
 
   const sectionDuration = React.useMemo(() => {
     if (logs.length < 2) return '';
@@ -2260,7 +2260,7 @@ export function ActionNodeItem({
       {isExpanded && !contentReady && (
         <div
           className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]"
-          style={{ paddingLeft: `${28 + depth * 16}px` }}
+          style={{ paddingLeft: `${14 + depth * 8}px` }}
         >
           <Loader2 className="h-3 w-3 animate-spin" />
           <span>Loading...</span>
