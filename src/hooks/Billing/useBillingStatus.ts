@@ -98,7 +98,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
     queryFn: fetchBillingStatus,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
-    refetchInterval: pollInterval,
+    refetchInterval: pollInterval || 60_000,
   });
 
   // Auto-stop polling once credits are reflected
