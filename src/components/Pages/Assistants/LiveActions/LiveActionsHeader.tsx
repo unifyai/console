@@ -169,7 +169,7 @@ export function LiveActionsHeader({
       </Popover>
 
       {/* Manual Refresh Button */}
-      {/* {onRefresh && (
+      {onRefresh && (
         <Button
           variant="outline"
           size="sm"
@@ -181,7 +181,7 @@ export function LiveActionsHeader({
         >
           <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
         </Button>
-      )} */}
+      )}
 
       {/* Search Input */}
       <div className="relative min-w-0 flex-1">

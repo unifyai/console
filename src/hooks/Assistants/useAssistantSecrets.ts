@@ -1,23 +1,31 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Secret, SecretPayload, SecretActions } from '@/types/assistants/secret';
+import {
+  Secret,
+  SecretPayload,
+  SecretUpdatePayload,
+  SecretActions,
+} from '@/types/assistants/secret';
 import { ResponseProps } from '@/types/common';
 
-export function useAssistantSecrets(
-  assistantId: string | null,
-  secretActions: SecretActions
-) {
+interface SecretFormData {
+  name: string;
+  value: string;
+  description: string;
+}
+
+export function useAssistantSecrets(assistantId: string | null, secretActions: SecretActions) {
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const formMethods = useForm<SecretPayload>({
+  const formMethods = useForm<SecretFormData>({
     defaultValues: { name: '', value: '', description: '' },
   });
-  const { reset, setValue } = formMethods;
+  const { reset } = formMethods;
 
   const fetchSecrets = React.useCallback(async () => {
     if (!assistantId) return;
@@ -47,7 +55,7 @@ export function useAssistantSecrets(
     if (selectedSecret) {
       reset({
         name: selectedSecret.name,
-        value: selectedSecret.value,
+        value: '',
         description: selectedSecret.description || '',
       });
     } else {
@@ -72,28 +80,60 @@ export function useAssistantSecrets(
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
-      await fetchSecrets(); // Refresh the list
+      await fetchSecrets();
     } catch (err: any) {
       toast.error(`Failed to delete secret. Please try again.`, { id: toastId });
     }
   };
 
-  const onSubmit = async (data: SecretPayload) => {
-    if (!assistantId || selectedSecret) return; // Only allow creation
+  const onSubmit = async (data: SecretFormData) => {
+    if (!assistantId) return;
 
     setIsSubmitting(true);
-    const toastId = toast.loading('Creating secret...');
 
-    try {
-      const result = await secretActions.create(assistantId, data);
-      if ('detail' in result) throw new Error((result as ResponseProps).detail);
+    if (selectedSecret) {
+      const toastId = toast.loading('Updating secret...');
+      try {
+        const payload: SecretUpdatePayload = {};
+        if (data.name !== selectedSecret.name) payload.name = data.name;
+        if (data.value) payload.value = data.value;
+        if (data.description !== (selectedSecret.description || ''))
+          payload.description = data.description;
 
-      toast.success('Secret created.', { id: toastId });
-      await fetchSecrets(); // Refresh and select the first secret
-    } catch (err: any) {
-      toast.error(`Failed to create secret. Please try again.`, { id: toastId });
-    } finally {
-      setIsSubmitting(false);
+        if (Object.keys(payload).length === 0) {
+          toast.dismiss(toastId);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const result = await secretActions.update(selectedSecret.logId, payload);
+        if ('detail' in result) throw new Error((result as ResponseProps).detail);
+
+        toast.success('Secret updated.', { id: toastId });
+        await fetchSecrets();
+      } catch (err: any) {
+        toast.error(`Failed to update secret. Please try again.`, { id: toastId });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      const toastId = toast.loading('Creating secret...');
+      try {
+        const payload: SecretPayload = {
+          name: data.name,
+          value: data.value,
+          description: data.description || undefined,
+        };
+        const result = await secretActions.create(assistantId, payload);
+        if ('detail' in result) throw new Error((result as ResponseProps).detail);
+
+        toast.success('Secret created.', { id: toastId });
+        await fetchSecrets();
+      } catch (err: any) {
+        toast.error(`Failed to create secret. Please try again.`, { id: toastId });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 

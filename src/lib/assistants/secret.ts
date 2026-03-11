@@ -1,6 +1,6 @@
 import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
-import { Secret, SecretPayload } from '@/types/assistants/secret';
+import { Secret, SecretPayload, SecretUpdatePayload } from '@/types/assistants/secret';
 import {
   buildUserIdFilter,
   buildAssistantIdFilter,
@@ -45,19 +45,13 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
   const { id, entries } = log;
   const numericId = parseInt(id, 10);
 
-  if (
-    isNaN(numericId) ||
-    !entries ||
-    typeof entries.name !== 'string' ||
-    typeof entries.value !== 'string'
-  ) {
+  if (isNaN(numericId) || !entries || typeof entries.name !== 'string') {
     console.warn('Skipping log due to missing, invalid, or non-numeric ID in secret data:', log);
     return null;
   }
   return {
     logId: numericId,
     name: entries.name,
-    value: entries.value,
     description: typeof entries.description === 'string' ? entries.description : undefined,
   };
 };
@@ -83,7 +77,7 @@ export const getSecrets = async (apiKey: string, userId: string, isOrgContext: b
       }
       securityFilters.push(buildAssistantIdFilter(assistantId));
       const securityFilter = combineFilters(securityFilters);
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}`;
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}&excludeFields=value`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey } });
 
@@ -150,6 +144,35 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
       return { info: 'Secret created successfully.' };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error creating secret.';
+      return { detail: message };
+    }
+  };
+};
+
+export const updateSecret = async (apiKey: string) => {
+  return async (logId: number, payload: SecretUpdatePayload): Promise<ResponseProps> => {
+    'use server';
+    try {
+      const body = {
+        logs: [logId],
+        entries: payload,
+        overwrite: true,
+      };
+
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
+        method: 'PUT',
+        headers: { apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return { detail: data.detail || `Failed to update secret: ${response.statusText}` };
+      }
+
+      return { info: 'Secret updated successfully.' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error updating secret.';
       return { detail: message };
     }
   };
