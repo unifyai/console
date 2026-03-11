@@ -137,6 +137,10 @@ start_orchestra() {
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
 
+  # Tell Orchestra where Console is running so Stripe checkout redirects
+  # (success_url / cancel_url) point to localhost instead of console.unify.ai
+  export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
+
   # When --stripe is requested, pass Stripe keys so Orchestra can create
   # checkout/portal sessions and process webhooks.
   if [[ "$with_stripe" == "true" ]]; then
