@@ -1,6 +1,5 @@
 import { ResponseProps } from '../common';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
-import { AssistantHiringApprovalResponse, HiringProfileData } from '../user';
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
@@ -458,11 +457,6 @@ export interface AssistantActions {
     fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
   };
   secret: SecretActions;
-  approval: {
-    getProfile: () => Promise<HiringProfileData | ResponseProps>;
-    requestAccess: () => Promise<AssistantHiringApprovalResponse>;
-    claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
-  };
   call: {
     getConnectionDetails: (
       assistantId: string,

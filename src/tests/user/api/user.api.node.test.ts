@@ -14,8 +14,6 @@ import {
   getTestApiKey,
   skipIfServerNotReachable,
   realTestOptions,
-  userApi,
-  ApiError,
 } from '../../assistants/api/fixtures/api-actions';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -156,34 +154,6 @@ describe('@real User Favourites Routes', () => {
   });
 });
 
-describe('@real User Assistant Hiring Approval Routes', () => {
-  beforeAll(async () => {
-    await skipIfServerNotReachable();
-  });
-
-  describe('POST /api/user/assistant-hiring-approval', () => {
-    it('@real requests hiring approval', realTestOptions, async () => {
-      try {
-        const result = await userApi.requestHiringApproval();
-
-        expect(result).toBeDefined();
-        expect(typeof result).toBe('object');
-      } catch (e) {
-        // May fail if already approved or other business logic
-        expect(e).toBeInstanceOf(ApiError);
-      }
-    });
-
-    it('@real returns 401 without API key', realTestOptions, async () => {
-      const res = await fetch(`${BASE_URL}/api/user/assistant-hiring-approval`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      expect(res.status).toBe(401);
-    });
-  });
-});
 
 describe('@real User Projects Routes', () => {
   beforeAll(async () => {

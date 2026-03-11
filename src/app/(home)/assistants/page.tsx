@@ -48,11 +48,6 @@ import {
 import { TaskActions } from '@/types/assistants/task';
 import { AssistantActions } from '@/types/assistants/assistant';
 import { redirect } from 'next/navigation';
-import {
-  fetchCurrentUserHiringProfile,
-  claimAssistantHiringToken,
-  requestAssistantHiringAccess,
-} from '@/lib/assistants/approval';
 import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
 import {
   getCallConnectionDetails,
@@ -79,7 +74,7 @@ import { getUserSpend, getUserSpendingLimit } from '@/lib/user/spending';
 import { getOrgSpend, getOrgSpendingLimit } from '@/lib/organizations/spending';
 import { cookies } from 'next/headers';
 
-const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
+const AssistantsPage = async () => {
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login?signout=true');
@@ -153,11 +148,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       update: await updateSecret(apiKey),
       delete: await deleteSecret(apiKey),
     },
-    approval: {
-      getProfile: await fetchCurrentUserHiringProfile(),
-      claimToken: await claimAssistantHiringToken(apiKey),
-      requestAccess: await requestAssistantHiringAccess(apiKey),
-    },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
       dispatchToCall: await dispatchAssistantToCall(apiKey),
@@ -212,7 +202,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
       <Main
         assistantActions={assistantActions}
         taskActions={taskActions}
-        oneTimeToken={searchParams?.token}
         userMeta={userMeta}
       />
     </div>

@@ -998,24 +998,6 @@ export const desktopApiExtended = {
 // User API Actions
 // ============================================
 
-export interface HiringApprovalResponse {
-  status?: string;
-  approved?: boolean;
-  message?: string;
-  detail?: string;
-}
-
-export const userApi = {
-  /**
-   * Request assistant hiring approval
-   */
-  async requestHiringApproval(apiKey?: string): Promise<HiringApprovalResponse> {
-    const endpoint = '/api/user/assistant-hiring-approval';
-    const res = await apiFetch(endpoint, { method: 'POST' }, apiKey);
-    return parseResponse<HiringApprovalResponse>(res, endpoint);
-  },
-};
-
 // ============================================
 // Admin API Actions
 // ============================================
