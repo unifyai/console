@@ -132,6 +132,28 @@ export function LiveActionsBody({
     }
   }, [roots, filteredRoots]);
 
+  // Observe inner content height changes (e.g. streaming ToolLoop events
+  // inside an expanded child) and keep the outer container pinned to the
+  // bottom. This covers growth that doesn't change the roots/filteredRoots
+  // references — such as liveToolLoopLogs mutations on child nodes.
+  const contentObserverRef = React.useRef<ResizeObserver | null>(null);
+  const hasRoots = roots.length > 0;
+  React.useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const content = container.firstElementChild as HTMLElement | null;
+    if (!content) return;
+
+    contentObserverRef.current = new ResizeObserver(() => {
+      if (isUserScrolledUpRef.current) return;
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    });
+    contentObserverRef.current.observe(content);
+    return () => contentObserverRef.current?.disconnect();
+  }, [hasRoots]);
+
   const hasSearchNoMatches = hasActiveSearch && filteredRoots.length === 0 && roots.length > 0;
 
   // No assistant selected state
