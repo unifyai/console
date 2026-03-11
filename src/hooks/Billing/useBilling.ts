@@ -116,6 +116,36 @@ export function useBilling(
     }
   }, [actions]);
 
+  // ── Initial data load ────────────────────────────────────────────────
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Load balance
+        setLoadingBalance(true);
+        await fetchBalance();
+
+        // Load auto-recharge settings + eligibility
+        const arResult = await actions.getAutoRecharge();
+        if (!isBillingError(arResult)) {
+          setAutoRechargeData(arResult);
+          setIsAutoRechargeEnabled(arResult.autoRechargeEnabled);
+          setMinBalance(arResult.autoRechargeThreshold.toString());
+          setRechargeAmount(arResult.autoRechargeQty.toString());
+          setInitialMinBalance(arResult.autoRechargeThreshold.toString());
+          setInitialRechargeAmount(arResult.autoRechargeQty.toString());
+        }
+      } catch (error) {
+        console.error('Failed to initialise billing page:', error);
+      } finally {
+        setLoadingBalance(false);
+        setDataLoaded(true);
+      }
+    };
+
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Checkout return handling ─────────────────────────────────────────
   useEffect(() => {
     const checkCheckoutReturn = async () => {
@@ -123,21 +153,31 @@ export function useBilling(
       if (!sessionId) return;
 
       let status: CheckoutStatus;
-      const result = await actions.getCheckoutStatus(sessionId);
+      try {
+        const result = await actions.getCheckoutStatus(sessionId);
 
-      if (isBillingError(result)) {
+        if (isBillingError(result)) {
+          status = {
+            message: result.detail || 'An error occurred while checking your payment status.',
+            type: 'error',
+          };
+        } else if (result.paymentStatus === 'paid') {
+          status = {
+            message: 'Payment successful! Your new balance will be reflected shortly.',
+            type: 'success',
+          };
+          // Refresh balance to show updated credits
+          await fetchBalance();
+        } else {
+          status = {
+            message: 'Your payment was not successful. Please try again.',
+            type: 'error',
+          };
+        }
+      } catch (error) {
+        console.error('Error checking checkout status:', error);
         status = {
-          message: result.detail || 'An error occurred while checking your payment status.',
-          type: 'error',
-        };
-      } else if (result.paymentStatus === 'paid') {
-        status = {
-          message: 'Payment successful! Your new balance will be reflected shortly.',
-          type: 'success',
-        };
-      } else {
-        status = {
-          message: 'Your payment was not successful. Please try again.',
+          message: 'An error occurred while checking your payment status.',
           type: 'error',
         };
       }
@@ -148,33 +188,7 @@ export function useBilling(
     };
 
     checkCheckoutReturn();
-  }, [searchParams, actions]);
-
-  // ── Initial data load ────────────────────────────────────────────────
-  useEffect(() => {
-    const init = async () => {
-      // Load balance
-      setLoadingBalance(true);
-      await fetchBalance();
-      setLoadingBalance(false);
-
-      // Load auto-recharge settings + eligibility
-      const arResult = await actions.getAutoRecharge();
-      if (!isBillingError(arResult)) {
-        setAutoRechargeData(arResult);
-        setIsAutoRechargeEnabled(arResult.autoRechargeEnabled);
-        setMinBalance(arResult.autoRechargeThreshold.toString());
-        setRechargeAmount(arResult.autoRechargeQty.toString());
-        setInitialMinBalance(arResult.autoRechargeThreshold.toString());
-        setInitialRechargeAmount(arResult.autoRechargeQty.toString());
-      }
-
-      setDataLoaded(true);
-    };
-
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, actions, fetchBalance]);
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleRefreshBalance = useCallback(async () => {
