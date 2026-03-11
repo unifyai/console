@@ -1873,9 +1873,15 @@ function PromotedContent({
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
+  const [isTruncated, setIsTruncated] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const inlineRef = React.useRef<HTMLSpanElement>(null);
+  const rowRef = React.useRef<HTMLDivElement>(null);
   const { height: maxH, onPointerDown } = useResizableHeight(200);
   const pad = `${20 + depth * 8}px`;
+
+  const hasMoreLines = content.includes('\n');
+  const canExpand = isTruncated || hasMoreLines;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -1884,15 +1890,43 @@ function PromotedContent({
     }
   }, [isOpen, content, maxH]);
 
+  React.useEffect(() => {
+    const el = inlineRef.current;
+    if (!el) return;
+    const check = () => {
+      const elText = el.textContent || '';
+      setIsTruncated(elText.includes('\n') || el.scrollWidth > el.clientWidth);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [content, isOpen]);
+
+  const handleClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+    } else if (!isOpen) {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    } else {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div
       className="group min-w-0 rounded-sm transition-colors duration-150"
       style={{ paddingLeft: pad }}
-      title={!isOpen ? 'Click to expand' : undefined}
     >
       <div
+        ref={rowRef}
         className="hover:bg-muted/40 flex cursor-pointer items-baseline gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={handleClick}
       >
         {Icon && (
           <Tooltip>
@@ -1907,68 +1941,71 @@ function PromotedContent({
           </Tooltip>
         )}
         {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
-        {!isOpen && (
-          <span className="min-w-0 truncate text-muted-foreground">
-            {searchTerm ? (
-              <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
-            ) : (
-              <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
-            )}
-          </span>
-        )}
-        <ChevronRight
-          className={cn(
-            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
-            isOpen && 'rotate-90'
+        <span
+          ref={inlineRef}
+          className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
+        >
+          {searchTerm ? (
+            <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
+          ) : (
+            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
           )}
-        />
-        {timestamp && (
+        </span>
+        {!isOpen && canExpand && (
+          <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
+        )}
+        {!isOpen && timestamp && (
           <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
             {timestamp}
           </span>
         )}
       </div>
-      {isOpen && (
-        <div className="relative" style={{ maxWidth: `calc(100% - 8px)` }}>
-          {isOverflowing && (
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
-              style={{
-                background: 'linear-gradient(to top, transparent, var(--background))',
-              }}
-            />
-          )}
-          <div
-            ref={contentRef}
-            className={cn(
-              'overflow-y-auto py-1 text-[11px] leading-relaxed text-muted-foreground',
-              'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
-            )}
-            style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
-            }}
-          >
-            {searchTerm ? (
-              <HighlightText text={content} term={searchTerm} />
-            ) : (
-              <RichContent content={content} />
-            )}
-          </div>
-          {isOverflowing && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
-              style={{
-                background: 'linear-gradient(to bottom, transparent, var(--background))',
-              }}
-            />
-          )}
-          <ResizeHandle onPointerDown={onPointerDown} />
-        </div>
-      )}
+      {isOpen &&
+        (() => {
+          const rest = content.split(/\n/).slice(1).join('\n').trim();
+          if (!rest) return null;
+          return (
+            <div className="relative" style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}>
+              {isOverflowing && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
+                  style={{
+                    background: 'linear-gradient(to top, transparent, var(--background))',
+                  }}
+                />
+              )}
+              <div
+                ref={contentRef}
+                className={cn(
+                  'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
+                  'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
+                )}
+                style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
+                }}
+              >
+                {searchTerm ? (
+                  <HighlightText text={rest} term={searchTerm} />
+                ) : (
+                  <RichContent content={rest} />
+                )}
+              </div>
+              {isOverflowing && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
+                  style={{
+                    background: 'linear-gradient(to bottom, transparent, var(--background))',
+                  }}
+                />
+              )}
+              <ResizeHandle onPointerDown={onPointerDown} />
+            </div>
+          );
+        })()}
     </div>
   );
 }
