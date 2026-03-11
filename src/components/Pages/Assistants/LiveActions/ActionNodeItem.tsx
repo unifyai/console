@@ -84,9 +84,14 @@ function rewriteCheckStatusResults(logs: ToolLoopLog[]): ToolLoopLog[] {
   const toolNameByCallId = new Map<string, string>();
   for (const l of logs) {
     const m = l.entries.message;
-    if (m.role === 'assistant' && m.toolCalls) {
-      for (const tc of m.toolCalls) {
-        if (tc.id && tc.function?.name) toolNameByCallId.set(tc.id, tc.function.name);
+    const tcs = m.toolCalls ?? ((m as Record<string, unknown>).tool_calls as typeof m.toolCalls);
+    if (m.role === 'assistant' && Array.isArray(tcs)) {
+      for (const tc of tcs) {
+        const tcId = tc.id as string | undefined;
+        const tcName = (tc.function?.name ?? (tc as Record<string, unknown>).name) as
+          | string
+          | undefined;
+        if (tcId && tcName) toolNameByCallId.set(tcId, tcName);
       }
     }
   }
@@ -2232,17 +2237,16 @@ export function ActionNodeItem({
   const effectiveLogs =
     completedToolLoopLogs.length > 0 ? completedToolLoopLogs : filteredLiveToolLoopLogs;
 
-  // Resolved tool-call IDs computed from UNFILTERED logs so that
+  // Resolved tool-call IDs computed from BOTH Orchestra and SSE logs so that
   // check_status_* synthetic completions (hidden from display by
   // isToolLoopNoise) still resolve the shimmer on original tool calls.
-  const resolvedToolCallIds = React.useMemo(
-    () =>
-      buildResolvedToolCallIds(
-        completedToolLoopLogs.length > 0 ? completedToolLoopLogs : (node.liveToolLoopLogs ?? [])
-      ),
+  // We merge both sources because the Orchestra fetch may race with the
+  // EventBus periodic flush — SSE events can arrive before Orchestra has them.
+  const resolvedToolCallIds = React.useMemo(() => {
+    const combined = [...completedToolLoopLogs, ...(node.liveToolLoopLogs ?? [])];
+    return buildResolvedToolCallIds(combined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [completedToolLoopLogs, node.liveToolLoopLogs]
-  );
+  }, [completedToolLoopLogs, node.liveToolLoopLogs]);
 
   // Label comes directly from the ManagerMethod incoming event's
   // question/instructions/request field, stored as requestContent.
