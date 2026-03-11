@@ -29,6 +29,9 @@ export const ALLOWED_EXTENSIONS = new Set([
   '.svg',
   '.bmp',
   '.ico',
+  '.heic',
+  '.heif',
+  '.tiff',
   // Documents
   '.pdf',
   '.doc',
@@ -110,6 +113,8 @@ const FILE_TYPE_MAP: Record<string, AttachmentType> = {
   svg: 'image',
   bmp: 'image',
   ico: 'image',
+  heic: 'image',
+  heif: 'image',
   tiff: 'image',
 
   // Text/Config
