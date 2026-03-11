@@ -541,7 +541,7 @@
     );
     mask-size: 200% 100%;
     -webkit-mask-size: 200% 100%;
-    animation: shimmer 2s linear infinite reverse;
+    animation: shimmer 1s linear infinite reverse;
   }
   @keyframes nudge {
     0%,
