@@ -10,14 +10,18 @@
  *
  * Usage:
  * ```tsx
- * const { hasCredits, isLoading } = useBillingStatus();
+ * const { hasCredits, isLoading, startPolling } = useBillingStatus();
  *
  * if (!hasCredits) {
  *   // Show "purchase credits" prompt
  * }
+ *
+ * // After checkout, poll until credits land:
+ * startPolling();
  * ```
  */
 
+import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -38,6 +42,12 @@ export interface UseBillingStatusReturn extends BillingStatusData {
   error: string | null;
   /** Manually refetch billing status */
   refetch: () => void;
+  /**
+   * Start aggressive polling (every 2 s) until credits appear or 30 s
+   * elapse.  Useful after checkout to bridge the gap between Stripe
+   * confirming payment and the webhook crediting the balance.
+   */
+  startPolling: () => void;
 }
 
 // ─── Fetch helper (single call) ─────────────────────────────────────────────
@@ -71,15 +81,39 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
 export const BILLING_STATUS_QUERY_KEY = ['billing', 'status'] as const;
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** How often to poll while waiting for credits to land (ms) */
+const POLL_INTERVAL_MS = 2_000;
+/** Max time to keep polling before giving up (ms) */
+const POLL_TIMEOUT_MS = 30_000;
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useBillingStatus(): UseBillingStatusReturn {
+  const [pollInterval, setPollInterval] = React.useState<number | false>(false);
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
+    refetchInterval: pollInterval,
   });
+
+  // Auto-stop polling once credits are reflected
+  React.useEffect(() => {
+    if (pollInterval && data?.hasCredits) {
+      setPollInterval(false);
+    }
+  }, [pollInterval, data?.hasCredits]);
+
+  // Safety net: stop polling after POLL_TIMEOUT_MS regardless
+  React.useEffect(() => {
+    if (!pollInterval) return;
+    const timeout = setTimeout(() => setPollInterval(false), POLL_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [pollInterval]);
 
   const defaults: BillingStatusData = {
     hasBillingHistory: false,
@@ -88,6 +122,11 @@ export function useBillingStatus(): UseBillingStatusReturn {
     accountStatus: 'ACTIVE',
   };
 
+  // Stable callback – safe to capture in closures / intervals
+  const startPolling = React.useCallback(() => {
+    setPollInterval(POLL_INTERVAL_MS);
+  }, []);
+
   return {
     ...(data ?? defaults),
     isLoading,
@@ -95,5 +134,6 @@ export function useBillingStatus(): UseBillingStatusReturn {
     refetch: () => {
       refetch();
     },
+    startPolling,
   };
 }

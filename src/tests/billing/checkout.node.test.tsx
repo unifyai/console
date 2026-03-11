@@ -319,5 +319,96 @@ describe('StripeSidePanel component', () => {
       ).toBeInTheDocument();
     });
   });
+
+  it('calls onSuccess and auto-closes when polling detects payment', async () => {
+    vi.spyOn(window, 'open').mockImplementation(() => null);
+    const onOpenChange = vi.fn();
+    const onSuccess = vi.fn();
+
+    let paymentStatus = 'unpaid';
+    server.use(
+      http.get('/api/stripe/session-status', () =>
+        HttpResponse.json({ paymentStatus }),
+      ),
+    );
+
+    render(
+      <StripeSidePanel
+        open={true}
+        onOpenChange={onOpenChange}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Complete the checkout in the Stripe tab/),
+      ).toBeInTheDocument();
+    });
+
+    // Simulate payment completing (e.g. user finishes in the other tab)
+    paymentStatus = 'paid';
+
+    // Polling (every 3 s) should detect the payment and fire callbacks
+    await waitFor(
+      () => {
+        expect(onSuccess).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 10_000 },
+    );
+
+    // Panel should auto-close
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('always calls the latest onSuccess, not a stale closure', async () => {
+    vi.spyOn(window, 'open').mockImplementation(() => null);
+    const onOpenChange = vi.fn();
+    const firstOnSuccess = vi.fn();
+    const latestOnSuccess = vi.fn();
+
+    let paymentStatus = 'unpaid';
+    server.use(
+      http.get('/api/stripe/session-status', () =>
+        HttpResponse.json({ paymentStatus }),
+      ),
+    );
+
+    const { rerender } = render(
+      <StripeSidePanel
+        open={true}
+        onOpenChange={onOpenChange}
+        onSuccess={firstOnSuccess}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Complete the checkout in the Stripe tab/),
+      ).toBeInTheDocument();
+    });
+
+    // Parent re-renders and passes a new onSuccess callback
+    rerender(
+      <StripeSidePanel
+        open={true}
+        onOpenChange={onOpenChange}
+        onSuccess={latestOnSuccess}
+      />,
+    );
+
+    // Simulate payment completing
+    paymentStatus = 'paid';
+
+    // The latest callback should be called, not the stale one
+    await waitFor(
+      () => {
+        expect(latestOnSuccess).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 10_000 },
+    );
+
+    expect(firstOnSuccess).not.toHaveBeenCalled();
+  });
 });
 

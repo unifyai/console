@@ -117,6 +117,17 @@ export function StripeSidePanel({
   const pollingRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = React.useRef<string | null>(null);
 
+  // ── Refs for latest callback values ─────────────────────────────────
+  // These refs break the stale-closure problem: the setInterval callback
+  // always reads the *latest* onSuccess / onOpenChange through the ref,
+  // even though the interval itself is never recreated.
+  const onSuccessRef = React.useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  const pendingCreditTokenRef = React.useRef(pendingCreditToken);
+  pendingCreditTokenRef.current = pendingCreditToken;
+
   // ── Cleanup polling ─────────────────────────────────────────────────
   const stopPolling = React.useCallback(() => {
     if (pollingRef.current) {
@@ -129,23 +140,24 @@ export function StripeSidePanel({
   const handleSuccess = React.useCallback(async () => {
     stopPolling();
 
-    if (pendingCreditToken) {
-      await claimCreditGrantToken(pendingCreditToken);
+    const token = pendingCreditTokenRef.current;
+    if (token) {
+      await claimCreditGrantToken(token);
     }
 
     showSuccessToast(
       'Payment complete',
-      pendingCreditToken
+      token
         ? 'Credits have been applied to your account.'
         : 'You can now use all billable features.'
     );
 
-    onSuccess?.();
-    onOpenChange(false);
-  }, [onSuccess, onOpenChange, pendingCreditToken, stopPolling]);
+    onSuccessRef.current?.();
+    onOpenChangeRef.current(false);
+  }, [stopPolling]);
 
   // ── Start polling the specific session ──────────────────────────────
-  const startPolling = React.useCallback((sessionId: string) => {
+  const startSessionPolling = React.useCallback((sessionId: string) => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(async () => {
       const isPaid = await checkSessionStatus(sessionId);
@@ -175,8 +187,8 @@ export function StripeSidePanel({
     setCheckoutUrl(result.url);
     window.open(result.url, '_blank');
     setStep('waiting');
-    startPolling(result.sessionId);
-  }, [startPolling]);
+    startSessionPolling(result.sessionId);
+  }, [startSessionPolling]);
 
   // ── When the panel opens, launch checkout ───────────────────────────
   React.useEffect(() => {

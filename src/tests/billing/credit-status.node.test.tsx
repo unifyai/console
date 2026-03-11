@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, renderHook, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { http, HttpResponse } from 'msw';
@@ -15,6 +15,7 @@ import { server } from '@/tests/server';
 
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import Main from '@/components/Pages/Billing/Main';
+import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 
 import {
   createMockActions,
@@ -207,6 +208,108 @@ describe('Balance display on billing page', () => {
     expect(
       screen.getByText('Manage your credits and payment methods'),
     ).toBeInTheDocument();
+  });
+});
+
+// =============================================================================
+// 4. Post-checkout billing status polling
+// =============================================================================
+
+describe('Post-checkout billing status polling', () => {
+  it('detects credits when they land after startPolling is called', async () => {
+    let balance = 0;
+    server.use(
+      http.get('/api/billing/balance', () =>
+        HttpResponse.json({
+          balance: balance.toFixed(2),
+          fullBalance: balance,
+          lastRechargeAt: balance > 0 ? '2025-01-01' : null,
+          accountStatus: 'ACTIVE',
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useBillingStatus(), {
+      wrapper: createQueryWrapper(),
+    });
+
+    // Wait for initial fetch — no credits yet
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.hasCredits).toBe(false);
+    expect(result.current.credits).toBe(0);
+
+    // Simulate checkout completing → start polling
+    act(() => {
+      result.current.startPolling();
+    });
+
+    // Simulate webhook processing — credits added
+    balance = 25;
+
+    // Polling (every 2 s) should pick up the new balance
+    await waitFor(
+      () => {
+        expect(result.current.hasCredits).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
+    expect(result.current.credits).toBe(25);
+  });
+
+  it('guard lifts automatically once polling detects credits', async () => {
+    let balance = 0;
+    server.use(
+      http.get('/api/billing/balance', () =>
+        HttpResponse.json({
+          balance: balance.toFixed(2),
+          fullBalance: balance,
+          lastRechargeAt: null,
+          accountStatus: 'ACTIVE',
+        }),
+      ),
+    );
+
+    // Render both the guard and the hook so they share the same QueryClient
+    const wrapper = createQueryWrapper();
+    let hookResult: ReturnType<typeof useBillingStatus> | undefined;
+
+    function StatusPoller() {
+      hookResult = useBillingStatus();
+      return null;
+    }
+
+    render(
+      <>
+        <StatusPoller />
+        <BillableActionGuard>
+          <button>Hire</button>
+        </BillableActionGuard>
+      </>,
+      { wrapper },
+    );
+
+    // Guard blocks the button initially
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Hire' })).toBeDisabled();
+    });
+
+    // Simulate checkout success → start polling via the hook
+    act(() => {
+      hookResult!.startPolling();
+    });
+
+    // Simulate webhook processing — credits added
+    balance = 25;
+
+    // Guard should lift once polling detects credits
+    await waitFor(
+      () => {
+        expect(screen.getByRole('button', { name: 'Hire' })).not.toBeDisabled();
+      },
+      { timeout: 10_000 },
+    );
   });
 });
 
