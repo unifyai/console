@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
@@ -10,10 +10,10 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
  * longer needs the Stripe SDK or secret key for this operation.
  */
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!user || !user.apiKey) {
-    return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   const { searchParams } = new URL(request.url);
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const client = await getOrchestraUserClient(user.apiKey);
+    const client = await getOrchestraUserClient(apiKey);
     const response = await client.get('/billing/checkout-status', {
       params: { session_id: sessionId },
     });

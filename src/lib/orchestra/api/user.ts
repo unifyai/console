@@ -62,11 +62,9 @@ export async function validateTaxId(
   data: ValidateTaxIdRequest
 ): Promise<TaxIdValidationResponse> {
   const client = createOrchestraClient(apiKey);
-  // Query params need to be snake_case for the OpenAPI types
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const query = { tax_id: data.taxId, country: data.country };
+  // Body is auto-transformed camelCase → snake_case by the bodySerializer
   const { data: responseData, error } = await client.POST('/v0/billing/validate-tax-id' as never, {
-    params: { query },
+    body: { taxId: data.taxId, country: data.country },
   } as never);
 
   if (error) {

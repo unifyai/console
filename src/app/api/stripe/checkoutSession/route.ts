@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
@@ -10,14 +10,14 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
  * or secret key for this operation.
  */
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!user || !user.apiKey) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const client = await getOrchestraUserClient(user.apiKey);
+    const client = await getOrchestraUserClient(apiKey);
     const response = await client.post('/billing/checkout-session');
 
     return NextResponse.json(response.data);

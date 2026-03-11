@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { getBalance } from '@/lib/billing/billing';
 import { isBillingError } from '@/types/billing';
 
@@ -15,16 +15,15 @@ import { isBillingError } from '@/types/billing';
  *   - lastRechargeAt: ISO-8601 timestamp of last paid recharge, or null
  *   - accountStatus: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED
  */
-export async function GET() {
-  const user = await getCurrentUser();
+export async function GET(request: NextRequest) {
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!user || !user.apiKey) {
-    // No authenticated session — return zero balance rather than a 404 error.
-    return NextResponse.json({ balance: '0.00', fullBalance: 0, lastRechargeAt: null });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const fetchBalance = await getBalance(user.apiKey);
+    const fetchBalance = await getBalance(apiKey);
     const result = await fetchBalance();
 
     if (isBillingError(result)) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/user/user';
+import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
@@ -10,14 +10,14 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
  * from the API key and returns combined settings + eligibility.
  */
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!user || !user.apiKey) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const client = await getOrchestraUserClient(user.apiKey);
+    const client = await getOrchestraUserClient(apiKey);
     const response = await client.get('/billing/auto-recharge');
     const data = response.data;
 
@@ -49,10 +49,10 @@ export async function GET(request: NextRequest) {
  * instead of making three separate admin calls.
  */
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!user || !user.apiKey) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid quantity value' }, { status: 400 });
     }
 
-    const client = await getOrchestraUserClient(user.apiKey);
+    const client = await getOrchestraUserClient(apiKey);
     const response = await client.put('/billing/auto-recharge', {
       enabled: autoRechargeEnabled,
       threshold: autoRechargeThreshold,
