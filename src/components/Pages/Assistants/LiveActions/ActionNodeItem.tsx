@@ -1524,6 +1524,12 @@ function ToolLoopMessage({
       LabelIcon = Brain;
       content = thinkingText;
       if (hasToolCalls) trailingCallLine = renderCallLine();
+    } else if (hasToolCalls && textContent) {
+      label = 'thought';
+      color = 'text-slate-500/80 dark:text-slate-400/50';
+      LabelIcon = Brain;
+      content = textContent;
+      trailingCallLine = renderCallLine();
     } else if (hasToolCalls) {
       return renderCallLine();
     } else {
