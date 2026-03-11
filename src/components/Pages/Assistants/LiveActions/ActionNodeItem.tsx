@@ -53,7 +53,7 @@ import type {
   LoadChildrenFn,
   ToolLoopLog,
 } from '@/types/assistants/action';
-import { isToolLoopNoise } from '@/lib/assistants/event-filters';
+import { isToolLoopNoise, resolveToolLoopKind } from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -1098,11 +1098,7 @@ function ToolLoopMessage({
   const filteredChildLiveLogs = React.useMemo(() => {
     if (!child?.liveToolLoopLogs?.length) return [];
     const rewritten = rewriteCheckStatusResults(child.liveToolLoopLogs);
-    return rewritten.filter((l) => {
-      const m = l.entries.message as Record<string, unknown>;
-      if (m.role === 'system' && !m._steering) return false;
-      return !isToolLoopNoise(m);
-    });
+    return rewritten.filter((l) => !isToolLoopNoise(l.entries));
   }, [child?.liveToolLoopLogs]);
 
   const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
@@ -1154,13 +1150,7 @@ function ToolLoopMessage({
             if ('detail' in response) return;
             const logs = (response.logs || []) as ToolLoopLog[];
             const rewritten = rewriteCheckStatusResults(logs);
-            setChildLogs(
-              rewritten.filter((l) => {
-                const m = l.entries.message as Record<string, unknown>;
-                if (m.role === 'system' && !m._steering) return false;
-                return !isToolLoopNoise(m);
-              })
-            );
+            setChildLogs(rewritten.filter((l) => !isToolLoopNoise(l.entries)));
             requestAnimationFrame(() => onLayoutChange?.());
           })
           .catch(() => {})
@@ -1241,31 +1231,64 @@ function ToolLoopMessage({
     );
   }
 
-  // Steering events (pause/resume/stop) — always one-liners, not collapsible
-  if (message.role === 'system' && msg._steering) {
-    const action = String(msg._steeringAction || msg._steering_action || 'unknown');
-    const STEERING_STYLES: Record<
-      string,
-      { inlineLabel: string; color: string; Icon: LucideIcon }
-    > = {
-      pause: {
-        inlineLabel: 'Pause',
-        color: 'text-amber-600/80 dark:text-amber-400/70',
-        Icon: Pause,
-      },
-      resume: {
-        inlineLabel: 'Resume',
-        color: 'text-teal-600/80 dark:text-teal-400/70',
-        Icon: Play,
-      },
-      stop: { inlineLabel: 'Stop', color: 'text-rose-600/80 dark:text-rose-400/70', Icon: Square },
-    };
-    const style = STEERING_STYLES[action] ?? {
-      inlineLabel: action,
-      color: 'text-muted-foreground/70',
-      Icon: CircleDot,
-    };
-    const displayText = textContent || style.inlineLabel;
+  // ── Kind-based style map ───────────────────────────────────────────────
+  const KIND_STYLES: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
+    request: { label: 'request', color: 'text-blue-600/80 dark:text-blue-500/60', Icon: ArrowDown },
+    interjection: {
+      label: 'interjection',
+      color: 'text-blue-500/70 dark:text-blue-400/60',
+      Icon: ArrowDown,
+    },
+    thinking_sentinel: {
+      label: 'thought',
+      color: 'text-slate-500/80 dark:text-slate-400/50',
+      Icon: Brain,
+    },
+    thought: { label: 'thought', color: 'text-slate-500/80 dark:text-slate-400/50', Icon: Brain },
+    tool_call: {
+      label: 'action',
+      color: 'text-orange-600/80 dark:text-orange-500/60',
+      Icon: Zap,
+    },
+    response: {
+      label: 'response',
+      color: 'text-emerald-600/80 dark:text-emerald-400/60',
+      Icon: ArrowUp,
+    },
+    tool_result: {
+      label: 'result',
+      color: 'text-violet-600/70 dark:text-violet-500/50',
+      Icon: CornerDownLeft,
+    },
+    steering_pause: {
+      label: 'Pause',
+      color: 'text-amber-600/80 dark:text-amber-400/70',
+      Icon: Pause,
+    },
+    steering_resume: {
+      label: 'Resume',
+      color: 'text-teal-600/80 dark:text-teal-400/70',
+      Icon: Play,
+    },
+    steering_stop: {
+      label: 'Stop',
+      color: 'text-rose-600/80 dark:text-rose-400/70',
+      Icon: Square,
+    },
+    steering_helper: {
+      label: 'dispatch',
+      color: 'text-orange-600/80 dark:text-orange-500/60',
+      Icon: Zap,
+    },
+  };
+
+  const kind = resolveToolLoopKind(log.entries);
+  const kindStyle = KIND_STYLES[kind];
+  if (!kindStyle) return null;
+
+  // ── Steering events — always one-liners, not collapsible ──────────────
+  if (kind === 'steering_pause' || kind === 'steering_resume' || kind === 'steering_stop') {
+    const displayText = textContent || kindStyle.label;
     return (
       <div
         ref={steeringRef}
@@ -1279,10 +1302,10 @@ function ToolLoopMessage({
           }
         }}
       >
-        <span className={cn('shrink-0', style.color)}>
-          <style.Icon className="h-2.5 w-2.5" />
+        <span className={cn('shrink-0', kindStyle.color)}>
+          <kindStyle.Icon className="h-2.5 w-2.5" />
         </span>
-        <span className={cn('min-w-0 truncate', style.color)}>{displayText}</span>
+        <span className={cn('min-w-0 truncate', kindStyle.color)}>{displayText}</span>
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -1290,50 +1313,215 @@ function ToolLoopMessage({
     );
   }
 
-  if (message.role === 'system') return null;
+  // ── Thinking sentinel — animated "Thinking" display ───────────────────
+  if (kind === 'thinking_sentinel') {
+    if (!isLatestLog || nodeCompleted) return null;
+    return (
+      <div className="flex items-start gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
+              <Brain className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            thought
+          </TooltipContent>
+        </Tooltip>
+        <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
+          Thinking
+        </span>
+        <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+          {time}
+        </span>
+      </div>
+    );
+  }
 
-  // Classify the message into label + icon + color + content
-  let label: string;
-  let color: string;
-  let LabelIcon: LucideIcon = CircleDot;
-  let content: string | null = null;
-  let trailingCallLine: React.ReactNode = null;
+  // ── Tool call rendering (shared by tool_call, steering_helper, thought w/ calls) ──
+  const renderCallLine = () => {
+    if (!message.toolCalls || message.toolCalls.length === 0) return null;
+    const rawAliases = log.entries.toolAliases;
+    const aliases = rawAliases
+      ? Object.fromEntries(
+          Object.entries(rawAliases).map(([k, v]) => [
+            k.replace(/([A-Z])/g, '_$1').toLowerCase(),
+            v,
+          ])
+        )
+      : null;
 
-  if (message.role === 'user') {
-    const isInterjection = !!(msg._interjection || msg._Interjection);
-    label = isInterjection ? 'interjection' : 'request';
-    color = isInterjection
-      ? 'text-blue-500/70 dark:text-blue-400/60'
-      : 'text-blue-600/80 dark:text-blue-500/60';
-    LabelIcon = ArrowDown;
-    content = textContent;
-  } else if (message.role === 'assistant') {
-    // In-flight thinking sentinel — LLM is currently generating
-    if (msg._thinkingInFlight || msg._thinking_in_flight) {
-      if (!isLatestLog || nodeCompleted) return null;
-      return (
-        <div className="flex items-start gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
-                <Brain className="h-2.5 w-2.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-              thought
-            </TooltipContent>
-          </Tooltip>
-          <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
-            Thinking
+    const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
+    if (SHOW_EXECUTE_CODE_CONTENT) {
+      for (const tc of message.toolCalls) {
+        if (tc.function.name !== 'execute_code') continue;
+        try {
+          const args = JSON.parse(tc.function.arguments);
+          if (args.code)
+            codeBlocks.push({
+              lang: args.language || 'python',
+              code: args.code,
+              toolCallId: tc.id,
+            });
+        } catch {
+          /* skip malformed arguments */
+        }
+      }
+    }
+
+    const toolEntries = message.toolCalls
+      .map((tc) => {
+        if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
+        const alias = aliases?.[tc.function.name];
+        return {
+          label: alias || `${tc.function.name}()`,
+          toolCallId: tc.id,
+          arguments: tc.function.arguments,
+        };
+      })
+      .filter(Boolean) as Array<{ label: string; toolCallId: string; arguments: string }>;
+
+    const actionIcon = (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
+            <Zap className="h-2.5 w-2.5" />
           </span>
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-            {time}
-          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+          action
+        </TooltipContent>
+      </Tooltip>
+    );
+
+    const rows: React.ReactNode[] = [];
+
+    for (let i = 0; i < toolEntries.length; i++) {
+      const entry = toolEntries[i];
+      const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
+      rows.push(
+        <ToolCallRow
+          key={`tool-${i}`}
+          entry={entry}
+          time={time}
+          actionIcon={actionIcon}
+          isPending={pending}
+          searchTerm={searchTerm}
+          onTcHover={onTcHover}
+          hoveredTcId={hoveredTcId}
+          onLayoutChange={onLayoutChange}
+        />
+      );
+    }
+
+    if (codeBlocks.length > 0) {
+      const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
+
+      rows.push(
+        <div
+          key="code"
+          className={cn(
+            'group rounded-sm transition-colors duration-150',
+            isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer',
+            hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40'
+          )}
+          onClick={
+            !isCodeOpen
+              ? () => {
+                  setIsCodeOpen(true);
+                  onLayoutChange?.();
+                }
+              : undefined
+          }
+          data-tc-id={codeBlocks[0].toolCallId}
+          data-tc-role="call"
+          onMouseEnter={() => onTcHover?.(codeBlocks[0].toolCallId)}
+          onMouseLeave={() => onTcHover?.(null)}
+        >
+          <div
+            className={cn(
+              'flex items-center gap-2',
+              isCodeOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+            )}
+            onClick={
+              isCodeOpen
+                ? () => {
+                    setIsCodeOpen(false);
+                    onLayoutChange?.();
+                  }
+                : undefined
+            }
+          >
+            {actionIcon}
+            <span
+              className={cn(
+                'min-w-0 truncate text-muted-foreground',
+                resolvedToolCallIds &&
+                  !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
+                  'animate-shimmer'
+              )}
+            >
+              Run code
+            </span>
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
+                isCodeOpen && 'rotate-90'
+              )}
+            />
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+              {time}
+            </span>
+          </div>
+          {isCodeOpen &&
+            codeBlocks.map((block, i) => (
+              <div
+                key={i}
+                className="hover:bg-muted/40 cursor-pointer rounded-sm"
+                onClick={() => {
+                  setIsCodeOpen(false);
+                  onLayoutChange?.();
+                }}
+              >
+                <SyntaxHighlighter
+                  language={block.lang}
+                  style={hlStyle}
+                  wrapLongLines
+                  customStyle={{
+                    fontSize: '10px',
+                    lineHeight: '1.4',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
+                    margin: '4px 0 2px 18px',
+                    overflowX: 'hidden',
+                    width: 'fit-content',
+                    maxWidth: 'calc(100% - 18px)',
+                  }}
+                >
+                  {block.code.trim()}
+                </SyntaxHighlighter>
+              </div>
+            ))}
         </div>
       );
     }
 
-    // Check for thinking blocks first
+    return rows.length === 1 ? rows[0] : <>{rows}</>;
+  };
+
+  // ── Pure tool calls (no text content) — render as call rows ───────────
+  if ((kind === 'tool_call' || kind === 'steering_helper') && !textContent) {
+    return renderCallLine();
+  }
+
+  // ── Content-based kinds — label + icon + color from the style map ─────
+  let label: string = kindStyle.label;
+  let color: string = kindStyle.color;
+  let LabelIcon: LucideIcon = kindStyle.Icon;
+  let content: string | null = null;
+  let trailingCallLine: React.ReactNode = null;
+
+  if (kind === 'thought') {
     const blocks =
       msg.thinkingBlocks ??
       msg.thinking_blocks ??
@@ -1350,206 +1538,16 @@ function ToolLoopMessage({
       const rc = (msg.reasoningContent ?? msg.reasoning_content) as string | undefined;
       if (rc) thinkingText = rc;
     }
-
-    const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
-
-    const renderCallLine = () => {
-      if (!message.toolCalls || message.toolCalls.length === 0) return null;
-      const rawAliases = log.entries.toolAliases;
-      const aliases = rawAliases
-        ? Object.fromEntries(
-            Object.entries(rawAliases).map(([k, v]) => [
-              k.replace(/([A-Z])/g, '_$1').toLowerCase(),
-              v,
-            ])
-          )
-        : null;
-
-      const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
-      if (SHOW_EXECUTE_CODE_CONTENT) {
-        for (const tc of message.toolCalls) {
-          if (tc.function.name !== 'execute_code') continue;
-          try {
-            const args = JSON.parse(tc.function.arguments);
-            if (args.code)
-              codeBlocks.push({
-                lang: args.language || 'python',
-                code: args.code,
-                toolCallId: tc.id,
-              });
-          } catch {
-            /* skip malformed arguments */
-          }
-        }
-      }
-
-      const toolEntries = message.toolCalls
-        .map((tc) => {
-          if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
-          const alias = aliases?.[tc.function.name];
-          return {
-            label: alias || `${tc.function.name}()`,
-            toolCallId: tc.id,
-            arguments: tc.function.arguments,
-          };
-        })
-        .filter(Boolean) as Array<{ label: string; toolCallId: string; arguments: string }>;
-
-      const actionIcon = (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
-              <Zap className="h-2.5 w-2.5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-            action
-          </TooltipContent>
-        </Tooltip>
-      );
-
-      const rows: React.ReactNode[] = [];
-
-      for (let i = 0; i < toolEntries.length; i++) {
-        const entry = toolEntries[i];
-        const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
-        rows.push(
-          <ToolCallRow
-            key={`tool-${i}`}
-            entry={entry}
-            time={time}
-            actionIcon={actionIcon}
-            isPending={pending}
-            searchTerm={searchTerm}
-            onTcHover={onTcHover}
-            hoveredTcId={hoveredTcId}
-            onLayoutChange={onLayoutChange}
-          />
-        );
-      }
-
-      if (codeBlocks.length > 0) {
-        const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
-
-        rows.push(
-          <div
-            key="code"
-            className={cn(
-              'group rounded-sm transition-colors duration-150',
-              isCodeOpen ? '' : 'hover:bg-muted/40 cursor-pointer',
-              hoveredTcId && hoveredTcId === codeBlocks[0].toolCallId && 'bg-muted/40'
-            )}
-            onClick={
-              !isCodeOpen
-                ? () => {
-                    setIsCodeOpen(true);
-                    onLayoutChange?.();
-                  }
-                : undefined
-            }
-            data-tc-id={codeBlocks[0].toolCallId}
-            data-tc-role="call"
-            onMouseEnter={() => onTcHover?.(codeBlocks[0].toolCallId)}
-            onMouseLeave={() => onTcHover?.(null)}
-          >
-            <div
-              className={cn(
-                'flex items-center gap-2',
-                isCodeOpen && 'hover:bg-muted/40 cursor-pointer rounded-sm'
-              )}
-              onClick={
-                isCodeOpen
-                  ? () => {
-                      setIsCodeOpen(false);
-                      onLayoutChange?.();
-                    }
-                  : undefined
-              }
-            >
-              {actionIcon}
-              <span
-                className={cn(
-                  'min-w-0 truncate text-muted-foreground',
-                  resolvedToolCallIds &&
-                    !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
-                    'animate-shimmer'
-                )}
-              >
-                Run code
-              </span>
-              <ChevronRight
-                className={cn(
-                  'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
-                  isCodeOpen && 'rotate-90'
-                )}
-              />
-              <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
-                {time}
-              </span>
-            </div>
-            {isCodeOpen &&
-              codeBlocks.map((block, i) => (
-                <div
-                  key={i}
-                  className="hover:bg-muted/40 cursor-pointer rounded-sm"
-                  onClick={() => {
-                    setIsCodeOpen(false);
-                    onLayoutChange?.();
-                  }}
-                >
-                  <SyntaxHighlighter
-                    language={block.lang}
-                    style={hlStyle}
-                    wrapLongLines
-                    customStyle={{
-                      fontSize: '10px',
-                      lineHeight: '1.4',
-                      padding: '6px 8px',
-                      borderRadius: '4px',
-                      margin: '4px 0 2px 18px',
-                      overflowX: 'hidden',
-                      width: 'fit-content',
-                      maxWidth: 'calc(100% - 18px)',
-                    }}
-                  >
-                    {block.code.trim()}
-                  </SyntaxHighlighter>
-                </div>
-              ))}
-          </div>
-        );
-      }
-
-      return rows.length === 1 ? rows[0] : <>{rows}</>;
-    };
-
-    if (thinkingText) {
-      label = 'thought';
-      color = 'text-slate-500/80 dark:text-slate-400/50';
-      LabelIcon = Brain;
-      content = thinkingText;
-      if (hasToolCalls) trailingCallLine = renderCallLine();
-    } else if (hasToolCalls && textContent) {
-      label = 'thought';
-      color = 'text-slate-500/80 dark:text-slate-400/50';
-      LabelIcon = Brain;
-      content = textContent;
-      trailingCallLine = renderCallLine();
-    } else if (hasToolCalls) {
-      return renderCallLine();
-    } else {
-      label = 'response';
-      color = 'text-emerald-600/80 dark:text-emerald-400/60';
-      LabelIcon = ArrowUp;
-      content = textContent;
-    }
-  } else if (message.role === 'tool') {
-    label = 'result';
-    color = 'text-violet-600/70 dark:text-violet-500/50';
-    LabelIcon = CornerDownLeft;
+    content = thinkingText || textContent;
+    if (message.toolCalls?.length) trailingCallLine = renderCallLine();
+  } else if (kind === 'tool_call') {
+    label = 'thought';
+    color = 'text-slate-500/80 dark:text-slate-400/50';
+    LabelIcon = Brain;
     content = textContent;
+    trailingCallLine = renderCallLine();
   } else {
-    return null;
+    content = textContent;
   }
 
   if (!content) return null;
@@ -2213,11 +2211,7 @@ export function ActionNodeItem({
   const filteredLiveToolLoopLogs = React.useMemo(() => {
     if (!node.liveToolLoopLogs) return [];
     const rewritten = rewriteCheckStatusResults(node.liveToolLoopLogs);
-    const logs = rewritten.filter((l) => {
-      const msg = l.entries.message as Record<string, unknown>;
-      if (msg.role === 'system' && !msg._steering) return false;
-      return !isToolLoopNoise(msg as Record<string, unknown>);
-    });
+    const logs = rewritten.filter((l) => !isToolLoopNoise(l.entries));
     const children = node.children || [];
     if (children.length === 0) return logs;
     const childPrefixes = children.map((c) => c.hierarchy.join('->') + '->');
@@ -2378,13 +2372,7 @@ export function ActionNodeItem({
         // Store raw logs (minus system messages). Child-event filtering
         // happens reactively in the completedToolLoopLogs memo.
         const rewritten = rewriteCheckStatusResults(logs);
-        setRawToolLoopLogs(
-          rewritten.filter((l) => {
-            const msg = l.entries.message as Record<string, unknown>;
-            if (msg.role === 'system' && !msg._steering) return false;
-            return !isToolLoopNoise(msg as Record<string, unknown>);
-          })
-        );
+        setRawToolLoopLogs(rewritten.filter((l) => !isToolLoopNoise(l.entries)));
       } catch {
         // Silently fail
       } finally {
