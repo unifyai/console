@@ -1783,6 +1783,23 @@ function LiveToolLoopTimeline({
     prevLogCountRef.current = logs.length;
   }, [logs.length]);
 
+  // Also scroll when inner content grows (e.g. expanded child ToolLoop
+  // events streaming in). logs.length only changes for direct entries;
+  // this catches height growth from nested child expansions.
+  React.useEffect(() => {
+    const content = contentRef.current;
+    const scroll = scrollRef.current;
+    if (!content || !scroll) return;
+    const ro = new ResizeObserver(() => {
+      if (isUserScrolledUpRef.current) return;
+      requestAnimationFrame(() => {
+        scroll.scrollTop = scroll.scrollHeight;
+      });
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
   React.useEffect(() => {
     if (!hoveredTcId || !contentRef.current) {
       setBracketGeom(null);
