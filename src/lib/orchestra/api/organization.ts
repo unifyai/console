@@ -395,7 +395,8 @@ export const checkUserOrganizationAction = async () => {
       }
 
       const orgs = result.organizations as Array<{ name: string }> | undefined;
-      const hasOrganizations = orgs && orgs.length > 0;
+      const isUnifyEmployee = orgs?.some((org) => org.name === 'Unify') ?? false;
+      const hasOrganizations = !isUnifyEmployee && orgs && orgs.length > 0;
 
       return {
         isInOrganization: hasOrganizations,
@@ -776,10 +777,7 @@ export const getMfaSettingsAction = async (apiKey: string) => {
 };
 
 export const updateMfaSettingsAction = async (apiKey: string) => {
-  return async (
-    orgId: number,
-    requireMfa: boolean
-  ): Promise<OrgMFASettings | ResponseProps> => {
+  return async (orgId: number, requireMfa: boolean): Promise<OrgMFASettings | ResponseProps> => {
     'use server';
     return safeFetch(
       `${backendUrl}/organizations/${orgId}/mfa-settings`,
