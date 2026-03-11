@@ -37,7 +37,6 @@ export function createMockSecret(overrides: Partial<Secret> = {}): Secret {
   return {
     logId: id,
     name: `SECRET_${id}`,
-    value: `secret-value-${id}-${Math.random().toString(36).slice(2)}`,
     description: `Description for secret ${id}`,
     ...overrides,
   };
@@ -51,12 +50,6 @@ export function createMockSecrets(count: number = 2): Secret[] {
     createMockSecret({
       logId: i + 1,
       name: i === 0 ? 'API_KEY' : i === 1 ? 'DATABASE_URL' : `SECRET_${i + 1}`,
-      value:
-        i === 0
-          ? 'sk-super-secret-key-12345'
-          : i === 1
-            ? 'postgres://user:pass@host:5432/db'
-            : `secret-value-${i + 1}`,
       description:
         i === 0
           ? 'Production API key'
@@ -115,13 +108,11 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
   };
 
   return {
-    get: vi.fn(
-      async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
-        await maybeDelay();
-        if (!getSuccess) return { detail: errorMessage };
-        return secrets;
-      }
-    ),
+    get: vi.fn(async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
+      await maybeDelay();
+      if (!getSuccess) return { detail: errorMessage };
+      return secrets;
+    }),
     create: vi.fn(
       async (
         _assistantId: string,
@@ -132,13 +123,20 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
         return { info: 'Secret created' };
       }
     ),
-    delete: vi.fn(
-      async (_logId: number): Promise<{ info?: string; detail?: string }> => {
+    update: vi.fn(
+      async (
+        _logId: number,
+        _payload: { name?: string; value?: string; description?: string }
+      ): Promise<{ info?: string; detail?: string }> => {
         await maybeDelay();
-        if (!deleteSuccess) return { detail: errorMessage };
-        return { info: 'Secret deleted' };
+        return { info: 'Secret updated' };
       }
     ),
+    delete: vi.fn(async (_logId: number): Promise<{ info?: string; detail?: string }> => {
+      await maybeDelay();
+      if (!deleteSuccess) return { detail: errorMessage };
+      return { info: 'Secret deleted' };
+    }),
   };
 }
 
@@ -149,6 +147,7 @@ export function createPendingSecretActions(): SecretActions {
   return {
     get: vi.fn((_assistantId: string) => new Promise<Secret[]>(() => {})), // Never resolves
     create: vi.fn(() => new Promise<{ info: string }>(() => {})),
+    update: vi.fn(() => new Promise<{ info: string }>(() => {})),
     delete: vi.fn(() => new Promise<{ info: string }>(() => {})),
   };
 }

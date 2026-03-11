@@ -6,7 +6,7 @@ import { Label } from '@/components/UI/label';
 import { Textarea } from '@/components/UI/textarea';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import { Secret, SecretActions } from '@/types/assistants/secret';
 import { cn } from '@/lib/utils';
@@ -48,49 +48,37 @@ export function AssistantSecretsManager({
     onSubmit,
   } = useAssistantSecrets(assistantId, secretActions);
 
-  // This state is crucial to differentiate the initial empty state from the "creating a new secret" state.
   const [isCreating, setIsCreating] = React.useState(false);
-  const [isValueVisible, setIsValueVisible] = React.useState(false);
   const {
     register,
     formState: { errors, isDirty },
   } = formMethods;
 
-  // When selecting a new secret, reset visibility and exit "creating" mode.
   const handleSelect = (secret: Secret) => {
     handleSelectSecret(secret);
-    setIsValueVisible(false);
     setIsCreating(false);
   };
 
-  // When starting a new secret, enter "creating" mode.
   const handleStartCreate = () => {
     handleNewSecret();
-    setIsValueVisible(false);
     setIsCreating(true);
   };
 
-  // When canceling creation, exit "creating" mode.
   const handleCancel = () => {
     setIsCreating(false);
-    // If secrets exist, select the first one. Otherwise, the component will revert to the empty state.
     if (secrets.length > 0) {
       handleSelectSecret(secrets[0]);
     }
   };
 
-  // After a successful creation, the secrets list is refetched.
-  // This effect detects that change and exits "creating" mode automatically.
   React.useEffect(() => {
     if (isCreating && secrets.length > 0 && selectedSecret) {
       setIsCreating(false);
     }
   }, [secrets, selectedSecret, isCreating]);
 
-  const isViewing = !!selectedSecret;
-  // Determine which view to show.
+  const isEditing = !!selectedSecret;
   const showEmptyState = !isLoading && secrets.length === 0 && !isCreating;
-  const showManager = !isLoading && !showEmptyState;
 
   const renderEmptyState = () => (
     <div className="flex h-full flex-col items-center justify-center p-8 text-center">
@@ -169,32 +157,29 @@ export function AssistantSecretsManager({
                 <Input
                   id="name"
                   {...register('name', { required: 'Name is required' })}
-                  disabled={isSubmitting || isViewing}
+                  disabled={isSubmitting || !canWrite}
                 />
                 {errors.name && <p className="text-body text-error mt-1">{errors.name.message}</p>}
               </div>
               <div>
                 <Label htmlFor="value" className="mb-2 block">
-                  Value
+                  {isEditing ? 'New Value' : 'Value'}
                 </Label>
-                <div className="relative">
-                  <Input
-                    id="value"
-                    type={isValueVisible ? 'text' : 'password'}
-                    {...register('value', { required: 'Value is required' })}
-                    disabled={isSubmitting || isViewing}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
-                    onClick={() => setIsValueVisible(!isValueVisible)}
-                    disabled={!isViewing} // Only allow peeking at existing secrets
-                  >
-                    {isValueVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <Input
+                  id="value"
+                  type="password"
+                  {...register('value', isEditing ? {} : { required: 'Value is required' })}
+                  placeholder={isEditing ? 'Enter new value to replace current...' : ''}
+                  disabled={isSubmitting || !canWrite}
+                />
+                {!isEditing && (
+                  <div className="mt-2 flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-yellow-600 dark:text-yellow-400">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p className="text-xs">
+                      This value will not be viewable after saving. Make sure it is saved elsewhere.
+                    </p>
+                  </div>
+                )}
                 {errors.value && (
                   <p className="text-body text-error mt-1">{errors.value.message}</p>
                 )}
@@ -208,24 +193,26 @@ export function AssistantSecretsManager({
                   {...register('description')}
                   className="flex-1 resize-none"
                   placeholder="Optional description..."
-                  disabled={isSubmitting || isViewing}
+                  disabled={isSubmitting || !canWrite}
                 />
               </div>
             </div>
 
-            {!isViewing && (
+            {canWrite && (
               <div className="flex items-center justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
+                {isCreating && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button type="submit" form="secret-form" disabled={isSubmitting || !isDirty}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
+                  {isEditing ? 'Save Changes' : 'Save'}
                 </Button>
               </div>
             )}

@@ -53,7 +53,7 @@ import {
   claimAssistantHiringToken,
   requestAssistantHiringAccess,
 } from '@/lib/assistants/approval';
-import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
+import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
 import {
   getCallConnectionDetails,
   dispatchAssistantToCall,
@@ -150,6 +150,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     secret: {
       get: await getSecrets(apiKey, user.id, isOrgContext),
       create: await createSecret(apiKey, user.id, isOrgContext),
+      update: await updateSecret(apiKey),
       delete: await deleteSecret(apiKey),
     },
     approval: {

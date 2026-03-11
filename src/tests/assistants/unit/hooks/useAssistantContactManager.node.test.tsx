@@ -91,6 +91,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   secret: {
     get: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
     delete: vi.fn(),
   },
   desktop: {
