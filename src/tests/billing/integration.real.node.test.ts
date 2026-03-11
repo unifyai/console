@@ -266,6 +266,7 @@ describe('@real Billing API', () => {
         expect(typeof data.totalSpending).toBe('number');
         expect(typeof data.minimumSpendRequired).toBe('number');
         expect(typeof data.remainingSpendNeeded).toBe('number');
+        expect(typeof data.hasPaymentMethod).toBe('boolean');
       },
     );
 

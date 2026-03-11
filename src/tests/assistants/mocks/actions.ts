@@ -135,19 +135,6 @@ export const mockAssistantActions: any = {
     create: vi.fn(async () => ({ info: 'Secret created' })),
     delete: vi.fn(async () => ({ info: 'Secret deleted' })),
   },
-  approval: {
-    getProfile: vi.fn(() =>
-      Promise.resolve({ assistant_hiring_approval: 'approved', hasClaimedApprovalLink: true })
-    ),
-    requestAccess: vi.fn(async () => ({
-      message: 'Request submitted',
-      assistant_hiring_approval: 'pending',
-    })),
-    claimToken: vi.fn(async () => ({
-      message: 'Token claimed',
-      assistant_hiring_approval: 'approved',
-    })),
-  },
   call: {
     getConnectionDetails: vi.fn(async () => ({
       serverUrl: 'wss://test.livekit.cloud',

@@ -34,6 +34,7 @@ export const DEFAULT_AUTO_RECHARGE = {
   canEnableAutoRecharge: true,
   minimumSpendRequired: 50,
   remainingSpendNeeded: 0,
+  hasPaymentMethod: true,
 };
 
 export const DEFAULT_PROFILE = {

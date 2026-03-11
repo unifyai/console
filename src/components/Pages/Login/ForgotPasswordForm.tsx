@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useCallback, useRef, FormEvent } from 'react';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { PasswordInput } from '@/components/Common/Input/Password';
+import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
 import VerificationCodeInput from './VerificationCodeInput';
@@ -27,6 +28,11 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   const [verificationError, setVerificationError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>();
+  const captchaRef = useRef<TurnstileWidgetHandle>(null);
+
+  const handleCaptchaVerify = useCallback((token: string) => setCaptchaToken(token), []);
+  const handleCaptchaExpire = useCallback(() => setCaptchaToken(undefined), []);
 
   // ─── Step 1: Request Reset Code ─────────────────────────────────────
 
@@ -36,16 +42,26 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
     setIsLoading(true);
 
     try {
-      await fetch('/api/auth/email/forgot-password', {
+      const res = await fetch('/api/auth/email/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, captchaToken: captchaToken || undefined }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Something went wrong. Please try again.');
+        captchaRef.current?.reset();
+        setIsLoading(false);
+        return;
+      }
 
       // Always move to code entry — no enumeration leakage
       setView('code');
     } catch {
       setError('Network error. Please try again.');
+      captchaRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -284,6 +300,13 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
           required
           disabled={isLoading}
           data-testid="forgot-email-input"
+        />
+
+        <TurnstileWidget
+          ref={captchaRef}
+          onVerify={handleCaptchaVerify}
+          onExpire={handleCaptchaExpire}
+          onError={handleCaptchaExpire}
         />
 
         {error && (

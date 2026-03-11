@@ -118,11 +118,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     sendSystemEvent: vi.fn(),
     listUserDesktops: vi.fn(),
   },
-  approval: {
-    getProfile: vi.fn(),
-    requestAccess: vi.fn(),
-    claimToken: vi.fn(),
-  },
   spending: {
     getSpend: vi.fn(),
     getLimit: vi.fn(),

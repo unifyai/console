@@ -93,9 +93,23 @@ function isVisibilityGuidance(msg: Record<string, any>): boolean {
   return msg._visibilityGuidance === true || msg._visibility_guidance === true;
 }
 
+function isWaitNoOp(msg: Record<string, any>): boolean {
+  const toolCalls: any[] = msg.toolCalls ?? msg.tool_calls ?? [];
+  if (msg.role === 'assistant' && toolCalls.length > 0) {
+    if (toolCalls.every((tc: any) => (tc?.function?.name ?? tc?.name) === 'wait')) return true;
+  }
+  if (msg.role === 'tool' && (msg.name === 'wait' || msg.toolName === 'wait')) return true;
+  return false;
+}
+
 /**
  * Returns true if a ToolLoop message is internal noise that should be
  * hidden from the UI. Mirrors unity/events/stream_filters._STREAM_NOISE_RULES.
+ *
+ * Note: isSyntheticStatusCheck is kept here even though the backend no longer
+ * filters it from Pub/Sub — check_status events must reach the frontend so
+ * resolvedToolCallIds can extract original tool_call_ids, but they should
+ * still be hidden from the timeline display.
  *
  * Both snake_case and camelCase variants are checked for flag fields because
  * the data passes through snakeToCamelObject on some paths but not all.
@@ -105,6 +119,7 @@ export function isToolLoopNoise(msg: Record<string, any>): boolean {
     isSyntheticStatusCheck(msg) ||
     isPlaceholderMessage(msg) ||
     isRuntimeContextHeader(msg) ||
-    isVisibilityGuidance(msg)
+    isVisibilityGuidance(msg) ||
+    isWaitNoOp(msg)
   );
 }

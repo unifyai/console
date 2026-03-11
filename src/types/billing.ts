@@ -52,6 +52,8 @@ export interface AutoRechargeData {
   canEnableAutoRecharge: boolean;
   minimumSpendRequired: number;
   remainingSpendNeeded: number;
+  // Whether the user has a default payment method on file
+  hasPaymentMethod: boolean;
 }
 
 export interface AutoRechargeUpdatePayload {

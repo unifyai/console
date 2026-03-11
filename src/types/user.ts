@@ -30,8 +30,6 @@ export interface User {
     roleName: string;
   };
   organizations: UserOrganization[];
-  assistantHiringApproval: ApprovalStatus;
-  hasClaimedApprovalLink: string;
   /** Set when the user must set up MFA to access an org workspace */
   mfaSetupRequired?: {
     orgId: number;
@@ -48,6 +46,7 @@ export interface UserOrganization {
   apiKey: string;
   image?: string | null;
   timezone?: string | null;
+  freeTrial?: boolean;
 }
 
 export interface UserWorkspace {
@@ -73,19 +72,6 @@ export type BalanceDetails = {
   nextPayment: number | null;
   minCutoff: number | null;
 };
-
-// Assistant hiring approval interfaces
-export type ApprovalStatus = 'approved' | 'pending' | 'rejected' | 'revoked' | null;
-
-export interface HiringProfileData {
-  assistantHiringApproval: string | null;
-  hasClaimedApprovalLink: boolean;
-}
-
-export interface AssistantHiringApprovalResponse extends ResponseProps {
-  message: string;
-  assistantHiringApproval?: string | null;
-}
 
 // Business classification types
 export type AccountType = 'individual' | 'business';

@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Infinity,
   Camera,
+  Lock,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -81,6 +82,8 @@ interface MemberRowProps {
   showSpending?: boolean;
   /** Callback when user wants to edit spending limit */
   onEditSpendingLimit?: (userId: string) => void;
+  /** Whether the organization is in free trial mode */
+  freeTrial?: boolean;
 }
 
 const getRoleBadgeColor = (roleName: string) => {
@@ -95,6 +98,35 @@ const getRoleBadgeColor = (roleName: string) => {
     return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
   return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800';
 };
+
+const FREE_TRIAL_CONTACT_URL = 'https://cal.com/danlenton/15min';
+
+const FreeTrialBadge = () => (
+  <TooltipProvider delayDuration={300}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-body-muted inline-flex items-center gap-1">
+          <Lock className="h-3 w-3" />
+          Trial
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p>
+          Billing is available beyond the free trial.{' '}
+          <a
+            href={FREE_TRIAL_CONTACT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium underline"
+          >
+            Get in touch
+          </a>{' '}
+          to unlock.
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
 
 const MemberRow = ({
   member,
@@ -112,6 +144,7 @@ const MemberRow = ({
   spendingInfo,
   showSpending = false,
   onEditSpendingLimit,
+  freeTrial = false,
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -362,6 +395,14 @@ const MemberRow = ({
         {/* Monthly Limit - only shown if showSpending is true */}
         {showSpending &&
           (() => {
+            if (freeTrial) {
+              return (
+                <TableCell className="text-center">
+                  <FreeTrialBadge />
+                </TableCell>
+              );
+            }
+
             const canEditLimit =
               !!onEditSpendingLimit && !!member.userId && (canManageMembers || isSelf);
             const handleClick = canEditLimit
@@ -398,7 +439,9 @@ const MemberRow = ({
         {/* Spent - only shown if showSpending is true */}
         {showSpending && (
           <TableCell className="text-center">
-            {member.status === 'pending' ? (
+            {freeTrial ? (
+              <FreeTrialBadge />
+            ) : member.status === 'pending' ? (
               <span className="text-caption">-</span>
             ) : spendingInfo?.isLoading ? (
               <span className="text-caption">...</span>

@@ -219,8 +219,8 @@ jobs:
           VALUES ('test-user-001', 10000, null, false, -1, 0, true, false)
           ON CONFLICT (id) DO NOTHING;
 
-          INSERT INTO auth_user (id, email, assistant_hiring_approval)
-          VALUES ('test-user-001', 'test@debug.local', 'approved')
+          INSERT INTO auth_user (id, email)
+          VALUES ('test-user-001', 'test@debug.local')
           ON CONFLICT (id) DO NOTHING;
 
           INSERT INTO api_key (user_id, key)

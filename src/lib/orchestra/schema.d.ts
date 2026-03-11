@@ -128,40 +128,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/v0/user/assistant-hiring-approval': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Request Assistant Hiring Approval */
-    post: operations['request_assistant_hiring_approval_v0_user_assistant_hiring_approval_post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v0/user/claim-assistant-hiring-one-time-link': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Claim Assistant Hiring One Time Link */
-    post: operations['claim_assistant_hiring_one_time_link_v0_user_claim_assistant_hiring_one_time_link_post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/v0/user/validate-tax-id': {
     parameters: {
       query?: never;
@@ -3703,18 +3669,6 @@ export interface components {
        * @example America/New_York
        */
       timezone?: string | null;
-    };
-    /** AssistantHiringApprovalResponse */
-    AssistantHiringApprovalResponse: {
-      /** Message */
-      message: string;
-      /** Assistant Hiring Approval */
-      assistant_hiring_approval: string | null;
-    };
-    /** AssistantHiringOneTimeLinkClaimTokenRequest */
-    AssistantHiringOneTimeLinkClaimTokenRequest: {
-      /** Token */
-      token: string;
     };
     /** AssistantPhotoUploadResponse */
     AssistantPhotoUploadResponse: {
@@ -8911,59 +8865,6 @@ export interface operations {
         };
         content: {
           'application/json': unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  request_assistant_hiring_approval_v0_user_assistant_hiring_approval_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AssistantHiringApprovalResponse'];
-        };
-      };
-    };
-  };
-  claim_assistant_hiring_one_time_link_v0_user_claim_assistant_hiring_one_time_link_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['AssistantHiringOneTimeLinkClaimTokenRequest'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AssistantHiringApprovalResponse'];
         };
       };
       /** @description Validation Error */

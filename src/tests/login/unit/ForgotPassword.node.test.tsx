@@ -44,6 +44,15 @@ vi.mock('@/components/Common/Input/Password', () => ({
   PasswordInput: ({ ...props }: any) => <input {...props} type="password" />,
 }));
 
+// Mock the Turnstile widget — auto-fires onVerify with a test token
+vi.mock('@/components/Common/Auth/TurnstileWidget', () => ({
+  default: ({ onVerify }: any) => {
+    // Simulate Turnstile resolving immediately
+    if (onVerify) setTimeout(() => onVerify('test-turnstile-token'), 0);
+    return <div data-testid="turnstile-widget-mock" />;
+  },
+}));
+
 // Mock the verification code component (path matches ForgotPasswordForm's import)
 vi.mock('@/components/Pages/Login/VerificationCodeInput', () => ({
   default: ({ onSubmit, onResend, error }: any) => (
@@ -76,6 +85,12 @@ const goToCodeView = async (mockOnBack: any) => {
 
   const user = userEvent.setup();
   render(<ForgotPasswordForm onBack={mockOnBack} initialEmail="test@test.com" />);
+
+  // Wait for Turnstile mock to fire onVerify (setTimeout 0)
+  await waitFor(() => {
+    expect(screen.getByTestId('turnstile-widget-mock')).toBeInTheDocument();
+  });
+  await new Promise((r) => setTimeout(r, 10));
 
   await user.click(screen.getByTestId('send-reset-btn'));
 
@@ -154,18 +169,29 @@ describe('ForgotPasswordForm – email entry (Step 1)', () => {
     const user = userEvent.setup();
     render(<ForgotPasswordForm onBack={mockOnBack} />);
 
+    // Wait for Turnstile mock to fire
+    await waitFor(() => {
+      expect(screen.getByTestId('turnstile-widget-mock')).toBeInTheDocument();
+    });
+    await new Promise((r) => setTimeout(r, 10));
+
     await user.type(screen.getByTestId('forgot-email-input'), 'test@example.com');
     await user.click(screen.getByTestId('send-reset-btn'));
 
     await waitFor(() => {
       expect(forgotSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'test@example.com' })
+        expect.objectContaining({ email: 'test@example.com', captchaToken: 'test-turnstile-token' })
       );
     });
 
     await waitFor(() => {
       expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
     });
+  });
+
+  it('renders Turnstile widget in the forgot-password view', () => {
+    render(<ForgotPasswordForm onBack={mockOnBack} />);
+    expect(screen.getByTestId('turnstile-widget-mock')).toBeInTheDocument();
   });
 
   it('shows network error when fetch fails entirely', async () => {
@@ -425,6 +451,29 @@ describe('ForgotPasswordForm – verify code errors', () => {
     await waitFor(() => {
       expect(screen.getByTestId('forgot-error').textContent).toContain('Network error');
     });
+  });
+
+  it('shows CAPTCHA error when captcha verification fails', async () => {
+    server.use(
+      http.post('/api/auth/email/forgot-password', () =>
+        HttpResponse.json(
+          { error: 'captcha_failed', message: 'CAPTCHA verification failed. Please try again.' },
+          { status: 400 }
+        )
+      )
+    );
+
+    const user = userEvent.setup();
+    render(<ForgotPasswordForm onBack={mockOnBack} initialEmail="test@test.com" />);
+
+    await user.click(screen.getByTestId('send-reset-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('forgot-error').textContent).toContain('CAPTCHA verification failed');
+    });
+
+    // Should stay on email entry view (not advance to code view)
+    expect(screen.getByTestId('forgot-password-form')).toBeInTheDocument();
   });
 
   it('calls resend API when resend button is clicked in code view', async () => {

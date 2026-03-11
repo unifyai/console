@@ -29,6 +29,7 @@ const OrganizationPage = async () => {
       apiKey: org.apiKey,
       image: org.image,
       timezone: org.timezone,
+      freeTrial: org.freeTrial,
     })) || [];
 
   const orgActions = {

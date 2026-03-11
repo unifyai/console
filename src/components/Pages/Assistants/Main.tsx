@@ -52,7 +52,6 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 interface MainProps {
   taskActions: TaskActions;
   assistantActions: AssistantActions;
-  oneTimeToken?: string | null;
   userMeta: {
     image: string | null | undefined;
     timezone?: string | null;
@@ -62,7 +61,7 @@ interface MainProps {
   };
 }
 
-export default function Main({ taskActions, assistantActions, oneTimeToken, userMeta }: MainProps) {
+export default function Main({ taskActions, assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
     usePanelManager();

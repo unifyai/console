@@ -512,6 +512,7 @@ const OrganizationWorkspaceView = ({
                           showSpending={spendingEnabled}
                           spendingInfo={memberSpending}
                           onEditSpendingLimit={handleEditSpendingLimit}
+                          freeTrial={organization.freeTrial}
                         />
                       );
                     })}

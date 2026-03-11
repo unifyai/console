@@ -72,8 +72,6 @@ const mockUser = {
   stripeCustomerId: '',
   organization: { name: '', roleId: 1, roleName: 'owner' },
   organizations: [],
-  assistantHiringApproval: null,
-  hasClaimedApprovalLink: '',
 };
 
 function setupSession(iat: number) {

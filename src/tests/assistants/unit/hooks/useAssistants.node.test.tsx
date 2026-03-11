@@ -66,7 +66,6 @@ const mockActions: AssistantActions = {
   chat: {} as any,
   contact: {} as any,
   secret: {} as any,
-  approval: {} as any,
   call: {} as any,
   desktop: {} as any,
   spending: {} as any,

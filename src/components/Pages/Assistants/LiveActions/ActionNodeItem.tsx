@@ -57,6 +57,69 @@ import { isToolLoopNoise } from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
+const CHECK_STATUS_PREFIX = 'check_status_';
+
+function buildResolvedToolCallIds(logs: ToolLoopLog[]): Set<string> {
+  const ids = new Set<string>();
+  for (const l of logs) {
+    const m = l.entries.message as Record<string, unknown>;
+    const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+    if (m.role === 'tool' && tcId) {
+      ids.add(tcId);
+      const name = (m.name as string) ?? '';
+      if (name.startsWith(CHECK_STATUS_PREFIX)) {
+        ids.add(name.slice(CHECK_STATUS_PREFIX.length));
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Rewrite check_status tool RESULTS so they appear as normal results for the
+ * original tool call.  The check_status assistant message (the synthetic call)
+ * is left untouched — isToolLoopNoise still filters it from display.
+ */
+function rewriteCheckStatusResults(logs: ToolLoopLog[]): ToolLoopLog[] {
+  const toolNameByCallId = new Map<string, string>();
+  for (const l of logs) {
+    const m = l.entries.message;
+    const tcs = m.toolCalls ?? ((m as Record<string, unknown>).tool_calls as typeof m.toolCalls);
+    if (m.role === 'assistant' && Array.isArray(tcs)) {
+      for (const tc of tcs) {
+        const tcId = tc.id as string | undefined;
+        const tcName = (tc.function?.name ?? (tc as Record<string, unknown>).name) as
+          | string
+          | undefined;
+        if (tcId && tcName) toolNameByCallId.set(tcId, tcName);
+      }
+    }
+  }
+
+  return logs.map((l) => {
+    const m = l.entries.message;
+    if (m.role !== 'tool') return l;
+    const name: string = m.name ?? '';
+    if (!name.startsWith(CHECK_STATUS_PREFIX)) return l;
+
+    const originalCallId = name.slice(CHECK_STATUS_PREFIX.length);
+    const originalToolName = toolNameByCallId.get(originalCallId) ?? originalCallId;
+
+    return {
+      ...l,
+      entries: {
+        ...l.entries,
+        message: {
+          ...m,
+          ['tool_call_id']: originalCallId,
+          toolCallId: originalCallId,
+          name: originalToolName,
+        },
+      },
+    };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Drag-to-resize hook + handle for scrollable regions
 // ---------------------------------------------------------------------------
@@ -1034,7 +1097,8 @@ function ToolLoopMessage({
 
   const filteredChildLiveLogs = React.useMemo(() => {
     if (!child?.liveToolLoopLogs?.length) return [];
-    return child.liveToolLoopLogs.filter((l) => {
+    const rewritten = rewriteCheckStatusResults(child.liveToolLoopLogs);
+    return rewritten.filter((l) => {
       const m = l.entries.message as Record<string, unknown>;
       if (m.role === 'system' && !m._steering) return false;
       return !isToolLoopNoise(m);
@@ -1042,6 +1106,12 @@ function ToolLoopMessage({
   }, [child?.liveToolLoopLogs]);
 
   const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
+
+  const childResolvedToolCallIds = React.useMemo(
+    () =>
+      buildResolvedToolCallIds(childLogs.length > 0 ? childLogs : (child?.liveToolLoopLogs ?? [])),
+    [childLogs, child?.liveToolLoopLogs]
+  );
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
@@ -1083,8 +1153,9 @@ function ToolLoopMessage({
           .then((response) => {
             if ('detail' in response) return;
             const logs = (response.logs || []) as ToolLoopLog[];
+            const rewritten = rewriteCheckStatusResults(logs);
             setChildLogs(
-              logs.filter((l) => {
+              rewritten.filter((l) => {
                 const m = l.entries.message as Record<string, unknown>;
                 if (m.role === 'system' && !m._steering) return false;
                 return !isToolLoopNoise(m);
@@ -1162,6 +1233,7 @@ function ToolLoopMessage({
               getToolLoopEvents={getToolLoopEvents}
               nested
               onLayoutChange={onLayoutChange}
+              resolvedToolCallIds={childResolvedToolCallIds}
             />
           </div>
         )}
@@ -1457,6 +1529,12 @@ function ToolLoopMessage({
       LabelIcon = Brain;
       content = thinkingText;
       if (hasToolCalls) trailingCallLine = renderCallLine();
+    } else if (hasToolCalls && textContent) {
+      label = 'thought';
+      color = 'text-slate-500/80 dark:text-slate-400/50';
+      LabelIcon = Brain;
+      content = textContent;
+      trailingCallLine = renderCallLine();
     } else if (hasToolCalls) {
       return renderCallLine();
     } else {
@@ -1475,11 +1553,22 @@ function ToolLoopMessage({
   }
 
   if (!content) return null;
+  content = content.replace(/^\s+/, '');
+  if (!content) return null;
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
+  const jsonExpandable =
+    isJson &&
+    (() => {
+      try {
+        return JSON.stringify(JSON.parse(content), null, 2).includes('\n');
+      } catch {
+        return false;
+      }
+    })();
   const hasMoreLines = content.includes('\n');
-  const canExpand = isTruncated || hasMoreLines || isJson;
+  const canExpand = isTruncated || hasMoreLines || jsonExpandable;
 
   const tcResultId =
     message.role === 'tool'
@@ -1622,6 +1711,7 @@ function ToolLoopConversation({
   getToolLoopEvents,
   nested,
   onLayoutChange: parentLayoutChange,
+  resolvedToolCallIds: resolvedToolCallIdsProp,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -1631,6 +1721,7 @@ function ToolLoopConversation({
   getToolLoopEvents?: GetToolLoopEventsFn;
   nested?: boolean;
   onLayoutChange?: () => void;
+  resolvedToolCallIds?: Set<string>;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1644,15 +1735,8 @@ function ToolLoopConversation({
     parentLayoutChange?.();
   }, [parentLayoutChange]);
 
-  const resolvedToolCallIds = React.useMemo(() => {
-    const ids = new Set<string>();
-    for (const l of logs) {
-      const m = l.entries.message as Record<string, unknown>;
-      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
-      if (m.role === 'tool' && tcId) ids.add(tcId);
-    }
-    return ids;
-  }, [logs]);
+  const localResolvedIds = React.useMemo(() => buildResolvedToolCallIds(logs), [logs]);
+  const resolvedToolCallIds = resolvedToolCallIdsProp ?? localResolvedIds;
 
   React.useEffect(() => {
     const el = scrollRef.current;
@@ -1739,12 +1823,14 @@ function LiveToolLoopTimeline({
   searchTerm,
   assistantId,
   getToolLoopEvents,
+  resolvedToolCallIds: resolvedToolCallIdsProp,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
+  resolvedToolCallIds?: Set<string>;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1756,15 +1842,8 @@ function LiveToolLoopTimeline({
   const { height: maxH, onPointerDown } = useResizableHeight(260);
   const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
-  const resolvedToolCallIds = React.useMemo(() => {
-    const ids = new Set<string>();
-    for (const l of logs) {
-      const m = l.entries.message as Record<string, unknown>;
-      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
-      if (m.role === 'tool' && tcId) ids.add(tcId);
-    }
-    return ids;
-  }, [logs]);
+  const localResolvedIds = React.useMemo(() => buildResolvedToolCallIds(logs), [logs]);
+  const resolvedToolCallIds = resolvedToolCallIdsProp ?? localResolvedIds;
 
   const handleScroll = React.useCallback(() => {
     const el = scrollRef.current;
@@ -1872,23 +1951,14 @@ function PromotedContent({
   searchTerm?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
-  const [isOverflowing, setIsOverflowing] = React.useState(false);
   const [isTruncated, setIsTruncated] = React.useState(false);
-  const contentRef = React.useRef<HTMLDivElement>(null);
   const inlineRef = React.useRef<HTMLSpanElement>(null);
   const rowRef = React.useRef<HTMLDivElement>(null);
-  const { height: maxH, onPointerDown } = useResizableHeight(200);
   const pad = `${20 + depth * 8}px`;
 
-  const hasMoreLines = content.includes('\n');
+  const trimmedContent = content.replace(/^\s+/, '');
+  const hasMoreLines = trimmedContent.includes('\n');
   const canExpand = isTruncated || hasMoreLines;
-
-  React.useEffect(() => {
-    if (isOpen) {
-      const el = contentRef.current;
-      if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
-    }
-  }, [isOpen, content, maxH]);
 
   React.useEffect(() => {
     const el = inlineRef.current;
@@ -1946,9 +2016,9 @@ function PromotedContent({
           className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
         >
           {searchTerm ? (
-            <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
+            <HighlightText text={trimmedContent.split(/\n\n|\n/)[0]} term={searchTerm} />
           ) : (
-            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
+            <TruncatedMarkdown content={trimmedContent.split(/\n\n|\n/)[0]} />
           )}
         </span>
         {!isOpen && canExpand && (
@@ -1962,47 +2032,18 @@ function PromotedContent({
       </div>
       {isOpen &&
         (() => {
-          const rest = content.split(/\n/).slice(1).join('\n').trim();
+          const rest = trimmedContent.split(/\n/).slice(1).join('\n').trim();
           if (!rest) return null;
           return (
-            <div className="relative" style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}>
-              {isOverflowing && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
-                  style={{
-                    background: 'linear-gradient(to top, transparent, var(--background))',
-                  }}
-                />
+            <div
+              className="text-[11px] leading-relaxed text-muted-foreground"
+              style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}
+            >
+              {searchTerm ? (
+                <HighlightText text={rest} term={searchTerm} />
+              ) : (
+                <RichContent content={rest} />
               )}
-              <div
-                ref={contentRef}
-                className={cn(
-                  'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
-                  'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
-                )}
-                style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
-                }}
-              >
-                {searchTerm ? (
-                  <HighlightText text={rest} term={searchTerm} />
-                ) : (
-                  <RichContent content={rest} />
-                )}
-              </div>
-              {isOverflowing && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
-                  style={{
-                    background: 'linear-gradient(to bottom, transparent, var(--background))',
-                  }}
-                />
-              )}
-              <ResizeHandle onPointerDown={onPointerDown} />
             </div>
           );
         })()}
@@ -2025,6 +2066,7 @@ function CollapsibleToolLoopSection({
   assistantId,
   getToolLoopEvents,
   onLayoutChange,
+  resolvedToolCallIds,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -2035,6 +2077,7 @@ function CollapsibleToolLoopSection({
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   onLayoutChange?: () => void;
+  resolvedToolCallIds?: Set<string>;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -2103,6 +2146,7 @@ function CollapsibleToolLoopSection({
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
           onLayoutChange={onLayoutChange}
+          resolvedToolCallIds={resolvedToolCallIds}
         />
       </div>
     </div>
@@ -2168,7 +2212,8 @@ export function ActionNodeItem({
   // polled rendering exactly (no duplication of descendant ToolLoop events).
   const filteredLiveToolLoopLogs = React.useMemo(() => {
     if (!node.liveToolLoopLogs) return [];
-    const logs = node.liveToolLoopLogs.filter((l) => {
+    const rewritten = rewriteCheckStatusResults(node.liveToolLoopLogs);
+    const logs = rewritten.filter((l) => {
       const msg = l.entries.message as Record<string, unknown>;
       if (msg.role === 'system' && !msg._steering) return false;
       return !isToolLoopNoise(msg as Record<string, unknown>);
@@ -2191,6 +2236,17 @@ export function ActionNodeItem({
   // referencing completedToolLoopLogs or liveToolLoopLogs directly.
   const effectiveLogs =
     completedToolLoopLogs.length > 0 ? completedToolLoopLogs : filteredLiveToolLoopLogs;
+
+  // Resolved tool-call IDs computed from BOTH Orchestra and SSE logs so that
+  // check_status_* synthetic completions (hidden from display by
+  // isToolLoopNoise) still resolve the shimmer on original tool calls.
+  // We merge both sources because the Orchestra fetch may race with the
+  // EventBus periodic flush — SSE events can arrive before Orchestra has them.
+  const resolvedToolCallIds = React.useMemo(() => {
+    const combined = [...completedToolLoopLogs, ...(node.liveToolLoopLogs ?? [])];
+    return buildResolvedToolCallIds(combined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedToolLoopLogs, node.liveToolLoopLogs]);
 
   // Label comes directly from the ManagerMethod incoming event's
   // question/instructions/request field, stored as requestContent.
@@ -2321,8 +2377,9 @@ export function ActionNodeItem({
 
         // Store raw logs (minus system messages). Child-event filtering
         // happens reactively in the completedToolLoopLogs memo.
+        const rewritten = rewriteCheckStatusResults(logs);
         setRawToolLoopLogs(
-          logs.filter((l) => {
+          rewritten.filter((l) => {
             const msg = l.entries.message as Record<string, unknown>;
             if (msg.role === 'system' && !msg._steering) return false;
             return !isToolLoopNoise(msg as Record<string, unknown>);
@@ -2554,6 +2611,7 @@ export function ActionNodeItem({
                 searchTerm={searchTerm}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
+                resolvedToolCallIds={resolvedToolCallIds}
               />
             );
           }
@@ -2567,6 +2625,7 @@ export function ActionNodeItem({
                 searchTerm={searchTerm}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
+                resolvedToolCallIds={resolvedToolCallIds}
               />
             );
           }
@@ -2580,6 +2639,7 @@ export function ActionNodeItem({
               searchTerm={searchTerm}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
+              resolvedToolCallIds={resolvedToolCallIds}
             />
           );
         })()}

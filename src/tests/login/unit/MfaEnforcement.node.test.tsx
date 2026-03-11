@@ -291,8 +291,6 @@ describe('User type – mfaSetupRequired', () => {
       stripeCustomerId: '',
       organization: { name: 'Org', roleId: 1, roleName: 'member' },
       organizations: [],
-      assistantHiringApproval: null,
-      hasClaimedApprovalLink: '',
       mfaSetupRequired: {
         orgId: 1,
         orgName: 'Enforced Org',
@@ -320,8 +318,6 @@ describe('User type – mfaSetupRequired', () => {
       stripeCustomerId: '',
       organization: { name: 'Org', roleId: 1, roleName: 'member' },
       organizations: [],
-      assistantHiringApproval: null,
-      hasClaimedApprovalLink: '',
     };
 
     expect(user.mfaSetupRequired).toBeUndefined();
