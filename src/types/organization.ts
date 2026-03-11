@@ -30,6 +30,7 @@ export interface Organization {
   apiKey?: string;
   image?: string | null;
   timezone?: string | null;
+  freeTrial?: boolean;
 }
 
 export interface OrganizationMember {

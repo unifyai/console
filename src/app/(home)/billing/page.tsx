@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { Metadata } from 'next';
 import OnPrem from '@/components/Shared/OnPrem';
 import Main from '@/components/Pages/Billing/Main';
+import FreeTrialBillingLock from '@/components/Pages/Billing/FreeTrialBillingLock';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
@@ -61,6 +62,15 @@ const BillingPage: React.FC = async () => {
       orgName: activeOrg.name,
       canEdit: roleName === 'owner' || roleName === 'admin',
     };
+  }
+
+  // ── Free trial lock ─────────────────────────────────────────────────
+  if (activeOrg?.freeTrial) {
+    return (
+      <div className="h-full w-full overflow-auto p-1">
+        <FreeTrialBillingLock />
+      </div>
+    );
   }
 
   // ── Build server actions (bind API key once, on the server) ─────────
