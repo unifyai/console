@@ -211,7 +211,7 @@ describe('filterExpressions', () => {
     it('builds filter with date range and user ID', () => {
       const result = buildUsageFilterExpression('2026-01-01', '2026-01-31', 'user_123');
       expect(result).toBe(
-        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_user_id == 'user_123')"
+        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_attributed_user_id == 'user_123')"
       );
     });
 
@@ -225,14 +225,14 @@ describe('filterExpressions', () => {
     it('builds filter with date range, user ID, and assistant ID', () => {
       const result = buildUsageFilterExpression('2026-01-01', '2026-01-31', 'user_123', 'asst_456');
       expect(result).toBe(
-        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_user_id == 'user_123') and (_assistant_id == 'asst_456')"
+        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_attributed_user_id == 'user_123') and (_assistant_id == 'asst_456')"
       );
     });
 
     it('ignores "all" assistant ID', () => {
       const result = buildUsageFilterExpression('2026-01-01', '2026-01-31', 'user_123', 'all');
       expect(result).toBe(
-        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_user_id == 'user_123')"
+        "(event_timestamp >= '2026-01-01' and event_timestamp < '2026-02-01') and (_attributed_user_id == 'user_123')"
       );
     });
 
