@@ -669,7 +669,14 @@ export function useAssistantActions(
             return result.roots;
           });
         } else {
-          if (node) node.childrenLoaded = true;
+          // Orchestra returned no descendant events, but the node may already
+          // have children from SSE delivery. Mark them as loaded so expansion
+          // works and lazy-load effects don't re-fire.
+          const markLoaded = (n: ActionNode) => {
+            n.childrenLoaded = true;
+            for (const child of n.children) markLoaded(child);
+          };
+          if (node) markLoaded(node);
           setRoots((prev) => [...prev]);
         }
 

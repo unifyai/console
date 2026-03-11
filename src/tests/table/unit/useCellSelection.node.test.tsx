@@ -44,11 +44,22 @@ function createMockTable(rowCount: number, columnIds: string[]): Table<Record<st
   const columns = columnIds.map((id) => ({
     id,
     getIsVisible: () => true,
+    getLeafColumns: () => [{ id }],
+  }));
+
+  const headers = columnIds.map((id) => ({
+    column: { id, getLeafColumns: () => [{ id }] },
+    getContext: () => ({
+      table: {
+        getRowModel: () => ({ rows }),
+      },
+    }),
   }));
 
   return {
     getRowModel: () => ({ rows }),
     getVisibleLeafColumns: () => columns,
+    getLeafHeaders: () => headers,
   } as unknown as Table<Record<string, unknown>>;
 }
 
@@ -105,8 +116,8 @@ describe('useCellSelection - Selection State', () => {
     expect(result.current.isCellSelected(cell2)).toBe(false);
   });
 
-  it('isRowSelected returns true when any cell in row is selected', () => {
-    const { result } = renderHook(() =>
+  it('isAllRowSelected returns true only when all data cells in row are selected', () => {
+    const { result: partial } = renderHook(() =>
       useCellSelection({
         table: mockTable,
         selectedCells: ['1_name'],
@@ -114,8 +125,18 @@ describe('useCellSelection - Selection State', () => {
       })
     );
 
-    expect(result.current.isRowSelected('0')).toBe(false);
-    expect(result.current.isRowSelected('1')).toBe(true);
+    expect(partial.current.isAllRowSelected('0')).toBe(false);
+    expect(partial.current.isAllRowSelected('1')).toBe(false);
+
+    const { result: full } = renderHook(() =>
+      useCellSelection({
+        table: mockTable,
+        selectedCells: ['1_name', '1_status', '1_value'],
+        setSelectedCells,
+      })
+    );
+
+    expect(full.current.isAllRowSelected('1')).toBe(true);
   });
 
   it('clearSelection clears all selected cells', () => {
@@ -464,7 +485,7 @@ describe('useCellSelection - Mouse Events', () => {
     // Should not throw
     expect(() => {
       act(() => {
-        result.current.handleCellMouseUp({} as React.MouseEvent<HTMLElement>);
+        result.current.handleCellMouseUp();
       });
     }).not.toThrow();
   });

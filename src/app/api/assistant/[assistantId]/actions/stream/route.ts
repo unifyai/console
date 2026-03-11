@@ -13,6 +13,11 @@
  * - Server-side ACK (Orchestra is the durable store; client polls on catch-up)
  * - snake_case → camelCase transformation via shared casing utilities
  * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match ManagerMethodLog
+ *
+ * Local development mode:
+ * - When COMMS_SERVICE_ACCOUNT_CREDENTIALS is absent, falls back to an
+ *   in-memory event bus. Events are pushed via the companion POST endpoint
+ *   at /api/assistant/[assistantId]/actions/push (already pre-shaped).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,6 +30,7 @@ import {
   getTopicName,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
+import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,60 +78,82 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
         traceback: camelEvent.traceback,
         message: camelEvent.message,
         toolAliases: camelEvent.toolAliases ?? null,
+        persist: camelEvent.persist ?? null,
       },
     },
   };
 }
 
 // =============================================================================
-// Route Handler
+// SSE Response Helpers
 // =============================================================================
 
-export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
-  const { assistantId } = params;
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache, no-transform',
+  Connection: 'keep-alive',
+  'X-Accel-Buffering': 'no',
+};
 
-  if (__DEV__) console.log(`[DEBUG][Actions SSE] GET request for assistantId=${assistantId}`);
+// =============================================================================
+// Local Development Mode (in-memory event bus, no GCP dependency)
+// =============================================================================
 
-  if (!assistantId) {
-    return new NextResponse('Assistant ID is required.', { status: 400 });
-  }
+function createLocalStream(request: NextRequest, assistantId: string): Response {
+  if (__DEV__)
+    console.log(`[Actions SSE] Local mode for assistant=${assistantId} (no Pub/Sub credentials)`);
 
-  let authClient: any;
-  let subscriptionUrl: string;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(': connected\n\n'));
 
-  try {
-    const authData = await getAuthClient();
-    authClient = authData.client;
+      const keepAliveInterval = setInterval(() => {
+        if (request.signal.aborted) {
+          clearInterval(keepAliveInterval);
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(': keep-alive\n\n'));
+        } catch {
+          clearInterval(keepAliveInterval);
+        }
+      }, 15000);
 
-    const connectionId = crypto.randomUUID().slice(0, 8);
-    const topicName = getTopicName(assistantId);
-    const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
+      const unsubscribe = subscribe(assistantId, (rawEvent) => {
+        if (request.signal.aborted) return;
+        try {
+          const event = snakeToCamelObject<Record<string, unknown>>(rawEvent);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          // Stream closed
+        }
+      });
 
-    subscriptionUrl = await createEphemeralSubscription(
-      authClient,
-      authData.projectId,
-      topicName,
-      subscriptionName
-    );
-
-    if (__DEV__)
-      console.log(
-        `[DEBUG][Actions SSE] Auth OK. Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
-      );
-  } catch (error: any) {
-    console.error('[Actions SSE] Setup error:', error.message);
-    return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
-      status: 500,
-    });
-  }
-
-  // Capture for cleanup when the client disconnects.
-  const cleanupSubscriptionUrl = subscriptionUrl;
-  const cleanupAuthClient = authClient;
-  request.signal.addEventListener('abort', () => {
-    deleteSubscription(cleanupAuthClient, cleanupSubscriptionUrl);
+      request.signal.addEventListener('abort', () => {
+        clearInterval(keepAliveInterval);
+        unsubscribe();
+        try {
+          controller.close();
+        } catch {
+          // Already closed
+        }
+      });
+    },
   });
 
+  return new Response(stream, { headers: SSE_HEADERS });
+}
+
+// =============================================================================
+// Production Mode (GCP Pub/Sub ephemeral subscriptions)
+// =============================================================================
+
+function createPubSubStream(
+  request: NextRequest,
+  assistantId: string,
+  authClient: any,
+  subscriptionUrl: string
+): Response {
   const stream = new ReadableStream({
     async start(controller) {
       if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream started for assistant=${assistantId}`);
@@ -188,8 +216,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
           const ackIds: string[] = [];
 
-          // Parse all messages first, then sort by rowId to restore publish order
-          // (Pub/Sub synchronous pull does not guarantee ordering)
           const parsed: Array<{
             shaped: ReturnType<typeof reshapeToLogEntry>;
             ackId: string;
@@ -233,7 +259,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
           }
 
-          // Server-side ACK — Orchestra is the durable store
           if (ackIds.length > 0) {
             try {
               await authClient.request({
@@ -253,7 +278,6 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
         }
       }
 
-      // Cleanup
       clearInterval(keepAliveInterval);
       deleteSubscription(authClient, subscriptionUrl);
       if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
@@ -265,12 +289,60 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    },
+  return new Response(stream, { headers: SSE_HEADERS });
+}
+
+// =============================================================================
+// Route Handler
+// =============================================================================
+
+export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
+  const { assistantId } = params;
+
+  if (__DEV__) console.log(`[DEBUG][Actions SSE] GET request for assistantId=${assistantId}`);
+
+  if (!assistantId) {
+    return new NextResponse('Assistant ID is required.', { status: 400 });
+  }
+
+  // ── Local development: no Pub/Sub credentials → in-memory event bus ──
+  if (!hasCredentials()) {
+    return createLocalStream(request, assistantId);
+  }
+
+  // ── Production / staging: GCP Pub/Sub ephemeral subscriptions ──
+  let authClient: any;
+  let subscriptionUrl: string;
+
+  try {
+    const authData = await getAuthClient();
+    authClient = authData.client;
+
+    const connectionId = crypto.randomUUID().slice(0, 8);
+    const topicName = getTopicName(assistantId);
+    const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
+
+    subscriptionUrl = await createEphemeralSubscription(
+      authClient,
+      authData.projectId,
+      topicName,
+      subscriptionName
+    );
+
+    if (__DEV__)
+      console.log(
+        `[DEBUG][Actions SSE] Auth OK. Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
+      );
+  } catch (error: any) {
+    console.error('[Actions SSE] Setup error:', error.message);
+    return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
+      status: 500,
+    });
+  }
+
+  request.signal.addEventListener('abort', () => {
+    deleteSubscription(authClient, subscriptionUrl);
   });
+
+  return createPubSubStream(request, assistantId, authClient, subscriptionUrl);
 }

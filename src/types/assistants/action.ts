@@ -199,6 +199,10 @@ export interface ToolLoopLog {
   id: number;
   ts: string;
   entries: ToolLoopLogEntries;
+  /** Synthetic child ActionNode injected into the log list for inline rendering */
+  syntheticChildNode?: ActionNode;
+  /** The tool_call_id that spawned this child node (for bracket connectors) */
+  syntheticToolCallId?: string | null;
 }
 
 // =============================================================================

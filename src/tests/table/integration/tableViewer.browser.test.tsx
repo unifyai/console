@@ -12,6 +12,8 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, cleanup, fireEvent, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableViewer } from '@/components/Pages/Table/TableViewer';
+import { http, HttpResponse } from 'msw';
+import { worker } from '@/../vitest.browser.setup';
 
 // =============================================================================
 // Test Data
@@ -398,167 +400,148 @@ describe('TableViewer Browser - Sorting', () => {
 // Pagination Tests
 // =============================================================================
 
-// NOTE: Pagination navigation tests are skipped because they require mocking
-// the fetch calls for server-side pagination. The component now fetches data
-// from the API when navigating pages, which doesn't work in test environment
-// without proper MSW handlers. See table.api.node.test.ts for API-level tests.
 describe('TableViewer Browser - Pagination', () => {
-  it.skip('navigates to next page (requires fetch mock for server-side pagination)', async () => {
-    const user = userEvent.setup();
-    const data = createMockData(100);
+  const allPaginatedData = createMockData(100);
+  const PAGE_SIZE = 10;
+  const TOTAL_COUNT = 100;
+  const TOTAL_PAGES = 10;
 
-    const configWithSmallPage = {
-      ...mockConfig,
-      rowLimit: 10,
-    };
+  function setupPaginationHandler() {
+    worker.use(
+      http.get('/api/table/data/browser123456', ({ request }) => {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1', 10);
+        const pageSize = parseInt(url.searchParams.get('pageSize') || String(PAGE_SIZE), 10);
+        const start = (page - 1) * pageSize;
+        const pageData = allPaginatedData.slice(start, start + pageSize);
+
+        return HttpResponse.json({
+          data: pageData,
+          fields: mockFields,
+          config: mockConfig,
+          metadata: mockMetadata,
+          pagination: {
+            page,
+            pageSize,
+            totalCount: TOTAL_COUNT,
+            totalPages: TOTAL_PAGES,
+            hasNextPage: page < TOTAL_PAGES,
+            hasPreviousPage: page > 1,
+          },
+        });
+      })
+    );
+  }
+
+  it('navigates to next page', async () => {
+    setupPaginationHandler();
+    const user = userEvent.setup();
+    const initialData = allPaginatedData.slice(0, PAGE_SIZE);
 
     render(
       <TableViewer
-        config={configWithSmallPage}
+        config={{ ...mockConfig, rowLimit: PAGE_SIZE }}
         token="browser123456"
-        initialData={data}
+        initialData={initialData}
         fields={mockFields}
         metadata={mockMetadata}
-        initialPagination={createMockPagination(100)}
+        initialPagination={createMockPagination(TOTAL_COUNT, PAGE_SIZE)}
       />
     );
 
-    // Verify on page 1
     expect(screen.getByText('Page 1 of 10')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
 
-    // Click next page button
-    const nextButtons = screen.getAllByRole('button');
-    const nextButton = nextButtons.find((btn) => btn.querySelector('.lucide-chevron-right'));
+    const nextButton = screen.getByRole('button', { name: /Go to next page/i });
+    await user.click(nextButton);
 
-    if (nextButton) {
-      await user.click(nextButton);
-    }
-
-    // Should be on page 2
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 10')).toBeInTheDocument();
     });
     expect(screen.getByText('Item 11')).toBeInTheDocument();
   });
 
-  it.skip('navigates to previous page (requires fetch mock for server-side pagination)', async () => {
+  it('navigates to previous page', async () => {
+    setupPaginationHandler();
     const user = userEvent.setup();
-    const data = createMockData(100);
-
-    const configWithSmallPage = {
-      ...mockConfig,
-      rowLimit: 10,
-    };
+    const initialData = allPaginatedData.slice(0, PAGE_SIZE);
 
     render(
       <TableViewer
-        config={configWithSmallPage}
+        config={{ ...mockConfig, rowLimit: PAGE_SIZE }}
         token="browser123456"
-        initialData={data}
+        initialData={initialData}
         fields={mockFields}
         metadata={mockMetadata}
-        initialPagination={createMockPagination(100)}
+        initialPagination={createMockPagination(TOTAL_COUNT, PAGE_SIZE)}
       />
     );
 
-    // Go to page 2 first
-    const nextButtons = screen.getAllByRole('button');
-    const nextButton = nextButtons.find((btn) => btn.querySelector('.lucide-chevron-right'));
-
-    if (nextButton) {
-      await user.click(nextButton);
-    }
+    const nextButton = screen.getByRole('button', { name: /Go to next page/i });
+    await user.click(nextButton);
 
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 10')).toBeInTheDocument();
     });
 
-    // Click previous
-    const prevButton = nextButtons.find((btn) => btn.querySelector('.lucide-chevron-left'));
+    const prevButton = screen.getByRole('button', { name: /Go to previous page/i });
+    await user.click(prevButton);
 
-    if (prevButton) {
-      await user.click(prevButton);
-    }
-
-    // Should be back on page 1
     await waitFor(() => {
       expect(screen.getByText('Page 1 of 10')).toBeInTheDocument();
     });
   });
 
-  it.skip('jumps to first page (requires fetch mock for server-side pagination)', async () => {
+  it('jumps to first page', async () => {
+    setupPaginationHandler();
     const user = userEvent.setup();
-    const data = createMockData(100);
-
-    const configWithSmallPage = {
-      ...mockConfig,
-      rowLimit: 10,
-    };
+    const initialData = allPaginatedData.slice(0, PAGE_SIZE);
 
     render(
       <TableViewer
-        config={configWithSmallPage}
+        config={{ ...mockConfig, rowLimit: PAGE_SIZE }}
         token="browser123456"
-        initialData={data}
+        initialData={initialData}
         fields={mockFields}
         metadata={mockMetadata}
-        initialPagination={createMockPagination(100)}
+        initialPagination={createMockPagination(TOTAL_COUNT, PAGE_SIZE)}
       />
     );
 
-    // Go to page 3
-    const buttons = screen.getAllByRole('button');
-    const nextButton = buttons.find((btn) => btn.querySelector('.lucide-chevron-right'));
-
-    if (nextButton) {
-      await user.click(nextButton);
-      await user.click(nextButton);
-    }
+    const nextButton = screen.getByRole('button', { name: /Go to next page/i });
+    await user.click(nextButton);
+    await user.click(nextButton);
 
     await waitFor(() => {
       expect(screen.getByText('Page 3 of 10')).toBeInTheDocument();
     });
 
-    // Click first page button (chevrons-left)
-    const firstButton = buttons.find((btn) => btn.querySelector('.lucide-chevrons-left'));
-
-    if (firstButton) {
-      await user.click(firstButton);
-    }
+    const firstButton = screen.getByRole('button', { name: /Go to first page/i });
+    await user.click(firstButton);
 
     await waitFor(() => {
       expect(screen.getByText('Page 1 of 10')).toBeInTheDocument();
     });
   });
 
-  it.skip('jumps to last page (requires fetch mock for server-side pagination)', async () => {
+  it('jumps to last page', async () => {
+    setupPaginationHandler();
     const user = userEvent.setup();
-    const data = createMockData(100);
-
-    const configWithSmallPage = {
-      ...mockConfig,
-      rowLimit: 10,
-    };
+    const initialData = allPaginatedData.slice(0, PAGE_SIZE);
 
     render(
       <TableViewer
-        config={configWithSmallPage}
+        config={{ ...mockConfig, rowLimit: PAGE_SIZE }}
         token="browser123456"
-        initialData={data}
+        initialData={initialData}
         fields={mockFields}
         metadata={mockMetadata}
-        initialPagination={createMockPagination(100)}
+        initialPagination={createMockPagination(TOTAL_COUNT, PAGE_SIZE)}
       />
     );
 
-    // Click last page button (chevrons-right)
-    const buttons = screen.getAllByRole('button');
-    const lastButton = buttons.find((btn) => btn.querySelector('.lucide-chevrons-right'));
-
-    if (lastButton) {
-      await user.click(lastButton);
-    }
+    const lastButton = screen.getByRole('button', { name: /Go to last page/i });
+    await user.click(lastButton);
 
     await waitFor(() => {
       expect(screen.getByText('Page 10 of 10')).toBeInTheDocument();

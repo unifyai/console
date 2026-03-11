@@ -7,8 +7,8 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { ExternalLink, Table2, BarChart3, Maximize2, X } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { ExternalLink, Table2, BarChart3, Maximize2, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 
@@ -155,19 +155,25 @@ export function InlineEmbedExpanded({
 }: InlineEmbedExpandedProps) {
   const Icon = embed.type === 'table' ? Table2 : BarChart3;
   const label = embed.type === 'table' ? 'Interactive Table' : 'Interactive Chart';
+  const [isLoading, setIsLoading] = useState(true);
+  const [iframeActive, setIframeActive] = useState(false);
+
+  const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
   // Construct full URL for iframe
   const iframeSrc = useMemo(() => {
-    // If it's already a full URL, use it
     if (embed.url.startsWith('http')) {
       return embed.url;
     }
-    // Otherwise construct from window location
     if (typeof window !== 'undefined') {
       return `${window.location.origin}${embed.url}`;
     }
     return embed.url;
   }, [embed.url]);
+
+  const iframeScale = embed.type === 'table' ? 0.92 : 1;
+  const scaledHeight = Math.round(height / iframeScale);
+  const scaledWidth = iframeScale < 1 ? `${Math.round(100 / iframeScale)}%` : '100%';
 
   return (
     <div
@@ -203,13 +209,35 @@ export function InlineEmbedExpanded({
       </div>
 
       {/* Iframe Content */}
-      <div style={{ height }} className="relative">
+      {/* Click to activate: pointer-events on iframe are disabled until clicked,
+          so parent chat scroll works uninterrupted when cursor passes over the embed. */}
+      <div
+        style={{ height }}
+        className="relative overflow-hidden"
+        onClick={() => setIframeActive(true)}
+        onMouseLeave={() => setIframeActive(false)}
+      >
+        {isLoading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="text-caption text-muted-foreground">Loading {embed.type}...</span>
+            </div>
+          </div>
+        )}
         <iframe
           src={iframeSrc}
-          className="h-full w-full border-0"
+          className="border-0"
+          style={{
+            width: scaledWidth,
+            height: scaledHeight,
+            transform: iframeScale < 1 ? `scale(${iframeScale})` : undefined,
+            transformOrigin: 'top left',
+            pointerEvents: iframeActive ? 'auto' : 'none',
+          }}
           title={label}
           sandbox="allow-scripts allow-same-origin allow-popups"
-          loading="lazy"
+          onLoad={handleIframeLoad}
         />
       </div>
     </div>

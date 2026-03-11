@@ -27,6 +27,7 @@ import {
   isSameDay,
   MAX_ATTACHMENTS,
 } from '@/components/Chat';
+import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
 import {
   DropdownMenu,
@@ -411,33 +412,37 @@ export function AssistantProfileChatPanel({
                 </Button>
               </div>
             )}
-            {messages.map((msg, i) => {
-              const prevMsg = messages[i - 1];
-              const showDivider =
-                !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp, userTimezone);
-              return (
-                <React.Fragment key={msg.id}>
-                  {showDivider && <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />}
-                  <ChatMessageBubble
-                    message={msg.content}
-                    isUser={msg.role === 'user'}
-                    assistantPhoto={photoSrc}
-                    assistantName={displayName}
-                    timestamp={msg.timestamp}
-                    timezone={userTimezone}
-                    index={i}
-                    attachments={msg.attachments}
-                    {...(hasVoice && msg.role === 'assistant' && msg.content
-                      ? {
-                          onPlayAudio: () => playMessage(msg.id, msg.content),
-                          onStopAudio: stopPlayback,
-                          audioState: getAudioState(msg.id),
-                        }
-                      : {})}
-                  />
-                </React.Fragment>
-              );
-            })}
+            {(USE_MOCK_EMBEDS ? [...messages, ...getMockEmbedMessages()] : messages).map(
+              (msg, i, arr) => {
+                const prevMsg = arr[i - 1];
+                const showDivider =
+                  !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp, userTimezone);
+                return (
+                  <React.Fragment key={msg.id}>
+                    {showDivider && (
+                      <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                    )}
+                    <ChatMessageBubble
+                      message={msg.content}
+                      isUser={msg.role === 'user'}
+                      assistantPhoto={photoSrc}
+                      assistantName={displayName}
+                      timestamp={msg.timestamp}
+                      timezone={userTimezone}
+                      index={i}
+                      attachments={msg.attachments}
+                      {...(hasVoice && msg.role === 'assistant' && msg.content
+                        ? {
+                            onPlayAudio: () => playMessage(msg.id, msg.content),
+                            onStopAudio: stopPlayback,
+                            audioState: getAudioState(msg.id),
+                          }
+                        : {})}
+                    />
+                  </React.Fragment>
+                );
+              }
+            )}
             {isAssistantReplying && (
               <ChatMessageBubble
                 message=""

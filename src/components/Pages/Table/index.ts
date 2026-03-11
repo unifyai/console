@@ -1,3 +1,3 @@
 export { TableViewer } from './TableViewer';
-export { DetailPane, type SelectedCellData } from './DetailPane';
+export { ViewPane, type SelectedCellData } from './ViewPane';
 export { useCellSelection } from './useCellSelection';

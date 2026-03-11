@@ -6,20 +6,24 @@
 # Starts a fully local Console deployment with a local Orchestra backend,
 # PostgreSQL database, and seeded test data (user, assistant).
 # Pass --org to also seed an organization workspace with its own assistant.
+# Pass --stripe to start Stripe webhook forwarding for E2E billing flows.
 #
 # Usage:
-#   ./scripts/local.sh              # Start with personal workspace (default)
-#   ./scripts/local.sh start        # Same as above
-#   ./scripts/local.sh start --org  # Start with org workspace seeded
-#   ./scripts/local.sh stop         # Stop Console and Orchestra
-#   ./scripts/local.sh restart      # Stop then start (wipes database)
-#   ./scripts/local.sh status       # Show status of all services
+#   ./scripts/local.sh                      # Start with personal workspace (default)
+#   ./scripts/local.sh start                # Same as above
+#   ./scripts/local.sh start --org          # Start with org workspace seeded
+#   ./scripts/local.sh start --stripe       # Start with Stripe webhook forwarding
+#   ./scripts/local.sh start --org --stripe # Both org and Stripe
+#   ./scripts/local.sh stop                 # Stop Console, Orchestra, and Stripe listener
+#   ./scripts/local.sh restart              # Stop then start (wipes database)
+#   ./scripts/local.sh status               # Show status of all services
 #
 # Prerequisites:
 #   - Node.js 20+ and npm 10+
 #   - Docker (for PostgreSQL)
 #   - Poetry (for Orchestra)
 #   - Orchestra repo cloned as a sibling: ../orchestra
+#   - (--stripe) Stripe CLI installed and authenticated (`stripe login`)
 #
 # Environment:
 #   ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)
@@ -48,13 +52,21 @@ ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 CONSOLE_PIDFILE="/tmp/console-local-dev.pid"
 CONSOLE_LOGFILE="/tmp/console-local-dev.log"
 
-# Read the ORCHESTRA_ADMIN_KEY from .env.local (needed so Orchestra accepts
-# admin API calls from the Console's Next.js server).
+# Read keys from .env.local (needed so Orchestra accepts admin API calls and
+# Stripe-dependent billing flows work end-to-end).
 ENV_LOCAL="$CONSOLE_REPO_PATH/.env.local"
 ADMIN_KEY=""
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
 if [[ -f "$ENV_LOCAL" ]]; then
-  ADMIN_KEY=$(grep -E '^ORCHESTRA_ADMIN_KEY=' "$ENV_LOCAL" | cut -d'=' -f2- || true)
+  ADMIN_KEY=$(grep -E '^ORCHESTRA_ADMIN_KEY=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
+  STRIPE_SECRET_KEY=$(grep -E '^STRIPE_SECRET_KEY=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
+  STRIPE_WEBHOOK_SECRET=$(grep -E '^STRIPE_WEBHOOK_SECRET=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
 fi
+
+# Stripe webhook forwarding (via orchestra/scripts/stripe.sh)
+STRIPE_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/stripe.sh"
+STRIPE_SECRET_FILE="/tmp/stripe-webhook-secret.txt"
 
 # Colors
 RED='\033[0;31m'
@@ -112,6 +124,8 @@ is_orchestra_running() {
 }
 
 start_orchestra() {
+  local with_stripe="${1:-false}"
+
   if is_orchestra_running; then
     log_success "Orchestra already running on port $ORCHESTRA_PORT"
     return 0
@@ -122,6 +136,35 @@ start_orchestra() {
   # Pass the admin key so Orchestra authenticates Console's admin calls.
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
+
+  # Tell Orchestra where Console is running so Stripe checkout redirects
+  # (success_url / cancel_url) point to localhost instead of console.unify.ai
+  export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
+
+  # When --stripe is requested, pass Stripe keys so Orchestra can create
+  # checkout/portal sessions and process webhooks.
+  if [[ "$with_stripe" == "true" ]]; then
+    if [[ -z "$STRIPE_SECRET_KEY" ]]; then
+      log_warn "STRIPE_SECRET_KEY not found in .env.local — Stripe billing flows won't work"
+    else
+      export STRIPE_SECRET_KEY
+      log_info "Stripe API key configured for Orchestra"
+    fi
+    # Skip webhook signature verification for local dev — the webhook secret
+    # from 'stripe listen' changes every session, so strict verification
+    # would break unless Orchestra is restarted each time.
+    export SKIP_STRIPE_SIGNATURE_VERIFICATION=true
+
+    # Also export any Stripe price/product IDs so checkout sessions work
+    for var in STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL STRIPE_UNIFY_CREDITS_PRICE_ID_BUSINESS \
+               STRIPE_UNIFY_CREDITS_PRODUCT_ID_PERSONAL STRIPE_UNIFY_CREDITS_PRODUCT_ID_BUSINESS; do
+      local val
+      val=$(grep -E "^${var}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
+      if [[ -n "$val" ]]; then
+        export "$var=$val"
+      fi
+    done
+  fi
 
   if ! ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
     log_error "Failed to start Orchestra"
@@ -362,15 +405,100 @@ stop_console() {
 }
 
 # =============================================================================
+# Stripe Webhook Forwarding (delegates to orchestra/scripts/stripe.sh)
+# =============================================================================
+
+is_stripe_listener_running() {
+  pgrep -f "stripe listen.*localhost:${ORCHESTRA_PORT}" &>/dev/null
+}
+
+start_stripe_listener() {
+  if ! command -v stripe &>/dev/null; then
+    log_error "Stripe CLI is not installed"
+    log_info "Install: brew install stripe/stripe-cli/stripe  (macOS)"
+    log_info "  or:    see https://docs.stripe.com/stripe-cli#install"
+    return 1
+  fi
+
+  if is_stripe_listener_running; then
+    log_success "Stripe webhook listener already running"
+    if [[ -f "$STRIPE_SECRET_FILE" ]]; then
+      log_info "Webhook secret: $(cat "$STRIPE_SECRET_FILE")"
+    fi
+    return 0
+  fi
+
+  log_info "Starting Stripe webhook forwarding to Orchestra..."
+
+  # Delegate to orchestra/scripts/stripe.sh bg (background mode)
+  if [[ -f "$STRIPE_SCRIPT" ]]; then
+    ORCHESTRA_PORT="$ORCHESTRA_PORT" STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY" bash "$STRIPE_SCRIPT" bg
+  else
+    log_warn "stripe.sh not found at $STRIPE_SCRIPT — starting manually"
+
+    local webhook_url="http://localhost:${ORCHESTRA_PORT}/v0/webhooks/stripe"
+    local logfile="/tmp/stripe-listen-orchestra.log"
+    rm -f "$logfile" "$STRIPE_SECRET_FILE"
+
+    local api_key_flag=""
+    if [[ -n "$STRIPE_SECRET_KEY" ]]; then
+      api_key_flag="--api-key $STRIPE_SECRET_KEY"
+    fi
+
+    # shellcheck disable=SC2086
+    nohup stripe listen \
+      $api_key_flag \
+      --forward-to "$webhook_url" \
+      --device-name "console-local" \
+      --events checkout.session.completed,invoice.payment_succeeded,invoice.paid,invoice.payment_failed,invoice.payment_action_required,charge.refunded,charge.refund.updated,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.closed,customer.tax_id.created,customer.tax_id.updated,customer.tax_id.deleted,customer.updated,review.opened,review.closed \
+      > "$logfile" 2>&1 &
+
+    log_info "Waiting for webhook secret..."
+    local waited=0
+    while (( waited < 10 )); do
+      local secret
+      secret=$(grep -o 'whsec_[a-zA-Z0-9]*' "$logfile" 2>/dev/null | head -1 || true)
+      if [[ -n "$secret" ]]; then
+        echo "$secret" > "$STRIPE_SECRET_FILE"
+        break
+      fi
+      sleep 1
+      ((waited++)) || true
+    done
+  fi
+
+  if [[ -f "$STRIPE_SECRET_FILE" ]]; then
+    log_success "Stripe webhook forwarding active"
+    log_info "Webhook secret: $(cat "$STRIPE_SECRET_FILE")"
+  else
+    log_warn "Could not extract webhook secret — check: tail -f /tmp/stripe-listen-orchestra.log"
+  fi
+}
+
+stop_stripe_listener() {
+  if [[ -f "$STRIPE_SCRIPT" ]]; then
+    ORCHESTRA_PORT="$ORCHESTRA_PORT" bash "$STRIPE_SCRIPT" stop 2>/dev/null || true
+  else
+    pkill -f "stripe listen.*localhost:${ORCHESTRA_PORT}" 2>/dev/null || true
+  fi
+  log_success "Stripe listener stopped"
+}
+
+# =============================================================================
 # Main Commands
 # =============================================================================
 
 cmd_start() {
   local with_org="$1"
+  local with_stripe="$2"
 
   local mode_label="personal"
-  if [[ "$with_org" == "true" ]]; then
+  if [[ "$with_org" == "true" && "$with_stripe" == "true" ]]; then
+    mode_label="personal + org + stripe"
+  elif [[ "$with_org" == "true" ]]; then
     mode_label="personal + org"
+  elif [[ "$with_stripe" == "true" ]]; then
+    mode_label="personal + stripe"
   fi
 
   echo ""
@@ -384,11 +512,16 @@ cmd_start() {
   fi
 
   echo ""
-  start_orchestra || return 1
+  start_orchestra "$with_stripe" || return 1
   echo ""
   seed_test_data "$with_org"
   echo ""
   start_console || return 1
+
+  if [[ "$with_stripe" == "true" ]]; then
+    echo ""
+    start_stripe_listener || log_warn "Stripe listener failed — billing flows won't receive webhooks"
+  fi
 
   echo ""
   echo "=============================================="
@@ -397,10 +530,17 @@ cmd_start() {
   echo ""
   echo "  Console:   http://localhost:${CONSOLE_PORT}"
   echo "  Orchestra: http://127.0.0.1:${ORCHESTRA_PORT}/v0"
+  if [[ "$with_stripe" == "true" ]]; then
+    echo "  Stripe:    webhooks → http://localhost:${ORCHESTRA_PORT}/v0/webhooks/stripe"
+  fi
   echo ""
   echo "  Login:     test@example.com / testpass123"
   if [[ "$with_org" == "true" ]]; then
     echo "  Org:       Acme Corp (switch workspace in UI)"
+  fi
+  if [[ "$with_stripe" == "true" ]]; then
+    echo ""
+    echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
   fi
   echo ""
 }
@@ -408,6 +548,9 @@ cmd_start() {
 cmd_stop() {
   echo "Stopping local environment..."
   echo ""
+  if is_stripe_listener_running; then
+    stop_stripe_listener
+  fi
   stop_console
   stop_orchestra
   echo ""
@@ -416,9 +559,10 @@ cmd_stop() {
 
 cmd_restart() {
   local with_org="$1"
+  local with_stripe="$2"
   cmd_stop
   echo ""
-  cmd_start "$with_org"
+  cmd_start "$with_org" "$with_stripe"
 }
 
 cmd_status() {
@@ -441,6 +585,16 @@ cmd_status() {
     echo -e "${RED}not running${NC}"
   fi
 
+  echo -n "  Stripe:    "
+  if is_stripe_listener_running; then
+    echo -e "${GREEN}listening${NC} (webhooks → localhost:${ORCHESTRA_PORT})"
+    if [[ -f "$STRIPE_SECRET_FILE" ]]; then
+      echo "             secret: $(cat "$STRIPE_SECRET_FILE")"
+    fi
+  else
+    echo -e "${YELLOW}not running${NC} (start with --stripe)"
+  fi
+
   echo ""
 }
 
@@ -451,10 +605,12 @@ cmd_status() {
 main() {
   local cmd=""
   local with_org="false"
+  local with_stripe="false"
 
   while (( "$#" )); do
     case "$1" in
-      --org)   with_org="true"; shift ;;
+      --org)    with_org="true"; shift ;;
+      --stripe) with_stripe="true"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
       *)       [[ -z "$cmd" ]] && cmd="$1"; shift ;;
@@ -464,22 +620,25 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" ;;
+    start)   cmd_start "$with_org" "$with_stripe" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org]"
+      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
-      echo "  stop     Stop Console and Orchestra"
+      echo "  stop     Stop Console, Orchestra, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
       echo ""
       echo "Flags:"
-      echo "  --org    Seed organization workspace (Acme Corp) with org assistant"
-      echo "           Without this flag, only a personal assistant is seeded."
+      echo "  --org      Seed organization workspace (Acme Corp) with org assistant"
+      echo "             Without this flag, only a personal assistant is seeded."
+      echo "  --stripe   Start Stripe webhook forwarding for E2E billing flows"
+      echo "             Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
+      echo "             Then authenticate:   stripe login"
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)"
@@ -489,6 +648,11 @@ main() {
       echo "Test credentials:"
       echo "  Email:    test@example.com"
       echo "  Password: testpass123"
+      echo ""
+      echo "Examples:"
+      echo "  $0 start                 # Console + Orchestra only"
+      echo "  $0 start --stripe        # + Stripe webhook forwarding"
+      echo "  $0 start --org --stripe  # + org workspace + Stripe"
       ;;
     *)
       log_error "Unknown command: $cmd"

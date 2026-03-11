@@ -62,6 +62,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Store expand state before search for restoration
   const preSearchExpandedRef = React.useRef<Set<string> | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const prevRootIdsRef = React.useRef<Set<string>>(new Set());
 
   // ==========================================================================
   // Visibility-based Polling
@@ -243,12 +244,31 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Effects
   // ==========================================================================
 
+  // Auto-expand newly arriving root action nodes
+  React.useEffect(() => {
+    const currentIds = new Set(roots.map((r) => r.id));
+    const newIds: string[] = [];
+    currentIds.forEach((id) => {
+      if (!prevRootIdsRef.current.has(id)) newIds.push(id);
+    });
+    prevRootIdsRef.current = currentIds;
+
+    if (newIds.length > 0) {
+      setExpandedNodeIds((prev) => {
+        const next = new Set(prev);
+        newIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  }, [roots]);
+
   // Reset state when assistant changes
   React.useEffect(() => {
     setSearchTerm('');
     setExpandedNodeIds(new Set());
     setLastUpdated(null);
     preSearchExpandedRef.current = null;
+    prevRootIdsRef.current = new Set();
     setTimeWindowKey(DEFAULT_TIME_WINDOW_KEY);
   }, [assistant?.agentId]);
 

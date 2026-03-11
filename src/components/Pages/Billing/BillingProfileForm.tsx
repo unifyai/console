@@ -11,96 +11,22 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { Loader2, Check, X } from 'lucide-react';
-import countries from 'i18n-iso-countries';
-import enLocale from 'i18n-iso-countries/langs/en.json';
-
-countries.registerLocale(enLocale);
+import type {
+  BillingActions,
+  BillingProfileData,
+  TaxCountry,
+  TaxIdValidationResponse,
+  SupportedTaxCountriesResponse,
+  SupportedTaxCountryEntry,
+} from '@/types/billing';
 
 // ============================================================================
-// Types
+// Props & Handles
 // ============================================================================
-
-/** Client-side billing profile data (camelCase) */
-export interface BillingProfileData {
-  individualName: string;
-  billingEmail: string;
-  taxId: string;
-  taxIdType: string;
-  billingAddress: {
-    line1: string;
-    line2: string;
-    city: string;
-    state: string;
-    country: string;
-    postalCode: string;
-  };
-}
-
-/**
- * Converts camelCase BillingProfileData to the snake_case shape expected by
- * the backend's UserBillingProfileUpdate schema.
- */
-export function toApiPayload(data: BillingProfileData): Record<string, unknown> {
-  const payload: Record<string, unknown> = {};
-  payload['individual_name'] = data.individualName || undefined;
-  payload['billing_email'] = data.billingEmail || undefined;
-  payload['tax_id'] = data.taxId || undefined;
-  payload['tax_id_type'] = data.taxIdType || undefined;
-
-  if (data.billingAddress.line1) {
-    const addr: Record<string, unknown> = {};
-    addr.line1 = data.billingAddress.line1;
-    addr.line2 = data.billingAddress.line2 || undefined;
-    addr.city = data.billingAddress.city || undefined;
-    addr.state = data.billingAddress.state || undefined;
-    addr.country = data.billingAddress.country || undefined;
-    addr['postal_code'] = data.billingAddress.postalCode || undefined;
-    payload['billing_address'] = addr;
-  }
-
-  return payload;
-}
-
-/**
- * Converts the backend's snake_case response into camelCase BillingProfileData.
- */
-export function fromApiResponse(raw: Record<string, any>): Partial<BillingProfileData> {
-  const addr = raw.billing_address ?? raw.billingAddress;
-  return {
-    individualName: raw.individual_name ?? raw.individualName ?? '',
-    billingEmail: raw.billing_email ?? raw.billingEmail ?? '',
-    taxId: raw.tax_id ?? raw.taxId ?? '',
-    taxIdType: raw.tax_id_type ?? raw.taxIdType ?? '',
-    billingAddress: {
-      line1: addr?.line1 ?? '',
-      line2: addr?.line2 ?? '',
-      city: addr?.city ?? '',
-      state: addr?.state ?? '',
-      country: addr?.country ?? '',
-      postalCode: addr?.postal_code ?? addr?.postalCode ?? '',
-    },
-  };
-}
-
-/** Response from the tax-countries endpoint */
-interface TaxCountry {
-  code: string;
-  name: string;
-  taxIdName: string;
-  taxIdFormat: string;
-}
-
-interface SupportedTaxCountriesResponse {
-  supportedCountries: Record<string, string>;
-  totalCountries: number;
-}
-
-interface TaxIdValidationResponse {
-  valid: boolean;
-  errorMessage?: string;
-}
 
 interface BillingProfileFormProps {
+  /** Server-action-bound billing actions */
+  actions: BillingActions;
   onSubmit: (data: BillingProfileData) => void;
   onValidationChange: (isValid: boolean) => void;
   onCancel?: () => void;
@@ -114,120 +40,13 @@ interface BillingProfileFormHandle {
 }
 
 // ============================================================================
-// Helpers
-// ============================================================================
-
-// Country code to name mapping (common countries)
-const countryNames: Record<string, string> = {
-  US: 'United States',
-  GB: 'United Kingdom',
-  AU: 'Australia',
-  CA: 'Canada',
-  DE: 'Germany',
-  FR: 'France',
-  IT: 'Italy',
-  ES: 'Spain',
-  NL: 'Netherlands',
-  BE: 'Belgium',
-  AT: 'Austria',
-  SE: 'Sweden',
-  DK: 'Denmark',
-  FI: 'Finland',
-  IE: 'Ireland',
-  PT: 'Portugal',
-  NO: 'Norway',
-  CH: 'Switzerland',
-  JP: 'Japan',
-  KR: 'South Korea',
-  IN: 'India',
-  SG: 'Singapore',
-  MY: 'Malaysia',
-  TH: 'Thailand',
-  BR: 'Brazil',
-  MX: 'Mexico',
-  RU: 'Russia',
-  CN: 'China',
-  BG: 'Bulgaria',
-  CY: 'Cyprus',
-  CZ: 'Czech Republic',
-  EE: 'Estonia',
-  GR: 'Greece',
-  HR: 'Croatia',
-  HU: 'Hungary',
-  LT: 'Lithuania',
-  LU: 'Luxembourg',
-  LV: 'Latvia',
-  MT: 'Malta',
-  PL: 'Poland',
-  RO: 'Romania',
-  SI: 'Slovenia',
-  SK: 'Slovakia',
-};
-
-/** Map from tax country description to { name, format } */
-const extractTaxIdInfo = (description: string): { name: string; format: string } => {
-  const match = description.match(/\(([^)]+)\)/);
-  if (match) {
-    const taxType = match[1];
-    const taxTypeMap: Record<string, { name: string; format: string }> = {
-      'us.ein': { name: 'EIN', format: 'XX-XXXXXXX' },
-      'gb.vat': { name: 'VAT Number', format: 'GB999999999' },
-      'au.abn': { name: 'ABN', format: 'XX XXX XXX XXX' },
-      'ca.gst_hst': { name: 'GST/HST Number', format: 'XXXXXXXXX' },
-      'de.vat': { name: 'VAT Number', format: 'DEXXXXXXXXX' },
-      'fr.tva': { name: 'TVA Number', format: 'FRXXXXXXXXXXX' },
-      'it.iva': { name: 'IVA Number', format: 'ITXXXXXXXXXXX' },
-      'es.vat': { name: 'VAT Number', format: 'ESXXXXXXXXX' },
-      'jp.cn': { name: 'Corporate Number', format: 'XXXXXXXXXXXXX' },
-      'nl.btw': { name: 'BTW Number', format: 'NLXXXXXXXXX' },
-      'be.vat': { name: 'VAT Number', format: 'BEXXXXXXXXX' },
-      'at.uid': { name: 'UID Number', format: 'ATXXXXXXXXX' },
-      'se.vat': { name: 'VAT Number', format: 'SEXXXXXXXXX' },
-      'dk.cvr': { name: 'CVR Number', format: 'XXXXXXXX' },
-      'pt.nif': { name: 'NIF Number', format: 'XXXXXXXXX' },
-      'no.mva': { name: 'MVA Number', format: 'XXXXXXXXX' },
-      'ch.vat': { name: 'VAT Number', format: 'CHXXXXXXXXX' },
-      'kr.brn': { name: 'Business Registration Number', format: 'XXX-XX-XXXXX' },
-      'in.gstin': { name: 'GSTIN', format: 'XXXXXXXXXXXX' },
-      'sg.uen': { name: 'UEN', format: 'XXXXXXXXX' },
-      'my.nric': { name: 'NRIC/Company No.', format: 'XXXXXXXXX' },
-      'th.moa': { name: 'MOA Number', format: 'XXXXXXXXX' },
-      'br.cnpj': { name: 'CNPJ', format: 'XX.XXX.XXX/XXXX-XX' },
-      'mx.rfc': { name: 'RFC', format: 'XXXXXXXXXXX' },
-      'ru.inn': { name: 'INN', format: 'XXXXXXXXXX' },
-      'cn.uscc': { name: 'USCC', format: 'XXXXXXXXXXXXXXXXX' },
-    };
-    return taxTypeMap[taxType] || { name: 'Tax ID', format: 'Enter tax ID' };
-  }
-  if (description.includes('EU VAT')) {
-    return { name: 'VAT Number', format: 'Enter VAT number' };
-  }
-  return { name: 'Tax ID', format: 'Enter tax ID' };
-};
-
-// Map country code to Stripe tax ID type string
-const countryToStripeTaxIdType: Record<string, string> = {
-  US: 'us_ein', GB: 'gb_vat', AU: 'au_abn', CA: 'ca_gst_hst',
-  DE: 'eu_vat', FR: 'eu_vat', IT: 'eu_vat', ES: 'eu_vat',
-  NL: 'eu_vat', BE: 'eu_vat', AT: 'eu_vat', SE: 'eu_vat',
-  DK: 'eu_vat', FI: 'eu_vat', IE: 'eu_vat', PT: 'eu_vat',
-  NO: 'no_vat', CH: 'ch_vat', JP: 'jp_cn', KR: 'kr_brn',
-  IN: 'in_gst', SG: 'sg_uen', MY: 'my_sst', TH: 'th_vat',
-  BR: 'br_cnpj', MX: 'mx_rfc', RU: 'ru_inn', CN: 'cn_tin',
-  BG: 'bg_uic', CY: 'eu_vat', CZ: 'eu_vat', EE: 'eu_vat',
-  GR: 'eu_vat', HR: 'eu_vat', HU: 'eu_vat', LT: 'eu_vat',
-  LU: 'eu_vat', LV: 'eu_vat', MT: 'eu_vat', PL: 'eu_vat',
-  RO: 'eu_vat', SI: 'eu_vat', SK: 'eu_vat',
-};
-
-// ============================================================================
 // Component
 // ============================================================================
 
 const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFormProps>(
-  ({ onSubmit, onValidationChange, onCancel, isLoading, error, initialData }, ref) => {
+  ({ actions, onSubmit, onValidationChange, onCancel, isLoading, error, initialData }, ref) => {
     const [formData, setFormData] = useState<BillingProfileData>({
-      individualName: '',
+      name: '',
       billingEmail: '',
       taxId: '',
       taxIdType: '',
@@ -261,19 +80,19 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
     useEffect(() => {
       const fetchSupportedCountries = async () => {
         try {
-          const response = await fetch('/api/user/supported-tax-countries');
-          if (response.ok) {
-            const data: SupportedTaxCountriesResponse = await response.json();
+          const result = await actions.getSupportedTaxCountries();
+          if ('detail' in result) {
+            console.error('Error fetching supported countries:', result.detail);
+          } else {
+            const data = result as SupportedTaxCountriesResponse;
             const list: TaxCountry[] = Object.entries(data.supportedCountries)
-              .map(([code, description]) => {
-                const info = extractTaxIdInfo(description);
-                return {
-                  code,
-                  name: countryNames[code] || code,
-                  taxIdName: info.name,
-                  taxIdFormat: info.format,
-                };
-              })
+              .map(([code, entry]: [string, SupportedTaxCountryEntry]) => ({
+                code,
+                name: entry.name,
+                taxIdName: entry.taxIdName,
+                taxIdFormat: entry.taxIdFormat,
+                stripeTaxIdType: entry.stripeTaxIdType,
+              }))
               .sort((a, b) => a.name.localeCompare(b.name));
             setSupportedCountries(list);
           }
@@ -284,6 +103,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
         }
       };
       fetchSupportedCountries();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Tax ID validation ────────────────────────────────────────────────
@@ -294,27 +114,17 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
           setValidatingTaxId(true);
           try {
             const sanitized = formData.taxId.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-            const res = await fetch('/api/user/validate-tax-id', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ taxId: sanitized, country: taxCountry }),
+            const result = await actions.validateTaxId({
+              taxId: sanitized,
+              country: taxCountry,
             });
-            if (res.ok) {
-              const raw: any = await res.json();
+            if ('detail' in result) {
               setTaxIdValidation({
-                valid: raw.valid ?? raw.isValid ?? false,
-                errorMessage: raw.errorMessage || raw.error || undefined,
+                valid: false,
+                errorMessage: result.detail || 'Invalid tax ID',
               });
             } else {
-              try {
-                const errData = await res.json();
-                setTaxIdValidation({
-                  valid: false,
-                  errorMessage: errData?.detail?.[0]?.msg || errData?.detail || 'Invalid tax ID',
-                });
-              } catch {
-                setTaxIdValidation({ valid: false, errorMessage: 'Invalid tax ID' });
-              }
+              setTaxIdValidation(result as TaxIdValidationResponse);
             }
           } catch {
             setTaxIdValidation({
@@ -330,14 +140,16 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
       } else {
         setTaxIdValidation(null);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.taxId, taxCountry]);
 
     // ── Sync taxCountry → billingAddress.country + taxIdType ─────────────
     useEffect(() => {
       if (taxCountry) {
+        const country = supportedCountries.find((c) => c.code === taxCountry);
         setFormData((prev) => ({
           ...prev,
-          taxIdType: countryToStripeTaxIdType[taxCountry] || 'eu_vat',
+          taxIdType: country?.stripeTaxIdType || 'eu_vat',
           billingAddress: {
             ...prev.billingAddress,
             country: taxCountry,
@@ -345,7 +157,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
         }));
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [taxCountry]);
+    }, [taxCountry, supportedCountries]);
 
     // ── Sync initialData ─────────────────────────────────────────────────
     useEffect(() => {
@@ -383,7 +195,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
     // ── Validation ───────────────────────────────────────────────────────
     const isFormValid = useCallback(() => {
       // Name is the only strictly required field
-      if (!formData.individualName.trim()) return false;
+      if (!formData.name.trim()) return false;
       // If a tax ID is entered, it should be valid
       if (formData.taxId && taxIdValidation && !taxIdValidation.valid) return false;
       return true;
@@ -405,8 +217,8 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
           </Label>
           <Input
             id="billingName"
-            value={formData.individualName}
-            onChange={(e) => handleInputChange('individualName', e.target.value)}
+            value={formData.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
             placeholder="Your name or business name"
             required
             className="h-10"

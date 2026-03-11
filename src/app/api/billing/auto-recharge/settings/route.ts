@@ -1,53 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBillingAccountInfo } from '@/lib/user/billing/billing';
-import {
-  enableAutoRecharge,
-  setAutoRechargeQty,
-  setAutoRechargeThreshold,
-} from '@/lib/user/billing/billing';
-import { getWorkspaceBillingContext } from '../../../_utils/auth';
+import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
+import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 /**
- * Resolves billing entity params ({ userId } or { organizationId }) from the workspace context.
- */
-function billingEntityParams(ctx: NonNullable<Awaited<ReturnType<typeof getWorkspaceBillingContext>>>) {
-  return ctx.type === 'organization'
-    ? { organizationId: ctx.organizationId }
-    : { userId: ctx.userId };
-}
-
-/**
- * GET: Returns auto-recharge settings for the active workspace's billing account.
+ * GET: Returns auto-recharge settings AND eligibility for the active
+ * workspace's billing account in a single call.
+ *
+ * Delegates to backend GET /billing/auto-recharge, which resolves context
+ * from the API key and returns combined settings + eligibility.
  */
 export async function GET(request: NextRequest) {
-  const ctx = await getWorkspaceBillingContext();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!ctx) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const billingInfo = await getBillingAccountInfo(billingEntityParams(ctx));
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/auto-recharge');
+    const data = response.data;
 
     return NextResponse.json({
-      autoRechargeEnabled: billingInfo.autorecharge,
-      autoRechargeThreshold: billingInfo.autorechargeThreshold,
-      autoRechargeQty: billingInfo.autorechargeQty,
+      // Settings
+      autoRechargeEnabled: data.enabled,
+      autoRechargeThreshold: data.threshold,
+      autoRechargeQty: data.qty,
+      minRechargeAmount: data.minRechargeAmount,
+      // Eligibility
+      totalSpending: data.totalSpending,
+      canEnableAutoRecharge: data.eligible,
+      minimumSpendRequired: data.minimumSpendRequired,
+      remainingSpendNeeded: data.remainingSpendNeeded,
     });
-  } catch (error) {
-    console.error('Error fetching auto-recharge settings:', error);
-    return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error fetching auto-recharge data:', error?.response?.data || error);
+    return NextResponse.json(
+      { error: 'Error fetching auto-recharge data' },
+      { status: error?.response?.status || 500 }
+    );
   }
 }
 
 /**
  * POST: Updates auto-recharge settings for the active workspace's billing account.
+ *
+ * Delegates to backend PUT /billing/auto-recharge as a single atomic update
+ * instead of making three separate admin calls.
  */
 export async function POST(request: NextRequest) {
-  const ctx = await getWorkspaceBillingContext();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!ctx) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
@@ -66,63 +71,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid quantity value' }, { status: 400 });
     }
 
-    const entityParams = billingEntityParams(ctx);
-
-    try {
-      await enableAutoRecharge(autoRechargeEnabled, entityParams);
-    } catch (enableError: any) {
-      console.error('Error enabling auto-recharge:', enableError);
-      if (enableError.response?.status === 400) {
-        return NextResponse.json(
-          {
-            error:
-              enableError.response.data?.detail ||
-              'Failed to enable auto-recharge due to eligibility requirements',
-          },
-          { status: 400 }
-        );
-      }
-      throw enableError;
-    }
-
-    try {
-      await setAutoRechargeThreshold(autoRechargeThreshold, entityParams);
-    } catch (thresholdError: any) {
-      console.error('Error setting auto-recharge threshold:', thresholdError);
-      if (thresholdError.response?.status === 400) {
-        return NextResponse.json(
-          {
-            error: thresholdError.response.data?.detail || 'Failed to set auto-recharge threshold',
-          },
-          { status: 400 }
-        );
-      }
-      throw thresholdError;
-    }
-
-    try {
-      await setAutoRechargeQty(autoRechargeQty, entityParams);
-    } catch (qtyError: any) {
-      console.error('Error setting auto-recharge quantity:', qtyError);
-      if (qtyError.response?.status === 400) {
-        return NextResponse.json(
-          {
-            error: qtyError.response.data?.detail || 'Failed to set auto-recharge quantity',
-          },
-          { status: 400 }
-        );
-      }
-      throw qtyError;
-    }
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.put('/billing/auto-recharge', {
+      enabled: autoRechargeEnabled,
+      threshold: autoRechargeThreshold,
+      qty: autoRechargeQty,
+    });
 
     return NextResponse.json({ message: 'Auto-recharge settings updated successfully' });
   } catch (error: any) {
-    console.error('Error updating auto-recharge settings:', error);
-    return NextResponse.json(
-      {
-        error: error.response?.data?.detail || 'Error updating auto-recharge settings',
-      },
-      { status: 500 }
-    );
+    console.error('Error updating auto-recharge settings:', error?.response?.data || error);
+    const status = error?.response?.status || 500;
+    const detail =
+      error?.response?.data?.detail || 'Error updating auto-recharge settings';
+    return NextResponse.json({ error: detail }, { status });
   }
 }

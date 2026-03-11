@@ -24,6 +24,7 @@ import {
   FileText,
   BookOpen,
   RefreshCw,
+  Repeat,
   ListChecks,
   Cpu,
   KeyRound,
@@ -37,6 +38,7 @@ import {
   ArrowDown,
   ArrowUp,
   CornerDownLeft,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -55,11 +57,70 @@ import { isToolLoopNoise } from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
+// ---------------------------------------------------------------------------
+// Drag-to-resize hook + handle for scrollable regions
+// ---------------------------------------------------------------------------
+
+function useResizableHeight(defaultHeight: number, minHeight = 40) {
+  const [height, setHeight] = React.useState(defaultHeight);
+  const heightRef = React.useRef(height);
+  heightRef.current = height;
+
+  const onPointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startY = e.clientY;
+      const startH = heightRef.current;
+
+      const onMove = (ev: PointerEvent) => {
+        ev.preventDefault();
+        setHeight(Math.max(minHeight, startH + (ev.clientY - startY)));
+      };
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [minHeight]
+  );
+
+  return { height, onPointerDown } as const;
+}
+
+function ResizeHandle({
+  onPointerDown,
+  paddingLeft,
+}: {
+  onPointerDown: (e: React.PointerEvent) => void;
+  paddingLeft?: string;
+}) {
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      className="group/resize z-20 flex h-1 cursor-row-resize touch-none select-none items-center"
+      style={paddingLeft ? { paddingLeft } : undefined}
+    >
+      <div
+        className="group-hover/resize:bg-muted-foreground/25 group-active/resize:bg-muted-foreground/40 h-px w-full rounded-full transition-colors"
+        style={{ background: 'hsl(0 0% 100% / 0.08)' }}
+      />
+    </div>
+  );
+}
+
 interface BracketGeom {
   topY: number;
+  midYs: number[];
   bottomY: number;
   barX: number;
   lineWidth: number;
+  /** True when the result hasn't arrived yet (open bracket, no bottom bar). */
+  pending?: boolean;
 }
 
 function BracketLines({ geom }: { geom: BracketGeom }) {
@@ -88,22 +149,39 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           top: top + 1,
           left: geom.barX,
           width: 1,
-          height: bot - top - 1,
+          height: bot - top - (geom.pending ? 0 : 1),
           background: bg,
         }}
       />
-      {/* bottom horizontal */}
-      <div
-        className="pointer-events-none"
-        style={{
-          position: 'absolute',
-          top: bot,
-          left: geom.barX,
-          width: geom.lineWidth,
-          height: 1,
-          background: bg,
-        }}
-      />
+      {/* middle horizontal bars (nest rows) — start 1px right to avoid overlap with the vertical */}
+      {geom.midYs.map((midY, i) => (
+        <div
+          key={i}
+          className="pointer-events-none"
+          style={{
+            position: 'absolute',
+            top: midY - 1,
+            left: geom.barX + 1,
+            width: geom.lineWidth - 1,
+            height: 1,
+            background: bg,
+          }}
+        />
+      ))}
+      {/* bottom horizontal — omitted for pending (open) brackets */}
+      {!geom.pending && (
+        <div
+          className="pointer-events-none"
+          style={{
+            position: 'absolute',
+            top: bot,
+            left: geom.barX,
+            width: geom.lineWidth,
+            height: 1,
+            background: bg,
+          }}
+        />
+      )}
     </>
   );
 }
@@ -127,26 +205,52 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   const callEl = container.querySelector<HTMLElement>(
     `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="call"]`
   );
+  if (!callEl) return null;
+
   const resultEl = container.querySelector<HTMLElement>(
     `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="result"]`
   );
-  if (!callEl || !resultEl) return null;
 
   const containerRect = container.getBoundingClientRect();
-
   const callIcon = findIconCenter(callEl, containerRect);
-  const resultIcon = findIconCenter(resultEl, containerRect);
-  if (!callIcon || !resultIcon) return null;
+  if (!callIcon) return null;
 
   const topY = callIcon.y;
-  const bottomY = resultIcon.y;
-  if (topY >= bottomY) return null;
-
   const iconLeftEdge = callIcon.x - 7;
   const barX = iconLeftEdge - 6;
   const lineWidth = iconLeftEdge - barX;
 
-  return { topY, bottomY, barX, lineWidth };
+  const nestEls = container.querySelectorAll<HTMLElement>(
+    `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="nest"]`
+  );
+
+  if (resultEl) {
+    const resultIcon = findIconCenter(resultEl, containerRect);
+    if (!resultIcon) return null;
+    const bottomY = resultIcon.y;
+    if (topY >= bottomY) return null;
+
+    const midYs: number[] = [];
+    nestEls.forEach((el) => {
+      const center = findIconCenter(el, containerRect);
+      if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
+    });
+    midYs.sort((a, b) => a - b);
+
+    return { topY, midYs, bottomY, barX, lineWidth };
+  }
+
+  // Pending: no result yet — anchor bracket at the last nest element
+  const midYs: number[] = [];
+  nestEls.forEach((el) => {
+    const center = findIconCenter(el, containerRect);
+    if (center && center.y > topY) midYs.push(center.y);
+  });
+  if (midYs.length === 0) return null;
+  midYs.sort((a, b) => a - b);
+
+  const bottomY = midYs[midYs.length - 1];
+  return { topY, midYs, bottomY, barX, lineWidth, pending: true };
 }
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
@@ -194,6 +298,7 @@ function getLabelStyles(status: ActionNodeStatus): string {
  */
 function getNodeIcon(displayLabel?: string): LucideIcon {
   if (!displayLabel) return CircleDot;
+  if (displayLabel === 'Session') return Repeat;
   if (displayLabel === 'Taking Action') return Zap;
   if (displayLabel === 'Running Code') return SquareTerminal;
   if (displayLabel.startsWith('Running:')) return Play;
@@ -215,6 +320,7 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
 
 function getNodeTooltip(displayLabel?: string): string {
   if (!displayLabel) return 'event';
+  if (displayLabel === 'Session') return 'persistent session';
   if (displayLabel === 'Taking Action') return 'action';
   if (displayLabel === 'Running Code') return 'code execution';
   if (displayLabel.startsWith('Running:')) return 'function execution';
@@ -288,6 +394,92 @@ function formatCompactDuration(ms: number): string {
 }
 
 /**
+ * Create a synthetic ToolLoopLog that wraps a child ActionNode so it can
+ * be rendered inline among regular ToolLoop messages.
+ */
+function makeSyntheticLog(child: ActionNode, toolCallId: string | null): ToolLoopLog {
+  return {
+    id: hashStringToInt(child.id),
+    ts: child.startTime,
+    entries: {
+      message: { role: 'system', content: child.displayLabel || child.label },
+      method: '',
+      hierarchy: child.hierarchy,
+      hierarchyLabel: child.hierarchyLabel,
+      eventTimestamp: child.startTime,
+    },
+    syntheticChildNode: child,
+    syntheticToolCallId: toolCallId,
+  };
+}
+
+function hashStringToInt(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  }
+  return hash < 0 ? -hash : hash;
+}
+
+/**
+ * Scan backwards through already-placed logs to find the tool_call_id of
+ * the tool call that spawned this child node.
+ *
+ * Two strategies, tried in order:
+ *
+ * 1. **Boundary-segment matching** — the hierarchy entry immediately after
+ *    the parent's hierarchy encodes the spawning tool (e.g.
+ *    "execute_function(primitives.web.ask)(xx)").  Matches when the segment
+ *    starts with the tool call name or contains its function_name argument.
+ *
+ * 2. **Pending-call fallback** — when the child shares the parent's lineage
+ *    directly (e.g. inner primitives called from execute_code), there's no
+ *    distinguishing boundary segment.  In that case, attribute the child to
+ *    the most recent tool call that hasn't received its result yet — the
+ *    in-flight call that must have spawned it.
+ */
+function findSpawningToolCallId(
+  precedingLogs: ToolLoopLog[],
+  child: ActionNode,
+  parentHierarchyLen: number
+): string | null {
+  // Strategy 1: boundary-segment name matching
+  const boundarySeg = child.hierarchy[parentHierarchyLen] || '';
+  if (boundarySeg) {
+    for (let i = precedingLogs.length - 1; i >= 0; i--) {
+      const msg = precedingLogs[i].entries.message;
+      if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+      for (const tc of msg.toolCalls) {
+        if (boundarySeg.startsWith(tc.function.name)) return tc.id;
+        try {
+          const args = JSON.parse(tc.function.arguments);
+          if (args.function_name && boundarySeg.includes(args.function_name)) return tc.id;
+        } catch {
+          /* skip */
+        }
+      }
+    }
+  }
+
+  // Strategy 2: attribute to the most recent pending (unresolved) tool call
+  const resolvedIds = new Set<string>();
+  for (const log of precedingLogs) {
+    const m = log.entries.message as Record<string, unknown>;
+    const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+    if (m.role === 'tool' && tcId) resolvedIds.add(tcId);
+  }
+  for (let i = precedingLogs.length - 1; i >= 0; i--) {
+    const msg = precedingLogs[i].entries.message;
+    if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+    for (const tc of msg.toolCalls) {
+      if (!resolvedIds.has(tc.id)) return tc.id;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Live-ticking duration badge. Ticks every second while running,
  * shows static duration when completed/errored.
  */
@@ -347,7 +539,7 @@ function isLikelyJson(text: string): boolean {
 const markdownComponents = {
   p: ({ children }: any) => <p className="my-0.5 whitespace-pre-wrap break-words">{children}</p>,
   pre: ({ children }: any) => (
-    <pre className="bg-muted/50 my-1 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0">
+    <pre className="bg-muted/50 my-1 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0">
       {children}
     </pre>
   ),
@@ -518,7 +710,7 @@ function RichContent({ content }: { content: string }) {
 
       if (!hasCodeBlocks) {
         return (
-          <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+          <pre className="bg-muted/50 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed">
             <code>{formatted}</code>
           </pre>
         );
@@ -527,7 +719,7 @@ function RichContent({ content }: { content: string }) {
       const hlStyle = theme && ['dark', 'system'].includes(theme) ? dracula : docco;
 
       return (
-        <pre className="bg-muted/50 overflow-x-auto rounded px-2 py-1.5 text-[10px] leading-relaxed">
+        <pre className="bg-muted/50 whitespace-pre-wrap break-words rounded px-2 py-1.5 text-[10px] leading-relaxed">
           {segments.map((seg, i) =>
             seg.kind === 'text' ? (
               <code key={i}>{seg.text}</code>
@@ -613,7 +805,7 @@ function HighlightText({ text, term }: { text: string; term?: string }) {
 function ContentArea({
   content,
   depth,
-  maxHeight = 80,
+  maxHeight: defaultMaxHeight = 80,
 }: {
   content: string;
   depth: number;
@@ -621,21 +813,21 @@ function ContentArea({
 }) {
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const { height: maxH, onPointerDown } = useResizableHeight(defaultMaxHeight);
 
-  // Check if content overflows
   React.useEffect(() => {
     const el = contentRef.current;
     if (el) {
       setIsOverflowing(el.scrollHeight > el.clientHeight);
     }
-  }, [content]);
+  }, [content, maxH]);
 
   return (
     <div
       className="relative min-w-0"
       style={{
-        paddingLeft: `${28 + depth * 16}px`,
-        maxWidth: `calc(100% - ${depth * 16 + 16}px)`,
+        paddingLeft: `${20 + depth * 8}px`,
+        maxWidth: `calc(100% - ${depth * 8 + 8}px)`,
       }}
     >
       <div
@@ -645,7 +837,7 @@ function ContentArea({
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
-          maxHeight: `${maxHeight}px`,
+          maxHeight: `${maxH}px`,
           scrollbarWidth: 'none',
         }}
         onMouseEnter={(e) => {
@@ -658,16 +850,17 @@ function ContentArea({
         <RichContent content={content} />
       </div>
 
-      {/* Subtle fade at bottom when overflowing */}
       {isOverflowing && (
         <div
           className="pointer-events-none absolute bottom-0 left-0 right-0 h-4"
           style={{
-            paddingLeft: `${28 + depth * 16}px`,
+            paddingLeft: `${20 + depth * 8}px`,
             background: 'linear-gradient(to bottom, transparent, var(--background))',
           }}
         />
       )}
+
+      <ResizeHandle onPointerDown={onPointerDown} />
     </div>
   );
 }
@@ -679,6 +872,7 @@ function ToolCallRow({
   entry,
   time,
   actionIcon,
+  isPending,
   searchTerm,
   onTcHover,
   hoveredTcId,
@@ -687,6 +881,7 @@ function ToolCallRow({
   entry: { label: string; toolCallId: string; arguments: string };
   time: string;
   actionIcon: React.ReactNode;
+  isPending?: boolean;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
@@ -706,24 +901,33 @@ function ToolCallRow({
 
   const canExpand = !!formattedArgs;
   const isHighlighted = hoveredTcId === entry.toolCallId;
+  const tcRowRef = React.useRef<HTMLDivElement>(null);
+
+  const handleTcRowClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+      onLayoutChange?.();
+    } else if (!isOpen && !canExpand) {
+      const el = tcRowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
 
   return (
     <div
+      ref={tcRowRef}
       className={cn(
-        'group rounded-sm transition-colors duration-150',
-        !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+        'group cursor-pointer rounded-sm transition-colors duration-150',
+        !isOpen && canExpand && 'hover:bg-muted/40',
         isHighlighted && 'bg-muted/40'
       )}
       data-tc-id={entry.toolCallId}
       data-tc-role="call"
-      onClick={
-        !isOpen && canExpand
-          ? () => {
-              setIsOpen(true);
-              onLayoutChange?.();
-            }
-          : undefined
-      }
+      onClick={handleTcRowClick}
       onMouseEnter={() => onTcHover?.(entry.toolCallId)}
       onMouseLeave={() => onTcHover?.(null)}
     >
@@ -742,7 +946,9 @@ function ToolCallRow({
         }
       >
         {actionIcon}
-        <span className="min-w-0 truncate text-muted-foreground">
+        <span
+          className={cn('min-w-0 truncate text-muted-foreground', isPending && 'animate-shimmer')}
+        >
           <HighlightText text={entry.label} term={searchTerm} />
         </span>
         {canExpand && (
@@ -759,7 +965,7 @@ function ToolCallRow({
       </div>
       {isOpen && formattedArgs && (
         <pre
-          className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+          className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
           onClick={() => {
             setIsOpen(false);
             onLayoutChange?.();
@@ -774,19 +980,31 @@ function ToolCallRow({
 
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
+ * When log._actionNode is set, renders an inline child node row instead.
  */
 function ToolLoopMessage({
   log,
+  isLatestLog,
+  nodeCompleted,
+  resolvedToolCallIds,
   searchTerm,
   onTcHover,
   hoveredTcId,
   onLayoutChange,
+  assistantId,
+  getToolLoopEvents,
 }: {
   log: ToolLoopLog;
+  isLatestLog?: boolean;
+  nodeCompleted?: boolean;
+  /** Tool call IDs that already have a matching result in the logs. */
+  resolvedToolCallIds?: Set<string>;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
   onLayoutChange?: () => void;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
@@ -797,6 +1015,33 @@ function ToolLoopMessage({
   const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
   const textContent = extractTextContent(message.content);
+  const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
+  const [childLoading, setChildLoading] = React.useState(false);
+  const childFetchedRef = React.useRef(false);
+  const steeringRef = React.useRef<HTMLDivElement>(null);
+  const rowRef = React.useRef<HTMLDivElement>(null);
+
+  // Hooks for inline child node expansion — must be unconditional (rules of hooks).
+  const child = log.syntheticChildNode;
+  const [childLogsOpen, setChildLogsOpen] = React.useState(child?.status === 'running');
+
+  React.useEffect(() => {
+    if (child?.status === 'running' && !childLogsOpen) {
+      setChildLogsOpen(true);
+      onLayoutChange?.();
+    }
+  }, [child?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filteredChildLiveLogs = React.useMemo(() => {
+    if (!child?.liveToolLoopLogs?.length) return [];
+    return child.liveToolLoopLogs.filter((l) => {
+      const m = l.entries.message as Record<string, unknown>;
+      if (m.role === 'system' && !m._steering) return false;
+      return !isToolLoopNoise(m);
+    });
+  }, [child?.liveToolLoopLogs]);
+
+  const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
@@ -810,6 +1055,119 @@ function ToolLoopMessage({
     ro.observe(el);
     return () => ro.disconnect();
   }, [textContent, isOpen]);
+
+  // Inline child node — renders as a one-liner that expands to show its own ToolLoop
+  if (child) {
+    const tcId = log.syntheticToolCallId ?? null;
+    const isHighlighted = tcId != null && hoveredTcId === tcId;
+    const childLabel = child.displayLabel || child.label;
+    const childTime = formatEventTime(child.startTime);
+    const canExpand = !!(getToolLoopEvents && assistantId) || !!child.liveToolLoopLogs?.length;
+
+    const handleChildToggle = () => {
+      if (!canExpand) return;
+      const opening = !childLogsOpen;
+      setChildLogsOpen(opening);
+      onLayoutChange?.();
+
+      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId) {
+        childFetchedRef.current = true;
+        setChildLoading(true);
+        getToolLoopEvents(
+          assistantId,
+          child.hierarchy,
+          null,
+          child.startTime || undefined,
+          child.endTime || undefined
+        )
+          .then((response) => {
+            if ('detail' in response) return;
+            const logs = (response.logs || []) as ToolLoopLog[];
+            setChildLogs(
+              logs.filter((l) => {
+                const m = l.entries.message as Record<string, unknown>;
+                if (m.role === 'system' && !m._steering) return false;
+                return !isToolLoopNoise(m);
+              })
+            );
+            requestAnimationFrame(() => onLayoutChange?.());
+          })
+          .catch(() => {})
+          .finally(() => setChildLoading(false));
+      }
+    };
+
+    return (
+      <div
+        className={cn(
+          'group rounded-sm transition-colors duration-150',
+          canExpand && !childLogsOpen && 'hover:bg-muted/40 cursor-pointer',
+          isHighlighted && 'bg-muted/40'
+        )}
+        data-tc-id={tcId ?? undefined}
+        data-tc-role="nest"
+        onMouseEnter={tcId ? () => onTcHover?.(tcId) : undefined}
+        onMouseLeave={tcId ? () => onTcHover?.(null) : undefined}
+      >
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            childLogsOpen && canExpand && 'hover:bg-muted/40 cursor-pointer rounded-sm'
+          )}
+          onClick={canExpand ? handleChildToggle : undefined}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="shrink-0 text-indigo-500/70 dark:text-indigo-400/60">
+                <ArrowRight className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              nested action
+            </TooltipContent>
+          </Tooltip>
+          <span
+            className={cn(
+              'min-w-0 truncate text-muted-foreground',
+              child.status === 'running' && 'animate-shimmer'
+            )}
+          >
+            {childLabel}
+          </span>
+          {canExpand && (
+            <ChevronRight
+              className={cn(
+                'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100',
+                childLogsOpen && 'rotate-90'
+              )}
+            />
+          )}
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {childTime}
+          </span>
+        </div>
+        {childLogsOpen && childLoading && effectiveChildLogs.length === 0 && (
+          <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Loading...</span>
+          </div>
+        )}
+        {childLogsOpen && effectiveChildLogs.length > 0 && (
+          <div>
+            <ToolLoopConversation
+              logs={effectiveChildLogs}
+              depth={0}
+              searchTerm={searchTerm}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
+              nested
+              onLayoutChange={onLayoutChange}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Steering events (pause/resume/stop) — always one-liners, not collapsible
   if (message.role === 'system' && msg._steering) {
@@ -837,7 +1195,18 @@ function ToolLoopMessage({
     };
     const displayText = textContent || style.inlineLabel;
     return (
-      <div className="flex items-center gap-2">
+      <div
+        ref={steeringRef}
+        className="flex cursor-pointer items-center gap-2"
+        onClick={() => {
+          const el = steeringRef.current;
+          if (el) {
+            el.classList.remove('animate-nudge');
+            void el.offsetWidth;
+            el.classList.add('animate-nudge');
+          }
+        }}
+      >
         <span className={cn('shrink-0', style.color)}>
           <style.Icon className="h-2.5 w-2.5" />
         </span>
@@ -867,6 +1236,31 @@ function ToolLoopMessage({
     LabelIcon = ArrowDown;
     content = textContent;
   } else if (message.role === 'assistant') {
+    // In-flight thinking sentinel — LLM is currently generating
+    if (msg._thinkingInFlight || msg._thinking_in_flight) {
+      if (!isLatestLog || nodeCompleted) return null;
+      return (
+        <div className="flex items-start gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
+                <Brain className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              thought
+            </TooltipContent>
+          </Tooltip>
+          <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
+            Thinking
+          </span>
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {time}
+          </span>
+        </div>
+      );
+    }
+
     // Check for thinking blocks first
     const blocks =
       msg.thinkingBlocks ??
@@ -946,12 +1340,14 @@ function ToolLoopMessage({
 
       for (let i = 0; i < toolEntries.length; i++) {
         const entry = toolEntries[i];
+        const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
         rows.push(
           <ToolCallRow
             key={`tool-${i}`}
             entry={entry}
             time={time}
             actionIcon={actionIcon}
+            isPending={pending}
             searchTerm={searchTerm}
             onTcHover={onTcHover}
             hoveredTcId={hoveredTcId}
@@ -961,7 +1357,6 @@ function ToolLoopMessage({
       }
 
       if (codeBlocks.length > 0) {
-        const codePreview = codeBlocks[0].code.trim().split('\n')[0];
         const hlStyle = themeVal && ['dark', 'system'].includes(themeVal) ? dracula : docco;
 
         rows.push(
@@ -1000,11 +1395,16 @@ function ToolLoopMessage({
               }
             >
               {actionIcon}
-              {!isCodeOpen && (
-                <span className="min-w-0 truncate text-muted-foreground">
-                  <span className="font-mono text-[10px]">{codePreview}</span>
-                </span>
-              )}
+              <span
+                className={cn(
+                  'min-w-0 truncate text-muted-foreground',
+                  resolvedToolCallIds &&
+                    !resolvedToolCallIds.has(codeBlocks[0].toolCallId) &&
+                    'animate-shimmer'
+                )}
+              >
+                Run code
+              </span>
               <ChevronRight
                 className={cn(
                   'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
@@ -1017,20 +1417,32 @@ function ToolLoopMessage({
             </div>
             {isCodeOpen &&
               codeBlocks.map((block, i) => (
-                <SyntaxHighlighter
+                <div
                   key={i}
-                  language={block.lang}
-                  style={hlStyle}
-                  customStyle={{
-                    fontSize: '10px',
-                    lineHeight: '1.4',
-                    padding: '6px 8px',
-                    borderRadius: '4px',
-                    margin: '4px 0 2px 0',
+                  className="hover:bg-muted/40 cursor-pointer rounded-sm"
+                  onClick={() => {
+                    setIsCodeOpen(false);
+                    onLayoutChange?.();
                   }}
                 >
-                  {block.code.trim()}
-                </SyntaxHighlighter>
+                  <SyntaxHighlighter
+                    language={block.lang}
+                    style={hlStyle}
+                    wrapLongLines
+                    customStyle={{
+                      fontSize: '10px',
+                      lineHeight: '1.4',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      margin: '4px 0 2px 18px',
+                      overflowX: 'hidden',
+                      width: 'fit-content',
+                      maxWidth: 'calc(100% - 18px)',
+                    }}
+                  >
+                    {block.code.trim()}
+                  </SyntaxHighlighter>
+                </div>
               ))}
           </div>
         );
@@ -1075,22 +1487,30 @@ function ToolLoopMessage({
         ((msg as Record<string, unknown>).tool_call_id as string | undefined))
       : undefined;
 
+  const handleRowClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+      onLayoutChange?.();
+    } else if (!isOpen && !canExpand) {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
+
   return (
     <>
       <div
+        ref={rowRef}
         className={cn(
-          'group rounded-sm transition-colors duration-150',
-          !isOpen && canExpand && 'hover:bg-muted/40 cursor-pointer',
+          'group cursor-pointer rounded-sm transition-colors duration-150',
+          !isOpen && canExpand && 'hover:bg-muted/40',
           tcResultId && hoveredTcId && hoveredTcId === tcResultId && 'bg-muted/40'
         )}
-        onClick={
-          !isOpen && canExpand
-            ? () => {
-                setIsOpen(true);
-                onLayoutChange?.();
-              }
-            : undefined
-        }
+        onClick={handleRowClick}
         {...(tcResultId
           ? {
               'data-tc-id': tcResultId,
@@ -1155,7 +1575,7 @@ function ToolLoopMessage({
                 const lines = JSON.stringify(JSON.parse(content!), null, 2).split('\n');
                 return (
                   <pre
-                    className="hover:bg-muted/40 cursor-pointer overflow-x-auto rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
+                    className="hover:bg-muted/40 cursor-pointer whitespace-pre-wrap break-words rounded-sm pl-[18px] text-[10px] leading-relaxed text-muted-foreground"
                     onClick={() => {
                       setIsOpen(false);
                       onLayoutChange?.();
@@ -1196,11 +1616,21 @@ function ToolLoopMessage({
 function ToolLoopConversation({
   logs,
   depth,
+  nodeCompleted,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
+  nested,
+  onLayoutChange: parentLayoutChange,
 }: {
   logs: ToolLoopLog[];
   depth: number;
+  nodeCompleted?: boolean;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
+  nested?: boolean;
+  onLayoutChange?: () => void;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1208,16 +1638,38 @@ function ToolLoopConversation({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
-  const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
+  const { height: maxH, onPointerDown } = useResizableHeight(240);
+  const signalLayoutChange = React.useCallback(() => {
+    setLayoutGen((n) => n + 1);
+    parentLayoutChange?.();
+  }, [parentLayoutChange]);
+
+  const resolvedToolCallIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of logs) {
+      const m = l.entries.message as Record<string, unknown>;
+      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+      if (m.role === 'tool' && tcId) ids.add(tcId);
+    }
+    return ids;
+  }, [logs]);
 
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     setIsOverflowing(el.scrollHeight > el.clientHeight);
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
-  }, [logs]);
+  }, [logs, maxH]);
+
+  // Scroll to bottom on mount so the most recent events are visible first
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     if (!hoveredTcId || !contentRef.current) {
@@ -1229,13 +1681,12 @@ function ToolLoopConversation({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId, layoutGen]);
+  }, [hoveredTcId, layoutGen, logs.length]);
 
-  const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
+  const pad = depth > 0 ? `${depth * 8 + 26}px` : '26px';
 
   return (
     <div className="relative">
-      {/* Top fade */}
       {isOverflowing && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 rounded-t-md"
@@ -1247,39 +1698,32 @@ function ToolLoopConversation({
         />
       )}
 
-      {/* Scrollable content — padding is inside the scroll container so
-          absolutely-positioned bracket lines in the left margin aren't clipped */}
       <div
         ref={scrollRef}
         className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '240px', paddingLeft: pad, paddingRight: '4px' }}
+        style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: nested ? 0 : '4px' }}
       >
-        <div ref={contentRef} className="relative space-y-0.5 py-3">
-          {logs.map((log) => (
+        <div ref={contentRef} className={cn('relative space-y-0.5', nested ? 'pt-1' : 'py-3')}>
+          {logs.map((log, idx) => (
             <ToolLoopMessage
               key={log.id}
               log={log}
+              isLatestLog={idx === logs.length - 1}
+              nodeCompleted={nodeCompleted}
+              resolvedToolCallIds={resolvedToolCallIds}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
               onLayoutChange={signalLayoutChange}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
 
-      {/* Bottom fade */}
-      {isOverflowing && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
-          style={{
-            marginLeft: pad,
-            marginRight: '8px',
-            background: 'linear-gradient(to top, var(--background), transparent)',
-          }}
-        />
-      )}
+      <ResizeHandle onPointerDown={onPointerDown} paddingLeft={pad} />
     </div>
   );
 }
@@ -1293,10 +1737,14 @@ function LiveToolLoopTimeline({
   logs,
   depth,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
 }: {
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -1305,9 +1753,19 @@ function LiveToolLoopTimeline({
   const [hoveredTcId, setHoveredTcId] = React.useState<string | null>(null);
   const [bracketGeom, setBracketGeom] = React.useState<BracketGeom | null>(null);
   const [layoutGen, setLayoutGen] = React.useState(0);
+  const { height: maxH, onPointerDown } = useResizableHeight(260);
   const signalLayoutChange = React.useCallback(() => setLayoutGen((n) => n + 1), []);
 
-  // Detect manual scroll: mark as "scrolled up" if not near the bottom
+  const resolvedToolCallIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of logs) {
+      const m = l.entries.message as Record<string, unknown>;
+      const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+      if (m.role === 'tool' && tcId) ids.add(tcId);
+    }
+    return ids;
+  }, [logs]);
+
   const handleScroll = React.useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -1315,7 +1773,6 @@ function LiveToolLoopTimeline({
     isUserScrolledUpRef.current = distFromBottom > 40;
   }, []);
 
-  // Auto-scroll when new logs arrive (unless user scrolled up)
   React.useEffect(() => {
     if (logs.length > prevLogCountRef.current && !isUserScrolledUpRef.current) {
       const el = scrollRef.current;
@@ -1328,6 +1785,23 @@ function LiveToolLoopTimeline({
     prevLogCountRef.current = logs.length;
   }, [logs.length]);
 
+  // Also scroll when inner content grows (e.g. expanded child ToolLoop
+  // events streaming in). logs.length only changes for direct entries;
+  // this catches height growth from nested child expansions.
+  React.useEffect(() => {
+    const content = contentRef.current;
+    const scroll = scrollRef.current;
+    if (!content || !scroll) return;
+    const ro = new ResizeObserver(() => {
+      if (isUserScrolledUpRef.current) return;
+      requestAnimationFrame(() => {
+        scroll.scrollTop = scroll.scrollHeight;
+      });
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
   React.useEffect(() => {
     if (!hoveredTcId || !contentRef.current) {
       setBracketGeom(null);
@@ -1338,9 +1812,9 @@ function LiveToolLoopTimeline({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId, layoutGen]);
+  }, [hoveredTcId, layoutGen, logs.length]);
 
-  const pad = depth > 0 ? `${depth * 16 + 36}px` : '36px';
+  const pad = depth > 0 ? `${depth * 8 + 26}px` : '26px';
 
   return (
     <div className="relative">
@@ -1348,34 +1822,28 @@ function LiveToolLoopTimeline({
         ref={scrollRef}
         onScroll={handleScroll}
         className="styled-scrollbar overflow-y-auto rounded-md text-[11px] leading-relaxed"
-        style={{ maxHeight: '260px', paddingLeft: pad, paddingRight: '4px' }}
+        style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }}
       >
         <div ref={contentRef} className="relative space-y-0.5 py-2">
-          {logs.map((log) => (
+          {logs.map((log, idx) => (
             <ToolLoopMessage
               key={log.id}
               log={log}
+              isLatestLog={idx === logs.length - 1}
+              resolvedToolCallIds={resolvedToolCallIds}
               searchTerm={searchTerm}
               onTcHover={setHoveredTcId}
               hoveredTcId={hoveredTcId}
               onLayoutChange={signalLayoutChange}
+              assistantId={assistantId}
+              getToolLoopEvents={getToolLoopEvents}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
 
-      {/* Bottom fade when scrolled up */}
-      {isUserScrolledUpRef.current && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 rounded-b-md"
-          style={{
-            marginLeft: pad,
-            marginRight: '8px',
-            background: 'linear-gradient(to top, var(--background), transparent)',
-          }}
-        />
-      )}
+      <ResizeHandle onPointerDown={onPointerDown} paddingLeft={pad} />
     </div>
   );
 }
@@ -1385,6 +1853,7 @@ function LiveToolLoopTimeline({
  * step sections. Matches the faded/scrollable style of ContentArea.
  */
 function PromotedContent({
+  icon: Icon,
   label,
   labelColor,
   content,
@@ -1393,6 +1862,7 @@ function PromotedContent({
   timestamp,
   searchTerm,
 }: {
+  icon?: LucideIcon;
   label: string;
   labelColor: string;
   content: string;
@@ -1403,88 +1873,139 @@ function PromotedContent({
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
+  const [isTruncated, setIsTruncated] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const pad = `${28 + depth * 16}px`;
+  const inlineRef = React.useRef<HTMLSpanElement>(null);
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const { height: maxH, onPointerDown } = useResizableHeight(200);
+  const pad = `${20 + depth * 8}px`;
+
+  const hasMoreLines = content.includes('\n');
+  const canExpand = isTruncated || hasMoreLines;
 
   React.useEffect(() => {
     if (isOpen) {
       const el = contentRef.current;
       if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
     }
-  }, [isOpen, content]);
+  }, [isOpen, content, maxH]);
+
+  React.useEffect(() => {
+    const el = inlineRef.current;
+    if (!el) return;
+    const check = () => {
+      const elText = el.textContent || '';
+      setIsTruncated(elText.includes('\n') || el.scrollWidth > el.clientWidth);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [content, isOpen]);
+
+  const handleClick = () => {
+    if (!isOpen && canExpand) {
+      setIsOpen(true);
+    } else if (!isOpen) {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    } else {
+      setIsOpen(false);
+    }
+  };
 
   return (
     <div
       className="group min-w-0 rounded-sm transition-colors duration-150"
       style={{ paddingLeft: pad }}
-      title={!isOpen ? 'Click to expand' : undefined}
     >
       <div
-        className="hover:bg-muted/40 flex cursor-pointer items-baseline gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
-        onClick={() => setIsOpen((v) => !v)}
+        ref={rowRef}
+        className="hover:bg-muted/40 flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
+        onClick={handleClick}
       >
-        <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
-        {!isOpen && (
-          <span className="min-w-0 truncate text-muted-foreground">
-            {searchTerm ? (
-              <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
-            ) : (
-              <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
-            )}
-          </span>
+        {Icon && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('mt-[3px] shrink-0', labelColor)}>
+                <Icon className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              {label}
+            </TooltipContent>
+          </Tooltip>
         )}
-        <ChevronRight
-          className={cn(
-            'text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100',
-            isOpen && 'rotate-90'
+        {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
+        <span
+          ref={inlineRef}
+          className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
+        >
+          {searchTerm ? (
+            <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
+          ) : (
+            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
           )}
-        />
-        {timestamp && (
+        </span>
+        {!isOpen && canExpand && (
+          <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
+        )}
+        {!isOpen && timestamp && (
           <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
             {timestamp}
           </span>
         )}
       </div>
-      {isOpen && (
-        <div className="relative" style={{ maxWidth: `calc(100% - 8px)` }}>
-          {isOverflowing && (
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
-              style={{
-                background: 'linear-gradient(to top, transparent, var(--background))',
-              }}
-            />
-          )}
-          <div
-            ref={contentRef}
-            className={cn(
-              'overflow-y-auto py-1 text-[11px] leading-relaxed text-muted-foreground',
-              'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
-            )}
-            style={{ maxHeight: '200px', scrollbarWidth: 'none' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
-            }}
-          >
-            {searchTerm ? (
-              <HighlightText text={content} term={searchTerm} />
-            ) : (
-              <RichContent content={content} />
-            )}
-          </div>
-          {isOverflowing && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
-              style={{
-                background: 'linear-gradient(to bottom, transparent, var(--background))',
-              }}
-            />
-          )}
-        </div>
-      )}
+      {isOpen &&
+        (() => {
+          const rest = content.split(/\n/).slice(1).join('\n').trim();
+          if (!rest) return null;
+          return (
+            <div className="relative" style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}>
+              {isOverflowing && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
+                  style={{
+                    background: 'linear-gradient(to top, transparent, var(--background))',
+                  }}
+                />
+              )}
+              <div
+                ref={contentRef}
+                className={cn(
+                  'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
+                  'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
+                )}
+                style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
+                }}
+              >
+                {searchTerm ? (
+                  <HighlightText text={rest} term={searchTerm} />
+                ) : (
+                  <RichContent content={rest} />
+                )}
+              </div>
+              {isOverflowing && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
+                  style={{
+                    background: 'linear-gradient(to bottom, transparent, var(--background))',
+                  }}
+                />
+              )}
+              <ResizeHandle onPointerDown={onPointerDown} />
+            </div>
+          );
+        })()}
     </div>
   );
 }
@@ -1497,15 +2018,23 @@ function PromotedContent({
 function CollapsibleToolLoopSection({
   logs,
   depth,
+  nodeCompleted,
   defaultOpen = false,
   sectionToggleSignal,
   searchTerm,
+  assistantId,
+  getToolLoopEvents,
+  onLayoutChange,
 }: {
   logs: ToolLoopLog[];
   depth: number;
+  nodeCompleted?: boolean;
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
   searchTerm?: string;
+  assistantId?: string;
+  getToolLoopEvents?: GetToolLoopEventsFn;
+  onLayoutChange?: () => void;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -1519,7 +2048,7 @@ function CollapsibleToolLoopSection({
     }
   }, [sectionToggleSignal]);
 
-  const pad = `${28 + depth * 16}px`;
+  const pad = `${20 + depth * 8}px`;
 
   const sectionDuration = React.useMemo(() => {
     if (logs.length < 2) return '';
@@ -1566,7 +2095,15 @@ function CollapsibleToolLoopSection({
           isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <ToolLoopConversation logs={logs} depth={depth} searchTerm={searchTerm} />
+        <ToolLoopConversation
+          logs={logs}
+          depth={depth}
+          nodeCompleted={nodeCompleted}
+          searchTerm={searchTerm}
+          assistantId={assistantId}
+          getToolLoopEvents={getToolLoopEvents}
+          onLayoutChange={onLayoutChange}
+        />
       </div>
     </div>
   );
@@ -1844,16 +2381,11 @@ export function ActionNodeItem({
 
   const showFallbackContent = isExpanded && contentReady && !canLoadToolLoop && !!fallbackContent;
 
-  // Build a strictly chronological timeline that interleaves ToolLoop segments
-  // and child nodes. Each child timestamp acts as a split point so ToolLoop
-  // events before it render above, after below.
-  type TimelineSegment =
-    | { kind: 'steps'; logs: ToolLoopLog[]; key: string }
-    | { kind: 'child'; node: ActionNode };
-
-  type TimelineEvent = { kind: 'child'; node: ActionNode; time: number };
-
-  const timeline = React.useMemo((): TimelineSegment[] => {
+  // Build a flat log list that interleaves real ToolLoop messages with
+  // synthetic entries for child nodes, positioned chronologically.
+  // Each child is correlated with the tool_call_id that spawned it by
+  // scanning preceding assistant messages for a matching tool call.
+  const mergedLogs = React.useMemo((): ToolLoopLog[] => {
     if (!hasToolLoopData && !hasChildren) return [];
 
     const visibleChildren = node.children.filter((c) =>
@@ -1862,73 +2394,47 @@ export function ActionNodeItem({
         : !!c.requestContent || (c.children?.length ?? 0) > 0 || c.status === 'running'
     );
 
-    const timelineEvents: TimelineEvent[] = visibleChildren
-      .map((c) => ({
-        kind: 'child' as const,
-        node: c,
-        time: new Date(c.startTime).getTime(),
-      }))
+    if (visibleChildren.length === 0) return effectiveLogs;
+    if (effectiveLogs.length === 0) {
+      return visibleChildren
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .map((child) => makeSyntheticLog(child, null));
+    }
+
+    const childEvents = visibleChildren
+      .map((c) => ({ node: c, time: new Date(c.startTime).getTime() }))
       .sort((a, b) => a.time - b.time);
 
-    if (!hasToolLoopData) {
-      return timelineEvents.map((evt) => ({ kind: 'child' as const, node: evt.node }));
-    }
-
-    if (timelineEvents.length === 0) {
-      return [{ kind: 'steps' as const, logs: effectiveLogs, key: 'all' }];
-    }
-
-    const result: TimelineSegment[] = [];
+    const result: ToolLoopLog[] = [];
     let logIdx = 0;
 
-    for (const evt of timelineEvents) {
-      const segment: ToolLoopLog[] = [];
-
+    for (const evt of childEvents) {
       while (logIdx < effectiveLogs.length) {
-        if (
-          new Date(
-            effectiveLogs[logIdx].entries.eventTimestamp || effectiveLogs[logIdx].ts
-          ).getTime() < evt.time
-        ) {
-          segment.push(effectiveLogs[logIdx]);
+        const logTime = new Date(
+          effectiveLogs[logIdx].entries.eventTimestamp || effectiveLogs[logIdx].ts
+        ).getTime();
+        if (logTime < evt.time) {
+          result.push(effectiveLogs[logIdx]);
           logIdx++;
         } else {
           break;
         }
       }
-
-      if (segment.length > 0) {
-        result.push({ kind: 'steps', logs: segment, key: `pre-${evt.node.id}` });
-      }
-
-      result.push({ kind: 'child', node: evt.node });
+      const tcId = findSpawningToolCallId(result, evt.node, node.hierarchy.length);
+      result.push(makeSyntheticLog(evt.node, tcId));
     }
 
-    if (logIdx < effectiveLogs.length) {
-      result.push({
-        kind: 'steps',
-        logs: effectiveLogs.slice(logIdx),
-        key: 'post',
-      });
+    while (logIdx < effectiveLogs.length) {
+      result.push(effectiveLogs[logIdx]);
+      logIdx++;
     }
 
-    // Merge consecutive step sections so that adjacent ToolLoop segments
-    // (with no child between them) appear as a single block.
-    const merged: TimelineSegment[] = [];
-    for (const seg of result) {
-      const last = merged[merged.length - 1];
-      if (seg.kind === 'steps' && last?.kind === 'steps') {
-        last.logs = [...last.logs, ...seg.logs];
-      } else {
-        merged.push(seg);
-      }
-    }
-
-    return merged;
+    return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [hasToolLoopData, hasChildren, effectiveLogs, childCount]);
 
-  const useTimeline = isExpanded && contentReady && hasToolLoopData;
+  const hasMergedData = mergedLogs.length > 0;
+  const useTimeline = isExpanded && contentReady && hasMergedData;
 
   const NodeIcon = getNodeIcon(node.displayLabel);
   const isMatch = !!matchedIds && matchedIds.has(node.id);
@@ -1958,7 +2464,7 @@ export function ActionNodeItem({
         onClick={isExpandable ? handleToggle : undefined}
         data-testid={isExpandable ? 'expand-button' : undefined}
       >
-        {/* Icon + Label with shared tooltip */}
+        {/* Icon + Label with tooltip */}
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="flex min-w-0 items-center gap-1.5">
@@ -1985,7 +2491,7 @@ export function ActionNodeItem({
               </span>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+          <TooltipContent side="top" align="start" size="sm" className="px-2 py-1 text-xs">
             {getNodeTooltip(node.displayLabel)}
           </TooltipContent>
         </Tooltip>
@@ -2011,6 +2517,7 @@ export function ActionNodeItem({
       {/* Promoted request/response — shown prominently when expanded */}
       {isExpanded && contentReady && promoted.request && (
         <PromotedContent
+          icon={ArrowDown}
           label="request"
           labelColor="text-blue-600/80 dark:text-blue-500/60"
           content={promoted.request.content}
@@ -2021,6 +2528,7 @@ export function ActionNodeItem({
       )}
       {isExpanded && contentReady && promoted.response && (
         <PromotedContent
+          icon={ArrowUp}
           label="response"
           labelColor="text-emerald-600/80 dark:text-emerald-400/60"
           content={promoted.response.content}
@@ -2030,94 +2538,57 @@ export function ActionNodeItem({
         />
       )}
 
-      {/* Interleaved timeline: ToolLoop segments and children in strict
-          chronological order. Promoted request/response logs are filtered
-          out since they're shown above. */}
+      {/* Merged timeline: ToolLoop messages and inline child nodes in strict
+          chronological order. Promoted request/response logs are filtered out.
+          Running nodes use LiveToolLoopTimeline for auto-scroll-to-bottom. */}
       {useTimeline &&
-        timeline.map((segment) => {
-          if (segment.kind === 'steps') {
-            const filtered = segment.logs.filter((l) => !promotedLogIds.has(l.id));
-            if (filtered.length === 0) return null;
-            if (node.persist) {
-              return (
-                <ToolLoopConversation
-                  key={segment.key}
-                  logs={filtered}
-                  depth={depth}
-                  searchTerm={searchTerm}
-                />
-              );
-            }
+        (() => {
+          const filtered = mergedLogs.filter((l) => !promotedLogIds.has(l.id));
+          if (filtered.length === 0) return null;
+
+          if (node.status === 'running') {
             return (
-              <CollapsibleToolLoopSection
-                key={segment.key}
+              <LiveToolLoopTimeline
                 logs={filtered}
                 depth={depth}
-                sectionToggleSignal={sectionToggleSignal}
                 searchTerm={searchTerm}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
               />
             );
           }
-          return (
-            <div key={segment.node.id} className="relative">
-              <div
-                className="absolute bottom-0 left-[7px] top-0 w-px bg-border"
-                style={{ marginLeft: depth > 0 ? `${depth * 16 + 12}px` : '0' }}
-              />
-              <ActionNodeItem
-                node={segment.node}
-                depth={depth + 1}
-                defaultExpanded={defaultExpanded}
-                expandedNodeIds={expandedNodeIds}
-                onExpandedChange={onExpandedChange}
+
+          if (node.persist) {
+            return (
+              <ToolLoopConversation
+                logs={filtered}
+                depth={depth}
+                nodeCompleted
+                searchTerm={searchTerm}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
-                loadChildren={loadChildren}
-                sectionToggleSignal={sectionToggleSignal}
-                matchedIds={matchedIds}
-                searchTerm={searchTerm}
               />
-            </div>
-          );
-        })}
+            );
+          }
 
-      {/* Standard children rendering — while running (no ToolLoop yet) or
-          for completed nodes without ToolLoop data. */}
-      {!useTimeline && contentReady && hasChildren && (
-        <div
-          className={cn(
-            'relative overflow-hidden transition-all duration-200 ease-out',
-            isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
-          )}
-        >
-          <div
-            className="absolute bottom-2 left-[7px] top-0 w-px bg-border"
-            style={{ marginLeft: depth > 0 ? `${depth * 16 + 12}px` : '0' }}
-          />
-          {node.children.map((child) => (
-            <ActionNodeItem
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              defaultExpanded={defaultExpanded}
-              expandedNodeIds={expandedNodeIds}
-              onExpandedChange={onExpandedChange}
+          return (
+            <CollapsibleToolLoopSection
+              logs={filtered}
+              depth={depth}
+              nodeCompleted
+              sectionToggleSignal={sectionToggleSignal}
+              searchTerm={searchTerm}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
-              loadChildren={loadChildren}
-              sectionToggleSignal={sectionToggleSignal}
-              matchedIds={matchedIds}
-              searchTerm={searchTerm}
             />
-          ))}
-        </div>
-      )}
+          );
+        })()}
 
       {/* Children loading indicator — shown while content isn't ready */}
       {isExpanded && !contentReady && (
         <div
           className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]"
-          style={{ paddingLeft: `${28 + depth * 16}px` }}
+          style={{ paddingLeft: `${20 + depth * 8}px` }}
         >
           <Loader2 className="h-3 w-3 animate-spin" />
           <span>Loading...</span>

@@ -83,19 +83,23 @@ export function LiveActionsBody({
   const isLoadingMoreRef = React.useRef(isLoadingMore);
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const prevRootsLengthRef = React.useRef(roots.length);
+  const isUserScrolledUpRef = React.useRef(false);
   isLoadingMoreRef.current = isLoadingMore;
 
-  // Handle scroll for infinite loading
+  // Handle scroll for infinite loading + track distance from bottom
   const handleScroll = React.useCallback(() => {
     const container = scrollContainerRef.current;
-    if (!container || !hasMore || isLoadingMoreRef.current || !onLoadMore) return;
+    if (!container) return;
 
-    // Trigger load more when scrolled near the top (within 50px)
-    if (container.scrollTop < 50) {
-      // Capture scroll height before loading more (for position preservation)
+    // Infinite load: trigger when scrolled near the top
+    if (hasMore && !isLoadingMoreRef.current && onLoadMore && container.scrollTop < 50) {
       prevScrollHeightRef.current = container.scrollHeight;
       onLoadMore();
     }
+
+    // Track if user has scrolled away from bottom
+    const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    isUserScrolledUpRef.current = distFromBottom > 80;
   }, [hasMore, onLoadMore]);
 
   // Preserve scroll position when older events are prepended
@@ -103,23 +107,52 @@ export function LiveActionsBody({
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // If we just loaded more events (roots length increased) and we have a saved scroll height
     if (prevScrollHeightRef.current !== null && roots.length > prevRootsLengthRef.current) {
-      // Calculate how much content was added at the top
       const scrollHeightDiff = container.scrollHeight - prevScrollHeightRef.current;
-
-      // Adjust scroll position to maintain the user's view
       if (scrollHeightDiff > 0) {
         container.scrollTop += scrollHeightDiff;
       }
-
-      // Clear the saved scroll height
       prevScrollHeightRef.current = null;
     }
 
-    // Update previous roots length
     prevRootsLengthRef.current = roots.length;
   }, [roots.length]);
+
+  // Auto-scroll to bottom when new roots arrive or content grows.
+  // Only suppressed when the user has scrolled up (reading older content).
+  // Cursor position doesn't matter -- if they're at the bottom, they're
+  // following along and want to see new events regardless of hover state.
+  React.useEffect(() => {
+    if (isUserScrolledUpRef.current) return;
+    const container = scrollContainerRef.current;
+    if (container) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+  }, [roots, filteredRoots]);
+
+  // Observe inner content height changes (e.g. streaming ToolLoop events
+  // inside an expanded child) and keep the outer container pinned to the
+  // bottom. This covers growth that doesn't change the roots/filteredRoots
+  // references — such as liveToolLoopLogs mutations on child nodes.
+  const contentObserverRef = React.useRef<ResizeObserver | null>(null);
+  const hasRoots = roots.length > 0;
+  React.useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const content = container.firstElementChild as HTMLElement | null;
+    if (!content) return;
+
+    contentObserverRef.current = new ResizeObserver(() => {
+      if (isUserScrolledUpRef.current) return;
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    });
+    contentObserverRef.current.observe(content);
+    return () => contentObserverRef.current?.disconnect();
+  }, [hasRoots]);
 
   const hasSearchNoMatches = hasActiveSearch && filteredRoots.length === 0 && roots.length > 0;
 

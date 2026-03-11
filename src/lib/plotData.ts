@@ -14,6 +14,11 @@
  */
 
 import { snakeToCamelObject, snakeToCamel } from '@/utils/casing';
+import {
+  USE_MOCK_EMBEDS,
+  MOCK_PLOT_TOKEN,
+  getMockPlotData,
+} from '@/utils/assistants/chat-embed-mock-data';
 
 // =============================================================================
 // Configuration
@@ -395,6 +400,12 @@ export async function fetchPlotData(
     };
   }
   console.log('[plotData] Token format valid');
+
+  // Mock data path: return pre-built data for the mock token (no backend needed)
+  if (USE_MOCK_EMBEDS && token === MOCK_PLOT_TOKEN) {
+    console.log('[plotData] Returning mock data for token:', token);
+    return { success: true, data: getMockPlotData() as PlotDataResult };
+  }
 
   // Check for admin key
   if (!ORCHESTRA_ADMIN_KEY) {

@@ -27,7 +27,7 @@ import {
   makePrefixedDictPath,
   sanitizePropertyKey,
 } from '@/utils/interfaces/selection/pathUtils';
-import { usePanelExpandContextSelector } from '@/components/Pages/Interfaces/Blocks/Selection/SelectionPanel';
+import { usePanelExpandContextSelector } from '@/components/Common/Views/PanelExpandContext';
 import { getIndentClasses, getContentIndentClasses, getSeparatorClasses } from './useIndentation';
 
 import { LogComparisonProps } from './types';

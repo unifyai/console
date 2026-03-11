@@ -133,8 +133,14 @@ export interface TaxIdValidationResponse {
   errorMessage?: string;
 }
 
+export interface SupportedTaxCountryEntry {
+  description: string;
+  taxIdName: string;
+  taxIdFormat: string;
+}
+
 export interface SupportedTaxCountriesResponse {
-  supportedCountries: Record<string, string>;
+  supportedCountries: Record<string, SupportedTaxCountryEntry>;
   totalCountries: number;
 }
 
@@ -179,14 +185,4 @@ export interface UpdateOnboardingStatusRequest {
 
 export interface UpdateOnboardingStatusResponse {
   message: string;
-}
-
-export interface TaxClassificationFormData {
-  accountType: AccountType;
-  businessName: string;
-  taxId: string;
-  businessType: string;
-  businessAddress: BusinessAddress;
-  taxExempt: boolean;
-  taxCountry: string;
 }

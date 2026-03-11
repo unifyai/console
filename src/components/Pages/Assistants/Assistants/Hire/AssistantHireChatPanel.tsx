@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
 import { ChatMessage } from '@/types/assistants/chat';
 import { ChatMessageBubble, ChatDateDivider, isSameDay } from '@/components/Chat';
+import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
 interface AssistantHireChatPanelProps {
@@ -169,24 +170,26 @@ export function AssistantHireChatPanel({
       {/* Chat Area */}
       <ScrollArea className="flex-1 px-14 py-4" ref={scrollAreaRef}>
         <div className="mx-auto max-w-[720px] space-y-6">
-          {messages.map((msg, i) => {
-            const prevMsg = messages[i - 1];
-            const showDivider = !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp);
-            return (
-              <React.Fragment key={msg.id}>
-                {showDivider && <ChatDateDivider date={msg.timestamp} />}
-                <ChatMessageBubble
-                  message={msg.content}
-                  isUser={msg.role === 'user'}
-                  assistantPhoto={photoPreviewUrl}
-                  assistantName={displayName}
-                  timestamp={msg.timestamp}
-                  isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
-                  variant="hire"
-                />
-              </React.Fragment>
-            );
-          })}
+          {(USE_MOCK_EMBEDS ? [...messages, ...getMockEmbedMessages()] : messages).map(
+            (msg, i, arr) => {
+              const prevMsg = arr[i - 1];
+              const showDivider = !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp);
+              return (
+                <React.Fragment key={msg.id}>
+                  {showDivider && <ChatDateDivider date={msg.timestamp} />}
+                  <ChatMessageBubble
+                    message={msg.content}
+                    isUser={msg.role === 'user'}
+                    assistantPhoto={photoPreviewUrl}
+                    assistantName={displayName}
+                    timestamp={msg.timestamp}
+                    isLoading={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
+                    variant="hire"
+                  />
+                </React.Fragment>
+              );
+            }
+          )}
         </div>
       </ScrollArea>
 
