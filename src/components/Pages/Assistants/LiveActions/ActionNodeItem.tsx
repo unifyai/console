@@ -1015,12 +1015,33 @@ function ToolLoopMessage({
   const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
   const textContent = extractTextContent(message.content);
-  const [childLogsOpen, setChildLogsOpen] = React.useState(false);
   const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
   const [childLoading, setChildLoading] = React.useState(false);
   const childFetchedRef = React.useRef(false);
   const steeringRef = React.useRef<HTMLDivElement>(null);
   const rowRef = React.useRef<HTMLDivElement>(null);
+
+  // Hooks for inline child node expansion — must be unconditional (rules of hooks).
+  const child = log.syntheticChildNode;
+  const [childLogsOpen, setChildLogsOpen] = React.useState(child?.status === 'running');
+
+  React.useEffect(() => {
+    if (child?.status === 'running' && !childLogsOpen) {
+      setChildLogsOpen(true);
+      onLayoutChange?.();
+    }
+  }, [child?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filteredChildLiveLogs = React.useMemo(() => {
+    if (!child?.liveToolLoopLogs?.length) return [];
+    return child.liveToolLoopLogs.filter((l) => {
+      const m = l.entries.message as Record<string, unknown>;
+      if (m.role === 'system' && !m._steering) return false;
+      return !isToolLoopNoise(m);
+    });
+  }, [child?.liveToolLoopLogs]);
+
+  const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
 
   React.useEffect(() => {
     const el = collapsedContentRef.current;
@@ -1036,13 +1057,12 @@ function ToolLoopMessage({
   }, [textContent, isOpen]);
 
   // Inline child node — renders as a one-liner that expands to show its own ToolLoop
-  if (log.syntheticChildNode) {
-    const child = log.syntheticChildNode;
+  if (child) {
     const tcId = log.syntheticToolCallId ?? null;
     const isHighlighted = tcId != null && hoveredTcId === tcId;
     const childLabel = child.displayLabel || child.label;
     const childTime = formatEventTime(child.startTime);
-    const canExpand = !!(getToolLoopEvents && assistantId);
+    const canExpand = !!(getToolLoopEvents && assistantId) || !!child.liveToolLoopLogs?.length;
 
     const handleChildToggle = () => {
       if (!canExpand) return;
@@ -1050,11 +1070,11 @@ function ToolLoopMessage({
       setChildLogsOpen(opening);
       onLayoutChange?.();
 
-      if (opening && !childFetchedRef.current) {
+      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId) {
         childFetchedRef.current = true;
         setChildLoading(true);
-        getToolLoopEvents!(
-          assistantId!,
+        getToolLoopEvents(
+          assistantId,
           child.hierarchy,
           null,
           child.startTime || undefined,
@@ -1126,16 +1146,16 @@ function ToolLoopMessage({
             {childTime}
           </span>
         </div>
-        {childLogsOpen && childLoading && (
+        {childLogsOpen && childLoading && effectiveChildLogs.length === 0 && (
           <div className="text-muted-foreground/40 flex items-center gap-1.5 py-1 text-[11px]">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Loading...</span>
           </div>
         )}
-        {childLogsOpen && childLogs.length > 0 && (
+        {childLogsOpen && effectiveChildLogs.length > 0 && (
           <div>
             <ToolLoopConversation
-              logs={childLogs}
+              logs={effectiveChildLogs}
               depth={0}
               searchTerm={searchTerm}
               assistantId={assistantId}
