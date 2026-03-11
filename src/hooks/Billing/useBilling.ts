@@ -49,6 +49,7 @@ export interface UseBillingReturn {
   initialRechargeAmount: string;
   hasAutoRechargeChanges: boolean;
   isIneligibleForAutoRecharge: boolean;
+  autoRechargeIneligibilityReason: 'spending' | 'payment_method' | null;
   autoRechargeAlert: { type: 'success' | 'error'; message: string } | null;
   setMinBalance: (value: string) => void;
   setRechargeAmount: (value: string) => void;
@@ -103,10 +104,18 @@ export function useBilling(
   const isIneligibleForAutoRecharge = useMemo(
     () =>
       autoRechargeData !== null &&
-      !autoRechargeData.canEnableAutoRecharge &&
+      (!autoRechargeData.canEnableAutoRecharge ||
+        !autoRechargeData.hasPaymentMethod) &&
       !isAutoRechargeEnabled,
     [autoRechargeData, isAutoRechargeEnabled]
   );
+
+  const autoRechargeIneligibilityReason = useMemo(() => {
+    if (!autoRechargeData || isAutoRechargeEnabled) return null;
+    if (!autoRechargeData.canEnableAutoRecharge) return 'spending' as const;
+    if (!autoRechargeData.hasPaymentMethod) return 'payment_method' as const;
+    return null;
+  }, [autoRechargeData, isAutoRechargeEnabled]);
 
   // ── Fetch balance ────────────────────────────────────────────────────
   const fetchBalance = useCallback(async () => {
@@ -228,6 +237,15 @@ export function useBilling(
       return;
     }
 
+    if (!isAutoRechargeEnabled && !autoRechargeData?.hasPaymentMethod) {
+      setAutoRechargeAlert({
+        type: 'error',
+        message:
+          'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".',
+      });
+      return;
+    }
+
     const newStatus = !isAutoRechargeEnabled;
     setIsAutoRechargeEnabled(newStatus);
 
@@ -309,6 +327,7 @@ export function useBilling(
     initialRechargeAmount,
     hasAutoRechargeChanges,
     isIneligibleForAutoRecharge,
+    autoRechargeIneligibilityReason,
     autoRechargeAlert,
     setMinBalance,
     setRechargeAmount,

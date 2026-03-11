@@ -120,6 +120,31 @@ describe('Eligibility gating', () => {
     ).toBeInTheDocument();
   });
 
+  it('disables toggle when user has no default payment method', async () => {
+    await renderBillingPage({
+      getAutoRecharge: vi.fn().mockResolvedValue({
+        ...DEFAULT_AUTO_RECHARGE,
+        hasPaymentMethod: false,
+      }),
+    });
+
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toBeDisabled();
+  });
+
+  it('shows payment method hint when ineligible due to missing payment method', async () => {
+    await renderBillingPage({
+      getAutoRecharge: vi.fn().mockResolvedValue({
+        ...DEFAULT_AUTO_RECHARGE,
+        hasPaymentMethod: false,
+      }),
+    });
+
+    expect(
+      screen.getByText(/Add a default payment method to enable automatic refills/),
+    ).toBeInTheDocument();
+  });
+
   it('does not mark already-enabled users as ineligible', async () => {
     // User has auto-recharge enabled but wouldn't qualify if they were turning it on now
     await renderBillingPage({

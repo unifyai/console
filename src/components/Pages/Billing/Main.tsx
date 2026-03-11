@@ -60,6 +60,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
     rechargeAmount,
     hasAutoRechargeChanges,
     isIneligibleForAutoRecharge,
+    autoRechargeIneligibilityReason,
     autoRechargeAlert,
     setMinBalance,
     setRechargeAmount,
@@ -161,12 +162,19 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                       </TooltipTrigger>
                       {isIneligibleForAutoRecharge && (
                         <TooltipContent className="max-w-xs">
-                          <p>
-                            You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
-                            auto-recharge. You&apos;ve spent $
-                            {autoRechargeData?.totalSpending?.toFixed(2)}, spend $
-                            {autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock.
-                          </p>
+                          {autoRechargeIneligibilityReason === 'spending' ? (
+                            <p>
+                              You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
+                              auto-recharge. You&apos;ve spent $
+                              {autoRechargeData?.totalSpending?.toFixed(2)}, spend $
+                              {autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock.
+                            </p>
+                          ) : (
+                            <p>
+                              A default payment method is required to enable auto-recharge.
+                              Please add one via &quot;Manage Payment Methods&quot; below.
+                            </p>
+                          )}
                         </TooltipContent>
                       )}
                     </Tooltip>
@@ -174,7 +182,9 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                 </div>
                 <CardDescription className="text-body-muted">
                   {isIneligibleForAutoRecharge
-                    ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
+                    ? autoRechargeIneligibilityReason === 'spending'
+                      ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
+                      : 'Add a default payment method to enable automatic refills.'
                     : 'Automatically top up your balance when it falls below a threshold.'}
                 </CardDescription>
               </CardHeader>

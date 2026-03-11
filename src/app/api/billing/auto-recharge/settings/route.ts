@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
       canEnableAutoRecharge: data.eligible,
       minimumSpendRequired: data.minimumSpendRequired,
       remainingSpendNeeded: data.remainingSpendNeeded,
+      // Payment method
+      hasPaymentMethod: data.hasPaymentMethod ?? false,
     });
   } catch (error: any) {
     console.error('Error fetching auto-recharge data:', error?.response?.data || error);
