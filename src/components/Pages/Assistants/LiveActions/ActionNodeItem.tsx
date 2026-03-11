@@ -1925,13 +1925,13 @@ function PromotedContent({
     >
       <div
         ref={rowRef}
-        className="hover:bg-muted/40 flex cursor-pointer items-baseline gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
+        className="hover:bg-muted/40 flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
         onClick={handleClick}
       >
         {Icon && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className={cn('mt-0.5 shrink-0 self-center', labelColor)}>
+              <span className={cn('mt-[3px] shrink-0', labelColor)}>
                 <Icon className="h-2.5 w-2.5" />
               </span>
             </TooltipTrigger>
