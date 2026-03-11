@@ -1545,8 +1545,17 @@ function ToolLoopMessage({
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
+  const jsonExpandable =
+    isJson &&
+    (() => {
+      try {
+        return JSON.stringify(JSON.parse(content), null, 2).includes('\n');
+      } catch {
+        return false;
+      }
+    })();
   const hasMoreLines = content.includes('\n');
-  const canExpand = isTruncated || hasMoreLines || isJson;
+  const canExpand = isTruncated || hasMoreLines || jsonExpandable;
 
   const tcResultId =
     message.role === 'tool'
