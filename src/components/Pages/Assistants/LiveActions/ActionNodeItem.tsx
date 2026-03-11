@@ -1232,6 +1232,7 @@ function ToolLoopMessage({
   }
 
   // ── Kind-based style map ───────────────────────────────────────────────
+  /* eslint-disable @typescript-eslint/naming-convention */
   const KIND_STYLES: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
     request: { label: 'request', color: 'text-blue-600/80 dark:text-blue-500/60', Icon: ArrowDown },
     interjection: {
@@ -1281,6 +1282,7 @@ function ToolLoopMessage({
       Icon: Zap,
     },
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
 
   const kind = resolveToolLoopKind(log.entries);
   const kindStyle = KIND_STYLES[kind];
