@@ -1254,7 +1254,9 @@ function ToolLoopMessage({
           <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
             Thinking
           </span>
-          <span className="text-muted-foreground/30 ml-auto shrink-0 tabular-nums">{time}</span>
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+            {time}
+          </span>
         </div>
       );
     }
