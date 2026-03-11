@@ -46,7 +46,7 @@ export function OrchestraAdapter(): Adapter {
     async linkAccount(account: AdapterAccount): Promise<void> {
       // Transform NextAuth's camelCase fields to orchestra's snake_case
       const { providerAccountId, userId, ...rest } = account;
-      await OrchestraAdminClient.post('/account', {
+      await OrchestraAdminClient.post('/auth/account', {
         ...rest,
         providerAccountId: providerAccountId,
         userId: userId,
@@ -59,7 +59,7 @@ export function OrchestraAdapter(): Adapter {
       providerAccountId: string;
       provider: string;
     }): Promise<void> {
-      await OrchestraAdminClient.delete('/account', {
+      await OrchestraAdminClient.delete('/auth/account', {
         params: { providerAccountId: providerAccountId, provider },
       });
     },
