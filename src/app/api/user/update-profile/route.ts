@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, updateUser } from '@/lib/user/user';
-import { syncStripeCustomer } from '@/lib/user/billing/stripe/customer-sync';
 import { UserUpdateRequest } from '@/types/user';
 import { unauthorized } from '../../_utils/auth';
 
@@ -40,13 +39,6 @@ export async function POST(request: NextRequest) {
     };
 
     const response = await updateUser(userUpdateRequest);
-
-    // Sync name change with Stripe (if provided)
-    if (name) {
-      syncStripeCustomer({ user, accountType: 'individual' }).catch((e) =>
-        console.warn('Failed to sync name change with Stripe:', e)
-      );
-    }
 
     return NextResponse.json(response);
   } catch (error) {

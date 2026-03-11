@@ -247,10 +247,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
   // --- Billing Status & Credit Grant Link ---
   const {
-    hasCustomerId,
+    hasBillingHistory,
     hasCredits,
+    accountStatus,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
+    startPolling: startBillingPolling,
   } = useBillingStatus();
   const { pendingToken, claimPendingToken } = useCreditGrantLink();
   const [isStripePanelOpen, setIsStripePanelOpen] = React.useState(false);
@@ -739,10 +741,11 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
 
       <AssistantsBanners
         hasCredits={hasCredits}
-        hasCustomerId={hasCustomerId}
+        hasBillingHistory={hasBillingHistory}
         isBillingLoading={isBillingLoading}
         spendingGateStatus={spendingGateStatus}
         isOrgWorkspace={!!userMeta.orgId}
+        accountStatus={accountStatus}
       />
 
       {/* StripeSidePanel — for adding payment method */}
@@ -750,7 +753,12 @@ export default function Main({ taskActions, assistantActions, oneTimeToken, user
         open={isStripePanelOpen}
         onOpenChange={setIsStripePanelOpen}
         onSuccess={() => {
+          // Kick off aggressive polling (every 2 s) to bridge the gap
+          // between Stripe confirming payment and the webhook crediting
+          // the balance.  Polling auto-stops once credits appear or
+          // after 30 s.
           refetchBillingStatus();
+          startBillingPolling();
           // Auto-claim pending credit grant token after payment method added
           if (pendingToken) {
             claimPendingToken();

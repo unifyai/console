@@ -7,9 +7,6 @@
 
 import { createOrchestraClient } from '@/lib/orchestra/client';
 import {
-  UpdateAccountTypeRequest,
-  UpdateBusinessInfoRequest,
-  UserBusinessStatusResponse,
   UpdateOnboardingStatusRequest,
   OnboardingStatusResponse,
   UpdateOnboardingStatusResponse,
@@ -18,36 +15,6 @@ import {
 // =============================================================================
 // Account Functions
 // =============================================================================
-
-export async function updateUserAccountType(apiKey: string, data: UpdateAccountTypeRequest) {
-  const client = createOrchestraClient(apiKey);
-  const { data: responseData, error } = await client.PUT('/v0/user/account-type', {
-    body: data as never,
-  });
-
-  if (error) {
-    throw new Error(
-      ((error as Record<string, unknown>)?.detail as string) || 'Failed to update account type'
-    );
-  }
-
-  return responseData;
-}
-
-export async function updateBusinessInfo(apiKey: string, data: UpdateBusinessInfoRequest) {
-  const client = createOrchestraClient(apiKey);
-  const { data: responseData, error } = await client.PATCH('/v0/user/business-info', {
-    body: data as never,
-  });
-
-  if (error) {
-    throw new Error(
-      ((error as Record<string, unknown>)?.detail as string) || 'Failed to update business info'
-    );
-  }
-
-  return responseData;
-}
 
 export async function updateOnboardingStatus(
   apiKey: string,
@@ -65,19 +32,6 @@ export async function updateOnboardingStatus(
   }
 
   return responseData as unknown as UpdateOnboardingStatusResponse;
-}
-
-export async function getUserBusinessStatus(apiKey: string): Promise<UserBusinessStatusResponse> {
-  const client = createOrchestraClient(apiKey);
-  const { data, error } = await client.GET('/v0/user/business-status');
-
-  if (error) {
-    throw new Error(
-      ((error as Record<string, unknown>)?.detail as string) || 'Failed to get business status'
-    );
-  }
-
-  return data as unknown as UserBusinessStatusResponse;
 }
 
 export async function getOnboardingStatus(apiKey: string): Promise<OnboardingStatusResponse> {
@@ -108,12 +62,10 @@ export async function validateTaxId(
   data: ValidateTaxIdRequest
 ): Promise<TaxIdValidationResponse> {
   const client = createOrchestraClient(apiKey);
-  // Query params need to be snake_case for the OpenAPI types
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const query = { tax_id: data.taxId, country: data.country };
-  const { data: responseData, error } = await client.POST('/v0/user/validate-tax-id', {
-    params: { query },
-  });
+  // Body is auto-transformed camelCase → snake_case by the bodySerializer
+  const { data: responseData, error } = await client.POST('/v0/billing/validate-tax-id' as never, {
+    body: { taxId: data.taxId, country: data.country },
+  } as never);
 
   if (error) {
     throw new Error(
@@ -128,7 +80,7 @@ export async function getSupportedTaxCountries(
   apiKey: string
 ): Promise<SupportedTaxCountriesResponse> {
   const client = createOrchestraClient(apiKey);
-  const { data, error } = await client.GET('/v0/user/supported-tax-countries');
+  const { data, error } = await client.GET('/v0/billing/supported-tax-countries' as never);
 
   if (error) {
     throw new Error(

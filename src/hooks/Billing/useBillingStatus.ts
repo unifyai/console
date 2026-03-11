@@ -2,33 +2,39 @@
  * useBillingStatus - Hook for querying the billing readiness of the current workspace.
  *
  * Returns whether the active billing account has:
- *   - A Stripe customer ID
  *   - A positive credit balance
+ *   - Prior billing history (at least one paid recharge)
  *
  * This is the foundational hook used by BillableActionGuard to decide
  * whether to gate billable actions behind a "purchase credits" prompt.
  *
  * Usage:
  * ```tsx
- * const { hasCredits, isLoading } = useBillingStatus();
+ * const { hasCredits, isLoading, startPolling } = useBillingStatus();
  *
  * if (!hasCredits) {
  *   // Show "purchase credits" prompt
  * }
+ *
+ * // After checkout, poll until credits land:
+ * startPolling();
  * ```
  */
 
+import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface BillingStatusData {
-  /** Whether the account has a Stripe customer ID */
-  hasCustomerId: boolean;
+  /** Whether the account has prior billing history (at least one paid recharge) */
+  hasBillingHistory: boolean;
   /** Current credit balance */
   credits: number;
   /** Convenience: credits > 0 */
   hasCredits: boolean;
+  /** Account status: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED */
+  accountStatus: string;
 }
 
 export interface UseBillingStatusReturn extends BillingStatusData {
@@ -36,48 +42,38 @@ export interface UseBillingStatusReturn extends BillingStatusData {
   error: string | null;
   /** Manually refetch billing status */
   refetch: () => void;
+  /**
+   * Start aggressive polling (every 2 s) until credits appear or 30 s
+   * elapse.  Useful after checkout to bridge the gap between Stripe
+   * confirming payment and the webhook crediting the balance.
+   */
+  startPolling: () => void;
 }
 
-// ─── Fetch helpers (pure functions, easily testable) ────────────────────────
+// ─── Fetch helper (single call) ─────────────────────────────────────────────
 
 /**
- * Fetches whether the current user has a Stripe customer ID.
- * Returns `true` / `false`.
- */
-export async function fetchHasCustomerId(): Promise<boolean> {
-  const res = await fetch('/api/billing/hasCustomerId');
-  if (!res.ok) return false;
-  const data = await res.json();
-  return !!data.hasCustomerId;
-}
-
-/**
- * Fetches the current credit balance.
- * Returns the numeric balance or `0` on failure.
- */
-export async function fetchCreditBalance(): Promise<number> {
-  const res = await fetch('/api/billing/balance');
-  if (!res.ok) return 0;
-  const data = await res.json();
-  return typeof data.fullBalance === 'number' ? data.fullBalance : parseFloat(data.balance) || 0;
-}
-
-/**
- * Aggregates billing status from multiple endpoints into a single object.
+ * Fetches billing status from a single endpoint.
+ * Returns balance, billing history, and derived flags.
  * Exported for unit testing without React.
  */
 export async function fetchBillingStatus(): Promise<BillingStatusData> {
-  const [hasCustomerId, credits] = await Promise.all([
-    fetchHasCustomerId(),
-    fetchCreditBalance(),
-  ]);
+  const res = await fetch('/api/billing/balance');
+  if (!res.ok) {
+    return { hasBillingHistory: false, credits: 0, hasCredits: false, accountStatus: 'ACTIVE' };
+  }
 
-  const hasCredits = credits > 0;
+  const data = await res.json();
+  const credits =
+    typeof data.fullBalance === 'number'
+      ? data.fullBalance
+      : parseFloat(data.balance) || 0;
 
   return {
-    hasCustomerId,
+    hasBillingHistory: data.lastRechargeAt != null,
     credits,
-    hasCredits,
+    hasCredits: credits > 0,
+    accountStatus: data.accountStatus ?? 'ACTIVE',
   };
 }
 
@@ -85,21 +81,51 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
 export const BILLING_STATUS_QUERY_KEY = ['billing', 'status'] as const;
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** How often to poll while waiting for credits to land (ms) */
+const POLL_INTERVAL_MS = 2_000;
+/** Max time to keep polling before giving up (ms) */
+const POLL_TIMEOUT_MS = 30_000;
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useBillingStatus(): UseBillingStatusReturn {
+  const [pollInterval, setPollInterval] = React.useState<number | false>(false);
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
+    refetchInterval: pollInterval,
   });
 
+  // Auto-stop polling once credits are reflected
+  React.useEffect(() => {
+    if (pollInterval && data?.hasCredits) {
+      setPollInterval(false);
+    }
+  }, [pollInterval, data?.hasCredits]);
+
+  // Safety net: stop polling after POLL_TIMEOUT_MS regardless
+  React.useEffect(() => {
+    if (!pollInterval) return;
+    const timeout = setTimeout(() => setPollInterval(false), POLL_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [pollInterval]);
+
   const defaults: BillingStatusData = {
-    hasCustomerId: false,
+    hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
+    accountStatus: 'ACTIVE',
   };
+
+  // Stable callback – safe to capture in closures / intervals
+  const startPolling = React.useCallback(() => {
+    setPollInterval(POLL_INTERVAL_MS);
+  }, []);
 
   return {
     ...(data ?? defaults),
@@ -108,8 +134,6 @@ export function useBillingStatus(): UseBillingStatusReturn {
     refetch: () => {
       refetch();
     },
+    startPolling,
   };
 }
-
-
-

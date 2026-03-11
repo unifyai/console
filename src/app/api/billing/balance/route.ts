@@ -1,34 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBillingAccountInfo } from '@/lib/user/billing/billing';
-import { getWorkspaceBillingContext } from '../../_utils/auth';
+import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
+import { getBalance } from '@/lib/billing/billing';
+import { isBillingError } from '@/types/billing';
 
 /**
- * Returns the credit balance for the active workspace's billing account.
+ * Returns the billing status for the active workspace's billing account.
  *
- * Resolves the current workspace (personal or organization) from the session
- * cookie and returns the balance from the appropriate billing account.
+ * Delegates to the shared `getBalance` server action factory so the
+ * transform logic (credits → formatted balance) lives in one place.
+ *
+ * Response shape:
+ *   - balance: formatted string (e.g. "25.00")
+ *   - fullBalance: raw number
+ *   - lastRechargeAt: ISO-8601 timestamp of last paid recharge, or null
+ *   - accountStatus: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED
  */
 export async function GET(request: NextRequest) {
-  const ctx = await getWorkspaceBillingContext();
+  const apiKey = await getApiKeyFromRequest(request);
 
-  if (!ctx) {
-    // No authenticated session — return zero balance rather than a 404 error.
-    return NextResponse.json({ balance: '0.00', fullBalance: 0 });
+  if (!apiKey) {
+    return unauthorized();
   }
 
   try {
-    const billingInfo = await getBillingAccountInfo(
-      ctx.type === 'organization'
-        ? { organizationId: ctx.organizationId }
-        : { userId: ctx.userId }
-    );
+    const fetchBalance = await getBalance(apiKey);
+    const result = await fetchBalance();
 
-    const balance = billingInfo.credits.toFixed(2);
-    const fullBalance = billingInfo.credits;
+    if (isBillingError(result)) {
+      return NextResponse.json({ error: result.detail }, { status: 500 });
+    }
 
-    return NextResponse.json({ balance, fullBalance });
-  } catch (error) {
-    console.error('Error fetching billing balance:', error);
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Error fetching billing balance:', error?.message || error);
     return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });
   }
 }
