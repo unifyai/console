@@ -119,6 +119,8 @@ interface BracketGeom {
   bottomY: number;
   barX: number;
   lineWidth: number;
+  /** True when the result hasn't arrived yet (open bracket, no bottom bar). */
+  pending?: boolean;
 }
 
 function BracketLines({ geom }: { geom: BracketGeom }) {
@@ -147,7 +149,7 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           top: top + 1,
           left: geom.barX,
           width: 1,
-          height: bot - top - 1,
+          height: bot - top - (geom.pending ? 0 : 1),
           background: bg,
         }}
       />
@@ -166,18 +168,20 @@ function BracketLines({ geom }: { geom: BracketGeom }) {
           }}
         />
       ))}
-      {/* bottom horizontal */}
-      <div
-        className="pointer-events-none"
-        style={{
-          position: 'absolute',
-          top: bot,
-          left: geom.barX,
-          width: geom.lineWidth,
-          height: 1,
-          background: bg,
-        }}
-      />
+      {/* bottom horizontal — omitted for pending (open) brackets */}
+      {!geom.pending && (
+        <div
+          className="pointer-events-none"
+          style={{
+            position: 'absolute',
+            top: bot,
+            left: geom.barX,
+            width: geom.lineWidth,
+            height: 1,
+            background: bg,
+          }}
+        />
+      )}
     </>
   );
 }
@@ -201,21 +205,17 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   const callEl = container.querySelector<HTMLElement>(
     `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="call"]`
   );
+  if (!callEl) return null;
+
   const resultEl = container.querySelector<HTMLElement>(
     `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="result"]`
   );
-  if (!callEl || !resultEl) return null;
 
   const containerRect = container.getBoundingClientRect();
-
   const callIcon = findIconCenter(callEl, containerRect);
-  const resultIcon = findIconCenter(resultEl, containerRect);
-  if (!callIcon || !resultIcon) return null;
+  if (!callIcon) return null;
 
   const topY = callIcon.y;
-  const bottomY = resultIcon.y;
-  if (topY >= bottomY) return null;
-
   const iconLeftEdge = callIcon.x - 7;
   const barX = iconLeftEdge - 6;
   const lineWidth = iconLeftEdge - barX;
@@ -223,14 +223,34 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   const nestEls = container.querySelectorAll<HTMLElement>(
     `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="nest"]`
   );
+
+  if (resultEl) {
+    const resultIcon = findIconCenter(resultEl, containerRect);
+    if (!resultIcon) return null;
+    const bottomY = resultIcon.y;
+    if (topY >= bottomY) return null;
+
+    const midYs: number[] = [];
+    nestEls.forEach((el) => {
+      const center = findIconCenter(el, containerRect);
+      if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
+    });
+    midYs.sort((a, b) => a - b);
+
+    return { topY, midYs, bottomY, barX, lineWidth };
+  }
+
+  // Pending: no result yet — anchor bracket at the last nest element
   const midYs: number[] = [];
   nestEls.forEach((el) => {
     const center = findIconCenter(el, containerRect);
-    if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
+    if (center && center.y > topY) midYs.push(center.y);
   });
+  if (midYs.length === 0) return null;
   midYs.sort((a, b) => a - b);
 
-  return { topY, midYs, bottomY, barX, lineWidth };
+  const bottomY = midYs[midYs.length - 1];
+  return { topY, midYs, bottomY, barX, lineWidth, pending: true };
 }
 
 /** Signal object for expand/collapse all to reach CollapsibleToolLoopSection. */
@@ -403,25 +423,59 @@ function hashStringToInt(s: string): number {
 
 /**
  * Scan backwards through already-placed logs to find the tool_call_id of
- * the execute_function / execute_code call that spawned this child node.
- * Matches by comparing the child's hierarchy segment (which encodes the
- * function name) against tool call names and their aliases.
+ * the tool call that spawned this child node.
+ *
+ * Two strategies, tried in order:
+ *
+ * 1. **Boundary-segment matching** — the hierarchy entry immediately after
+ *    the parent's hierarchy encodes the spawning tool (e.g.
+ *    "execute_function(primitives.web.ask)(xx)").  Matches when the segment
+ *    starts with the tool call name or contains its function_name argument.
+ *
+ * 2. **Pending-call fallback** — when the child shares the parent's lineage
+ *    directly (e.g. inner primitives called from execute_code), there's no
+ *    distinguishing boundary segment.  In that case, attribute the child to
+ *    the most recent tool call that hasn't received its result yet — the
+ *    in-flight call that must have spawned it.
  */
-function findSpawningToolCallId(precedingLogs: ToolLoopLog[], child: ActionNode): string | null {
-  const lastSeg = child.hierarchy[child.hierarchy.length - 1] || '';
+function findSpawningToolCallId(
+  precedingLogs: ToolLoopLog[],
+  child: ActionNode,
+  parentHierarchyLen: number
+): string | null {
+  // Strategy 1: boundary-segment name matching
+  const boundarySeg = child.hierarchy[parentHierarchyLen] || '';
+  if (boundarySeg) {
+    for (let i = precedingLogs.length - 1; i >= 0; i--) {
+      const msg = precedingLogs[i].entries.message;
+      if (msg.role !== 'assistant' || !msg.toolCalls) continue;
+      for (const tc of msg.toolCalls) {
+        if (boundarySeg.startsWith(tc.function.name)) return tc.id;
+        try {
+          const args = JSON.parse(tc.function.arguments);
+          if (args.function_name && boundarySeg.includes(args.function_name)) return tc.id;
+        } catch {
+          /* skip */
+        }
+      }
+    }
+  }
+
+  // Strategy 2: attribute to the most recent pending (unresolved) tool call
+  const resolvedIds = new Set<string>();
+  for (const log of precedingLogs) {
+    const m = log.entries.message as Record<string, unknown>;
+    const tcId = (m.toolCallId ?? m.tool_call_id) as string | undefined;
+    if (m.role === 'tool' && tcId) resolvedIds.add(tcId);
+  }
   for (let i = precedingLogs.length - 1; i >= 0; i--) {
     const msg = precedingLogs[i].entries.message;
     if (msg.role !== 'assistant' || !msg.toolCalls) continue;
     for (const tc of msg.toolCalls) {
-      if (lastSeg.includes(tc.function.name)) return tc.id;
-      try {
-        const args = JSON.parse(tc.function.arguments);
-        if (args.function_name && lastSeg.includes(args.function_name)) return tc.id;
-      } catch {
-        /* skip */
-      }
+      if (!resolvedIds.has(tc.id)) return tc.id;
     }
   }
+
   return null;
 }
 
@@ -1605,7 +1659,7 @@ function ToolLoopConversation({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId, layoutGen]);
+  }, [hoveredTcId, layoutGen, logs.length]);
 
   const pad = depth > 0 ? `${depth * 8 + 26}px` : '26px';
 
@@ -1719,7 +1773,7 @@ function LiveToolLoopTimeline({
         setBracketGeom(computeBracketGeom(contentRef.current, hoveredTcId));
       }
     });
-  }, [hoveredTcId, layoutGen]);
+  }, [hoveredTcId, layoutGen, logs.length]);
 
   const pad = depth > 0 ? `${depth * 8 + 26}px` : '26px';
 
@@ -2290,7 +2344,7 @@ export function ActionNodeItem({
           break;
         }
       }
-      const tcId = findSpawningToolCallId(result, evt.node);
+      const tcId = findSpawningToolCallId(result, evt.node, node.hierarchy.length);
       result.push(makeSyntheticLog(evt.node, tcId));
     }
 
