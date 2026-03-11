@@ -1548,6 +1548,8 @@ function ToolLoopMessage({
   }
 
   if (!content) return null;
+  content = content.replace(/^\s+/, '');
+  if (!content) return null;
 
   const preview = content.split(/\n\n|\n/)[0];
   const isJson = isLikelyJson(content);
@@ -1944,23 +1946,14 @@ function PromotedContent({
   searchTerm?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
-  const [isOverflowing, setIsOverflowing] = React.useState(false);
   const [isTruncated, setIsTruncated] = React.useState(false);
-  const contentRef = React.useRef<HTMLDivElement>(null);
   const inlineRef = React.useRef<HTMLSpanElement>(null);
   const rowRef = React.useRef<HTMLDivElement>(null);
-  const { height: maxH, onPointerDown } = useResizableHeight(200);
   const pad = `${20 + depth * 8}px`;
 
-  const hasMoreLines = content.includes('\n');
+  const trimmedContent = content.replace(/^\s+/, '');
+  const hasMoreLines = trimmedContent.includes('\n');
   const canExpand = isTruncated || hasMoreLines;
-
-  React.useEffect(() => {
-    if (isOpen) {
-      const el = contentRef.current;
-      if (el) setIsOverflowing(el.scrollHeight > el.clientHeight);
-    }
-  }, [isOpen, content, maxH]);
 
   React.useEffect(() => {
     const el = inlineRef.current;
@@ -2018,9 +2011,9 @@ function PromotedContent({
           className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
         >
           {searchTerm ? (
-            <HighlightText text={content.split(/\n\n|\n/)[0]} term={searchTerm} />
+            <HighlightText text={trimmedContent.split(/\n\n|\n/)[0]} term={searchTerm} />
           ) : (
-            <TruncatedMarkdown content={content.split(/\n\n|\n/)[0]} />
+            <TruncatedMarkdown content={trimmedContent.split(/\n\n|\n/)[0]} />
           )}
         </span>
         {!isOpen && canExpand && (
@@ -2034,47 +2027,18 @@ function PromotedContent({
       </div>
       {isOpen &&
         (() => {
-          const rest = content.split(/\n/).slice(1).join('\n').trim();
+          const rest = trimmedContent.split(/\n/).slice(1).join('\n').trim();
           if (!rest) return null;
           return (
-            <div className="relative" style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}>
-              {isOverflowing && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 top-0 z-10 h-3"
-                  style={{
-                    background: 'linear-gradient(to top, transparent, var(--background))',
-                  }}
-                />
+            <div
+              className="text-[11px] leading-relaxed text-muted-foreground"
+              style={{ paddingLeft: pad, maxWidth: `calc(100% - 8px)` }}
+            >
+              {searchTerm ? (
+                <HighlightText text={rest} term={searchTerm} />
+              ) : (
+                <RichContent content={rest} />
               )}
-              <div
-                ref={contentRef}
-                className={cn(
-                  'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
-                  'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
-                )}
-                style={{ maxHeight: `${maxH}px`, scrollbarWidth: 'none' }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget.style.scrollbarWidth as unknown) = 'thin';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget.style.scrollbarWidth as unknown) = 'none';
-                }}
-              >
-                {searchTerm ? (
-                  <HighlightText text={rest} term={searchTerm} />
-                ) : (
-                  <RichContent content={rest} />
-                )}
-              </div>
-              {isOverflowing && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3"
-                  style={{
-                    background: 'linear-gradient(to bottom, transparent, var(--background))',
-                  }}
-                />
-              )}
-              <ResizeHandle onPointerDown={onPointerDown} />
             </div>
           );
         })()}
