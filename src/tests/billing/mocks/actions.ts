@@ -8,7 +8,7 @@
  *   - DEFAULT_BALANCE / DEFAULT_AUTO_RECHARGE: constants tests can reference
  */
 
-import { vi } from 'vitest';
+import { vi, expect } from 'vitest';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';

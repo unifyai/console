@@ -135,8 +135,8 @@ export interface TaxIdValidationResponse {
 
 export interface SupportedTaxCountryEntry {
   description: string;
-  tax_id_name: string;
-  tax_id_format: string;
+  taxIdName: string;
+  taxIdFormat: string;
 }
 
 export interface SupportedTaxCountriesResponse {
