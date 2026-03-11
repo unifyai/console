@@ -54,6 +54,7 @@ import type {
   ToolLoopLog,
 } from '@/types/assistants/action';
 import { isToolLoopNoise } from '@/lib/assistants/event-filters';
+import { snakeToCamel } from '@/utils/casing';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -1284,14 +1285,6 @@ function ToolLoopMessage({
     const renderCallLine = () => {
       if (!message.toolCalls || message.toolCalls.length === 0) return null;
       const rawAliases = log.entries.toolAliases;
-      const aliases = rawAliases
-        ? Object.fromEntries(
-            Object.entries(rawAliases).map(([k, v]) => [
-              k.replace(/([A-Z])/g, '_$1').toLowerCase(),
-              v,
-            ])
-          )
-        : null;
 
       const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
       if (SHOW_EXECUTE_CODE_CONTENT) {
@@ -1314,7 +1307,7 @@ function ToolLoopMessage({
       const toolEntries = message.toolCalls
         .map((tc) => {
           if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
-          const alias = aliases?.[tc.function.name];
+          const alias = rawAliases?.[snakeToCamel(tc.function.name)];
           return {
             label: alias || `${tc.function.name}()`,
             toolCallId: tc.id,
