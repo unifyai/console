@@ -76,6 +76,7 @@ export function resolveToolLoopKind(entries: Record<string, any>): string {
     const name: string = raw.name ?? '';
     if (typeof name === 'string' && name.startsWith('check_status_')) return 'status_check';
     if (name === 'wait') return 'wait_noop';
+    if (name === 'send_notification') return 'notification_ack';
     if (typeof raw.content === 'string') {
       try {
         const parsed = JSON.parse(raw.content);
@@ -137,6 +138,7 @@ const NOISE_KINDS = new Set([
   'context_continuation',
   'status_check',
   'wait_noop',
+  'notification_ack',
   'system_notice',
   'early_exit',
 ]);
@@ -150,5 +152,8 @@ const NOISE_KINDS = new Set([
  * inferred from the message via `resolveToolLoopKind`.
  */
 export function isToolLoopNoise(entries: Record<string, any>): boolean {
-  return NOISE_KINDS.has(resolveToolLoopKind(entries));
+  if (NOISE_KINDS.has(resolveToolLoopKind(entries))) return true;
+  const msg = entries.message;
+  if (msg?.role === 'tool' && msg?.name === 'send_notification') return true;
+  return false;
 }

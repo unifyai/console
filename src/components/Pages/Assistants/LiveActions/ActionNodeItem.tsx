@@ -1064,6 +1064,102 @@ function ToolCallRow({
   );
 }
 
+function InlineContentRow({
+  content: text,
+  time,
+  Icon,
+  iconColor,
+  tooltipLabel,
+}: {
+  content: string;
+  time: string;
+  Icon: LucideIcon;
+  iconColor: string;
+  tooltipLabel: string;
+}) {
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLSpanElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isTruncated, setIsTruncated] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const check = () => setIsTruncated(el.scrollWidth > el.clientWidth || text.includes('\n'));
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const collapsedPreview = text.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
+
+  const handleClick = () => {
+    if (!isOpen && isTruncated) {
+      setIsOpen(true);
+    } else if (isOpen) {
+      setIsOpen(false);
+    } else {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
+
+  const firstLine = text.split(/\n/)[0];
+  const rest = text.split(/\n/).slice(1).join('\n').trim();
+
+  return (
+    <>
+      <div
+        ref={rowRef}
+        className={cn(
+          'group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150',
+          !isOpen && isTruncated && 'hover:bg-muted/40',
+          isOpen && 'hover:bg-muted/40'
+        )}
+        onClick={handleClick}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn('mt-0.5 shrink-0', iconColor)}>
+              <Icon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            {tooltipLabel}
+          </TooltipContent>
+        </Tooltip>
+        <span
+          ref={contentRef}
+          className={cn('min-w-0 text-muted-foreground', isOpen ? 'break-words' : 'truncate')}
+        >
+          {isOpen ? firstLine : collapsedPreview}
+        </span>
+        {!isOpen && isTruncated && (
+          <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100" />
+        )}
+        {!isOpen && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        )}
+      </div>
+      {isOpen && rest && (
+        <div
+          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+          onClick={() => setIsOpen(false)}
+        >
+          <RichContent content={rest} />
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * Renders a single ToolLoop message with a role tag, content, and right-justified timestamp.
  * When log._actionNode is set, renders an inline child node row instead.
@@ -1405,9 +1501,19 @@ function ToolLoopMessage({
       }
     }
 
+    const notificationMessages: string[] = [];
     const toolEntries = message.toolCalls
       .map((tc) => {
         if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
+        if (tc.function.name === 'send_notification') {
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            if (args.message) notificationMessages.push(args.message);
+          } catch {
+            /* skip */
+          }
+          return null;
+        }
         const alias = aliases?.[tc.function.name];
         return {
           label: alias || `${tc.function.name}()`,
@@ -1431,6 +1537,19 @@ function ToolLoopMessage({
     );
 
     const rows: React.ReactNode[] = [];
+
+    for (let i = 0; i < notificationMessages.length; i++) {
+      rows.push(
+        <InlineContentRow
+          key={`notif-${i}`}
+          content={notificationMessages[i]}
+          time={time}
+          Icon={ArrowUp}
+          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          tooltipLabel="notification"
+        />
+      );
+    }
 
     for (let i = 0; i < toolEntries.length; i++) {
       const entry = toolEntries[i];
@@ -1542,6 +1661,7 @@ function ToolLoopMessage({
       );
     }
 
+    if (rows.length === 0) return null;
     return rows.length === 1 ? rows[0] : <>{rows}</>;
   };
 
@@ -1733,26 +1853,13 @@ function ToolLoopMessage({
       </div>
       {trailingCallLine}
       {trailingResponseContent && (
-        <div className="flex items-start gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="mt-0.5 shrink-0 text-emerald-600/80 dark:text-emerald-400/60">
-                <ArrowUp className="h-2.5 w-2.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-              response
-            </TooltipContent>
-          </Tooltip>
-          <span className="min-w-0 truncate text-muted-foreground">
-            <TruncatedMarkdown
-              content={trailingResponseContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
-            />
-          </span>
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
-            {time}
-          </span>
-        </div>
+        <InlineContentRow
+          content={trailingResponseContent}
+          time={time}
+          Icon={ArrowUp}
+          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          tooltipLabel="response"
+        />
       )}
     </>
   );
