@@ -507,6 +507,11 @@ function countDescendantLiveLogs(node: ActionNode): number {
   return count;
 }
 
+function isNodeOrDescendantRunning(node: ActionNode): boolean {
+  if (node.status === 'running') return true;
+  return node.children.some(isNodeOrDescendantRunning);
+}
+
 /**
  * Scan backwards through already-placed logs to find the tool_call_id of
  * the tool call that spawned this child node.
@@ -1238,14 +1243,15 @@ function ToolLoopMessage({
 
   // Hooks for inline child node expansion — must be unconditional (rules of hooks).
   const child = log.syntheticChildNode;
-  const [childLogsOpen, setChildLogsOpen] = React.useState(child?.status === 'running');
+  const childRunning = child ? isNodeOrDescendantRunning(child) : false;
+  const [childLogsOpen, setChildLogsOpen] = React.useState(childRunning);
 
   React.useEffect(() => {
-    if (child?.status === 'running' && !childLogsOpen) {
+    if (childRunning && !childLogsOpen) {
       setChildLogsOpen(true);
       onLayoutChange?.();
     }
-  }, [child?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [childRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Collect live logs from the child AND all its descendants. This mirrors
   // the Orchestra getToolLoopEvents prefix query so PubSub-only streaming
@@ -1353,7 +1359,7 @@ function ToolLoopMessage({
           <span
             className={cn(
               'min-w-0 truncate text-muted-foreground',
-              child.status === 'running' && 'animate-shimmer'
+              isNodeOrDescendantRunning(child) && 'animate-shimmer'
             )}
           >
             {childLabel}
@@ -1507,13 +1513,9 @@ function ToolLoopMessage({
   const renderCallLine = () => {
     if (!message.toolCalls || message.toolCalls.length === 0) return null;
     const rawAliases = log.entries.toolAliases;
+    const normalizeKey = (k: string) => k.replace(/_/g, '').toLowerCase();
     const aliases = rawAliases
-      ? Object.fromEntries(
-          Object.entries(rawAliases).map(([k, v]) => [
-            k.replace(/([A-Z])/g, '_$1').toLowerCase(),
-            v,
-          ])
-        )
+      ? Object.fromEntries(Object.entries(rawAliases).map(([k, v]) => [normalizeKey(k), v]))
       : null;
 
     const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
@@ -1547,7 +1549,7 @@ function ToolLoopMessage({
           }
           return null;
         }
-        const alias = aliases?.[tc.function.name];
+        const alias = aliases?.[normalizeKey(tc.function.name)];
         return {
           label: alias || `${tc.function.name}()`,
           toolCallId: tc.id,
