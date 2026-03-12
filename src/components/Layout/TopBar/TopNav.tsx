@@ -14,6 +14,7 @@ import {
   ChevronDown,
   BarChart3,
   Settings,
+  Loader2,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -60,6 +61,7 @@ export default function TopNav() {
     activeOrganization,
     switchWorkspace,
     isWorkspaceSwitchable,
+    isSwitchingWorkspace,
   } = useWorkspace();
 
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
@@ -212,7 +214,9 @@ export default function TopNav() {
                         variant="ghost"
                         className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
                       >
-                        {activeWorkspace.type === 'personal' ? (
+                        {isSwitchingWorkspace ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : activeWorkspace.type === 'personal' ? (
                           workspacePhotos['personal'] ? (
                             <Image
                               width={16}
@@ -237,7 +241,9 @@ export default function TopNav() {
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
                         )}
-                        <span className="max-w-[250px] truncate">{activeWorkspace.name}</span>
+                        <span className="max-w-[250px] truncate">
+                          {isSwitchingWorkspace ? 'Switching…' : activeWorkspace.name}
+                        </span>
                         <ChevronDown className="h-3 w-3 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>

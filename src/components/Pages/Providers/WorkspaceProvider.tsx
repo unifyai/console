@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
 
@@ -11,6 +11,7 @@ interface WorkspaceContextType {
   currentUserId: string | null;
   /** Whether the user can switch between workspaces (false for non-Unify org members). */
   isWorkspaceSwitchable: boolean;
+  isSwitchingWorkspace: boolean;
   switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
@@ -82,23 +83,35 @@ export function WorkspaceProvider({
   }, [user]);
 
   // 3. Switcher Logic
-  const switchWorkspace = async (workspaceId: string) => {
-    // Optimistic UI update could happen here if we used local state,
-    // but since we rely on the Server `user` object, we trigger a refresh.
+  const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
 
-    // Set Cookie
+  useEffect(() => {
+    setIsSwitchingWorkspace(false);
+  }, [activeWorkspace?.id]);
+
+  const switchWorkspace = async (workspaceId: string) => {
+    if (activeWorkspace?.id === workspaceId) return;
+    setIsSwitchingWorkspace(true);
+
     await fetch('/api/session/workspace', {
       method: 'POST',
       body: JSON.stringify({ workspaceId }),
     });
 
-    // Refresh Server Components to re-run getCurrentUser()
     router.refresh();
   };
 
   return (
     <WorkspaceContext.Provider
-      value={{ workspaces, activeWorkspace, activeOrganization, currentUserId, isWorkspaceSwitchable, switchWorkspace }}
+      value={{
+        workspaces,
+        activeWorkspace,
+        activeOrganization,
+        currentUserId,
+        isWorkspaceSwitchable,
+        isSwitchingWorkspace,
+        switchWorkspace,
+      }}
     >
       {children}
     </WorkspaceContext.Provider>
