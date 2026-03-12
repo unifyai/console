@@ -103,7 +103,15 @@ export function resolveToolLoopKind(entries: Record<string, any>): string {
     )
       return 'thought';
     const toolCalls: any[] = raw.toolCalls ?? raw.tool_calls ?? [];
-    if (toolCalls.length > 0) return 'tool_call';
+    if (toolCalls.length > 0) {
+      if (
+        toolCalls.every((tc: any) =>
+          (tc?.function?.name ?? tc?.name ?? '').startsWith('check_status_')
+        )
+      )
+        return 'status_check';
+      return 'tool_call';
+    }
     return 'response';
   }
 
