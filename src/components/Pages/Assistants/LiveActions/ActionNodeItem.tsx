@@ -1594,7 +1594,8 @@ function ToolLoopMessage({
   content = content.replace(/^\s+/, '');
   if (!content) return null;
 
-  const preview = content.split(/\n\n|\n/)[0];
+  const collapsedPreview = content.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
+  const firstLine = content.split(/\n/)[0];
   const isJson = isLikelyJson(content);
   const jsonExpandable =
     isJson &&
@@ -1673,7 +1674,7 @@ function ToolLoopMessage({
           </Tooltip>
           {!isOpen && (
             <span ref={collapsedContentRef} className="min-w-0 truncate text-muted-foreground">
-              <TruncatedMarkdown content={preview} />
+              <TruncatedMarkdown content={collapsedPreview} />
             </span>
           )}
           {isOpen && (
@@ -1683,7 +1684,7 @@ function ToolLoopMessage({
                 hasMoreLines || isJson ? 'truncate' : 'break-words'
               )}
             >
-              {isJson ? content!.trim()[0] : <TruncatedMarkdown content={preview} />}
+              {isJson ? firstLine : <TruncatedMarkdown content={firstLine} />}
             </span>
           )}
           {!isOpen && canExpand && (
@@ -1744,7 +1745,9 @@ function ToolLoopMessage({
             </TooltipContent>
           </Tooltip>
           <span className="min-w-0 truncate text-muted-foreground">
-            <TruncatedMarkdown content={trailingResponseContent.split(/\n\n|\n/)[0]} />
+            <TruncatedMarkdown
+              content={trailingResponseContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+            />
           </span>
           <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
             {time}
@@ -2069,16 +2072,29 @@ function PromotedContent({
           </Tooltip>
         )}
         {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
-        <span
-          ref={inlineRef}
-          className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
-        >
-          {searchTerm ? (
-            <HighlightText text={trimmedContent.split(/\n\n|\n/)[0]} term={searchTerm} />
-          ) : (
-            <TruncatedMarkdown content={trimmedContent.split(/\n\n|\n/)[0]} />
-          )}
-        </span>
+        {!isOpen && (
+          <span ref={inlineRef} className="min-w-0 truncate text-muted-foreground">
+            {searchTerm ? (
+              <HighlightText
+                text={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+                term={searchTerm}
+              />
+            ) : (
+              <TruncatedMarkdown
+                content={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+              />
+            )}
+          </span>
+        )}
+        {isOpen && (
+          <span ref={inlineRef} className="min-w-0 break-words text-muted-foreground">
+            {searchTerm ? (
+              <HighlightText text={trimmedContent.split(/\n/)[0]} term={searchTerm} />
+            ) : (
+              <TruncatedMarkdown content={trimmedContent.split(/\n/)[0]} />
+            )}
+          </span>
+        )}
         {!isOpen && canExpand && (
           <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
         )}
