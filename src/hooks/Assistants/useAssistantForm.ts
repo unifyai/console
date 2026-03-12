@@ -464,9 +464,14 @@ export function useAssistantForm(
         payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
-      if (data.voiceId !== editingAssistant.voiceId) payload.voiceId = data.voiceId;
-      if (data.voiceProvider !== editingAssistant.voiceProvider)
+      // Orchestra requires both voice_id and voice_provider together — always
+      // send them as a pair when either one has changed.
+      const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
+      const voiceProviderChanged = data.voiceProvider !== editingAssistant.voiceProvider;
+      if (voiceIdChanged || voiceProviderChanged) {
+        payload.voiceId = data.voiceId;
         payload.voiceProvider = data.voiceProvider;
+      }
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
       // Image/Video upload logic — include assistant_id so files are stored
@@ -517,7 +522,11 @@ export function useAssistantForm(
           payload
         );
         if ((updateResult as ResponseProps).detail) {
-          throw new Error((updateResult as ResponseProps).detail);
+          console.error(
+            `[useAssistantForm] Failed to update assistant ${editingAssistant.agentId}:`,
+            (updateResult as ResponseProps).detail
+          );
+          throw new Error('Failed to update assistant.');
         }
         toast.success(`Assistant ${data.firstName} updated!`);
       } else {
@@ -526,9 +535,7 @@ export function useAssistantForm(
 
       if (onUpdateSuccess) onUpdateSuccess(payload);
     } catch (error: any) {
-      // Show specific error message if available, otherwise show generic message
-      const errorMessage = error?.message || 'An error occurred while updating. Please try again.';
-      toast.error(errorMessage);
+      toast.error(error?.message || 'Failed to update assistant.');
     } finally {
       setIsSubmitting(false);
     }
