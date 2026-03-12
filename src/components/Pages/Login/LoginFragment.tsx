@@ -8,6 +8,13 @@ import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import { Mail } from 'lucide-react';
 import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
+import dynamic from 'next/dynamic';
+
+// Dev-only quick login panel — lazy-loaded and tree-shaken in production builds.
+const DevQuickLogin =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(() => import('@/components/Dev/DevQuickLogin'), { ssr: false })
+    : () => null;
 
 /** Auth method tabs */
 type AuthTab = 'oauth' | 'email';
@@ -88,6 +95,9 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
               </button>
             </>
           )}
+
+          {/* Dev-only quick login (tree-shaken in production) */}
+          <DevQuickLogin />
         </div>
 
         {/* Footer — disclaimer */}

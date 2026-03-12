@@ -4,19 +4,22 @@
 # =============================================================================
 #
 # Starts a fully local Console deployment with a local Orchestra backend,
-# PostgreSQL database, and seeded test data (user, assistant).
-# Pass --org to also seed an organization workspace with its own assistant.
-# Pass --stripe to start Stripe webhook forwarding for E2E billing flows.
+# PostgreSQL database, and seeded test data.
+#
+# All test data is created via TypeScript seed scenarios (src/tests/seeds/).
+# By default the "personal-workspace" scenario is used. Pass --seed <name>
+# to pick a different one, or --org as a shorthand for --seed org-basic.
 #
 # Usage:
-#   ./scripts/local.sh                      # Start with personal workspace (default)
-#   ./scripts/local.sh start                # Same as above
-#   ./scripts/local.sh start --org          # Start with org workspace seeded
-#   ./scripts/local.sh start --stripe       # Start with Stripe webhook forwarding
-#   ./scripts/local.sh start --org --stripe # Both org and Stripe
-#   ./scripts/local.sh stop                 # Stop Console, Orchestra, and Stripe listener
-#   ./scripts/local.sh restart              # Stop then start (wipes database)
-#   ./scripts/local.sh status               # Show status of all services
+#   ./scripts/local.sh                                # personal-workspace (default)
+#   ./scripts/local.sh start                          # Same as above
+#   ./scripts/local.sh start --org                    # Shorthand for --seed org-basic
+#   ./scripts/local.sh start --seed org-multi-role    # Specific scenario
+#   ./scripts/local.sh start --seed all               # Run all scenarios
+#   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
+#   ./scripts/local.sh stop                           # Stop all services
+#   ./scripts/local.sh restart                        # Stop then start (wipes database)
+#   ./scripts/local.sh status                         # Show status of all services
 #
 # Prerequisites:
 #   - Node.js 20+ and npm 10+
@@ -29,10 +32,6 @@
 #   ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)
 #   CONSOLE_PORT          Next.js port (default: 3333)
 #   ORCHESTRA_PORT        Orchestra port (default: 8000)
-#
-# Test credentials (seeded automatically):
-#   Email:    test@example.com
-#   Password: testpass123
 #
 set -euo pipefail
 
@@ -181,149 +180,66 @@ stop_orchestra() {
 }
 
 # =============================================================================
-# Test Data Seeding
+# NPM Dependencies
 # =============================================================================
 
-seed_test_data() {
-  local with_org="${1:-false}"
-  log_info "Seeding test data (org=$with_org)..."
+ensure_npm_deps() {
+  cd "$CONSOLE_REPO_PATH"
+  if [[ ! -d "node_modules" ]]; then
+    log_info "Running npm install..."
+    npm install --silent
+  fi
+}
 
-  local db_container
-  db_container=$(docker ps --filter "publish=${ORCHESTRA_PORT:-5432}" --format "{{.Names}}" 2>/dev/null | head -1)
-  # The DB container listens on the DB port (5432), not the Orchestra port.
-  # Orchestra's local.sh uses ORCHESTRA_DB_PORT which defaults to 5432.
-  db_container=$(docker ps --filter "publish=5432" --format "{{.Names}}" 2>/dev/null | head -1)
+# =============================================================================
+# Modular Seed Scenarios (TypeScript-based)
+# =============================================================================
 
-  if [[ -z "$db_container" ]]; then
-    log_warn "No PostgreSQL container found — skipping seed"
-    return 0
+# Valid seed scenario names — must match SCENARIOS in src/tests/seeds/run.ts.
+VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify all)
+
+validate_seed_scenario() {
+  local scenario="$1"
+  if [[ -z "$scenario" ]]; then
+    return 0  # no scenario requested = nothing to validate
   fi
 
-  local psql="docker exec $db_container psql -U orchestra -d orchestra -tAc"
-
-  # Resolve the actual user ID (Orchestra may prefix it)
-  local test_user_id
-  test_user_id=$($psql "SELECT id FROM \"user\" WHERE email = 'test@example.com' LIMIT 1;" 2>/dev/null || echo "")
-  if [[ -z "$test_user_id" ]]; then
-    test_user_id=$($psql "SELECT id FROM \"user\" LIMIT 1;" 2>/dev/null || echo "")
-  fi
-
-  if [[ -z "$test_user_id" ]]; then
-    log_warn "No user found in database — skipping seed"
-    return 0
-  fi
-
-  log_info "Found test user: $test_user_id"
-
-  # 1. Update test user's name and email
-  $psql "UPDATE \"user\" SET name = 'Test', last_name = 'User', email = 'test@example.com' WHERE id = '$test_user_id';" >/dev/null 2>&1
-
-  # 2. Create email_account (password login) if not exists
-  local has_email_account
-  has_email_account=$($psql "SELECT 1 FROM email_account WHERE user_id = '$test_user_id';" 2>/dev/null || echo "")
-
-  if [[ "$has_email_account" != "1" ]]; then
-    log_info "Creating email/password login for test user..."
-    local pw_hash
-    pw_hash=$("$ORCHESTRA_REPO_PATH/.venv/bin/python" -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('testpass123'))" 2>/dev/null)
-    if [[ -n "$pw_hash" ]]; then
-      docker exec "$db_container" psql -U orchestra -d orchestra -c \
-        "INSERT INTO email_account (user_id, password_hash, email_verified) VALUES ('$test_user_id', '$pw_hash', true) ON CONFLICT (user_id) DO NOTHING;" >/dev/null 2>&1
-      log_success "Email login created (test@example.com / testpass123)"
-    else
-      log_warn "Could not generate password hash — email login not created"
+  for valid in "${VALID_SEED_SCENARIOS[@]}"; do
+    if [[ "$scenario" == "$valid" ]]; then
+      return 0
     fi
+  done
+
+  log_error "Unknown seed scenario: '$scenario'"
+  log_info "Valid scenarios: ${VALID_SEED_SCENARIOS[*]}"
+  log_info "Run: npx tsx src/tests/seeds/run.ts --list"
+  return 1
+}
+
+run_seed_scenario() {
+  local scenario="$1"
+  log_info "Running seed scenario: $scenario ..."
+
+  cd "$CONSOLE_REPO_PATH"
+
+  # Make sure tsx is available (comes with devDependencies)
+  if ! npx --yes tsx --version &>/dev/null 2>&1; then
+    log_error "tsx is not available — run 'npm install' first"
+    return 1
+  fi
+
+  # Set env vars so the seed client can reach the local services
+  export ORCHESTRA_DB_CONTAINER="orchestra-local-db"
+  export NEXT_PUBLIC_BASE_URL="http://localhost:${CONSOLE_PORT}"
+  export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+  export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
+
+  if npx tsx src/tests/seeds/run.ts "$scenario"; then
+    log_success "Seed scenario '$scenario' completed"
   else
-    log_success "Email login already exists"
+    log_error "Seed scenario '$scenario' failed"
+    return 1
   fi
-
-  # 3. Create organization if --org mode
-  if [[ "$with_org" == "true" ]]; then
-    local has_org
-    has_org=$($psql "SELECT 1 FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
-
-    if [[ "$has_org" != "1" ]]; then
-      log_info "Creating test organization..."
-      docker exec "$db_container" psql -U orchestra -d orchestra -c "
-DO \$\$
-DECLARE
-  _org_id integer;
-  _ba_id integer;
-BEGIN
-  INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
-  VALUES (10000, false, 0, 25, 'ACTIVE', 'developer')
-  RETURNING id INTO _ba_id;
-
-  INSERT INTO organization (owner_id, name, billing_account_id, verified)
-  VALUES ('$test_user_id', 'Acme Corp', _ba_id, true)
-  RETURNING id INTO _org_id;
-
-  INSERT INTO organization_member (organization_id, user_id, role_id)
-  VALUES (_org_id, '$test_user_id', 1);
-
-  INSERT INTO api_key (user_id, organization_id, key, name)
-  VALUES ('$test_user_id', _org_id, 'org-test-api-key', 'Org Key');
-END
-\$\$;
-" >/dev/null 2>&1
-      log_success "Organization 'Acme Corp' created"
-    else
-      log_success "Organization already exists"
-    fi
-  fi
-
-  # 4. Register voice presets (required FK for assistants)
-  docker exec "$db_container" psql -U orchestra -d orchestra -c "
-    INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
-    VALUES ('9BWtsMINqrJLrRacOk9x', '$test_user_id', 'English Female Husky 1', 'A middle-aged female with an African-American accent. Calm with a hint of rasp.', 'female', 'en', true, 'elevenlabs')
-    ON CONFLICT DO NOTHING;
-  " >/dev/null 2>&1
-
-  if [[ "$with_org" == "true" ]]; then
-    docker exec "$db_container" psql -U orchestra -d orchestra -c "
-      INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
-      VALUES ('nPczCjzI2devNBz1zQrb', '$test_user_id', 'English Male Well-rounded 1', 'A middle aged, male, well-rounded voice with a american accent.', 'male', 'en', true, 'elevenlabs')
-      ON CONFLICT DO NOTHING;
-    " >/dev/null 2>&1
-  fi
-
-  # 5. Create sample assistants
-  # 5a. Personal assistant (always)
-  local has_personal_assistant
-  has_personal_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' AND organization_id IS NULL LIMIT 1;" 2>/dev/null || echo "")
-
-  if [[ "$has_personal_assistant" != "1" ]]; then
-    log_info "Creating personal assistant..."
-    docker exec "$db_container" psql -U orchestra -d orchestra -c \
-      "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel) VALUES ('$test_user_id', 'Karen', 'Myers', 58, 'United Kingdom', 'Europe/London', 'A highly experienced professional bringing years of expertise and strong problem-solving skills.', '9BWtsMINqrJLrRacOk9x', 'elevenlabs', 40, 10);" >/dev/null 2>&1
-    log_success "Personal assistant 'Karen Myers' created"
-  else
-    log_success "Personal assistant already exists"
-  fi
-
-  # 5b. Organization assistant (only with --org)
-  if [[ "$with_org" == "true" ]]; then
-    local org_id
-    org_id=$($psql "SELECT id FROM organization WHERE owner_id = '$test_user_id' LIMIT 1;" 2>/dev/null || echo "")
-
-    if [[ -n "$org_id" ]]; then
-      local has_org_assistant
-      has_org_assistant=$($psql "SELECT 1 FROM assistants WHERE user_id = '$test_user_id' AND organization_id = $org_id LIMIT 1;" 2>/dev/null || echo "")
-
-      if [[ "$has_org_assistant" != "1" ]]; then
-        log_info "Creating organization assistant..."
-        docker exec "$db_container" psql -U orchestra -d orchestra -c \
-          "INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id) VALUES ('$test_user_id', 'James', 'Whitfield', 34, 'United States', 'America/New_York', 'A sharp and resourceful assistant with a knack for streamlining complex workflows.', 'nPczCjzI2devNBz1zQrb', 'elevenlabs', 40, 10, $org_id);" >/dev/null 2>&1
-        log_success "Organization assistant 'James Whitfield' created"
-      else
-        log_success "Organization assistant already exists"
-      fi
-    else
-      log_warn "No organization found — skipping org assistant seed"
-    fi
-  fi
-
-  log_success "Test data seeded"
 }
 
 # =============================================================================
@@ -352,13 +268,7 @@ start_console() {
 
   cd "$CONSOLE_REPO_PATH"
 
-  # Install dependencies if node_modules is missing
-  if [[ ! -d "node_modules" ]]; then
-    log_info "Running npm install..."
-    npm install --silent
-  fi
-
-  nohup npm run dev -- -p "$CONSOLE_PORT" > "$CONSOLE_LOGFILE" 2>&1 &
+  nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
   local pid=$!
   echo "$pid" > "$CONSOLE_PIDFILE"
 
@@ -491,14 +401,28 @@ stop_stripe_listener() {
 cmd_start() {
   local with_org="$1"
   local with_stripe="$2"
+  local seed_scenario="$3"
 
-  local mode_label="personal"
-  if [[ "$with_org" == "true" && "$with_stripe" == "true" ]]; then
-    mode_label="personal + org + stripe"
-  elif [[ "$with_org" == "true" ]]; then
-    mode_label="personal + org"
-  elif [[ "$with_stripe" == "true" ]]; then
-    mode_label="personal + stripe"
+  # Resolve effective seed scenario:
+  #   --seed X  → X                     (explicit)
+  #   --org     → org-basic             (convenience alias)
+  #   (default) → personal-workspace
+  if [[ -z "$seed_scenario" ]]; then
+    if [[ "$with_org" == "true" ]]; then
+      seed_scenario="org-basic"
+    else
+      seed_scenario="personal-workspace"
+    fi
+  fi
+
+  # Validate seed scenario name early — before starting any services.
+  if ! validate_seed_scenario "$seed_scenario"; then
+    return 1
+  fi
+
+  local mode_label="seed:${seed_scenario}"
+  if [[ "$with_stripe" == "true" ]]; then
+    mode_label="$mode_label + stripe"
   fi
 
   echo ""
@@ -513,8 +437,15 @@ cmd_start() {
 
   echo ""
   start_orchestra "$with_stripe" || return 1
+
+  # Install npm deps early — seed scenarios need tsx.
   echo ""
-  seed_test_data "$with_org"
+  ensure_npm_deps
+
+  # Seed before Console so data is available on first page load.
+  echo ""
+  run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
+
   echo ""
   start_console || return 1
 
@@ -534,10 +465,9 @@ cmd_start() {
     echo "  Stripe:    webhooks → http://localhost:${ORCHESTRA_PORT}/v0/webhooks/stripe"
   fi
   echo ""
-  echo "  Login:     test@example.com / testpass123"
-  if [[ "$with_org" == "true" ]]; then
-    echo "  Org:       Acme Corp (switch workspace in UI)"
-  fi
+  echo "  Seed:      $seed_scenario"
+  echo "  Login:     Use the Quick Sign-In panel on the login page"
+  echo "  Password:  testpass123"
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
     echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
@@ -560,9 +490,25 @@ cmd_stop() {
 cmd_restart() {
   local with_org="$1"
   local with_stripe="$2"
+  local seed_scenario="$3"
+
+  # Resolve default early so validation works.
+  if [[ -z "$seed_scenario" ]]; then
+    if [[ "$with_org" == "true" ]]; then
+      seed_scenario="org-basic"
+    else
+      seed_scenario="personal-workspace"
+    fi
+  fi
+
+  # Validate seed scenario name early — before stopping/restarting anything.
+  if ! validate_seed_scenario "$seed_scenario"; then
+    return 1
+  fi
+
   cmd_stop
   echo ""
-  cmd_start "$with_org" "$with_stripe"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario"
 }
 
 cmd_status() {
@@ -606,11 +552,13 @@ main() {
   local cmd=""
   local with_org="false"
   local with_stripe="false"
+  local seed_scenario=""
 
   while (( "$#" )); do
     case "$1" in
       --org)    with_org="true"; shift ;;
       --stripe) with_stripe="true"; shift ;;
+      --seed)   shift; seed_scenario="${1:-}"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
       *)       [[ -z "$cmd" ]] && cmd="$1"; shift ;;
@@ -620,12 +568,12 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" "$with_stripe" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" "$with_stripe" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe]"
+      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--seed <scenario>]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
@@ -634,11 +582,14 @@ main() {
       echo "  status   Show service status"
       echo ""
       echo "Flags:"
-      echo "  --org      Seed organization workspace (Acme Corp) with org assistant"
-      echo "             Without this flag, only a personal assistant is seeded."
-      echo "  --stripe   Start Stripe webhook forwarding for E2E billing flows"
-      echo "             Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
-      echo "             Then authenticate:   stripe login"
+      echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"
+      echo "                     Scenarios: personal-workspace, org-basic, org-multi-role,"
+      echo "                               org-unify, all"
+      echo "                     See: src/tests/seeds/run.ts --list"
+      echo "  --org              Shorthand for --seed org-basic"
+      echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
+      echo "                     Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
+      echo "                     Then authenticate:   stripe login"
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)"
@@ -646,13 +597,16 @@ main() {
       echo "  ORCHESTRA_PORT        Orchestra port (default: 8000)"
       echo ""
       echo "Test credentials:"
-      echo "  Email:    test@example.com"
-      echo "  Password: testpass123"
+      echo "  Password: testpass123 (all seed users)"
+      echo "  Emails:   shown in the Quick Sign-In panel on the login page"
       echo ""
       echo "Examples:"
-      echo "  $0 start                 # Console + Orchestra only"
-      echo "  $0 start --stripe        # + Stripe webhook forwarding"
-      echo "  $0 start --org --stripe  # + org workspace + Stripe"
+      echo "  $0 start                              # personal-workspace (default)"
+      echo "  $0 start --org                        # org-basic (shorthand)"
+      echo "  $0 start --seed org-multi-role        # org-multi-role scenario"
+      echo "  $0 start --seed all                   # all scenarios"
+      echo "  $0 start --stripe                     # + Stripe webhook forwarding"
+      echo "  $0 start --org --stripe               # org-basic + Stripe"
       ;;
     *)
       log_error "Unknown command: $cmd"
