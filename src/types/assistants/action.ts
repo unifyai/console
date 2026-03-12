@@ -178,7 +178,7 @@ export interface ToolLoopLogEntries {
   kind?: string;
   message: {
     role: 'system' | 'assistant' | 'tool' | 'user';
-    content?: string | Array<{ type: string; text: string }>;
+    content?: string | Array<{ type: string; text?: string; imageUrl?: { url: string } }>;
     toolCalls?: Array<{
       id: string;
       function: { name: string; arguments: string };

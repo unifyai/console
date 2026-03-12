@@ -602,17 +602,34 @@ function LiveDuration({ node }: { node: ActionNode }) {
  * Extract text content from various formats.
  */
 function extractTextContent(
-  content: string | Array<{ type: string; text: string }> | undefined
+  content: string | Array<{ type: string; text?: string }> | undefined
 ): string | null {
   if (!content) return null;
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
       .filter((block) => block.type === 'text' && block.text)
-      .map((block) => block.text)
+      .map((block) => block.text!)
       .join('\n');
   }
   return null;
+}
+
+/**
+ * Extract image data URLs from content block arrays.
+ */
+function extractImageUrls(
+  content: string | Array<{ type: string; imageUrl?: { url: string } }> | undefined
+): string[] {
+  if (!content || typeof content === 'string' || !Array.isArray(content)) return [];
+  return content
+    .filter((block) => block.type === 'image_url' || block.type === 'imageUrl')
+    .map((block) => {
+      const raw = block as Record<string, unknown>;
+      const urlObj = (raw.imageUrl ?? raw.image_url) as { url: string } | undefined;
+      return urlObj?.url ?? '';
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -1236,6 +1253,7 @@ function ToolLoopMessage({
   const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
   const textContent = extractTextContent(message.content);
+  const imageUrls = extractImageUrls(message.content as Parameters<typeof extractImageUrls>[0]);
   const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
   const [childLoading, setChildLoading] = React.useState(false);
   const childFetchedRef = React.useRef(false);
@@ -1759,24 +1777,24 @@ function ToolLoopMessage({
     content = textContent;
   }
 
-  if (!content) return null;
-  content = content.replace(/^\s+/, '');
-  if (!content) return null;
+  if (!content && imageUrls.length === 0) return null;
+  if (content) content = content.replace(/^\s+/, '');
+  if (!content && imageUrls.length === 0) return null;
 
-  const collapsedPreview = content.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
-  const firstLine = content.split(/\n/)[0];
-  const isJson = isLikelyJson(content);
+  const collapsedPreview = content ? content.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ') : '';
+  const firstLine = content ? content.split(/\n/)[0] : '';
+  const isJson = content ? isLikelyJson(content) : false;
   const jsonExpandable =
     isJson &&
     (() => {
       try {
-        return JSON.stringify(JSON.parse(content), null, 2).includes('\n');
+        return JSON.stringify(JSON.parse(content!), null, 2).includes('\n');
       } catch {
         return false;
       }
     })();
-  const hasMoreLines = content.includes('\n');
-  const canExpand = isTruncated || hasMoreLines || jsonExpandable;
+  const hasMoreLines = content ? content.includes('\n') : false;
+  const canExpand = isTruncated || hasMoreLines || jsonExpandable || imageUrls.length > 0;
 
   const tcResultId =
     message.role === 'tool'
@@ -1797,6 +1815,53 @@ function ToolLoopMessage({
       }
     }
   };
+
+  if (!content && imageUrls.length > 0) {
+    const [imgOpen, setImgOpen] = React.useState(false); // eslint-disable-line react-hooks/rules-of-hooks
+    const imgRef = React.useRef<HTMLDivElement>(null); // eslint-disable-line react-hooks/rules-of-hooks
+    return (
+      <>
+        <div
+          ref={imgRef}
+          className="hover:bg-muted/40 group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150"
+          onClick={() => setImgOpen(!imgOpen)}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('mt-0.5 shrink-0', color)}>
+                <LabelIcon className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+          <span className="text-muted-foreground/50 italic">[image]</span>
+          {!imgOpen && (
+            <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100" />
+          )}
+          {!imgOpen && (
+            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+              {time}
+            </span>
+          )}
+        </div>
+        {imgOpen && (
+          <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
+            {imageUrls.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={url}
+                alt={`output ${i + 1}`}
+                className="border-border/30 max-h-48 max-w-full rounded border object-contain"
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -1901,6 +1966,19 @@ function ToolLoopMessage({
             );
           })()}
       </div>
+      {isOpen && imageUrls.length > 0 && (
+        <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
+          {imageUrls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={url}
+              alt={`output ${i + 1}`}
+              className="border-border/30 max-h-48 max-w-full rounded border object-contain"
+            />
+          ))}
+        </div>
+      )}
       {trailingCallLine}
       {trailingResponseContent && (
         <InlineContentRow
