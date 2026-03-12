@@ -607,10 +607,22 @@ function extractTextContent(
   if (!content) return null;
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content
-      .filter((block) => block.type === 'text' && block.text)
-      .map((block) => block.text!)
-      .join('\n');
+    let imgIdx = 0;
+    const redacted = content.map((block) => {
+      if ((block.type === 'image_url' || block.type === 'imageUrl') && block) {
+        const raw = block as Record<string, unknown>;
+        const urlObj = (raw.imageUrl ?? raw.image_url) as { url: string } | undefined;
+        if (urlObj?.url) {
+          const label = `img${imgIdx}`;
+          imgIdx++;
+          const redactedBlock = { ...block, imageUrl: { url: label } };
+          delete (redactedBlock as Record<string, unknown>)['image_url'];
+          return redactedBlock;
+        }
+      }
+      return block;
+    });
+    return JSON.stringify(redacted, null, 2);
   }
   return null;
 }
