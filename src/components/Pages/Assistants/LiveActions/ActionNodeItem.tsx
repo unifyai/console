@@ -1556,6 +1556,7 @@ function ToolLoopMessage({
   let LabelIcon: LucideIcon = kindStyle.Icon;
   let content: string | null = null;
   let trailingCallLine: React.ReactNode = null;
+  let trailingResponseContent: string | null = null;
 
   if (kind === 'thought') {
     const blocks =
@@ -1576,6 +1577,9 @@ function ToolLoopMessage({
     }
     content = thinkingText || textContent;
     if (message.toolCalls?.length) trailingCallLine = renderCallLine();
+    else if (thinkingText && textContent && textContent.replace(/^\s+/, '')) {
+      trailingResponseContent = textContent.replace(/^\s+/, '');
+    }
   } else if (kind === 'tool_call') {
     label = 'thought';
     color = 'text-slate-500/80 dark:text-slate-400/50';
@@ -1727,6 +1731,26 @@ function ToolLoopMessage({
           })()}
       </div>
       {trailingCallLine}
+      {trailingResponseContent && (
+        <div className="flex items-start gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="mt-0.5 shrink-0 text-emerald-600/80 dark:text-emerald-400/60">
+                <ArrowUp className="h-2.5 w-2.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              response
+            </TooltipContent>
+          </Tooltip>
+          <span className="min-w-0 truncate text-muted-foreground">
+            <TruncatedMarkdown content={trailingResponseContent.split(/\n\n|\n/)[0]} />
+          </span>
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        </div>
+      )}
     </>
   );
 }
