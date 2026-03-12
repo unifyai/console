@@ -1295,7 +1295,9 @@ function ToolLoopMessage({
   if (child) {
     const tcId = log.syntheticToolCallId ?? null;
     const isHighlighted = tcId != null && hoveredTcId === tcId;
-    const childLabel = child.displayLabel || child.label;
+    const innerChild =
+      child.children.length === 1 && child.children[0].displayLabel ? child.children[0] : null;
+    const childLabel = innerChild?.displayLabel ?? child.displayLabel ?? child.label;
     const childTime = formatEventTime(child.startTime);
     const canExpand = !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
 
