@@ -34,19 +34,14 @@ vi.mock('next/image', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({
-    href,
-    children,
-    className,
-  }: {
-    href: string;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <a href={href} className={className}>
+  default: React.forwardRef<
+    HTMLAnchorElement,
+    { href: string; children: React.ReactNode; className?: string; 'data-testid'?: string }
+  >(({ href, children, className, 'data-testid': testId }, ref) => (
+    <a ref={ref} href={href} className={className} data-testid={testId}>
       {children}
     </a>
-  ),
+  )),
 }));
 
 vi.mock('@/lib/user/user', () => ({

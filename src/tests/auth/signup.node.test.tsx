@@ -377,9 +377,9 @@ describe('Signup Journey', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   describe('Onboarding', () => {
-    let mockCreateOrg: ReturnType<typeof vi.fn>;
-    let mockUpdateOnboarding: ReturnType<typeof vi.fn>;
-    let mockPatchSession: ReturnType<typeof vi.fn>;
+    let mockCreateOrg: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    let mockUpdateOnboarding: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    let mockPatchSession: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
     beforeEach(() => {
       vi.clearAllMocks();
@@ -598,8 +598,8 @@ describe('Signup Journey', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   describe('Invite Acceptance', () => {
-    let mockOnAccept: ReturnType<typeof vi.fn>;
-    let mockPatchSession: ReturnType<typeof vi.fn>;
+    let mockOnAccept: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    let mockPatchSession: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
     let locationHref: string;
 
     beforeEach(() => {
