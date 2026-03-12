@@ -362,15 +362,16 @@ function getLabelStyles(status: ActionNodeStatus): string {
  */
 function getNodeIcon(displayLabel?: string): LucideIcon {
   if (!displayLabel) return CircleDot;
-  if (displayLabel === 'Session') return Repeat;
-  if (displayLabel === 'Taking Action') return Zap;
-  if (displayLabel === 'Running Code') return SquareTerminal;
-  if (displayLabel.startsWith('Running:')) return Play;
-  if (displayLabel === 'Storing Reusable Skills') return Bookmark;
-  if (displayLabel === 'Reading File') return FileText;
-  if (displayLabel === 'Processing Memory Chunk') return Cpu;
-  if (displayLabel === 'Working on Task') return Wrench;
-  if (displayLabel === 'Reorganizing Notes') return RefreshCw;
+  const dl = displayLabel.toLowerCase();
+  if (dl === 'session') return Repeat;
+  if (dl === 'taking action') return Zap;
+  if (dl === 'running code') return SquareTerminal;
+  if (dl.startsWith('running:')) return Play;
+  if (dl === 'storing reusable skills') return Bookmark;
+  if (dl === 'reading file') return FileText;
+  if (dl === 'processing memory chunk') return Cpu;
+  if (dl === 'working on task') return Wrench;
+  if (dl === 'reorganizing notes') return RefreshCw;
   if (displayLabel === 'Searching the Web') return Globe;
   if (displayLabel === 'Answering Question') return MessageCircle;
   if (displayLabel.includes('Contact')) return Users;
