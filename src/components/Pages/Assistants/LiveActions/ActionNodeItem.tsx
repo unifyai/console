@@ -1704,7 +1704,7 @@ function ToolLoopMessage({
     if (!callLines) return null;
     return (
       <>
-        <ThoughtLabel text="Selecting actions:" time={time} />
+        <ThoughtLabel text="Selecting actions." time={time} />
         {callLines}
       </>
     );
@@ -1748,7 +1748,7 @@ function ToolLoopMessage({
     content = textContent;
     trailingCallLine = renderCallLine();
   } else if (kind === 'response') {
-    leadingThoughtLabel = 'Sending response:';
+    leadingThoughtLabel = 'Sending response.';
     content = textContent;
   } else {
     content = textContent;
