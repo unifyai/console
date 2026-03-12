@@ -485,6 +485,28 @@ function hashStringToInt(s: string): number {
 }
 
 /**
+ * Collect liveToolLoopLogs from a node and all its descendants.
+ * Mirrors the Orchestra getToolLoopEvents prefix query behaviour so that
+ * PubSub-only rendering (where each node only has its own exact-hierarchy
+ * live logs) can display the full descendant conversation inline.
+ */
+function collectDescendantLiveLogs(node: ActionNode): ToolLoopLog[] {
+  const logs: ToolLoopLog[] = [...(node.liveToolLoopLogs ?? [])];
+  for (const child of node.children) {
+    logs.push(...collectDescendantLiveLogs(child));
+  }
+  return logs;
+}
+
+function countDescendantLiveLogs(node: ActionNode): number {
+  let count = node.liveToolLoopLogs?.length ?? 0;
+  for (const child of node.children) {
+    count += countDescendantLiveLogs(child);
+  }
+  return count;
+}
+
+/**
  * Scan backwards through already-placed logs to find the tool_call_id of
  * the tool call that spawned this child node.
  *
@@ -1095,18 +1117,31 @@ function ToolLoopMessage({
     }
   }, [child?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Collect live logs from the child AND all its descendants. This mirrors
+  // the Orchestra getToolLoopEvents prefix query so PubSub-only streaming
+  // shows the full descendant conversation inline.
+  const descendantLiveLogCount = child ? countDescendantLiveLogs(child) : 0;
+
   const filteredChildLiveLogs = React.useMemo(() => {
-    if (!child?.liveToolLoopLogs?.length) return [];
-    const rewritten = rewriteCheckStatusResults(child.liveToolLoopLogs);
-    return rewritten.filter((l) => !isToolLoopNoise(l.entries));
-  }, [child?.liveToolLoopLogs]);
+    if (!child || descendantLiveLogCount === 0) return [];
+    const allLogs = collectDescendantLiveLogs(child);
+    const rewritten = rewriteCheckStatusResults(allLogs);
+    return rewritten
+      .filter((l) => !isToolLoopNoise(l.entries))
+      .sort((a, b) => a.id - b.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy for deep liveToolLoopLogs mutations
+  }, [child, descendantLiveLogCount]);
 
   const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
 
   const childResolvedToolCallIds = React.useMemo(
-    () =>
-      buildResolvedToolCallIds(childLogs.length > 0 ? childLogs : (child?.liveToolLoopLogs ?? [])),
-    [childLogs, child?.liveToolLoopLogs]
+    () => {
+      const logsForResolution =
+        childLogs.length > 0 ? childLogs : (child ? collectDescendantLiveLogs(child) : []);
+      return buildResolvedToolCallIds(logsForResolution);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy
+    [childLogs, descendantLiveLogCount]
   );
 
   React.useEffect(() => {
@@ -1128,7 +1163,8 @@ function ToolLoopMessage({
     const isHighlighted = tcId != null && hoveredTcId === tcId;
     const childLabel = child.displayLabel || child.label;
     const childTime = formatEventTime(child.startTime);
-    const canExpand = !!(getToolLoopEvents && assistantId) || !!child.liveToolLoopLogs?.length;
+    const canExpand =
+      !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
 
     const handleChildToggle = () => {
       if (!canExpand) return;
