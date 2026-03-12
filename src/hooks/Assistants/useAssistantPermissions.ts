@@ -7,9 +7,10 @@ import { Assistant } from '@/types/assistants/assistant';
 /**
  * Permission state for assistant operations.
  *
- * v0 Implementation:
- * - canHire: Only org Owner can hire in org context; anyone in personal workspace
- * - canWrite/canDelete: Only the assistant creator can modify in org context
+ * Current Implementation:
+ * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
+ * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
+ *   regular org Members can only view but not edit other members' assistants
  *
  * Future: Will be extended to use full RBAC with assistant:read/write/delete permissions
  */
@@ -58,21 +59,19 @@ export function useAssistantPermissions(): AssistantPermissions {
       // v0: Owner or Admin can hire in org context; anyone can hire in personal workspace
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
-      // v0: Only assistant creator can write in org context
+      // Assistant creator, org owner, or org admin can write in org context
       // In personal workspace, user always has full access
       canWrite: (assistant: Assistant) => {
         if (!isOrgContext) return true;
-        return assistant.userId === currentUserId;
-        // TODO v1: Add || isOrgOwner for org owner god-mode
+        return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
         // TODO v2: Add || checkResourcePermission('assistant:write', assistant.agentId)
       },
 
-      // v0: Only assistant creator can delete in org context
+      // Assistant creator, org owner, or org admin can delete in org context
       // Same logic as canWrite for now
       canDelete: (assistant: Assistant) => {
         if (!isOrgContext) return true;
-        return assistant.userId === currentUserId;
-        // TODO v1: Add || isOrgOwner for org owner god-mode
+        return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
         // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agentId)
       },
     }),

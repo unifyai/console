@@ -229,23 +229,44 @@ describe('useAssistantPermissions', () => {
     );
 
     it(
-      'denies owner from writing other users assistant (v0 behavior)',
+      'allows owner to write other users assistant',
       {
         meta: {
-          alias: 'Permissions-OwnerCannotWriteOthers',
+          alias: 'Permissions-OwnerCanWriteOthers',
           scenario: 'Owner checking write permission on other user assistant',
-          behavior: 'canWrite returns false (v0 behavior)',
+          behavior: 'canWrite returns true (org owner has full access)',
         },
       },
       () => {
-        // Arrange - In v0, even org owner cannot edit other users' assistants
+        // Arrange - Org owner can edit any assistant
         const assistant = createMockAssistant({ userId: 'other-user' });
 
         // Act
         const { result } = renderHook(() => useAssistantPermissions());
 
         // Assert
-        expect(result.current.canWrite(assistant)).toBe(false);
+        expect(result.current.canWrite(assistant)).toBe(true);
+      }
+    );
+
+    it(
+      'allows owner to delete other users assistant',
+      {
+        meta: {
+          alias: 'Permissions-OwnerCanDeleteOthers',
+          scenario: 'Owner checking delete permission on other user assistant',
+          behavior: 'canDelete returns true (org owner has full access)',
+        },
+      },
+      () => {
+        // Arrange - Org owner can delete any assistant
+        const assistant = createMockAssistant({ userId: 'other-user' });
+
+        // Act
+        const { result } = renderHook(() => useAssistantPermissions());
+
+        // Assert
+        expect(result.current.canDelete(assistant)).toBe(true);
       }
     );
   });
@@ -408,20 +429,83 @@ describe('useAssistantPermissions', () => {
     );
 
     it(
-      'denies hiring for org admin (v0 behavior)',
+      'allows hiring for org admin',
       {
         meta: {
-          alias: 'Permissions-AdminCannotHire',
-          scenario: 'User is org admin (not owner)',
-          behavior: 'canHire is false in v0',
+          alias: 'Permissions-AdminCanHire',
+          scenario: 'User is org admin',
+          behavior: 'canHire is true (Owner and Admin can hire)',
         },
       },
       () => {
         // Act
         const { result } = renderHook(() => useAssistantPermissions());
 
-        // Assert - In v0, only Owner can hire
-        expect(result.current.canHire).toBe(false);
+        // Assert
+        expect(result.current.canHire).toBe(true);
+      }
+    );
+
+    it(
+      'allows admin to write their own assistant',
+      {
+        meta: {
+          alias: 'Permissions-AdminCanWriteOwn',
+          scenario: 'Admin checking write permission on own assistant',
+          behavior: 'canWrite returns true',
+        },
+      },
+      () => {
+        // Arrange
+        const assistant = createMockAssistant({ userId: 'admin-user' });
+
+        // Act
+        const { result } = renderHook(() => useAssistantPermissions());
+
+        // Assert
+        expect(result.current.canWrite(assistant)).toBe(true);
+      }
+    );
+
+    it(
+      'allows admin to write other users assistant',
+      {
+        meta: {
+          alias: 'Permissions-AdminCanWriteOthers',
+          scenario: 'Admin checking write permission on other user assistant',
+          behavior: 'canWrite returns true (org admin has full access)',
+        },
+      },
+      () => {
+        // Arrange
+        const assistant = createMockAssistant({ userId: 'other-user' });
+
+        // Act
+        const { result } = renderHook(() => useAssistantPermissions());
+
+        // Assert
+        expect(result.current.canWrite(assistant)).toBe(true);
+      }
+    );
+
+    it(
+      'allows admin to delete other users assistant',
+      {
+        meta: {
+          alias: 'Permissions-AdminCanDeleteOthers',
+          scenario: 'Admin checking delete permission on other user assistant',
+          behavior: 'canDelete returns true (org admin has full access)',
+        },
+      },
+      () => {
+        // Arrange
+        const assistant = createMockAssistant({ userId: 'other-user' });
+
+        // Act
+        const { result } = renderHook(() => useAssistantPermissions());
+
+        // Assert
+        expect(result.current.canDelete(assistant)).toBe(true);
       }
     );
   });

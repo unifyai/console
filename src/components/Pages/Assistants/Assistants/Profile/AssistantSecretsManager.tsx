@@ -145,60 +145,63 @@ export function AssistantSecretsManager({
         )}
       </div>
 
-      {/* Right Panel: Form */}
+      {/* Right Panel: Form (only for users with write access) */}
       <div className="flex w-2/3 flex-col p-6">
-        <FormProvider {...formMethods}>
-          <form onSubmit={onSubmit} id="secret-form" className="flex flex-1 flex-col">
-            <div className="flex-1 space-y-4">
-              <div>
-                <Label htmlFor="name" className="mb-2 block">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  {...register('name', { required: 'Name is required' })}
-                  disabled={isSubmitting || !canWrite}
-                />
-                {errors.name && <p className="text-body text-error mt-1">{errors.name.message}</p>}
+        {canWrite ? (
+          <FormProvider {...formMethods}>
+            <form onSubmit={onSubmit} id="secret-form" className="flex flex-1 flex-col">
+              <div className="flex-1 space-y-4">
+                <div>
+                  <Label htmlFor="name" className="mb-2 block">
+                    Name
+                  </Label>
+                  <Input
+                    id="name"
+                    {...register('name', { required: 'Name is required' })}
+                    disabled={isSubmitting}
+                  />
+                  {errors.name && (
+                    <p className="text-body text-error mt-1">{errors.name.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="value" className="mb-2 block">
+                    {isEditing ? 'New Value' : 'Value'}
+                  </Label>
+                  <Input
+                    id="value"
+                    type="password"
+                    {...register('value', isEditing ? {} : { required: 'Value is required' })}
+                    placeholder={isEditing ? 'Enter new value to replace current...' : ''}
+                    disabled={isSubmitting}
+                  />
+                  {!isEditing && (
+                    <div className="mt-2 flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-yellow-600 dark:text-yellow-400">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p className="text-xs">
+                        This value will not be viewable after saving. Make sure it is saved
+                        elsewhere.
+                      </p>
+                    </div>
+                  )}
+                  {errors.value && (
+                    <p className="text-body text-error mt-1">{errors.value.message}</p>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col">
+                  <Label htmlFor="description" className="mb-2 block">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    {...register('description')}
+                    className="flex-1 resize-none"
+                    placeholder="Optional description..."
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="value" className="mb-2 block">
-                  {isEditing ? 'New Value' : 'Value'}
-                </Label>
-                <Input
-                  id="value"
-                  type="password"
-                  {...register('value', isEditing ? {} : { required: 'Value is required' })}
-                  placeholder={isEditing ? 'Enter new value to replace current...' : ''}
-                  disabled={isSubmitting || !canWrite}
-                />
-                {!isEditing && (
-                  <div className="mt-2 flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-yellow-600 dark:text-yellow-400">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <p className="text-xs">
-                      This value will not be viewable after saving. Make sure it is saved elsewhere.
-                    </p>
-                  </div>
-                )}
-                {errors.value && (
-                  <p className="text-body text-error mt-1">{errors.value.message}</p>
-                )}
-              </div>
-              <div className="flex flex-1 flex-col">
-                <Label htmlFor="description" className="mb-2 block">
-                  Description
-                </Label>
-                <Textarea
-                  id="description"
-                  {...register('description')}
-                  className="flex-1 resize-none"
-                  placeholder="Optional description..."
-                  disabled={isSubmitting || !canWrite}
-                />
-              </div>
-            </div>
 
-            {canWrite && (
               <div className="flex items-center justify-end gap-2 pt-4">
                 {isCreating && (
                   <Button
@@ -215,9 +218,16 @@ export function AssistantSecretsManager({
                   {isEditing ? 'Save Changes' : 'Save'}
                 </Button>
               </div>
-            )}
-          </form>
-        </FormProvider>
+            </form>
+          </FormProvider>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+            <p className="text-body">
+              Secret details are only visible to the assistant owner and organization
+              owners/admins.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
