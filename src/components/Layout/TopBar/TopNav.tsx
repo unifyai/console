@@ -14,6 +14,7 @@ import {
   ChevronDown,
   BarChart3,
   Settings,
+  Plus,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -300,6 +301,17 @@ export default function TopNav() {
                             {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
                           </DropdownMenuItem>
                         ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={async () => {
+                          await switchWorkspace('personal');
+                          router.push('/organizations');
+                        }}
+                        className="cursor-pointer items-center gap-2 text-muted-foreground"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create organization
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (

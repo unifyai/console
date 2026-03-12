@@ -32,8 +32,12 @@ const OrganizationPage = async () => {
       freeTrial: org.freeTrial,
     })) || [];
 
+  const isUnifyMember = user.organizations?.some((o: any) => o.name === 'Unify') ?? false;
+
   const orgActions = {
-    createOrg: await OrganizationActions.createOrganizationAction(apiKey),
+    createOrg: isUnifyMember
+      ? await OrganizationActions.adminCreateOrganizationAction(user.id)
+      : await OrganizationActions.createOrganizationAction(apiKey),
     deleteOrg: await OrganizationActions.deleteOrganizationAction(apiKey),
     updateOrg: await OrganizationActions.updateOrganizationAction(apiKey),
     inviteMember: await OrganizationActions.inviteMemberAction(apiKey),
@@ -104,6 +108,7 @@ const OrganizationPage = async () => {
           memberSpendingActions={memberSpendingActions}
           orgSpendingLimit={orgSpendingLimit}
           mfaSettingsActions={mfaSettingsActionsObj}
+          isUnifyMember={isUnifyMember}
         />
       </Suspense>
     </div>

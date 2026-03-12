@@ -10,13 +10,17 @@ interface PersonalWorkspaceViewProps {
   onCreateOrg: (name: string) => void;
   checkNameAvailability: (name: string) => Promise<OrganizationListResponse | ResponseProps>;
   isAlreadyInOrganization?: boolean;
+  isUnifyMember?: boolean;
 }
 
 const PersonalWorkspaceView = ({
   onCreateOrg,
   checkNameAvailability,
   isAlreadyInOrganization = false,
+  isUnifyMember = false,
 }: PersonalWorkspaceViewProps) => {
+  const showCreateButton = isUnifyMember || !isAlreadyInOrganization;
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-50/50 dark:bg-neutral-900/20">
       <div className="flex max-w-md flex-col items-center space-y-6 text-center">
@@ -27,13 +31,13 @@ const PersonalWorkspaceView = ({
         <div className="space-y-2">
           <h2 className="text-h2">Personal Workspace</h2>
           <p className="text-body text-muted-foreground">
-            {isAlreadyInOrganization
+            {!showCreateButton
               ? 'Switch to your organization workspace using the dropdown in the top navigation.'
               : 'Create an organization to start collaborating with your teammates.'}
           </p>
         </div>
 
-        {!isAlreadyInOrganization && (
+        {showCreateButton && (
           <CreateOrgDialog onCreate={onCreateOrg} checkNameAvailability={checkNameAvailability} />
         )}
       </div>

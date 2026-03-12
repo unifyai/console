@@ -32,6 +32,7 @@ interface MainProps {
   orgSpendingLimit?: number | null;
   /** MFA settings actions (optional - enables security settings panel) */
   mfaSettingsActions?: MfaSettingsActions;
+  isUnifyMember?: boolean;
 }
 
 const Main = ({
@@ -43,6 +44,7 @@ const Main = ({
   memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
+  isUnifyMember = false,
 }: MainProps) => {
   // 1. Organization Logic
   const {
@@ -175,6 +177,7 @@ const Main = ({
             onCreateOrg={handleCreateOrg}
             checkNameAvailability={actions.getAllOrganizations}
             isAlreadyInOrganization={organizations.length > 0}
+            isUnifyMember={isUnifyMember}
           />
         )}
       </div>
