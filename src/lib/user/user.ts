@@ -243,7 +243,7 @@ export async function getCurrentUser(): Promise<User | null> {
     const activeOrg = user.organizations?.find((org) => org.id.toString() === effectiveWorkspaceId);
     if (activeOrg) {
       try {
-        const enforcementRes = await OrchestraAdminClient.get('/auth/mfa-enforcement-status', {
+        const enforcementRes = await OrchestraAdminClient.get('/auth/mfa/enforcement-status', {
           params: { userId: user.id, orgId: activeOrg.id },
         });
         const enforcement = enforcementRes.data;

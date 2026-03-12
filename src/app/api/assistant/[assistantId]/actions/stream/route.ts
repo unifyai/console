@@ -76,6 +76,7 @@ function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
         error: camelEvent.error,
         errorType: camelEvent.errorType,
         traceback: camelEvent.traceback,
+        kind: camelEvent.kind ?? null,
         message: camelEvent.message,
         toolAliases: camelEvent.toolAliases ?? null,
         persist: camelEvent.persist ?? null,

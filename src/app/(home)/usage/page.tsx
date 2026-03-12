@@ -2,6 +2,7 @@ import React from 'react';
 import { Metadata } from 'next';
 import OnPrem from '@/components/Shared/OnPrem';
 import UsageMain from '@/components/Pages/Usage/Main';
+import FreeTrialUsageLock from '@/components/Pages/Usage/FreeTrialUsageLock';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
@@ -57,14 +58,24 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   const isOrgContext = workspaceId && workspaceId !== 'personal';
   let isAdmin = false;
   let orgId: number | null = null;
+  let activeOrg = isOrgContext
+    ? user.organizations?.find((o) => o.id.toString() === workspaceId)
+    : undefined;
 
-  if (isOrgContext) {
-    const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
-    if (activeOrg) {
-      const roleName = activeOrg.roleName?.toLowerCase();
-      isAdmin = roleName === 'owner' || roleName === 'admin';
-      orgId = activeOrg.id;
-    }
+  if (activeOrg) {
+    const roleName = activeOrg.roleName?.toLowerCase();
+    isAdmin = roleName === 'owner' || roleName === 'admin';
+    orgId = activeOrg.id;
+  }
+
+  // ── Free trial lock (skip for Unify org members) ───────────────────
+  const isUnifyOrgMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  if (activeOrg?.freeTrial && !isUnifyOrgMember) {
+    return (
+      <div className="h-full w-full overflow-auto p-1">
+        <FreeTrialUsageLock />
+      </div>
+    );
   }
 
   // Create bound server actions (API key never exposed to client)

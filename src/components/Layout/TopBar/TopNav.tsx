@@ -180,6 +180,9 @@ export default function TopNav() {
   const canManageBilling =
     !currentOrg || ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
 
+  // Hide billing & usage links when the active org is in free trial mode
+  const isOrgInFreeTrial = !!currentOrg?.freeTrial;
+
   return (
     <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">
       <div className="flex h-full items-center justify-between px-3.5">
@@ -398,16 +401,18 @@ export default function TopNav() {
                   <span>Organizations</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
-                <Link
-                  href="/usage"
-                  className="text-body flex items-center hover:text-[color:var(--foreground)]"
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>Usage</span>
-                </Link>
-              </DropdownMenuItem>
-              {canManageBilling && (
+              {!isOrgInFreeTrial && (
+                <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
+                  <Link
+                    href="/usage"
+                    className="text-body flex items-center hover:text-[color:var(--foreground)]"
+                  >
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    <span>Usage</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {canManageBilling && !isOrgInFreeTrial && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
                     href="/billing"

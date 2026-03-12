@@ -175,6 +175,7 @@ export interface ParsedManagerMethodEvent {
  * (tool results like [{type: 'text', text: '...'}]).
  */
 export interface ToolLoopLogEntries {
+  kind?: string;
   message: {
     role: 'system' | 'assistant' | 'tool' | 'user';
     content?: string | Array<{ type: string; text: string }>;

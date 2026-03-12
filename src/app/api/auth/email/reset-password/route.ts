@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const res = await OrchestraAdminClient.post('/auth/reset-password', {
       token,
-      password,
+      new_password: password,
     });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {

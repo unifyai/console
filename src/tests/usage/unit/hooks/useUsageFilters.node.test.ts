@@ -364,7 +364,7 @@ describe('useUsageFilters', () => {
         })
       );
 
-      expect(result.current.filterExpression).toContain(`_user_id == '${mockCurrentUserId}'`);
+      expect(result.current.filterExpression).toContain(`_attributed_user_id == '${mockCurrentUserId}'`);
       expect(result.current.filterExpression).toContain("event_timestamp >= '2026-01-01'");
     });
 
@@ -383,7 +383,7 @@ describe('useUsageFilters', () => {
         })
       );
 
-      expect(result.current.filterExpression).toContain("_user_id == 'user_other'");
+      expect(result.current.filterExpression).toContain("_attributed_user_id == 'user_other'");
     });
 
     it('excludes user ID filter for org scope (admin)', () => {
@@ -400,7 +400,7 @@ describe('useUsageFilters', () => {
         })
       );
 
-      expect(result.current.filterExpression).not.toContain('_user_id');
+      expect(result.current.filterExpression).not.toContain('_attributed_user_id');
       expect(result.current.filterExpression).toContain("event_timestamp >= '2026-01-01'");
     });
 
@@ -419,7 +419,7 @@ describe('useUsageFilters', () => {
       );
 
       // Non-admin should still have user ID filter
-      expect(result.current.filterExpression).toContain(`_user_id == '${mockCurrentUserId}'`);
+      expect(result.current.filterExpression).toContain(`_attributed_user_id == '${mockCurrentUserId}'`);
     });
 
     it('includes assistant ID filter when specific assistant selected', () => {
@@ -511,14 +511,14 @@ describe('useUsageFilters', () => {
       );
 
       // Initially self scope - has user ID
-      expect(result.current.filterExpression).toContain(`_user_id == '${mockCurrentUserId}'`);
+      expect(result.current.filterExpression).toContain(`_attributed_user_id == '${mockCurrentUserId}'`);
 
       act(() => {
         result.current.setUserScope('org');
       });
 
       // Org scope - no user ID
-      expect(result.current.filterExpression).not.toContain('_user_id');
+      expect(result.current.filterExpression).not.toContain('_attributed_user_id');
     });
   });
 

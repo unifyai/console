@@ -106,6 +106,20 @@ export function buildUserIdFilter(userId: string): string {
 }
 
 /**
+ * Build a filter expression for the attributed user ID.
+ * Uses the _attributed_user_id field set by Unity's cost attribution
+ * system, which records the platform user who actually triggered the
+ * LLM call (as opposed to _user_id which is always the supervisor).
+ *
+ * @param userId Attributed user ID to filter by
+ * @returns Filter expression string
+ */
+export function buildAttributedUserIdFilter(userId: string): string {
+  const escaped = escapeFilterValue(userId);
+  return `_attributed_user_id == '${escaped}'`;
+}
+
+/**
  * Build a filter expression for a specific assistant ID.
  * Uses the _assistant_id field injected by Unity's log_utils.
  *
@@ -123,7 +137,8 @@ export function buildAssistantIdFilter(assistantId: string): string {
  *
  * @param startDate Start date in ISO format
  * @param endDate End date in ISO format
- * @param userId Optional user ID to filter by (uses _user_id field)
+ * @param userId Optional user ID to filter by (uses _attributed_user_id field
+ *               to match the user who triggered the LLM call)
  * @param assistantId Optional assistant ID to filter by (uses _assistant_id field)
  * @returns Complete filter expression string
  */
@@ -135,9 +150,11 @@ export function buildUsageFilterExpression(
 ): string {
   const filters: string[] = [buildDateRangeFilter(startDate, endDate)];
 
-  // Add user ID filter if provided
+  // Filter by the attributed user (who triggered the LLM call) rather than
+  // _user_id (which is always the supervisor). This aligns the usage chart
+  // with the per-user cumulative spending tracked in All/Spending/Monthly.
   if (userId) {
-    filters.push(buildUserIdFilter(userId));
+    filters.push(buildAttributedUserIdFilter(userId));
   }
 
   // Add assistant ID filter if provided and not "all"

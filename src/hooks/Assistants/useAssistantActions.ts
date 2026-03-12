@@ -501,6 +501,7 @@ export function useAssistantActions(
             id: toolEntries.rowId ?? parsed.data.id ?? Date.now(),
             ts: eventTs,
             entries: {
+              kind: toolEntries.kind ?? undefined,
               message: toolEntries.message,
               method: toolEntries.method ?? '',
               hierarchy: toolEntries.hierarchy,

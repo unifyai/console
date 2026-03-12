@@ -64,8 +64,9 @@ const BillingPage: React.FC = async () => {
     };
   }
 
-  // ── Free trial lock ─────────────────────────────────────────────────
-  if (activeOrg?.freeTrial) {
+  // ── Free trial lock (skip for Unify org members) ───────────────────
+  const isUnifyOrgMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  if (activeOrg?.freeTrial && !isUnifyOrgMember) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <FreeTrialBillingLock />
