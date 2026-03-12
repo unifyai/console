@@ -1064,6 +1064,39 @@ function ToolCallRow({
   );
 }
 
+function ThoughtLabel({ text, time }: { text: string; time: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={ref}
+      className="flex cursor-pointer items-center gap-2"
+      onClick={() => {
+        const el = ref.current;
+        if (el) {
+          el.classList.remove('animate-nudge');
+          void el.offsetWidth;
+          el.classList.add('animate-nudge');
+        }
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="shrink-0 text-slate-500/80 dark:text-slate-400/50">
+            <Brain className="h-2.5 w-2.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+          thought
+        </TooltipContent>
+      </Tooltip>
+      <span className="min-w-0 truncate text-muted-foreground">{text}</span>
+      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+        {time}
+      </span>
+    </div>
+  );
+}
+
 function InlineContentRow({
   content: text,
   time,
@@ -1667,7 +1700,14 @@ function ToolLoopMessage({
 
   // ── Pure tool calls (no text content) — render as call rows ───────────
   if ((kind === 'tool_call' || kind === 'steering_helper') && !textContent) {
-    return renderCallLine();
+    const callLines = renderCallLine();
+    if (!callLines) return null;
+    return (
+      <>
+        <ThoughtLabel text="Selecting actions:" time={time} />
+        {callLines}
+      </>
+    );
   }
 
   // ── Content-based kinds — label + icon + color from the style map ─────
@@ -1677,6 +1717,7 @@ function ToolLoopMessage({
   let content: string | null = null;
   let trailingCallLine: React.ReactNode = null;
   let trailingResponseContent: string | null = null;
+  let leadingThoughtLabel: string | null = null;
 
   if (kind === 'thought') {
     const blocks =
@@ -1706,6 +1747,9 @@ function ToolLoopMessage({
     LabelIcon = Brain;
     content = textContent;
     trailingCallLine = renderCallLine();
+  } else if (kind === 'response') {
+    leadingThoughtLabel = 'Sending response:';
+    content = textContent;
   } else {
     content = textContent;
   }
@@ -1751,6 +1795,7 @@ function ToolLoopMessage({
 
   return (
     <>
+      {leadingThoughtLabel && <ThoughtLabel text={leadingThoughtLabel} time={time} />}
       <div
         ref={rowRef}
         className={cn(
@@ -2486,16 +2531,6 @@ export function ActionNodeItem({
     const ids = new Set<number>();
     const firstUser = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (firstUser) ids.add(firstUser.id);
-    for (let i = effectiveLogs.length - 1; i >= 0; i--) {
-      const msg = effectiveLogs[i].entries.message;
-      if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
-        const text = extractTextContent(msg.content);
-        if (text) {
-          ids.add(effectiveLogs[i].id);
-          break;
-        }
-      }
-    }
     return ids;
   }, [effectiveLogs, node.persist]);
 
