@@ -33,16 +33,18 @@ vi.mock('next/image', () => ({
   },
 }));
 
-vi.mock('next/link', () => ({
-  default: React.forwardRef<
+vi.mock('next/link', () => {
+  const MockLink = React.forwardRef<
     HTMLAnchorElement,
     { href: string; children: React.ReactNode; className?: string; 'data-testid'?: string }
   >(({ href, children, className, 'data-testid': testId }, ref) => (
     <a ref={ref} href={href} className={className} data-testid={testId}>
       {children}
     </a>
-  )),
-}));
+  ));
+  MockLink.displayName = 'MockLink';
+  return { default: MockLink };
+});
 
 vi.mock('@/lib/user/user', () => ({
   getCurrentUser: vi.fn().mockResolvedValue({
