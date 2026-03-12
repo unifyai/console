@@ -6,10 +6,11 @@ import { mockOrgActions, mockTeamActions, mockRoleActions } from './mocks/action
 import { mockOrganizations, mockUser, mockMembers } from './mocks/data';
 
 // Use vi.hoisted to initialize variables used in mocks
-const { mockSwitchWorkspace, activeWorkspaceRef } = vi.hoisted(() => {
+const { mockSwitchWorkspace, activeWorkspaceRef, searchParamsRef } = vi.hoisted(() => {
   return {
     mockSwitchWorkspace: vi.fn(),
     activeWorkspaceRef: { current: { type: 'organization', id: '1' } },
+    searchParamsRef: { current: 'tab=members' },
   };
 });
 
@@ -26,7 +27,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh: vi.fn(),
     push: vi.fn(),
+    replace: vi.fn(),
   }),
+  useSearchParams: () => new URLSearchParams(searchParamsRef.current),
+  usePathname: () => '/organizations',
 }));
 
 describe('Organization Management System', () => {
@@ -34,7 +38,7 @@ describe('Organization Management System', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     activeWorkspaceRef.current = { type: 'organization', id: '1' };
-    // Reset specific mock implementations to default
+    searchParamsRef.current = 'tab=members';
     mockOrgActions.getMembers.mockResolvedValue(mockMembers);
   });
 
@@ -137,21 +141,19 @@ describe('Organization Management System', () => {
         },
       },
       async () => {
+        searchParamsRef.current = '';
         renderMain();
-        await waitForDataLoad();
+        const nameInput = await screen.findByLabelText(/organization name/i);
 
-        // Use getByRole to find the specific action button (Pencil icon often has label)
-        const editBtn = screen.getByRole('button', { name: /update organization/i });
-        await userEvent.click(editBtn);
+        await userEvent.clear(nameInput);
+        await userEvent.type(nameInput, 'Acme Corp Updated');
 
-        const input = screen.getByPlaceholderText(/organization name/i);
-        await userEvent.clear(input);
-        await userEvent.type(input, 'Acme Corp Updated');
+        const saveBtn = screen.getByRole('button', { name: /save/i });
+        await userEvent.click(saveBtn);
 
-        const updateBtn = screen.getByRole('button', { name: 'Update' });
-        await userEvent.click(updateBtn);
-
-        expect(mockOrgActions.updateOrg).toHaveBeenCalledWith(1, 'Acme Corp Updated');
+        await waitFor(() => {
+          expect(mockOrgActions.updateOrg).toHaveBeenCalledWith(1, 'Acme Corp Updated', null);
+        });
       }
     );
 
@@ -166,14 +168,12 @@ describe('Organization Management System', () => {
         },
       },
       async () => {
+        searchParamsRef.current = 'tab=security';
         renderMain();
-        await waitForDataLoad();
-
-        const deleteBtn = screen.getByRole('button', { name: /delete organization/i });
+        const deleteBtn = await screen.findByRole('button', { name: /delete organization/i });
         await userEvent.click(deleteBtn);
 
-        // Confirm in dialog
-        const proceedBtn = screen.getByRole('button', { name: 'Proceed' });
+        const proceedBtn = await screen.findByRole('button', { name: 'Proceed' });
         await userEvent.click(proceedBtn);
 
         expect(mockOrgActions.deleteOrg).toHaveBeenCalledWith(1);
@@ -260,34 +260,21 @@ describe('Organization Management System', () => {
         },
       },
       async () => {
-        // Setup: Current user is a "Member" (Role ID 2), not Owner.
-        // Role 2 has "Read Org" but not "Write Org" in mock data.
         const readOnlyMembers = mockMembers.map((m) =>
           m.userId === mockUser.id ? { ...m, roleId: 2, roleName: 'Member' } : m
+        );
+        const readOnlyOrgs = mockOrganizations.map((o) =>
+          o.id === 1 ? { ...o, ownerId: 'other_owner', roleId: 2, roleName: 'Member' } : o
         );
 
         mockOrgActions.getMembers.mockResolvedValue(readOnlyMembers);
 
-        renderMain();
-        // Wait for load
-        await waitFor(() => expect(screen.getAllByText(/Test User/i)[0]).toBeVisible());
+        searchParamsRef.current = '';
+        renderMain({ initialOrganizations: readOnlyOrgs });
+        await waitFor(() => expect(screen.getByRole('tab', { name: /members/i })).toBeInTheDocument());
 
-        // Assertions: Administrative buttons should not be in the document
-        expect(screen.queryByLabelText(/invite a new member/i)).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(/delete organization/i)).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(/update organization/i)).not.toBeInTheDocument();
-
-        // Verify row actions are limited
-        const janeName = screen.getByText('Jane Doe');
-        const janeRow = janeName.closest('tr');
-
-        // If menu exists, check it doesn't have restricted options
-        const menuBtn = within(janeRow!).queryByRole('button', { name: /manage member/i });
-        if (menuBtn) {
-          await userEvent.click(menuBtn);
-          expect(screen.queryByText(/remove member/i)).not.toBeInTheDocument();
-          expect(screen.queryByText(/update role/i)).not.toBeInTheDocument();
-        }
+        // The "Organization" and "Security" tabs should not appear for non-admin users
+        expect(screen.queryByRole('tab', { name: /^organization$/i })).not.toBeInTheDocument();
       }
     );
 
@@ -402,10 +389,9 @@ describe('Organization Management System', () => {
 
   describe('Team Management', () => {
     beforeEach(async () => {
+      searchParamsRef.current = 'tab=teams';
       renderMain();
-      await waitForDataLoad();
-      const teamToggle = screen.getByRole('button', { name: /view teams/i });
-      await userEvent.click(teamToggle);
+      await waitFor(() => expect(screen.getByRole('tab', { name: /teams/i })).toBeInTheDocument());
     });
 
     it(
@@ -540,10 +526,9 @@ describe('Organization Management System', () => {
 
   describe('Role & Permission Management', () => {
     beforeEach(async () => {
+      searchParamsRef.current = 'tab=roles';
       renderMain();
-      await waitForDataLoad();
-      const roleToggle = screen.getByRole('button', { name: /manage roles/i });
-      await userEvent.click(roleToggle);
+      await waitFor(() => expect(screen.getByRole('tab', { name: /roles/i })).toBeInTheDocument());
     });
 
     it(

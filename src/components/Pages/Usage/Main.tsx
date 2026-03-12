@@ -87,32 +87,15 @@ export function UsageMain({
     initialFilters,
   });
 
-  // Filter assistants based on selected user scope
-  const filteredAssistants = React.useMemo(() => {
-    // For org scope, show all assistants
-    if (filters.userScope === 'org') {
-      return assistants;
-    }
-
-    // Determine which user's assistants to show
-    const targetUserId =
-      filters.userScope === 'member' && filters.selectedUserId
-        ? filters.selectedUserId
-        : currentUserId;
-
-    // Filter to only assistants belonging to the target user
-    return assistants.filter((a) => a.userId === targetUserId);
-  }, [assistants, filters.userScope, filters.selectedUserId, currentUserId]);
-
-  // Reset assistant selection when filtered list changes and current selection is invalid
+  // Reset assistant selection when the assistants list changes and current selection is invalid
   React.useEffect(() => {
     if (filters.assistantId !== 'all') {
-      const isValidSelection = filteredAssistants.some((a) => a.agentId === filters.assistantId);
+      const isValidSelection = assistants.some((a) => a.agentId === filters.assistantId);
       if (!isValidSelection) {
         setAssistantId('all');
       }
     }
-  }, [filteredAssistants, filters.assistantId, setAssistantId]);
+  }, [assistants, filters.assistantId, setAssistantId]);
 
   // Data fetching using bound server actions
   const { data, isLoading, error, hasInitiallyLoaded, refetch } = useUsageData({
@@ -351,7 +334,7 @@ export function UsageMain({
           currentUserId={currentUserId}
           assistantId={filters.assistantId}
           onAssistantChange={setAssistantId}
-          assistants={filteredAssistants}
+          assistants={assistants}
           startDate={filters.startDate}
           endDate={filters.endDate}
           onDateRangeChange={setDateRange}

@@ -653,12 +653,12 @@ describe('Assistant Secrets Manager', () => {
     );
 
     it(
-      'should still allow viewing secret values in read-only mode',
+      'should hide secret details form in read-only mode',
       {
         meta: {
-          alias: 'Secrets-ReadOnly-View',
-          behavior: 'Secret value can be revealed',
-          scenario: 'User with read permission clicks show',
+          alias: 'Secrets-ReadOnly-NoDetails',
+          behavior: 'Secret name, value, and description fields are hidden',
+          scenario: 'User with read-only permission cannot see secret details',
         },
       },
       async () => {
@@ -670,9 +670,13 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // Dialog renders in a portal - use document.body
-        const toggleButtons = getVisibilityToggles(document.body as HTMLElement);
-        expect(toggleButtons.length).toBeGreaterThan(0);
+        // Form fields should not be present for read-only users
+        expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/value/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/description/i)).not.toBeInTheDocument();
+
+        // Restricted access message should be shown
+        expect(screen.getByText(/secret details are only visible/i)).toBeInTheDocument();
       }
     );
   });

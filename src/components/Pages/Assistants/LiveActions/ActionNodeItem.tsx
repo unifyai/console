@@ -109,6 +109,7 @@ function rewriteCheckStatusResults(logs: ToolLoopLog[]): ToolLoopLog[] {
       ...l,
       entries: {
         ...l.entries,
+        kind: 'tool_result',
         message: {
           ...m,
           ['tool_call_id']: originalCallId,
@@ -1126,9 +1127,7 @@ function ToolLoopMessage({
     if (!child || descendantLiveLogCount === 0) return [];
     const allLogs = collectDescendantLiveLogs(child);
     const rewritten = rewriteCheckStatusResults(allLogs);
-    return rewritten
-      .filter((l) => !isToolLoopNoise(l.entries))
-      .sort((a, b) => a.id - b.id);
+    return rewritten.filter((l) => !isToolLoopNoise(l.entries)).sort((a, b) => a.id - b.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy for deep liveToolLoopLogs mutations
   }, [child, descendantLiveLogCount]);
 
@@ -1137,7 +1136,7 @@ function ToolLoopMessage({
   const childResolvedToolCallIds = React.useMemo(
     () => {
       const logsForResolution =
-        childLogs.length > 0 ? childLogs : (child ? collectDescendantLiveLogs(child) : []);
+        childLogs.length > 0 ? childLogs : child ? collectDescendantLiveLogs(child) : [];
       return buildResolvedToolCallIds(logsForResolution);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy
@@ -1163,8 +1162,7 @@ function ToolLoopMessage({
     const isHighlighted = tcId != null && hoveredTcId === tcId;
     const childLabel = child.displayLabel || child.label;
     const childTime = formatEventTime(child.startTime);
-    const canExpand =
-      !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
+    const canExpand = !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
 
     const handleChildToggle = () => {
       if (!canExpand) return;

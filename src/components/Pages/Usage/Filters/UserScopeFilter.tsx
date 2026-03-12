@@ -86,10 +86,8 @@ export function UserScopeFilter({
     (newValue: string) => {
       if (newValue === 'self') {
         onChange('self');
-        onMemberChange(null);
       } else if (newValue === 'org') {
         onChange('org');
-        onMemberChange(null);
       } else if (newValue.startsWith('member:')) {
         const memberId = newValue.replace('member:', '');
         onChange('member');

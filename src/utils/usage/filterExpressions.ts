@@ -106,17 +106,18 @@ export function buildUserIdFilter(userId: string): string {
 }
 
 /**
- * Build a filter expression for the attributed user ID.
- * Uses the _attributed_user_id field set by Unity's cost attribution
- * system, which records the platform user who actually triggered the
- * LLM call (as opposed to _user_id which is always the supervisor).
+ * Build a filter expression for the attributed user ID with fallback.
+ * Primarily matches on _attributed_user_id (set by Unity's cost attribution
+ * system, recording the platform user who actually triggered the LLM call).
+ * Falls back to _user_id when _attributed_user_id is null/missing, so that
+ * older logs without cost attribution are still captured in a single query.
  *
  * @param userId Attributed user ID to filter by
  * @returns Filter expression string
  */
 export function buildAttributedUserIdFilter(userId: string): string {
   const escaped = escapeFilterValue(userId);
-  return `_attributed_user_id == '${escaped}'`;
+  return `_attributed_user_id == '${escaped}' or (_attributed_user_id == None and _user_id == '${escaped}')`;
 }
 
 /**
@@ -150,9 +151,10 @@ export function buildUsageFilterExpression(
 ): string {
   const filters: string[] = [buildDateRangeFilter(startDate, endDate)];
 
-  // Filter by the attributed user (who triggered the LLM call) rather than
-  // _user_id (which is always the supervisor). This aligns the usage chart
-  // with the per-user cumulative spending tracked in All/Spending/Monthly.
+  // Filter by the attributed user (who triggered the LLM call), falling back
+  // to _user_id when _attributed_user_id is null (e.g. older logs without
+  // cost attribution). This aligns the usage chart with the per-user
+  // cumulative spending tracked in All/Spending/Monthly.
   if (userId) {
     filters.push(buildAttributedUserIdFilter(userId));
   }

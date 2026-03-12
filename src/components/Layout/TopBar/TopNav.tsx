@@ -14,7 +14,7 @@ import {
   ChevronDown,
   BarChart3,
   Settings,
-  Plus,
+  Loader2,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -61,6 +61,7 @@ export default function TopNav() {
     activeOrganization,
     switchWorkspace,
     isWorkspaceSwitchable,
+    isSwitchingWorkspace,
   } = useWorkspace();
 
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
@@ -102,9 +103,10 @@ export default function TopNav() {
   };
 
   const handleSignOut = async () => {
-    // Prevent the dropdown from closing before signOut completes
-    await signOut({ redirect: false });
-    router.push('/login');
+    // Let next-auth handle both the sign-out and the redirect in one step.
+    // Using callbackUrl triggers a server-side redirect after the session
+    // is cleared, so the login page never sees stale session data.
+    await signOut({ callbackUrl: '/login' });
   };
 
   // Populate user info from session provider
@@ -213,7 +215,9 @@ export default function TopNav() {
                         variant="ghost"
                         className="text-body-muted h-6 items-center gap-1.5 px-2 hover:text-foreground"
                       >
-                        {activeWorkspace.type === 'personal' ? (
+                        {isSwitchingWorkspace ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : activeWorkspace.type === 'personal' ? (
                           workspacePhotos['personal'] ? (
                             <Image
                               width={16}
@@ -238,7 +242,9 @@ export default function TopNav() {
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
                         )}
-                        <span className="max-w-[250px] truncate">{activeWorkspace.name}</span>
+                        <span className="max-w-[250px] truncate">
+                          {isSwitchingWorkspace ? 'Switching…' : activeWorkspace.name}
+                        </span>
                         <ChevronDown className="h-3 w-3 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -301,17 +307,6 @@ export default function TopNav() {
                             {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
                           </DropdownMenuItem>
                         ))}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={async () => {
-                          await switchWorkspace('personal');
-                          router.push('/organizations');
-                        }}
-                        className="cursor-pointer items-center gap-2 text-muted-foreground"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Create organization
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (

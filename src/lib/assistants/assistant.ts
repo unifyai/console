@@ -187,7 +187,13 @@ export const updateAssistant = async (apiKey: string) => {
       }
 
       if (!response.ok) {
-        const errorMessage = data.detail || `Failed to update assistant: ${response.statusText}`;
+        let errorMessage = `Failed to update assistant: ${response.statusText}`;
+        if (Array.isArray(data.detail)) {
+          // FastAPI/Pydantic 422 returns detail as an array of validation error objects
+          errorMessage = data.detail.map((d: { msg?: string }) => d.msg || String(d)).join(', ');
+        } else if (data.detail) {
+          errorMessage = String(data.detail);
+        }
         return { detail: errorMessage };
       }
 

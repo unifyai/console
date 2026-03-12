@@ -104,10 +104,11 @@ interface PermissionTestContext {
 /**
  * The complete permission matrix.
  *
- * v0 Rules:
+ * Current Rules:
  * - Personal workspace: Full access for everything
- * - Org context + Owner: Can hire, can only write/delete own assistants
- * - Org context + Admin/Member: Cannot hire, can only write/delete own assistants
+ * - Org context + Owner: Can hire, can write/delete any assistant (own or other)
+ * - Org context + Admin: Can hire, can write/delete any assistant (own or other)
+ * - Org context + Member: Cannot hire, can only write/delete own assistants
  */
 const PERMISSION_MATRIX: PermissionScenario[] = [
   // PERSONAL WORKSPACE (Always full access)
@@ -139,11 +140,11 @@ const PERMISSION_MATRIX: PermissionScenario[] = [
   },
   {
     id: 'org-owner-other',
-    description: 'Org Owner, other user assistant (v0: no god-mode)',
+    description: 'Org Owner, other user assistant (full access)',
     workspace: 'organization',
     role: 'Owner',
     ownership: 'other',
-    expected: { canHire: true, canWrite: false, canDelete: false },
+    expected: { canHire: true, canWrite: true, canDelete: true },
   },
 
   // ORGANIZATION - ADMIN
@@ -153,15 +154,15 @@ const PERMISSION_MATRIX: PermissionScenario[] = [
     workspace: 'organization',
     role: 'Admin',
     ownership: 'own',
-    expected: { canHire: false, canWrite: true, canDelete: true },
+    expected: { canHire: true, canWrite: true, canDelete: true },
   },
   {
     id: 'org-admin-other',
-    description: 'Org Admin, other user assistant',
+    description: 'Org Admin, other user assistant (full access)',
     workspace: 'organization',
     role: 'Admin',
     ownership: 'other',
-    expected: { canHire: false, canWrite: false, canDelete: false },
+    expected: { canHire: true, canWrite: true, canDelete: true },
   },
 
   // ORGANIZATION - MEMBER
@@ -412,10 +413,10 @@ describe('Permissions Matrix - Invariants', () => {
     });
   });
 
-  it('only org Owner can hire in org context', () => {
+  it('only org Owner or Admin can hire in org context', () => {
     const testCases: Array<{ role: OrgRole; canHire: boolean }> = [
       { role: 'Owner', canHire: true },
-      { role: 'Admin', canHire: false },
+      { role: 'Admin', canHire: true },
       { role: 'Member', canHire: false },
     ];
 

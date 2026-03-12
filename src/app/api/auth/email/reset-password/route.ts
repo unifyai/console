@@ -11,9 +11,9 @@ import { validatePassword } from '@/lib/auth/password';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { token, password } = body;
+    const { token, newPassword } = body;
 
-    const validation = validatePassword(password ?? '');
+    const validation = validatePassword(newPassword ?? '');
     if (!validation.isValid) {
       const missing = validation.rules.filter((r) => !r.passed).map((r) => r.label.toLowerCase());
       return NextResponse.json(
@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // OrchestraAdminClient casing interceptor converts newPassword → new_password
     const res = await OrchestraAdminClient.post('/auth/reset-password', {
       token,
-      new_password: password,
+      newPassword,
     });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
