@@ -103,9 +103,10 @@ export default function TopNav() {
   };
 
   const handleSignOut = async () => {
-    // Prevent the dropdown from closing before signOut completes
-    await signOut({ redirect: false });
-    router.push('/login');
+    // Let next-auth handle both the sign-out and the redirect in one step.
+    // Using callbackUrl triggers a server-side redirect after the session
+    // is cleared, so the login page never sees stale session data.
+    await signOut({ callbackUrl: '/login' });
   };
 
   // Populate user info from session provider

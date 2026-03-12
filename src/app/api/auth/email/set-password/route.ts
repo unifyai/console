@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { password } = body;
+    const { newPassword } = body;
 
-    const validation = validatePassword(password ?? '');
+    const validation = validatePassword(newPassword ?? '');
     if (!validation.isValid) {
       const missing = validation.rules.filter((r) => !r.passed).map((r) => r.label.toLowerCase());
       return NextResponse.json(
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await getOrchestraUserClient(apiKey);
-    const res = await client.post('/auth/set-password', { password });
+    const res = await client.post('/auth/set-password', { newPassword });
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;

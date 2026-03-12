@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
-import { getSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
@@ -18,11 +17,11 @@ import {
 } from '@/components/UI/alert-dialog';
 
 const SignOutButton = () => {
-  const router = useRouter();
-
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
-    router.push('/login');
+    // Let next-auth handle both the sign-out and the redirect in one step.
+    // Using callbackUrl triggers a server-side redirect after the session
+    // is cleared, so the login page never sees stale session data.
+    await signOut({ callbackUrl: '/login' });
   };
 
   return (
