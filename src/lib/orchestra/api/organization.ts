@@ -352,6 +352,25 @@ export const transferOwnershipAction = async (apiKey: string) => {
   };
 };
 
+export const adminCreateOrganizationAction = async (creatorUserId: string) => {
+  return async (name: string): Promise<Organization | ResponseProps> => {
+    'use server';
+    return safeFetch(
+      `${backendUrl}/admin/organizations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({ name, creator_user_id: creatorUserId }),
+      },
+      'adminCreateOrganization'
+    ) as Promise<Organization | ResponseProps>;
+  };
+};
+
 // Admin endpoints - these use raw fetch because they're not in the public OpenAPI spec
 export const getAllOrganizationsAction = async () => {
   return async (nameFilter?: string): Promise<OrganizationListResponse | ResponseProps> => {
