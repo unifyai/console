@@ -1861,14 +1861,19 @@ function ToolLoopMessage({
         {imgOpen && (
           <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
             {imageUrls.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={url}
-                alt={`image${i}`}
-                title={`image${i}`}
-                className="border-border/30 max-h-48 max-w-full rounded border object-contain"
-              />
+              <Tooltip key={i}>
+                <TooltipTrigger asChild>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`image${i}`}
+                    className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+                  image{i}
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
         )}
@@ -1982,14 +1987,19 @@ function ToolLoopMessage({
       {isOpen && imageUrls.length > 0 && (
         <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
           {imageUrls.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={url}
-              alt={`image${i}`}
-              title={`image${i}`}
-              className="border-border/30 max-h-48 max-w-full rounded border object-contain"
-            />
+            <Tooltip key={i}>
+              <TooltipTrigger asChild>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`image${i}`}
+                  className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
+                />
+              </TooltipTrigger>
+              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+                image{i}
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       )}
