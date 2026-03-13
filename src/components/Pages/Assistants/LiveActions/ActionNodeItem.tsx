@@ -613,7 +613,7 @@ function extractTextContent(
         const raw = block as Record<string, unknown>;
         const urlObj = (raw.imageUrl ?? raw.image_url) as { url: string } | undefined;
         if (urlObj?.url) {
-          const label = `img${imgIdx}`;
+          const label = `image${imgIdx}`;
           imgIdx++;
           const redactedBlock = { ...block, imageUrl: { url: label } };
           delete (redactedBlock as Record<string, unknown>)['image_url'];
@@ -1865,7 +1865,8 @@ function ToolLoopMessage({
               <img
                 key={i}
                 src={url}
-                alt={`output ${i + 1}`}
+                alt={`image${i}`}
+                title={`image${i}`}
                 className="border-border/30 max-h-48 max-w-full rounded border object-contain"
               />
             ))}
@@ -1985,7 +1986,8 @@ function ToolLoopMessage({
             <img
               key={i}
               src={url}
-              alt={`output ${i + 1}`}
+              alt={`image${i}`}
+              title={`image${i}`}
               className="border-border/30 max-h-48 max-w-full rounded border object-contain"
             />
           ))}
