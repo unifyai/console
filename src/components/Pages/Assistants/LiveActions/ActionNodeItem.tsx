@@ -1876,6 +1876,13 @@ function ToolLoopMessage({
 
   // ── Pure tool calls (no text content) — render as call rows ───────────
   if ((kind === 'tool_call' || kind === 'steering_helper') && !textContent) {
+    const isWaitOnly =
+      message.toolCalls?.length === 1 &&
+      (message.toolCalls[0].function.name === 'wait' ||
+        ((message.toolCalls[0] as Record<string, unknown>).name as string) === 'wait');
+    if (isWaitOnly) {
+      return <ThoughtLabel text="Waiting..." time={time} />;
+    }
     const callLines = renderCallLine();
     if (!callLines) return null;
     return (
