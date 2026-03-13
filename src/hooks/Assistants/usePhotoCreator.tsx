@@ -14,6 +14,7 @@ import { ResponseProps } from '@/types/common';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { getAudioDuration, getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { Button } from '@/components/UI/button';
+import { MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';
 
 const ANIMATION_POLLING_INTERVAL = 5000;
 
@@ -364,6 +365,10 @@ export function usePhotoCreator(
   const handleAnimate = async (imageSource: File | string) => {
     if (!ttsPrompt.trim()) {
       toast.error("Please enter text for the animation's audio.");
+      return;
+    }
+    if (ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH) {
+      toast.error(`Text must be at least ${MIN_TTS_PROMPT_LENGTH} characters to generate enough audio.`);
       return;
     }
     if (!imageSource) {

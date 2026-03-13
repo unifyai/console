@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { usePhotoCreator } from '@/hooks/Assistants/usePhotoCreator';
 import { AssistantActions, VoiceOption } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { PHOTO_OPERATION_COST, VIDEO_ANIMATION_COST } from '@/constants/assistants/settings';
+import { PHOTO_OPERATION_COST, VIDEO_ANIMATION_COST, MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';
 import { toast } from 'sonner';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
@@ -97,7 +97,7 @@ export function PhotoCustomization({
   const isGenerateDisabled = !prompt.trim() || isProcessing || disabled;
   const isEditDisabled = !currentImageUrl || !prompt.trim() || isProcessing || disabled;
   const isAnimateDisabled =
-    !currentImageUrl || !ttsPrompt.trim() || !selectedVoice || isProcessing || disabled;
+    !currentImageUrl || !ttsPrompt.trim() || ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH || !selectedVoice || isProcessing || disabled;
   const imageSourceForOperations = currentImageFile || currentImageUrl;
 
   const handleCreateKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -199,7 +199,9 @@ export function PhotoCustomization({
       ? 'A voice must be selected to generate audio.'
       : !ttsPrompt.trim()
         ? "Please enter text for the animation's audio."
-        : 'Animate photo';
+        : ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH
+          ? `Text must be at least ${MIN_TTS_PROMPT_LENGTH} characters.`
+          : 'Animate photo';
 
   return (
     <div className={cn('flex-1 self-stretch', disabled && 'cursor-not-allowed opacity-70')}>
@@ -339,7 +341,7 @@ export function PhotoCustomization({
             />
             <div className="flex items-center justify-between pt-1">
               <p className="text-caption px-1 text-muted-foreground">
-                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits per second
+                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits per second. (Min 3 sec)
               </p>
               <BillableActionGuard
                 onAddPaymentMethod={onAddPaymentMethod}
