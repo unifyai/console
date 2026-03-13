@@ -11,13 +11,62 @@ interface PresetListItemProps {
   preset: AssistantPreset;
   onSelect: (preset: AssistantPreset) => void;
   isSelected?: boolean;
+  downloadPresetPhoto?: (
+    firstName: string,
+    surname: string
+  ) => Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }>;
 }
 
-export function PresetListItem({ preset, onSelect, isSelected }: PresetListItemProps) {
+export function PresetListItem({
+  preset,
+  onSelect,
+  isSelected,
+  downloadPresetPhoto,
+}: PresetListItemProps) {
   const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>('loading');
+  const [resolvedPhotoUrl, setResolvedPhotoUrl] = React.useState<string | undefined>(undefined);
 
   const displayName = `${preset.firstName} ${preset.surname}`;
   const fallback = `${preset.firstName?.[0] ?? ''}${preset.surname?.[0] ?? ''}`.toUpperCase();
+
+  // Resolve GCS preset photo path to a signed URL
+  React.useEffect(() => {
+    if (!preset.profilePhoto) {
+      setResolvedPhotoUrl(undefined);
+      return;
+    }
+
+    // If it's already a loadable URL (http/https), use it directly
+    if (preset.profilePhoto.startsWith('http')) {
+      setResolvedPhotoUrl(preset.profilePhoto);
+      return;
+    }
+
+    // It's a GCS object path — fetch a signed URL
+    if (!downloadPresetPhoto) {
+      setResolvedPhotoUrl(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingStatus('loading');
+
+    downloadPresetPhoto(preset.firstName, preset.surname)
+      .then((res) => {
+        if (!cancelled && res.signedUrl) {
+          setResolvedPhotoUrl(res.signedUrl);
+        } else if (!cancelled) {
+          setLoadingStatus('error');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadingStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preset.profilePhoto, preset.firstName, preset.surname, downloadPresetPhoto]);
 
   const handleLoadingStatusChange = (status: ImageLoadingStatus) => {
     setLoadingStatus(status);
@@ -40,7 +89,7 @@ export function PresetListItem({ preset, onSelect, isSelected }: PresetListItemP
           <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
         )}
         <AvatarImage
-          src={preset.profilePhoto ?? undefined}
+          src={resolvedPhotoUrl}
           alt={displayName}
           onLoadingStatusChange={handleLoadingStatusChange}
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded

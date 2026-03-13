@@ -222,11 +222,32 @@ export function useAssistantForm(
       setValue('age', preset.age, { shouldValidate: true });
       setValue('nationality', preset.nationality ?? 'United States', { shouldValidate: true });
       setValue('about', preset.about ?? '', { shouldValidate: true });
-      setValue('profilePhotoUrl', preset.profilePhoto);
-      setValue('photoPreviewUrl', preset.profilePhoto);
+      setValue('profilePhotoUrl', null);
+      setValue('photoPreviewUrl', null);
       setValue('photoFile', null);
       setValue('videoFile', null);
       setValue('videoSourceVoiceId', null);
+      assistantActions.photo
+        .downloadPresetPhoto(preset.firstName, preset.surname)
+        .then((res) => {
+          if (presetOperationIdRef.current !== thisOperationId) return;
+          if (res.signedUrl) {
+            setValue('photoPreviewUrl', res.signedUrl);
+            if (res.gcsUrl) {
+              setValue('profilePhotoUrl', res.gcsUrl);
+              const currentOriginal = getValues('presetOriginalValues');
+              if (currentOriginal) {
+                setValue('presetOriginalValues', {
+                  ...currentOriginal,
+                  profilePhotoUrl: res.gcsUrl,
+                });
+              }
+            }
+          }
+        })
+        .catch(() => {
+          if (presetOperationIdRef.current !== thisOperationId) return;
+        });
       setValue(
         'timezone',
         preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -481,7 +502,7 @@ export function useAssistantForm(
         const formData = new FormData();
         formData.append('file', data.photoFile);
         formData.append('assistant_id', editAssistantId);
-        const photoUploadResult = await assistantActions.photo.upload(formData);
+        const photoUploadResult = await assistantActions.photo.uploadPhoto(formData);
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
         payload.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;
@@ -682,7 +703,7 @@ export function useAssistantForm(
         const photoFormData = new FormData();
         photoFormData.append('file', data.photoFile);
         photoFormData.append('assistant_id', assistantId);
-        const photoUploadResult = await assistantActions.photo.upload(photoFormData);
+        const photoUploadResult = await assistantActions.photo.uploadPhoto(photoFormData);
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
         mediaUpdate.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;

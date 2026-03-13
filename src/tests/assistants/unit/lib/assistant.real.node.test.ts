@@ -93,8 +93,8 @@ describe('@real assistant.ts - Orchestra Integration', () => {
         40,
         'GB',
         'UTC',
-        'https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/1.jpg',
-        'gs://bucket/preset_assistants/Ricardo_Silva_elevenlabs.mp4',
+        'gs://bucket/preset_assistants/photos/Test_Agent.jpg',
+        'gs://bucket/preset_assistants/videos/Ricardo_Silva_elevenlabs.mp4',
         'Integration test assistant for automated testing',
         API_KEY,
         false // createInfra: false for local testing - skip pubsub/wake-up

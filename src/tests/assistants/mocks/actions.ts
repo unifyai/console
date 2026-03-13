@@ -34,12 +34,16 @@ export const mockAssistantActions: any = {
     ),
   },
   photo: {
-    upload: vi.fn(async () => ({ gcs_url: 'gs://bucket/photo.jpg' })),
+    uploadPhoto: vi.fn(async () => ({ gcs_url: 'gs://bucket/photo.jpg' })),
     uploadVideo: vi.fn(async () => ({ gcs_url: 'gs://bucket/video.mp4' })),
-    download: vi.fn(async () => ({ signedUrl: 'https://signed.url/photo.jpg' })),
+    downloadMedia: vi.fn(async () => ({ signedUrl: 'https://signed.url/photo.jpg' })),
+    downloadPresetPhoto: vi.fn(async () => ({
+      signedUrl: 'https://signed.url/preset-photo.jpg',
+      gcsUrl: 'gs://bucket/preset_assistants/photos/test.jpg',
+    })),
     downloadPresetVideo: vi.fn(async () => ({
       signedUrl: 'https://signed.url/video.mp4',
-      gcsUrl: 'gs://bucket/preset_assistants/test.mp4',
+      gcsUrl: 'gs://bucket/preset_assistants/videos/test.mp4',
     })),
     generate: vi.fn(async () => ({ url: 'https://generated.photo/image.jpg' })),
     edit: vi.fn(async () => ({ url: 'https://edited.photo/image.jpg' })),

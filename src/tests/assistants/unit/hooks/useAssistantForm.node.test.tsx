@@ -93,12 +93,16 @@ const createMockAssistantActions = (): AssistantActions => ({
     fetchContactCosts: vi.fn(),
   },
   photo: {
-    upload: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/photo.jpg' }),
+    uploadPhoto: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/photo.jpg' }),
     uploadVideo: vi.fn().mockResolvedValue({ gcsUrl: 'gs://bucket/video.mp4' }),
-    download: vi.fn(),
+    downloadMedia: vi.fn(),
+    downloadPresetPhoto: vi.fn().mockResolvedValue({
+      signedUrl: 'https://signed.url/photo.jpg',
+      gcsUrl: 'gs://bucket/preset_assistants/photos/test.jpg',
+    }),
     downloadPresetVideo: vi.fn().mockResolvedValue({
       signedUrl: 'https://signed.url/video.mp4',
-      gcsUrl: 'gs://bucket/preset_assistants/test.mp4',
+      gcsUrl: 'gs://bucket/preset_assistants/videos/test.mp4',
     }),
     generate: vi.fn(),
     edit: vi.fn(),
@@ -378,7 +382,7 @@ describe('useAssistantForm', () => {
       nationality: 'Canada',
       gender: 'female',
       about: 'A preset assistant',
-      profilePhoto: 'https://example.com/preset-photo.jpg',
+      profilePhoto: 'preset_assistants/photos/PresetFirst_PresetLast.jpg',
       profileVideo: null,
       voiceIds: {
         elevenlabs: 'preset-el-voice',
@@ -414,7 +418,17 @@ describe('useAssistantForm', () => {
         expect(values.surname).toBe('PresetLast');
         expect(values.age).toBe(28);
         expect(values.nationality).toBe('Canada');
-        expect(values.profilePhotoUrl).toBe('https://example.com/preset-photo.jpg');
+
+        // Preset photo is now fetched async from GCS — wait for the signed URL
+        await waitFor(() => {
+          const updatedValues = result.current.formMethods.getValues();
+          expect(updatedValues.profilePhotoUrl).toBe(
+            'gs://bucket/preset_assistants/photos/test.jpg'
+          );
+          expect(updatedValues.photoPreviewUrl).toBe(
+            'https://signed.url/preset-photo.jpg'
+          );
+        });
       }
     );
 
@@ -442,6 +456,35 @@ describe('useAssistantForm', () => {
         // Assert
         expect(values.presetOriginalValues).not.toBeNull();
         expect(values.presetOriginalValues?.firstName).toBe('PresetFirst');
+      }
+    );
+
+    it(
+      'downloads preset photo from GCS',
+      {
+        meta: {
+          alias: 'HireForm-PresetPhoto',
+          scenario: 'User selects a preset',
+          behavior: 'Fetches preset photo signed URL from GCS',
+        },
+      },
+      async () => {
+        // Act
+        const { result } = renderHook(() =>
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        act(() => {
+          result.current.selectPreset(mockPreset);
+        });
+
+        // Assert
+        await waitFor(() => {
+          expect(mockActions.photo.downloadPresetPhoto).toHaveBeenCalledWith(
+            'PresetFirst',
+            'PresetLast'
+          );
+        });
       }
     );
 
@@ -1037,8 +1080,8 @@ describe('useAssistantForm', () => {
           };
         });
 
-        mockActions.photo.upload = vi.fn().mockImplementation(async (formData: FormData) => {
-          callOrder.push('photo.upload');
+        mockActions.photo.uploadPhoto = vi.fn().mockImplementation(async (formData: FormData) => {
+          callOrder.push('photo.uploadPhoto');
           return { gcsUrl: 'gs://bucket/42/photos/photo.jpg' };
         });
 
@@ -1077,7 +1120,7 @@ describe('useAssistantForm', () => {
 
         // Assert - correct call order
         await waitFor(() => {
-          expect(callOrder).toEqual(['create', 'photo.upload', 'update']);
+          expect(callOrder).toEqual(['create', 'photo.uploadPhoto', 'update']);
         });
 
         // Create should be called with null for profilePhoto (index 5)
@@ -1085,7 +1128,7 @@ describe('useAssistantForm', () => {
         expect(createCall[5]).toBeNull(); // profilePhoto = null (custom upload deferred)
 
         // Photo upload should include assistant_id in FormData
-        const uploadCall = (mockActions.photo.upload as any).mock.calls[0];
+        const uploadCall = (mockActions.photo.uploadPhoto as any).mock.calls[0];
         const uploadFormData: FormData = uploadCall[0];
         expect(uploadFormData.get('assistant_id')).toBe('new-assistant-42');
         expect(uploadFormData.get('file')).toBeTruthy();
@@ -1148,7 +1191,7 @@ describe('useAssistantForm', () => {
         expect(createCall[5]).toBe('gs://bucket/preset.jpg');
 
         // No photo upload or assistant update should have been called
-        expect(mockActions.photo.upload).not.toHaveBeenCalled();
+        expect(mockActions.photo.uploadPhoto).not.toHaveBeenCalled();
         expect(mockActions.assistant.update).not.toHaveBeenCalled();
       }
     );
@@ -1189,7 +1232,7 @@ describe('useAssistantForm', () => {
           maxParallel: null,
         } as Assistant;
 
-        mockActions.photo.upload = vi.fn().mockResolvedValue({
+        mockActions.photo.uploadPhoto = vi.fn().mockResolvedValue({
           gcsUrl: 'gs://bucket/99/photos/new-photo.jpg',
         });
 
@@ -1216,11 +1259,11 @@ describe('useAssistantForm', () => {
         });
 
         await waitFor(() => {
-          expect(mockActions.photo.upload).toHaveBeenCalled();
+          expect(mockActions.photo.uploadPhoto).toHaveBeenCalled();
         });
 
         // Verify assistant_id is in the FormData
-        const uploadCall = (mockActions.photo.upload as any).mock.calls[0];
+        const uploadCall = (mockActions.photo.uploadPhoto as any).mock.calls[0];
         const uploadFormData: FormData = uploadCall[0];
         expect(uploadFormData.get('assistant_id')).toBe('existing-99');
         expect(uploadFormData.get('file')).toBeTruthy();

@@ -281,22 +281,7 @@ export function HireForm({
     );
     setValue('voiceExists', userHasVoice, { shouldValidate: true });
 
-    // Update video
-    setValue('videoPreviewUrl', null); // Clear old video to show loading
-    assistantActions.photo
-      .downloadPresetVideo(currentPreset.firstName, currentPreset.surname, PRIMARY_VOICE_PROVIDER)
-      .then((res) => {
-        if (res.signedUrl) {
-          setValue('videoPreviewUrl', res.signedUrl);
-          setValue('videoSourceVoiceId', voiceId);
-          // Use the server-provided GCS URL (includes correct bucket name)
-          if (res.gcsUrl) {
-            setValue('profileVideoUrl', res.gcsUrl);
-          }
-          // Allow autoplay: do NOT add to playedVideoUrls so it auto-plays on canPlay
-        }
-      });
-  }, [getValues, setValue, assistantActions.photo, allDisplayableVoices]);
+  }, [getValues, setValue, allDisplayableVoices]);
 
   return (
     <FormProvider {...formMethods}>

@@ -12,7 +12,8 @@ import {
 import {
   uploadPhoto,
   uploadVideo,
-  downloadPhoto,
+  downloadMedia,
+  downloadPresetPhoto,
   downloadPresetVideo,
   generatePhoto,
   editPhoto,
@@ -107,9 +108,10 @@ const AssistantsPage = async () => {
       status: await getAssistantStatus(adminKey),
     },
     photo: {
-      upload: await uploadPhoto(apiKey),
+      uploadPhoto: await uploadPhoto(apiKey),
       uploadVideo: await uploadVideo(apiKey),
-      download: await downloadPhoto(),
+      downloadMedia: await downloadMedia(),
+      downloadPresetPhoto: await downloadPresetPhoto(),
       downloadPresetVideo: await downloadPresetVideo(),
       generate: await generatePhoto(apiKey),
       edit: await editPhoto(apiKey),

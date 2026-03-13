@@ -137,7 +137,7 @@ export const listMediaFiles = async () => {
   };
 };
 
-export const downloadPhoto = async () => {
+export const downloadMedia = async () => {
   // filePathOrUrl can be a full GCS URL or just the object path
   return async (filePathOrUrl: string): Promise<{ signedUrl?: string; detail?: string }> => {
     'use server';
@@ -157,10 +157,12 @@ export const downloadPhoto = async () => {
       return { detail: 'File path is missing or could not be determined.' };
     }
 
-    // Preset videos (paths starting with preset_assistants/) live in the
-    // presets bucket, not the regular media bucket.  This also handles the
-    // legacy gs://bucket/preset_assistants/… URLs that were stored when
-    // the NEXT_PUBLIC bucket env vars were not yet set.
+    // Preset media (paths starting with preset_assistants/) live in the
+    // presets bucket, not the regular media bucket.  This covers both
+    // preset photos (preset_assistants/photos/…) and preset videos
+    // (preset_assistants/videos/{name}_{provider}.mp4).  It also handles
+    // the legacy gs://bucket/preset_assistants/… URLs that were stored
+    // when the NEXT_PUBLIC bucket env vars were not yet set.
     const isPresetPath = objectPath.startsWith('preset_assistants/');
     const bucketName = isPresetPath
       ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
@@ -170,12 +172,12 @@ export const downloadPhoto = async () => {
         process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
 
     if (!bucketName) {
-      console.error('[photo.ts downloadPhoto] GCS Bucket name environment variable is not set.');
+      console.error('[photo.ts downloadMedia] GCS Bucket name environment variable is not set.');
       return { detail: 'Server configuration error: Bucket name missing.' };
     }
     if (!storage) {
       console.error(
-        '[photo.ts downloadPhoto] Storage client is not available in uploadPhoto action.'
+        '[photo.ts downloadMedia] Storage client is not available.'
       );
       return { detail: 'Server configuration error: Storage unavailable' };
     }
@@ -192,7 +194,7 @@ export const downloadPhoto = async () => {
       return { signedUrl: url };
     } catch (error) {
       console.error(
-        `[photo.ts downloadPhoto] FAILED to generate signed URL for object path "${objectPath}" in bucket "${bucketName}":`,
+        `[photo.ts downloadMedia] FAILED to generate signed URL for object path "${objectPath}" in bucket "${bucketName}":`,
         error
       );
       const errorMsg =
@@ -212,6 +214,63 @@ export const downloadPhoto = async () => {
   };
 };
 
+export const downloadPresetPhoto = async () => {
+  return async (
+    firstName: string,
+    lastName: string
+  ): Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }> => {
+    'use server';
+
+    // Construct object path for preset photos stored under photos/ subfolder
+    const objectPath = `preset_assistants/photos/${firstName}_${lastName}.jpg`;
+
+    const bucketName =
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
+      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    if (!bucketName) {
+      console.error(
+        '[photo.ts downloadPresetPhoto] GCS Presets Bucket name environment variable is not set.'
+      );
+      return { detail: 'Server configuration error: Presets Bucket name missing.' };
+    }
+    if (!storage) {
+      console.error('[photo.ts downloadPresetPhoto] Storage client is not available.');
+      return { detail: 'Server configuration error: Storage unavailable' };
+    }
+
+    try {
+      const options = {
+        version: 'v4' as const,
+        action: 'read' as const,
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      };
+
+      const [url] = await storage.bucket(bucketName).file(objectPath).getSignedUrl(options);
+
+      return { signedUrl: url, gcsUrl: `gs://${bucketName}/${objectPath}` };
+    } catch (error) {
+      console.error(
+        `[photo.ts downloadPresetPhoto] FAILED to generate signed URL for object path "${objectPath}" in bucket "${bucketName}":`,
+        error
+      );
+      const errorMsg =
+        error instanceof Error ? error.message : 'Unknown error generating download URL.';
+      if (errorMsg.includes('No such object')) {
+        return { detail: `Preset photo not found at path: ${objectPath}` };
+      } else if (
+        errorMsg.includes('does not have serviceusage.services.use access') ||
+        errorMsg.includes('caller does not have storage.objects.get access') ||
+        errorMsg.includes('permission denied') ||
+        errorMsg.includes('signBlob')
+      ) {
+        return { detail: 'Permission denied accessing preset photo.' };
+      }
+      return { detail: 'Could not retrieve preset photo URL.' };
+    }
+  };
+};
+
 export const downloadPresetVideo = async () => {
   return async (
     firstName: string,
@@ -221,7 +280,7 @@ export const downloadPresetVideo = async () => {
     'use server';
 
     // Construct object path using firstName, lastName, and provider
-    const objectPath = `preset_assistants/${firstName}_${lastName}_${provider.toLowerCase()}.mp4`;
+    const objectPath = `preset_assistants/videos/${firstName}_${lastName}_${provider.toLowerCase()}.mp4`;
 
     const bucketName =
       process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||

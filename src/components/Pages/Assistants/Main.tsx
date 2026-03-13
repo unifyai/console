@@ -626,13 +626,24 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   // Auto-select the first filtered preset (top of the "Available Hires" list)
   // whenever the filtered list changes (e.g. the async geo lookup narrows by
   // region) — but only while the dialog is freshly opened and the user hasn't
-  // manually picked a preset yet. needsPresetSelection is intentionally NOT
-  // cleared here so the effect re-fires when the geo lookup resolves.
+  // manually picked a preset yet.
+  // If a preset is already selected and still exists in the new filtered list
+  // (e.g. after geo narrows the list), skip re-selection to avoid a visual
+  // "reload" where photos/videos are cleared and re-fetched.
   React.useEffect(() => {
     if (needsPresetSelection && currentFilteredPresets.length > 0 && !userHasChangedPreset) {
+      const current = formMethods.getValues('currentPreset');
+      if (
+        current &&
+        currentFilteredPresets.some(
+          (p) => p.firstName === current.firstName && p.surname === current.surname
+        )
+      ) {
+        return; // already selected and still valid — nothing to do
+      }
       selectPresetForHireForm(currentFilteredPresets[0]);
     }
-  }, [needsPresetSelection, currentFilteredPresets, userHasChangedPreset, selectPresetForHireForm]);
+  }, [needsPresetSelection, currentFilteredPresets, userHasChangedPreset, selectPresetForHireForm, formMethods]);
 
   const handleOpenEditDialog = React.useCallback(
     (assistant: Assistant) => {
@@ -926,6 +937,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
             availableLanguages={availableLanguages}
             layoutMode="split" // Dummy prop
             setLayoutMode={() => {}} // Dummy prop
+            downloadPresetPhoto={assistantActions.photo.downloadPresetPhoto}
           />
         </AssistantHire>
 

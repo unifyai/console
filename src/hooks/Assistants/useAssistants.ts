@@ -66,7 +66,7 @@ export function useAssistants(allActions: AssistantActions) {
         validAssistants.forEach((assistant) => {
           const photoPromise =
             assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)
-              ? photoActions.download(assistant.profilePhoto).then((result) => ({
+              ? photoActions.downloadMedia(assistant.profilePhoto).then((result) => ({
                   agentId: assistant.agentId,
                   signedProfilePhotoUrl: result.signedUrl,
                 }))
@@ -74,7 +74,7 @@ export function useAssistants(allActions: AssistantActions) {
 
           const videoPromise =
             assistant.profileVideo && isGcsPhoto(assistant.profileVideo)
-              ? photoActions.download(assistant.profileVideo).then((result) => ({
+              ? photoActions.downloadMedia(assistant.profileVideo).then((result) => ({
                   agentId: assistant.agentId,
                   signedProfileVideoUrl: result.signedUrl,
                 }))
@@ -179,7 +179,7 @@ export function useAssistants(allActions: AssistantActions) {
 
         // If a photo was part of the payload, refresh its URL
         if (payload.profilePhoto && isGcsPhoto(payload.profilePhoto)) {
-          const res = await photoActions.download(payload.profilePhoto);
+          const res = await photoActions.downloadMedia(payload.profilePhoto);
           if (res.signedUrl) {
             setAssistants((current) =>
               current.map((a) =>
