@@ -201,6 +201,8 @@ describe('Assistant Profile Chat', () => {
     cleanupChatMocks();
     vi.useRealTimers();
     vi.restoreAllMocks();
+    // Clear sessionStorage to prevent contact_id cache leaking between tests
+    sessionStorage.clear();
   });
 
   const getChatBubbles = () => getChatBubblesHelper(screen);

@@ -40,6 +40,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
+import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
@@ -220,6 +221,12 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
     deleteAssistant,
     updateAssistantProfile,
   } = useAssistants(assistantActions);
+
+  // --- Prefetch contact IDs for all loaded assistants ---
+  // Resolves contact IDs in the background as soon as the assistant list is
+  // available, storing them in sessionStorage. When the user opens a chat,
+  // the contact ID is already cached — eliminating the "Connecting..." delay.
+  useContactIdPrefetch(assistants, assistantActions, userMeta.email);
 
   // --- Deep-link to a specific assistant via ?profile=<agentId> ---
   const searchParams = useSearchParams();
