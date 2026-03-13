@@ -39,6 +39,7 @@ import {
   ArrowUp,
   CornerDownLeft,
   ArrowRight,
+  ImageIcon,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -291,10 +292,25 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   if (resultEl) {
     const resultIcon = findIconCenter(resultEl, containerRect);
     if (!resultIcon) return null;
-    const bottomY = resultIcon.y;
+
+    // Check for tail elements (e.g. image rows) that extend below the result
+    const tailEls = container.querySelectorAll<HTMLElement>(
+      `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="tail"]`
+    );
+    let bottomY = resultIcon.y;
+    const midYs: number[] = [];
+
+    if (tailEls.length > 0) {
+      // Result becomes a midpoint; tail is the new bottom
+      midYs.push(resultIcon.y);
+      tailEls.forEach((el) => {
+        const center = findIconCenter(el, containerRect);
+        if (center && center.y > resultIcon.y) bottomY = Math.max(bottomY, center.y);
+      });
+    }
+
     if (topY >= bottomY) return null;
 
-    const midYs: number[] = [];
     nestEls.forEach((el) => {
       const center = findIconCenter(el, containerRect);
       if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
@@ -1149,6 +1165,65 @@ function InlineImageGallery({ urls }: { urls: string[] }) {
   );
 }
 
+function ImageResultRow({
+  urls,
+  time,
+  tcId,
+  onTcHover,
+}: {
+  urls: string[];
+  time: string;
+  tcId?: string;
+  onTcHover?: (tcId: string | null) => void;
+}) {
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <>
+      <div
+        ref={rowRef}
+        className="hover:bg-muted/40 group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150"
+        onClick={() => setIsOpen(!isOpen)}
+        {...(tcId
+          ? {
+              'data-tc-id': tcId,
+              'data-tc-role': 'tail',
+              onMouseEnter: () => onTcHover?.(tcId),
+              onMouseLeave: () => onTcHover?.(null),
+            }
+          : {})}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="mt-0.5 shrink-0 text-blue-500/70 dark:text-blue-400/60">
+              <ImageIcon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            images
+          </TooltipContent>
+        </Tooltip>
+        <span className="min-w-0 truncate text-muted-foreground">
+          {urls.length} image{urls.length !== 1 ? 's' : ''}
+        </span>
+        <ChevronRight
+          className={cn(
+            'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 transition-all duration-150',
+            isOpen ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+        />
+        {!isOpen && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        )}
+      </div>
+      {isOpen && <InlineImageGallery urls={urls} />}
+    </>
+  );
+}
+
 function ThoughtLabel({ text, time }: { text: string; time: string }) {
   const ref = React.useRef<HTMLDivElement>(null);
   return (
@@ -1856,7 +1931,7 @@ function ToolLoopMessage({
       }
     })();
   const hasMoreLines = content ? content.includes('\n') : false;
-  const canExpand = isTruncated || hasMoreLines || jsonExpandable || imageUrls.length > 0;
+  const canExpand = isTruncated || hasMoreLines || jsonExpandable;
 
   const tcResultId =
     message.role === 'tool'
@@ -1879,38 +1954,7 @@ function ToolLoopMessage({
   };
 
   if (!content && imageUrls.length > 0) {
-    const [imgOpen, setImgOpen] = React.useState(false); // eslint-disable-line react-hooks/rules-of-hooks
-    const imgRef = React.useRef<HTMLDivElement>(null); // eslint-disable-line react-hooks/rules-of-hooks
-    return (
-      <>
-        <div
-          ref={imgRef}
-          className="hover:bg-muted/40 group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150"
-          onClick={() => setImgOpen(!imgOpen)}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={cn('mt-0.5 shrink-0', color)}>
-                <LabelIcon className="h-2.5 w-2.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-              {label}
-            </TooltipContent>
-          </Tooltip>
-          <span className="text-muted-foreground/50 italic">[image]</span>
-          {!imgOpen && (
-            <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100" />
-          )}
-          {!imgOpen && (
-            <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
-              {time}
-            </span>
-          )}
-        </div>
-        {imgOpen && <InlineImageGallery urls={imageUrls} />}
-      </>
-    );
+    return <ImageResultRow urls={imageUrls} time={time} tcId={tcResultId} onTcHover={onTcHover} />;
   }
 
   return (
@@ -1981,7 +2025,6 @@ function ToolLoopMessage({
             </span>
           )}
         </div>
-        {isOpen && imageUrls.length > 0 && <InlineImageGallery urls={imageUrls} />}
         {isOpen &&
           (() => {
             if (isJson) {
@@ -2017,6 +2060,9 @@ function ToolLoopMessage({
             );
           })()}
       </div>
+      {imageUrls.length > 0 && (
+        <ImageResultRow urls={imageUrls} time={time} tcId={tcResultId} onTcHover={onTcHover} />
+      )}
       {trailingCallLine}
       {trailingResponseContent && (
         <InlineContentRow
