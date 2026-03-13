@@ -1087,6 +1087,12 @@ function ToolCallRow({
           className={cn('min-w-0 truncate text-muted-foreground', isPending && 'animate-shimmer')}
         >
           <HighlightText text={entry.label} term={searchTerm} />
+          {!isOpen && formattedArgs && (
+            <span className="text-muted-foreground/40">
+              {' '}
+              {formattedArgs.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+            </span>
+          )}
         </span>
         {canExpand && (
           <ChevronRight
