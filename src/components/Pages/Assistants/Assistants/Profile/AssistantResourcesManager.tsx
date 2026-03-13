@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { KeyRound, Check, Contact, Monitor, Fingerprint } from 'lucide-react';
+import { KeyRound, Check, Contact, Monitor } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
 import { AssistantDesktopLinker } from './AssistantDesktopLinker';
@@ -93,26 +93,6 @@ export function AssistantResourcesManager({
           tooltip="Manage API keys and credentials"
           icon={<KeyRound className="h-4 w-4 flex-shrink-0" />}
           handleClick={() => setIsSecretsManagerOpen(true)}
-        />
-        <ContactItem
-          value="Assistant ID"
-          tooltip={
-            <>
-              Click to copy assistant ID. Used for programmatic integration, see{' '}
-              <a
-                href="https://docs.unify.ai/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                docs
-              </a>
-              .
-            </>
-          }
-          icon={<Fingerprint className="h-4 w-4 flex-shrink-0" />}
-          isCopyable
-          copyValue={assistant.agentId}
         />
         {/* {canWrite && (
           <ContactItem

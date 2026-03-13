@@ -39,6 +39,7 @@ import {
   ArrowUp,
   CornerDownLeft,
   ArrowRight,
+  ImageIcon,
   type LucideIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -291,10 +292,25 @@ function computeBracketGeom(container: HTMLElement, hoveredTcId: string): Bracke
   if (resultEl) {
     const resultIcon = findIconCenter(resultEl, containerRect);
     if (!resultIcon) return null;
-    const bottomY = resultIcon.y;
+
+    // Check for tail elements (e.g. image rows) that extend below the result
+    const tailEls = container.querySelectorAll<HTMLElement>(
+      `[data-tc-id="${CSS.escape(hoveredTcId)}"][data-tc-role="tail"]`
+    );
+    let bottomY = resultIcon.y;
+    const midYs: number[] = [];
+
+    if (tailEls.length > 0) {
+      // Result becomes a midpoint; tail is the new bottom
+      midYs.push(resultIcon.y);
+      tailEls.forEach((el) => {
+        const center = findIconCenter(el, containerRect);
+        if (center && center.y > resultIcon.y) bottomY = Math.max(bottomY, center.y);
+      });
+    }
+
     if (topY >= bottomY) return null;
 
-    const midYs: number[] = [];
     nestEls.forEach((el) => {
       const center = findIconCenter(el, containerRect);
       if (center && center.y > topY && center.y < bottomY) midYs.push(center.y);
@@ -362,15 +378,16 @@ function getLabelStyles(status: ActionNodeStatus): string {
  */
 function getNodeIcon(displayLabel?: string): LucideIcon {
   if (!displayLabel) return CircleDot;
-  if (displayLabel === 'Session') return Repeat;
-  if (displayLabel === 'Taking Action') return Zap;
-  if (displayLabel === 'Running Code') return SquareTerminal;
-  if (displayLabel.startsWith('Running:')) return Play;
-  if (displayLabel === 'Storing Reusable Skills') return Bookmark;
-  if (displayLabel === 'Reading File') return FileText;
-  if (displayLabel === 'Processing Memory Chunk') return Cpu;
-  if (displayLabel === 'Working on Task') return Wrench;
-  if (displayLabel === 'Reorganizing Notes') return RefreshCw;
+  const dl = displayLabel.toLowerCase();
+  if (dl === 'session') return Repeat;
+  if (dl === 'taking action') return Zap;
+  if (dl === 'running code') return SquareTerminal;
+  if (dl.startsWith('running:')) return Play;
+  if (dl === 'storing reusable skills') return Bookmark;
+  if (dl === 'reading file') return FileText;
+  if (dl === 'processing memory chunk') return Cpu;
+  if (dl === 'working on task') return Wrench;
+  if (dl === 'reorganizing notes') return RefreshCw;
   if (displayLabel === 'Searching the Web') return Globe;
   if (displayLabel === 'Answering Question') return MessageCircle;
   if (displayLabel.includes('Contact')) return Users;
@@ -507,6 +524,11 @@ function countDescendantLiveLogs(node: ActionNode): number {
   return count;
 }
 
+function isNodeOrDescendantRunning(node: ActionNode): boolean {
+  if (node.status === 'running') return true;
+  return node.children.some(isNodeOrDescendantRunning);
+}
+
 /**
  * Scan backwards through already-placed logs to find the tool_call_id of
  * the tool call that spawned this child node.
@@ -596,17 +618,46 @@ function LiveDuration({ node }: { node: ActionNode }) {
  * Extract text content from various formats.
  */
 function extractTextContent(
-  content: string | Array<{ type: string; text: string }> | undefined
+  content: string | Array<{ type: string; text?: string }> | undefined
 ): string | null {
   if (!content) return null;
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content
-      .filter((block) => block.type === 'text' && block.text)
-      .map((block) => block.text)
-      .join('\n');
+    let imgIdx = 0;
+    const redacted = content.map((block) => {
+      if ((block.type === 'image_url' || block.type === 'imageUrl') && block) {
+        const raw = block as Record<string, unknown>;
+        const urlObj = (raw.imageUrl ?? raw.image_url) as { url: string } | undefined;
+        if (urlObj?.url) {
+          const label = `image${imgIdx}`;
+          imgIdx++;
+          const redactedBlock = { ...block, imageUrl: { url: label } };
+          delete (redactedBlock as Record<string, unknown>)['image_url'];
+          return redactedBlock;
+        }
+      }
+      return block;
+    });
+    return JSON.stringify(redacted, null, 2);
   }
   return null;
+}
+
+/**
+ * Extract image data URLs from content block arrays.
+ */
+function extractImageUrls(
+  content: string | Array<{ type: string; imageUrl?: { url: string } }> | undefined
+): string[] {
+  if (!content || typeof content === 'string' || !Array.isArray(content)) return [];
+  return content
+    .filter((block) => block.type === 'image_url' || block.type === 'imageUrl')
+    .map((block) => {
+      const raw = block as Record<string, unknown>;
+      const urlObj = (raw.imageUrl ?? raw.image_url) as { url: string } | undefined;
+      return urlObj?.url ?? '';
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -1036,6 +1087,12 @@ function ToolCallRow({
           className={cn('min-w-0 truncate text-muted-foreground', isPending && 'animate-shimmer')}
         >
           <HighlightText text={entry.label} term={searchTerm} />
+          {!isOpen && formattedArgs && (
+            <span className="text-muted-foreground/40">
+              {' '}
+              {formattedArgs.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+            </span>
+          )}
         </span>
         {canExpand && (
           <ChevronRight
@@ -1061,6 +1118,244 @@ function ToolCallRow({
         </pre>
       )}
     </div>
+  );
+}
+
+function InlineImageGallery({ urls }: { urls: string[] }) {
+  const [lightboxIdx, setLightboxIdx] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (lightboxIdx === null) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxIdx]);
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
+        {urls.map((url, i) => (
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`image${i}`}
+                className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
+                onClick={() => setLightboxIdx(i)}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              image{i}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+      {lightboxIdx !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxIdx(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={urls[lightboxIdx]}
+            alt={`image${lightboxIdx}`}
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={() => setLightboxIdx(null)}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function ImageResultRow({
+  urls,
+  time,
+  tcId,
+  onTcHover,
+}: {
+  urls: string[];
+  time: string;
+  tcId?: string;
+  onTcHover?: (tcId: string | null) => void;
+}) {
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <>
+      <div
+        ref={rowRef}
+        className="hover:bg-muted/40 group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150"
+        onClick={() => setIsOpen(!isOpen)}
+        {...(tcId
+          ? {
+              'data-tc-id': tcId,
+              'data-tc-role': 'tail',
+              onMouseEnter: () => onTcHover?.(tcId),
+              onMouseLeave: () => onTcHover?.(null),
+            }
+          : {})}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="mt-0.5 shrink-0 text-blue-500/70 dark:text-blue-400/60">
+              <ImageIcon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            images
+          </TooltipContent>
+        </Tooltip>
+        <span className="min-w-0 truncate text-muted-foreground">
+          {urls.length} image{urls.length !== 1 ? 's' : ''}
+        </span>
+        <ChevronRight
+          className={cn(
+            'text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 transition-all duration-150',
+            isOpen ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+        />
+        {!isOpen && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        )}
+      </div>
+      {isOpen && <InlineImageGallery urls={urls} />}
+    </>
+  );
+}
+
+function ThoughtLabel({ text, time }: { text: string; time: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={ref}
+      className="flex cursor-pointer items-center gap-2"
+      onClick={() => {
+        const el = ref.current;
+        if (el) {
+          el.classList.remove('animate-nudge');
+          void el.offsetWidth;
+          el.classList.add('animate-nudge');
+        }
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="shrink-0 text-slate-500/80 dark:text-slate-400/50">
+            <Brain className="h-2.5 w-2.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+          thought
+        </TooltipContent>
+      </Tooltip>
+      <span className="min-w-0 truncate text-muted-foreground">{text}</span>
+      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+        {time}
+      </span>
+    </div>
+  );
+}
+
+function InlineContentRow({
+  content: text,
+  time,
+  Icon,
+  iconColor,
+  tooltipLabel,
+}: {
+  content: string;
+  time: string;
+  Icon: LucideIcon;
+  iconColor: string;
+  tooltipLabel: string;
+}) {
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLSpanElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isTruncated, setIsTruncated] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const check = () => setIsTruncated(el.scrollWidth > el.clientWidth || text.includes('\n'));
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const collapsedPreview = text.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
+
+  const handleClick = () => {
+    if (!isOpen && isTruncated) {
+      setIsOpen(true);
+    } else if (isOpen) {
+      setIsOpen(false);
+    } else {
+      const el = rowRef.current;
+      if (el) {
+        el.classList.remove('animate-nudge');
+        void el.offsetWidth;
+        el.classList.add('animate-nudge');
+      }
+    }
+  };
+
+  const firstLine = text.split(/\n/)[0];
+  const rest = text.split(/\n/).slice(1).join('\n').trim();
+
+  return (
+    <>
+      <div
+        ref={rowRef}
+        className={cn(
+          'group flex cursor-pointer items-start gap-2 rounded-sm transition-colors duration-150',
+          !isOpen && isTruncated && 'hover:bg-muted/40',
+          isOpen && 'hover:bg-muted/40'
+        )}
+        onClick={handleClick}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={cn('mt-0.5 shrink-0', iconColor)}>
+              <Icon className="h-2.5 w-2.5" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+            {tooltipLabel}
+          </TooltipContent>
+        </Tooltip>
+        <span
+          ref={contentRef}
+          className={cn('min-w-0 text-muted-foreground', isOpen ? 'break-words' : 'truncate')}
+        >
+          {isOpen ? firstLine : collapsedPreview}
+        </span>
+        {!isOpen && isTruncated && (
+          <ChevronRight className="text-muted-foreground/40 mt-0.5 h-2.5 w-2.5 shrink-0 opacity-0 transition-all duration-150 group-hover:opacity-100" />
+        )}
+        {!isOpen && (
+          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
+            {time}
+          </span>
+        )}
+      </div>
+      {isOpen && rest && (
+        <div
+          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+          onClick={() => setIsOpen(false)}
+        >
+          <RichContent content={rest} />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1101,6 +1396,7 @@ function ToolLoopMessage({
   const [isTruncated, setIsTruncated] = React.useState(false);
   const msg = message as Record<string, unknown>;
   const textContent = extractTextContent(message.content);
+  const imageUrls = extractImageUrls(message.content as Parameters<typeof extractImageUrls>[0]);
   const [childLogs, setChildLogs] = React.useState<ToolLoopLog[]>([]);
   const [childLoading, setChildLoading] = React.useState(false);
   const childFetchedRef = React.useRef(false);
@@ -1109,14 +1405,15 @@ function ToolLoopMessage({
 
   // Hooks for inline child node expansion — must be unconditional (rules of hooks).
   const child = log.syntheticChildNode;
-  const [childLogsOpen, setChildLogsOpen] = React.useState(child?.status === 'running');
+  const childRunning = child ? isNodeOrDescendantRunning(child) : false;
+  const [childLogsOpen, setChildLogsOpen] = React.useState(childRunning);
 
   React.useEffect(() => {
-    if (child?.status === 'running' && !childLogsOpen) {
+    if (childRunning && !childLogsOpen) {
       setChildLogsOpen(true);
       onLayoutChange?.();
     }
-  }, [child?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [childRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Collect live logs from the child AND all its descendants. This mirrors
   // the Orchestra getToolLoopEvents prefix query so PubSub-only streaming
@@ -1160,7 +1457,9 @@ function ToolLoopMessage({
   if (child) {
     const tcId = log.syntheticToolCallId ?? null;
     const isHighlighted = tcId != null && hoveredTcId === tcId;
-    const childLabel = child.displayLabel || child.label;
+    const innerChild =
+      child.children.length === 1 && child.children[0].displayLabel ? child.children[0] : null;
+    const childLabel = innerChild?.displayLabel ?? child.displayLabel ?? child.label;
     const childTime = formatEventTime(child.startTime);
     const canExpand = !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
 
@@ -1224,7 +1523,7 @@ function ToolLoopMessage({
           <span
             className={cn(
               'min-w-0 truncate text-muted-foreground',
-              child.status === 'running' && 'animate-shimmer'
+              isNodeOrDescendantRunning(child) && 'animate-shimmer'
             )}
           >
             {childLabel}
@@ -1378,13 +1677,9 @@ function ToolLoopMessage({
   const renderCallLine = () => {
     if (!message.toolCalls || message.toolCalls.length === 0) return null;
     const rawAliases = log.entries.toolAliases;
+    const normalizeKey = (k: string) => k.replace(/_/g, '').toLowerCase();
     const aliases = rawAliases
-      ? Object.fromEntries(
-          Object.entries(rawAliases).map(([k, v]) => [
-            k.replace(/([A-Z])/g, '_$1').toLowerCase(),
-            v,
-          ])
-        )
+      ? Object.fromEntries(Object.entries(rawAliases).map(([k, v]) => [normalizeKey(k), v]))
       : null;
 
     const codeBlocks: Array<{ lang: string; code: string; toolCallId: string }> = [];
@@ -1405,10 +1700,20 @@ function ToolLoopMessage({
       }
     }
 
+    const notificationMessages: string[] = [];
     const toolEntries = message.toolCalls
       .map((tc) => {
         if (codeBlocks.length > 0 && tc.function.name === 'execute_code') return null;
-        const alias = aliases?.[tc.function.name];
+        if (tc.function.name === 'send_notification') {
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            if (args.message) notificationMessages.push(args.message);
+          } catch {
+            /* skip */
+          }
+          return null;
+        }
+        const alias = aliases?.[normalizeKey(tc.function.name)];
         return {
           label: alias || `${tc.function.name}()`,
           toolCallId: tc.id,
@@ -1431,6 +1736,19 @@ function ToolLoopMessage({
     );
 
     const rows: React.ReactNode[] = [];
+
+    for (let i = 0; i < notificationMessages.length; i++) {
+      rows.push(
+        <InlineContentRow
+          key={`notif-${i}`}
+          content={notificationMessages[i]}
+          time={time}
+          Icon={ArrowUp}
+          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          tooltipLabel="notification"
+        />
+      );
+    }
 
     for (let i = 0; i < toolEntries.length; i++) {
       const entry = toolEntries[i];
@@ -1498,6 +1816,16 @@ function ToolLoopMessage({
               )}
             >
               Run code
+              {!isCodeOpen && (
+                <span className="text-muted-foreground/40">
+                  {' ```'}
+                  {codeBlocks[0].code
+                    .replace(/\n+/g, ' ')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim()}
+                  {'```'}
+                </span>
+              )}
             </span>
             <ChevronRight
               className={cn(
@@ -1542,12 +1870,27 @@ function ToolLoopMessage({
       );
     }
 
+    if (rows.length === 0) return null;
     return rows.length === 1 ? rows[0] : <>{rows}</>;
   };
 
   // ── Pure tool calls (no text content) — render as call rows ───────────
   if ((kind === 'tool_call' || kind === 'steering_helper') && !textContent) {
-    return renderCallLine();
+    const isWaitOnly =
+      message.toolCalls?.length === 1 &&
+      (message.toolCalls[0].function.name === 'wait' ||
+        ((message.toolCalls[0] as Record<string, unknown>).name as string) === 'wait');
+    if (isWaitOnly) {
+      return <ThoughtLabel text="Waiting..." time={time} />;
+    }
+    const callLines = renderCallLine();
+    if (!callLines) return null;
+    return (
+      <>
+        <ThoughtLabel text="Selecting actions." time={time} />
+        {callLines}
+      </>
+    );
   }
 
   // ── Content-based kinds — label + icon + color from the style map ─────
@@ -1556,6 +1899,8 @@ function ToolLoopMessage({
   let LabelIcon: LucideIcon = kindStyle.Icon;
   let content: string | null = null;
   let trailingCallLine: React.ReactNode = null;
+  let trailingResponseContent: string | null = null;
+  let leadingThoughtLabel: string | null = null;
 
   if (kind === 'thought') {
     const blocks =
@@ -1576,32 +1921,39 @@ function ToolLoopMessage({
     }
     content = thinkingText || textContent;
     if (message.toolCalls?.length) trailingCallLine = renderCallLine();
+    else if (thinkingText && textContent && textContent.replace(/^\s+/, '')) {
+      trailingResponseContent = textContent.replace(/^\s+/, '');
+    }
   } else if (kind === 'tool_call') {
     label = 'thought';
     color = 'text-slate-500/80 dark:text-slate-400/50';
     LabelIcon = Brain;
     content = textContent;
     trailingCallLine = renderCallLine();
+  } else if (kind === 'response') {
+    leadingThoughtLabel = 'Sending response.';
+    content = textContent;
   } else {
     content = textContent;
   }
 
-  if (!content) return null;
-  content = content.replace(/^\s+/, '');
-  if (!content) return null;
+  if (!content && imageUrls.length === 0) return null;
+  if (content) content = content.replace(/^\s+/, '');
+  if (!content && imageUrls.length === 0) return null;
 
-  const preview = content.split(/\n\n|\n/)[0];
-  const isJson = isLikelyJson(content);
+  const collapsedPreview = content ? content.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ') : '';
+  const firstLine = content ? content.split(/\n/)[0] : '';
+  const isJson = content ? isLikelyJson(content) : false;
   const jsonExpandable =
     isJson &&
     (() => {
       try {
-        return JSON.stringify(JSON.parse(content), null, 2).includes('\n');
+        return JSON.stringify(JSON.parse(content!), null, 2).includes('\n');
       } catch {
         return false;
       }
     })();
-  const hasMoreLines = content.includes('\n');
+  const hasMoreLines = content ? content.includes('\n') : false;
   const canExpand = isTruncated || hasMoreLines || jsonExpandable;
 
   const tcResultId =
@@ -1624,8 +1976,13 @@ function ToolLoopMessage({
     }
   };
 
+  if (!content && imageUrls.length > 0) {
+    return <ImageResultRow urls={imageUrls} time={time} tcId={tcResultId} onTcHover={onTcHover} />;
+  }
+
   return (
     <>
+      {leadingThoughtLabel && <ThoughtLabel text={leadingThoughtLabel} time={time} />}
       <div
         ref={rowRef}
         className={cn(
@@ -1669,7 +2026,7 @@ function ToolLoopMessage({
           </Tooltip>
           {!isOpen && (
             <span ref={collapsedContentRef} className="min-w-0 truncate text-muted-foreground">
-              <TruncatedMarkdown content={preview} />
+              <TruncatedMarkdown content={collapsedPreview} />
             </span>
           )}
           {isOpen && (
@@ -1679,7 +2036,7 @@ function ToolLoopMessage({
                 hasMoreLines || isJson ? 'truncate' : 'break-words'
               )}
             >
-              {isJson ? content!.trim()[0] : <TruncatedMarkdown content={preview} />}
+              {isJson ? content!.trim()[0] : <TruncatedMarkdown content={firstLine} />}
             </span>
           )}
           {!isOpen && canExpand && (
@@ -1726,7 +2083,19 @@ function ToolLoopMessage({
             );
           })()}
       </div>
+      {imageUrls.length > 0 && (
+        <ImageResultRow urls={imageUrls} time={time} tcId={tcResultId} onTcHover={onTcHover} />
+      )}
       {trailingCallLine}
+      {trailingResponseContent && (
+        <InlineContentRow
+          content={trailingResponseContent}
+          time={time}
+          Icon={ArrowUp}
+          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          tooltipLabel="response"
+        />
+      )}
     </>
   );
 }
@@ -2045,16 +2414,29 @@ function PromotedContent({
           </Tooltip>
         )}
         {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
-        <span
-          ref={inlineRef}
-          className={cn('min-w-0 text-muted-foreground', !isOpen ? 'truncate' : 'break-words')}
-        >
-          {searchTerm ? (
-            <HighlightText text={trimmedContent.split(/\n\n|\n/)[0]} term={searchTerm} />
-          ) : (
-            <TruncatedMarkdown content={trimmedContent.split(/\n\n|\n/)[0]} />
-          )}
-        </span>
+        {!isOpen && (
+          <span ref={inlineRef} className="min-w-0 truncate text-muted-foreground">
+            {searchTerm ? (
+              <HighlightText
+                text={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+                term={searchTerm}
+              />
+            ) : (
+              <TruncatedMarkdown
+                content={trimmedContent.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ')}
+              />
+            )}
+          </span>
+        )}
+        {isOpen && (
+          <span ref={inlineRef} className="min-w-0 break-words text-muted-foreground">
+            {searchTerm ? (
+              <HighlightText text={trimmedContent.split(/\n/)[0]} term={searchTerm} />
+            ) : (
+              <TruncatedMarkdown content={trimmedContent.split(/\n/)[0]} />
+            )}
+          </span>
+        )}
         {!isOpen && canExpand && (
           <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 shrink-0 self-center opacity-0 transition-all duration-150 group-hover:opacity-100" />
         )}
@@ -2339,16 +2721,6 @@ export function ActionNodeItem({
     const ids = new Set<number>();
     const firstUser = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (firstUser) ids.add(firstUser.id);
-    for (let i = effectiveLogs.length - 1; i >= 0; i--) {
-      const msg = effectiveLogs[i].entries.message;
-      if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
-        const text = extractTextContent(msg.content);
-        if (text) {
-          ids.add(effectiveLogs[i].id);
-          break;
-        }
-      }
-    }
     return ids;
   }, [effectiveLogs, node.persist]);
 

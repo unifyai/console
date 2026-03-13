@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { Info } from 'lucide-react';
+import { Info, Copy, Check } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -81,6 +81,7 @@ export function AssistantProfileInfoPanel({
 }: AssistantProfileInfoPanelProps) {
   const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
+  const [isIdCopied, setIsIdCopied] = React.useState(false);
   const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const resolvedSupervisorImage = useResolvedImageUrl(assistant.userImage);
@@ -197,7 +198,7 @@ export function AssistantProfileInfoPanel({
             )}
           </Popover>
 
-          <div className="grid max-w-xs flex-1 grid-cols-2 gap-y-0.5 py-0.5">
+          <div className="grid max-w-xs flex-1 grid-cols-2 py-0.5">
             <span className="text-caption font-bold">First Name</span>
             <span className="text-caption">{assistant.firstName}</span>
             <span className="text-caption font-bold">Last Name</span>
@@ -206,6 +207,41 @@ export function AssistantProfileInfoPanel({
             <span className="text-caption">{assistant.age ?? 'N/A'}</span>
             <span className="text-caption font-bold">Nationality</span>
             <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
+            <span className="text-caption font-bold">ID</span>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="text-caption group/id flex cursor-pointer items-center gap-1"
+                    onClick={() => {
+                      navigator.clipboard.writeText(assistant.agentId);
+                      setIsIdCopied(true);
+                      setTimeout(() => setIsIdCopied(false), 2000);
+                    }}
+                  >
+                    {isIdCopied ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3 text-muted-foreground transition-colors group-hover/id:text-foreground" />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>
+                    Click to copy assistant ID. Used for programmatic integration, see{' '}
+                    <a
+                      href="https://docs.unify.ai/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      docs
+                    </a>
+                    .
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
