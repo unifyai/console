@@ -1816,6 +1816,16 @@ function ToolLoopMessage({
               )}
             >
               Run code
+              {!isCodeOpen && (
+                <span className="text-muted-foreground/40">
+                  {' ```'}
+                  {codeBlocks[0].code
+                    .replace(/\n+/g, ' ')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim()}
+                  {'```'}
+                </span>
+              )}
             </span>
             <ChevronRight
               className={cn(
