@@ -38,6 +38,7 @@ import {
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
+import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -380,6 +381,8 @@ export function AssistantProfileChatPanel({
               Retry
             </Button>
           </div>
+        ) : isLoading && messages.length === 0 ? (
+          <ChatMessageSkeletons />
         ) : (
           <div className="mx-auto max-w-[720px] space-y-6">
             {hasFetchedHistory && !hasMoreMessages && (
