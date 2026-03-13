@@ -2013,7 +2013,7 @@ function ToolLoopMessage({
                 hasMoreLines || isJson ? 'truncate' : 'break-words'
               )}
             >
-              {isJson ? firstLine : <TruncatedMarkdown content={firstLine} />}
+              {isJson ? content!.trim()[0] : <TruncatedMarkdown content={firstLine} />}
             </span>
           )}
           {!isOpen && canExpand && (
