@@ -1099,6 +1099,56 @@ function ToolCallRow({
   );
 }
 
+function InlineImageGallery({ urls }: { urls: string[] }) {
+  const [lightboxIdx, setLightboxIdx] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (lightboxIdx === null) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxIdx]);
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
+        {urls.map((url, i) => (
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`image${i}`}
+                className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
+                onClick={() => setLightboxIdx(i)}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+              image{i}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+      {lightboxIdx !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxIdx(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={urls[lightboxIdx]}
+            alt={`image${lightboxIdx}`}
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={() => setLightboxIdx(null)}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 function ThoughtLabel({ text, time }: { text: string; time: string }) {
   const ref = React.useRef<HTMLDivElement>(null);
   return (
@@ -1858,25 +1908,7 @@ function ToolLoopMessage({
             </span>
           )}
         </div>
-        {imgOpen && (
-          <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
-            {imageUrls.map((url, i) => (
-              <Tooltip key={i}>
-                <TooltipTrigger asChild>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`image${i}`}
-                    className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-                  image{i}
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        )}
+        {imgOpen && <InlineImageGallery urls={imageUrls} />}
       </>
     );
   }
@@ -1949,6 +1981,7 @@ function ToolLoopMessage({
             </span>
           )}
         </div>
+        {isOpen && imageUrls.length > 0 && <InlineImageGallery urls={imageUrls} />}
         {isOpen &&
           (() => {
             if (isJson) {
@@ -1984,25 +2017,6 @@ function ToolLoopMessage({
             );
           })()}
       </div>
-      {isOpen && imageUrls.length > 0 && (
-        <div className="flex flex-wrap gap-2 py-1 pl-[18px]">
-          {imageUrls.map((url, i) => (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={`image${i}`}
-                  className="border-border/30 max-h-48 max-w-full cursor-pointer rounded border object-contain"
-                />
-              </TooltipTrigger>
-              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-                image{i}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-      )}
       {trailingCallLine}
       {trailingResponseContent && (
         <InlineContentRow
