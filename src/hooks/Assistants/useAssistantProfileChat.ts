@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
+import { getSessionContactId, setSessionContactId, getOrFetchContactId } from './useContactIdPrefetch';
 
 /**
  * Chat initialization follows a linear phase progression:
@@ -31,7 +32,9 @@ type ChatPhase =
   | 'ready'
   | 'error';
 
-const CONTACT_ID_RETRY_DELAY = 5000;
+// Exponential backoff: 500ms → 1s → 2s → 4s → 8s → 16s (total ≈ 31.5s)
+const CONTACT_ID_RETRY_BASE_DELAY = 500;
+const CONTACT_ID_RETRY_MAX_DELAY = 16000;
 const CONTACT_ID_MAX_RETRIES = 6;
 
 export function useAssistantProfileChat(
@@ -114,8 +117,11 @@ export function useAssistantProfileChat(
         connectionBannerTimerRef.current = null;
       }
       setShowConnectionBanner(true);
-    } else {
-      // connecting or reconnecting — start grace period
+    } else if (phase === 'ready') {
+      // Only start the grace timer once we've reached the 'ready' phase
+      // and are actually attempting the SSE connection. Before that, the
+      // init pipeline (contact ID resolution, transcript loading) has its
+      // own loading states — we shouldn't penalize SSE for init latency.
       if (!connectionBannerTimerRef.current) {
         connectionBannerTimerRef.current = setTimeout(() => {
           connectionBannerTimerRef.current = null;
@@ -129,7 +135,7 @@ export function useAssistantProfileChat(
         connectionBannerTimerRef.current = null;
       }
     };
-  }, [connectionStatus]);
+  }, [connectionStatus, phase]);
 
   // =========================================================================
   // Reset when assistant changes
@@ -202,7 +208,15 @@ export function useAssistantProfileChat(
 
     activeAssistantIdRef.current = assistantId;
 
-    const cachedId = contactIdCacheRef.current.get(assistantId);
+    // Check in-memory cache first, then sessionStorage fallback
+    let cachedId = contactIdCacheRef.current.get(assistantId);
+    if (cachedId === undefined) {
+      cachedId = getSessionContactId(assistantId, userEmail ?? undefined);
+      if (cachedId !== undefined) {
+        // Promote sessionStorage hit into the in-memory cache
+        contactIdCacheRef.current.set(assistantId, cachedId);
+      }
+    }
 
     if (isFirstView && !initDoneRef.current) {
       initDoneRef.current = true;
@@ -257,6 +271,21 @@ export function useAssistantProfileChat(
       return;
     }
 
+    // Re-check sessionStorage — the prefetch hook may have written the
+    // contact ID between the Phase 1 init check and this effect firing.
+    const prefetchedId = getSessionContactId(assistantId, userEmail);
+    if (prefetchedId !== undefined) {
+      contactIdCacheRef.current.set(assistantId, prefetchedId);
+      setContactId(prefetchedId);
+      setCanChat(true);
+      if (phase === 'pending_contact') {
+        setPhase('ready');
+      } else {
+        setPhase('loading_transcripts');
+      }
+      return;
+    }
+
     let cancelled = false;
     let retryTimer: NodeJS.Timeout;
     const currentAssistantId = assistantId;
@@ -265,7 +294,11 @@ export function useAssistantProfileChat(
 
     const resolve = async (attempt: number) => {
       try {
-        const id = await assistantActions.chat.getContactId(
+        // getOrFetchContactId deduplicates with the prefetch hook: if a
+        // prefetch request is already in-flight for this assistant, we
+        // piggyback on it instead of firing a redundant API call.
+        const id = await getOrFetchContactId(
+          assistantActions.chat.getContactId,
           userEmail,
           currentAssistant.userId,
           currentAssistantId
@@ -274,6 +307,7 @@ export function useAssistantProfileChat(
 
         if (id !== null) {
           contactIdCacheRef.current.set(currentAssistantId, id);
+          setSessionContactId(currentAssistantId, id, userEmail);
           setContactId(id);
           setCanChat(true);
           setIsRetryingContactId(false);
@@ -285,9 +319,13 @@ export function useAssistantProfileChat(
         } else if (attempt < CONTACT_ID_MAX_RETRIES) {
           setCanChat(false);
           setIsRetryingContactId(true);
+          const delay = Math.min(
+            CONTACT_ID_RETRY_BASE_DELAY * Math.pow(2, attempt),
+            CONTACT_ID_RETRY_MAX_DELAY
+          );
           retryTimer = setTimeout(() => {
             if (!cancelled) resolve(attempt + 1);
-          }, CONTACT_ID_RETRY_DELAY);
+          }, delay);
         } else {
           setCanChat(false);
           setIsRetryingContactId(false);
@@ -298,9 +336,13 @@ export function useAssistantProfileChat(
         if (attempt < CONTACT_ID_MAX_RETRIES) {
           setCanChat(false);
           setIsRetryingContactId(true);
+          const delay = Math.min(
+            CONTACT_ID_RETRY_BASE_DELAY * Math.pow(2, attempt),
+            CONTACT_ID_RETRY_MAX_DELAY
+          );
           retryTimer = setTimeout(() => {
             if (!cancelled) resolve(attempt + 1);
-          }, CONTACT_ID_RETRY_DELAY);
+          }, delay);
         } else {
           setCanChat(false);
           setIsRetryingContactId(false);

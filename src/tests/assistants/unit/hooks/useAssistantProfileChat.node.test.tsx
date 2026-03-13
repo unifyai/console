@@ -93,11 +93,13 @@ const createMockAssistantActions = (
 describe('useAssistantProfileChat - Contact ID Auto-Retry', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('cancels in-flight resolution on unmount without errors', async () => {
@@ -744,11 +746,13 @@ describe('useAssistantProfileChat - SSE Contact Filtering', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     lastEventSource = null;
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   async function renderReady(contactId: number = USER_CONTACT_ID) {
