@@ -326,6 +326,8 @@ export function AssistantProfileChatPanel({
   const handleSendWithAttachments = React.useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      // Block sending while messages are still loading
+      if (isLoading) return;
       if (!inputValue.trim() && pendingAttachments.length === 0) return;
 
       // Store attachments to send
@@ -340,7 +342,7 @@ export function AssistantProfileChatPanel({
         setPendingAttachments((prev) => [...failedAttachments, ...prev]);
       });
     },
-    [inputValue, pendingAttachments, sendMessage]
+    [inputValue, pendingAttachments, sendMessage, isLoading]
   );
 
   const sendMessageOnEnter = React.useCallback(
@@ -575,15 +577,12 @@ export function AssistantProfileChatPanel({
                         ? spendingGate.blockedMessage || 'Spending limit reached'
                         : initialLoadError
                           ? 'Connection failed'
-                          : isLoading
-                            ? 'Loading messages...'
-                            : 'Send a message...'
+                          : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
                 !canChat ||
-                isLoading ||
                 initialLoadError ||
                 connectionStatus === 'error' ||
                 isSpendingBlocked
