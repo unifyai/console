@@ -34,7 +34,6 @@ import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import {
   PRIMARY_VOICE_PROVIDER,
-  ASSISTANT_HIRE_COMPLETION_DELAY_MS,
 } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
@@ -222,11 +221,6 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
     updateAssistantProfile,
   } = useAssistants(assistantActions);
 
-  // --- Prefetch contact IDs for all loaded assistants ---
-  // Resolves contact IDs in the background as soon as the assistant list is
-  // available, storing them in sessionStorage. When the user opens a chat,
-  // the contact ID is already cached — eliminating the "Connecting..." delay.
-  useContactIdPrefetch(assistants, assistantActions, userMeta.email);
 
   // --- Deep-link to a specific assistant via ?profile=<agentId> ---
   const searchParams = useSearchParams();
@@ -282,6 +276,15 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   const [profileChatHistories, setProfileChatHistories] = React.useState<
     Record<string, ChatMessage[]>
   >({});
+
+  // --- Prefetch contact IDs AND transcripts for all loaded assistants ---
+  // Resolves contact IDs and fetches transcript history in the background as
+  // soon as the assistant list is available. Contact IDs go into sessionStorage;
+  // transcripts go directly into profileChatHistories (write-if-absent).
+  // When the user opens a chat, both are already cached — the chat loads
+  // instantly with zero loading/skeleton state.
+  useContactIdPrefetch(assistants, assistantActions, userMeta.email, setProfileChatHistories);
+
   const [setupInstructions, setSetupInstructions] = React.useState<{
     os: string;
     isOpen: boolean;
@@ -528,15 +531,12 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
       fetchUserVoices();
       refetchBillingStatus();
 
-      // Delay closing form and opening profile to allow user to see completion state
-      setTimeout(() => {
-        setIsHireDialogOpen(false);
-        setNewlyHiredInfo({ assistant: newAssistant, preHireChat });
-        handleShowProfile(newAssistant.agentId);
-        if (formData.setup === 'local' && formData.operatingSystem) {
-          setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
-        }
-      }, ASSISTANT_HIRE_COMPLETION_DELAY_MS);
+      setIsHireDialogOpen(false);
+      setNewlyHiredInfo({ assistant: newAssistant, preHireChat });
+      handleShowProfile(newAssistant.agentId);
+      if (formData.setup === 'local' && formData.operatingSystem) {
+        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
+      }
     },
     [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices]
   );
