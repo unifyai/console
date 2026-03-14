@@ -92,7 +92,6 @@ export function AssistantProfileChatPanel({
     setInputValue,
     sendMessage,
     connectionStatus,
-    showConnectionBanner,
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,
@@ -359,13 +358,6 @@ export function AssistantProfileChatPanel({
     [isRecording, stopRecording, handleSendWithAttachments]
   );
 
-  const connectionStatusText = {
-    connected: 'Connected',
-    connecting: 'Connecting...',
-    reconnecting: 'Connection lost. Reconnecting...',
-    error: 'Connection failed. Please refresh.',
-  }[connectionStatus];
-
   return (
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
@@ -460,12 +452,14 @@ export function AssistantProfileChatPanel({
         )}
       </ScrollArea>
 
-      {/* Connection status — only shown after a grace period to avoid flashing
-         during routine SSE reconnections (e.g. the 60-second cycle). */}
-      {!initialLoadError && showConnectionBanner && connectionStatusText && (
+      {/* Connection error — only shown when all SSE retry attempts are
+         exhausted (permanent failure). Transient connecting/reconnecting
+         states are silent — SSE is self-healing plumbing the user doesn't
+         need to know about. */}
+      {!initialLoadError && connectionStatus === 'error' && (
         <div className="text-caption flex animate-pulse flex-row gap-2 px-4 text-muted-foreground">
           <MessageSquareMore className="h-4 w-4" />
-          {connectionStatusText}
+          Connection failed. Please refresh.
         </div>
       )}
 
@@ -510,7 +504,7 @@ export function AssistantProfileChatPanel({
                     !canChat ||
                     isLoading ||
                     initialLoadError ||
-                    showConnectionBanner ||
+                    connectionStatus === 'error' ||
                     isSpendingBlocked ||
                     isRecording
                   }
@@ -549,7 +543,7 @@ export function AssistantProfileChatPanel({
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
-                showConnectionBanner ||
+                connectionStatus === 'error' ||
                 isSpendingBlocked ||
                 isTranscribing
               }
@@ -591,7 +585,7 @@ export function AssistantProfileChatPanel({
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
-                showConnectionBanner ||
+                connectionStatus === 'error' ||
                 isSpendingBlocked
               }
               className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
@@ -610,7 +604,7 @@ export function AssistantProfileChatPanel({
                 isLoading ||
                 (!inputValue.trim() && pendingAttachments.length === 0) ||
                 initialLoadError ||
-                showConnectionBanner ||
+                connectionStatus === 'error' ||
                 isSpendingBlocked
               }
             >

@@ -102,45 +102,6 @@ export function useAssistantProfileChat(
   const SSE_MAX_RECONNECT_ATTEMPTS = 5;
   const SSE_RECONNECT_BASE_DELAY = 1000;
 
-  // Connection banner: suppress brief connecting/reconnecting flashes (e.g. the
-  // 60-second SSE cycle). Only surface the banner after a grace period, so
-  // transient reconnections are invisible to the user.
-  const CONNECTION_BANNER_GRACE_MS = 3000;
-  const [showConnectionBanner, setShowConnectionBanner] = React.useState(false);
-  const connectionBannerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  React.useEffect(() => {
-    if (connectionStatus === 'connected') {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-      setShowConnectionBanner(false);
-    } else if (connectionStatus === 'error') {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-      setShowConnectionBanner(true);
-    } else if (phase === 'ready') {
-      // Only start the grace timer once we've reached the 'ready' phase
-      // and are actually attempting the SSE connection. Before that, the
-      // init pipeline (contact ID resolution, transcript loading) has its
-      // own loading states — we shouldn't penalize SSE for init latency.
-      if (!connectionBannerTimerRef.current) {
-        connectionBannerTimerRef.current = setTimeout(() => {
-          connectionBannerTimerRef.current = null;
-          setShowConnectionBanner(true);
-        }, CONNECTION_BANNER_GRACE_MS);
-      }
-    }
-    return () => {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-    };
-  }, [connectionStatus, phase]);
 
   // =========================================================================
   // Reset when assistant changes
@@ -874,7 +835,6 @@ export function useAssistantProfileChat(
     setInputValue,
     sendMessage,
     connectionStatus,
-    showConnectionBanner,
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,
