@@ -466,7 +466,7 @@ export const contactApi = {
 // ============================================
 
 export const photoApi = {
-  async upload(formData: FormData, apiKey?: string): Promise<PhotoUploadResponse> {
+  async uploadPhoto(formData: FormData, apiKey?: string): Promise<PhotoUploadResponse> {
     const key = apiKey || getTestApiKey();
     const url = `${BASE_URL}/api/assistant/photo/upload`;
 
@@ -782,11 +782,22 @@ export const taskApi = {
 // ============================================
 
 export const photoApiExtended = {
-  async download(
+  async downloadMedia(
     photoUrl: string,
     apiKey?: string
   ): Promise<{ signedUrl?: string; detail?: string }> {
     const endpoint = `/api/assistant/photo/download?url=${encodeURIComponent(photoUrl)}`;
+    const res = await apiFetch(endpoint, {}, apiKey);
+    return parseResponse(res, endpoint);
+  },
+
+  async downloadPresetPhoto(
+    firstName: string,
+    surname: string,
+    apiKey?: string
+  ): Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }> {
+    const params = new URLSearchParams({ firstName, surname });
+    const endpoint = `/api/assistant/photo/preset?${params.toString()}`;
     const res = await apiFetch(endpoint, {}, apiKey);
     return parseResponse(res, endpoint);
   },
@@ -1181,8 +1192,8 @@ export async function getTestAssistant(apiKey?: string): Promise<AssistantData> 
       40,
       'GB',
       'UTC',
-      'https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/1.jpg',
-      'gs://bucket/preset_assistants/Ricardo_Silva_elevenlabs.mp4',
+      'gs://bucket/preset_assistants/photos/Test_Agent.jpg',
+      'gs://bucket/preset_assistants/videos/Ricardo_Silva_elevenlabs.mp4',
       'Integration test assistant for automated testing',
       apiKey,
       false // createInfra: false for local testing - skip pubsub/wake-up

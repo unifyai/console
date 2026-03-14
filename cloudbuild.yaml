@@ -1,18 +1,27 @@
 steps:
   - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
     args:
-      - build
-      - '--no-cache'
-      - '--build-arg'
-      - 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY'
-      - '-t'
-      - >-
-        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-      - '-f'
-      - Dockerfile
-      - .
+      - '-c'
+      - |
+        docker pull $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest || true
+    id: Pull Cache
+
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        DOCKER_BUILDKIT=1 docker build \
+          --cache-from $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY \
+          -f Dockerfile \
+          -t $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA \
+          -t $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest .
     id: Build
     secretEnv: ['NEXT_SERVER_ACTIONS_ENCRYPTION_KEY']
+    waitFor: ['Pull Cache']
 
   - name: gcr.io/cloud-builders/docker
     args:
@@ -20,13 +29,7 @@ steps:
       - >-
         $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
-
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - tag
-      - $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-      - $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest
-    id: Rename to Latest
+    waitFor: ['Build']
 
   - name: gcr.io/cloud-builders/docker
     args:
@@ -34,6 +37,7 @@ steps:
       - >-
         $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest
     id: Push Latest
+    waitFor: ['Build']
 
   - id: Proxy Install
     name: gcr.io/cloud-builders/npm

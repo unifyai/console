@@ -1,8 +1,8 @@
 export const ASSISTANT_ONBOARDING_FEE = 10;
-export const ASSISTANT_HIRE_COMPLETION_DELAY_MS = 3000;
 
 export const PHOTO_OPERATION_COST = 0.05;
-export const VIDEO_ANIMATION_COST = 0.08;
+export const VIDEO_ANIMATION_COST = 0.12;
+export const MIN_TTS_PROMPT_LENGTH = 10; // Minimum characters for TTS prompt to ensure audio ≥ 3s (Replicate requirement)
 export const PRE_HIRE_CHAT_MESSAGE_COST = 0.01;
 
 export const EMAIL_DOMAIN_WITH_AT = '@unify.ai';

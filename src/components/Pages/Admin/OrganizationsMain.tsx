@@ -38,6 +38,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/card';
 import { Switch } from '@/components/UI/switch';
 import { Label } from '@/components/UI/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -162,6 +169,7 @@ export default function OrganizationsAdminMain({
   // ── Credit dialog state ──────────────────────────────────────────────
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [creditAmount, setCreditAmount] = useState('');
+  const [creditType, setCreditType] = useState<'promo' | 'payment'>('promo');
   const [isAddingCredits, setIsAddingCredits] = useState(false);
 
   // ── Freeze confirmation dialog state ─────────────────────────────────
@@ -344,7 +352,7 @@ export default function OrganizationsAdminMain({
     setIsTogglingVerified(false);
   };
 
-  // ── Add credits (always promo) ────────────────────────────────────────
+  // ── Add credits ──────────────────────────────────────────────────────
   const handleAddCredits = async () => {
     if (!orgDetail || !creditAmount) return;
     const amount = parseFloat(creditAmount);
@@ -353,12 +361,13 @@ export default function OrganizationsAdminMain({
       return;
     }
     setIsAddingCredits(true);
-    const result = await actions.addCredits(orgDetail.id, amount, 'promo');
+    const result = await actions.addCredits(orgDetail.id, amount, creditType);
     if (isError(result)) {
       toast(result.detail, 'error');
     } else {
-      toast(`$${amount} promo credits added`);
+      toast(`$${amount} ${creditType} credits added`);
       setCreditAmount('');
+      setCreditType('promo');
       setCreditDialogOpen(false);
       fetchDetail(orgDetail.id);
     }
@@ -367,7 +376,10 @@ export default function OrganizationsAdminMain({
 
   const handleCreditDialogOpenChange = (open: boolean) => {
     setCreditDialogOpen(open);
-    if (!open) setCreditAmount('');
+    if (!open) {
+      setCreditAmount('');
+      setCreditType('promo');
+    }
   };
 
   // ── Freeze / unfreeze ────────────────────────────────────────────────
@@ -827,32 +839,51 @@ export default function OrganizationsAdminMain({
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-sm">
                         <DialogHeader>
-                          <DialogTitle>Add Promo Credits</DialogTitle>
+                          <DialogTitle>Add Credits</DialogTitle>
                         </DialogHeader>
-                        <div className="py-4">
-                          <Label className="text-sm">
-                            Amount (USD)
-                          </Label>
-                          <Input
-                            type="number"
-                            placeholder="e.g. 100"
-                            value={creditAmount}
-                            onChange={(e) => setCreditAmount(e.target.value)}
-                            onKeyDown={(e) =>
-                              e.key === 'Enter' && handleAddCredits()
-                            }
-                            className="mt-1.5"
-                            min="0"
-                            step="1"
-                            autoFocus
-                          />
-                          {creditAmount &&
-                            (isNaN(parseFloat(creditAmount)) ||
-                              parseFloat(creditAmount) <= 0) && (
-                              <p className="mt-1 text-body-sm text-error">
-                                Enter a valid positive amount
-                              </p>
-                            )}
+                        <div className="space-y-4 py-4">
+                          <div>
+                            <Label className="text-sm">Type</Label>
+                            <Select
+                              value={creditType}
+                              onValueChange={(v) =>
+                                setCreditType(v as 'promo' | 'payment')
+                              }
+                            >
+                              <SelectTrigger className="mt-1.5">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="promo">Promo</SelectItem>
+                                <SelectItem value="payment">
+                                  Payment
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-sm">Amount (USD)</Label>
+                            <Input
+                              type="number"
+                              placeholder="e.g. 100"
+                              value={creditAmount}
+                              onChange={(e) => setCreditAmount(e.target.value)}
+                              onKeyDown={(e) =>
+                                e.key === 'Enter' && handleAddCredits()
+                              }
+                              className="mt-1.5"
+                              min="0"
+                              step="1"
+                              autoFocus
+                            />
+                            {creditAmount &&
+                              (isNaN(parseFloat(creditAmount)) ||
+                                parseFloat(creditAmount) <= 0) && (
+                                <p className="mt-1 text-body-sm text-error">
+                                  Enter a valid positive amount
+                                </p>
+                              )}
+                          </div>
                         </div>
                         <DialogFooter>
                           <Button

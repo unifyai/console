@@ -145,9 +145,10 @@ const createMockAssistantActions = (): AssistantActions => ({
     fetchContactCosts: vi.fn(),
   },
   photo: {
-    upload: vi.fn(),
+    uploadPhoto: vi.fn(),
     uploadVideo: vi.fn(),
-    download: vi.fn(),
+    downloadMedia: vi.fn(),
+    downloadPresetPhoto: vi.fn(),
     downloadPresetVideo: vi.fn(),
     generate: vi.fn(),
     edit: vi.fn(),

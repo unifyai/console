@@ -52,9 +52,10 @@ const mockActions: AssistantActions = {
     create: vi.fn(),
   },
   photo: {
-    download: mockDownloadAction,
-    upload: vi.fn(),
+    downloadMedia: mockDownloadAction,
+    uploadPhoto: vi.fn(),
     uploadVideo: vi.fn(),
+    downloadPresetPhoto: vi.fn(),
     downloadPresetVideo: vi.fn(),
     generate: vi.fn(),
     edit: vi.fn(),

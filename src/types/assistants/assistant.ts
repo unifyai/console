@@ -375,9 +375,13 @@ export interface AssistantActions {
     status: (assistantId: string) => Promise<AssistantStatus | ResponseProps>;
   };
   photo: {
-    upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
+    uploadPhoto: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
     uploadVideo: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
-    download: (filePathOrUrl: string) => Promise<{ signedUrl?: string; detail?: string }>;
+    downloadMedia: (filePathOrUrl: string) => Promise<{ signedUrl?: string; detail?: string }>;
+    downloadPresetPhoto: (
+      firstName: string,
+      lastName: string
+    ) => Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }>;
     downloadPresetVideo: (
       firstName: string,
       lastName: string,

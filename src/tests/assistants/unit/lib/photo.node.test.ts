@@ -4,7 +4,7 @@
  * Tests the server action factory functions for photo operations.
  * Uses MSW to mock HTTP calls and test the logic in isolation.
  *
- * Note: Functions that use GCS directly (downloadPhoto, listMediaFiles, etc.)
+ * Note: Functions that use GCS directly (downloadMedia, listMediaFiles, etc.)
  * are tested via integration tests as they require GCS SDK mocking.
  *
  * @group unit

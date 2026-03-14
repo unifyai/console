@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
-import { getSessionContactId, setSessionContactId, getOrFetchContactId } from './useContactIdPrefetch';
+import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts } from './useContactIdPrefetch';
 
 /**
  * Chat initialization follows a linear phase progression:
@@ -33,9 +33,14 @@ type ChatPhase =
   | 'error';
 
 // Exponential backoff: 500ms → 1s → 2s → 4s → 8s → 16s (total ≈ 31.5s)
+// The owner (person who hired the assistant) always gets contact ID 1.
+// 0 = assistant AI, 1 = owner, 2+ = other contacts.
+const OWNER_CONTACT_ID = 1;
+
 const CONTACT_ID_RETRY_BASE_DELAY = 500;
 const CONTACT_ID_RETRY_MAX_DELAY = 16000;
 const CONTACT_ID_MAX_RETRIES = 6;
+
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -97,45 +102,6 @@ export function useAssistantProfileChat(
   const SSE_MAX_RECONNECT_ATTEMPTS = 5;
   const SSE_RECONNECT_BASE_DELAY = 1000;
 
-  // Connection banner: suppress brief connecting/reconnecting flashes (e.g. the
-  // 60-second SSE cycle). Only surface the banner after a grace period, so
-  // transient reconnections are invisible to the user.
-  const CONNECTION_BANNER_GRACE_MS = 3000;
-  const [showConnectionBanner, setShowConnectionBanner] = React.useState(false);
-  const connectionBannerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  React.useEffect(() => {
-    if (connectionStatus === 'connected') {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-      setShowConnectionBanner(false);
-    } else if (connectionStatus === 'error') {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-      setShowConnectionBanner(true);
-    } else if (phase === 'ready') {
-      // Only start the grace timer once we've reached the 'ready' phase
-      // and are actually attempting the SSE connection. Before that, the
-      // init pipeline (contact ID resolution, transcript loading) has its
-      // own loading states — we shouldn't penalize SSE for init latency.
-      if (!connectionBannerTimerRef.current) {
-        connectionBannerTimerRef.current = setTimeout(() => {
-          connectionBannerTimerRef.current = null;
-          setShowConnectionBanner(true);
-        }, CONNECTION_BANNER_GRACE_MS);
-      }
-    }
-    return () => {
-      if (connectionBannerTimerRef.current) {
-        clearTimeout(connectionBannerTimerRef.current);
-        connectionBannerTimerRef.current = null;
-      }
-    };
-  }, [connectionStatus, phase]);
 
   // =========================================================================
   // Reset when assistant changes
@@ -204,14 +170,20 @@ export function useAssistantProfileChat(
   // Runs exactly once per assistant (gated on phase === 'uninitialized').
   // =========================================================================
   React.useEffect(() => {
-    if (phase !== 'uninitialized' || !assistantId || !assistant) return;
+    // Gate on userEmail so the sessionStorage lookup uses the correct
+    // email-scoped key. Without this, the effect can fire before the
+    // session loads (userEmail = null), causing a key mismatch:
+    //   null  → "assistant_contact_id:702"          (WRONG)
+    //   email → "assistant_contact_id:user@x:702"   (CORRECT)
+    // When userEmail later arrives, Phase 1 re-fires (it's in deps).
+    if (phase !== 'uninitialized' || !assistantId || !assistant || !userEmail) return;
 
     activeAssistantIdRef.current = assistantId;
 
     // Check in-memory cache first, then sessionStorage fallback
     let cachedId = contactIdCacheRef.current.get(assistantId);
     if (cachedId === undefined) {
-      cachedId = getSessionContactId(assistantId, userEmail ?? undefined);
+      cachedId = getSessionContactId(assistantId, userEmail);
       if (cachedId !== undefined) {
         // Promote sessionStorage hit into the in-memory cache
         contactIdCacheRef.current.set(assistantId, cachedId);
@@ -224,15 +196,22 @@ export function useAssistantProfileChat(
       recordTranscriptTimestamp(assistantId, initialHistory);
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
-      if (cachedId !== undefined) {
-        setContactId(cachedId);
-        setPhase('ready');
-      } else {
-        setPhase('pending_contact');
-      }
+      // The hiring user is ALWAYS contact ID 1 (owner). The SSE endpoint
+      // and message webhook don't validate that the contact record exists
+      // in the Contacts table — they only use the ID as a namespace. So
+      // we can skip resolution entirely and go straight to 'ready'.
+      const ownerId = cachedId ?? OWNER_CONTACT_ID;
+      contactIdCacheRef.current.set(assistantId, ownerId);
+      setSessionContactId(assistantId, ownerId, userEmail);
+      setContactId(ownerId);
+      setPhase('ready');
     } else if (chatHistories[assistantId] !== undefined) {
-      if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
-        transcriptCutoffsRef.current[assistantId] = 0;
+      // History already exists — either from a previous view or from the
+      // prefetch hook writing transcripts on page load. Record a proper
+      // cutoff so the SSE filter discards backlog messages that are already
+      // in the transcript history.
+      if (!transcriptCutoffsRef.current[assistantId]) {
+        recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
       }
       if (cachedId !== undefined) {
         setContactId(cachedId);
@@ -251,8 +230,10 @@ export function useAssistantProfileChat(
     // isFirstView, preHireChat, onFirstViewCompleted are consumed once during the
     // uninitialized→* transition. They must NOT be dependencies — the effect should
     // not re-run when the parent re-renders with a new onFirstViewCompleted ref.
+    // userEmail IS a dep: Phase 1 must wait for the session email so the
+    // sessionStorage lookup uses the correct key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, assistantId, assistant, recordTranscriptTimestamp, setChatHistories]);
+  }, [phase, assistantId, assistant, userEmail, recordTranscriptTimestamp, setChatHistories]);
 
   // =========================================================================
   // Phase 2: Contact ID resolution
@@ -375,7 +356,11 @@ export function useAssistantProfileChat(
 
     (async () => {
       try {
-        const result = await assistantActions.chat.getTranscripts(
+        // getOrFetchTranscripts deduplicates with the prefetch hook: if a
+        // prefetch request is already in-flight for this assistant, we
+        // piggyback on it instead of firing a redundant API call.
+        const result = await getOrFetchTranscripts(
+          assistantActions.chat.getTranscripts,
           contactId,
           assistant.userId,
           currentAssistantId
@@ -386,7 +371,9 @@ export function useAssistantProfileChat(
           setInitialLoadError(true);
           setPhase('error');
         } else {
-          const history = (result as ChatMessage[]).reverse();
+          // Use non-mutating reverse — the same result array may be shared
+          // with the prefetch hook's .then() handler if they coalesced.
+          const history = [...(result as ChatMessage[])].reverse();
           recordTranscriptTimestamp(currentAssistantId, history);
           setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
           if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
@@ -406,6 +393,53 @@ export function useAssistantProfileChat(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, contactId, assistantId]);
+
+  // =========================================================================
+  // Prefetch fast-path: short-circuit to 'ready' when prefetched data
+  // becomes available during any loading/resolving phase.
+  // =========================================================================
+  // The prefetch hook uses direct fetch() (bypasses the server action queue)
+  // and may write chatHistories + sessionStorage BEFORE Phase 2's or Phase
+  // 3's server actions resolve.  When that happens the messages appear in
+  // the UI but the input stays disabled because phase hasn't reached 'ready'.
+  //
+  // This effect monitors chatHistories and userEmail. When both the contact
+  // ID (from sessionStorage / in-memory cache) and the transcript history
+  // are available, it transitions straight to 'ready' — cancelling any
+  // in-flight Phase 2/3 server actions via their cleanup functions.
+  React.useEffect(() => {
+    if (!assistantId || !userEmail) return;
+    if (
+      phase !== 'loading_transcripts' &&
+      phase !== 'resolving_contact' &&
+      phase !== 'pending_contact'
+    )
+      return;
+
+    // Need transcripts to be prefetched
+    if (chatHistories[assistantId] === undefined) return;
+
+    // Need contact ID (in-memory cache or sessionStorage)
+    let cachedId = contactIdCacheRef.current.get(assistantId);
+    if (cachedId === undefined) {
+      cachedId = getSessionContactId(assistantId, userEmail);
+      if (cachedId !== undefined) {
+        contactIdCacheRef.current.set(assistantId, cachedId);
+      }
+    }
+    if (cachedId === undefined) return;
+
+    // Both ready — skip directly to ready
+    if (!transcriptCutoffsRef.current[assistantId]) {
+      recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
+    }
+    if ((chatHistories[assistantId]?.length ?? 0) < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
+      setHasMoreMessages(false);
+    }
+    setContactId(cachedId);
+    setCanChat(true);
+    setPhase('ready');
+  }, [phase, assistantId, chatHistories, userEmail, recordTranscriptTimestamp]);
 
   // =========================================================================
   // Error recovery
@@ -801,7 +835,6 @@ export function useAssistantProfileChat(
     setInputValue,
     sendMessage,
     connectionStatus,
-    showConnectionBanner,
     loadMoreMessages,
     hasMoreMessages,
     isLoadingMore,
