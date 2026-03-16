@@ -603,6 +603,35 @@ export function AssistantCommunicationDialog({
     []
   );
 
+  // --- Edge resize (floating mode) ---
+  const handleEdgeResize = React.useCallback(
+    (edge: 't' | 'r' | 'b' | 'l') =>
+      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        setIsResizing(true);
+        const prev = floatingSizeRef.current;
+        const prevPos = floatingPosRef.current;
+
+        const dw = edge === 'l' ? -info.delta.x : edge === 'r' ? info.delta.x : 0;
+        const dh = edge === 't' ? -info.delta.y : edge === 'b' ? info.delta.y : 0;
+
+        const newWidth = Math.max(MIN_FLOATING_WIDTH, prev.width + dw);
+        const newHeight = Math.max(MIN_FLOATING_HEIGHT, prev.height + dh);
+        const actualDw = newWidth - prev.width;
+        const actualDh = newHeight - prev.height;
+
+        let newX = prevPos.x;
+        let newY = prevPos.y;
+        if (edge === 'l') newX -= actualDw;
+        if (edge === 't') newY -= actualDh;
+
+        floatingSizeRef.current = { width: newWidth, height: newHeight };
+        floatingPosRef.current = { x: newX, y: newY };
+        setFloatingSize({ width: newWidth, height: newHeight });
+        setFloatingPos({ x: newX, y: newY });
+      },
+    []
+  );
+
   const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
   if (!isOpen) return null;
@@ -724,6 +753,27 @@ export function AssistantCommunicationDialog({
                 corner === 'tr' && 'right-0 top-0 cursor-nesw-resize',
                 corner === 'bl' && 'bottom-0 left-0 cursor-nesw-resize',
                 corner === 'br' && 'bottom-0 right-0 cursor-nwse-resize'
+              )}
+            />
+          ))}
+        {/* Edge resize handles – floating mode only */}
+        {!isModal &&
+          (['t', 'r', 'b', 'l'] as const).map((edge) => (
+            <motion.div
+              key={edge}
+              drag
+              dragMomentum={false}
+              dragElastic={0}
+              dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
+              onDrag={handleEdgeResize(edge)}
+              onDragEnd={handleResizeEnd}
+              onPointerDown={(e) => e.stopPropagation()}
+              className={cn(
+                'absolute z-10 opacity-0 hover:opacity-100 transition-opacity',
+                edge === 't' && 'left-3 right-3 top-0 h-1.5 cursor-ns-resize',
+                edge === 'b' && 'left-3 right-3 bottom-0 h-1.5 cursor-ns-resize',
+                edge === 'l' && 'top-3 bottom-3 left-0 w-1.5 cursor-ew-resize',
+                edge === 'r' && 'top-3 bottom-3 right-0 w-1.5 cursor-ew-resize'
               )}
             />
           ))}
