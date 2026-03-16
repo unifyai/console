@@ -66,16 +66,18 @@ export function AssistantSecretsManager({
 
   const handleCancel = () => {
     setIsCreating(false);
-    if (secrets.length > 0) {
-      handleSelectSecret(secrets[0]);
-    }
   };
 
+  // When a create submission finishes (isSubmitting transitions false while
+  // still in create mode), exit create mode so the idle state is shown.
+  const prevIsSubmittingRef = React.useRef(isSubmitting);
   React.useEffect(() => {
-    if (isCreating && secrets.length > 0 && selectedSecret) {
+    const wasSubmitting = prevIsSubmittingRef.current;
+    prevIsSubmittingRef.current = isSubmitting;
+    if (isCreating && wasSubmitting && !isSubmitting) {
       setIsCreating(false);
     }
-  }, [secrets, selectedSecret, isCreating]);
+  }, [isSubmitting, isCreating]);
 
   const isEditing = !!selectedSecret;
   const showEmptyState = !isLoading && secrets.length === 0 && !isCreating;
@@ -147,7 +149,18 @@ export function AssistantSecretsManager({
 
       {/* Right Panel: Form (only for users with write access) */}
       <div className="flex w-2/3 flex-col p-6">
-        {canWrite ? (
+        {!canWrite ? (
+          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+            <p className="text-body">
+              Secret details are only visible to the assistant owner and organization
+              owners/admins.
+            </p>
+          </div>
+        ) : !selectedSecret && !isCreating ? (
+          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+            <p className="text-body">Click on New to add a secret</p>
+          </div>
+        ) : (
           <FormProvider {...formMethods}>
             <form onSubmit={onSubmit} id="secret-form" className="flex flex-1 flex-col">
               <div className="flex-1 space-y-4">
@@ -220,13 +233,6 @@ export function AssistantSecretsManager({
               </div>
             </form>
           </FormProvider>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
-            <p className="text-body">
-              Secret details are only visible to the assistant owner and organization
-              owners/admins.
-            </p>
-          </div>
         )}
       </div>
     </div>
