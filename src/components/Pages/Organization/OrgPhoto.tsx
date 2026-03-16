@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
+import { PhotoCropDialog } from '@/components/UI/PhotoCropDialog';
 
 async function resolvePhotoUrl(image: string): Promise<string> {
   if (!image.startsWith('gs://')) return image;
@@ -28,6 +29,10 @@ interface OrgPhotoProps {
 const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoProps) => {
   const [savedPhotoUrl, setSavedPhotoUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Crop dialog state
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [isCropOpen, setIsCropOpen] = useState(false);
 
   useEffect(() => {
     if (currentImage) {
@@ -62,18 +67,37 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
         return;
       }
 
-      onFileSelect(file);
+      // Open the crop dialog instead of directly calling onFileSelect
+      const objectUrl = URL.createObjectURL(file);
+      setCropSrc(objectUrl);
+      setIsCropOpen(true);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [onFileSelect]
+    []
   );
+
+  const handleCropConfirm = useCallback(
+    (croppedFile: File) => {
+      setIsCropOpen(false);
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+      onFileSelect(croppedFile);
+    },
+    [cropSrc, onFileSelect]
+  );
+
+  const handleCropCancel = useCallback(() => {
+    setIsCropOpen(false);
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }, [cropSrc]);
 
   return (
     <>
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {displayUrl ? (
           <Image
@@ -100,6 +124,13 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="hidden"
         onChange={handleFileChange}
+      />
+
+      <PhotoCropDialog
+        imageSrc={cropSrc}
+        open={isCropOpen}
+        onConfirm={handleCropConfirm}
+        onCancel={handleCropCancel}
       />
     </>
   );

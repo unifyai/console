@@ -253,6 +253,36 @@ export function AssistantCommunicationMinimized(props: AssistantCommunicationMin
     [x, y]
   );
 
+  const handleEdgeResize = React.useCallback(
+    (edge: 't' | 'r' | 'b' | 'l') =>
+      (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        setIsResizing(true);
+
+        const prev = sizeRef.current;
+        const dw = edge === 'l' ? -info.delta.x : edge === 'r' ? info.delta.x : 0;
+        const dh = edge === 't' ? -info.delta.y : edge === 'b' ? info.delta.y : 0;
+
+        const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + dw));
+        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + dh));
+
+        const actualDw = newWidth - prev.width;
+        const actualDh = newHeight - prev.height;
+
+        // The element is CSS-anchored at bottom-right, so compensate by shifting
+        // the transform so the opposite edge stays fixed.
+        if (edge === 'r') {
+          x.set(x.get() + actualDw);
+        }
+        if (edge === 'b') {
+          y.set(y.get() + actualDh);
+        }
+
+        sizeRef.current = { width: newWidth, height: newHeight };
+        setSize({ width: newWidth, height: newHeight });
+      },
+    [x, y]
+  );
+
   const handleResizeEnd = React.useCallback(() => {
     setIsResizing(false);
   }, []);
@@ -285,6 +315,26 @@ export function AssistantCommunicationMinimized(props: AssistantCommunicationMin
             corner === 'tr' && 'right-0 top-0 cursor-nesw-resize',
             corner === 'bl' && 'bottom-0 left-0 cursor-nesw-resize',
             corner === 'br' && 'bottom-0 right-0 cursor-nwse-resize'
+          )}
+        />
+      ))}
+      {/* Resize handles on edges */}
+      {(['t', 'r', 'b', 'l'] as const).map((edge) => (
+        <motion.div
+          key={edge}
+          drag
+          dragMomentum={false}
+          dragElastic={0}
+          dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
+          onDrag={handleEdgeResize(edge)}
+          onDragEnd={handleResizeEnd}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={cn(
+            'absolute z-10 opacity-0 group-hover:opacity-100 transition-opacity',
+            edge === 't' && 'left-3 right-3 top-0 h-1.5 cursor-ns-resize',
+            edge === 'b' && 'left-3 right-3 bottom-0 h-1.5 cursor-ns-resize',
+            edge === 'l' && 'top-3 bottom-3 left-0 w-1.5 cursor-ew-resize',
+            edge === 'r' && 'top-3 bottom-3 right-0 w-1.5 cursor-ew-resize'
           )}
         />
       ))}

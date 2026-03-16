@@ -36,7 +36,12 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
       const sortedSecrets = (result as Secret[]).sort((a, b) => a.name.localeCompare(b.name));
       setSecrets(sortedSecrets);
-      setSelectedSecret(sortedSecrets[0] || null);
+      // Re-select the currently selected secret if it still exists (e.g. after update),
+      // otherwise clear the selection (e.g. after create or delete).
+      setSelectedSecret((prev) => {
+        if (!prev) return null;
+        return sortedSecrets.find((s) => s.logId === prev.logId) || null;
+      });
     } catch (err: any) {
       setError(err.message);
       toast.error('Failed to load secrets.');

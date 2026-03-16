@@ -103,11 +103,11 @@ describe('Assistant Secrets Manager', () => {
     );
 
     it(
-      'should select first secret by default',
+      'should not select any secret by default',
       {
         meta: {
           alias: 'Secrets-Default-Selection',
-          behavior: 'First secret is selected on load',
+          behavior: 'No secret is selected on load, idle message is shown',
           scenario: 'Opening secrets manager with existing secrets',
         },
       },
@@ -120,10 +120,10 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
-        // The first secret should be displayed in the detail view
-        await waitFor(() => {
-          expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
-        });
+        // No secret should be auto-selected in the detail view
+        expect(screen.queryByDisplayValue('API_KEY')).not.toBeInTheDocument();
+        // Idle message should be shown in the right panel
+        expect(screen.getByText(/click on new secret/i)).toBeInTheDocument();
       }
     );
   });
@@ -139,6 +139,7 @@ describe('Assistant Secrets Manager', () => {
         },
       },
       async () => {
+        const user = userEvent.setup();
         const actions = createMockSecretActions();
 
         render(<SecretsTestHarness secretActions={actions} />);
@@ -147,8 +148,13 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
+        // Select a secret first (no auto-selection on load)
+        await user.click(screen.getByText('API_KEY'));
+
         // Value should be in a password-type input
-        expect(isValueMasked(screen)).toBe(true);
+        await waitFor(() => {
+          expect(isValueMasked(screen)).toBe(true);
+        });
       }
     );
 
@@ -169,6 +175,13 @@ describe('Assistant Secrets Manager', () => {
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
+        });
+
+        // Select a secret first (no auto-selection on load)
+        await user.click(screen.getByText('API_KEY'));
+
+        await waitFor(() => {
+          expect(screen.getByLabelText(/value/i)).toBeInTheDocument();
         });
 
         const toggleButtons = getVisibilityToggles(container);
@@ -197,6 +210,13 @@ describe('Assistant Secrets Manager', () => {
 
         await waitFor(() => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
+        });
+
+        // Select a secret first (no auto-selection on load)
+        await user.click(screen.getByText('API_KEY'));
+
+        await waitFor(() => {
+          expect(screen.getByLabelText(/value/i)).toBeInTheDocument();
         });
 
         const toggleButtons = getVisibilityToggles(container);
@@ -409,8 +429,9 @@ describe('Assistant Secrets Manager', () => {
 
         expect(actions.create).not.toHaveBeenCalled();
 
+        // After cancel, no secret should be selected - idle message is shown
         await waitFor(() => {
-          expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
+          expect(screen.getByText(/click on new secret/i)).toBeInTheDocument();
         });
       }
     );
@@ -728,6 +749,14 @@ describe('Assistant Secrets Manager', () => {
           expect(screen.getByText('API_KEY')).toBeInTheDocument();
         });
 
+        // Click first secret to select it
+        await user.click(screen.getByText('API_KEY'));
+
+        await waitFor(() => {
+          expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
+        });
+
+        // Switch to another secret
         await user.click(screen.getByText('DATABASE_URL'));
 
         await waitFor(() => {
