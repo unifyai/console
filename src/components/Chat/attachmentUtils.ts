@@ -18,6 +18,9 @@ import type { AttachmentType, Attachment, AttachmentUploadResponse } from '@/typ
 /** Maximum number of attachments per message */
 export const MAX_ATTACHMENTS = 10;
 
+/** Maximum file size in bytes (32MB — matches Cloud Run request limit) */
+export const MAX_FILE_SIZE_BYTES = 32 * 1024 * 1024;
+
 /** Allowed file extensions for upload */
 export const ALLOWED_EXTENSIONS = new Set([
   // Images
@@ -228,10 +231,22 @@ export function validateFileType(filename: string): { valid: boolean; error?: st
 }
 
 /**
- * Validate a file for upload (type check only; no size cap).
+ * Validate a file for upload (type + size).
  */
 export function validateFile(file: File): { valid: boolean; error?: string } {
-  return validateFileType(file.name);
+  const typeCheck = validateFileType(file.name);
+  if (!typeCheck.valid) return typeCheck;
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
+    return {
+      valid: false,
+      error: `File is too large (${sizeMB} MB). Maximum size is ${limitMB} MB.`,
+    };
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -317,10 +332,18 @@ export async function uploadAttachment(
   formData.append('file', file);
   formData.append('assistant_id', assistantId);
 
-  const response = await fetch('/api/assistant/attachment', {
-    method: 'POST',
-    body: formData,
-  });
+  let response: Response;
+  try {
+    response = await fetch('/api/assistant/attachment', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(
+      `Upload failed — the file may be too large (${sizeMB} MB). Try a file under ${(MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)} MB.`
+    );
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
