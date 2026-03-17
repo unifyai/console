@@ -23,53 +23,77 @@ interface PhotoCropDialogProps {
   onConfirm: (croppedFile: File) => void;
   /** Called when the user cancels */
   onCancel: () => void;
+  /** Original image MIME type – used to preserve transparency for PNG/WebP */
+  sourceType?: string;
+}
+
+const TRANSPARENT_TYPES = new Set(['image/png', 'image/webp']);
+
+export function outputMime(sourceType?: string): string {
+  return sourceType && TRANSPARENT_TYPES.has(sourceType)
+    ? 'image/png'
+    : 'image/jpeg';
+}
+
+export function outputExtension(mime: string): string {
+  return mime === 'image/png' ? '.png' : '.jpg';
 }
 
 /**
  * Creates an off-screen canvas, draws the cropped region, and returns a Blob.
+ *
+ * Uses a two-canvas approach so that areas outside the image (visible when
+ * de-zooming with restrictPosition=false) stay transparent/black instead of
+ * showing smeared edge-pixel artifacts from getImageData.
  */
 async function getCroppedBlob(
   imageSrc: string,
   pixelCrop: Area,
-  rotation: number
+  rotation: number,
+  sourceType?: string
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
+  const mime = outputMime(sourceType);
 
   const radians = (rotation * Math.PI) / 180;
   const sin = Math.abs(Math.sin(radians));
   const cos = Math.abs(Math.cos(radians));
 
-  // Size of the bounding box after rotation
   const rotatedWidth = image.width * cos + image.height * sin;
   const rotatedHeight = image.width * sin + image.height * cos;
 
-  // Set canvas to rotated full image size, draw, then extract crop
-  canvas.width = rotatedWidth;
-  canvas.height = rotatedHeight;
+  // Canvas 1: draw the full rotated image
+  const rotCanvas = document.createElement('canvas');
+  rotCanvas.width = rotatedWidth;
+  rotCanvas.height = rotatedHeight;
+  const rotCtx = rotCanvas.getContext('2d')!;
 
-  ctx.translate(rotatedWidth / 2, rotatedHeight / 2);
-  ctx.rotate(radians);
-  ctx.drawImage(image, -image.width / 2, -image.height / 2);
+  rotCtx.translate(rotatedWidth / 2, rotatedHeight / 2);
+  rotCtx.rotate(radians);
+  rotCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-  // Extract the cropped region
-  const data = ctx.getImageData(
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height
+  // Canvas 2: extract the crop via drawImage (clips to source bounds,
+  // so out-of-image areas remain transparent rather than showing artifacts)
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = pixelCrop.width;
+  cropCanvas.height = pixelCrop.height;
+  const cropCtx = cropCanvas.getContext('2d')!;
+
+  cropCtx.drawImage(
+    rotCanvas,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, pixelCrop.width, pixelCrop.height
   );
 
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  ctx.putImageData(data, 0, 0);
-
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error('Canvas toBlob failed'));
-    }, 'image/jpeg', 0.92);
+    cropCanvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      },
+      mime,
+      mime === 'image/jpeg' ? 0.92 : undefined
+    );
   });
 }
 
@@ -83,8 +107,9 @@ function createImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-const MIN_ZOOM = 1;
+const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
+const INITIAL_ZOOM = (MIN_ZOOM + MAX_ZOOM) / 2;
 const ZOOM_STEP = 0.01;
 
 export function PhotoCropDialog({
@@ -92,9 +117,10 @@ export function PhotoCropDialog({
   open,
   onConfirm,
   onCancel,
+  sourceType,
 }: PhotoCropDialogProps) {
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = React.useState(1);
+  const [zoom, setZoom] = React.useState(INITIAL_ZOOM);
   const [rotation, setRotation] = React.useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -103,7 +129,7 @@ export function PhotoCropDialog({
   React.useEffect(() => {
     if (open) {
       setCrop({ x: 0, y: 0 });
-      setZoom(1);
+      setZoom(INITIAL_ZOOM);
       setRotation(0);
       setCroppedAreaPixels(null);
     }
@@ -117,8 +143,10 @@ export function PhotoCropDialog({
     if (!imageSrc || !croppedAreaPixels) return;
     setIsProcessing(true);
     try {
-      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, rotation);
-      const file = new File([blob], 'cropped-photo.jpg', { type: 'image/jpeg' });
+      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, rotation, sourceType);
+      const mime = outputMime(sourceType);
+      const ext = outputExtension(mime);
+      const file = new File([blob], `cropped-photo${ext}`, { type: mime });
       onConfirm(file);
     } catch {
       // Fall back to the original image if cropping fails
@@ -126,7 +154,7 @@ export function PhotoCropDialog({
     } finally {
       setIsProcessing(false);
     }
-  }, [imageSrc, croppedAreaPixels, rotation, onConfirm, onCancel]);
+  }, [imageSrc, croppedAreaPixels, rotation, sourceType, onConfirm, onCancel]);
 
   const handleRotate = () => {
     setRotation((prev) => (prev + 90) % 360);
@@ -141,7 +169,7 @@ export function PhotoCropDialog({
         </DialogHeader>
 
         {/* Crop area */}
-        <div className="relative mx-6 aspect-square overflow-hidden rounded-lg bg-black">
+        <div className="relative mx-6 aspect-square overflow-hidden rounded-lg">
           {imageSrc && (
             <Cropper
               image={imageSrc}
@@ -151,11 +179,13 @@ export function PhotoCropDialog({
               aspect={1}
               cropShape="round"
               showGrid={false}
+              restrictPosition={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
               minZoom={MIN_ZOOM}
               maxZoom={MAX_ZOOM}
+              style={{ containerStyle: { background: 'transparent' } }}
             />
           )}
         </div>
