@@ -160,16 +160,13 @@ export function InlineEmbedExpanded({
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
-  // Construct full URL for iframe
-  const iframeSrc = useMemo(() => {
-    if (embed.url.startsWith('http')) {
-      return embed.url;
-    }
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}${embed.url}`;
-    }
-    return embed.url;
-  }, [embed.url]);
+  // Always use a local path so the iframe loads from the same origin,
+  // avoiding cross-origin framing blocks when the chat message contains
+  // a full URL pointing to a different environment (e.g. staging).
+  const iframeSrc = useMemo(
+    () => `/${embed.type}/view/${embed.token}`,
+    [embed.type, embed.token]
+  );
 
   const iframeScale = embed.type === 'table' ? 0.92 : 1;
   const scaledHeight = Math.round(height / iframeScale);
