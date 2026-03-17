@@ -27,6 +27,7 @@ import {
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 const REQUEST_TIMEOUT_MS = 60000; // 60 seconds - increased for staging cold starts and large queries
+const __DEV__ = process.env.NODE_ENV === 'development';
 
 // =============================================================================
 // Types
@@ -232,6 +233,20 @@ function transformFieldsForFrontend(rawFields: Record<string, unknown>): Record<
   return prefixedFields;
 }
 
+/**
+ * Extract the minimal set of data fields the plot actually needs.
+ * Keeps the /v0/logs response small by excluding unrelated columns
+ * (e.g. embedding vectors) that would otherwise bloat the payload.
+ */
+function getRequiredFieldsForPlot(config: OrchestraPlotConfig): string[] {
+  const fields = new Set<string>();
+  if (config.xAxis) fields.add(config.xAxis);
+  if (config.yAxis) fields.add(config.yAxis);
+  if (config.groupBy) fields.add(config.groupBy);
+  if (config.sortBy) fields.add(config.sortBy);
+  return Array.from(fields);
+}
+
 function toOrchestraField(field: string): string {
   let cleanField = field.replace(/^table1\./, '');
   cleanField = cleanField.replace(/^(entries|derived_entries)\//, '');
@@ -308,36 +323,37 @@ async function fetchBarChartMetrics(
     );
 
     if (!response.ok) {
-      console.warn('[plotData] Bar chart metrics fetch failed:', response.status);
+      if (__DEV__) console.warn('[plotData] Bar chart metrics fetch failed:', response.status);
       return null;
     }
 
     const metricsData = await response.json();
-    console.log(
-      '[plotData] Bar chart metrics response keys:',
-      Object.keys(metricsData).slice(0, 5),
-      '... (total:',
-      Object.keys(metricsData).length,
-      ')'
-    );
+    if (__DEV__)
+      console.log(
+        '[plotData] Bar chart metrics response keys:',
+        Object.keys(metricsData).slice(0, 5),
+        '... (total:',
+        Object.keys(metricsData).length,
+        ')'
+      );
 
     if (groupBy) {
       const data = convertMetricsToGroupedDataLabels(metricsData, yAxis, metric);
-      console.log('[plotData] Grouped bar data converted:', data.length, 'items');
+      if (__DEV__) console.log('[plotData] Grouped bar data converted:', data.length, 'items');
       return {
         data,
         isGrouped: true,
       };
     } else {
       const data = convertMetricsToDataLabels(metricsData, yAxis, metric);
-      console.log('[plotData] Bar data converted:', data.length, 'items');
+      if (__DEV__) console.log('[plotData] Bar data converted:', data.length, 'items');
       return {
         data,
         isGrouped: false,
       };
     }
   } catch (err) {
-    console.warn('[plotData] Bar chart metrics fetch error:', err);
+    if (__DEV__) console.warn('[plotData] Bar chart metrics fetch error:', err);
     return null;
   }
 }
@@ -383,47 +399,49 @@ export async function fetchPlotData(
   token: string,
   options: FetchPlotDataOptions = {}
 ): Promise<FetchPlotDataResult> {
-  console.log('[plotData] === fetchPlotData START ===');
-  console.log('[plotData] Input token:', token);
-  console.log('[plotData] Options:', JSON.stringify(options));
-  console.log('[plotData] ORCHESTRA_URL:', ORCHESTRA_URL);
-  console.log('[plotData] ORCHESTRA_ADMIN_KEY present:', !!ORCHESTRA_ADMIN_KEY);
+  if (__DEV__) {
+    console.log('[plotData] === fetchPlotData START ===');
+    console.log('[plotData] Input token:', token);
+    console.log('[plotData] Options:', JSON.stringify(options));
+    console.log('[plotData] ORCHESTRA_URL:', ORCHESTRA_URL);
+    console.log('[plotData] ORCHESTRA_ADMIN_KEY present:', !!ORCHESTRA_ADMIN_KEY);
+  }
 
   const { timeoutMs = REQUEST_TIMEOUT_MS } = options;
 
   // Validate token format (12 hex chars)
   if (!/^[a-f0-9]{12}$/.test(token)) {
-    console.error('[plotData] Invalid token format:', token);
+    if (__DEV__) console.error('[plotData] Invalid token format:', token);
     return {
       success: false,
       error: { error: 'Invalid token format', status: 400 },
     };
   }
-  console.log('[plotData] Token format valid');
+  if (__DEV__) console.log('[plotData] Token format valid');
 
   // Mock data path: return pre-built data for the mock token (no backend needed)
   if (USE_MOCK_EMBEDS && token === MOCK_PLOT_TOKEN) {
-    console.log('[plotData] Returning mock data for token:', token);
+    if (__DEV__) console.log('[plotData] Returning mock data for token:', token);
     return { success: true, data: getMockPlotData() as PlotDataResult };
   }
 
   // Check for admin key
   if (!ORCHESTRA_ADMIN_KEY) {
-    console.error('[plotData] ORCHESTRA_ADMIN_KEY not configured');
+    if (__DEV__) console.error('[plotData] ORCHESTRA_ADMIN_KEY not configured');
     return {
       success: false,
       error: { error: 'Server configuration error', status: 500 },
     };
   }
-  console.log('[plotData] Admin key configured, proceeding...');
+  if (__DEV__) console.log('[plotData] Admin key configured, proceeding...');
 
   try {
     // ========================================================================
     // Step 1: Fetch plot config from admin endpoint
     // ========================================================================
-    console.log('[plotData] Step 1: Fetching plot config...');
+    if (__DEV__) console.log('[plotData] Step 1: Fetching plot config...');
     const configUrl = `${ORCHESTRA_URL}/v0/admin/logs/plot?token=${token}`;
-    console.log('[plotData] Config URL:', configUrl);
+    if (__DEV__) console.log('[plotData] Config URL:', configUrl);
     const configRes = await fetchWithTimeout(
       configUrl,
       {
@@ -445,7 +463,7 @@ export async function fetchPlotData(
       }
 
       const errorData = await configRes.json().catch(() => ({}));
-      console.error('[plotData] Failed to fetch plot config:', errorData);
+      if (__DEV__) console.error('[plotData] Failed to fetch plot config:', errorData);
       return {
         success: false,
         error: {
@@ -456,17 +474,19 @@ export async function fetchPlotData(
     }
 
     const plotConfig: AdminPlotConfigResponse = snakeToCamelObject(await configRes.json());
-    console.log('[plotData] Step 1 SUCCESS - Config fetched');
-    console.log('[plotData] userId:', plotConfig.userId);
-    console.log('[plotData] organizationId:', plotConfig.organizationId);
-    console.log('[plotData] metadata:', JSON.stringify(plotConfig.metadata));
+    if (__DEV__) {
+      console.log('[plotData] Step 1 SUCCESS - Config fetched');
+      console.log('[plotData] userId:', plotConfig.userId);
+      console.log('[plotData] organizationId:', plotConfig.organizationId);
+      console.log('[plotData] metadata:', JSON.stringify(plotConfig.metadata));
+    }
 
     // ========================================================================
     // Step 2: Fetch user data and extract the appropriate API key
     // ========================================================================
-    console.log('[plotData] Step 2: Fetching user data...');
+    if (__DEV__) console.log('[plotData] Step 2: Fetching user data...');
     const userUrl = `${ORCHESTRA_URL}/v0/admin/user/by-user-id?user_id=${encodeURIComponent(plotConfig.userId)}`;
-    console.log('[plotData] User URL:', userUrl);
+    if (__DEV__) console.log('[plotData] User URL:', userUrl);
     const userRes = await fetchWithTimeout(
       userUrl,
       {
@@ -481,7 +501,7 @@ export async function fetchPlotData(
 
     if (!userRes.ok) {
       const errorText = await userRes.text();
-      console.error('[plotData] Failed to fetch user:', errorText);
+      if (__DEV__) console.error('[plotData] Failed to fetch user:', errorText);
       return {
         success: false,
         error: { error: 'Failed to retrieve user credentials', status: 500 },
@@ -498,9 +518,10 @@ export async function fetchPlotData(
       if (targetOrg?.apiKey) {
         userApiKey = targetOrg.apiKey;
       } else {
-        console.error(
-          `[plotData] User ${plotConfig.userId} has no API key for org ${plotConfig.organizationId}`
-        );
+        if (__DEV__)
+          console.error(
+            `[plotData] User ${plotConfig.userId} has no API key for org ${plotConfig.organizationId}`
+          );
         return {
           success: false,
           error: { error: 'User credentials not available for this organization', status: 500 },
@@ -511,23 +532,23 @@ export async function fetchPlotData(
     }
 
     if (!userApiKey) {
-      console.error('[plotData] No API key found for user');
+      if (__DEV__) console.error('[plotData] No API key found for user');
       return {
         success: false,
         error: { error: 'User credentials not available', status: 500 },
       };
     }
-    console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
+    if (__DEV__) console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
 
     // ========================================================================
     // Step 3: Extract project config and check chart type
     // ========================================================================
     const projectConfig = plotConfig.projectConfig;
-    console.log('[plotData] projectConfig:', JSON.stringify(projectConfig));
+    if (__DEV__) console.log('[plotData] projectConfig:', JSON.stringify(projectConfig));
 
     const projectName = plotConfig.metadata?.projectName;
     if (!projectName) {
-      console.error('[plotData] No project name found in metadata');
+      if (__DEV__) console.error('[plotData] No project name found in metadata');
       return {
         success: false,
         error: { error: 'Plot configuration missing project name', status: 400 },
@@ -544,9 +565,10 @@ export async function fetchPlotData(
     // Step 3a: For Bar Charts, try pre-aggregated metrics first (faster)
     // ========================================================================
     if (isBarChart && plotConfig.config.xAxis && plotConfig.config.yAxis) {
-      console.log(
-        '[plotData] Step 3a: Bar chart detected, fetching pre-aggregated metrics first...'
-      );
+      if (__DEV__)
+        console.log(
+          '[plotData] Step 3a: Bar chart detected, fetching pre-aggregated metrics first...'
+        );
       const barChartResult = await fetchBarChartMetrics(
         userApiKey,
         projectName,
@@ -562,13 +584,15 @@ export async function fetchPlotData(
       if (barChartResult) {
         preAggregatedBarData = barChartResult.data;
         isGroupedBarChart = barChartResult.isGrouped;
-        console.log(
-          '[plotData] Step 3a SUCCESS - Got pre-aggregated bar data:',
-          preAggregatedBarData.length,
-          'items'
-        );
+        if (__DEV__)
+          console.log(
+            '[plotData] Step 3a SUCCESS - Got pre-aggregated bar data:',
+            preAggregatedBarData.length,
+            'items'
+          );
       } else {
-        console.log('[plotData] Step 3a WARN - Pre-aggregated metrics failed, will try raw logs');
+        if (__DEV__)
+          console.log('[plotData] Step 3a WARN - Pre-aggregated metrics failed, will try raw logs');
       }
     }
 
@@ -576,7 +600,7 @@ export async function fetchPlotData(
     // Step 3b: Fetch raw logs (skip for bar charts if we have pre-aggregated data)
     // ========================================================================
     if (!preAggregatedBarData || !isBarChart) {
-      console.log('[plotData] Step 3b: Fetching raw logs...');
+      if (__DEV__) console.log('[plotData] Step 3b: Fetching raw logs...');
       const logsParams = new URLSearchParams();
       logsParams.append('project_name', projectName);
 
@@ -597,9 +621,15 @@ export async function fetchPlotData(
       }
       if (projectConfig.fromFields) {
         logsParams.append('from_fields', projectConfig.fromFields as string);
-      }
-      if (projectConfig.excludeFields) {
+      } else if (projectConfig.excludeFields) {
         logsParams.append('exclude_fields', projectConfig.excludeFields as string);
+      } else {
+        const requiredFields = getRequiredFieldsForPlot(plotConfig.config);
+        if (requiredFields.length > 0) {
+          const fromFieldsStr = requiredFields.join('&');
+          logsParams.append('from_fields', fromFieldsStr);
+          if (__DEV__) console.log('[plotData] Computed from_fields from plot config:', fromFieldsStr);
+        }
       }
       if (projectConfig.sorting) {
         logsParams.append('sorting', projectConfig.sorting as string);
@@ -609,69 +639,92 @@ export async function fetchPlotData(
       }
 
       const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
-      console.log(
-        '[plotData] Logs URL:',
-        logsUrl.substring(0, 200) + (logsUrl.length > 200 ? '...' : '')
-      );
-      const logsStartTime = Date.now();
-      const logsRes = await fetchWithTimeout(
-        logsUrl,
-        {
-          headers: {
-            Authorization: `Bearer ${userApiKey}`,
-            Accept: 'application/json',
-          },
-          cache: 'no-store',
-        },
-        timeoutMs
-      );
+      if (__DEV__) {
+        console.log('[plotData] Logs URL (full):', logsUrl);
+        console.log('[plotData] Logs query params:', JSON.stringify(Object.fromEntries(logsParams)));
+      }
 
-      if (!logsRes.ok) {
+      const MAX_RETRIES = 1;
+      let logsRes: Response | null = null;
+      let lastError: string | null = null;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0 && __DEV__) {
+          console.log(`[plotData] Step 3b: Retry ${attempt}/${MAX_RETRIES} after transient failure...`);
+        }
+        const logsStartTime = Date.now();
+        logsRes = await fetchWithTimeout(
+          logsUrl,
+          {
+            headers: {
+              Authorization: `Bearer ${userApiKey}`,
+              Accept: 'application/json',
+            },
+            cache: 'no-store',
+          },
+          timeoutMs
+        );
+        const elapsed = Date.now() - logsStartTime;
+
+        if (logsRes.ok) {
+          const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
+          rawLogs = logsData.logs || [];
+          if (__DEV__)
+            console.log(
+              '[plotData] Step 3b SUCCESS - Got',
+              rawLogs.length,
+              'logs in',
+              elapsed,
+              'ms'
+            );
+          lastError = null;
+          break;
+        }
+
         const responseText = await logsRes.text();
+        if (__DEV__)
+          console.error(
+            `[plotData] Step 3b FAILED (attempt ${attempt + 1}) -`,
+            `Status: ${logsRes.status},`,
+            `Elapsed: ${elapsed}ms,`,
+            `Content-Type: ${logsRes.headers.get('content-type')},`,
+            `Response (${responseText.length} chars): ${responseText.substring(0, 500) || '(empty body)'}`
+          );
+
         let errorData: Record<string, unknown> = {};
         try {
           errorData = JSON.parse(responseText);
         } catch {
           // Response is not JSON
         }
-        console.error(
-          '[plotData] Failed to fetch logs - Status:',
-          logsRes.status,
-          'Response:',
-          responseText.substring(0, 500)
-        );
-        // For bar charts with pre-aggregated data, we can continue without raw logs
+        lastError =
+          typeof errorData.detail === 'string'
+            ? errorData.detail
+            : `Failed to fetch log data (${logsRes.status})`;
+
+        // Only retry on 500/502/503/504 with no structured error detail (likely transient)
+        const isTransient = logsRes.status >= 500 && typeof errorData.detail !== 'string';
+        if (!isTransient || attempt === MAX_RETRIES) break;
+      }
+
+      if (lastError) {
         if (preAggregatedBarData) {
-          console.log('[plotData] Continuing with pre-aggregated data only (raw logs failed)');
+          if (__DEV__) console.log('[plotData] Continuing with pre-aggregated data only (raw logs failed)');
         } else {
-          const errorMessage =
-            typeof errorData.detail === 'string'
-              ? errorData.detail
-              : `Failed to fetch log data (${logsRes.status})`;
           return {
             success: false,
-            error: { error: errorMessage, status: logsRes.status },
+            error: { error: lastError, status: logsRes!.status },
           };
         }
-      } else {
-        const logsData: LogsResponse = snakeToCamelObject(await logsRes.json());
-        rawLogs = logsData.logs || [];
-        console.log(
-          '[plotData] Step 3b SUCCESS - Got',
-          rawLogs.length,
-          'logs in',
-          Date.now() - logsStartTime,
-          'ms'
-        );
       }
     } else {
-      console.log('[plotData] Step 3b SKIPPED - Using pre-aggregated bar chart data');
+      if (__DEV__) console.log('[plotData] Step 3b SKIPPED - Using pre-aggregated bar chart data');
     }
 
     // ========================================================================
     // Step 4: Fetch fields metadata
     // ========================================================================
-    console.log('[plotData] Step 4: Fetching fields metadata...');
+    if (__DEV__) console.log('[plotData] Step 4: Fetching fields metadata...');
     const fieldsParams = new URLSearchParams();
     fieldsParams.append('project_name', projectName);
     if (projectConfig.context) {
@@ -697,30 +750,32 @@ export async function fetchPlotData(
     let rawFields: Record<string, unknown> = {};
     if (fieldsRes.ok) {
       rawFields = snakeToCamelObject(await fieldsRes.json());
-      console.log('[plotData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
+      if (__DEV__) console.log('[plotData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
     } else {
-      console.warn('[plotData] Step 4 WARN - Failed to fetch fields, continuing without');
+      if (__DEV__) console.warn('[plotData] Step 4 WARN - Failed to fetch fields, continuing without');
     }
 
     // ========================================================================
     // Step 5: Transform data
     // ========================================================================
-    console.log('[plotData] Step 5: Transforming data...');
+    if (__DEV__) console.log('[plotData] Step 5: Transforming data...');
     const transformedData = transformLogsForFrontend(rawLogs);
-    console.log('[plotData] Transformed', transformedData.length, 'data points');
+    if (__DEV__) console.log('[plotData] Transformed', transformedData.length, 'data points');
     const transformedFields = transformFieldsForFrontend(rawFields);
     const normalizedConfig = normalizeConfigForFrontend(plotConfig.config);
 
     // Note: Bar chart pre-aggregation is now handled in Step 3a for better performance
 
-    console.log('[plotData] === fetchPlotData SUCCESS ===');
-    console.log(
-      '[plotData] Returning',
-      transformedData.length,
-      'data points,',
-      Object.keys(transformedFields).length,
-      'fields'
-    );
+    if (__DEV__) {
+      console.log('[plotData] === fetchPlotData SUCCESS ===');
+      console.log(
+        '[plotData] Returning',
+        transformedData.length,
+        'data points,',
+        Object.keys(transformedFields).length,
+        'fields'
+      );
+    }
 
     return {
       success: true,
@@ -740,14 +795,14 @@ export async function fetchPlotData(
     };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.error('[plotData] Request timeout');
+      if (__DEV__) console.error('[plotData] Request timeout');
       return {
         success: false,
         error: { error: 'Request timed out. Please try again.', status: 504 },
       };
     }
 
-    console.error('[plotData] Unexpected error:', error);
+    if (__DEV__) console.error('[plotData] Unexpected error:', error);
     return {
       success: false,
       error: { error: 'Failed to load plot', status: 500 },
