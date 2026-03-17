@@ -100,9 +100,14 @@ export type AssistantPreset = Omit<
   | 'maxParallel'
   | 'voiceId'
   | 'voiceProvider'
+  | 'timezone'
+  | 'profileVideo'
+  | 'phoneCountry'
 > & {
   gender?: 'male' | 'female';
-  phoneCountry: string;
+  phoneCountry?: string | null;
+  timezone?: string | null;
+  profileVideo?: string | null;
   voiceIds: {
     cartesia?: string | null;
     elevenlabs?: string | null;
