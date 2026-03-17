@@ -39,6 +39,7 @@ const nextConfig = {
     serverMinification: false,
     serverActions: {
       allowedOrigins: ['unify.ai'],
+      bodySizeLimit: '100mb',
     },
   },
   compiler: {
