@@ -68,13 +68,20 @@ async function flushCropperEffect() {
 function setupCanvasAndImageMocks() {
   let capturedToBlobMime: string | undefined;
   let capturedToBlobQuality: number | undefined;
+  const allContexts: Array<ReturnType<typeof makeCtx>> = [];
 
-  function makeMockCanvas() {
-    const ctx = {
+  function makeCtx() {
+    return {
       translate: vi.fn(),
       rotate: vi.fn(),
+      scale: vi.fn(),
       drawImage: vi.fn(),
     };
+  }
+
+  function makeMockCanvas() {
+    const ctx = makeCtx();
+    allContexts.push(ctx);
     const canvas = {
       width: 0,
       height: 0,
@@ -132,6 +139,7 @@ function setupCanvasAndImageMocks() {
   return {
     getCapturedMime: () => capturedToBlobMime,
     getCapturedQuality: () => capturedToBlobQuality,
+    getAllContexts: () => allContexts,
     cleanup: () => {
       vi.restoreAllMocks();
       Object.defineProperty(window, 'Image', {
@@ -499,6 +507,164 @@ describe('PhotoCropDialog', () => {
 
         expect(screen.queryByText('Adjust Photo')).toBeNull();
         expect(screen.queryByRole('button', { name: /apply/i })).toBeNull();
+      }
+    );
+
+    it(
+      'applies horizontal flip via a third canvas when flip-H is toggled',
+      {
+        meta: {
+          alias: 'CropPipeline-FlipH',
+          scenario: 'User toggles Flip Horizontal before applying',
+          behavior: 'getCroppedBlob creates a third canvas and calls scale(-1, 1)',
+        },
+      },
+      async () => {
+        const onConfirm = vi.fn();
+        const onCancel = vi.fn();
+
+        await act(async () => {
+          render(
+            <PhotoCropDialog
+              imageSrc="blob:http://localhost/test-fliph"
+              open={true}
+              onConfirm={onConfirm}
+              onCancel={onCancel}
+              sourceType="image/png"
+            />
+          );
+        });
+
+        await flushCropperEffect();
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /flip horizontal/i }));
+        });
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+        });
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+
+        const contexts = mocks.getAllContexts();
+        // 3 canvases: rotation, crop, flip
+        expect(contexts.length).toBe(3);
+        const flipCtx = contexts[2];
+        expect(flipCtx.scale).toHaveBeenCalledWith(-1, 1);
+        expect(flipCtx.translate).toHaveBeenCalled();
+        expect(flipCtx.drawImage).toHaveBeenCalled();
+      }
+    );
+
+    it(
+      'applies vertical flip via a third canvas when flip-V is toggled',
+      {
+        meta: {
+          alias: 'CropPipeline-FlipV',
+          scenario: 'User toggles Flip Vertical before applying',
+          behavior: 'getCroppedBlob creates a third canvas and calls scale(1, -1)',
+        },
+      },
+      async () => {
+        const onConfirm = vi.fn();
+        const onCancel = vi.fn();
+
+        await act(async () => {
+          render(
+            <PhotoCropDialog
+              imageSrc="blob:http://localhost/test-flipv"
+              open={true}
+              onConfirm={onConfirm}
+              onCancel={onCancel}
+              sourceType="image/png"
+            />
+          );
+        });
+
+        await flushCropperEffect();
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /flip vertical/i }));
+        });
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+        });
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+
+        const contexts = mocks.getAllContexts();
+        expect(contexts.length).toBe(3);
+        const flipCtx = contexts[2];
+        expect(flipCtx.scale).toHaveBeenCalledWith(1, -1);
+      }
+    );
+
+    it(
+      'does not create a flip canvas when neither flip is active',
+      {
+        meta: {
+          alias: 'CropPipeline-NoFlip',
+          scenario: 'User applies crop without toggling any flip',
+          behavior: 'Only 2 canvases are created (rotation + crop)',
+        },
+      },
+      async () => {
+        const onConfirm = vi.fn();
+        const onCancel = vi.fn();
+
+        await act(async () => {
+          render(
+            <PhotoCropDialog
+              imageSrc="blob:http://localhost/test-noflip"
+              open={true}
+              onConfirm={onConfirm}
+              onCancel={onCancel}
+              sourceType="image/png"
+            />
+          );
+        });
+
+        await flushCropperEffect();
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+        });
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+
+        const contexts = mocks.getAllContexts();
+        expect(contexts.length).toBe(2);
+      }
+    );
+
+    it(
+      'renders counter-clockwise rotation button',
+      {
+        meta: {
+          alias: 'CropPipeline-RotateCcw',
+          scenario: 'Dialog is open',
+          behavior: 'Counter-clockwise rotation button is present and clickable',
+        },
+      },
+      async () => {
+        await act(async () => {
+          render(
+            <PhotoCropDialog
+              imageSrc="blob:http://localhost/test-ccw"
+              open={true}
+              onConfirm={vi.fn()}
+              onCancel={vi.fn()}
+            />
+          );
+        });
+
+        const ccwButton = screen.getByRole('button', { name: /rotate counter-clockwise/i });
+        expect(ccwButton).toBeTruthy();
+
+        const cwButton = screen.getByRole('button', { name: /rotate clockwise/i });
+        expect(cwButton).toBeTruthy();
       }
     );
   });

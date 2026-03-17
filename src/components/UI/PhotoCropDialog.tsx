@@ -12,7 +12,7 @@ import {
 } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
 import { Slider } from '@/components/UI/slider';
-import { ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCw, RotateCcw, FlipHorizontal, FlipVertical } from 'lucide-react';
 
 interface PhotoCropDialogProps {
   /** The image source URL (typically from URL.createObjectURL) */
@@ -50,7 +50,9 @@ async function getCroppedBlob(
   imageSrc: string,
   pixelCrop: Area,
   rotation: number,
-  sourceType?: string
+  sourceType?: string,
+  flipH = false,
+  flipV = false
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const mime = outputMime(sourceType);
@@ -85,8 +87,19 @@ async function getCroppedBlob(
     0, 0, pixelCrop.width, pixelCrop.height
   );
 
+  // Canvas 3 (optional): apply horizontal/vertical flip
+  const outputCanvas = (flipH || flipV) ? document.createElement('canvas') : cropCanvas;
+  if (flipH || flipV) {
+    outputCanvas.width = cropCanvas.width;
+    outputCanvas.height = cropCanvas.height;
+    const flipCtx = outputCanvas.getContext('2d')!;
+    flipCtx.translate(flipH ? outputCanvas.width : 0, flipV ? outputCanvas.height : 0);
+    flipCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+    flipCtx.drawImage(cropCanvas, 0, 0);
+  }
+
   return new Promise<Blob>((resolve, reject) => {
-    cropCanvas.toBlob(
+    outputCanvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
         else reject(new Error('Canvas toBlob failed'));
@@ -122,6 +135,8 @@ export function PhotoCropDialog({
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(INITIAL_ZOOM);
   const [rotation, setRotation] = React.useState(0);
+  const [flipH, setFlipH] = React.useState(false);
+  const [flipV, setFlipV] = React.useState(false);
   const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -131,6 +146,8 @@ export function PhotoCropDialog({
       setCrop({ x: 0, y: 0 });
       setZoom(INITIAL_ZOOM);
       setRotation(0);
+      setFlipH(false);
+      setFlipV(false);
       setCroppedAreaPixels(null);
     }
   }, [open, imageSrc]);
@@ -143,22 +160,25 @@ export function PhotoCropDialog({
     if (!imageSrc || !croppedAreaPixels) return;
     setIsProcessing(true);
     try {
-      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, rotation, sourceType);
+      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, rotation, sourceType, flipH, flipV);
       const mime = outputMime(sourceType);
       const ext = outputExtension(mime);
       const file = new File([blob], `cropped-photo${ext}`, { type: mime });
       onConfirm(file);
     } catch {
-      // Fall back to the original image if cropping fails
       onCancel();
     } finally {
       setIsProcessing(false);
     }
-  }, [imageSrc, croppedAreaPixels, rotation, sourceType, onConfirm, onCancel]);
+  }, [imageSrc, croppedAreaPixels, rotation, sourceType, flipH, flipV, onConfirm, onCancel]);
 
-  const handleRotate = () => {
-    setRotation((prev) => (prev + 90) % 360);
-  };
+  const handleRotateCw = () => setRotation((prev) => (prev + 90) % 360);
+  const handleRotateCcw = () => setRotation((prev) => (prev - 90 + 360) % 360);
+  const handleFlipH = () => setFlipH((prev) => !prev);
+  const handleFlipV = () => setFlipV((prev) => !prev);
+
+  const cropTransform =
+    `translate(${crop.x}px, ${crop.y}px) rotate(${rotation}deg) scale(${flipH ? -zoom : zoom}, ${flipV ? -zoom : zoom})`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
@@ -185,13 +205,14 @@ export function PhotoCropDialog({
               onCropComplete={onCropComplete}
               minZoom={MIN_ZOOM}
               maxZoom={MAX_ZOOM}
+              transform={cropTransform}
               style={{ containerStyle: { background: 'transparent' } }}
             />
           )}
         </div>
 
-        {/* Zoom & rotate controls */}
-        <div className="flex items-center gap-3 px-6 pt-4 pb-2">
+        {/* Zoom controls */}
+        <div className="flex items-center gap-3 px-6 pt-4 pb-1">
           <ZoomOut className="h-4 w-4 shrink-0 text-muted-foreground" />
           <Slider
             value={[zoom]}
@@ -202,14 +223,22 @@ export function PhotoCropDialog({
             className="flex-1"
           />
           <ZoomIn className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="ml-1 h-8 w-8"
-            onClick={handleRotate}
-          >
+        </div>
+
+        {/* Rotate & flip controls */}
+        <div className="flex items-center justify-center gap-1 px-6 pb-2">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotateCcw} aria-label="Rotate counter-clockwise">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotateCw} aria-label="Rotate clockwise">
             <RotateCw className="h-4 w-4" />
+          </Button>
+          <div className="mx-1 h-4 w-px bg-border" />
+          <Button type="button" variant={flipH ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={handleFlipH} aria-label="Flip horizontal">
+            <FlipHorizontal className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant={flipV ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={handleFlipV} aria-label="Flip vertical">
+            <FlipVertical className="h-4 w-4" />
           </Button>
         </div>
 
