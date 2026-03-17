@@ -192,14 +192,21 @@ export async function createOrganizationForUserAction() {
 // =============================================================================
 
 export async function inviteUserToOrgAction() {
-  return async (orgId: number, email: string): Promise<ResponseProps> => {
+  return async (orgId: number, email: string, roleId?: number, roleName?: string): Promise<ResponseProps> => {
     'use server';
+    const body: Record<string, unknown> = { email };
+    if (roleId !== undefined) {
+      body.role_id = roleId;
+    }
+    if (roleName !== undefined) {
+      body.role_name = roleName;
+    }
     return safeFetch(
       `${backendUrl}/admin/organization/${orgId}/invite`,
       {
         method: 'POST',
         headers: adminHeaders,
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(body),
       },
       'inviteUserToOrg'
     ) as Promise<ResponseProps>;

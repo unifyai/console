@@ -196,7 +196,10 @@ export const useOrganization = (
     }
   };
 
-  const handleInvite = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const handleInvite = async (
+    email: string,
+    roleId?: number
+  ): Promise<{ success: boolean; error?: string }> => {
     if (!currentOrg) return { success: false, error: 'No organization selected' };
 
     try {
@@ -210,7 +213,7 @@ export const useOrganization = (
         }
       }
 
-      const result = await actions.inviteMember(currentOrg.id, email);
+      const result = await actions.inviteMember(currentOrg.id, email, roleId);
       if (result && 'detail' in result) {
         toast.error(result.detail);
         return { success: false, error: result.detail };

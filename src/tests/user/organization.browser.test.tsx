@@ -186,11 +186,11 @@ describe('Organization Management System', () => {
 
   describe('Member Management & RBAC', () => {
     it(
-      'should allow inviting a new member via email',
+      'should allow inviting a new member via email with default role',
       {
         meta: {
           alias: 'invite-member',
-          behavior: 'Inviting a user calls server action and refreshes list',
+          behavior: 'Inviting a user calls server action with default Member role and refreshes list',
           scenario: 'Admin invites a new colleague via email',
         },
       },
@@ -207,7 +207,42 @@ describe('Organization Management System', () => {
         const submitInvite = screen.getByRole('button', { name: 'Invite' });
         await userEvent.click(submitInvite);
 
-        expect(mockOrgActions.inviteMember).toHaveBeenCalledWith(1, 'new.hire@unify.ai');
+        expect(mockOrgActions.inviteMember).toHaveBeenCalledWith(1, 'new.hire@unify.ai', 2);
+      }
+    );
+
+    it(
+      'should allow inviting a member with a selected role',
+      {
+        meta: {
+          alias: 'invite-member-with-role',
+          behavior: 'Role selector in invite dialog allows choosing a non-default role',
+          scenario: 'Admin invites a new colleague as Custom Manager',
+        },
+      },
+      async () => {
+        renderMain();
+        await waitForDataLoad();
+
+        const inviteTrigger = screen.getByRole('button', { name: /invite a new member/i });
+        await userEvent.click(inviteTrigger);
+
+        const dialog = await screen.findByRole('dialog');
+
+        const emailInput = within(dialog).getByPlaceholderText(/colleague@organization.com/i);
+        await userEvent.type(emailInput, 'manager@unify.ai');
+
+        // Open role selector and choose Custom Manager
+        const roleSelect = within(dialog).getByRole('combobox');
+        await userEvent.click(roleSelect);
+        const listbox = await screen.findByRole('listbox');
+        const customManagerOption = within(listbox).getByText(/Custom Manager/i);
+        await userEvent.click(customManagerOption);
+
+        const submitInvite = within(dialog).getByRole('button', { name: 'Invite' });
+        await userEvent.click(submitInvite);
+
+        expect(mockOrgActions.inviteMember).toHaveBeenCalledWith(1, 'manager@unify.ai', 3);
       }
     );
 
@@ -354,7 +389,7 @@ describe('Organization Management System', () => {
         const resendOption = screen.getByText(/resend invite/i);
         await userEvent.click(resendOption);
 
-        expect(mockOrgActions.inviteMember).toHaveBeenCalledWith(1, 'pending@acme.com');
+        expect(mockOrgActions.inviteMember).toHaveBeenCalledWith(1, 'pending@acme.com', undefined);
       }
     );
 
