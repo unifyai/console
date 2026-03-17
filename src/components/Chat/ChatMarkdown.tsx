@@ -3,6 +3,7 @@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/MarkdownRenderer';
+import { parseEmbedUrl, InlineEmbed } from './InlineEmbed';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const chatMarkdownComponents = {
@@ -10,17 +11,25 @@ const chatMarkdownComponents = {
   p: ({ children }: any) => (
     <p className="mb-2.5 whitespace-pre-wrap break-words last:mb-0">{children}</p>
   ),
-  a: ({ href, children }: any) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-link break-all underline decoration-1 underline-offset-2"
-      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }: any) => {
+    if (href) {
+      const embed = parseEmbedUrl(href);
+      if (embed) {
+        return <InlineEmbed embed={embed} expandedHeight={300} />;
+      }
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-link break-all underline decoration-1 underline-offset-2"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
+        {children}
+      </a>
+    );
+  },
   ul: ({ children }: any) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
   ol: ({ children }: any) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
   li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
