@@ -15,7 +15,7 @@ const chatMarkdownComponents = {
     if (href) {
       const embed = parseEmbedUrl(href);
       if (embed) {
-        return <InlineEmbed embed={embed} expandedHeight={300} />;
+        return <InlineEmbed embed={embed} expandedHeight={420} />;
       }
     }
     return (

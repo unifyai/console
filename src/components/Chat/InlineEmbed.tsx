@@ -150,21 +150,21 @@ interface InlineEmbedExpandedProps {
 export function InlineEmbedExpanded({
   embed,
   onCollapse,
-  height = 400,
+  height = 420,
   className,
 }: InlineEmbedExpandedProps) {
   const Icon = embed.type === 'table' ? Table2 : BarChart3;
   const label = embed.type === 'table' ? 'Interactive Table' : 'Interactive Chart';
   const [isLoading, setIsLoading] = useState(true);
-  const [iframeActive, setIframeActive] = useState(false);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
   // Always use a local path so the iframe loads from the same origin,
   // avoiding cross-origin framing blocks when the chat message contains
   // a full URL pointing to a different environment (e.g. staging).
+  // embed=true strips header/footer chrome so the chart fills the frame.
   const iframeSrc = useMemo(
-    () => `/${embed.type}/view/${embed.token}`,
+    () => `/${embed.type}/view/${embed.token}?embed=true`,
     [embed.type, embed.token]
   );
 
@@ -206,14 +206,7 @@ export function InlineEmbedExpanded({
       </div>
 
       {/* Iframe Content */}
-      {/* Click to activate: pointer-events on iframe are disabled until clicked,
-          so parent chat scroll works uninterrupted when cursor passes over the embed. */}
-      <div
-        style={{ height }}
-        className="relative overflow-hidden"
-        onClick={() => setIframeActive(true)}
-        onMouseLeave={() => setIframeActive(false)}
-      >
+      <div style={{ height }} className="relative overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-2">
@@ -230,7 +223,7 @@ export function InlineEmbedExpanded({
             height: scaledHeight,
             transform: iframeScale < 1 ? `scale(${iframeScale})` : undefined,
             transformOrigin: 'top left',
-            pointerEvents: iframeActive ? 'auto' : 'none',
+            pointerEvents: 'auto',
           }}
           title={label}
           sandbox="allow-scripts allow-same-origin allow-popups"
@@ -258,7 +251,7 @@ interface InlineEmbedProps {
 export function InlineEmbed({
   embed,
   defaultExpanded = false,
-  expandedHeight = 400,
+  expandedHeight = 420,
   className,
 }: InlineEmbedProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -296,7 +289,7 @@ interface RenderContentWithEmbedsProps {
 export function RenderContentWithEmbeds({
   content,
   defaultExpanded = false,
-  expandedHeight = 400,
+  expandedHeight = 420,
 }: RenderContentWithEmbedsProps) {
   // Split content by URLs
   const urlRegex = /(https?:\/\/[^\s]+)/g;

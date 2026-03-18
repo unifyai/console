@@ -99,7 +99,7 @@ export function ChatMessageBubble({
     if (containsEmbedUrl(message)) {
       return (
         <div className="whitespace-pre-wrap">
-          <RenderContentWithEmbeds content={message} expandedHeight={300} />
+          <RenderContentWithEmbeds content={message} expandedHeight={420} />
         </div>
       );
     }
