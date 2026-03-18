@@ -13,6 +13,7 @@ import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 interface PageProps {
   params: { token: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
 interface PlotDataResponse {
@@ -224,8 +225,9 @@ function ErrorMessage({ message }: { message: string }) {
   );
 }
 
-export default async function PlotViewPage({ params }: PageProps) {
+export default async function PlotViewPage({ params, searchParams }: PageProps) {
   const result = await getPlotData(params.token);
+  const embed = searchParams.embed === 'true';
 
   // Handle errors
   if (!result.success) {
@@ -256,6 +258,7 @@ export default async function PlotViewPage({ params }: PageProps) {
         fields={plotData.fields}
         title={plotData.metadata?.title}
         preAggregatedBarData={plotData.preAggregatedBarData}
+        embed={embed}
       />
     </main>
   );
