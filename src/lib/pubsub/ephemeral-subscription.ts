@@ -11,6 +11,7 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
+import { PubSub } from '@google-cloud/pubsub';
 import fs from 'fs';
 
 /** Ephemeral subscriptions auto-delete after this much inactivity. */
@@ -24,7 +25,7 @@ export const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
 
 export const PUBSUB_API_BASE = 'https://pubsub.googleapis.com/v1';
 
-export async function getAuthClient(): Promise<{ client: any; projectId: string }> {
+function getCredentials(): { credentials: any; projectId: string } {
   const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
   if (!credentialsValue) {
     throw new Error('COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.');
@@ -42,13 +43,37 @@ export async function getAuthClient(): Promise<{ client: any; projectId: string 
     }
   }
 
+  if (!credentials?.project_id) {
+    throw new Error('Invalid Pub/Sub credentials format.');
+  }
+
+  return { credentials, projectId: credentials.project_id };
+}
+
+export async function getAuthClient(): Promise<{ client: any; projectId: string }> {
+  const { credentials, projectId } = getCredentials();
+
   const auth = new GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/pubsub'],
-    projectId: credentials.project_id,
+    projectId,
   });
 
-  return { client: await auth.getClient(), projectId: credentials.project_id };
+  return { client: await auth.getClient(), projectId };
+}
+
+let _pubsubClient: PubSub | null = null;
+
+/**
+ * Returns a singleton PubSub client for gRPC streaming operations.
+ * Reuses the same client across connections to share gRPC channels.
+ */
+export function getPubSubClient(): { pubsub: PubSub; projectId: string } {
+  const { credentials, projectId } = getCredentials();
+  if (!_pubsubClient) {
+    _pubsubClient = new PubSub({ projectId, credentials });
+  }
+  return { pubsub: _pubsubClient, projectId };
 }
 
 /**
