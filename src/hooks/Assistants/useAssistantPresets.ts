@@ -65,8 +65,12 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
     }
   }, [enabled, hasInitialized]);
 
+  const hasFetchedNationality = React.useRef(false);
+
   React.useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || hasFetchedNationality.current) return;
+    hasFetchedNationality.current = true;
+
     let cancelled = false;
     const presetNationalities = new Set(
       (assistantPresetsConstant as AssistantPreset[]).map((p) => p.nationality).filter(Boolean)

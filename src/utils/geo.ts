@@ -1,18 +1,32 @@
 export const FALLBACK_NATIONALITY = 'United Kingdom';
 
+let cachedCountryPromise: Promise<string | null> | null = null;
+
 /**
  * Fetches the visitor's country code (ISO 3166-1 alpha-2) based on their IP address.
  * Returns null if detection fails for any reason.
+ * Result is cached for the lifetime of the session — concurrent and repeated
+ * calls share a single in-flight request.
  */
 export async function fetchVisitorCountry(): Promise<string | null> {
-  try {
-    const res = await fetch('/api/geo/country');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.country ?? null;
-  } catch {
-    return null;
+  if (cachedCountryPromise) return cachedCountryPromise;
+
+  cachedCountryPromise = (async () => {
+    try {
+      const res = await fetch('/api/geo/country');
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.country ?? null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const result = await cachedCountryPromise;
+  if (result === null) {
+    cachedCountryPromise = null;
   }
+  return result;
 }
 
 /**
