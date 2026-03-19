@@ -3,15 +3,26 @@
  *
  * Provides helpers for extracting API keys from requests using
  * session-based auth or header-based auth (for testing/backwards compatibility).
+ *
+ * Performance: getApiKeyFromRequest uses an in-memory cache to avoid calling
+ * getCurrentUser() (which makes 1-3 Orchestra roundtrips) on every API route
+ * invocation. The cache is populated by getCurrentUser() and has a short TTL.
+ * On cache miss, falls back to the full getCurrentUser() call.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { getCurrentUser } from '@/lib/user/user';
+import { resolveApiKeyFromCache } from './api-key-cache';
 
 /**
  * Get API key from request.
- * Tries session first, falls back to apiKey header for backwards compatibility.
+ *
+ * Resolution order:
+ *   1. JWT decode + in-memory cache (fast path — no Orchestra call)
+ *   2. Full getCurrentUser() lookup (slow path — 1-3 Orchestra calls)
+ *   3. Authorization: Bearer header
+ *   4. Custom apiKey header (tests / backwards compatibility)
  *
  * @param request - The incoming NextRequest
  * @returns API key string or null if not authenticated
@@ -23,14 +34,26 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
   // the user needs them to complete verification or org-enforced setup.
   const pathname = request.nextUrl.pathname;
   const isMfaRoute = pathname.startsWith('/api/auth/mfa');
-  if (!isMfaRoute) {
-    const jwtToken = await getToken({ req: request, secret: process.env.JWT_SECRET });
-    if (jwtToken?.mfaPending) {
-      return null;
+  const jwtToken = await getToken({ req: request, secret: process.env.JWT_SECRET });
+  if (!isMfaRoute && jwtToken?.mfaPending) {
+    return null;
+  }
+
+  // Fast path: resolve from in-memory cache using the JWT email.
+  // The cache is populated by getCurrentUser() during page SSR and by
+  // previous slow-path calls. This avoids the Orchestra roundtrip that
+  // getCurrentUser() → getUserByEmail() would otherwise require.
+  if (jwtToken?.email && typeof jwtToken.email === 'string') {
+    const workspaceId = request.cookies.get('unify_workspace_id')?.value;
+    const headerApiKey = request.headers.get('apiKey');
+    const cached = resolveApiKeyFromCache(jwtToken.email, workspaceId, headerApiKey);
+    if (cached) {
+      return cached;
     }
   }
 
-  // Try session-based auth first
+  // Slow path: full user lookup via session + Orchestra.
+  // This also populates the cache for subsequent requests.
   const user = await getCurrentUser();
   if (user?.apiKey) {
     return user.apiKey;
@@ -39,7 +62,7 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
   // Try standard Authorization: Bearer header
   const authHeader = request.headers.get('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.slice(7); // Remove 'Bearer ' prefix
+    return authHeader.slice(7);
   }
 
   // Fall back to custom apiKey header (for tests and backwards compatibility)

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { getApiKeyFromRequest, unauthorized } from '@/app/api/_utils/auth';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 import { validatePassword } from '@/lib/auth/password';
+import { invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
 
 /**
  * POST /api/auth/email/change-password
@@ -33,6 +35,14 @@ export async function POST(request: NextRequest) {
       currentPassword,
       newPassword,
     });
+
+    // Evict the cached API key so that subsequent requests go through
+    // getCurrentUser() which will detect the stale JWT via password_changed_at.
+    const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
+    if (token?.email && typeof token.email === 'string') {
+      invalidateApiKeyCache(token.email);
+    }
+
     return NextResponse.json(res.data, { status: 200 });
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
