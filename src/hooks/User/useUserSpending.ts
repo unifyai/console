@@ -25,15 +25,10 @@ import {
   getCurrentMonth,
 } from '@/types/user/spending';
 import { ResponseProps } from '@/types/common';
+import { fetchUserSpend, fetchUserSpendingLimit } from '@/lib/client/spending';
 
 /** Polling interval for spend updates (60 seconds) */
 const SPEND_POLLING_INTERVAL = 60000;
-
-/** Type for the getSpend action function */
-type GetUserSpendAction = (month?: string) => Promise<UserSpend | ResponseProps>;
-
-/** Type for the getLimit action function */
-type GetUserLimitAction = () => Promise<UserSpendingLimitResponse | ResponseProps>;
 
 /** Type for the setLimit action function */
 type SetUserLimitAction = (
@@ -42,10 +37,6 @@ type SetUserLimitAction = (
 
 /** Hook configuration */
 interface UseUserSpendingConfig {
-  /** Server action to fetch spend data */
-  getSpendAction: GetUserSpendAction;
-  /** Server action to fetch spending limit */
-  getLimitAction: GetUserLimitAction;
   /** Server action to set spending limit */
   setLimitAction: SetUserLimitAction;
   /** Whether to enable automatic polling (default: true) */
@@ -106,8 +97,6 @@ interface UseUserSpendingResult {
  * const { success } = await updateLimit(200);
  */
 export function useUserSpending({
-  getSpendAction,
-  getLimitAction,
   setLimitAction,
   enablePolling = true,
   pollingInterval = SPEND_POLLING_INTERVAL,
@@ -129,7 +118,7 @@ export function useUserSpending({
       }
 
       try {
-        const result = await getSpendAction(currentMonth);
+        const result = await fetchUserSpend(currentMonth);
 
         if (isUserSpendData(result)) {
           setSpend(result);
@@ -150,13 +139,13 @@ export function useUserSpending({
         }
       }
     },
-    [currentMonth, getSpendAction]
+    [currentMonth]
   );
 
   // Fetch limit data
   const fetchLimit = React.useCallback(async () => {
     try {
-      const result = await getLimitAction();
+      const result = await fetchUserSpendingLimit();
 
       if (isUserSpendingLimitData(result)) {
         setLimit(result);
@@ -167,7 +156,7 @@ export function useUserSpending({
     } catch (err) {
       console.warn('[useUserSpending] Failed to fetch limit:', err);
     }
-  }, [getLimitAction]);
+  }, []);
 
   // Initial data fetch
   React.useEffect(() => {

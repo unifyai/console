@@ -34,8 +34,6 @@ vi.mock('sonner', () => ({
 // Factory for mock assistant actions
 const createMockAssistantActions = (): AssistantActions => ({
   assistant: {
-    list: vi.fn(),
-    status: vi.fn(),
     create: vi.fn(),
     update: vi.fn().mockResolvedValue({ info: 'Updated' }),
     delete: vi.fn(),
@@ -53,7 +51,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     deleteRoom: vi.fn(),
   },
   voice: {
-    list: vi.fn(),
     register: vi.fn(),
     delete: vi.fn(),
     clone: vi.fn(),
@@ -102,8 +99,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     listUserDesktops: vi.fn(),
   },
   spending: {
-    getSpend: vi.fn(),
-    getLimit: vi.fn(),
     setLimit: vi.fn(),
   },
 });

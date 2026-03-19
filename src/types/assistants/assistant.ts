@@ -355,7 +355,6 @@ export interface VoiceDesignCreateFromPreviewRequest {
 
 export interface AssistantActions {
   assistant: {
-    list: () => Promise<Assistant[] | ResponseProps>;
     check: (hiringFee: number) => Promise<AssistantHiringSufficientFunds | ResponseProps>;
     create: (
       firstName: string,
@@ -377,7 +376,6 @@ export interface AssistantActions {
       payload: Partial<AssistantUpdatePayload>
     ) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
-    status: (assistantId: string) => Promise<AssistantStatus | ResponseProps>;
   };
   photo: {
     uploadPhoto: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>;
@@ -399,7 +397,6 @@ export interface AssistantActions {
     cancelAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
   };
   voice: {
-    list: () => Promise<(Voice & { isPreset?: boolean })[] | ResponseProps>;
     register: (
       voiceId: string,
       provider: string,
@@ -485,38 +482,12 @@ export interface AssistantActions {
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
   };
   spending: {
-    getSpend: (
-      assistantId: string,
-      month?: string
-    ) => Promise<import('@/types/assistants/spending').AssistantSpend | ResponseProps>;
-    getLimit: (
-      assistantId: string
-    ) => Promise<import('@/types/assistants/spending').SpendingLimitResponse | ResponseProps>;
     setLimit: (
       assistantId: string,
       payload: import('@/types/assistants/spending').SpendingLimitRequest
     ) => Promise<
       (import('@/types/assistants/spending').SpendingLimitResponse & ResponseProps) | ResponseProps
     >;
-  };
-  /** User spending actions (for personal workspace or member spending in org) */
-  userSpending?: {
-    getSpend: (
-      month?: string
-    ) => Promise<import('@/types/user/spending').UserSpend | ResponseProps>;
-    getLimit: () => Promise<
-      import('@/types/user/spending').UserSpendingLimitResponse | ResponseProps
-    >;
-  };
-  /** Organization spending actions (only in org context) */
-  orgSpending?: {
-    getSpend: (
-      orgId: number,
-      month?: string
-    ) => Promise<import('@/types/organization').OrgSpend | ResponseProps>;
-    getLimit: (
-      orgId: number
-    ) => Promise<import('@/types/organization').OrgSpendingLimitResponse | ResponseProps>;
   };
   /** Actions panel - live action events */
   actions?: import('@/types/assistants/action').AssistantActionActions;

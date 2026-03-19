@@ -3,8 +3,9 @@ import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/ass
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { fetchAssistants } from '@/lib/client/assistant';
 
-export function useAssistants(allActions: AssistantActions) {
+export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
   const { assistant: assistantActions, photo: photoActions } = allActions;
 
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
@@ -22,8 +23,7 @@ export function useAssistants(allActions: AssistantActions) {
       }
 
       try {
-        // Step 1: Fetch the core assistant data first
-        const listResult = await assistantActions.list();
+        const listResult = await fetchAssistants(isOrgContext);
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)
@@ -133,7 +133,7 @@ export function useAssistants(allActions: AssistantActions) {
         }
       }
     },
-    [assistantActions, photoActions]
+    [isOrgContext, photoActions]
   );
 
   React.useEffect(() => {

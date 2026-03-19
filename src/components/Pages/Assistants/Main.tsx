@@ -57,6 +57,7 @@ interface MainProps {
     timezone?: string | null;
     email?: string | null;
     orgId?: number | null;
+    isOrgContext?: boolean;
     mfaSetupRequired?: boolean;
   };
 }
@@ -219,7 +220,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
     refreshAssistants,
     deleteAssistant,
     updateAssistantProfile,
-  } = useAssistants(assistantActions);
+  } = useAssistants(assistantActions, !!userMeta.isOrgContext);
 
 
   // --- Deep-link to a specific assistant via ?profile=<agentId> ---
@@ -237,10 +238,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   }, [profileParam, assistants, handleShowProfile]);
 
   // --- Assistant Status Polling ---
-  const { statuses: assistantStatuses } = useAssistantStatus(
-    assistants,
-    assistantActions.assistant.status
-  );
+  const { statuses: assistantStatuses } = useAssistantStatus(assistants);
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
@@ -383,45 +381,28 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   const disabledAction = React.useCallback(async () => ({ detail: 'disabled' }) as const, []);
 
   // User spending (personal workspace or member spending)
-  const userSpendingConfig = React.useMemo(() => {
-    if (!assistantActions.userSpending) {
-      return {
-        getSpendAction: disabledAction,
-        getLimitAction: disabledAction,
-        setLimitAction: disabledAction,
-        enablePolling: false,
-      };
-    }
-    return {
-      getSpendAction: assistantActions.userSpending.getSpend,
-      getLimitAction: assistantActions.userSpending.getLimit,
-      setLimitAction: disabledAction,
-      enablePolling: true,
-    };
-  }, [assistantActions.userSpending, disabledAction]);
+  const userSpendingConfig = React.useMemo(() => ({
+    setLimitAction: disabledAction,
+    enablePolling: true,
+  }), [disabledAction]);
 
   const userSpendingData = useUserSpending(userSpendingConfig);
 
   // Org spending (only in org context)
   const orgSpendingConfig = React.useMemo(() => {
-    if (!assistantActions.orgSpending || !userMeta.orgId) {
+    if (!userMeta.orgId) {
       return {
         orgId: 0,
-        getSpendAction: disabledAction,
-        getLimitAction: disabledAction,
         setLimitAction: disabledAction,
         enablePolling: false,
       };
     }
-    const orgId = userMeta.orgId;
     return {
-      orgId,
-      getSpendAction: assistantActions.orgSpending.getSpend,
-      getLimitAction: assistantActions.orgSpending.getLimit,
+      orgId: userMeta.orgId,
       setLimitAction: disabledAction,
       enablePolling: true,
     };
-  }, [assistantActions.orgSpending, userMeta.orgId, disabledAction]);
+  }, [userMeta.orgId, disabledAction]);
 
   const orgSpendingData = useOrgSpending(orgSpendingConfig);
 

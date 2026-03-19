@@ -36,8 +36,13 @@ const mockUserVoices: Voice[] = [
   },
 ];
 
+// Mock the client fetch module
+const mockFetchVoices = vi.fn().mockResolvedValue(mockUserVoices);
+vi.mock('@/lib/client/voice', () => ({
+  fetchVoices: (...args: any[]) => mockFetchVoices(...args),
+}));
+
 const createMockVoiceActions = () => ({
-  list: vi.fn().mockResolvedValue(mockUserVoices),
   register: vi.fn(),
   delete: vi.fn().mockResolvedValue({ info: 'Deleted' }),
   clone: vi.fn(),
@@ -51,6 +56,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetchVoices.mockResolvedValue(mockUserVoices);
     mockVoiceActions = createMockVoiceActions();
   });
 
@@ -80,7 +86,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         });
 
         // Assert - list should NOT have been called
-        expect(mockVoiceActions.list).not.toHaveBeenCalled();
+        expect(mockFetchVoices).not.toHaveBeenCalled();
         expect(result.current.isLoadingUserVoices).toBe(false);
         expect(result.current.hasFetchedOnce).toBe(false);
       }
@@ -103,7 +109,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
 
         // Assert - list should be called
         await waitFor(() => {
-          expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+          expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         });
 
         await waitFor(() => {
@@ -134,7 +140,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 50));
         });
-        expect(mockVoiceActions.list).not.toHaveBeenCalled();
+        expect(mockFetchVoices).not.toHaveBeenCalled();
         expect(result.current.hasFetchedOnce).toBe(false);
 
         // Act - enable the hook
@@ -142,7 +148,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
 
         // Assert - should now fetch
         await waitFor(() => {
-          expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+          expect(mockFetchVoices).toHaveBeenCalledTimes(1);
           expect(result.current.hasFetchedOnce).toBe(true);
         });
       }
@@ -168,7 +174,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         // First enable - should fetch
         rerender({ enabled: true });
         await waitFor(() => {
-          expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+          expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         });
 
         // Disable
@@ -182,7 +188,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         });
 
         // Assert - still only one fetch
-        expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+        expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         expect(result.current.hasFetchedOnce).toBe(true);
       }
     );
@@ -206,7 +212,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 50));
         });
-        expect(mockVoiceActions.list).not.toHaveBeenCalled();
+        expect(mockFetchVoices).not.toHaveBeenCalled();
 
         // Act - manually trigger fetch
         await act(async () => {
@@ -214,7 +220,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         });
 
         // Assert - should have fetched
-        expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+        expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         expect(result.current.hasFetchedOnce).toBe(true);
       }
     );
@@ -235,7 +241,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         );
 
         await waitFor(() => {
-          expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+          expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         });
 
         // Act - manually refetch
@@ -244,7 +250,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         });
 
         // Assert - should have fetched twice
-        expect(mockVoiceActions.list).toHaveBeenCalledTimes(2);
+        expect(mockFetchVoices).toHaveBeenCalledTimes(2);
       }
     );
   });
@@ -267,7 +273,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
 
         // Assert - should fetch immediately for backward compatibility
         await waitFor(() => {
-          expect(mockVoiceActions.list).toHaveBeenCalledTimes(1);
+          expect(mockFetchVoices).toHaveBeenCalledTimes(1);
         });
       }
     );
@@ -289,7 +295,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
         const delayedList = new Promise<Voice[]>((resolve) => {
           resolveList = resolve;
         });
-        mockVoiceActions.list.mockReturnValue(delayedList);
+        mockFetchVoices.mockReturnValue(delayedList);
 
         // Act
         const { result } = renderHook(() =>
@@ -326,7 +332,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
       },
       async () => {
         // Arrange
-        mockVoiceActions.list.mockResolvedValue({ detail: 'API Error' });
+        mockFetchVoices.mockResolvedValue({ detail: 'API Error' });
 
         // Act
         const { result } = renderHook(() =>
@@ -354,7 +360,7 @@ describe('useVoiceOptions - Lazy Loading', () => {
       },
       async () => {
         // Arrange
-        mockVoiceActions.list.mockRejectedValue(new Error('Network error'));
+        mockFetchVoices.mockRejectedValue(new Error('Network error'));
 
         // Act
         const { result } = renderHook(() =>

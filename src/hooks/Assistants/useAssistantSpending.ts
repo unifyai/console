@@ -22,18 +22,10 @@ import {
   getCurrentMonth,
 } from '@/types/assistants/spending';
 import { ResponseProps } from '@/types/common';
+import { fetchAssistantSpend, fetchAssistantSpendingLimit } from '@/lib/client/spending';
 
 /** Polling interval for spend updates (60 seconds) */
 const SPEND_POLLING_INTERVAL = 60000;
-
-/** Type for the getSpend action function */
-type GetSpendAction = (
-  assistantId: string,
-  month?: string
-) => Promise<AssistantSpend | ResponseProps>;
-
-/** Type for the getLimit action function */
-type GetLimitAction = (assistantId: string) => Promise<SpendingLimitResponse | ResponseProps>;
 
 /** Type for the setLimit action function */
 type SetLimitAction = (
@@ -45,10 +37,6 @@ type SetLimitAction = (
 interface UseAssistantSpendingConfig {
   /** Assistant ID to fetch spending data for */
   assistantId: string;
-  /** Server action to fetch spend data */
-  getSpendAction: GetSpendAction;
-  /** Server action to fetch spending limit */
-  getLimitAction: GetLimitAction;
   /** Server action to set spending limit */
   setLimitAction: SetLimitAction;
   /** Whether to enable automatic polling (default: true) */
@@ -111,8 +99,6 @@ interface UseAssistantSpendingResult {
  */
 export function useAssistantSpending({
   assistantId,
-  getSpendAction,
-  getLimitAction,
   setLimitAction,
   enablePolling = true,
   pollingInterval = SPEND_POLLING_INTERVAL,
@@ -136,7 +122,7 @@ export function useAssistantSpending({
       }
 
       try {
-        const result = await getSpendAction(assistantId, currentMonth);
+        const result = await fetchAssistantSpend(assistantId, currentMonth);
 
         if (isSpendingData(result)) {
           setSpend(result);
@@ -157,7 +143,7 @@ export function useAssistantSpending({
         }
       }
     },
-    [assistantId, currentMonth, getSpendAction]
+    [assistantId, currentMonth]
   );
 
   // Fetch limit data
@@ -165,7 +151,7 @@ export function useAssistantSpending({
     if (!assistantId) return;
 
     try {
-      const result = await getLimitAction(assistantId);
+      const result = await fetchAssistantSpendingLimit(assistantId);
 
       if (isSpendingLimitData(result)) {
         setLimit(result);
@@ -176,7 +162,7 @@ export function useAssistantSpending({
     } catch (err) {
       console.warn('[useAssistantSpending] Failed to fetch limit:', err);
     }
-  }, [assistantId, getLimitAction]);
+  }, [assistantId]);
 
   // Initial data fetch
   React.useEffect(() => {

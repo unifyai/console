@@ -18,6 +18,14 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
 import { AssistantSpend, SpendingLimitResponse } from '@/types/assistants/spending';
 
+// Mock client spending module
+const mockFetchAssistantSpend = vi.fn();
+const mockFetchAssistantSpendingLimit = vi.fn();
+vi.mock('@/lib/client/spending', () => ({
+  fetchAssistantSpend: (...args: any[]) => mockFetchAssistantSpend(...args),
+  fetchAssistantSpendingLimit: (...args: any[]) => mockFetchAssistantSpendingLimit(...args),
+}));
+
 // Mock data
 const mockSpendData: AssistantSpend = {
   agentId: '123',
@@ -34,23 +42,17 @@ const mockLimitData: SpendingLimitResponse = {
 };
 
 describe('useAssistantSpending', () => {
-  // Create stable mock functions
-  const mockGetSpendAction = vi.fn();
-  const mockGetLimitAction = vi.fn();
   const mockSetLimitAction = vi.fn();
 
   const getDefaultConfig = () => ({
     assistantId: '123',
-    getSpendAction: mockGetSpendAction,
-    getLimitAction: mockGetLimitAction,
     setLimitAction: mockSetLimitAction,
-    enablePolling: false, // Disable polling for tests
+    enablePolling: false,
   });
 
   beforeEach(() => {
-    // Reset and configure default mock behavior
-    mockGetSpendAction.mockReset().mockResolvedValue(mockSpendData);
-    mockGetLimitAction.mockReset().mockResolvedValue(mockLimitData);
+    mockFetchAssistantSpend.mockReset().mockResolvedValue(mockSpendData);
+    mockFetchAssistantSpendingLimit.mockReset().mockResolvedValue(mockLimitData);
     mockSetLimitAction.mockReset().mockResolvedValue({
       ...mockLimitData,
       info: 'Spending limit updated successfully.',
@@ -71,8 +73,8 @@ describe('useAssistantSpending', () => {
       renderHook(() => useAssistantSpending(getDefaultConfig()));
 
       await waitFor(() => {
-        expect(mockGetSpendAction).toHaveBeenCalledWith('123', expect.any(String));
-        expect(mockGetLimitAction).toHaveBeenCalledWith('123');
+        expect(mockFetchAssistantSpend).toHaveBeenCalledWith('123', expect.any(String));
+        expect(mockFetchAssistantSpendingLimit).toHaveBeenCalledWith('123');
       });
     });
 
@@ -118,7 +120,7 @@ describe('useAssistantSpending', () => {
 
   describe('error handling', () => {
     it('sets error on spend fetch failure', async () => {
-      mockGetSpendAction.mockResolvedValue({ detail: 'Failed to fetch' });
+      mockFetchAssistantSpend.mockResolvedValue({ detail: 'Failed to fetch' });
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -128,7 +130,7 @@ describe('useAssistantSpending', () => {
     });
 
     it('handles network errors gracefully', async () => {
-      mockGetSpendAction.mockRejectedValue(new Error('Network error'));
+      mockFetchAssistantSpend.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -138,7 +140,7 @@ describe('useAssistantSpending', () => {
     });
 
     it('does not set error for limit fetch failures (less critical)', async () => {
-      mockGetLimitAction.mockResolvedValue({ detail: 'Limit not found' });
+      mockFetchAssistantSpendingLimit.mockResolvedValue({ detail: 'Limit not found' });
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -212,15 +214,15 @@ describe('useAssistantSpending', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const initialSpendCalls = mockGetSpendAction.mock.calls.length;
-      const initialLimitCalls = mockGetLimitAction.mock.calls.length;
+      const initialSpendCalls = mockFetchAssistantSpend.mock.calls.length;
+      const initialLimitCalls = mockFetchAssistantSpendingLimit.mock.calls.length;
 
       await act(async () => {
         await result.current.updateLimit(200);
       });
 
-      expect(mockGetLimitAction.mock.calls.length).toBeGreaterThan(initialLimitCalls);
-      expect(mockGetSpendAction.mock.calls.length).toBeGreaterThan(initialSpendCalls);
+      expect(mockFetchAssistantSpendingLimit.mock.calls.length).toBeGreaterThan(initialLimitCalls);
+      expect(mockFetchAssistantSpend.mock.calls.length).toBeGreaterThan(initialSpendCalls);
     });
 
     it('accepts null to remove limit', async () => {
@@ -250,13 +252,13 @@ describe('useAssistantSpending', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const initialCalls = mockGetSpendAction.mock.calls.length;
+      const initialCalls = mockFetchAssistantSpend.mock.calls.length;
 
       await act(async () => {
         await result.current.refreshSpend();
       });
 
-      expect(mockGetSpendAction.mock.calls.length).toBe(initialCalls + 1);
+      expect(mockFetchAssistantSpend.mock.calls.length).toBe(initialCalls + 1);
     });
 
     it('refreshLimit fetches new limit data', async () => {
@@ -266,13 +268,13 @@ describe('useAssistantSpending', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const initialCalls = mockGetLimitAction.mock.calls.length;
+      const initialCalls = mockFetchAssistantSpendingLimit.mock.calls.length;
 
       await act(async () => {
         await result.current.refreshLimit();
       });
 
-      expect(mockGetLimitAction.mock.calls.length).toBe(initialCalls + 1);
+      expect(mockFetchAssistantSpendingLimit.mock.calls.length).toBe(initialCalls + 1);
     });
 
     it('refreshAll fetches both spend and limit', async () => {
@@ -282,15 +284,15 @@ describe('useAssistantSpending', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const initialSpendCalls = mockGetSpendAction.mock.calls.length;
-      const initialLimitCalls = mockGetLimitAction.mock.calls.length;
+      const initialSpendCalls = mockFetchAssistantSpend.mock.calls.length;
+      const initialLimitCalls = mockFetchAssistantSpendingLimit.mock.calls.length;
 
       await act(async () => {
         await result.current.refreshAll();
       });
 
-      expect(mockGetSpendAction.mock.calls.length).toBe(initialSpendCalls + 1);
-      expect(mockGetLimitAction.mock.calls.length).toBe(initialLimitCalls + 1);
+      expect(mockFetchAssistantSpend.mock.calls.length).toBe(initialSpendCalls + 1);
+      expect(mockFetchAssistantSpendingLimit.mock.calls.length).toBe(initialLimitCalls + 1);
     });
   });
 
@@ -305,7 +307,7 @@ describe('useAssistantSpending', () => {
         limit: null,
         percentUsed: 0,
       };
-      mockGetSpendAction.mockResolvedValue(unlimitedSpend);
+      mockFetchAssistantSpend.mockResolvedValue(unlimitedSpend);
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -321,7 +323,7 @@ describe('useAssistantSpending', () => {
         limit: 100.0,
         percentUsed: 150.0,
       };
-      mockGetSpendAction.mockResolvedValue(overLimitSpend);
+      mockFetchAssistantSpend.mockResolvedValue(overLimitSpend);
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -338,7 +340,7 @@ describe('useAssistantSpending', () => {
         limit: 100.0,
         percentUsed: 85.0,
       };
-      mockGetSpendAction.mockResolvedValue(nearLimitSpend);
+      mockFetchAssistantSpend.mockResolvedValue(nearLimitSpend);
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
@@ -363,8 +365,8 @@ describe('useAssistantSpending', () => {
       );
 
       // Should not call actions with empty ID
-      expect(mockGetSpendAction).not.toHaveBeenCalled();
-      expect(mockGetLimitAction).not.toHaveBeenCalled();
+      expect(mockFetchAssistantSpend).not.toHaveBeenCalled();
+      expect(mockFetchAssistantSpendingLimit).not.toHaveBeenCalled();
 
       // Should remain in loading state
       expect(result.current.isLoading).toBe(true);
@@ -381,7 +383,7 @@ describe('useAssistantSpending', () => {
         cumulativeSpend: 0,
         percentUsed: 0,
       };
-      mockGetSpendAction.mockResolvedValue(zeroSpend);
+      mockFetchAssistantSpend.mockResolvedValue(zeroSpend);
 
       const { result } = renderHook(() => useAssistantSpending(getDefaultConfig()));
 
