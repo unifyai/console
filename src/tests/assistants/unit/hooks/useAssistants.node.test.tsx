@@ -35,8 +35,10 @@ vi.mock('@/utils/assistants/gcs-utils', () => ({
 
 // Mock client fetch module
 const mockFetchAssistants = vi.fn();
+const mockFetchMediaSignedUrls = vi.fn();
 vi.mock('@/lib/client/assistant', () => ({
   fetchAssistants: (...args: any[]) => mockFetchAssistants(...args),
+  fetchMediaSignedUrls: (...args: any[]) => mockFetchMediaSignedUrls(...args),
 }));
 
 // Create stable mock functions at module level to prevent re-render loops
@@ -89,9 +91,9 @@ describe('useAssistants', () => {
     vi.clearAllMocks();
     // Default mock implementations
     mockFetchAssistants.mockResolvedValue([]);
+    mockFetchMediaSignedUrls.mockResolvedValue({});
     mockDeleteAction.mockResolvedValue({});
     mockUpdateAction.mockResolvedValue({});
-    mockDownloadAction.mockResolvedValue({ signedUrl: 'https://signed-url.com' });
   });
 
   afterEach(() => {
@@ -161,50 +163,47 @@ describe('useAssistants', () => {
   // ===========================================================================
 
   describe('batched URL fetching', () => {
-    it('fetches photo URLs for all assistants with GCS photos', async () => {
+    it('batch-fetches photo URLs for all assistants with GCS photos', async () => {
       const assistants = [
         createMockAssistant('1', true, false),
         createMockAssistant('2', true, false),
         createMockAssistant('3', true, false),
       ];
       mockFetchAssistants.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url}` })
-      );
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/photo-2.jpg': 'https://signed/photo-2.jpg',
+        'gs://bucket/photo-3.jpg': 'https://signed/photo-3.jpg',
+      });
 
       renderHook(() => useAssistants(mockActions, false));
 
-      // Wait for list to be fetched first
       await waitFor(() => {
-        expect(mockFetchAssistants).toHaveBeenCalled();
-      });
-
-      // Then wait for download calls
-      await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-1.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-2.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-3.jpg');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith([
+          'gs://bucket/photo-1.jpg',
+          'gs://bucket/photo-2.jpg',
+          'gs://bucket/photo-3.jpg',
+        ]);
       });
     });
 
-    it('fetches both photo and video URLs when both exist', async () => {
+    it('batch-fetches both photo and video URLs when both exist', async () => {
       const assistants = [
-        createMockAssistant('1', true, true), // Has both photo and video
+        createMockAssistant('1', true, true),
       ];
       mockFetchAssistants.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url}` })
-      );
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/video-1.mp4': 'https://signed/video-1.mp4',
+      });
 
       renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
-        expect(mockFetchAssistants).toHaveBeenCalled();
-      });
-
-      await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-1.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/video-1.mp4');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith([
+          'gs://bucket/photo-1.jpg',
+          'gs://bucket/video-1.mp4',
+        ]);
       });
     });
 
@@ -214,9 +213,11 @@ describe('useAssistants', () => {
         createMockAssistant('2', true, false),
       ];
       mockFetchAssistants.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url.replace('gs://bucket/', '')}` })
-      );
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/video-1.mp4': 'https://signed/video-1.mp4',
+        'gs://bucket/photo-2.jpg': 'https://signed/photo-2.jpg',
+      });
 
       const { result } = renderHook(() => useAssistants(mockActions, false));
 
@@ -237,23 +238,17 @@ describe('useAssistants', () => {
         createMockAssistant('2', true, false),
       ];
       mockFetchAssistants.mockResolvedValue(assistants);
-
-      // Use mockImplementation to handle multiple calls
-      let callCount = 0;
-      mockDownloadAction.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve({ signedUrl: 'https://signed/photo-1.jpg' });
-        }
-        return Promise.reject(new Error('Download failed'));
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
       });
 
       const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         const assistant1 = result.current.assistants.find((a) => a.agentId === '1');
-        // First should have URL (since order might vary, just check that at least one has it)
-        expect(assistant1?.signedProfilePhotoUrl).toBeDefined();
+        const assistant2 = result.current.assistants.find((a) => a.agentId === '2');
+        expect(assistant1?.signedProfilePhotoUrl).toBe('https://signed/photo-1.jpg');
+        expect(assistant2?.signedProfilePhotoUrl).toBeUndefined();
       });
     });
 
@@ -261,7 +256,7 @@ describe('useAssistants', () => {
       const assistants = [
         {
           ...createMockAssistant('1', false, false),
-          profilePhoto: 'https://external-url.com/photo.jpg', // Not a GCS URL
+          profilePhoto: 'https://external-url.com/photo.jpg',
         } as Assistant,
       ];
       mockFetchAssistants.mockResolvedValue(assistants);
@@ -273,14 +268,13 @@ describe('useAssistants', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Should not have called download for non-GCS URL
-      expect(mockDownloadAction).not.toHaveBeenCalled();
+      expect(mockFetchMediaSignedUrls).not.toHaveBeenCalled();
     });
 
     it('handles empty URL response gracefully', async () => {
       const assistants = [createMockAssistant('1', true, false)];
       mockFetchAssistants.mockResolvedValue(assistants);
-      mockDownloadAction.mockResolvedValue({ signedUrl: undefined });
+      mockFetchMediaSignedUrls.mockResolvedValue({});
 
       const { result } = renderHook(() => useAssistants(mockActions, false));
 
@@ -289,7 +283,6 @@ describe('useAssistants', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Should not crash and assistant should not have signedProfilePhotoUrl
       expect(result.current.assistants[0].signedProfilePhotoUrl).toBeUndefined();
     });
   });
@@ -373,7 +366,9 @@ describe('useAssistants', () => {
       const assistants = [createMockAssistant('1', false)];
       mockFetchAssistants.mockResolvedValue(assistants);
       mockUpdateAction.mockResolvedValue({});
-      mockDownloadAction.mockResolvedValue({ signedUrl: 'https://new-signed-url.com' });
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/new-photo.jpg': 'https://new-signed-url.com',
+      });
 
       const { result } = renderHook(() => useAssistants(mockActions, false));
 
@@ -389,7 +384,7 @@ describe('useAssistants', () => {
       });
 
       await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/new-photo.jpg');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith(['gs://bucket/new-photo.jpg']);
         expect(result.current.assistants[0].signedProfilePhotoUrl).toBe(
           'https://new-signed-url.com'
         );

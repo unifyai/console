@@ -49,10 +49,8 @@ export interface PresetsPanelProps {
   onToggleView?: () => void;
   /** Callback to open the Stripe payment panel (passed to BillableActionGuard) */
   onAddPaymentMethod?: () => void;
-  downloadPresetPhoto?: (
-    firstName: string,
-    surname: string
-  ) => Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }>;
+  /** Pre-resolved signed photo URLs keyed by "FirstName_Surname" */
+  presetPhotoUrls?: Record<string, string>;
 }
 
 export function PresetsPanel({
@@ -79,7 +77,7 @@ export function PresetsPanel({
   availableLanguages,
   onToggleView,
   onAddPaymentMethod,
-  downloadPresetPhoto,
+  presetPhotoUrls,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
 
@@ -263,7 +261,7 @@ export function PresetsPanel({
                   preset.firstName === selectedPreset.firstName &&
                   preset.surname === selectedPreset.surname
                 }
-                downloadPresetPhoto={downloadPresetPhoto}
+                resolvedPhotoUrl={presetPhotoUrls?.[`${preset.firstName}_${preset.surname}`]}
               />
             ))
           ) : (

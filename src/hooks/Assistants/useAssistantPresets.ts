@@ -4,6 +4,7 @@ import assistantPresetsConstant from '@/constants/assistants/assistant_presets.j
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { fetchVisitorNationality, FALLBACK_NATIONALITY } from '@/utils/geo';
+import { fetchPresetPhotoUrls } from '@/lib/client/assistant';
 
 const PRESETS_PAGE_LIMIT = 12;
 const PRESET_AGE_BRACKETS = ['all', '18-25', '26-35', '36-45', '46-55', '56+'];
@@ -167,6 +168,41 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
     setDisplayedPresets(currentFilteredPresets.slice(0, presetsToShowCount));
   }, [currentFilteredPresets, presetsToShowCount, hasInitialized]);
 
+  // Batch-fetch signed photo URLs for displayed presets
+  const [presetPhotoUrls, setPresetPhotoUrls] = React.useState<Record<string, string>>({});
+  const requestedPhotos = React.useRef<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (displayedPresets.length === 0) return;
+
+    const needed = displayedPresets.filter((p) => {
+      const key = `${p.firstName}_${p.surname}`;
+      return !requestedPhotos.current.has(key);
+    });
+    if (needed.length === 0) return;
+
+    const requestedKeys = needed.map((p) => `${p.firstName}_${p.surname}`);
+    for (const key of requestedKeys) {
+      requestedPhotos.current.add(key);
+    }
+
+    let cancelled = false;
+    fetchPresetPhotoUrls(needed.map((p) => ({ firstName: p.firstName, surname: p.surname }))).then(
+      (urls) => {
+        if (cancelled) return;
+        if (Object.keys(urls).length > 0) {
+          setPresetPhotoUrls((prev) => ({ ...prev, ...urls }));
+        }
+      }
+    );
+    return () => {
+      cancelled = true;
+      for (const key of requestedKeys) {
+        requestedPhotos.current.delete(key);
+      }
+    };
+  }, [displayedPresets]);
+
   const loadMorePresets = React.useCallback(() => {
     if (isLoadingMorePresets || presetsToShowCount >= currentFilteredPresets.length) return;
 
@@ -203,5 +239,7 @@ export function useAssistantPresets(options?: UseAssistantPresetsConfig) {
     allAssistantPresets,
     /** Whether presets have been initialized */
     hasInitialized,
+    /** Map of "FirstName_Surname" → signed photo URL for displayed presets */
+    presetPhotoUrls,
   };
 }

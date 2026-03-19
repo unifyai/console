@@ -11,62 +11,26 @@ interface PresetListItemProps {
   preset: AssistantPreset;
   onSelect: (preset: AssistantPreset) => void;
   isSelected?: boolean;
-  downloadPresetPhoto?: (
-    firstName: string,
-    surname: string
-  ) => Promise<{ signedUrl?: string; gcsUrl?: string; detail?: string }>;
+  /** Pre-resolved signed URL from the batch photo fetch */
+  resolvedPhotoUrl?: string;
 }
 
 export function PresetListItem({
   preset,
   onSelect,
   isSelected,
-  downloadPresetPhoto,
+  resolvedPhotoUrl,
 }: PresetListItemProps) {
-  const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>('loading');
-  const [resolvedPhotoUrl, setResolvedPhotoUrl] = React.useState<string | undefined>(undefined);
+  const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>(
+    resolvedPhotoUrl ? 'loading' : 'idle'
+  );
 
   const displayName = `${preset.firstName} ${preset.surname}`;
   const fallback = `${preset.firstName?.[0] ?? ''}${preset.surname?.[0] ?? ''}`.toUpperCase();
 
-  // Resolve GCS preset photo path to a signed URL
   React.useEffect(() => {
-    if (!preset.profilePhoto) {
-      setResolvedPhotoUrl(undefined);
-      return;
-    }
-
-    // If it's already a loadable URL (http/https), use it directly
-    if (preset.profilePhoto.startsWith('http')) {
-      setResolvedPhotoUrl(preset.profilePhoto);
-      return;
-    }
-
-    // It's a GCS object path — fetch a signed URL
-    if (!downloadPresetPhoto) {
-      setResolvedPhotoUrl(undefined);
-      return;
-    }
-
-    let cancelled = false;
-    setLoadingStatus('loading');
-
-    downloadPresetPhoto(preset.firstName, preset.surname)
-      .then((res) => {
-        if (!cancelled && res.signedUrl) {
-          setResolvedPhotoUrl(res.signedUrl);
-        } else if (!cancelled) {
-          setLoadingStatus('error');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoadingStatus('error');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preset.profilePhoto, preset.firstName, preset.surname, downloadPresetPhoto]);
+    setLoadingStatus(resolvedPhotoUrl ? 'loading' : 'idle');
+  }, [resolvedPhotoUrl]);
 
   const handleLoadingStatusChange = (status: ImageLoadingStatus) => {
     setLoadingStatus(status);
@@ -95,12 +59,7 @@ export function PresetListItem({
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded
         />
         <AvatarFallback
-          className={cn(
-            // Ensure fallback is visible only when needed (loading, error, or idle without src)
-            loadingStatus === 'loading' || loadingStatus === 'error' || !preset.profilePhoto
-              ? 'opacity-100'
-              : 'opacity-0'
-          )}
+          className={cn(loadingStatus === 'loaded' ? 'opacity-0' : 'opacity-100')}
         >
           {fallback}
         </AvatarFallback>

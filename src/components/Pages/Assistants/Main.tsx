@@ -490,6 +490,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
     availableLanguages,
     currentFilteredPresets,
     allAssistantPresets,
+    presetPhotoUrls,
   } = useAssistantPresets({ enabled: isHireDialogOpen });
 
   // --- Voice Management Options ---
@@ -918,7 +919,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
             availableLanguages={availableLanguages}
             layoutMode="split" // Dummy prop
             setLayoutMode={() => {}} // Dummy prop
-            downloadPresetPhoto={assistantActions.photo.downloadPresetPhoto}
+            presetPhotoUrls={presetPhotoUrls}
           />
         </AssistantHire>
 

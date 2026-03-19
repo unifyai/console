@@ -47,3 +47,48 @@ export async function fetchAssistantStatus(
     return null;
   }
 }
+
+/**
+ * Batch-fetches signed photo URLs for preset assistants.
+ * Returns a map of "FirstName_Surname" → signed URL.
+ */
+export async function fetchPresetPhotoUrls(
+  presets: { firstName: string; surname: string }[]
+): Promise<Record<string, string>> {
+  if (presets.length === 0) return {};
+  try {
+    const res = await fetch('/api/assistant/preset/photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ presets }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.urls ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Batch-fetches signed URLs for arbitrary GCS media paths (photos/videos).
+ * Accepts GCS URLs (gs://…) or raw object paths.
+ * Returns a map of original path → signed URL.
+ */
+export async function fetchMediaSignedUrls(
+  paths: string[]
+): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  try {
+    const res = await fetch('/api/assistant/media/batch-urls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.urls ?? {};
+  } catch {
+    return {};
+  }
+}
