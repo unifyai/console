@@ -18,6 +18,13 @@ import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Assista
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { AssistantSpend, SpendingLimitResponse } from '@/types/assistants/spending';
 
+const mockFetchAssistantSpend = vi.fn();
+const mockFetchAssistantSpendingLimit = vi.fn();
+vi.mock('@/lib/client/spending', () => ({
+  fetchAssistantSpend: (...args: any[]) => mockFetchAssistantSpend(...args),
+  fetchAssistantSpendingLimit: (...args: any[]) => mockFetchAssistantSpendingLimit(...args),
+}));
+
 describe('AssistantSpendingIntegration', () => {
   // Mock assistant data
   const mockAssistant: Assistant = {
@@ -65,17 +72,14 @@ describe('AssistantSpendingIntegration', () => {
     effectiveLimit: 100.0,
   };
 
-  // Mock spending actions - use vi.fn() directly for easy mocking
-  let mockGetSpend: ReturnType<typeof vi.fn>;
-  let mockGetLimit: ReturnType<typeof vi.fn>;
   let mockSetLimit: ReturnType<typeof vi.fn>;
   let mockSpendingActions: AssistantActions['spending'];
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockGetSpend = vi.fn().mockResolvedValue(mockSpendData);
-    mockGetLimit = vi.fn().mockResolvedValue(mockLimitData);
+    mockFetchAssistantSpend.mockResolvedValue(mockSpendData);
+    mockFetchAssistantSpendingLimit.mockResolvedValue(mockLimitData);
     mockSetLimit = vi.fn().mockResolvedValue({
       agentId: 'test-agent-123',
       monthlySpendingCap: 200.0,
@@ -84,8 +88,6 @@ describe('AssistantSpendingIntegration', () => {
     });
 
     mockSpendingActions = {
-      getSpend: mockGetSpend as unknown as AssistantActions['spending']['getSpend'],
-      getLimit: mockGetLimit as unknown as AssistantActions['spending']['getLimit'],
       setLimit: mockSetLimit as unknown as AssistantActions['spending']['setLimit'],
     };
   });
@@ -164,8 +166,8 @@ describe('AssistantSpendingIntegration', () => {
         );
 
         await waitFor(() => {
-          expect(mockGetSpend).toHaveBeenCalledWith('test-agent-123', expect.any(String));
-          expect(mockGetLimit).toHaveBeenCalledWith('test-agent-123');
+          expect(mockFetchAssistantSpend).toHaveBeenCalledWith('test-agent-123', expect.any(String));
+          expect(mockFetchAssistantSpendingLimit).toHaveBeenCalledWith('test-agent-123');
         });
       }
     );
@@ -234,8 +236,7 @@ describe('AssistantSpendingIntegration', () => {
         },
       },
       async () => {
-        // Create a slow promise
-        mockGetSpend.mockImplementation(
+        mockFetchAssistantSpend.mockImplementation(
           () => new Promise((resolve) => setTimeout(() => resolve(mockSpendData), 500))
         );
 
@@ -278,7 +279,7 @@ describe('AssistantSpendingIntegration', () => {
         },
       },
       async () => {
-        mockGetSpend.mockResolvedValue({ detail: 'Network error' });
+        mockFetchAssistantSpend.mockResolvedValue({ detail: 'Network error' });
 
         render(
           <AssistantProfileInfoPanel
@@ -304,7 +305,7 @@ describe('AssistantSpendingIntegration', () => {
         },
       },
       async () => {
-        mockGetSpend.mockResolvedValue({ detail: 'Network error' });
+        mockFetchAssistantSpend.mockResolvedValue({ detail: 'Network error' });
 
         render(
           <AssistantProfileInfoPanel
@@ -332,8 +333,7 @@ describe('AssistantSpendingIntegration', () => {
       async () => {
         const user = userEvent.setup();
 
-        // First call fails, second succeeds
-        mockGetSpend
+        mockFetchAssistantSpend
           .mockResolvedValueOnce({ detail: 'Network error' })
           .mockResolvedValueOnce(mockSpendData);
 
@@ -497,12 +497,12 @@ describe('AssistantSpendingIntegration', () => {
         },
       },
       async () => {
-        mockGetSpend.mockResolvedValue({
+        mockFetchAssistantSpend.mockResolvedValue({
           ...mockSpendData,
           limit: null,
           percentUsed: 0,
         });
-        mockGetLimit.mockResolvedValue({ monthlySpendingCap: null });
+        mockFetchAssistantSpendingLimit.mockResolvedValue({ monthlySpendingCap: null });
 
         render(
           <AssistantProfileInfoPanel
@@ -528,7 +528,7 @@ describe('AssistantSpendingIntegration', () => {
         },
       },
       async () => {
-        mockGetSpend.mockResolvedValue({
+        mockFetchAssistantSpend.mockResolvedValue({
           ...mockSpendData,
           cumulativeSpend: 150.0,
           limit: 100.0,

@@ -91,14 +91,10 @@ export function AssistantProfileInfoPanel({
     spendingActions
       ? {
           assistantId: assistant.agentId,
-          getSpendAction: spendingActions.getSpend,
-          getLimitAction: spendingActions.getLimit,
           setLimitAction: spendingActions.setLimit,
         }
       : {
           assistantId: '',
-          getSpendAction: async () => ({ detail: 'disabled' }),
-          getLimitAction: async () => ({ detail: 'disabled' }),
           setLimitAction: async () => ({ detail: 'disabled' }),
           enablePolling: false,
         }

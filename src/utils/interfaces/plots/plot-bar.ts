@@ -231,7 +231,10 @@ export const drawBarChart = (
   const yAxisProperty =
     selectedYAxisProperty && properties.includes(selectedYAxisProperty)
       ? selectedYAxisProperty
-      : properties.at(0);
+      : selectedYAxisProperty
+        ? properties.at(0)
+        : undefined;
+  const isCountOnly = !selectedYAxisProperty;
   let data: DataLabel[] | GroupedDataLabel[] = [];
 
   // Use pre-aggregated data if available (from backend), otherwise compute client-side
@@ -271,6 +274,45 @@ export const drawBarChart = (
           ? (data as DataLabel[]).sort((a, b) => Number(a[0]) - Number(b[0]))
           : (data as DataLabel[]).sort((a, b) => a[0].localeCompare(b[0]));
       }
+    }
+  } else if (xAxisProperty && isCountOnly) {
+    // Count-only aggregation: no yAxis, count rows per xAxis category
+    const filteredData = logs.filter((log) => {
+      const hasX = hasProperty(fields, xAxisProperty, log, xTable);
+      const hasGroup = groupBy ? hasProperty(fields, groupBy, log, xTable) : true;
+      return hasX && hasGroup;
+    });
+    if (groupBy) {
+      const groupsMap = d3.groups(filteredData, (d) => getRawValue(fields, groupBy, d, xTable));
+      for (const [groupKey, groupLogs] of groupsMap) {
+        const subGroups = d3.rollup(
+          groupLogs,
+          (v) => v.length,
+          (d) => String(getRawValue(fields, xAxisProperty, d, xTable) ?? '')
+        );
+        for (const subGroup of Array.from(subGroups)) {
+          (data as GroupedDataLabel[]).push([String(groupKey), subGroup]);
+        }
+      }
+    } else {
+      const groups = d3.rollup(
+        filteredData,
+        (v) => v.length,
+        (d) => String(getRawValue(fields, xAxisProperty, d, xTable) ?? '')
+      );
+      data = Array.from(groups, ([group, value]) => [group, value]) as DataLabel[];
+    }
+    if (!groupBy && sortBars && sortBars !== 'unsorted') {
+      (data as DataLabel[]).sort((a, b) => {
+        switch (sortBars) {
+          case 'asc':
+            return a[1] - b[1];
+          case 'desc':
+            return b[1] - a[1];
+          default:
+            return a[1] - b[1];
+        }
+      });
     }
   } else if (xAxisProperty && yAxisProperty) {
     // Client-side computation fallback
@@ -387,7 +429,8 @@ export const drawBarChart = (
   const showYLabel = axisCustomization?.showYAxisLabel !== false;
   const xLabel = showXLabel ? axisCustomization?.xAxisLabel || xAxisProperty : undefined;
   const yLabel = showYLabel
-    ? axisCustomization?.yAxisLabel || (yAxisProperty ? `${yAxisProperty} (${metric})` : undefined)
+    ? axisCustomization?.yAxisLabel ||
+      (isCountOnly ? 'Count' : yAxisProperty ? `${yAxisProperty} (${metric})` : undefined)
     : undefined;
 
   drawAxes(

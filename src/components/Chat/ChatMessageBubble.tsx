@@ -93,15 +93,15 @@ export function ChatMessageBubble({
         </div>
       );
     }
+    if (!isUser) {
+      return <ChatMarkdown content={message} />;
+    }
     if (containsEmbedUrl(message)) {
       return (
         <div className="whitespace-pre-wrap">
-          <RenderContentWithEmbeds content={message} expandedHeight={300} />
+          <RenderContentWithEmbeds content={message} expandedHeight={420} />
         </div>
       );
-    }
-    if (!isUser) {
-      return <ChatMarkdown content={message} />;
     }
     if (variant === 'hire') {
       return <div className="whitespace-pre-wrap">{renderContentWithLinks(message)}</div>;

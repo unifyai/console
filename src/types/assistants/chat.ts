@@ -65,6 +65,8 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   messageId?: number;
+  /** Pub/Sub ack ID for client-side acknowledgement after display */
+  __ackId?: string;
   attachments?: Attachment[];
 }
 

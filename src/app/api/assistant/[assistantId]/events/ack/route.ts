@@ -1,10 +1,43 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  getAuthClient,
+  getTopicName,
+  PUBSUB_API_BASE,
+} from '@/lib/pubsub/ephemeral-subscription';
 
-/**
- * No-op ACK endpoint. Server-side ACK is now handled by the SSE route itself
- * (each connection owns its own ephemeral Pub/Sub subscription). This route
- * is kept alive so that browser sessions with cached JS don't get 404s.
- */
-export async function POST() {
-  return NextResponse.json({ ok: true });
+export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
+  const { assistantId } = params;
+  if (!assistantId) {
+    return NextResponse.json({ error: 'assistantId required' }, { status: 400 });
+  }
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { ackId, contactId } = body;
+  if (!ackId || !contactId) {
+    return NextResponse.json({ error: 'ackId and contactId required' }, { status: 400 });
+  }
+
+  try {
+    const { client, projectId } = await getAuthClient();
+    const topicName = getTopicName(assistantId);
+    const subscriptionName = `${topicName}-chat-${contactId}`;
+    const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
+
+    await client.request({
+      url: `${subscriptionUrl}:acknowledge`,
+      method: 'POST',
+      data: { ackIds: [ackId] },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    console.error('[Chat ACK] Error:', err?.message || err);
+    return NextResponse.json({ error: 'ACK failed' }, { status: 500 });
+  }
 }

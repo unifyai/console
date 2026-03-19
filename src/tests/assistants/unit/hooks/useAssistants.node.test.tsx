@@ -33,22 +33,26 @@ vi.mock('@/utils/assistants/gcs-utils', () => ({
   isGcsPhoto: (url: string) => url?.startsWith('gs://'),
 }));
 
+// Mock client fetch module
+const mockFetchAssistants = vi.fn();
+const mockFetchMediaSignedUrls = vi.fn();
+vi.mock('@/lib/client/assistant', () => ({
+  fetchAssistants: (...args: any[]) => mockFetchAssistants(...args),
+  fetchMediaSignedUrls: (...args: any[]) => mockFetchMediaSignedUrls(...args),
+}));
+
 // Create stable mock functions at module level to prevent re-render loops
-const mockListAction = vi.fn();
 const mockDeleteAction = vi.fn();
 const mockUpdateAction = vi.fn();
 const mockCheckAction = vi.fn();
-const mockStatusAction = vi.fn();
 const mockDownloadAction = vi.fn();
 
 // Create a stable mock actions object (not recreated on each render)
 const mockActions: AssistantActions = {
   assistant: {
-    list: mockListAction,
     delete: mockDeleteAction,
     update: mockUpdateAction,
     check: mockCheckAction,
-    status: mockStatusAction,
     create: vi.fn(),
   },
   photo: {
@@ -86,10 +90,10 @@ describe('useAssistants', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mock implementations
-    mockListAction.mockResolvedValue([]);
+    mockFetchAssistants.mockResolvedValue([]);
+    mockFetchMediaSignedUrls.mockResolvedValue({});
     mockDeleteAction.mockResolvedValue({});
     mockUpdateAction.mockResolvedValue({});
-    mockDownloadAction.mockResolvedValue({ signedUrl: 'https://signed-url.com' });
   });
 
   afterEach(() => {
@@ -102,27 +106,27 @@ describe('useAssistants', () => {
 
   describe('initial loading', () => {
     it('starts with loading state true and empty assistants', () => {
-      mockListAction.mockResolvedValue([]);
-      const { result } = renderHook(() => useAssistants(mockActions));
+      mockFetchAssistants.mockResolvedValue([]);
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.assistants).toEqual([]);
     });
 
     it('fetches assistants on mount', async () => {
-      mockListAction.mockResolvedValue([]);
-      renderHook(() => useAssistants(mockActions));
+      mockFetchAssistants.mockResolvedValue([]);
+      renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
-        expect(mockListAction).toHaveBeenCalledTimes(1);
+        expect(mockFetchAssistants).toHaveBeenCalledTimes(1);
       });
     });
 
     it('sets assistants after successful fetch', async () => {
       const assistants = [createMockAssistant('1', false), createMockAssistant('2', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(2);
@@ -131,9 +135,9 @@ describe('useAssistants', () => {
     });
 
     it('handles 403 error as empty list (user not approved)', async () => {
-      mockListAction.mockResolvedValue({ detail: 'Forbidden', status: 403 });
+      mockFetchAssistants.mockResolvedValue({ detail: 'Forbidden', status: 403 });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toEqual([]);
@@ -143,9 +147,9 @@ describe('useAssistants', () => {
     });
 
     it('sets error state on fetch failure', async () => {
-      mockListAction.mockResolvedValue({ detail: 'Server error' });
+      mockFetchAssistants.mockResolvedValue({ detail: 'Server error' });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.error).toBe('Server error');
@@ -159,50 +163,47 @@ describe('useAssistants', () => {
   // ===========================================================================
 
   describe('batched URL fetching', () => {
-    it('fetches photo URLs for all assistants with GCS photos', async () => {
+    it('batch-fetches photo URLs for all assistants with GCS photos', async () => {
       const assistants = [
         createMockAssistant('1', true, false),
         createMockAssistant('2', true, false),
         createMockAssistant('3', true, false),
       ];
-      mockListAction.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url}` })
-      );
-
-      renderHook(() => useAssistants(mockActions));
-
-      // Wait for list to be fetched first
-      await waitFor(() => {
-        expect(mockListAction).toHaveBeenCalled();
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/photo-2.jpg': 'https://signed/photo-2.jpg',
+        'gs://bucket/photo-3.jpg': 'https://signed/photo-3.jpg',
       });
 
-      // Then wait for download calls
+      renderHook(() => useAssistants(mockActions, false));
+
       await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-1.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-2.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-3.jpg');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith([
+          'gs://bucket/photo-1.jpg',
+          'gs://bucket/photo-2.jpg',
+          'gs://bucket/photo-3.jpg',
+        ]);
       });
     });
 
-    it('fetches both photo and video URLs when both exist', async () => {
+    it('batch-fetches both photo and video URLs when both exist', async () => {
       const assistants = [
-        createMockAssistant('1', true, true), // Has both photo and video
+        createMockAssistant('1', true, true),
       ];
-      mockListAction.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url}` })
-      );
-
-      renderHook(() => useAssistants(mockActions));
-
-      await waitFor(() => {
-        expect(mockListAction).toHaveBeenCalled();
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/video-1.mp4': 'https://signed/video-1.mp4',
       });
 
+      renderHook(() => useAssistants(mockActions, false));
+
       await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/photo-1.jpg');
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/video-1.mp4');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith([
+          'gs://bucket/photo-1.jpg',
+          'gs://bucket/video-1.mp4',
+        ]);
       });
     });
 
@@ -211,12 +212,14 @@ describe('useAssistants', () => {
         createMockAssistant('1', true, true),
         createMockAssistant('2', true, false),
       ];
-      mockListAction.mockResolvedValue(assistants);
-      mockDownloadAction.mockImplementation((url: string) =>
-        Promise.resolve({ signedUrl: `https://signed/${url.replace('gs://bucket/', '')}` })
-      );
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+        'gs://bucket/video-1.mp4': 'https://signed/video-1.mp4',
+        'gs://bucket/photo-2.jpg': 'https://signed/photo-2.jpg',
+      });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         const assistant1 = result.current.assistants.find((a) => a.agentId === '1');
@@ -234,24 +237,18 @@ describe('useAssistants', () => {
         createMockAssistant('1', true, false),
         createMockAssistant('2', true, false),
       ];
-      mockListAction.mockResolvedValue(assistants);
-
-      // Use mockImplementation to handle multiple calls
-      let callCount = 0;
-      mockDownloadAction.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve({ signedUrl: 'https://signed/photo-1.jpg' });
-        }
-        return Promise.reject(new Error('Download failed'));
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
       });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         const assistant1 = result.current.assistants.find((a) => a.agentId === '1');
-        // First should have URL (since order might vary, just check that at least one has it)
-        expect(assistant1?.signedProfilePhotoUrl).toBeDefined();
+        const assistant2 = result.current.assistants.find((a) => a.agentId === '2');
+        expect(assistant1?.signedProfilePhotoUrl).toBe('https://signed/photo-1.jpg');
+        expect(assistant2?.signedProfilePhotoUrl).toBeUndefined();
       });
     });
 
@@ -259,35 +256,33 @@ describe('useAssistants', () => {
       const assistants = [
         {
           ...createMockAssistant('1', false, false),
-          profilePhoto: 'https://external-url.com/photo.jpg', // Not a GCS URL
+          profilePhoto: 'https://external-url.com/photo.jpg',
         } as Assistant,
       ];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Should not have called download for non-GCS URL
-      expect(mockDownloadAction).not.toHaveBeenCalled();
+      expect(mockFetchMediaSignedUrls).not.toHaveBeenCalled();
     });
 
     it('handles empty URL response gracefully', async () => {
       const assistants = [createMockAssistant('1', true, false)];
-      mockListAction.mockResolvedValue(assistants);
-      mockDownloadAction.mockResolvedValue({ signedUrl: undefined });
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockFetchMediaSignedUrls.mockResolvedValue({});
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Should not crash and assistant should not have signedProfilePhotoUrl
       expect(result.current.assistants[0].signedProfilePhotoUrl).toBeUndefined();
     });
   });
@@ -299,10 +294,10 @@ describe('useAssistants', () => {
   describe('deleteAssistant', () => {
     it('removes assistant from list on successful delete', async () => {
       const assistants = [createMockAssistant('1', false), createMockAssistant('2', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
       mockDeleteAction.mockResolvedValue({});
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(2);
@@ -321,10 +316,10 @@ describe('useAssistants', () => {
 
     it('returns false and keeps assistant on delete failure', async () => {
       const assistants = [createMockAssistant('1', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
       mockDeleteAction.mockResolvedValue({ detail: 'Delete failed' });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
@@ -348,10 +343,10 @@ describe('useAssistants', () => {
   describe('updateAssistantProfile', () => {
     it('updates assistant in list on successful update', async () => {
       const assistants = [createMockAssistant('1', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
       mockUpdateAction.mockResolvedValue({});
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
@@ -369,11 +364,13 @@ describe('useAssistants', () => {
 
     it('fetches new signed URL when photo is updated', async () => {
       const assistants = [createMockAssistant('1', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
       mockUpdateAction.mockResolvedValue({});
-      mockDownloadAction.mockResolvedValue({ signedUrl: 'https://new-signed-url.com' });
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/new-photo.jpg': 'https://new-signed-url.com',
+      });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
@@ -387,7 +384,7 @@ describe('useAssistants', () => {
       });
 
       await waitFor(() => {
-        expect(mockDownloadAction).toHaveBeenCalledWith('gs://bucket/new-photo.jpg');
+        expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith(['gs://bucket/new-photo.jpg']);
         expect(result.current.assistants[0].signedProfilePhotoUrl).toBe(
           'https://new-signed-url.com'
         );
@@ -396,10 +393,10 @@ describe('useAssistants', () => {
 
     it('returns false on update failure', async () => {
       const assistants = [createMockAssistant('1', false)];
-      mockListAction.mockResolvedValue(assistants);
+      mockFetchAssistants.mockResolvedValue(assistants);
       mockUpdateAction.mockResolvedValue({ detail: 'Update failed' });
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
         expect(result.current.assistants).toHaveLength(1);
@@ -421,12 +418,12 @@ describe('useAssistants', () => {
 
   describe('refreshAssistants', () => {
     it('refetches assistants when called', async () => {
-      mockListAction.mockResolvedValue([]);
+      mockFetchAssistants.mockResolvedValue([]);
 
-      const { result } = renderHook(() => useAssistants(mockActions));
+      const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
-        expect(mockListAction).toHaveBeenCalledTimes(1);
+        expect(mockFetchAssistants).toHaveBeenCalledTimes(1);
         expect(result.current.isLoading).toBe(false);
       });
 
@@ -434,7 +431,7 @@ describe('useAssistants', () => {
         await result.current.refreshAssistants(false);
       });
 
-      expect(mockListAction).toHaveBeenCalledTimes(2);
+      expect(mockFetchAssistants).toHaveBeenCalledTimes(2);
     });
   });
 });

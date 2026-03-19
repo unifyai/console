@@ -47,8 +47,6 @@ vi.mock('uuid', () => ({
 // Factory for mock assistant actions
 const createMockAssistantActions = (): AssistantActions => ({
   assistant: {
-    list: vi.fn(),
-    status: vi.fn(),
     create: vi.fn().mockResolvedValue({
       assistant: {
         agentId: 'new-assistant-1',
@@ -72,7 +70,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     deleteRoom: vi.fn(),
   },
   voice: {
-    list: vi.fn(),
     register: vi.fn().mockResolvedValue({ voiceId: 'v1', info: 'Registered' }),
     delete: vi.fn(),
     clone: vi.fn(),
@@ -123,8 +120,6 @@ const createMockAssistantActions = (): AssistantActions => ({
     listUserDesktops: vi.fn(),
   },
   spending: {
-    getSpend: vi.fn(),
-    getLimit: vi.fn(),
     setLimit: vi.fn(),
   },
 });

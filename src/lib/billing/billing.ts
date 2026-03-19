@@ -88,6 +88,7 @@ export const getAutoRecharge = async (apiKey: string) => {
         minimumSpendRequired: data.minimumSpendRequired,
         remainingSpendNeeded: data.remainingSpendNeeded,
         hasPaymentMethod: data.hasPaymentMethod ?? false,
+        blockedReason: data.blockedReason ?? null,
       };
     } catch (error) {
       return errorResponse(error, 'Failed to fetch auto-recharge data');

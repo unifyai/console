@@ -57,6 +57,8 @@ interface PlotViewerProps {
   title?: string;
   /** Pre-aggregated bar chart data from backend (optional) */
   preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
+  /** When true, strip all chrome (header/footer/drawer) for iframe embedding */
+  embed?: boolean;
 }
 
 /**
@@ -119,7 +121,7 @@ function generateTitle(config: PlotViewerConfig): string {
  * Wraps PlotCanvas with a header, footer, and page-level layout.
  * Manages state for interactive plot configuration changes.
  */
-export function PlotViewer({ config, data, fields, title, preAggregatedBarData }: PlotViewerProps) {
+export function PlotViewer({ config, data, fields, title, preAggregatedBarData, embed = false }: PlotViewerProps) {
   // State for user-adjustable plot settings
   const [scaleX, setScaleX] = useState(config.scaleX || 'linear');
   const [scaleY, setScaleY] = useState(config.scaleY || 'linear');
@@ -211,8 +213,8 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
         <h1 className="text-title">{displayTitle}</h1>
       </header>
 
-      {/* Plot Container */}
-      <div className="min-h-[400px] flex-1 overflow-hidden">
+      {/* Plot Container — drop min-h in embed mode so the chart fills the iframe */}
+      <div className={`flex-1 overflow-hidden ${embed ? '' : 'min-h-[400px]'}`}>
         <PlotCanvas
           logs={data}
           fields={fields}
@@ -258,23 +260,25 @@ export function PlotViewer({ config, data, fields, title, preAggregatedBarData }
         />
       </div>
 
-      {/* Footer - compact with counts, toggles drawer */}
-      <PlotFooter
-        groupCount={plotDetails.groupCount}
-        pinnedCount={plotDetails.pinnedCount}
-        isOpen={plotDetails.isDrawerOpen}
-        onToggle={plotDetails.toggleDrawer}
-      />
-
-      {/* Details Drawer - slides up from footer */}
-      <PlotDetailsDrawer
-        isOpen={plotDetails.isDrawerOpen}
-        groups={plotDetails.groups}
-        pinnedDatapoints={plotDetails.pinnedDatapoints}
-        axesInfo={plotDetails.axesInfo}
-        onUnpinDatapoint={plotDetails.removePinnedDatapoint}
-        onHighlight={plotDetails.setHighlightTarget}
-      />
+      {/* Footer and drawer — hidden in embed mode */}
+      {!embed && (
+        <>
+          <PlotFooter
+            groupCount={plotDetails.groupCount}
+            pinnedCount={plotDetails.pinnedCount}
+            isOpen={plotDetails.isDrawerOpen}
+            onToggle={plotDetails.toggleDrawer}
+          />
+          <PlotDetailsDrawer
+            isOpen={plotDetails.isDrawerOpen}
+            groups={plotDetails.groups}
+            pinnedDatapoints={plotDetails.pinnedDatapoints}
+            axesInfo={plotDetails.axesInfo}
+            onUnpinDatapoint={plotDetails.removePinnedDatapoint}
+            onHighlight={plotDetails.setHighlightTarget}
+          />
+        </>
+      )}
     </div>
   );
 }

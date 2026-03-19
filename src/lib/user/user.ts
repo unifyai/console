@@ -7,6 +7,7 @@ import { Session, User, UserUpdateRequest } from '@/types/user';
 import { cookies, headers } from 'next/headers';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { populateApiKeyCache, invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
 
 // Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
 // but also available from '@/lib/orchestra/api/admin' for new code
@@ -146,6 +147,9 @@ export async function getCurrentUser(): Promise<User | null> {
   // If the user signed in with email/password and changed their password after
   // this JWT was issued, reject the session so the stale JWT is cleared.
   // Skip this check for OAuth sessions — password changes don't affect them.
+  //
+  // IMPORTANT: this check runs BEFORE cache population so that invalidated
+  // sessions never seed the API key cache with stale credentials.
   const isCredentialsSession =
     session && 'provider' in session && session.provider === 'credentials';
   if (isCredentialsSession && 'iat' in session && typeof session.iat === 'number') {
@@ -162,6 +166,9 @@ export async function getCurrentUser(): Promise<User | null> {
             `[getCurrentUser] Session invalidated: JWT issued at ${new Date(issuedAtMs).toISOString()} ` +
               `but password changed at ${creds.passwordChangedAt}`
           );
+          if (session.user?.email) {
+            invalidateApiKeyCache(session.user.email);
+          }
           return null;
         }
       }
@@ -172,6 +179,15 @@ export async function getCurrentUser(): Promise<User | null> {
         '[getCurrentUser] Failed to check password_changed_at, skipping session invalidation'
       );
     }
+  }
+
+  // Populate the in-memory API key cache AFTER session validation passes but
+  // BEFORE workspace resolution mutates user.apiKey. This allows
+  // getApiKeyFromRequest() in API routes to resolve the workspace-appropriate
+  // key from cache without calling getCurrentUser() again (saving 1-3
+  // Orchestra roundtrips per request).
+  if (session?.user?.email) {
+    populateApiKeyCache(session.user.email, user.apiKey, user.organizations);
   }
 
   // 3. Apply Workspace Context

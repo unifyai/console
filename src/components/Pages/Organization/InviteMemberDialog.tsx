@@ -8,18 +8,31 @@ import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Button } from '@/components/UI/button';
-import { OrganizationMember } from '@/types/organization';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/UI/select';
+import { OrganizationMember, OrganizationRole } from '@/types/organization';
+import { Label } from '@/components/UI/label';
 
 interface InviteMemberDialogProps {
-  onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onInvite: (email: string, roleId?: number) => Promise<{ success: boolean; error?: string }>;
   existingMembers: OrganizationMember[];
+  roles: OrganizationRole[];
 }
 
-const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogProps) => {
+const InviteMemberDialog = ({ onInvite, existingMembers, roles }: InviteMemberDialogProps) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const assignableRoles = roles.filter((r) => r.name !== 'Owner');
+  const defaultRole = assignableRoles.find((r) => r.name === 'Member');
 
   // Clear error when email changes to improve UX
   // error is intentionally omitted to prevent infinite loop - we only want to clear on email change
@@ -62,7 +75,8 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
     // If valid, proceed with invite (which now checks if user is in another org)
     setIsSubmitting(true);
     try {
-      const result = await onInvite(trimmedEmail);
+      const roleId = selectedRoleId ? Number(selectedRoleId) : defaultRole?.id;
+      const result = await onInvite(trimmedEmail, roleId);
       if (result.success) {
         setOpen(false);
         setEmail('');
@@ -79,6 +93,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
     setOpen(isOpen);
     if (!isOpen) {
       setEmail('');
+      setSelectedRoleId('');
       setError(null);
     }
   };
@@ -108,8 +123,9 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
       <DialogContent className="sm:max-w-[425px]">
         <div className="flex flex-col gap-2">
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4" noValidate>
-            {/* Input Container with Error Message */}
+            {/* Email Input */}
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -120,7 +136,6 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
                 className={error ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
 
-              {/* Validation Error Message */}
               {error && (
                 <div className="text-body text-error mt-1 flex items-center duration-200 animate-in fade-in slide-in-from-top-1">
                   <AlertCircle className="mr-1.5 h-3 w-3 flex-shrink-0" />
@@ -128,6 +143,29 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
                 </div>
               )}
             </div>
+
+            {/* Role Selector */}
+            {assignableRoles.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={selectedRoleId || String(defaultRole?.id ?? '')}
+                  onValueChange={setSelectedRoleId}
+                >
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignableRoles.map((role) => (
+                      <SelectItem key={role.id} value={String(role.id)}>
+                        {role.name}
+                        {role.description ? ` — ${role.description}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2">
               <SecondaryButton

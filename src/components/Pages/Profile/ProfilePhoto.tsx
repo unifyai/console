@@ -38,6 +38,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
 
   // Crop dialog state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropSourceType, setCropSourceType] = useState<string | undefined>();
   const [isCropOpen, setIsCropOpen] = useState(false);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
       // Open the crop dialog instead of directly calling onFileSelect
       const objectUrl = URL.createObjectURL(file);
       setCropSrc(objectUrl);
+      setCropSourceType(file.type);
       setIsCropOpen(true);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
@@ -81,6 +83,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
       setIsCropOpen(false);
       if (cropSrc) URL.revokeObjectURL(cropSrc);
       setCropSrc(null);
+      setCropSourceType(undefined);
       onFileSelect(croppedFile);
     },
     [cropSrc, onFileSelect]
@@ -90,6 +93,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
     setIsCropOpen(false);
     if (cropSrc) URL.revokeObjectURL(cropSrc);
     setCropSrc(null);
+    setCropSourceType(undefined);
   }, [cropSrc]);
 
   return (
@@ -97,7 +101,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
       >
         {displayUrl ? (
           <Image src={displayUrl} alt="Profile photo" fill className="object-cover" unoptimized />
@@ -125,6 +129,7 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
         open={isCropOpen}
         onConfirm={handleCropConfirm}
         onCancel={handleCropCancel}
+        sourceType={cropSourceType}
       />
     </>
   );

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { fetchVoices } from '@/lib/client/voice';
 
 interface UseVoiceOptionsConfig {
   /**
@@ -46,7 +47,7 @@ export function useVoiceOptions(
   const fetchUserVoicesFromOrchestra = React.useCallback(async () => {
     setIsLoadingUserVoices(true);
     try {
-      const result = await assistantVoiceActions.list();
+      const result = await fetchVoices();
       if (Array.isArray(result)) {
         // Also filter user's voices from DB if their provider doesn't match PRIMARY_VOICE_PROVIDER
         // This might be too restrictive if a user has old voices from a different provider
@@ -73,7 +74,7 @@ export function useVoiceOptions(
       setIsLoadingUserVoices(false);
       setHasFetchedOnce(true);
     }
-  }, [assistantVoiceActions]);
+  }, []);
 
   // Auto-fetch when enabled becomes true AND we haven't fetched yet
   React.useEffect(() => {

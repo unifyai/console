@@ -162,6 +162,7 @@ export default function OrganizationsAdminMain({
 
   // ── Invite form + invite list state ──────────────────────────────────
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRoleName, setInviteRoleName] = useState('Member');
   const [isInviting, setIsInviting] = useState(false);
   const [invites, setInvites] = useState<AdminOrgInvite[]>([]);
   const [isLoadingInvites, setIsLoadingInvites] = useState(false);
@@ -307,12 +308,18 @@ export default function OrganizationsAdminMain({
       return;
     }
     setIsInviting(true);
-    const result = await actions.inviteUserToOrg(orgDetail.id, trimmed);
+    const result = await actions.inviteUserToOrg(
+      orgDetail.id,
+      trimmed,
+      undefined,
+      inviteRoleName !== 'Member' ? inviteRoleName : undefined,
+    );
     if (isError(result)) {
       toast(result.detail, 'error');
     } else {
-      toast(`Invite sent to ${trimmed}`);
+      toast(`Invite sent to ${trimmed} as ${inviteRoleName}`);
       setInviteEmail('');
+      setInviteRoleName('Member');
       fetchInvites(orgDetail.id);
       fetchDetail(orgDetail.id);
     }
@@ -738,6 +745,16 @@ export default function OrganizationsAdminMain({
                         className="pl-9"
                       />
                     </div>
+                    <Select value={inviteRoleName} onValueChange={setInviteRoleName}>
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Member">Member</SelectItem>
+                        <SelectItem value="Viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       onClick={handleInviteUser}

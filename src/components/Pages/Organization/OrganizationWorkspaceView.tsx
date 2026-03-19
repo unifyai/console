@@ -71,7 +71,7 @@ interface OrganizationWorkspaceViewProps {
   isLoadingMembers: boolean;
   onDeleteOrg: () => void;
   onUpdateOrg: (name: string, timezone?: string | null) => void;
-  onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onInvite: (email: string, roleId?: number) => Promise<{ success: boolean; error?: string }>;
   onCancelInvite: (inviteId: string) => void;
   onResendInvite: (email: string) => void;
   onRemoveMember: (userId: string) => void;
@@ -395,7 +395,7 @@ const OrganizationWorkspaceView = ({
               <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto xl:w-auto">
                 {/* Invite Button */}
                 {canManageMembers && (
-                  <InviteMemberDialog onInvite={onInvite} existingMembers={activeMembersForProps} />
+                  <InviteMemberDialog onInvite={onInvite} existingMembers={activeMembersForProps} roles={roles} />
                 )}
 
                 {/* Search */}

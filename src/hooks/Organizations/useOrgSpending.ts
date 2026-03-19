@@ -22,15 +22,10 @@ import {
   getCurrentMonth,
 } from '@/types/organization';
 import { ResponseProps } from '@/types/common';
+import { fetchOrgSpend, fetchOrgSpendingLimit } from '@/lib/client/spending';
 
 /** Polling interval for spend updates (60 seconds) */
 const SPEND_POLLING_INTERVAL = 60000;
-
-/** Type for the getSpend action function */
-type GetOrgSpendAction = (orgId: number, month?: string) => Promise<OrgSpend | ResponseProps>;
-
-/** Type for the getLimit action function */
-type GetOrgLimitAction = (orgId: number) => Promise<OrgSpendingLimitResponse | ResponseProps>;
 
 /** Type for the setLimit action function */
 type SetOrgLimitAction = (
@@ -42,10 +37,6 @@ type SetOrgLimitAction = (
 interface UseOrgSpendingConfig {
   /** Organization ID to fetch spending data for */
   orgId: number;
-  /** Server action to fetch spend data */
-  getSpendAction: GetOrgSpendAction;
-  /** Server action to fetch spending limit */
-  getLimitAction: GetOrgLimitAction;
   /** Server action to set spending limit */
   setLimitAction: SetOrgLimitAction;
   /** Whether to enable automatic polling (default: true) */
@@ -108,8 +99,6 @@ interface UseOrgSpendingResult {
  */
 export function useOrgSpending({
   orgId,
-  getSpendAction,
-  getLimitAction,
   setLimitAction,
   enablePolling = true,
   pollingInterval = SPEND_POLLING_INTERVAL,
@@ -135,7 +124,7 @@ export function useOrgSpending({
       }
 
       try {
-        const result = await getSpendAction(orgId, currentMonth);
+        const result = await fetchOrgSpend(orgId, currentMonth);
 
         if (isOrgSpendData(result)) {
           setSpend(result);
@@ -158,7 +147,7 @@ export function useOrgSpending({
         }
       }
     },
-    [orgId, currentMonth, getSpendAction]
+    [orgId, currentMonth]
   );
 
   // Fetch limit data
@@ -166,7 +155,7 @@ export function useOrgSpending({
     if (!orgId) return;
 
     try {
-      const result = await getLimitAction(orgId);
+      const result = await fetchOrgSpendingLimit(orgId);
 
       if (isOrgSpendingLimitData(result)) {
         setLimit(result);
@@ -177,7 +166,7 @@ export function useOrgSpending({
     } catch (err) {
       console.warn('[useOrgSpending] Failed to fetch limit:', err);
     }
-  }, [orgId, getLimitAction]);
+  }, [orgId]);
 
   // Initial data fetch
   React.useEffect(() => {

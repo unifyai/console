@@ -162,7 +162,17 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                       </TooltipTrigger>
                       {isIneligibleForAutoRecharge && (
                         <TooltipContent className="max-w-xs">
-                          {autoRechargeIneligibilityReason === 'spending' ? (
+                          {autoRechargeIneligibilityReason === 'account_status' ? (
+                            <p>
+                              Auto-recharge is unavailable while your account has an
+                              outstanding billing issue. Please resolve it to re-enable.
+                            </p>
+                          ) : autoRechargeIneligibilityReason === 'unpaid_invoice' ? (
+                            <p>
+                              Auto-recharge was disabled because a payment failed.
+                              It can be re-enabled once your outstanding invoice is paid.
+                            </p>
+                          ) : autoRechargeIneligibilityReason === 'spending' ? (
                             <p>
                               You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
                               auto-recharge. You&apos;ve spent $
@@ -182,9 +192,13 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                 </div>
                 <CardDescription className="text-body-muted">
                   {isIneligibleForAutoRecharge
-                    ? autoRechargeIneligibilityReason === 'spending'
-                      ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
-                      : 'Add a default payment method to enable automatic refills.'
+                    ? autoRechargeIneligibilityReason === 'account_status'
+                      ? 'Resolve your billing issue to re-enable automatic refills.'
+                      : autoRechargeIneligibilityReason === 'unpaid_invoice'
+                        ? 'Automatic refills paused until your outstanding invoice is paid.'
+                        : autoRechargeIneligibilityReason === 'spending'
+                          ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
+                          : 'Add a default payment method to enable automatic refills.'
                     : 'Automatically top up your balance when it falls below a threshold.'}
                 </CardDescription>
               </CardHeader>

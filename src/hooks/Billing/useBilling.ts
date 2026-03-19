@@ -16,6 +16,7 @@ import { useSearchParams } from 'next/navigation';
 import type {
   BillingActions,
   AutoRechargeData,
+  AutoRechargeBlockedReason,
   CheckoutStatus,
   BillingOrgContext,
 } from '@/types/billing';
@@ -49,7 +50,7 @@ export interface UseBillingReturn {
   initialRechargeAmount: string;
   hasAutoRechargeChanges: boolean;
   isIneligibleForAutoRecharge: boolean;
-  autoRechargeIneligibilityReason: 'spending' | 'payment_method' | null;
+  autoRechargeIneligibilityReason: AutoRechargeBlockedReason | null;
   autoRechargeAlert: { type: 'success' | 'error'; message: string } | null;
   setMinBalance: (value: string) => void;
   setRechargeAmount: (value: string) => void;
@@ -104,17 +105,14 @@ export function useBilling(
   const isIneligibleForAutoRecharge = useMemo(
     () =>
       autoRechargeData !== null &&
-      (!autoRechargeData.canEnableAutoRecharge ||
-        !autoRechargeData.hasPaymentMethod) &&
+      autoRechargeData.blockedReason !== null &&
       !isAutoRechargeEnabled,
     [autoRechargeData, isAutoRechargeEnabled]
   );
 
-  const autoRechargeIneligibilityReason = useMemo(() => {
+  const autoRechargeIneligibilityReason = useMemo((): AutoRechargeBlockedReason | null => {
     if (!autoRechargeData || isAutoRechargeEnabled) return null;
-    if (!autoRechargeData.canEnableAutoRecharge) return 'spending' as const;
-    if (!autoRechargeData.hasPaymentMethod) return 'payment_method' as const;
-    return null;
+    return autoRechargeData.blockedReason;
   }, [autoRechargeData, isAutoRechargeEnabled]);
 
   // ── Fetch balance ────────────────────────────────────────────────────
@@ -229,19 +227,17 @@ export function useBilling(
   }, [actions]);
 
   const handleToggleAutoRecharge = useCallback(async () => {
-    if (!isAutoRechargeEnabled && !autoRechargeData?.canEnableAutoRecharge) {
+    if (!isAutoRechargeEnabled && autoRechargeData?.blockedReason) {
+      const reason = autoRechargeData.blockedReason;
+      const blockedMessages = new Map<AutoRechargeBlockedReason, string>([
+        ['account_status', 'Auto-recharge cannot be enabled while your account has an outstanding billing issue. Please resolve it first.'],
+        ['unpaid_invoice', 'Auto-recharge cannot be enabled while you have an unpaid invoice. It will be available once your invoice is paid.'],
+        ['spending', `You need to spend $${autoRechargeData.minimumSpendRequired ?? 1000} to access automated top-ups. ${autoRechargeData.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`],
+        ['payment_method', 'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".'],
+      ]);
       setAutoRechargeAlert({
         type: 'error',
-        message: `You need to spend $${autoRechargeData?.minimumSpendRequired ?? 100} to access automated top-ups. ${autoRechargeData?.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`,
-      });
-      return;
-    }
-
-    if (!isAutoRechargeEnabled && !autoRechargeData?.hasPaymentMethod) {
-      setAutoRechargeAlert({
-        type: 'error',
-        message:
-          'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".',
+        message: blockedMessages.get(reason) ?? 'Auto-recharge cannot be enabled at this time.',
       });
       return;
     }

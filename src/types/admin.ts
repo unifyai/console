@@ -112,7 +112,7 @@ export interface AdminOnboardingActions {
   ) => Promise<ResponseProps>;
 
   // Invite user to org + list invites
-  inviteUserToOrg: (orgId: number, email: string) => Promise<ResponseProps>;
+  inviteUserToOrg: (orgId: number, email: string, roleId?: number, roleName?: string) => Promise<ResponseProps>;
   listOrgInvites: (orgId: number) => Promise<AdminOrgInvite[] | ResponseProps>;
 
   // Free trial

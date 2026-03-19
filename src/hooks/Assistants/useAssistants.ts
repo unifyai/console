@@ -3,9 +3,10 @@ import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/ass
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { fetchAssistants, fetchMediaSignedUrls } from '@/lib/client/assistant';
 
-export function useAssistants(allActions: AssistantActions) {
-  const { assistant: assistantActions, photo: photoActions } = allActions;
+export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
+  const { assistant: assistantActions } = allActions;
 
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -22,8 +23,7 @@ export function useAssistants(allActions: AssistantActions) {
       }
 
       try {
-        // Step 1: Fetch the core assistant data first
-        const listResult = await assistantActions.list();
+        const listResult = await fetchAssistants(isOrgContext);
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)
@@ -55,59 +55,36 @@ export function useAssistants(allActions: AssistantActions) {
         setIsLoading(false);
         if (toastId) toast.dismiss(toastId);
 
-        // Step 3: Batch fetch all signed URLs in the background, then update once
-        // This prevents multiple setAssistants calls which would cause cascading re-renders
-        const urlFetchPromises: Promise<{
-          agentId: string;
-          signedProfilePhotoUrl?: string;
-          signedProfileVideoUrl?: string;
-        } | null>[] = [];
+        // Step 3: Batch-resolve all GCS signed URLs in a single request,
+        // then apply them in one state update to avoid cascading re-renders.
+        const pathToAgentField: { path: string; agentId: string; field: 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' }[] = [];
 
         validAssistants.forEach((assistant) => {
-          const photoPromise =
-            assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)
-              ? photoActions.downloadMedia(assistant.profilePhoto).then((result) => ({
-                  agentId: assistant.agentId,
-                  signedProfilePhotoUrl: result.signedUrl,
-                }))
-              : null;
-
-          const videoPromise =
-            assistant.profileVideo && isGcsPhoto(assistant.profileVideo)
-              ? photoActions.downloadMedia(assistant.profileVideo).then((result) => ({
-                  agentId: assistant.agentId,
-                  signedProfileVideoUrl: result.signedUrl,
-                }))
-              : null;
-
-          if (photoPromise) urlFetchPromises.push(photoPromise);
-          if (videoPromise) urlFetchPromises.push(videoPromise);
+          if (assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)) {
+            pathToAgentField.push({ path: assistant.profilePhoto, agentId: assistant.agentId, field: 'signedProfilePhotoUrl' });
+          }
+          if (assistant.profileVideo && isGcsPhoto(assistant.profileVideo)) {
+            pathToAgentField.push({ path: assistant.profileVideo, agentId: assistant.agentId, field: 'signedProfileVideoUrl' });
+          }
         });
 
-        // Only proceed if there are URLs to fetch
-        if (urlFetchPromises.length > 0) {
-          Promise.allSettled(urlFetchPromises).then((results) => {
-            // Collect all successful URL updates
+        if (pathToAgentField.length > 0) {
+          const allPaths = pathToAgentField.map((e) => e.path);
+          fetchMediaSignedUrls(allPaths).then((signedUrlMap) => {
             const urlUpdates = new Map<
               string,
               { signedProfilePhotoUrl?: string; signedProfileVideoUrl?: string }
             >();
 
-            results.forEach((result) => {
-              if (result.status === 'fulfilled' && result.value) {
-                const { agentId, signedProfilePhotoUrl, signedProfileVideoUrl } = result.value;
+            pathToAgentField.forEach(({ path, agentId, field }) => {
+              const signedUrl = signedUrlMap[path];
+              if (signedUrl) {
                 const existing = urlUpdates.get(agentId) || {};
-                if (signedProfilePhotoUrl) {
-                  existing.signedProfilePhotoUrl = signedProfilePhotoUrl;
-                }
-                if (signedProfileVideoUrl) {
-                  existing.signedProfileVideoUrl = signedProfileVideoUrl;
-                }
+                existing[field] = signedUrl;
                 urlUpdates.set(agentId, existing);
               }
             });
 
-            // Single batched update for all URLs
             if (urlUpdates.size > 0) {
               setAssistants((currentAssistants) =>
                 currentAssistants.map((a) => {
@@ -133,7 +110,7 @@ export function useAssistants(allActions: AssistantActions) {
         }
       }
     },
-    [assistantActions, photoActions]
+    [isOrgContext]
   );
 
   React.useEffect(() => {
@@ -177,16 +154,18 @@ export function useAssistants(allActions: AssistantActions) {
         // Immediately update non-URL fields
         setAssistants((prev) => prev.map((a) => (a.agentId === id ? { ...a, ...payload } : a)));
 
-        // If a photo was part of the payload, refresh its URL
+        // If a photo was part of the payload, refresh its signed URL
         if (payload.profilePhoto && isGcsPhoto(payload.profilePhoto)) {
-          const res = await photoActions.downloadMedia(payload.profilePhoto);
-          if (res.signedUrl) {
-            setAssistants((current) =>
-              current.map((a) =>
-                a.agentId === id ? { ...a, signedProfilePhotoUrl: res.signedUrl } : a
-              )
-            );
-          }
+          fetchMediaSignedUrls([payload.profilePhoto]).then((urlMap) => {
+            const signedUrl = urlMap[payload.profilePhoto!];
+            if (signedUrl) {
+              setAssistants((current) =>
+                current.map((a) =>
+                  a.agentId === id ? { ...a, signedProfilePhotoUrl: signedUrl } : a
+                )
+              );
+            }
+          });
         }
 
         toast.success('Profile updated.', { id: toastId });
@@ -197,7 +176,7 @@ export function useAssistants(allActions: AssistantActions) {
         return false;
       }
     },
-    [assistantActions, photoActions]
+    [assistantActions]
   );
 
   return {

@@ -2,11 +2,9 @@ import { getCurrentUser } from '@/lib/user/user';
 import Main from '@/components/Pages/Assistants/Main';
 import { getTasks, updateTask } from '@/lib/assistants/task';
 import {
-  listAssistants,
   createAssistant,
   deleteAssistant,
   updateAssistant,
-  getAssistantStatus,
   checkHiringFunds,
 } from '@/lib/assistants/assistant';
 import {
@@ -22,7 +20,6 @@ import {
   cancelAnimationPrediction,
 } from '@/lib/assistants/photo';
 import {
-  listVoices,
   registerVoice,
   deleteVoice,
   cloneVoice,
@@ -62,8 +59,6 @@ import {
   listUserDesktops,
 } from '@/lib/assistants/desktop';
 import {
-  getAssistantSpend,
-  getAssistantSpendingLimit,
   setAssistantSpendingLimit,
 } from '@/lib/assistants/spending';
 import {
@@ -71,8 +66,6 @@ import {
   getToolLoopEvents,
   backfillByCallingIds,
 } from '@/lib/assistants/action';
-import { getUserSpend, getUserSpendingLimit } from '@/lib/user/spending';
-import { getOrgSpend, getOrgSpendingLimit } from '@/lib/organizations/spending';
 import { cookies } from 'next/headers';
 
 const AssistantsPage = async () => {
@@ -95,17 +88,12 @@ const AssistantsPage = async () => {
     }
   }
 
-  // Include demo assistants so demoers can chat with them
-  const includeDemo = true;
-
   const assistantActions: AssistantActions = {
     assistant: {
-      list: await listAssistants(apiKey, isOrgContext, includeDemo),
       check: await checkHiringFunds(apiKey),
       create: await createAssistant(apiKey),
       update: await updateAssistant(apiKey),
       delete: await deleteAssistant(apiKey),
-      status: await getAssistantStatus(adminKey),
     },
     photo: {
       uploadPhoto: await uploadPhoto(apiKey),
@@ -120,7 +108,6 @@ const AssistantsPage = async () => {
       cancelAnimation: await cancelAnimationPrediction(apiKey),
     },
     voice: {
-      list: await listVoices(apiKey),
       register: await registerVoice(apiKey),
       delete: await deleteVoice(apiKey),
       clone: await cloneVoice(apiKey),
@@ -162,22 +149,8 @@ const AssistantsPage = async () => {
       listUserDesktops: await listUserDesktops(apiKey),
     },
     spending: {
-      getSpend: await getAssistantSpend(apiKey),
-      getLimit: await getAssistantSpendingLimit(apiKey),
       setLimit: await setAssistantSpendingLimit(apiKey),
     },
-    // User spending actions (for spending gate)
-    userSpending: {
-      getSpend: await getUserSpend(apiKey),
-      getLimit: await getUserSpendingLimit(apiKey),
-    },
-    // Org spending actions (only used if in org context)
-    orgSpending: orgId
-      ? {
-          getSpend: await getOrgSpend(apiKey),
-          getLimit: await getOrgSpendingLimit(apiKey),
-        }
-      : undefined,
     // Actions panel - live action events
     actions: {
       getManagerMethodEvents: await getManagerMethodEvents(apiKey),
@@ -196,6 +169,7 @@ const AssistantsPage = async () => {
     timezone: user.timezone,
     email: user.email,
     orgId,
+    isOrgContext,
     mfaSetupRequired: !!user.mfaSetupRequired,
   };
 

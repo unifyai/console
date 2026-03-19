@@ -180,7 +180,7 @@ export const drawPlot = async (
       if (
         (hasPreAggregatedData || hasRawLogsData) &&
         selectedXAxisProperty &&
-        selectedYAxisProperty
+        (selectedYAxisProperty || aggregateProperty === 'count')
       ) {
         placeholder.text('');
         drawBarChart(
