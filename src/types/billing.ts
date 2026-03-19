@@ -41,6 +41,12 @@ export interface BalanceData {
 // Auto-Recharge
 // =============================================================================
 
+export type AutoRechargeBlockedReason =
+  | 'account_status'
+  | 'unpaid_invoice'
+  | 'spending'
+  | 'payment_method';
+
 export interface AutoRechargeData {
   // Settings
   autoRechargeEnabled: boolean;
@@ -54,6 +60,8 @@ export interface AutoRechargeData {
   remainingSpendNeeded: number;
   // Whether the user has a default payment method on file
   hasPaymentMethod: boolean;
+  // If non-null, auto-recharge cannot be enabled and this explains why
+  blockedReason: AutoRechargeBlockedReason | null;
 }
 
 export interface AutoRechargeUpdatePayload {
