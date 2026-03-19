@@ -55,10 +55,12 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       return NextResponse.json({ detail }, { status: response.status });
     }
 
-    // Transform snake_case response to camelCase for frontend
-    const camelCaseResponse = snakeToCamelObject(responseData);
+    // Orchestra wraps responses in { info: ... }, unwrap for cleaner client API
+    const payload = responseData && typeof responseData === 'object' && 'info' in responseData
+      ? responseData.info
+      : responseData;
+    const camelCaseResponse = snakeToCamelObject(payload);
 
-    // If everything is OK, return the parsed data.
     return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error(

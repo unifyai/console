@@ -45,12 +45,7 @@ const createMockAssistant = (id: string): Assistant =>
 
 const createMockStatus = (running: boolean): AssistantStatus => ({
   running,
-  uptimeSeconds: 0,
-  processId: null,
-  assistantId: '1',
-  shutdownReason: null,
-  inactivityTimeoutMinutes: 30,
-  message: null,
+  jobName: running ? 'test-job' : null,
 });
 
 // ---------------------------------------------------------------------------
