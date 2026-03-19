@@ -99,7 +99,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
           const res = await authClient.request({
             url: `${subscriptionUrl}:pull`,
             method: 'POST',
-            data: { maxMessages: 1, returnImmediately: false },
+            data: { maxMessages: 1, returnImmediately: true },
           });
 
           if (res.status !== 200) {
@@ -119,6 +119,11 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             }>;
           };
           const receivedMessages = responseData.receivedMessages || [];
+
+          if (receivedMessages.length === 0) {
+            await new Promise((r) => setTimeout(r, 200));
+            continue;
+          }
 
           if (request.signal.aborted) {
             const ackIds = receivedMessages.map((m) => m.ackId).filter(Boolean);

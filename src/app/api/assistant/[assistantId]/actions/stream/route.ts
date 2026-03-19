@@ -179,7 +179,7 @@ function createPubSubStream(
           const res = await authClient.request({
             url: `${subscriptionUrl}:pull`,
             method: 'POST',
-            data: { maxMessages: 10, returnImmediately: false },
+            data: { maxMessages: 10, returnImmediately: true },
           });
 
           if (request.signal.aborted) break;
@@ -203,10 +203,7 @@ function createPubSubStream(
           const receivedMessages = responseData.receivedMessages || [];
 
           if (receivedMessages.length === 0) {
-            if (__DEV__)
-              console.log(
-                `[DEBUG][Actions SSE] Empty pull for assistant=${assistantId} (subscription alive, waiting)`
-              );
+            await new Promise((r) => setTimeout(r, 200));
             continue;
           }
 
