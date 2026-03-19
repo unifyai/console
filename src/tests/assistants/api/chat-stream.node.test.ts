@@ -1,12 +1,14 @@
 /**
- * Tests for the Chat SSE stream route.
+ * Tests for the Chat SSE stream route and ACK endpoint.
  *
  * Validates persistent per-user+assistant Pub/Sub subscription behavior:
  * - Subscription is deterministic based on contactId (not random UUID)
  * - Same contactId reuses the same subscription (ALREADY_EXISTS handled)
  * - Subscriptions are NOT deleted on disconnect (persistent)
  * - Messages are correctly streamed as SSE data lines
- * - Server-side ACK: messages are acknowledged immediately (no __ackId in payload)
+ * - Client-side ACK: __ackId is included in SSE payloads for browser to ACK
+ * - Server extends ACK deadline (modifyAckDeadline) instead of ACKing
+ * - ACK endpoint acknowledges via the correct persistent subscription
  * - contactId is required (400 if missing)
  *
  * Uses vi.mock to replace GoogleAuth and fs so no real GCP calls are made.
@@ -69,9 +71,16 @@ function createPubSubMock(
     onSubscriptionCreate?: (url: string, data: any) => void;
     onSubscriptionDelete?: (url: string) => void;
     onAck?: (url: string, data: any) => void;
+    onModifyAckDeadline?: (url: string, data: any) => void;
   } = {}
 ) {
-  const { messageBatches = [], onSubscriptionCreate, onSubscriptionDelete, onAck } = opts;
+  const {
+    messageBatches = [],
+    onSubscriptionCreate,
+    onSubscriptionDelete,
+    onAck,
+    onModifyAckDeadline,
+  } = opts;
   let pullCount = 0;
 
   return async (reqOpts: { url: string; method: string; data?: any }) => {
@@ -91,6 +100,11 @@ function createPubSubMock(
 
     if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':acknowledge')) {
       onAck?.(reqOpts.url, reqOpts.data);
+      return { status: 200, data: {} };
+    }
+
+    if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':modifyAckDeadline')) {
+      onModifyAckDeadline?.(reqOpts.url, reqOpts.data);
       return { status: 200, data: {} };
     }
 
@@ -318,10 +332,10 @@ describe('Chat SSE Stream Route', () => {
   });
 
   // =========================================================================
-  // Server-side ACK and payload shape
+  // Client-side ACK: SSE route delegates ACK to the browser
   // =========================================================================
 
-  it('ACKs messages server-side and does NOT include __ackId in payload', async () => {
+  it('does NOT ACK messages server-side', async () => {
     const controller = new AbortController();
     const ackedIds: string[][] = [];
 
@@ -335,7 +349,7 @@ describe('Chat SSE Stream Route', () => {
                   thread: 'unify_message_outbound',
                   event: { content: 'Hello from assistant', contact_id: 42 },
                 },
-                'ack-server-side'
+                'ack-should-not-happen'
               ),
             ],
           },
@@ -353,19 +367,153 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
-    const allData = await drainStream(response);
+    await drainStream(response);
 
-    expect(ackedIds.length).toBe(1);
-    expect(ackedIds[0]).toContain('ack-server-side');
+    expect(ackedIds.length).toBe(0);
+  });
+
+  it('includes __ackId in SSE payload for client-side ACK', async () => {
+    const controller = new AbortController();
+
+    mockRequest.mockImplementation(
+      createPubSubMock(controller, {
+        messageBatches: [
+          {
+            receivedMessages: [
+              makePubSubMessage(
+                {
+                  thread: 'unify_message_outbound',
+                  event: { content: 'Hello from assistant', contact_id: 42 },
+                },
+                'ack-for-client'
+              ),
+            ],
+          },
+        ],
+      })
+    );
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+    const allData = await drainStream(response);
 
     const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
     expect(dataLines.length).toBe(1);
 
     const parsed = JSON.parse(dataLines[0].replace('data: ', ''));
-    expect(parsed.__ackId).toBeUndefined();
+    expect(parsed.__ackId).toBe('ack-for-client');
     expect(parsed.event.content).toBe('Hello from assistant');
     expect(parsed.id).toBe('msg-server-1');
     expect(parsed.publishTime).toBeTruthy();
+  });
+
+  it('extends ACK deadline after pulling a message', async () => {
+    const controller = new AbortController();
+    const deadlineExtensions: Array<{ url: string; data: any }> = [];
+
+    mockRequest.mockImplementation(
+      createPubSubMock(controller, {
+        messageBatches: [
+          {
+            receivedMessages: [
+              makePubSubMessage(
+                {
+                  thread: 'unify_message_outbound',
+                  event: { content: 'Test', contact_id: 42 },
+                },
+                'ack-deadline-test'
+              ),
+            ],
+          },
+        ],
+        onModifyAckDeadline: (url, data) => {
+          deadlineExtensions.push({ url, data });
+        },
+      })
+    );
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+    await drainStream(response);
+
+    const extensions = deadlineExtensions.filter((e) => e.data.ackDeadlineSeconds > 0);
+    expect(extensions.length).toBe(1);
+    expect(extensions[0].data.ackIds).toContain('ack-deadline-test');
+    expect(extensions[0].data.ackDeadlineSeconds).toBe(30);
+  });
+
+  it('NACKs unprocessed messages when connection aborts mid-processing', async () => {
+    const controller = new AbortController();
+    const deadlineChanges: Array<{ url: string; data: any }> = [];
+    let pullCount = 0;
+
+    mockRequest.mockImplementation(async (reqOpts: { url: string; method: string; data?: any }) => {
+      if (reqOpts.method === 'PUT' && reqOpts.url.includes('/subscriptions/')) {
+        return { status: 200, data: {} };
+      }
+
+      if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':pull')) {
+        pullCount++;
+        if (pullCount === 1) {
+          // Abort the connection just before returning a batch with two messages.
+          // The first message will be processed, but the second should hit the
+          // abort check and get NACKed.
+          controller.abort();
+          return {
+            status: 200,
+            data: {
+              receivedMessages: [
+                makePubSubMessage(
+                  {
+                    thread: 'unify_message_outbound',
+                    event: { content: 'First', contact_id: 42 },
+                  },
+                  'ack-first'
+                ),
+                makePubSubMessage(
+                  {
+                    thread: 'unify_message_outbound',
+                    event: { content: 'Second', contact_id: 42 },
+                  },
+                  'ack-nack-test'
+                ),
+              ],
+            },
+          };
+        }
+        return { status: 200, data: { receivedMessages: [] } };
+      }
+
+      if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':modifyAckDeadline')) {
+        deadlineChanges.push({ url: reqOpts.url, data: reqOpts.data });
+        return { status: 200, data: {} };
+      }
+
+      return { status: 200, data: {} };
+    });
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
+
+    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+    await drainStream(response);
+
+    const nacks = deadlineChanges.filter((e) => e.data.ackDeadlineSeconds === 0);
+    expect(nacks.length).toBeGreaterThanOrEqual(1);
+    expect(nacks.some((n) => n.data.ackIds.includes('ack-nack-test'))).toBe(true);
   });
 
   // =========================================================================
@@ -431,5 +579,37 @@ describe('Chat SSE Stream Route', () => {
     expect(createPayload.topic).toBe(
       `projects/${TEST_PROJECT_ID}/topics/unity-${TEST_ASSISTANT_ID}-staging`
     );
+  });
+
+  // =========================================================================
+  // ACK endpoint
+  // =========================================================================
+
+  it('ACK endpoint acknowledges via the correct persistent subscription', async () => {
+    const ackedIds: Array<{ url: string; data: any }> = [];
+
+    mockRequest.mockImplementation(async (reqOpts: { url: string; method: string; data?: any }) => {
+      if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':acknowledge')) {
+        ackedIds.push({ url: reqOpts.url, data: reqOpts.data });
+        return { status: 200, data: {} };
+      }
+      return { status: 200, data: {} };
+    });
+
+    const { POST } = await import('@/app/api/assistant/[assistantId]/events/ack/route');
+
+    const req = new NextRequest(`http://localhost/api/assistant/${TEST_ASSISTANT_ID}/events/ack`, {
+      method: 'POST',
+      body: JSON.stringify({ ackId: 'ack-from-client', contactId: TEST_CONTACT_ID }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const response = await POST(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(ackedIds.length).toBe(1);
+    expect(ackedIds[0].url).toContain(`-chat-${TEST_CONTACT_ID}`);
+    expect(ackedIds[0].data.ackIds).toContain('ack-from-client');
   });
 });

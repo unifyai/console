@@ -9,9 +9,10 @@
  *   (`{topicName}-chat-{contactId}`). The subscription survives across SSE
  *   reconnects, so messages published during connection gaps are preserved
  *   in the backlog and delivered when the next connection pulls.
- * - Server-side ACK: messages are acknowledged immediately after being sent
- *   to the client. Since each subscription is private to one user, ACKing
- *   has no effect on other users.
+ * - Client-side ACK: the SSE payload includes `__ackId` so the browser can
+ *   acknowledge after display via POST /events/ack. The server extends the
+ *   ACK deadline to give the browser time. If the connection drops before
+ *   the browser ACKs, the message stays in Pub/Sub and is redelivered.
  * - Subscriptions auto-expire after 31 days of inactivity to clean up
  *   abandoned users.
  */
@@ -101,9 +102,8 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             data: { maxMessages: 1, returnImmediately: false },
           });
 
-          if (request.signal.aborted) break;
-
           if (res.status !== 200) {
+            if (request.signal.aborted) break;
             if (res.status === 404) {
               console.error(`[Chat SSE] Subscription not found: ${subscriptionUrl}`);
               break;
@@ -120,11 +120,34 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
           };
           const receivedMessages = responseData.receivedMessages || [];
 
+          if (request.signal.aborted) {
+            const ackIds = receivedMessages.map((m) => m.ackId).filter(Boolean);
+            if (ackIds.length > 0) {
+              await authClient
+                .request({
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
+                  method: 'POST',
+                  data: { ackIds, ackDeadlineSeconds: 0 },
+                })
+                .catch(() => {});
+            }
+            break;
+          }
+
           for (const item of receivedMessages) {
             const { ackId, message } = item;
             if (!message) continue;
 
-            if (request.signal.aborted) break;
+            if (request.signal.aborted) {
+              await authClient
+                .request({
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
+                  method: 'POST',
+                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+                })
+                .catch(() => {});
+              break;
+            }
 
             try {
               const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
@@ -137,24 +160,32 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
               payload.id = message.messageId;
               payload.publishTime = message.publishTime;
+              payload.__ackId = ackId;
               if (payload.event && typeof payload.event === 'object') {
                 payload.event.id = message.messageId;
                 payload.event.publishTime = message.publishTime;
               }
 
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-
               try {
                 await authClient.request({
-                  url: `${subscriptionUrl}:acknowledge`,
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
                   method: 'POST',
-                  data: { ackIds: [ackId] },
+                  data: { ackIds: [ackId], ackDeadlineSeconds: 30 },
                 });
               } catch {
-                // Non-fatal — message may be redelivered, client deduplicates
+                // Non-fatal — default deadline still applies
               }
+
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
             } catch (err) {
               console.error('[Chat SSE] Error processing message:', err);
+              await authClient
+                .request({
+                  url: `${subscriptionUrl}:modifyAckDeadline`,
+                  method: 'POST',
+                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
+                })
+                .catch(() => {});
             }
           }
         } catch (error: any) {
