@@ -229,18 +229,15 @@ export function useBilling(
   const handleToggleAutoRecharge = useCallback(async () => {
     if (!isAutoRechargeEnabled && autoRechargeData?.blockedReason) {
       const reason = autoRechargeData.blockedReason;
-      const messages: Record<string, string> = {
-        account_status:
-          'Auto-recharge cannot be enabled while your account has an outstanding billing issue. Please resolve it first.',
-        unpaid_invoice:
-          'Auto-recharge cannot be enabled while you have an unpaid invoice. It will be available once your invoice is paid.',
-        spending: `You need to spend $${autoRechargeData.minimumSpendRequired ?? 1000} to access automated top-ups. ${autoRechargeData.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`,
-        payment_method:
-          'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".',
-      };
+      const blockedMessages = new Map<AutoRechargeBlockedReason, string>([
+        ['account_status', 'Auto-recharge cannot be enabled while your account has an outstanding billing issue. Please resolve it first.'],
+        ['unpaid_invoice', 'Auto-recharge cannot be enabled while you have an unpaid invoice. It will be available once your invoice is paid.'],
+        ['spending', `You need to spend $${autoRechargeData.minimumSpendRequired ?? 1000} to access automated top-ups. ${autoRechargeData.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`],
+        ['payment_method', 'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".'],
+      ]);
       setAutoRechargeAlert({
         type: 'error',
-        message: messages[reason] ?? 'Auto-recharge cannot be enabled at this time.',
+        message: blockedMessages.get(reason) ?? 'Auto-recharge cannot be enabled at this time.',
       });
       return;
     }
