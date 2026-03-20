@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import {
@@ -334,6 +334,12 @@ export function AttachmentPreviewDialog({
             </Button>
           </div>
         </DialogHeader>
+        {(content.status === 'html' || content.status === 'excel') && (
+          <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-1.5 text-caption text-muted-foreground">
+            <Info className="h-3.5 w-3.5 flex-shrink-0" />
+            Simplified preview — download and open in native application for full quality.
+          </div>
+        )}
         <PreviewViewer attachment={attachment} content={content} />
       </DialogContent>
     </Dialog>
