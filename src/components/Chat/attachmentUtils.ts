@@ -15,9 +15,6 @@ import type { AttachmentType, Attachment, AttachmentUploadResponse } from '@/typ
 // CONSTANTS
 // =============================================================================
 
-/** Maximum number of attachments per message */
-export const MAX_ATTACHMENTS = 10;
-
 /** Maximum file size in bytes (32MB — matches Cloud Run request limit) */
 export const MAX_FILE_SIZE_BYTES = 32 * 1024 * 1024;
 
@@ -246,19 +243,6 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
     };
   }
 
-  return { valid: true };
-}
-
-/**
- * Validate attachment count.
- */
-export function validateAttachmentCount(currentCount: number): { valid: boolean; error?: string } {
-  if (currentCount >= MAX_ATTACHMENTS) {
-    return {
-      valid: false,
-      error: `Maximum ${MAX_ATTACHMENTS} attachments allowed per message`,
-    };
-  }
   return { valid: true };
 }
 

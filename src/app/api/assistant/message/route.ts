@@ -3,9 +3,6 @@ import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '.
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import type { Attachment } from '@/types/assistants/chat';
 
-/** Maximum number of attachments allowed per message */
-const MAX_ATTACHMENTS = 10;
-
 export async function POST(request: NextRequest) {
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
@@ -47,11 +44,6 @@ export async function POST(request: NextRequest) {
 
   if (!hasContent) {
     return badRequest('Missing message or attachments');
-  }
-
-  // Validate attachment count
-  if (attachments && attachments.length > MAX_ATTACHMENTS) {
-    return badRequest(`Maximum ${MAX_ATTACHMENTS} attachments allowed`);
   }
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';

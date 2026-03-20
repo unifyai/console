@@ -25,7 +25,6 @@ import {
   ChatMessageBubble,
   ChatDateDivider,
   isSameDay,
-  MAX_ATTACHMENTS,
 } from '@/components/Chat';
 import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
@@ -161,24 +160,16 @@ export function AssistantProfileChatPanel({
   /* File handling */
   const handleFiles = React.useCallback(
     (files: File[]) => {
-      const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
-      if (remaining <= 0) {
-        toast.error(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
-        return;
-      }
-
-      const filesToAdd = files.slice(0, remaining);
       const newAttachments: Attachment[] = [];
 
-      for (const file of filesToAdd) {
+      for (const file of files) {
         const validation = validateFile(file);
         if (!validation.valid) {
           toast.error(validation.error);
           continue;
         }
-        // Check for duplicates
         if (pendingAttachments.some((a) => a.filename === file.name && a.sizeBytes === file.size)) {
-          continue; // Silent skip duplicates
+          continue;
         }
         newAttachments.push(createAttachment(file));
       }

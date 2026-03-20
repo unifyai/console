@@ -65,10 +65,10 @@ describe('Attachment Utilities - New Features', () => {
     });
   });
 
-  describe('Attachment count limit - 10 max', () => {
-    it('should export MAX_ATTACHMENTS constant', async () => {
+  describe('No attachment count limit', () => {
+    it('should not export MAX_ATTACHMENTS constant', async () => {
       const utils = await import('@/components/Chat/attachmentUtils');
-      expect((utils as { MAX_ATTACHMENTS?: number }).MAX_ATTACHMENTS).toBe(10);
+      expect((utils as { MAX_ATTACHMENTS?: number }).MAX_ATTACHMENTS).toBeUndefined();
     });
   });
 });
