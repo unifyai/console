@@ -3,6 +3,7 @@ import { X, Download, ChevronDown, ChevronUp, Loader2, Check, AlertCircle, Clock
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
   getAttachmentType,
   getAttachmentIcon,
@@ -174,6 +175,8 @@ function HoverLabel({ attachment }: { attachment: Attachment | null }) {
 export interface PendingAttachmentListProps {
   attachments: Attachment[];
   onRemove: (id: string) => void;
+  onRemoveAll?: () => void;
+  onCancel?: () => void;
   className?: string;
 }
 
@@ -185,6 +188,8 @@ export interface PendingAttachmentListProps {
 export function PendingAttachmentList({
   attachments,
   onRemove,
+  onRemoveAll,
+  onCancel,
   className,
 }: PendingAttachmentListProps) {
   const [expanded, setExpanded] = React.useState(false);
@@ -236,6 +241,48 @@ export function PendingAttachmentList({
               </>
             )}
           </Badge>
+        )}
+        {onCancel && attachments.some((a) => a.uploadStatus) && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 rounded-full p-0 text-muted-foreground hover:text-foreground"
+                  onClick={onCancel}
+                  data-testid="attachment-cancel-send"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <span className="text-caption font-medium">Cancel send</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {onRemoveAll && !attachments.some((a) => a.uploadStatus) && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 rounded-full p-0 text-muted-foreground hover:text-foreground"
+                  onClick={onRemoveAll}
+                  data-testid="attachment-remove-all"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <span className="text-caption font-medium">Remove all</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
     </div>

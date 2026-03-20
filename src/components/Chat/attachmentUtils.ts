@@ -360,18 +360,24 @@ export interface BatchUploadCallbacks {
   onUploaded: (id: string, result: AttachmentUploadResponse) => void;
 }
 
+export interface BatchUploadHandle {
+  promise: Promise<Attachment[]>;
+  cancel: () => void;
+}
+
 /**
  * Upload a batch of attachments with bounded concurrency.
  * Calls back per-file so the UI can update chips in real time.
- * Returns the list of successfully uploaded attachments.
+ * Returns a handle with the result promise and a cancel function.
  */
-export async function uploadAttachmentBatch(
+export function uploadAttachmentBatch(
   attachments: Attachment[],
   assistantId: string,
   callbacks: BatchUploadCallbacks
-): Promise<Attachment[]> {
+): BatchUploadHandle {
   const toUpload = attachments.filter((a) => a.file);
   const succeeded: Attachment[] = [];
+  let cancelled = false;
 
   for (const a of toUpload) {
     callbacks.onStatusChange(a.id, 'queued');
@@ -381,13 +387,14 @@ export async function uploadAttachmentBatch(
 
   async function runNext(): Promise<void> {
     const idx = cursor++;
-    if (idx >= toUpload.length) return;
+    if (idx >= toUpload.length || cancelled) return;
 
     const attachment = toUpload[idx];
     callbacks.onStatusChange(attachment.id, 'uploading');
 
     try {
       const result = await uploadAttachment(attachment.file!, assistantId);
+      if (cancelled) return;
       callbacks.onStatusChange(attachment.id, 'done');
       callbacks.onUploaded(attachment.id, result);
       succeeded.push({
@@ -398,19 +405,26 @@ export async function uploadAttachmentBatch(
         sizeBytes: result.sizeBytes,
       });
     } catch {
+      if (cancelled) return;
       callbacks.onStatusChange(attachment.id, 'error');
     }
 
-    return runNext();
+    if (!cancelled) return runNext();
   }
 
-  const workers = Array.from(
-    { length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) },
-    () => runNext()
-  );
-  await Promise.all(workers);
+  const promise = (async () => {
+    const workers = Array.from(
+      { length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) },
+      () => runNext()
+    );
+    await Promise.all(workers);
+    return succeeded;
+  })();
 
-  return succeeded;
+  return {
+    promise,
+    cancel: () => { cancelled = true; },
+  };
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   Square,
   Camera,
   File,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
@@ -34,6 +35,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/UI/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
@@ -93,6 +95,7 @@ export function AssistantProfileChatPanel({
     handleInputChange,
     setInputValue,
     sendMessage,
+    cancelSend,
     connectionStatus,
     loadMoreMessages,
     hasMoreMessages,
@@ -372,6 +375,13 @@ export function AssistantProfileChatPanel({
     [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
   );
 
+  const handleCancelSend = React.useCallback(() => {
+    cancelSend();
+    setPendingAttachments((prev) =>
+      prev.map((a) => ({ ...a, uploadStatus: undefined }))
+    );
+  }, [cancelSend]);
+
   const sendMessageOnEnter = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (isRecording) {
@@ -499,6 +509,8 @@ export function AssistantProfileChatPanel({
           <PendingAttachmentList
             attachments={pendingAttachments}
             onRemove={removeAttachment}
+            onRemoveAll={() => setPendingAttachments([])}
+            onCancel={handleCancelSend}
             className="mb-2"
           />
         )}
@@ -572,6 +584,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat ||
                 isLoading ||
+                isUploading ||
                 initialLoadError ||
                 sseBlocked ||
                 isSpendingBlocked ||
@@ -593,11 +606,9 @@ export function AssistantProfileChatPanel({
               ref={textareaRef}
               rows={1}
               placeholder={
-                isUploading
-                  ? 'Uploading attachments...'
-                  : isRecording
-                    ? 'Recording...'
-                    : isTranscribing
+                isRecording
+                  ? 'Recording...'
+                  : isTranscribing
                       ? 'Transcribing...'
                       : !canChat
                         ? isRetryingContactId
@@ -623,28 +634,50 @@ export function AssistantProfileChatPanel({
               onKeyDown={sendMessageOnEnter}
             />
 
-            {/* Send button - bottom right */}
-            <Button
-              type="submit"
-              aria-label="Send message"
-              size="icon"
-              className="absolute bottom-1 right-1 h-7 w-7"
-              disabled={
-                !canChat ||
-                isLoading ||
-                isUploading ||
-                (!inputValue.trim() && pendingAttachments.length === 0) ||
-                initialLoadError ||
-                sseBlocked ||
-                isSpendingBlocked
-              }
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+            {/* Send / Cancel button - bottom right */}
+            {isUploading ? (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      aria-label="Cancel send"
+                      size="icon"
+                      variant="outline"
+                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
+                      onClick={handleCancelSend}
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
+                      <X className="hidden h-4 w-4 group-hover/cancel:block" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <span className="text-caption font-medium">Cancel send</span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                type="submit"
+                aria-label="Send message"
+                size="icon"
+                className="absolute bottom-1 right-1 h-7 w-7"
+                disabled={
+                  !canChat ||
+                  isLoading ||
+                  (!inputValue.trim() && pendingAttachments.length === 0) ||
+                  initialLoadError ||
+                  sseBlocked ||
+                  isSpendingBlocked
+                }
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </form>

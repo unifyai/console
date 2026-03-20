@@ -4,7 +4,7 @@ import { ChatMessage, BroadcastMessagePayload, Attachment } from '@/types/assist
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { uploadAttachmentBatch } from '@/components/Chat/attachmentUtils';
+import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts } from './useContactIdPrefetch';
 
@@ -94,6 +94,8 @@ export function useAssistantProfileChat(
   const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
+  const uploadHandleRef = React.useRef<BatchUploadHandle | null>(null);
+  const sendGenerationRef = React.useRef(0);
 
   // SSE reconnection state
   const [sseReconnectTrigger, setSseReconnectTrigger] = React.useState(0);
@@ -755,13 +757,16 @@ export function useAssistantProfileChat(
     const currentContactId = contactId;
 
     clearTimers();
+    const generation = ++sendGenerationRef.current;
 
     const messageToSend = inputValue.trim();
-    setInputValue('');
 
     const failedIds = new Set<string>();
 
+    const isStale = () => generation !== sendGenerationRef.current;
+
     const updateChipStatus = (id: string, status: Attachment['uploadStatus']) => {
+      if (isStale()) return;
       if (status === 'error') failedIds.add(id);
       setPendingAttachments?.((prev) =>
         prev.map((a) => (a.id === id ? { ...a, uploadStatus: status } : a))
@@ -773,12 +778,13 @@ export function useAssistantProfileChat(
         let uploadedAttachments: Attachment[] | undefined;
 
         if (attachments && attachments.length > 0) {
-          const succeeded = await uploadAttachmentBatch(
+          const handle = uploadAttachmentBatch(
             attachments,
             currentAssistant.agentId,
             {
               onStatusChange: updateChipStatus,
               onUploaded: (id, result) => {
+                if (isStale()) return;
                 setPendingAttachments?.((prev) =>
                   prev.map((a) =>
                     a.id === id
@@ -789,6 +795,11 @@ export function useAssistantProfileChat(
               },
             }
           );
+          uploadHandleRef.current = handle;
+          const succeeded = await handle.promise;
+          uploadHandleRef.current = null;
+
+          if (generation !== sendGenerationRef.current) return;
 
           if (failedIds.size > 0) {
             const failedCount = failedIds.size;
@@ -838,6 +849,7 @@ export function useAssistantProfileChat(
           );
           return { ...prev, [currentAssistantId]: updated };
         });
+        setInputValue('');
 
         typingDelayTimerRef.current = setTimeout(() => {
           setIsAssistantReplying(true);
@@ -896,6 +908,16 @@ export function useAssistantProfileChat(
   };
 
   // =========================================================================
+  // Cancel in-flight upload
+  // =========================================================================
+  const cancelSend = React.useCallback(() => {
+    sendGenerationRef.current++;
+    uploadHandleRef.current?.cancel();
+    uploadHandleRef.current = null;
+    stopReplying();
+  }, [stopReplying]);
+
+  // =========================================================================
   // Force SSE reconnection
   // =========================================================================
   const reconnectSSE = React.useCallback(() => {
@@ -916,6 +938,7 @@ export function useAssistantProfileChat(
     handleInputChange,
     setInputValue,
     sendMessage,
+    cancelSend,
     connectionStatus,
     loadMoreMessages,
     hasMoreMessages,
