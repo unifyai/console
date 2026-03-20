@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2, Info } from 'lucide-react';
+import { Download, Loader2, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import {
@@ -20,10 +20,11 @@ import {
 } from './attachmentUtils';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
+import { pptxToHtml } from '@jvmr/pptx-to-html';
 import { Badge } from '@/components/UI/badge';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
-const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word', 'excel']);
+const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word', 'excel', 'powerpoint']);
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
 
 interface ExcelSheet {
@@ -37,6 +38,7 @@ type ContentState =
   | { status: 'text'; content: string }
   | { status: 'html'; content: string }
   | { status: 'excel'; sheets: ExcelSheet[] }
+  | { status: 'slides'; slides: string[] }
   | { status: 'unsupported' }
   | { status: 'error'; message: string };
 
@@ -135,6 +137,31 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         return;
       }
 
+      // PowerPoint (.pptx only — .ppt/.odp lack viable browser libraries)
+      if (type === 'powerpoint') {
+        const ext = attachment.filename.split('.').pop()?.toLowerCase();
+        if (ext !== 'pptx') {
+          setState({ status: 'unsupported' });
+          return;
+        }
+
+        let arrayBuffer: ArrayBuffer;
+        if (attachment.file) {
+          arrayBuffer = await attachment.file.arrayBuffer();
+        } else if (attachment.gsUrl) {
+          const url = await getSignedUrl(attachment.gsUrl, false);
+          const res = await fetch(url);
+          arrayBuffer = await res.arrayBuffer();
+        } else {
+          setState({ status: 'unsupported' });
+          return;
+        }
+
+        const slides = await pptxToHtml(arrayBuffer);
+        if (!cancelled) setState({ status: 'slides', slides });
+        return;
+      }
+
       // Image/PDF: resolve to a URL
       if (attachment.file) {
         // Re-wrap with correct MIME type for PDFs — some browsers infer
@@ -199,6 +226,60 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
   );
 }
 
+function buildSlideDoc(slideHtml: string): string {
+  return `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:#fff;}</style></head><body>${slideHtml}</body></html>`;
+}
+
+function SlidesViewer({ slides }: { slides: string[] }) {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setActiveIndex((i) => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setActiveIndex((i) => Math.min(slides.length - 1, i + 1));
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [slides.length]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <iframe
+        srcDoc={buildSlideDoc(slides[activeIndex] ?? '')}
+        title={`Slide ${activeIndex + 1}`}
+        className="w-full rounded-md border border-border"
+        style={{ aspectRatio: '16 / 9', maxHeight: '65vh' }}
+        sandbox="allow-same-origin"
+      />
+      {slides.length > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={activeIndex === 0}
+            onClick={() => setActiveIndex((i) => i - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-caption text-muted-foreground">
+            Slide {activeIndex + 1} of {slides.length}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={activeIndex === slides.length - 1}
+            onClick={() => setActiveIndex((i) => i + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PreviewViewer({ attachment, content }: { attachment: Attachment; content: ContentState }) {
   const type = getAttachmentType(attachment.filename);
   const Icon = getAttachmentIcon(type);
@@ -249,6 +330,10 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
 
   if (content.status === 'excel') {
     return <ExcelViewer sheets={content.sheets} />;
+  }
+
+  if (content.status === 'slides') {
+    return <SlidesViewer slides={content.slides} />;
   }
 
   // content.status === 'ready' — image or PDF URL
@@ -334,7 +419,7 @@ export function AttachmentPreviewDialog({
             </Button>
           </div>
         </DialogHeader>
-        {(content.status === 'html' || content.status === 'excel') && (
+        {(content.status === 'html' || content.status === 'excel' || content.status === 'slides') && (
           <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-1.5 text-caption text-muted-foreground">
             <Info className="h-3.5 w-3.5 flex-shrink-0" />
             Simplified preview — download and open in native application for full quality.

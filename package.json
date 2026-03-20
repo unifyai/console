@@ -55,6 +55,7 @@
     "@google-cloud/pubsub": "^5.2.0",
     "@google-cloud/storage": "^7.15.1",
     "@hookform/resolvers": "^3.9.1",
+    "@jvmr/pptx-to-html": "^1.0.1",
     "@livekit/components-react": "^2.9.15",
     "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "^6.1.6",
