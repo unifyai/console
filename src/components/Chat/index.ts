@@ -20,6 +20,11 @@ export {
 export { AttachmentPreview, type AttachmentPreviewProps } from './AttachmentPreview';
 
 export {
+  AttachmentPreviewDialog,
+  type AttachmentPreviewDialogProps,
+} from './AttachmentPreviewDialog';
+
+export {
   getAttachmentType,
   getAttachmentIcon,
   getAttachmentColor,
@@ -27,7 +32,7 @@ export {
   formatFileSize,
   truncateFilename,
   createAttachment,
-  MAX_ATTACHMENTS,
+  uploadAttachmentBatch,
 } from './attachmentUtils';
 
 export { ChatMarkdown } from './ChatMarkdown';

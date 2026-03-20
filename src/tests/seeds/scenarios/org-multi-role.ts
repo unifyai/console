@@ -24,6 +24,7 @@ import {
   addMember,
   createAssistant,
   createEmailLogin,
+  seedChatInfrastructure,
 } from '../client';
 
 export async function seedOrgMultiRole(): Promise<SeededState> {
@@ -52,6 +53,13 @@ export async function seedOrgMultiRole(): Promise<SeededState> {
     orgId: org.id,
     firstName: 'PermBot',
     surname: 'MultiRole',
+  });
+
+  await seedChatInfrastructure({
+    apiKey: org.ownerOrgApiKey,
+    userId: owner.id,
+    assistantId: assistant.agentId,
+    email: owner.email,
   });
 
   return {

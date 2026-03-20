@@ -554,6 +554,57 @@ export async function createSecret(opts: CreateSecretOpts): Promise<SeededSecret
 }
 
 // =============================================================================
+// Chat Infrastructure (Contacts + Transcripts contexts for assistant chat)
+// =============================================================================
+
+export interface SeedChatOpts {
+  apiKey: string;
+  userId: string;
+  assistantId: number;
+  email: string;
+}
+
+/**
+ * Seed the Orchestra project/context infrastructure required for assistant chat.
+ *
+ * Creates:
+ *   - "Assistants" project (idempotent)
+ *   - "All/Contacts" context with a contact log entry (contactId=1 for owner)
+ *   - "All/Transcripts" context (empty — ready for messages)
+ *
+ * Without this, the chat panel shows "Chat unavailable" because
+ * getContactIdByEmail can't find the contact record.
+ */
+export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const contactRes = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: 'All/Contacts',
+        entries: [{
+          email_address: opts.email,
+          contactId: 1,
+          _user_id: opts.userId,
+          _assistant_id: String(opts.assistantId),
+        }],
+      }),
+    },
+    opts.apiKey
+  );
+  /* eslint-enable @typescript-eslint/naming-convention */
+
+  if (!contactRes.ok) {
+    const text = await contactRes.text().catch(() => '');
+    throw new Error(`Failed to seed contact: ${contactRes.status} ${text}`);
+  }
+}
+
+// =============================================================================
 // Email Login (password-based authentication)
 // =============================================================================
 

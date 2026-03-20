@@ -15,9 +15,6 @@ import type { AttachmentType, Attachment, AttachmentUploadResponse } from '@/typ
 // CONSTANTS
 // =============================================================================
 
-/** Maximum number of attachments per message */
-export const MAX_ATTACHMENTS = 10;
-
 /** Maximum file size in bytes (32MB — matches Cloud Run request limit) */
 export const MAX_FILE_SIZE_BYTES = 32 * 1024 * 1024;
 
@@ -242,7 +239,7 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
     const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
     return {
       valid: false,
-      error: `File is too large (${sizeMB} MB). Maximum size is ${limitMB} MB.`,
+      error: `${file.name} is too large (${sizeMB} MB). Maximum size is ${limitMB} MB.`,
     };
   }
 
@@ -250,16 +247,10 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 /**
- * Validate attachment count.
+ * Check whether a file/attachment exceeds the upload size limit.
  */
-export function validateAttachmentCount(currentCount: number): { valid: boolean; error?: string } {
-  if (currentCount >= MAX_ATTACHMENTS) {
-    return {
-      valid: false,
-      error: `Maximum ${MAX_ATTACHMENTS} attachments allowed per message`,
-    };
-  }
-  return { valid: true };
+export function isOversized(sizeBytes: number | undefined): boolean {
+  return typeof sizeBytes === 'number' && sizeBytes > MAX_FILE_SIZE_BYTES;
 }
 
 // =============================================================================
@@ -362,6 +353,80 @@ export async function uploadAttachment(
   };
 }
 
+const UPLOAD_CONCURRENCY = 6;
+
+export interface BatchUploadCallbacks {
+  onStatusChange: (id: string, status: Attachment['uploadStatus']) => void;
+  onUploaded: (id: string, result: AttachmentUploadResponse) => void;
+}
+
+export interface BatchUploadHandle {
+  promise: Promise<Attachment[]>;
+  cancel: () => void;
+}
+
+/**
+ * Upload a batch of attachments with bounded concurrency.
+ * Calls back per-file so the UI can update chips in real time.
+ * Returns a handle with the result promise and a cancel function.
+ */
+export function uploadAttachmentBatch(
+  attachments: Attachment[],
+  assistantId: string,
+  callbacks: BatchUploadCallbacks
+): BatchUploadHandle {
+  const toUpload = attachments.filter((a) => a.file);
+  const succeeded: Attachment[] = [];
+  let cancelled = false;
+
+  for (const a of toUpload) {
+    callbacks.onStatusChange(a.id, 'queued');
+  }
+
+  let cursor = 0;
+
+  async function runNext(): Promise<void> {
+    const idx = cursor++;
+    if (idx >= toUpload.length || cancelled) return;
+
+    const attachment = toUpload[idx];
+    callbacks.onStatusChange(attachment.id, 'uploading');
+
+    try {
+      const result = await uploadAttachment(attachment.file!, assistantId);
+      if (cancelled) return;
+      callbacks.onStatusChange(attachment.id, 'done');
+      callbacks.onUploaded(attachment.id, result);
+      succeeded.push({
+        id: result.id,
+        filename: result.filename,
+        gsUrl: result.gsUrl,
+        contentType: result.contentType,
+        sizeBytes: result.sizeBytes,
+      });
+    } catch {
+      if (cancelled) return;
+      callbacks.onStatusChange(attachment.id, 'error');
+    }
+
+    if (!cancelled) return runNext();
+  }
+
+  const promise = (async () => {
+    const workers = Array.from(
+      { length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) },
+      () => runNext()
+    );
+    await Promise.all(workers);
+    return succeeded;
+  })();
+
+  return {
+    promise,
+    cancel: () => { cancelled = true; },
+  };
+}
+
 /**
  * Create an Attachment from an upload response, stripping the signedUrl
  * (only gsUrl is persisted in transcripts).
@@ -420,6 +485,26 @@ export async function getSignedUrl(
   const data = await response.json();
   // API returns snake_case
   return data.signed_url;
+}
+
+/**
+ * Fetch raw file content from GCS via server-side proxy.
+ * Avoids CORS issues that arise when fetching signed URLs directly.
+ */
+export async function fetchGcsContent(gsUrl: string): Promise<ArrayBuffer> {
+  const response = await fetch('/api/storage/content', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch content' }));
+    throw new Error(error.detail || `Failed to fetch content: ${response.statusText}`);
+  }
+
+  return response.arrayBuffer();
 }
 
 /**

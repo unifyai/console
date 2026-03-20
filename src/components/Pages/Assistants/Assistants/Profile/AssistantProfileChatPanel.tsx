@@ -10,6 +10,7 @@ import {
   Square,
   Camera,
   File,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
@@ -21,12 +22,11 @@ import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import {
   PendingAttachmentList,
   createAttachment,
-  validateFile,
   ChatMessageBubble,
   ChatDateDivider,
   isSameDay,
-  MAX_ATTACHMENTS,
 } from '@/components/Chat';
+import { validateFileType, isOversized, MAX_FILE_SIZE_BYTES } from '@/components/Chat/attachmentUtils';
 import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
 import {
@@ -35,6 +35,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/UI/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
@@ -56,6 +57,9 @@ interface AssistantProfileChatPanelProps {
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
 }
+
+const IS_LOCAL_DEV =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
 export function AssistantProfileChatPanel({
   assistant,
@@ -91,6 +95,7 @@ export function AssistantProfileChatPanel({
     handleInputChange,
     setInputValue,
     sendMessage,
+    cancelSend,
     connectionStatus,
     loadMoreMessages,
     hasMoreMessages,
@@ -110,6 +115,8 @@ export function AssistantProfileChatPanel({
     preHireChat,
     onFirstViewCompleted
   );
+
+  const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -158,27 +165,25 @@ export function AssistantProfileChatPanel({
     prevSpendingBlockedRef.current = isSpendingBlocked;
   }, [isSpendingBlocked, reconnectSSE]);
 
-  /* File handling */
+  /* File handling — type validation rejects immediately; oversized files are
+     added with a visual warning and filtered out at send time. */
   const handleFiles = React.useCallback(
     (files: File[]) => {
-      const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
-      if (remaining <= 0) {
-        toast.error(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
-        return;
-      }
-
-      const filesToAdd = files.slice(0, remaining);
       const newAttachments: Attachment[] = [];
 
-      for (const file of filesToAdd) {
-        const validation = validateFile(file);
-        if (!validation.valid) {
-          toast.error(validation.error);
+      const oversizedNames: string[] = [];
+
+      for (const file of files) {
+        const typeCheck = validateFileType(file.name);
+        if (!typeCheck.valid) {
+          toast.error(typeCheck.error);
           continue;
         }
-        // Check for duplicates
         if (pendingAttachments.some((a) => a.filename === file.name && a.sizeBytes === file.size)) {
-          continue; // Silent skip duplicates
+          continue;
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          oversizedNames.push(file.name);
         }
         newAttachments.push(createAttachment(file));
       }
@@ -186,13 +191,27 @@ export function AssistantProfileChatPanel({
       if (newAttachments.length > 0) {
         setPendingAttachments((prev) => [...prev, ...newAttachments]);
       }
+
+      if (oversizedNames.length > 0) {
+        const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
+        for (const name of oversizedNames) {
+          toast.error(`${name} exceeds ${limitMB} MB limit — will be dropped on send`);
+        }
+      }
     },
     [pendingAttachments]
   );
 
-  const removeAttachment = React.useCallback((id: string) => {
-    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+  const removeAttachment = React.useCallback(
+    (id: string) => {
+      setPendingAttachments((prev) => {
+        const target = prev.find((a) => a.id === id);
+        if (target?.uploadStatus === 'uploading') return prev;
+        return prev.filter((a) => a.id !== id);
+      });
+    },
+    []
+  );
 
   const handleCameraCapture = React.useCallback(
     (file: File) => {
@@ -322,28 +341,46 @@ export function AssistantProfileChatPanel({
     return () => ro.disconnect();
   }, []);
 
+  const isUploading = pendingAttachments.some(
+    (a) => a.uploadStatus === 'queued' || a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
+  );
+
   /* Handle send with attachments */
   const handleSendWithAttachments = React.useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      // Block sending while messages are still loading
-      if (isLoading) return;
+      if (isLoading || isUploading) return;
       if (!inputValue.trim() && pendingAttachments.length === 0) return;
 
-      // Store attachments to send
-      const attachmentsToSend = [...pendingAttachments];
+      const uploadable = pendingAttachments.filter((a) => !isOversized(a.sizeBytes));
+      const oversizedCount = pendingAttachments.length - uploadable.length;
 
-      // Clear pending attachments optimistically
-      setPendingAttachments([]);
+      if (!inputValue.trim() && uploadable.length === 0) return;
 
-      // Call send with attachments, with error callback to restore on failure
-      sendMessage(e, attachmentsToSend, (failedAttachments) => {
-        // Use functional update to preserve any attachments added while request was in-flight
-        setPendingAttachments((prev) => [...failedAttachments, ...prev]);
-      });
+      // Drop oversized files from the pending list
+      if (oversizedCount > 0) {
+        setPendingAttachments(uploadable);
+        toast.error(
+          `${oversizedCount} file${oversizedCount > 1 ? 's' : ''} dropped (too large)`
+        );
+      }
+
+      // Mark uploadable chips as pending upload
+      setPendingAttachments((prev) =>
+        prev.map((a) => ({ ...a, uploadStatus: 'pending' as const }))
+      );
+
+      sendMessage(e, uploadable, setPendingAttachments);
     },
-    [inputValue, pendingAttachments, sendMessage, isLoading]
+    [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
   );
+
+  const handleCancelSend = React.useCallback(() => {
+    cancelSend();
+    setPendingAttachments((prev) =>
+      prev.map((a) => ({ ...a, uploadStatus: undefined }))
+    );
+  }, [cancelSend]);
 
   const sendMessageOnEnter = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -467,6 +504,17 @@ export function AssistantProfileChatPanel({
 
       {/* Input Area */}
       <form onSubmit={handleSendWithAttachments} className="bg-background p-4">
+        {/* Pending attachments — outside dropzone so tooltips work */}
+        {pendingAttachments.length > 0 && (
+          <PendingAttachmentList
+            attachments={pendingAttachments}
+            onRemove={removeAttachment}
+            onRemoveAll={() => setPendingAttachments([])}
+            onCancel={handleCancelSend}
+            className="mb-2"
+          />
+        )}
+
         <div
           {...getRootProps()}
           className={cn('relative', isDragActive && 'rounded-md ring-2 ring-primary ring-offset-2')}
@@ -477,15 +525,6 @@ export function AssistantProfileChatPanel({
             <div className="bg-primary/10 absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary">
               <span className="font-medium text-primary">Drop files here</span>
             </div>
-          )}
-
-          {/* Pending attachments */}
-          {pendingAttachments.length > 0 && (
-            <PendingAttachmentList
-              attachments={pendingAttachments}
-              onRemove={removeAttachment}
-              className="mb-2"
-            />
           )}
 
           {/* Hidden file input — getInputProps() owns the ref and hides the
@@ -505,8 +544,9 @@ export function AssistantProfileChatPanel({
                   disabled={
                     !canChat ||
                     isLoading ||
+                    isUploading ||
                     initialLoadError ||
-                    connectionStatus === 'error' ||
+                    sseBlocked ||
                     isSpendingBlocked ||
                     isRecording
                   }
@@ -544,8 +584,9 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat ||
                 isLoading ||
+                isUploading ||
                 initialLoadError ||
-                connectionStatus === 'error' ||
+                sseBlocked ||
                 isSpendingBlocked ||
                 isTranscribing
               }
@@ -568,23 +609,24 @@ export function AssistantProfileChatPanel({
                 isRecording
                   ? 'Recording...'
                   : isTranscribing
-                    ? 'Transcribing...'
-                    : !canChat
-                      ? isRetryingContactId
-                        ? 'Chat unavailable, retrying connection...'
-                        : 'Chat unavailable'
-                      : isSpendingBlocked
-                        ? spendingGate.blockedMessage || 'Spending limit reached'
-                        : initialLoadError
-                          ? 'Connection failed'
-                          : 'Send a message...'
+                      ? 'Transcribing...'
+                      : !canChat
+                        ? isRetryingContactId
+                          ? 'Chat unavailable, retrying connection...'
+                          : 'Chat unavailable'
+                        : isSpendingBlocked
+                          ? spendingGate.blockedMessage || 'Spending limit reached'
+                          : initialLoadError
+                            ? 'Connection failed'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
                 !canChat ||
+                isUploading ||
                 initialLoadError ||
-                connectionStatus === 'error' ||
+                sseBlocked ||
                 isSpendingBlocked
               }
               className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
@@ -592,27 +634,50 @@ export function AssistantProfileChatPanel({
               onKeyDown={sendMessageOnEnter}
             />
 
-            {/* Send button - bottom right */}
-            <Button
-              type="submit"
-              aria-label="Send message"
-              size="icon"
-              className="absolute bottom-1 right-1 h-7 w-7"
-              disabled={
-                !canChat ||
-                isLoading ||
-                (!inputValue.trim() && pendingAttachments.length === 0) ||
-                initialLoadError ||
-                connectionStatus === 'error' ||
-                isSpendingBlocked
-              }
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+            {/* Send / Cancel button - bottom right */}
+            {isUploading ? (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      aria-label="Cancel send"
+                      size="icon"
+                      variant="outline"
+                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
+                      onClick={handleCancelSend}
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
+                      <X className="hidden h-4 w-4 group-hover/cancel:block" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <span className="text-caption font-medium">Cancel send</span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                type="submit"
+                aria-label="Send message"
+                size="icon"
+                className="absolute bottom-1 right-1 h-7 w-7"
+                disabled={
+                  !canChat ||
+                  isLoading ||
+                  (!inputValue.trim() && pendingAttachments.length === 0) ||
+                  initialLoadError ||
+                  sseBlocked ||
+                  isSpendingBlocked
+                }
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </form>

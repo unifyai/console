@@ -4,7 +4,7 @@ import { ChatMessage, BroadcastMessagePayload, Attachment } from '@/types/assist
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
+import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts } from './useContactIdPrefetch';
 
@@ -94,6 +94,8 @@ export function useAssistantProfileChat(
   const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
+  const uploadHandleRef = React.useRef<BatchUploadHandle | null>(null);
+  const sendGenerationRef = React.useRef(0);
 
   // SSE reconnection state
   const [sseReconnectTrigger, setSseReconnectTrigger] = React.useState(0);
@@ -730,7 +732,7 @@ export function useAssistantProfileChat(
   const sendMessage = (
     e: React.FormEvent,
     attachments?: Attachment[],
-    onError?: (attachments: Attachment[]) => void
+    setPendingAttachments?: React.Dispatch<React.SetStateAction<Attachment[]>>
   ) => {
     e.preventDefault();
 
@@ -755,106 +757,165 @@ export function useAssistantProfileChat(
     const currentContactId = contactId;
 
     clearTimers();
-
-    const messageId = uuidv4();
-    const newUserMessage: ChatMessage = {
-      id: messageId,
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-      attachments: attachments?.map((a) => ({
-        id: a.id,
-        filename: a.filename,
-        gsUrl: a.gsUrl,
-        contentType: a.contentType,
-        sizeBytes: a.sizeBytes,
-      })),
-    };
-
-    setChatHistories((prev) => {
-      const current = prev[currentAssistantId] || [];
-      const updated = [...current, newUserMessage].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      return { ...prev, [currentAssistantId]: updated };
-    });
+    const generation = ++sendGenerationRef.current;
 
     const messageToSend = inputValue.trim();
-    setInputValue('');
 
-    typingDelayTimerRef.current = setTimeout(() => {
-      setIsAssistantReplying(true);
-    }, 5000);
+    const failedIds = new Set<string>();
 
-    const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
-    const payload: BroadcastMessagePayload = {
-      type: 'NEW_MESSAGE',
-      message: newUserMessage,
+    const isStale = () => generation !== sendGenerationRef.current;
+
+    const updateChipStatus = (id: string, status: Attachment['uploadStatus']) => {
+      if (isStale()) return;
+      if (status === 'error') failedIds.add(id);
+      setPendingAttachments?.((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, uploadStatus: status } : a))
+      );
     };
-    channel.postMessage(payload);
-    channel.close();
 
     const sendMessageWithAttachments = async () => {
       try {
         let uploadedAttachments: Attachment[] | undefined;
 
         if (attachments && attachments.length > 0) {
-          const uploadPromises = attachments
-            .filter((a) => a.file)
-            .map(async (a) => {
-              const uploadResult = await uploadAttachmentClient(a.file!, currentAssistant.agentId);
-              return {
-                id: uploadResult.id,
-                filename: uploadResult.filename,
-                gsUrl: uploadResult.gsUrl,
-                contentType: uploadResult.contentType,
-                sizeBytes: uploadResult.sizeBytes,
-              } satisfies Attachment;
-            });
+          const handle = uploadAttachmentBatch(
+            attachments,
+            currentAssistant.agentId,
+            {
+              onStatusChange: updateChipStatus,
+              onUploaded: (id, result) => {
+                if (isStale()) return;
+                setPendingAttachments?.((prev) =>
+                  prev.map((a) =>
+                    a.id === id
+                      ? { ...a, gsUrl: result.gsUrl, contentType: result.contentType, sizeBytes: result.sizeBytes }
+                      : a
+                  )
+                );
+              },
+            }
+          );
+          uploadHandleRef.current = handle;
+          const succeeded = await handle.promise;
+          uploadHandleRef.current = null;
 
-          uploadedAttachments = await Promise.all(uploadPromises);
+          if (generation !== sendGenerationRef.current) return;
 
-          setChatHistories((prev) => {
-            const current = prev[currentAssistantId] || [];
-            return {
-              ...prev,
-              [currentAssistantId]: current.map((msg) =>
-                msg.id === messageId ? { ...msg, attachments: uploadedAttachments } : msg
-              ),
-            };
-          });
+          if (failedIds.size > 0) {
+            const failedCount = failedIds.size;
+            toast.error(
+              `${failedCount} attachment${failedCount > 1 ? 's' : ''} failed to upload`
+            );
+          }
+
+          // Clear succeeded chips, keep failed ones with error status and remove buttons
+          setPendingAttachments?.((prev) => prev.filter((a) => failedIds.has(a.id)));
+
+          if (succeeded.length > 0) {
+            uploadedAttachments = succeeded;
+          }
+        } else {
+          setPendingAttachments?.([]);
         }
 
-        const response = await assistantActions.chat.message({
-          assistantId: parseInt(currentAssistant.agentId),
-          contactId: currentContactId,
-          message: messageToSend,
-          attachments: uploadedAttachments,
-        });
+        const hasMessageContent = messageToSend || (uploadedAttachments && uploadedAttachments.length > 0);
+        if (!hasMessageContent) {
+          setInputValue(messageToSend);
+          stopReplying();
+          return;
+        }
 
-        if (response.detail) {
-          throw new Error(response.detail);
+        // -- Uploads done, chips cleaned up. From here, failures should NOT restore attachments. --
+
+        const messageId = uuidv4();
+        const newUserMessage: ChatMessage = {
+          id: messageId,
+          role: 'user',
+          content: messageToSend,
+          timestamp: new Date(),
+          attachments: uploadedAttachments?.map((a) => ({
+            id: a.id,
+            filename: a.filename,
+            gsUrl: a.gsUrl,
+            contentType: a.contentType,
+            sizeBytes: a.sizeBytes,
+          })),
+        };
+
+        setChatHistories((prev) => {
+          const current = prev[currentAssistantId] || [];
+          const updated = [...current, newUserMessage].sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          return { ...prev, [currentAssistantId]: updated };
+        });
+        setInputValue('');
+
+        typingDelayTimerRef.current = setTimeout(() => {
+          setIsAssistantReplying(true);
+        }, 5000);
+
+        const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'NEW_MESSAGE',
+          message: newUserMessage,
+        };
+        channel.postMessage(payload);
+        channel.close();
+
+        try {
+          const response = await assistantActions.chat.message({
+            assistantId: parseInt(currentAssistant.agentId),
+            contactId: currentContactId,
+            message: messageToSend,
+            attachments: uploadedAttachments,
+          });
+
+          if (response.detail) {
+            throw new Error(response.detail);
+          }
+        } catch (sendError) {
+          // Message-send failed but uploads already succeeded — remove the
+          // optimistic message and restore the text, but do NOT restore
+          // attachments (they were already uploaded to GCS).
+          setChatHistories((prev) => ({
+            ...prev,
+            [currentAssistantId]: (prev[currentAssistantId] || []).filter(
+              (msg) => msg.id !== messageId
+            ),
+          }));
+          setInputValue(messageToSend);
+          stopReplying();
+          const errorMsg = sendError instanceof Error ? sendError.message : 'Failed to send message.';
+          toast.error(errorMsg);
         }
       } catch (error) {
-        setChatHistories((prev) => ({
-          ...prev,
-          [currentAssistantId]: (prev[currentAssistantId] || []).filter(
-            (msg) => msg.id !== messageId
-          ),
-        }));
+        // Upload-phase failure — restore attachments so user can retry
         setInputValue(messageToSend);
         stopReplying();
         const errorMsg = error instanceof Error ? error.message : 'Failed to send message.';
         toast.error(errorMsg);
 
-        if (onError && attachments && attachments.length > 0) {
-          onError(attachments);
+        if (attachments && attachments.length > 0) {
+          setPendingAttachments?.(
+            attachments.map((a) => ({ ...a, uploadStatus: undefined }))
+          );
         }
       }
     };
 
     sendMessageWithAttachments();
   };
+
+  // =========================================================================
+  // Cancel in-flight upload
+  // =========================================================================
+  const cancelSend = React.useCallback(() => {
+    sendGenerationRef.current++;
+    uploadHandleRef.current?.cancel();
+    uploadHandleRef.current = null;
+    stopReplying();
+  }, [stopReplying]);
 
   // =========================================================================
   // Force SSE reconnection
@@ -877,6 +938,7 @@ export function useAssistantProfileChat(
     handleInputChange,
     setInputValue,
     sendMessage,
+    cancelSend,
     connectionStatus,
     loadMoreMessages,
     hasMoreMessages,

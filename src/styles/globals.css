@@ -559,3 +559,42 @@
     animation: nudge 0.12s ease-in-out;
   }
 }
+
+/* Prose-like styling for mammoth-generated HTML (Word document previews) */
+.attachment-prose {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--foreground);
+}
+.attachment-prose h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.attachment-prose h2 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+.attachment-prose h3 { font-size: 1.1rem; font-weight: 600; margin: 0.75rem 0 0.375rem; }
+.attachment-prose h4,
+.attachment-prose h5,
+.attachment-prose h6 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.375rem; }
+.attachment-prose p { margin: 0.5em 0; }
+.attachment-prose strong { font-weight: 600; }
+.attachment-prose em { font-style: italic; }
+.attachment-prose ul { list-style: disc; padding-left: 1.5em; margin: 0.5em 0; }
+.attachment-prose ol { list-style: decimal; padding-left: 1.5em; margin: 0.5em 0; }
+.attachment-prose li { margin: 0.25em 0; }
+.attachment-prose table { border-collapse: collapse; width: 100%; margin: 0.75em 0; }
+.attachment-prose th,
+.attachment-prose td { border: 1px solid var(--border); padding: 0.375rem 0.625rem; text-align: left; }
+.attachment-prose th { font-weight: 600; background: var(--muted); }
+.attachment-prose a { color: var(--primary); text-decoration: underline; }
+.attachment-prose img { max-width: 100%; height: auto; margin: 0.5em 0; }
+
+/* Spreadsheet styling for SheetJS-generated HTML (Excel previews) */
+.attachment-spreadsheet { font-size: 0.75rem; color: var(--foreground); }
+.attachment-spreadsheet table { border-collapse: collapse; white-space: nowrap; }
+.attachment-spreadsheet th,
+.attachment-spreadsheet td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.attachment-spreadsheet th { font-weight: 600; background: var(--muted); position: sticky; top: 0; }
+.attachment-spreadsheet tr:nth-child(even) td { background: var(--muted)/30; }
+.attachment-spreadsheet tr:hover td { background: var(--muted); }

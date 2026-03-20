@@ -3,9 +3,6 @@ import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '.
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import type { Attachment } from '@/types/assistants/chat';
 
-/** Maximum number of attachments allowed per message */
-const MAX_ATTACHMENTS = 10;
-
 export async function POST(request: NextRequest) {
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
@@ -49,17 +46,21 @@ export async function POST(request: NextRequest) {
     return badRequest('Missing message or attachments');
   }
 
-  // Validate attachment count
-  if (attachments && attachments.length > MAX_ATTACHMENTS) {
-    return badRequest(`Maximum ${MAX_ATTACHMENTS} attachments allowed`);
-  }
-
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = orchestraUrl.includes('staging');
+  const isLocal = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
+  const isStaging = orchestraUrl.includes('staging') || isLocal;
+
+  // In local dev, skip the actual message dispatch to avoid polluting staging
+  // assistants. Uploads already went through; this just acknowledges the message.
+  if (isLocal) {
+    return NextResponse.json(
+      { info: 'Message accepted (local dev — dispatch skipped).' },
+      { status: 202 }
+    );
+  }
 
   const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
 
-  // Build payload with attachments
   const payload = camelToSnakeObject({
     assistantId,
     contactId,
@@ -95,7 +96,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[API /api/assistant/message] Error calling webhook:', errorMessage);
-    // Return 502 Bad Gateway for upstream connection failures (not 500 Internal Server Error)
     return NextResponse.json(
       { detail: `Webhook connection error: ${errorMessage}` },
       { status: 502 }

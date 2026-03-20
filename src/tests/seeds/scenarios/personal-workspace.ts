@@ -13,7 +13,7 @@
  */
 
 import type { SeededState } from '../types';
-import { createUser, createAssistant, createEmailLogin } from '../client';
+import { createUser, createAssistant, createEmailLogin, seedChatInfrastructure } from '../client';
 
 export async function seedPersonalWorkspace(): Promise<SeededState> {
   const owner = createUser({ name: 'Personal', lastName: 'Owner' });
@@ -23,6 +23,13 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
     userId: owner.id,
     firstName: 'Ada',
     surname: 'Lovelace',
+  });
+
+  await seedChatInfrastructure({
+    apiKey: owner.apiKey,
+    userId: owner.id,
+    assistantId: assistant.agentId,
+    email: owner.email,
   });
 
   return {
