@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   }
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = orchestraUrl.includes('staging');
+  const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
 
   const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
 

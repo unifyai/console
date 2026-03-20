@@ -169,6 +169,6 @@ export async function getOrCreateSubscription(
  */
 export function getTopicName(assistantId: string): string {
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = orchestraUrl.includes('staging');
+  const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
   return `unity-${assistantId}${isStaging ? '-staging' : ''}`;
 }
