@@ -20,6 +20,11 @@ export {
 export { AttachmentPreview, type AttachmentPreviewProps } from './AttachmentPreview';
 
 export {
+  AttachmentPreviewDialog,
+  type AttachmentPreviewDialogProps,
+} from './AttachmentPreviewDialog';
+
+export {
   getAttachmentType,
   getAttachmentIcon,
   getAttachmentColor,

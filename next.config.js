@@ -101,7 +101,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://storage.googleapis.com",
               `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
-              "frame-src 'self' https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com",
+              "frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

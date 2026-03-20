@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X, Download, ChevronDown, ChevronUp, Loader2, Check, AlertCircle, Clock } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Loader2, Check, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -10,11 +10,11 @@ import {
   getAttachmentColor,
   truncateFilename,
   formatFileSize,
-  getSignedUrl,
   isHtmlAttachment,
   isOversized,
 } from './attachmentUtils';
 import { HtmlAttachmentEmbed } from './HtmlAttachmentEmbed';
+import { AttachmentPreviewDialog } from './AttachmentPreviewDialog';
 import type { Attachment } from '@/types/assistants/chat';
 
 const COLLAPSED_CHIP_LIMIT = 5;
@@ -46,40 +46,28 @@ export interface AttachmentChipProps {
   attachment: Attachment;
   onRemove?: () => void;
   onHover?: (attachment: Attachment | null) => void;
+  onPreview?: (attachment: Attachment) => void;
   className?: string;
 }
 
 /**
  * Single attachment chip with icon, filename, and optional remove button.
- * When the attachment has a gsUrl, clicking the chip triggers a download.
+ * Clicking opens a preview dialog (if onPreview is provided).
  * During upload, shows a spinner/check/error indicator instead of remove.
  */
-export function AttachmentChip({ attachment, onRemove, onHover, className }: AttachmentChipProps) {
-  const [downloading, setDownloading] = React.useState(false);
+export function AttachmentChip({ attachment, onRemove, onHover, onPreview, className }: AttachmentChipProps) {
   const type = getAttachmentType(attachment.filename);
   const Icon = getAttachmentIcon(type);
   const iconColor = getAttachmentColor(type);
   const truncatedName = truncateFilename(attachment.filename);
-  const isDownloadable = !!attachment.gsUrl;
   const status = attachment.uploadStatus;
   const isUploading = status === 'queued' || status === 'uploading' || status === 'done' || status === 'error';
   const tooLarge = isOversized(attachment.sizeBytes);
+  const isClickable = !!onPreview && !isUploading && !tooLarge;
 
-  const handleDownload = React.useCallback(async () => {
-    if (!attachment.gsUrl || downloading) return;
-    setDownloading(true);
-    try {
-      const signedUrl = await getSignedUrl(attachment.gsUrl, true, attachment.filename);
-      const link = document.createElement('a');
-      link.href = signedUrl;
-      link.download = attachment.filename;
-      link.click();
-    } catch (error) {
-      console.error(`Failed to download ${attachment.filename}:`, error);
-    } finally {
-      setDownloading(false);
-    }
-  }, [attachment.gsUrl, attachment.filename, downloading]);
+  const handleClick = React.useCallback(() => {
+    if (isClickable) onPreview?.(attachment);
+  }, [isClickable, onPreview, attachment]);
 
   const statusIndicator = React.useMemo(() => {
     const iconWithTooltip = (icon: React.ReactNode, label: string) => (
@@ -114,14 +102,14 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
       variant="secondary"
       className={cn(
         'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
-        isDownloadable && 'hover:bg-muted/50 cursor-pointer',
+        isClickable && 'hover:bg-muted/50 cursor-pointer',
         status === 'error' && 'border-destructive/40',
         tooLarge && 'border-destructive bg-destructive/10',
         className
       )}
       data-testid="attachment-chip"
-      onClick={isDownloadable ? handleDownload : undefined}
-      role={isDownloadable ? 'button' : undefined}
+      onClick={handleClick}
+      role={isClickable ? 'button' : undefined}
       onMouseEnter={() => onHover?.(attachment)}
       onMouseLeave={() => onHover?.(null)}
     >
@@ -138,9 +126,6 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
         {truncatedName}
       </span>
       {statusIndicator}
-      {!isUploading && isDownloadable && !onRemove && (
-        <Download className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
-      )}
       {!isUploading && onRemove && (
         <Button
           type="button"
@@ -207,6 +192,7 @@ export function PendingAttachmentList({
 }: PendingAttachmentListProps) {
   const [expanded, setExpanded] = React.useState(false);
   const [hovered, setHovered] = React.useState<Attachment | null>(null);
+  const [previewAttachment, setPreviewAttachment] = React.useState<Attachment | null>(null);
 
   if (attachments.length === 0) return null;
 
@@ -219,6 +205,11 @@ export function PendingAttachmentList({
 
   return (
     <div className={className} data-testid="pending-attachments">
+      <AttachmentPreviewDialog
+        attachment={previewAttachment}
+        open={!!previewAttachment}
+        onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}
+      />
       <div className="relative flex flex-wrap items-center gap-2">
         <HoverLabel attachment={hovered} />
         {visible.map((attachment) => (
@@ -227,6 +218,7 @@ export function PendingAttachmentList({
               attachment={attachment}
               onRemove={() => onRemove(attachment.id)}
               onHover={setHovered}
+              onPreview={setPreviewAttachment}
             />
           </div>
         ))}
@@ -324,6 +316,7 @@ export function MessageAttachmentList({
 }: MessageAttachmentListProps) {
   const [expanded, setExpanded] = React.useState(false);
   const [hovered, setHovered] = React.useState<Attachment | null>(null);
+  const [previewAttachment, setPreviewAttachment] = React.useState<Attachment | null>(null);
 
   if (attachments.length === 0) return null;
 
@@ -341,6 +334,11 @@ export function MessageAttachmentList({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
+      <AttachmentPreviewDialog
+        attachment={previewAttachment}
+        open={!!previewAttachment}
+        onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}
+      />
       {htmlAttachments.map((attachment) => (
         <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
       ))}
@@ -349,7 +347,7 @@ export function MessageAttachmentList({
           <HoverLabel attachment={hovered} />
             {visibleOther.map((attachment) => (
               <div key={attachment.id} data-testid="message-attachment">
-                <AttachmentChip attachment={attachment} onHover={setHovered} />
+                <AttachmentChip attachment={attachment} onHover={setHovered} onPreview={setPreviewAttachment} />
               </div>
             ))}
             {needsCollapse && (
