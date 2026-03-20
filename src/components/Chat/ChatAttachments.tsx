@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X, Download } from 'lucide-react';
+import { X, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -15,6 +15,8 @@ import {
 } from './attachmentUtils';
 import { HtmlAttachmentEmbed } from './HtmlAttachmentEmbed';
 import type { Attachment } from '@/types/assistants/chat';
+
+const COLLAPSED_CHIP_LIMIT = 5;
 
 // =============================================================================
 // ATTACHMENT CHIP
@@ -122,22 +124,49 @@ export interface PendingAttachmentListProps {
 
 /**
  * List of pending attachments above the input area.
- * Shows remove buttons for each chip.
+ * Shows remove buttons for each chip. Beyond COLLAPSED_CHIP_LIMIT files,
+ * collapses into a "+N more" badge that expands on click.
  */
 export function PendingAttachmentList({
   attachments,
   onRemove,
   className,
 }: PendingAttachmentListProps) {
+  const [expanded, setExpanded] = React.useState(false);
+
   if (attachments.length === 0) return null;
+
+  const needsCollapse = attachments.length > COLLAPSED_CHIP_LIMIT;
+  const visible = needsCollapse && !expanded ? attachments.slice(0, COLLAPSED_CHIP_LIMIT) : attachments;
+  const hiddenCount = attachments.length - COLLAPSED_CHIP_LIMIT;
 
   return (
     <div className={cn('flex flex-wrap gap-2', className)} data-testid="pending-attachments">
-      {attachments.map((attachment) => (
+      {visible.map((attachment) => (
         <div key={attachment.id} data-testid="pending-attachment-chip">
           <AttachmentChip attachment={attachment} onRemove={() => onRemove(attachment.id)} />
         </div>
       ))}
+      {needsCollapse && (
+        <Badge
+          variant="secondary"
+          className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+          onClick={() => setExpanded((prev) => !prev)}
+          data-testid="attachment-expand-toggle"
+        >
+          {expanded ? (
+            <>
+              Show less
+              <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              +{hiddenCount} more
+              <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Badge>
+      )}
     </div>
   );
 }
@@ -155,12 +184,15 @@ export interface MessageAttachmentListProps {
 /**
  * List of attachments displayed in a sent message bubble.
  * When `isAssistant` is true, HTML attachments render as inline iframe previews.
+ * Beyond COLLAPSED_CHIP_LIMIT non-HTML files, collapses with a "+N more" toggle.
  */
 export function MessageAttachmentList({
   attachments,
   isAssistant,
   className,
 }: MessageAttachmentListProps) {
+  const [expanded, setExpanded] = React.useState(false);
+
   if (attachments.length === 0) return null;
 
   const htmlAttachments = isAssistant ? attachments.filter(isHtmlAttachment) : [];
@@ -168,18 +200,42 @@ export function MessageAttachmentList({
     ? attachments.filter((a) => !isHtmlAttachment(a))
     : attachments;
 
+  const needsCollapse = otherAttachments.length > COLLAPSED_CHIP_LIMIT;
+  const visibleOther = needsCollapse && !expanded ? otherAttachments.slice(0, COLLAPSED_CHIP_LIMIT) : otherAttachments;
+  const hiddenCount = otherAttachments.length - COLLAPSED_CHIP_LIMIT;
+
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       {htmlAttachments.map((attachment) => (
         <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
       ))}
-      {otherAttachments.length > 0 && (
+      {visibleOther.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {otherAttachments.map((attachment) => (
+          {visibleOther.map((attachment) => (
             <div key={attachment.id} data-testid="message-attachment">
               <AttachmentChip attachment={attachment} />
             </div>
           ))}
+          {needsCollapse && (
+            <Badge
+              variant="secondary"
+              className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+              onClick={() => setExpanded((prev) => !prev)}
+              data-testid="attachment-expand-toggle"
+            >
+              {expanded ? (
+                <>
+                  Show less
+                  <ChevronUp className="h-3 w-3" />
+                </>
+              ) : (
+                <>
+                  +{hiddenCount} more
+                  <ChevronDown className="h-3 w-3" />
+                </>
+              )}
+            </Badge>
+          )}
         </div>
       )}
     </div>
