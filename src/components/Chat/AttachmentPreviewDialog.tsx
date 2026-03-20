@@ -18,15 +18,17 @@ import {
   formatFileSize,
   getSignedUrl,
 } from './attachmentUtils';
+import mammoth from 'mammoth';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
-const PREVIEWABLE_TYPES: Set<AttachmentType> = new Set(['image', 'pdf', 'text', 'code']);
+const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word']);
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
 
 type ContentState =
   | { status: 'loading' }
   | { status: 'ready'; url: string }
   | { status: 'text'; content: string }
+  | { status: 'html'; content: string }
   | { status: 'unsupported' }
   | { status: 'error'; message: string };
 
@@ -73,6 +75,31 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         } else {
           setState({ status: 'unsupported' });
         }
+        return;
+      }
+
+      // Word documents (.docx only — .doc/.odt lack viable browser libraries)
+      if (type === 'word') {
+        const ext = attachment.filename.split('.').pop()?.toLowerCase();
+        if (ext !== 'docx') {
+          setState({ status: 'unsupported' });
+          return;
+        }
+
+        let arrayBuffer: ArrayBuffer;
+        if (attachment.file) {
+          arrayBuffer = await attachment.file.arrayBuffer();
+        } else if (attachment.gsUrl) {
+          const url = await getSignedUrl(attachment.gsUrl, false);
+          const res = await fetch(url);
+          arrayBuffer = await res.arrayBuffer();
+        } else {
+          setState({ status: 'unsupported' });
+          return;
+        }
+
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        if (!cancelled) setState({ status: 'html', content: result.value });
         return;
       }
 
@@ -146,6 +173,15 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
       <pre className="styled-scrollbar max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-4 font-mono text-xs leading-relaxed">
         {content.content}
       </pre>
+    );
+  }
+
+  if (content.status === 'html') {
+    return (
+      <div
+        className="styled-scrollbar attachment-prose max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-6"
+        dangerouslySetInnerHTML={{ __html: content.content }}
+      />
     );
   }
 
