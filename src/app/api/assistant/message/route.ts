@@ -47,11 +47,20 @@ export async function POST(request: NextRequest) {
   }
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
+  const isLocal = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
+  const isStaging = orchestraUrl.includes('staging') || isLocal;
+
+  // In local dev, skip the actual message dispatch to avoid polluting staging
+  // assistants. Uploads already went through; this just acknowledges the message.
+  if (isLocal) {
+    return NextResponse.json(
+      { info: 'Message accepted (local dev — dispatch skipped).' },
+      { status: 202 }
+    );
+  }
 
   const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
 
-  // Build payload with attachments
   const payload = camelToSnakeObject({
     assistantId,
     contactId,
@@ -87,7 +96,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[API /api/assistant/message] Error calling webhook:', errorMessage);
-    // Return 502 Bad Gateway for upstream connection failures (not 500 Internal Server Error)
     return NextResponse.json(
       { detail: `Webhook connection error: ${errorMessage}` },
       { status: 502 }
