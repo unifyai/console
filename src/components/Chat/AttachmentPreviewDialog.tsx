@@ -19,16 +19,24 @@ import {
   getSignedUrl,
 } from './attachmentUtils';
 import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import { Badge } from '@/components/UI/badge';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
-const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word']);
+const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word', 'excel']);
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
+
+interface ExcelSheet {
+  name: string;
+  html: string;
+}
 
 type ContentState =
   | { status: 'loading' }
   | { status: 'ready'; url: string }
   | { status: 'text'; content: string }
   | { status: 'html'; content: string }
+  | { status: 'excel'; sheets: ExcelSheet[] }
   | { status: 'unsupported' }
   | { status: 'error'; message: string };
 
@@ -103,6 +111,30 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         return;
       }
 
+      // Excel/spreadsheet: parse with SheetJS and convert each sheet to HTML
+      if (type === 'excel') {
+        let arrayBuffer: ArrayBuffer;
+        if (attachment.file) {
+          arrayBuffer = await attachment.file.arrayBuffer();
+        } else if (attachment.gsUrl) {
+          const url = await getSignedUrl(attachment.gsUrl, false);
+          const res = await fetch(url);
+          arrayBuffer = await res.arrayBuffer();
+        } else {
+          setState({ status: 'unsupported' });
+          return;
+        }
+
+        const workbook = XLSX.read(arrayBuffer);
+        const sheets: ExcelSheet[] = workbook.SheetNames.map((name) => ({
+          name,
+          html: XLSX.utils.sheet_to_html(workbook.Sheets[name]),
+        }));
+
+        if (!cancelled) setState({ status: 'excel', sheets });
+        return;
+      }
+
       // Image/PDF: resolve to a URL
       if (attachment.file) {
         // Re-wrap with correct MIME type for PDFs — some browsers infer
@@ -135,6 +167,36 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
   }, [attachment]);
 
   return state;
+}
+
+function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  return (
+    <div className="flex max-h-[75vh] flex-col">
+      {sheets.length > 1 && (
+        <div className="flex gap-1 border-b border-border pb-2 mb-2">
+          {sheets.map((sheet, i) => (
+            <Badge
+              key={sheet.name}
+              variant={i === activeIndex ? 'default' : 'secondary'}
+              className={cn(
+                'cursor-pointer text-xs',
+                i === activeIndex ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+              )}
+              onClick={() => setActiveIndex(i)}
+            >
+              {sheet.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div
+        className="styled-scrollbar attachment-spreadsheet flex-1 overflow-auto rounded-md"
+        dangerouslySetInnerHTML={{ __html: sheets[activeIndex]?.html ?? '' }}
+      />
+    </div>
+  );
 }
 
 function PreviewViewer({ attachment, content }: { attachment: Attachment; content: ContentState }) {
@@ -183,6 +245,10 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
         dangerouslySetInnerHTML={{ __html: content.content }}
       />
     );
+  }
+
+  if (content.status === 'excel') {
+    return <ExcelViewer sheets={content.sheets} />;
   }
 
   // content.status === 'ready' — image or PDF URL

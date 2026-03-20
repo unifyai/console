@@ -584,3 +584,17 @@
 .attachment-prose th { font-weight: 600; background: var(--muted); }
 .attachment-prose a { color: var(--primary); text-decoration: underline; }
 .attachment-prose img { max-width: 100%; height: auto; margin: 0.5em 0; }
+
+/* Spreadsheet styling for SheetJS-generated HTML (Excel previews) */
+.attachment-spreadsheet { font-size: 0.75rem; color: var(--foreground); }
+.attachment-spreadsheet table { border-collapse: collapse; white-space: nowrap; }
+.attachment-spreadsheet th,
+.attachment-spreadsheet td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.attachment-spreadsheet th { font-weight: 600; background: var(--muted); position: sticky; top: 0; }
+.attachment-spreadsheet tr:nth-child(even) td { background: var(--muted)/30; }
+.attachment-spreadsheet tr:hover td { background: var(--muted); }
