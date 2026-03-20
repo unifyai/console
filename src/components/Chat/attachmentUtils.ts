@@ -239,7 +239,7 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
     const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
     return {
       valid: false,
-      error: `File is too large (${sizeMB} MB). Maximum size is ${limitMB} MB.`,
+      error: `${file.name} is too large (${sizeMB} MB). Maximum size is ${limitMB} MB.`,
     };
   }
 
