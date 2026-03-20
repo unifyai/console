@@ -137,8 +137,11 @@ function HoverLabel({ attachment }: { attachment: Attachment | null }) {
   const sizeText = formatFileSize(attachment.sizeBytes ?? 0);
 
   return (
-    <span className={cn('text-caption inline-flex items-center', tooLarge ? 'text-destructive' : 'text-muted-foreground')}>
-      {attachment.filename} [{tooLarge ? `${sizeText}, too large, will be dropped on send` : sizeText}]
+    <span className={cn(
+      'text-caption absolute -top-5 left-0 whitespace-nowrap',
+      tooLarge ? 'text-destructive' : 'text-muted-foreground'
+    )}>
+      {attachment.filename} [{sizeText}]{tooLarge && ' → Too large, will be dropped on send.'}
     </span>
   );
 }
@@ -175,41 +178,43 @@ export function PendingAttachmentList({
   const hiddenHasWarning = hidden.some((a) => isOversized(a.sizeBytes));
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)} data-testid="pending-attachments">
-      {visible.map((attachment) => (
-        <div key={attachment.id} data-testid="pending-attachment-chip">
-          <AttachmentChip
-            attachment={attachment}
-            onRemove={() => onRemove(attachment.id)}
-            onHover={setHovered}
-          />
-        </div>
-      ))}
-      {needsCollapse && (
-        <Badge
-          variant="secondary"
-          className={cn(
-            'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
-            hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
-          )}
-          onClick={() => setExpanded((prev) => !prev)}
-          data-testid="attachment-expand-toggle"
-        >
-          {expanded ? (
-            <>
-              Show less
-              <ChevronUp className="h-3 w-3" />
-            </>
-          ) : (
-            <>
-              {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
-              +{hiddenCount} more
-              <ChevronDown className="h-3 w-3" />
-            </>
-          )}
-        </Badge>
-      )}
-      <HoverLabel attachment={hovered} />
+    <div className={className} data-testid="pending-attachments">
+      <div className="relative flex flex-wrap items-center gap-2">
+        <HoverLabel attachment={hovered} />
+        {visible.map((attachment) => (
+          <div key={attachment.id} data-testid="pending-attachment-chip">
+            <AttachmentChip
+              attachment={attachment}
+              onRemove={() => onRemove(attachment.id)}
+              onHover={setHovered}
+            />
+          </div>
+        ))}
+        {needsCollapse && (
+          <Badge
+            variant="secondary"
+            className={cn(
+              'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
+              hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
+            )}
+            onClick={() => setExpanded((prev) => !prev)}
+            data-testid="attachment-expand-toggle"
+          >
+            {expanded ? (
+              <>
+                Show less
+                <ChevronUp className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                +{hiddenCount} more
+                <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </Badge>
+        )}
+      </div>
     </div>
   );
 }
@@ -256,37 +261,37 @@ export function MessageAttachmentList({
         <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
       ))}
       {visibleOther.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {visibleOther.map((attachment) => (
-            <div key={attachment.id} data-testid="message-attachment">
-              <AttachmentChip attachment={attachment} onHover={setHovered} />
-            </div>
-          ))}
-          {needsCollapse && (
-            <Badge
-              variant="secondary"
-              className={cn(
-                'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
-                hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
-              )}
-              onClick={() => setExpanded((prev) => !prev)}
-              data-testid="attachment-expand-toggle"
-            >
-              {expanded ? (
-                <>
-                  Show less
-                  <ChevronUp className="h-3 w-3" />
-                </>
-              ) : (
-                <>
-                  {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
-                  +{hiddenCount} more
-                  <ChevronDown className="h-3 w-3" />
-                </>
-              )}
-            </Badge>
-          )}
+        <div className="relative flex flex-wrap items-center gap-2">
           <HoverLabel attachment={hovered} />
+            {visibleOther.map((attachment) => (
+              <div key={attachment.id} data-testid="message-attachment">
+                <AttachmentChip attachment={attachment} onHover={setHovered} />
+              </div>
+            ))}
+            {needsCollapse && (
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
+                  hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
+                )}
+                onClick={() => setExpanded((prev) => !prev)}
+                data-testid="attachment-expand-toggle"
+              >
+                {expanded ? (
+                  <>
+                    Show less
+                    <ChevronUp className="h-3 w-3" />
+                  </>
+                ) : (
+                  <>
+                    {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                    +{hiddenCount} more
+                    <ChevronDown className="h-3 w-3" />
+                  </>
+                )}
+              </Badge>
+            )}
         </div>
       )}
     </div>
