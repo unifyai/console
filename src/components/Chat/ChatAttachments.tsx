@@ -11,6 +11,7 @@ import {
   formatFileSize,
   getSignedUrl,
   isHtmlAttachment,
+  isOversized,
 } from './attachmentUtils';
 import { HtmlAttachmentEmbed } from './HtmlAttachmentEmbed';
 import type { Attachment } from '@/types/assistants/chat';
@@ -42,6 +43,7 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
   const isDownloadable = !!attachment.gsUrl;
   const status = attachment.uploadStatus;
   const isUploading = status === 'uploading' || status === 'done' || status === 'error';
+  const tooLarge = isOversized(attachment.sizeBytes);
 
   const handleDownload = React.useCallback(async () => {
     if (!attachment.gsUrl || downloading) return;
@@ -79,6 +81,7 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
         'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
         isDownloadable && 'hover:bg-muted/50 cursor-pointer',
         status === 'error' && 'border-destructive/40',
+        tooLarge && 'border-destructive bg-destructive/10',
         className
       )}
       data-testid="attachment-chip"
@@ -87,11 +90,15 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
       onMouseEnter={() => onHover?.(attachment)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <Icon
-        className={cn('h-3.5 w-3.5 flex-shrink-0', status === 'uploading' && 'opacity-50')}
-        style={{ color: iconColor }}
-        data-testid="attachment-icon"
-      />
+      {tooLarge ? (
+        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" data-testid="attachment-icon" />
+      ) : (
+        <Icon
+          className={cn('h-3.5 w-3.5 flex-shrink-0', status === 'uploading' && 'opacity-50')}
+          style={{ color: iconColor }}
+          data-testid="attachment-icon"
+        />
+      )}
       <span className={cn('truncate', status === 'uploading' && 'opacity-50')} data-testid="attachment-name">
         {truncatedName}
       </span>
@@ -126,9 +133,12 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
 function HoverLabel({ attachment }: { attachment: Attachment | null }) {
   if (!attachment) return null;
 
+  const tooLarge = isOversized(attachment.sizeBytes);
+  const sizeText = formatFileSize(attachment.sizeBytes ?? 0);
+
   return (
-    <span className="text-caption inline-flex items-center text-muted-foreground">
-      {attachment.filename} [{formatFileSize(attachment.sizeBytes ?? 0)}]
+    <span className={cn('text-caption inline-flex items-center', tooLarge ? 'text-destructive' : 'text-muted-foreground')}>
+      {attachment.filename} [{tooLarge ? `${sizeText}, too large, will be dropped on send` : sizeText}]
     </span>
   );
 }
@@ -160,7 +170,9 @@ export function PendingAttachmentList({
 
   const needsCollapse = attachments.length > COLLAPSED_CHIP_LIMIT;
   const visible = needsCollapse && !expanded ? attachments.slice(0, COLLAPSED_CHIP_LIMIT) : attachments;
+  const hidden = needsCollapse && !expanded ? attachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = attachments.length - COLLAPSED_CHIP_LIMIT;
+  const hiddenHasWarning = hidden.some((a) => isOversized(a.sizeBytes));
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)} data-testid="pending-attachments">
@@ -176,7 +188,10 @@ export function PendingAttachmentList({
       {needsCollapse && (
         <Badge
           variant="secondary"
-          className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+          className={cn(
+            'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
+            hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
+          )}
           onClick={() => setExpanded((prev) => !prev)}
           data-testid="attachment-expand-toggle"
         >
@@ -187,6 +202,7 @@ export function PendingAttachmentList({
             </>
           ) : (
             <>
+              {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
               +{hiddenCount} more
               <ChevronDown className="h-3 w-3" />
             </>
@@ -230,7 +246,9 @@ export function MessageAttachmentList({
 
   const needsCollapse = otherAttachments.length > COLLAPSED_CHIP_LIMIT;
   const visibleOther = needsCollapse && !expanded ? otherAttachments.slice(0, COLLAPSED_CHIP_LIMIT) : otherAttachments;
+  const hiddenOther = needsCollapse && !expanded ? otherAttachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = otherAttachments.length - COLLAPSED_CHIP_LIMIT;
+  const hiddenHasWarning = hiddenOther.some((a) => isOversized(a.sizeBytes));
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -247,7 +265,10 @@ export function MessageAttachmentList({
           {needsCollapse && (
             <Badge
               variant="secondary"
-              className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+              className={cn(
+                'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
+                hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
+              )}
               onClick={() => setExpanded((prev) => !prev)}
               data-testid="attachment-expand-toggle"
             >
@@ -258,6 +279,7 @@ export function MessageAttachmentList({
                 </>
               ) : (
                 <>
+                  {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
                   +{hiddenCount} more
                   <ChevronDown className="h-3 w-3" />
                 </>

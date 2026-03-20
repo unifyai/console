@@ -246,6 +246,13 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
+/**
+ * Check whether a file/attachment exceeds the upload size limit.
+ */
+export function isOversized(sizeBytes: number | undefined): boolean {
+  return typeof sizeBytes === 'number' && sizeBytes > MAX_FILE_SIZE_BYTES;
+}
+
 // =============================================================================
 // FORMATTING
 // =============================================================================

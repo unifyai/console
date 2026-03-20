@@ -21,11 +21,11 @@ import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import {
   PendingAttachmentList,
   createAttachment,
-  validateFile,
   ChatMessageBubble,
   ChatDateDivider,
   isSameDay,
 } from '@/components/Chat';
+import { validateFileType, isOversized, MAX_FILE_SIZE_BYTES } from '@/components/Chat/attachmentUtils';
 import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
 import {
@@ -162,25 +162,38 @@ export function AssistantProfileChatPanel({
     prevSpendingBlockedRef.current = isSpendingBlocked;
   }, [isSpendingBlocked, reconnectSSE]);
 
-  /* File handling */
+  /* File handling — type validation rejects immediately; oversized files are
+     added with a visual warning and filtered out at send time. */
   const handleFiles = React.useCallback(
     (files: File[]) => {
       const newAttachments: Attachment[] = [];
 
+      const oversizedNames: string[] = [];
+
       for (const file of files) {
-        const validation = validateFile(file);
-        if (!validation.valid) {
-          toast.error(validation.error);
+        const typeCheck = validateFileType(file.name);
+        if (!typeCheck.valid) {
+          toast.error(typeCheck.error);
           continue;
         }
         if (pendingAttachments.some((a) => a.filename === file.name && a.sizeBytes === file.size)) {
           continue;
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          oversizedNames.push(file.name);
         }
         newAttachments.push(createAttachment(file));
       }
 
       if (newAttachments.length > 0) {
         setPendingAttachments((prev) => [...prev, ...newAttachments]);
+      }
+
+      if (oversizedNames.length > 0) {
+        const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
+        for (const name of oversizedNames) {
+          toast.error(`${name} exceeds ${limitMB} MB limit — will be dropped on send`);
+        }
       }
     },
     [pendingAttachments]
@@ -336,14 +349,25 @@ export function AssistantProfileChatPanel({
       if (isLoading || isUploading) return;
       if (!inputValue.trim() && pendingAttachments.length === 0) return;
 
-      const attachmentsToSend = [...pendingAttachments];
+      const uploadable = pendingAttachments.filter((a) => !isOversized(a.sizeBytes));
+      const oversizedCount = pendingAttachments.length - uploadable.length;
 
-      // Mark all chips as pending upload (spinner will show once uploading starts)
+      if (!inputValue.trim() && uploadable.length === 0) return;
+
+      // Drop oversized files from the pending list
+      if (oversizedCount > 0) {
+        setPendingAttachments(uploadable);
+        toast.error(
+          `${oversizedCount} file${oversizedCount > 1 ? 's' : ''} dropped (too large)`
+        );
+      }
+
+      // Mark uploadable chips as pending upload
       setPendingAttachments((prev) =>
         prev.map((a) => ({ ...a, uploadStatus: 'pending' as const }))
       );
 
-      sendMessage(e, attachmentsToSend, setPendingAttachments);
+      sendMessage(e, uploadable, setPendingAttachments);
     },
     [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
   );
