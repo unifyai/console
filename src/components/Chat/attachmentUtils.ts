@@ -488,6 +488,26 @@ export async function getSignedUrl(
 }
 
 /**
+ * Fetch raw file content from GCS via server-side proxy.
+ * Avoids CORS issues that arise when fetching signed URLs directly.
+ */
+export async function fetchGcsContent(gsUrl: string): Promise<ArrayBuffer> {
+  const response = await fetch('/api/storage/content', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- API expects snake_case
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch content' }));
+    throw new Error(error.detail || `Failed to fetch content: ${response.statusText}`);
+  }
+
+  return response.arrayBuffer();
+}
+
+/**
  * Check whether an attachment is an HTML file by extension.
  */
 export function isHtmlAttachment(attachment: Attachment): boolean {

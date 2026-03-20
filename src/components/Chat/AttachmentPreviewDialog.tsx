@@ -17,6 +17,7 @@ import {
   getAttachmentColor,
   formatFileSize,
   getSignedUrl,
+  fetchGcsContent,
 } from './attachmentUtils';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
@@ -78,9 +79,8 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           const text = await attachment.file.text();
           if (!cancelled) setState({ status: 'text', content: text });
         } else if (attachment.gsUrl) {
-          const url = await getSignedUrl(attachment.gsUrl, false);
-          const res = await fetch(url);
-          const text = await res.text();
+          const buf = await fetchGcsContent(attachment.gsUrl);
+          const text = new TextDecoder().decode(buf);
           if (!cancelled) setState({ status: 'text', content: text });
         } else {
           setState({ status: 'unsupported' });
@@ -100,9 +100,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         if (attachment.file) {
           arrayBuffer = await attachment.file.arrayBuffer();
         } else if (attachment.gsUrl) {
-          const url = await getSignedUrl(attachment.gsUrl, false);
-          const res = await fetch(url);
-          arrayBuffer = await res.arrayBuffer();
+          arrayBuffer = await fetchGcsContent(attachment.gsUrl);
         } else {
           setState({ status: 'unsupported' });
           return;
@@ -119,9 +117,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         if (attachment.file) {
           arrayBuffer = await attachment.file.arrayBuffer();
         } else if (attachment.gsUrl) {
-          const url = await getSignedUrl(attachment.gsUrl, false);
-          const res = await fetch(url);
-          arrayBuffer = await res.arrayBuffer();
+          arrayBuffer = await fetchGcsContent(attachment.gsUrl);
         } else {
           setState({ status: 'unsupported' });
           return;
@@ -149,9 +145,7 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
         if (attachment.file) {
           arrayBuffer = await attachment.file.arrayBuffer();
         } else if (attachment.gsUrl) {
-          const url = await getSignedUrl(attachment.gsUrl, false);
-          const res = await fetch(url);
-          arrayBuffer = await res.arrayBuffer();
+          arrayBuffer = await fetchGcsContent(attachment.gsUrl);
         } else {
           setState({ status: 'unsupported' });
           return;
