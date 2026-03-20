@@ -82,15 +82,28 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
   }, [attachment.gsUrl, attachment.filename, downloading]);
 
   const statusIndicator = React.useMemo(() => {
+    const iconWithTooltip = (icon: React.ReactNode, label: string) => (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">{icon}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <span className="text-caption font-medium">{label}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+
     switch (status) {
       case 'queued':
-        return <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />;
+        return iconWithTooltip(<Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />, 'Queued');
       case 'uploading':
-        return <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />;
+        return iconWithTooltip(<Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />, 'Uploading');
       case 'done':
-        return <Check className="h-3 w-3 flex-shrink-0 text-green-500" />;
+        return iconWithTooltip(<Check className="h-3 w-3 flex-shrink-0 text-green-500" />, 'Uploaded');
       case 'error':
-        return <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />;
+        return iconWithTooltip(<AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />, 'Failed');
       default:
         return null;
     }
