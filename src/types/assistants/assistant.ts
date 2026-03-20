@@ -74,12 +74,7 @@ export interface Assistant {
 
 export interface AssistantStatus {
   running: boolean;
-  uptimeSeconds: number;
-  processId: number | null;
-  assistantId: string;
-  shutdownReason: string | null;
-  inactivityTimeoutMinutes: number;
-  message: string | null;
+  jobName: string | null;
 }
 
 export type AssistantPreset = Omit<

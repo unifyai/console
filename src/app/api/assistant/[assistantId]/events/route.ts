@@ -2,30 +2,36 @@
  * SSE Endpoint for Chat Event Streaming
  *
  * Streams chat events from the assistant's Pub/Sub topic to the browser
- * via Server-Sent Events.
+ * via Server-Sent Events, using gRPC streaming pull for sub-second delivery.
  *
  * Architecture:
  * - Each user+assistant pair gets a persistent Pub/Sub subscription
  *   (`{topicName}-chat-{contactId}`). The subscription survives across SSE
  *   reconnects, so messages published during connection gaps are preserved
- *   in the backlog and delivered when the next connection pulls.
+ *   in the backlog and delivered when the next connection opens.
+ * - gRPC streaming pull: the @google-cloud/pubsub library maintains a
+ *   persistent bidirectional gRPC stream to Pub/Sub, delivering messages
+ *   via event callbacks with sub-second latency. No polling.
  * - Client-side ACK: the SSE payload includes `__ackId` so the browser can
- *   acknowledge after display via POST /events/ack. The server extends the
- *   ACK deadline to give the browser time. If the connection drops before
- *   the browser ACKs, the message stays in Pub/Sub and is redelivered.
+ *   acknowledge after display via POST /events/ack. The gRPC library
+ *   auto-extends the ack deadline while the subscriber is open. If the
+ *   connection drops before the browser ACKs, the deadline expires and
+ *   Pub/Sub redelivers the message.
  * - Subscriptions auto-expire after 31 days of inactivity to clean up
  *   abandoned users.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { Message } from '@google-cloud/pubsub';
 import {
-  getAuthClient,
-  getOrCreateSubscription,
+  getPubSubClient,
   getTopicName,
+  PERSISTENT_EXPIRATION_TTL,
+  MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const __DEV__ = process.env.NODE_ENV === 'development';
 const encoder = new TextEncoder();
@@ -45,23 +51,24 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return new NextResponse('contactId query parameter is required.', { status: 400 });
   }
 
-  let authClient: any;
-  let subscriptionUrl: string;
+  let subscriptionName: string;
 
   try {
-    const authData = await getAuthClient();
-    authClient = authData.client;
-
+    const { pubsub } = getPubSubClient();
     const topicName = getTopicName(assistantId);
-    const subscriptionName = `${topicName}-chat-${contactId}`;
+    subscriptionName = `${topicName}-chat-${contactId}`;
 
-    subscriptionUrl = await getOrCreateSubscription(
-      authClient,
-      authData.projectId,
-      topicName,
-      subscriptionName,
-      CHAT_FILTER
-    );
+    const topic = pubsub.topic(topicName);
+    try {
+      await topic.createSubscription(subscriptionName, {
+        filter: CHAT_FILTER,
+        expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
+        messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
+      });
+    } catch (err: any) {
+      // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
+      if (err.code !== 6) throw err;
+    }
 
     if (__DEV__)
       console.log(`[Chat SSE] Persistent subscription: ${subscriptionName} on topic: ${topicName}`);
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
   }
 
   const stream = new ReadableStream({
-    async start(controller) {
+    start(controller) {
       if (__DEV__) console.log(`[Chat SSE] Stream started for assistant=${assistantId}`);
 
       try {
@@ -94,115 +101,68 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
         }
       }, 15000);
 
-      while (!request.signal.aborted) {
-        try {
-          const res = await authClient.request({
-            url: `${subscriptionUrl}:pull`,
-            method: 'POST',
-            data: { maxMessages: 1, returnImmediately: false },
-          });
+      const { pubsub } = getPubSubClient();
+      const subscription = pubsub.subscription(subscriptionName);
 
-          if (res.status !== 200) {
-            if (request.signal.aborted) break;
-            if (res.status === 404) {
-              console.error(`[Chat SSE] Subscription not found: ${subscriptionUrl}`);
-              break;
-            }
-            await new Promise((r) => setTimeout(r, 2000));
-            continue;
-          }
-
-          const responseData = res.data as {
-            receivedMessages?: Array<{
-              ackId: string;
-              message?: { data: string; messageId: string; publishTime: string };
-            }>;
-          };
-          const receivedMessages = responseData.receivedMessages || [];
-
-          if (request.signal.aborted) {
-            const ackIds = receivedMessages.map((m) => m.ackId).filter(Boolean);
-            if (ackIds.length > 0) {
-              await authClient
-                .request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds, ackDeadlineSeconds: 0 },
-                })
-                .catch(() => {});
-            }
-            break;
-          }
-
-          for (const item of receivedMessages) {
-            const { ackId, message } = item;
-            if (!message) continue;
-
-            if (request.signal.aborted) {
-              await authClient
-                .request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-                })
-                .catch(() => {});
-              break;
-            }
-
-            try {
-              const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
-              let payload: any = {};
-              try {
-                payload = JSON.parse(rawData);
-              } catch {
-                payload = { rawContent: rawData };
-              }
-
-              payload.id = message.messageId;
-              payload.publishTime = message.publishTime;
-              payload.__ackId = ackId;
-              if (payload.event && typeof payload.event === 'object') {
-                payload.event.id = message.messageId;
-                payload.event.publishTime = message.publishTime;
-              }
-
-              try {
-                await authClient.request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds: [ackId], ackDeadlineSeconds: 30 },
-                });
-              } catch {
-                // Non-fatal — default deadline still applies
-              }
-
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-            } catch (err) {
-              console.error('[Chat SSE] Error processing message:', err);
-              await authClient
-                .request({
-                  url: `${subscriptionUrl}:modifyAckDeadline`,
-                  method: 'POST',
-                  data: { ackIds: [ackId], ackDeadlineSeconds: 0 },
-                })
-                .catch(() => {});
-            }
-          }
-        } catch (error: any) {
-          if (!request.signal.aborted) {
-            console.error('[Chat SSE] Pull loop error:', error.message);
-            await new Promise((r) => setTimeout(r, 1000));
-          }
+      const messageHandler = (message: Message) => {
+        if (request.signal.aborted) {
+          message.nack();
+          return;
         }
-      }
 
-      clearInterval(keepAliveInterval);
-      if (__DEV__) console.log(`[Chat SSE] Stream ended for assistant=${assistantId}`);
-      try {
-        controller.close();
-      } catch {
-        // Already closed
-      }
+        try {
+          const rawData = message.data.toString('utf-8');
+          let payload: any = {};
+          try {
+            payload = JSON.parse(rawData);
+          } catch {
+            payload = { rawContent: rawData };
+          }
+
+          payload.id = message.id;
+          payload.publishTime = message.publishTime?.toISOString();
+          payload.__ackId = message.ackId;
+          if (payload.event && typeof payload.event === 'object') {
+            payload.event.id = message.id;
+            payload.event.publishTime = message.publishTime?.toISOString();
+          }
+
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          } catch {
+            message.nack();
+            return;
+          }
+          // Don't ack here — the browser ACKs via POST /events/ack after display.
+          // The gRPC library auto-extends the ack deadline while this subscriber
+          // is open. On disconnect, the deadline expires and Pub/Sub redelivers.
+        } catch (err) {
+          console.error('[Chat SSE] Error processing message:', err);
+          message.nack();
+        }
+      };
+
+      const errorHandler = (err: Error) => {
+        if (!request.signal.aborted) {
+          console.error('[Chat SSE] Subscriber error:', err.message);
+        }
+      };
+
+      subscription.on('message', messageHandler);
+      subscription.on('error', errorHandler);
+
+      request.signal.addEventListener('abort', () => {
+        clearInterval(keepAliveInterval);
+        subscription.removeListener('message', messageHandler);
+        subscription.removeListener('error', errorHandler);
+        subscription.close();
+        if (__DEV__) console.log(`[Chat SSE] Stream ended for assistant=${assistantId}`);
+        try {
+          controller.close();
+        } catch {
+          // Already closed
+        }
+      });
     },
   });
 

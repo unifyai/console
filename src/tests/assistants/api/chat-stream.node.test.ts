@@ -7,31 +7,64 @@
  * - Subscriptions are NOT deleted on disconnect (persistent)
  * - Messages are correctly streamed as SSE data lines
  * - Client-side ACK: __ackId is included in SSE payloads for browser to ACK
- * - Server extends ACK deadline (modifyAckDeadline) instead of ACKing
+ * - Server does NOT call message.ack() — browser ACKs via REST endpoint
  * - ACK endpoint acknowledges via the correct persistent subscription
  * - contactId is required (400 if missing)
  *
- * Uses vi.mock to replace GoogleAuth and fs so no real GCP calls are made.
+ * Uses vi.mock to replace @google-cloud/pubsub and google-auth-library
+ * so no real GCP calls are made.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { EventEmitter } from 'events';
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before dynamic import of the route module
 // ---------------------------------------------------------------------------
 
-const mockRequest = vi.fn();
+const createdSubscriptions: Array<{ name: string; opts: any }> = [];
+const mockSubscriptionInstances = new Map<string, EventEmitter>();
+let createSubError: Error | null = null;
 
-vi.mock('google-auth-library', () => {
-  return {
-    GoogleAuth: class MockGoogleAuth {
-      async getClient() {
-        return { request: mockRequest };
-      }
-    },
-  };
+const mockTopicCreateSubscription = vi.fn(async (name: string, opts: any) => {
+  if (createSubError) throw createSubError;
+  createdSubscriptions.push({ name, opts });
+  return [{ name }];
 });
+
+const mockTopic = { createSubscription: mockTopicCreateSubscription };
+
+const mockSubscription = vi.fn((name: string) => {
+  let emitter = mockSubscriptionInstances.get(name);
+  if (!emitter) {
+    emitter = new EventEmitter();
+    (emitter as any).close = vi.fn();
+    mockSubscriptionInstances.set(name, emitter);
+  }
+  return emitter;
+});
+
+vi.mock('@google-cloud/pubsub', () => ({
+  PubSub: class MockPubSub {
+    topic() {
+      return mockTopic;
+    }
+    subscription(name: string) {
+      return mockSubscription(name);
+    }
+  },
+}));
+
+// google-auth-library mock is still needed for the ACK endpoint
+const mockRequest = vi.fn();
+vi.mock('google-auth-library', () => ({
+  GoogleAuth: class MockGoogleAuth {
+    async getClient() {
+      return { request: mockRequest };
+    }
+  },
+}));
 
 vi.mock('fs', () => ({
   default: { readFileSync: vi.fn() },
@@ -52,69 +85,38 @@ function makeUrl(assistantId: string, contactId?: string): string {
   return contactId ? `${base}?contactId=${contactId}` : base;
 }
 
-function makePubSubMessage(payload: Record<string, unknown>, ackId = 'ack-1') {
-  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
+function makeMockMessage(
+  payload: Record<string, unknown>,
+  opts: { ackId?: string; id?: string; publishTime?: Date } = {}
+) {
   return {
-    ackId,
-    message: {
-      data: encoded,
-      messageId: 'msg-server-1',
-      publishTime: new Date().toISOString(),
-    },
+    data: Buffer.from(JSON.stringify(payload)),
+    id: opts.id || 'msg-server-1',
+    ackId: opts.ackId || 'ack-1',
+    publishTime: opts.publishTime || new Date(),
+    ack: vi.fn(),
+    nack: vi.fn(),
+    modAck: vi.fn(),
   };
 }
 
-function createPubSubMock(
-  controller: AbortController,
-  opts: {
-    messageBatches?: Array<{ receivedMessages: any[] }>;
-    onSubscriptionCreate?: (url: string, data: any) => void;
-    onSubscriptionDelete?: (url: string) => void;
-    onAck?: (url: string, data: any) => void;
-    onModifyAckDeadline?: (url: string, data: any) => void;
-  } = {}
-) {
-  const {
-    messageBatches = [],
-    onSubscriptionCreate,
-    onSubscriptionDelete,
-    onAck,
-    onModifyAckDeadline,
-  } = opts;
-  let pullCount = 0;
+async function collectStream(response: Response, { until }: { until: () => boolean }): Promise<string> {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const parts: string[] = [];
 
-  return async (reqOpts: { url: string; method: string; data?: any }) => {
-    if (reqOpts.method === 'PUT' && reqOpts.url.includes('/subscriptions/')) {
-      onSubscriptionCreate?.(reqOpts.url, reqOpts.data);
-      return { status: 200, data: {} };
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(decoder.decode(value, { stream: true }));
+    if (until()) {
+      reader.cancel();
+      break;
     }
+  }
 
-    if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':pull')) {
-      const batchIndex = pullCount++;
-      if (batchIndex < messageBatches.length) {
-        return { status: 200, data: messageBatches[batchIndex] };
-      }
-      controller.abort();
-      return { status: 200, data: { receivedMessages: [] } };
-    }
-
-    if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':acknowledge')) {
-      onAck?.(reqOpts.url, reqOpts.data);
-      return { status: 200, data: {} };
-    }
-
-    if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':modifyAckDeadline')) {
-      onModifyAckDeadline?.(reqOpts.url, reqOpts.data);
-      return { status: 200, data: {} };
-    }
-
-    if (reqOpts.method === 'DELETE' && reqOpts.url.includes('/subscriptions/')) {
-      onSubscriptionDelete?.(reqOpts.url);
-      return { status: 200, data: {} };
-    }
-
-    return { status: 200, data: {} };
-  };
+  reader.releaseLock();
+  return parts.join('');
 }
 
 async function drainStream(response: Response): Promise<string> {
@@ -122,7 +124,6 @@ async function drainStream(response: Response): Promise<string> {
   const decoder = new TextDecoder();
   const parts: string[] = [];
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -141,7 +142,12 @@ describe('Chat SSE Stream Route', () => {
   beforeEach(() => {
     vi.stubEnv('COMMS_SERVICE_ACCOUNT_CREDENTIALS', MOCK_CREDENTIALS);
     vi.stubEnv('ORCHESTRA_URL', 'http://orchestra-service');
+    createdSubscriptions.length = 0;
+    mockSubscriptionInstances.clear();
+    createSubError = null;
     mockRequest.mockReset();
+    mockTopicCreateSubscription.mockClear();
+    mockSubscription.mockClear();
   });
 
   afterEach(() => {
@@ -153,20 +159,7 @@ describe('Chat SSE Stream Route', () => {
   // =========================================================================
 
   it('creates a deterministic subscription based on contactId', async () => {
-    const createdSubscriptions: string[] = [];
     const controller = new AbortController();
-
-    mockRequest.mockImplementation(async (opts: { url: string; method: string; data?: any }) => {
-      if (opts.method === 'PUT' && opts.url.includes('/subscriptions/')) {
-        createdSubscriptions.push(opts.url);
-        return { status: 200, data: {} };
-      }
-      if (opts.method === 'POST' && opts.url.endsWith(':pull')) {
-        controller.abort();
-        return { status: 200, data: { receivedMessages: [] } };
-      }
-      return { status: 200, data: {} };
-    });
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -175,31 +168,20 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    // Abort after stream starts to let it clean up
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
     await drainStream(res);
 
     expect(createdSubscriptions.length).toBe(1);
-    expect(createdSubscriptions[0]).toContain(`-chat-${TEST_CONTACT_ID}`);
-    // Should NOT contain a random UUID segment
-    expect(createdSubscriptions[0]).not.toContain('-sse-');
+    expect(createdSubscriptions[0].name).toContain(`-chat-${TEST_CONTACT_ID}`);
+    expect(createdSubscriptions[0].name).not.toContain('-sse-');
   });
 
   it('different contactIds get different subscriptions', async () => {
-    const createdSubscriptions: string[] = [];
     const ctrl1 = new AbortController();
     const ctrl2 = new AbortController();
-
-    mockRequest.mockImplementation(async (opts: { url: string; method: string; data?: any }) => {
-      if (opts.method === 'PUT' && opts.url.includes('/subscriptions/')) {
-        createdSubscriptions.push(opts.url);
-        return { status: 200, data: {} };
-      }
-      if (opts.method === 'POST' && opts.url.endsWith(':pull')) {
-        ctrl1.abort();
-        ctrl2.abort();
-        return { status: 200, data: { receivedMessages: [] } };
-      }
-      return { status: 200, data: {} };
-    });
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -220,27 +202,19 @@ describe('Chat SSE Stream Route', () => {
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
     expect(createdSubscriptions.length).toBe(2);
-    expect(createdSubscriptions[0]).toContain('-chat-42');
-    expect(createdSubscriptions[1]).toContain('-chat-99');
+    expect(createdSubscriptions[0].name).toContain('-chat-42');
+    expect(createdSubscriptions[1].name).toContain('-chat-99');
 
+    ctrl1.abort();
+    ctrl2.abort();
     await Promise.all([drainStream(res1), drainStream(res2)]);
   });
 
-  it('handles ALREADY_EXISTS (409) gracefully when subscription already exists', async () => {
+  it('handles ALREADY_EXISTS (code 6) gracefully when subscription exists', async () => {
     const controller = new AbortController();
-
-    mockRequest.mockImplementation(async (opts: { url: string; method: string; data?: any }) => {
-      if (opts.method === 'PUT' && opts.url.includes('/subscriptions/')) {
-        const error: any = new Error('ALREADY_EXISTS');
-        error.response = { status: 409 };
-        throw error;
-      }
-      if (opts.method === 'POST' && opts.url.endsWith(':pull')) {
-        controller.abort();
-        return { status: 200, data: { receivedMessages: [] } };
-      }
-      return { status: 200, data: {} };
-    });
+    const alreadyExists: any = new Error('ALREADY_EXISTS');
+    alreadyExists.code = 6;
+    createSubError = alreadyExists;
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -251,20 +225,13 @@ describe('Chat SSE Stream Route', () => {
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
 
     expect(res.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
     await drainStream(res);
   });
 
-  it('creates subscription with correct topic, 31-day expiration, and retention', async () => {
+  it('creates subscription with filter and correct config', async () => {
     const controller = new AbortController();
-    let createPayload: any = null;
-
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        onSubscriptionCreate: (_url, data) => {
-          createPayload = data;
-        },
-      })
-    );
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -273,27 +240,21 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
     await drainStream(res);
 
-    expect(createPayload).toBeTruthy();
-    expect(createPayload.topic).toBe(
-      `projects/${TEST_PROJECT_ID}/topics/unity-${TEST_ASSISTANT_ID}`
-    );
-    expect(createPayload.expirationPolicy.ttl).toBe('2678400s');
-    expect(createPayload.messageRetentionDuration).toBe('600s');
+    expect(createdSubscriptions.length).toBe(1);
+    const opts = createdSubscriptions[0].opts;
+    expect(opts.filter).toContain('unify_message_outbound');
+    expect(opts.filter).toContain('assistant_desktop_ready');
+    expect(opts.expirationPolicy.ttl.seconds).toBe(2678400);
+    expect(opts.messageRetentionDuration.seconds).toBe(600);
   });
 
   it('does NOT delete the subscription when the stream ends', async () => {
     const controller = new AbortController();
-    const deletedSubscriptions: string[] = [];
-
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        onSubscriptionDelete: (url) => {
-          deletedSubscriptions.push(url);
-        },
-      })
-    );
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -302,9 +263,18 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
     await drainStream(res);
 
-    expect(deletedSubscriptions.length).toBe(0);
+    // The subscriber's close() should be called but the subscription itself
+    // should NOT be deleted (persistent subscription survives reconnects)
+    const subName = createdSubscriptions[0]?.name;
+    if (subName) {
+      const emitter = mockSubscriptionInstances.get(subName);
+      expect((emitter as any)?.close).toHaveBeenCalled();
+    }
   });
 
   // =========================================================================
@@ -313,8 +283,6 @@ describe('Chat SSE Stream Route', () => {
 
   it('returns proper SSE headers', async () => {
     const controller = new AbortController();
-
-    mockRequest.mockImplementation(createPubSubMock(controller));
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -328,6 +296,7 @@ describe('Chat SSE Stream Route', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-cache, no-transform');
     expect(response.headers.get('X-Accel-Buffering')).toBe('no');
 
+    controller.abort();
     await drainStream(response);
   });
 
@@ -335,30 +304,8 @@ describe('Chat SSE Stream Route', () => {
   // Client-side ACK: SSE route delegates ACK to the browser
   // =========================================================================
 
-  it('does NOT ACK messages server-side', async () => {
+  it('does NOT call message.ack() server-side', async () => {
     const controller = new AbortController();
-    const ackedIds: string[][] = [];
-
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        messageBatches: [
-          {
-            receivedMessages: [
-              makePubSubMessage(
-                {
-                  thread: 'unify_message_outbound',
-                  event: { content: 'Hello from assistant', contact_id: 42 },
-                },
-                'ack-should-not-happen'
-              ),
-            ],
-          },
-        ],
-        onAck: (_url, data) => {
-          ackedIds.push(data.ackIds);
-        },
-      })
-    );
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -367,32 +314,33 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
-    await drainStream(response);
 
-    expect(ackedIds.length).toBe(0);
+    // Wait for subscriber to be registered
+    await new Promise((r) => setTimeout(r, 50));
+
+    const msg = makeMockMessage(
+      { thread: 'unify_message_outbound', event: { content: 'Hello', contact_id: 42 } },
+      { ackId: 'ack-should-not-happen' }
+    );
+
+    // Find the subscription emitter and emit a message
+    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    subEmitter?.emit('message', msg);
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
+
+    const allData = await drainStream(response);
+    const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
+    expect(dataLines.length).toBe(1);
+
+    // message.ack() should NOT have been called
+    expect(msg.ack).not.toHaveBeenCalled();
   });
 
   it('includes __ackId in SSE payload for client-side ACK', async () => {
     const controller = new AbortController();
 
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        messageBatches: [
-          {
-            receivedMessages: [
-              makePubSubMessage(
-                {
-                  thread: 'unify_message_outbound',
-                  event: { content: 'Hello from assistant', contact_id: 42 },
-                },
-                'ack-for-client'
-              ),
-            ],
-          },
-        ],
-      })
-    );
-
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
     const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
@@ -400,8 +348,21 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
-    const allData = await drainStream(response);
 
+    await new Promise((r) => setTimeout(r, 50));
+
+    const msg = makeMockMessage(
+      { thread: 'unify_message_outbound', event: { content: 'Hello from assistant', contact_id: 42 } },
+      { ackId: 'ack-for-client', id: 'msg-server-1' }
+    );
+
+    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    subEmitter?.emit('message', msg);
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
+
+    const allData = await drainStream(response);
     const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
     expect(dataLines.length).toBe(1);
 
@@ -412,30 +373,8 @@ describe('Chat SSE Stream Route', () => {
     expect(parsed.publishTime).toBeTruthy();
   });
 
-  it('extends ACK deadline after pulling a message', async () => {
+  it('closes the gRPC subscriber on connection abort (un-acked messages redeliver)', async () => {
     const controller = new AbortController();
-    const deadlineExtensions: Array<{ url: string; data: any }> = [];
-
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        messageBatches: [
-          {
-            receivedMessages: [
-              makePubSubMessage(
-                {
-                  thread: 'unify_message_outbound',
-                  event: { content: 'Test', contact_id: 42 },
-                },
-                'ack-deadline-test'
-              ),
-            ],
-          },
-        ],
-        onModifyAckDeadline: (url, data) => {
-          deadlineExtensions.push({ url, data });
-        },
-      })
-    );
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -444,76 +383,19 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    expect(subEmitter?.listenerCount('message')).toBe(1);
+
+    controller.abort();
     await drainStream(response);
 
-    const extensions = deadlineExtensions.filter((e) => e.data.ackDeadlineSeconds > 0);
-    expect(extensions.length).toBe(1);
-    expect(extensions[0].data.ackIds).toContain('ack-deadline-test');
-    expect(extensions[0].data.ackDeadlineSeconds).toBe(30);
-  });
-
-  it('NACKs unprocessed messages when connection aborts mid-processing', async () => {
-    const controller = new AbortController();
-    const deadlineChanges: Array<{ url: string; data: any }> = [];
-    let pullCount = 0;
-
-    mockRequest.mockImplementation(async (reqOpts: { url: string; method: string; data?: any }) => {
-      if (reqOpts.method === 'PUT' && reqOpts.url.includes('/subscriptions/')) {
-        return { status: 200, data: {} };
-      }
-
-      if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':pull')) {
-        pullCount++;
-        if (pullCount === 1) {
-          // Abort the connection just before returning a batch with two messages.
-          // The first message will be processed, but the second should hit the
-          // abort check and get NACKed.
-          controller.abort();
-          return {
-            status: 200,
-            data: {
-              receivedMessages: [
-                makePubSubMessage(
-                  {
-                    thread: 'unify_message_outbound',
-                    event: { content: 'First', contact_id: 42 },
-                  },
-                  'ack-first'
-                ),
-                makePubSubMessage(
-                  {
-                    thread: 'unify_message_outbound',
-                    event: { content: 'Second', contact_id: 42 },
-                  },
-                  'ack-nack-test'
-                ),
-              ],
-            },
-          };
-        }
-        return { status: 200, data: { receivedMessages: [] } };
-      }
-
-      if (reqOpts.method === 'POST' && reqOpts.url.endsWith(':modifyAckDeadline')) {
-        deadlineChanges.push({ url: reqOpts.url, data: reqOpts.data });
-        return { status: 200, data: {} };
-      }
-
-      return { status: 200, data: {} };
-    });
-
-    const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
-
-    const req = new NextRequest(makeUrl(TEST_ASSISTANT_ID, TEST_CONTACT_ID), {
-      method: 'GET',
-      signal: controller.signal,
-    });
-    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
-    await drainStream(response);
-
-    const nacks = deadlineChanges.filter((e) => e.data.ackDeadlineSeconds === 0);
-    expect(nacks.length).toBeGreaterThanOrEqual(1);
-    expect(nacks.some((n) => n.data.ackIds.includes('ack-nack-test'))).toBe(true);
+    // After abort: subscriber is closed and listeners removed.
+    // Pub/Sub will redeliver un-acked messages when the next subscriber opens.
+    expect((subEmitter as any).close).toHaveBeenCalled();
+    expect(subEmitter?.listenerCount('message')).toBe(0);
   });
 
   // =========================================================================
@@ -556,15 +438,6 @@ describe('Chat SSE Stream Route', () => {
   it('uses staging suffix in topic name when ORCHESTRA_URL contains staging', async () => {
     vi.stubEnv('ORCHESTRA_URL', 'https://api-staging.unify.ai');
     const controller = new AbortController();
-    let createPayload: any = null;
-
-    mockRequest.mockImplementation(
-      createPubSubMock(controller, {
-        onSubscriptionCreate: (_url, data) => {
-          createPayload = data;
-        },
-      })
-    );
 
     const { GET } = await import('@/app/api/assistant/[assistantId]/events/route');
 
@@ -573,16 +446,17 @@ describe('Chat SSE Stream Route', () => {
       signal: controller.signal,
     });
     const res = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
     await drainStream(res);
 
-    expect(createPayload).toBeTruthy();
-    expect(createPayload.topic).toBe(
-      `projects/${TEST_PROJECT_ID}/topics/unity-${TEST_ASSISTANT_ID}-staging`
-    );
+    expect(createdSubscriptions.length).toBe(1);
+    expect(createdSubscriptions[0].name).toContain(`unity-${TEST_ASSISTANT_ID}-staging`);
   });
 
   // =========================================================================
-  // ACK endpoint
+  // ACK endpoint (still uses REST — unchanged)
   // =========================================================================
 
   it('ACK endpoint acknowledges via the correct persistent subscription', async () => {

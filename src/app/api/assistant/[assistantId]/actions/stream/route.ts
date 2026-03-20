@@ -2,15 +2,16 @@
  * SSE Endpoint for Live Actions Streaming
  *
  * Streams ManagerMethod and ToolLoop events from the assistant's Pub/Sub topic
- * to the browser via Server-Sent Events.
+ * to the browser via Server-Sent Events, using gRPC streaming pull.
  *
  * Architecture:
  * - Each SSE connection creates its own ephemeral Pub/Sub subscription on the
  *   shared topic. This gives true fan-out: every viewer (across tabs, browsers,
  *   and users) independently receives all events. Subscriptions auto-expire
  *   after inactivity so leaked ones don't accumulate.
- * - Per-connection pull loop inside `async start` (industry-standard SSE pattern)
- * - Server-side ACK (Orchestra is the durable store; client polls on catch-up)
+ * - gRPC streaming pull delivers messages via event callbacks with sub-second
+ *   latency. Server-side ACK (Orchestra is the durable store; client polls on
+ *   catch-up).
  * - snake_case → camelCase transformation via shared casing utilities
  * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match ManagerMethodLog
  *
@@ -22,12 +23,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import type { Message } from '@google-cloud/pubsub';
 import { snakeToCamelObject } from '@/utils/casing';
 import {
-  getAuthClient,
-  createEphemeralSubscription,
-  deleteSubscription,
+  getPubSubClient,
   getTopicName,
+  EPHEMERAL_EXPIRATION_TTL,
+  MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
 import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
@@ -146,18 +148,18 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
 }
 
 // =============================================================================
-// Production Mode (GCP Pub/Sub ephemeral subscriptions)
+// Production Mode (GCP Pub/Sub gRPC streaming pull)
 // =============================================================================
 
 function createPubSubStream(
   request: NextRequest,
   assistantId: string,
-  authClient: any,
-  subscriptionUrl: string
+  subscriptionName: string,
+  deleteOnClose: () => void
 ): Response {
   const stream = new ReadableStream({
-    async start(controller) {
-      if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream started for assistant=${assistantId}`);
+    start(controller) {
+      if (__DEV__) console.log(`[Actions SSE] Stream started for assistant=${assistantId}`);
 
       controller.enqueue(encoder.encode(': connected\n\n'));
 
@@ -173,120 +175,68 @@ function createPubSubStream(
         }
       }, 15000);
 
-      // --- MAIN PULL LOOP ---
-      while (!request.signal.aborted) {
+      const { pubsub } = getPubSubClient();
+      const subscription = pubsub.subscription(subscriptionName);
+
+      const messageHandler = (message: Message) => {
+        if (request.signal.aborted) {
+          message.nack();
+          return;
+        }
+
         try {
-          const res = await authClient.request({
-            url: `${subscriptionUrl}:pull`,
-            method: 'POST',
-            data: { maxMessages: 10, returnImmediately: false },
-          });
+          const rawData = message.data.toString('utf-8');
+          const payload = JSON.parse(rawData);
+          const eventPayload = payload.event || payload;
+          const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
+          const shaped = reshapeToLogEntry(camelEvent);
 
-          if (request.signal.aborted) break;
-
-          if (res.status !== 200) {
-            if (res.status === 404) {
-              console.error(`[Actions SSE] Subscription not found: ${subscriptionUrl}`);
-              break;
-            }
-            console.warn(`[Actions SSE] Pull returned status=${res.status}, retrying in 2s`);
-            await new Promise((r) => setTimeout(r, 2000));
-            continue;
-          }
-
-          const responseData = res.data as {
-            receivedMessages?: Array<{
-              ackId: string;
-              message?: { data: string; messageId: string; publishTime: string };
-            }>;
-          };
-          const receivedMessages = responseData.receivedMessages || [];
-
-          if (receivedMessages.length === 0) {
-            if (__DEV__)
-              console.log(
-                `[DEBUG][Actions SSE] Empty pull for assistant=${assistantId} (subscription alive, waiting)`
-              );
-            continue;
+          if (isManagerExcluded(shaped.data.entries.manager as string)) {
+            message.ack();
+            return;
           }
 
           if (__DEV__)
             console.log(
-              `[DEBUG][Actions SSE] Pulled ${receivedMessages.length} message(s) for assistant=${assistantId}`
+              `[Actions SSE] Event: type=${shaped.type}, id=${shaped.data.id}, manager=${shaped.data.entries.manager}`
             );
 
-          const ackIds: string[] = [];
-
-          const parsed: Array<{
-            shaped: ReturnType<typeof reshapeToLogEntry>;
-            ackId: string;
-          }> = [];
-
-          for (const item of receivedMessages) {
-            const { ackId, message } = item;
-            if (!message) continue;
-
-            ackIds.push(ackId);
-
-            try {
-              const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
-              const payload = JSON.parse(rawData);
-              const eventPayload = payload.event || payload;
-              const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
-              const shaped = reshapeToLogEntry(camelEvent);
-
-              if (isManagerExcluded(shaped.data.entries.manager as string)) {
-                if (__DEV__)
-                  console.log(
-                    `[DEBUG][Actions SSE] Dropping excluded manager=${shaped.data.entries.manager}`
-                  );
-                continue;
-              }
-
-              parsed.push({ shaped, ackId });
-            } catch (err) {
-              console.warn('[Actions SSE] Failed to process message:', err);
-            }
-          }
-
-          parsed.sort((a, b) => a.shaped.data.id - b.shaped.data.id);
-
-          for (const { shaped } of parsed) {
-            if (__DEV__)
-              console.log(
-                `[DEBUG][Actions SSE] Event: type=${shaped.type}, id=${shaped.data.id}, callingId=${shaped.data.entries.callingId}, phase=${shaped.data.entries.phase}`
-              );
-
+          try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(shaped)}\n\n`));
+          } catch {
+            message.nack();
+            return;
           }
 
-          if (ackIds.length > 0) {
-            try {
-              await authClient.request({
-                url: `${subscriptionUrl}:acknowledge`,
-                method: 'POST',
-                data: { ackIds },
-              });
-            } catch (err) {
-              console.warn('[Actions SSE] Failed to ACK messages:', err);
-            }
-          }
-        } catch (error: any) {
-          if (!request.signal.aborted) {
-            console.error('[Actions SSE] Pull loop error:', error.message);
-            await new Promise((r) => setTimeout(r, 1000));
-          }
+          message.ack();
+        } catch (err) {
+          console.warn('[Actions SSE] Failed to process message:', err);
+          message.ack();
         }
-      }
+      };
 
-      clearInterval(keepAliveInterval);
-      deleteSubscription(authClient, subscriptionUrl);
-      if (__DEV__) console.log(`[DEBUG][Actions SSE] Stream ended for assistant=${assistantId}`);
-      try {
-        controller.close();
-      } catch {
-        // Already closed
-      }
+      const errorHandler = (err: Error) => {
+        if (!request.signal.aborted) {
+          console.error('[Actions SSE] Subscriber error:', err.message);
+        }
+      };
+
+      subscription.on('message', messageHandler);
+      subscription.on('error', errorHandler);
+
+      request.signal.addEventListener('abort', () => {
+        clearInterval(keepAliveInterval);
+        subscription.removeListener('message', messageHandler);
+        subscription.removeListener('error', errorHandler);
+        subscription.close();
+        deleteOnClose();
+        if (__DEV__) console.log(`[Actions SSE] Stream ended for assistant=${assistantId}`);
+        try {
+          controller.close();
+        } catch {
+          // Already closed
+        }
+      });
     },
   });
 
@@ -300,7 +250,7 @@ function createPubSubStream(
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
 
-  if (__DEV__) console.log(`[DEBUG][Actions SSE] GET request for assistantId=${assistantId}`);
+  if (__DEV__) console.log(`[Actions SSE] GET request for assistantId=${assistantId}`);
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });
@@ -311,28 +261,24 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return createLocalStream(request, assistantId);
   }
 
-  // ── Production / staging: GCP Pub/Sub ephemeral subscriptions ──
-  let authClient: any;
-  let subscriptionUrl: string;
+  // ── Production / staging: GCP Pub/Sub gRPC streaming pull ──
+  let subscriptionName: string;
 
   try {
-    const authData = await getAuthClient();
-    authClient = authData.client;
-
+    const { pubsub } = getPubSubClient();
     const connectionId = crypto.randomUUID().slice(0, 8);
     const topicName = getTopicName(assistantId);
-    const subscriptionName = `${topicName}-actions-sse-${connectionId}`;
+    subscriptionName = `${topicName}-actions-sse-${connectionId}`;
 
-    subscriptionUrl = await createEphemeralSubscription(
-      authClient,
-      authData.projectId,
-      topicName,
-      subscriptionName
-    );
+    const topic = pubsub.topic(topicName);
+    await topic.createSubscription(subscriptionName, {
+      expirationPolicy: { ttl: { seconds: parseInt(EPHEMERAL_EXPIRATION_TTL) } },
+      messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
+    });
 
     if (__DEV__)
       console.log(
-        `[DEBUG][Actions SSE] Auth OK. Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
+        `[Actions SSE] Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
       );
   } catch (error: any) {
     console.error('[Actions SSE] Setup error:', error.message);
@@ -341,9 +287,17 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     });
   }
 
+  const deleteOnClose = () => {
+    const { pubsub } = getPubSubClient();
+    pubsub
+      .subscription(subscriptionName)
+      .delete()
+      .catch(() => {});
+  };
+
   request.signal.addEventListener('abort', () => {
-    deleteSubscription(authClient, subscriptionUrl);
+    deleteOnClose();
   });
 
-  return createPubSubStream(request, assistantId, authClient, subscriptionUrl);
+  return createPubSubStream(request, assistantId, subscriptionName, deleteOnClose);
 }
