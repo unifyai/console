@@ -63,7 +63,7 @@ export function AttachmentChip({ attachment, onRemove, onHover, onPreview, class
   const status = attachment.uploadStatus;
   const isUploading = status === 'queued' || status === 'uploading' || status === 'done' || status === 'error';
   const tooLarge = isOversized(attachment.sizeBytes);
-  const isClickable = !!onPreview && !isUploading && !tooLarge;
+  const isClickable = !!onPreview;
 
   const handleClick = React.useCallback(() => {
     if (isClickable) onPreview?.(attachment);
