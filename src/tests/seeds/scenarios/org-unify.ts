@@ -24,6 +24,7 @@ import {
   createOrg,
   createAssistant,
   createEmailLogin,
+  seedChatInfrastructure,
 } from '../client';
 
 export async function seedOrgAndOutsider(): Promise<SeededState> {
@@ -48,6 +49,20 @@ export async function seedOrgAndOutsider(): Promise<SeededState> {
     userId: outsider.id,
     firstName: 'Solo',
     surname: 'Helper',
+  });
+
+  await seedChatInfrastructure({
+    apiKey: org.ownerOrgApiKey,
+    userId: owner.id,
+    assistantId: orgAssistant.agentId,
+    email: owner.email,
+  });
+
+  await seedChatInfrastructure({
+    apiKey: outsider.apiKey,
+    userId: outsider.id,
+    assistantId: personalAssistant.agentId,
+    email: outsider.email,
   });
 
   return {

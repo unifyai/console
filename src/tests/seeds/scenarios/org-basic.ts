@@ -22,6 +22,7 @@ import {
   addMember,
   createAssistant,
   createEmailLogin,
+  seedChatInfrastructure,
 } from '../client';
 
 export async function seedOrgBasic(): Promise<SeededState> {
@@ -43,6 +44,13 @@ export async function seedOrgBasic(): Promise<SeededState> {
     orgId: org.id,
     firstName: 'OrgBot',
     surname: 'One',
+  });
+
+  await seedChatInfrastructure({
+    apiKey: org.ownerOrgApiKey,
+    userId: owner.id,
+    assistantId: assistant.agentId,
+    email: owner.email,
   });
 
   return {

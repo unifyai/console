@@ -52,6 +52,7 @@ export {
   ensureVoicePreset,
   ensureProject,
   grantProjectAccessForOrg,
+  seedChatInfrastructure,
   deleteUser,
   deleteOrg,
 } from './client';
