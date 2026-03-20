@@ -17,6 +17,8 @@ export type AttachmentType =
  * they're only populated after upload. `file` is only present during upload
  * (browser File objects can't be serialized).
  */
+export type AttachmentUploadStatus = 'pending' | 'uploading' | 'done' | 'error';
+
 export interface Attachment {
   id: string;
   filename: string;
@@ -25,6 +27,7 @@ export interface Attachment {
   sizeBytes?: number;
   /** Browser File object, only present during upload */
   file?: File;
+  uploadStatus?: AttachmentUploadStatus;
 }
 
 /**

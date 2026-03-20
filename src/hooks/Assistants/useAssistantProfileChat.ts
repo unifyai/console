@@ -4,7 +4,7 @@ import { ChatMessage, BroadcastMessagePayload, Attachment } from '@/types/assist
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { uploadAttachment as uploadAttachmentClient } from '@/components/Chat/attachmentUtils';
+import { uploadAttachmentBatch } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts } from './useContactIdPrefetch';
 
@@ -730,7 +730,7 @@ export function useAssistantProfileChat(
   const sendMessage = (
     e: React.FormEvent,
     attachments?: Attachment[],
-    onError?: (attachments: Attachment[]) => void
+    setPendingAttachments?: React.Dispatch<React.SetStateAction<Attachment[]>>
   ) => {
     e.preventDefault();
 
@@ -794,46 +794,88 @@ export function useAssistantProfileChat(
     channel.postMessage(payload);
     channel.close();
 
+    const failedIds = new Set<string>();
+
+    const updateChipStatus = (id: string, status: Attachment['uploadStatus']) => {
+      if (status === 'error') failedIds.add(id);
+      setPendingAttachments?.((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, uploadStatus: status } : a))
+      );
+    };
+
     const sendMessageWithAttachments = async () => {
       try {
         let uploadedAttachments: Attachment[] | undefined;
 
         if (attachments && attachments.length > 0) {
-          const uploadPromises = attachments
-            .filter((a) => a.file)
-            .map(async (a) => {
-              const uploadResult = await uploadAttachmentClient(a.file!, currentAssistant.agentId);
+          const succeeded = await uploadAttachmentBatch(
+            attachments,
+            currentAssistant.agentId,
+            {
+              onStatusChange: updateChipStatus,
+              onUploaded: (id, result) => {
+                setPendingAttachments?.((prev) =>
+                  prev.map((a) =>
+                    a.id === id
+                      ? { ...a, gsUrl: result.gsUrl, contentType: result.contentType, sizeBytes: result.sizeBytes }
+                      : a
+                  )
+                );
+              },
+            }
+          );
+
+          if (failedIds.size > 0) {
+            const failedCount = failedIds.size;
+            toast.error(
+              `${failedCount} attachment${failedCount > 1 ? 's' : ''} failed to upload`
+            );
+          }
+
+          // Clear succeeded chips, keep failed ones with error status and remove buttons
+          setPendingAttachments?.((prev) => prev.filter((a) => failedIds.has(a.id)));
+
+          if (succeeded.length > 0) {
+            uploadedAttachments = succeeded;
+
+            setChatHistories((prev) => {
+              const current = prev[currentAssistantId] || [];
               return {
-                id: uploadResult.id,
-                filename: uploadResult.filename,
-                gsUrl: uploadResult.gsUrl,
-                contentType: uploadResult.contentType,
-                sizeBytes: uploadResult.sizeBytes,
-              } satisfies Attachment;
+                ...prev,
+                [currentAssistantId]: current.map((msg) =>
+                  msg.id === messageId ? { ...msg, attachments: uploadedAttachments } : msg
+                ),
+              };
             });
-
-          uploadedAttachments = await Promise.all(uploadPromises);
-
-          setChatHistories((prev) => {
-            const current = prev[currentAssistantId] || [];
-            return {
-              ...prev,
-              [currentAssistantId]: current.map((msg) =>
-                msg.id === messageId ? { ...msg, attachments: uploadedAttachments } : msg
-              ),
-            };
-          });
+          }
+        } else {
+          // No attachments — clear pending list
+          setPendingAttachments?.([]);
         }
 
-        const response = await assistantActions.chat.message({
-          assistantId: parseInt(currentAssistant.agentId),
-          contactId: currentContactId,
-          message: messageToSend,
-          attachments: uploadedAttachments,
-        });
+        // Send message if there's text or at least one successful upload
+        const hasMessageContent = messageToSend || (uploadedAttachments && uploadedAttachments.length > 0);
+        if (hasMessageContent) {
+          const response = await assistantActions.chat.message({
+            assistantId: parseInt(currentAssistant.agentId),
+            contactId: currentContactId,
+            message: messageToSend,
+            attachments: uploadedAttachments,
+          });
 
-        if (response.detail) {
-          throw new Error(response.detail);
+          if (response.detail) {
+            throw new Error(response.detail);
+          }
+        } else {
+          // All uploads failed and no text — remove the optimistic message
+          setChatHistories((prev) => ({
+            ...prev,
+            [currentAssistantId]: (prev[currentAssistantId] || []).filter(
+              (msg) => msg.id !== messageId
+            ),
+          }));
+          setInputValue(messageToSend);
+          stopReplying();
         }
       } catch (error) {
         setChatHistories((prev) => ({
@@ -847,8 +889,11 @@ export function useAssistantProfileChat(
         const errorMsg = error instanceof Error ? error.message : 'Failed to send message.';
         toast.error(errorMsg);
 
-        if (onError && attachments && attachments.length > 0) {
-          onError(attachments);
+        // Restore all attachments on message-send failure
+        if (attachments && attachments.length > 0) {
+          setPendingAttachments?.(
+            attachments.map((a) => ({ ...a, uploadStatus: undefined }))
+          );
         }
       }
     };

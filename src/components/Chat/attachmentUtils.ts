@@ -346,6 +346,63 @@ export async function uploadAttachment(
   };
 }
 
+/** Max concurrent uploads to avoid saturating browser connections */
+const UPLOAD_CONCURRENCY = 3;
+
+export interface BatchUploadCallbacks {
+  onStatusChange: (id: string, status: Attachment['uploadStatus']) => void;
+  onUploaded: (id: string, result: AttachmentUploadResponse) => void;
+}
+
+/**
+ * Upload a batch of attachments with bounded concurrency.
+ * Calls back per-file so the UI can update chips in real time.
+ * Returns the list of successfully uploaded attachments.
+ */
+export async function uploadAttachmentBatch(
+  attachments: Attachment[],
+  assistantId: string,
+  callbacks: BatchUploadCallbacks
+): Promise<Attachment[]> {
+  const toUpload = attachments.filter((a) => a.file);
+  const succeeded: Attachment[] = [];
+
+  let cursor = 0;
+
+  async function runNext(): Promise<void> {
+    const idx = cursor++;
+    if (idx >= toUpload.length) return;
+
+    const attachment = toUpload[idx];
+    callbacks.onStatusChange(attachment.id, 'uploading');
+
+    try {
+      const result = await uploadAttachment(attachment.file!, assistantId);
+      callbacks.onStatusChange(attachment.id, 'done');
+      callbacks.onUploaded(attachment.id, result);
+      succeeded.push({
+        id: result.id,
+        filename: result.filename,
+        gsUrl: result.gsUrl,
+        contentType: result.contentType,
+        sizeBytes: result.sizeBytes,
+      });
+    } catch {
+      callbacks.onStatusChange(attachment.id, 'error');
+    }
+
+    return runNext();
+  }
+
+  const workers = Array.from(
+    { length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) },
+    () => runNext()
+  );
+  await Promise.all(workers);
+
+  return succeeded;
+}
+
 /**
  * Create an Attachment from an upload response, stripping the signedUrl
  * (only gsUrl is persisted in transcripts).

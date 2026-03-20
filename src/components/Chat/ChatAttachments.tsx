@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Download, ChevronDown, ChevronUp, Loader2, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -31,6 +31,9 @@ export interface AttachmentChipProps {
 /**
  * Single attachment chip with icon, filename, and optional remove button.
  * When the attachment has a gsUrl, clicking the chip triggers a download.
+ * During upload, shows a spinner/check/error indicator instead of remove.
+ *
+ * Must be rendered inside a TooltipProvider (provided by the list components).
  */
 export function AttachmentChip({ attachment, onRemove, className }: AttachmentChipProps) {
   const [downloading, setDownloading] = React.useState(false);
@@ -38,8 +41,9 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
   const Icon = getAttachmentIcon(type);
   const iconColor = getAttachmentColor(type);
   const truncatedName = truncateFilename(attachment.filename);
-  const showRemoveButton = !!onRemove;
   const isDownloadable = !!attachment.gsUrl;
+  const status = attachment.uploadStatus;
+  const isUploading = status === 'uploading' || status === 'done' || status === 'error';
 
   const handleDownload = React.useCallback(async () => {
     if (!attachment.gsUrl || downloading) return;
@@ -57,58 +61,70 @@ export function AttachmentChip({ attachment, onRemove, className }: AttachmentCh
     }
   }, [attachment.gsUrl, attachment.filename, downloading]);
 
+  const statusIndicator = React.useMemo(() => {
+    switch (status) {
+      case 'uploading':
+        return <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />;
+      case 'done':
+        return <Check className="h-3 w-3 flex-shrink-0 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />;
+      default:
+        return null;
+    }
+  }, [status]);
+
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge
-            variant="secondary"
-            className={cn(
-              'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
-              isDownloadable && 'hover:bg-muted/50 cursor-pointer',
-              className
-            )}
-            data-testid="attachment-chip"
-            onClick={isDownloadable ? handleDownload : undefined}
-            role={isDownloadable ? 'button' : undefined}
-          >
-            <Icon
-              className="h-3.5 w-3.5 flex-shrink-0"
-              style={{ color: iconColor }}
-              data-testid="attachment-icon"
-            />
-            <span className="truncate" data-testid="attachment-name">
-              {truncatedName}
-            </span>
-            {isDownloadable && !showRemoveButton && (
-              <Download className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
-            )}
-            {showRemoveButton && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="ml-0.5 h-4 w-4 rounded-full p-0 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove();
-                }}
-                aria-label={`Remove ${attachment.filename}`}
-                data-testid="attachment-remove"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <div className="text-caption space-y-0.5">
-            <p className="font-medium">{attachment.filename}</p>
-            <p className="text-muted-foreground">{formatFileSize(attachment.sizeBytes ?? 0)}</p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="secondary"
+          className={cn(
+            'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
+            isDownloadable && 'hover:bg-muted/50 cursor-pointer',
+            status === 'error' && 'border-destructive/40',
+            className
+          )}
+          data-testid="attachment-chip"
+          onClick={isDownloadable ? handleDownload : undefined}
+          role={isDownloadable ? 'button' : undefined}
+        >
+          <Icon
+            className={cn('h-3.5 w-3.5 flex-shrink-0', status === 'uploading' && 'opacity-50')}
+            style={{ color: iconColor }}
+            data-testid="attachment-icon"
+          />
+          <span className={cn('truncate', status === 'uploading' && 'opacity-50')} data-testid="attachment-name">
+            {truncatedName}
+          </span>
+          {statusIndicator}
+          {!isUploading && isDownloadable && !onRemove && (
+            <Download className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
+          )}
+          {!isUploading && onRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="ml-0.5 h-4 w-4 rounded-full p-0 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              aria-label={`Remove ${attachment.filename}`}
+              data-testid="attachment-remove"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <span className="text-caption font-medium">
+          {attachment.filename} [{formatFileSize(attachment.sizeBytes ?? 0)}]
+        </span>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -141,33 +157,35 @@ export function PendingAttachmentList({
   const hiddenCount = attachments.length - COLLAPSED_CHIP_LIMIT;
 
   return (
-    <div className={cn('flex flex-wrap gap-2', className)} data-testid="pending-attachments">
-      {visible.map((attachment) => (
-        <div key={attachment.id} data-testid="pending-attachment-chip">
-          <AttachmentChip attachment={attachment} onRemove={() => onRemove(attachment.id)} />
-        </div>
-      ))}
-      {needsCollapse && (
-        <Badge
-          variant="secondary"
-          className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
-          onClick={() => setExpanded((prev) => !prev)}
-          data-testid="attachment-expand-toggle"
-        >
-          {expanded ? (
-            <>
-              Show less
-              <ChevronUp className="h-3 w-3" />
-            </>
-          ) : (
-            <>
-              +{hiddenCount} more
-              <ChevronDown className="h-3 w-3" />
-            </>
-          )}
-        </Badge>
-      )}
-    </div>
+    <TooltipProvider delayDuration={0} skipDelayDuration={300}>
+      <div className={cn('flex flex-wrap gap-2', className)} data-testid="pending-attachments">
+        {visible.map((attachment) => (
+          <div key={attachment.id} data-testid="pending-attachment-chip">
+            <AttachmentChip attachment={attachment} onRemove={() => onRemove(attachment.id)} />
+          </div>
+        ))}
+        {needsCollapse && (
+          <Badge
+            variant="secondary"
+            className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+            onClick={() => setExpanded((prev) => !prev)}
+            data-testid="attachment-expand-toggle"
+          >
+            {expanded ? (
+              <>
+                Show less
+                <ChevronUp className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                +{hiddenCount} more
+                <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </Badge>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -205,39 +223,41 @@ export function MessageAttachmentList({
   const hiddenCount = otherAttachments.length - COLLAPSED_CHIP_LIMIT;
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      {htmlAttachments.map((attachment) => (
-        <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
-      ))}
-      {visibleOther.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {visibleOther.map((attachment) => (
-            <div key={attachment.id} data-testid="message-attachment">
-              <AttachmentChip attachment={attachment} />
-            </div>
-          ))}
-          {needsCollapse && (
-            <Badge
-              variant="secondary"
-              className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
-              onClick={() => setExpanded((prev) => !prev)}
-              data-testid="attachment-expand-toggle"
-            >
-              {expanded ? (
-                <>
-                  Show less
-                  <ChevronUp className="h-3 w-3" />
-                </>
-              ) : (
-                <>
-                  +{hiddenCount} more
-                  <ChevronDown className="h-3 w-3" />
-                </>
-              )}
-            </Badge>
-          )}
-        </div>
-      )}
-    </div>
+    <TooltipProvider delayDuration={0} skipDelayDuration={300}>
+      <div className={cn('flex flex-col gap-2', className)}>
+        {htmlAttachments.map((attachment) => (
+          <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
+        ))}
+        {visibleOther.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {visibleOther.map((attachment) => (
+              <div key={attachment.id} data-testid="message-attachment">
+                <AttachmentChip attachment={attachment} />
+              </div>
+            ))}
+            {needsCollapse && (
+              <Badge
+                variant="secondary"
+                className="text-body border-border/60 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50"
+                onClick={() => setExpanded((prev) => !prev)}
+                data-testid="attachment-expand-toggle"
+              >
+                {expanded ? (
+                  <>
+                    Show less
+                    <ChevronUp className="h-3 w-3" />
+                  </>
+                ) : (
+                  <>
+                    +{hiddenCount} more
+                    <ChevronDown className="h-3 w-3" />
+                  </>
+                )}
+              </Badge>
+            )}
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }

@@ -27,6 +27,7 @@ export {
   formatFileSize,
   truncateFilename,
   createAttachment,
+  uploadAttachmentBatch,
 } from './attachmentUtils';
 
 export { ChatMarkdown } from './ChatMarkdown';

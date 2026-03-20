@@ -56,6 +56,9 @@ interface AssistantProfileChatPanelProps {
   spendingGate?: SpendingGateStatus;
 }
 
+const IS_LOCAL_DEV =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
 export function AssistantProfileChatPanel({
   assistant,
   assistantActions,
@@ -109,6 +112,8 @@ export function AssistantProfileChatPanel({
     preHireChat,
     onFirstViewCompleted
   );
+
+  const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -181,9 +186,16 @@ export function AssistantProfileChatPanel({
     [pendingAttachments]
   );
 
-  const removeAttachment = React.useCallback((id: string) => {
-    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+  const removeAttachment = React.useCallback(
+    (id: string) => {
+      setPendingAttachments((prev) => {
+        const target = prev.find((a) => a.id === id);
+        if (target?.uploadStatus === 'uploading') return prev;
+        return prev.filter((a) => a.id !== id);
+      });
+    },
+    []
+  );
 
   const handleCameraCapture = React.useCallback(
     (file: File) => {
@@ -313,27 +325,27 @@ export function AssistantProfileChatPanel({
     return () => ro.disconnect();
   }, []);
 
+  const isUploading = pendingAttachments.some(
+    (a) => a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
+  );
+
   /* Handle send with attachments */
   const handleSendWithAttachments = React.useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      // Block sending while messages are still loading
-      if (isLoading) return;
+      if (isLoading || isUploading) return;
       if (!inputValue.trim() && pendingAttachments.length === 0) return;
 
-      // Store attachments to send
       const attachmentsToSend = [...pendingAttachments];
 
-      // Clear pending attachments optimistically
-      setPendingAttachments([]);
+      // Mark all chips as pending upload (spinner will show once uploading starts)
+      setPendingAttachments((prev) =>
+        prev.map((a) => ({ ...a, uploadStatus: 'pending' as const }))
+      );
 
-      // Call send with attachments, with error callback to restore on failure
-      sendMessage(e, attachmentsToSend, (failedAttachments) => {
-        // Use functional update to preserve any attachments added while request was in-flight
-        setPendingAttachments((prev) => [...failedAttachments, ...prev]);
-      });
+      sendMessage(e, attachmentsToSend, setPendingAttachments);
     },
-    [inputValue, pendingAttachments, sendMessage, isLoading]
+    [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
   );
 
   const sendMessageOnEnter = React.useCallback(
@@ -458,6 +470,15 @@ export function AssistantProfileChatPanel({
 
       {/* Input Area */}
       <form onSubmit={handleSendWithAttachments} className="bg-background p-4">
+        {/* Pending attachments — outside dropzone so tooltips work */}
+        {pendingAttachments.length > 0 && (
+          <PendingAttachmentList
+            attachments={pendingAttachments}
+            onRemove={removeAttachment}
+            className="mb-2"
+          />
+        )}
+
         <div
           {...getRootProps()}
           className={cn('relative', isDragActive && 'rounded-md ring-2 ring-primary ring-offset-2')}
@@ -468,15 +489,6 @@ export function AssistantProfileChatPanel({
             <div className="bg-primary/10 absolute inset-0 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary">
               <span className="font-medium text-primary">Drop files here</span>
             </div>
-          )}
-
-          {/* Pending attachments */}
-          {pendingAttachments.length > 0 && (
-            <PendingAttachmentList
-              attachments={pendingAttachments}
-              onRemove={removeAttachment}
-              className="mb-2"
-            />
           )}
 
           {/* Hidden file input — getInputProps() owns the ref and hides the
@@ -496,8 +508,9 @@ export function AssistantProfileChatPanel({
                   disabled={
                     !canChat ||
                     isLoading ||
+                    isUploading ||
                     initialLoadError ||
-                    connectionStatus === 'error' ||
+                    sseBlocked ||
                     isSpendingBlocked ||
                     isRecording
                   }
@@ -536,7 +549,7 @@ export function AssistantProfileChatPanel({
                 !canChat ||
                 isLoading ||
                 initialLoadError ||
-                connectionStatus === 'error' ||
+                sseBlocked ||
                 isSpendingBlocked ||
                 isTranscribing
               }
@@ -575,7 +588,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat ||
                 initialLoadError ||
-                connectionStatus === 'error' ||
+                sseBlocked ||
                 isSpendingBlocked
               }
               className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
@@ -592,9 +605,10 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat ||
                 isLoading ||
+                isUploading ||
                 (!inputValue.trim() && pendingAttachments.length === 0) ||
                 initialLoadError ||
-                connectionStatus === 'error' ||
+                sseBlocked ||
                 isSpendingBlocked
               }
             >
