@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X, Download, ChevronDown, ChevronUp, Loader2, Check, AlertCircle } from 'lucide-react';
+import { X, Download, ChevronDown, ChevronUp, Loader2, Check, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -17,6 +17,25 @@ import { HtmlAttachmentEmbed } from './HtmlAttachmentEmbed';
 import type { Attachment } from '@/types/assistants/chat';
 
 const COLLAPSED_CHIP_LIMIT = 5;
+
+/**
+ * Derive a summary upload status icon for a set of hidden chips.
+ * Shows the least-progressed state: queued > uploading > done.
+ * Returns null if no chips have an upload status.
+ */
+function hiddenStatusIcon(items: Attachment[]): React.ReactNode {
+  const statuses = items.map((a) => a.uploadStatus).filter(Boolean);
+  if (statuses.length === 0) return null;
+  if (statuses.includes('queued'))
+    return <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />;
+  if (statuses.includes('uploading'))
+    return <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />;
+  if (statuses.includes('error'))
+    return <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />;
+  if (statuses.every((s) => s === 'done'))
+    return <Check className="h-3 w-3 flex-shrink-0 text-green-500" />;
+  return null;
+}
 
 // =============================================================================
 // ATTACHMENT CHIP
@@ -42,7 +61,7 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
   const truncatedName = truncateFilename(attachment.filename);
   const isDownloadable = !!attachment.gsUrl;
   const status = attachment.uploadStatus;
-  const isUploading = status === 'uploading' || status === 'done' || status === 'error';
+  const isUploading = status === 'queued' || status === 'uploading' || status === 'done' || status === 'error';
   const tooLarge = isOversized(attachment.sizeBytes);
 
   const handleDownload = React.useCallback(async () => {
@@ -63,6 +82,8 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
 
   const statusIndicator = React.useMemo(() => {
     switch (status) {
+      case 'queued':
+        return <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />;
       case 'uploading':
         return <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />;
       case 'done':
@@ -94,12 +115,12 @@ export function AttachmentChip({ attachment, onRemove, onHover, className }: Att
         <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" data-testid="attachment-icon" />
       ) : (
         <Icon
-          className={cn('h-3.5 w-3.5 flex-shrink-0', status === 'uploading' && 'opacity-50')}
+          className={cn('h-3.5 w-3.5 flex-shrink-0', (status === 'uploading' || status === 'queued') && 'opacity-50')}
           style={{ color: iconColor }}
           data-testid="attachment-icon"
         />
       )}
-      <span className={cn('truncate', status === 'uploading' && 'opacity-50')} data-testid="attachment-name">
+      <span className={cn('truncate', (status === 'uploading' || status === 'queued') && 'opacity-50')} data-testid="attachment-name">
         {truncatedName}
       </span>
       {statusIndicator}
@@ -176,6 +197,7 @@ export function PendingAttachmentList({
   const hidden = needsCollapse && !expanded ? attachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = attachments.length - COLLAPSED_CHIP_LIMIT;
   const hiddenHasWarning = hidden.some((a) => isOversized(a.sizeBytes));
+  const hiddenStatus = hiddenStatusIcon(hidden);
 
   return (
     <div className={className} data-testid="pending-attachments">
@@ -207,7 +229,8 @@ export function PendingAttachmentList({
               </>
             ) : (
               <>
-                {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                {hiddenHasWarning && !hiddenStatus && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                {hiddenStatus}
                 +{hiddenCount} more
                 <ChevronDown className="h-3 w-3" />
               </>
@@ -254,6 +277,7 @@ export function MessageAttachmentList({
   const hiddenOther = needsCollapse && !expanded ? otherAttachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = otherAttachments.length - COLLAPSED_CHIP_LIMIT;
   const hiddenHasWarning = hiddenOther.some((a) => isOversized(a.sizeBytes));
+  const hiddenStatus = hiddenStatusIcon(hiddenOther);
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -285,7 +309,8 @@ export function MessageAttachmentList({
                   </>
                 ) : (
                   <>
-                    {hiddenHasWarning && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                    {hiddenHasWarning && !hiddenStatus && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
+                    {hiddenStatus}
                     +{hiddenCount} more
                     <ChevronDown className="h-3 w-3" />
                   </>

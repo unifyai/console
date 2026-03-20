@@ -353,8 +353,7 @@ export async function uploadAttachment(
   };
 }
 
-/** Max concurrent uploads to avoid saturating browser connections */
-const UPLOAD_CONCURRENCY = 3;
+const UPLOAD_CONCURRENCY = 6;
 
 export interface BatchUploadCallbacks {
   onStatusChange: (id: string, status: Attachment['uploadStatus']) => void;
@@ -373,6 +372,10 @@ export async function uploadAttachmentBatch(
 ): Promise<Attachment[]> {
   const toUpload = attachments.filter((a) => a.file);
   const succeeded: Attachment[] = [];
+
+  for (const a of toUpload) {
+    callbacks.onStatusChange(a.id, 'queued');
+  }
 
   let cursor = 0;
 

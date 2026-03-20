@@ -339,7 +339,7 @@ export function AssistantProfileChatPanel({
   }, []);
 
   const isUploading = pendingAttachments.some(
-    (a) => a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
+    (a) => a.uploadStatus === 'queued' || a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
   );
 
   /* Handle send with attachments */
@@ -593,24 +593,27 @@ export function AssistantProfileChatPanel({
               ref={textareaRef}
               rows={1}
               placeholder={
-                isRecording
-                  ? 'Recording...'
-                  : isTranscribing
-                    ? 'Transcribing...'
-                    : !canChat
-                      ? isRetryingContactId
-                        ? 'Chat unavailable, retrying connection...'
-                        : 'Chat unavailable'
-                      : isSpendingBlocked
-                        ? spendingGate.blockedMessage || 'Spending limit reached'
-                        : initialLoadError
-                          ? 'Connection failed'
-                          : 'Send a message...'
+                isUploading
+                  ? 'Uploading attachments...'
+                  : isRecording
+                    ? 'Recording...'
+                    : isTranscribing
+                      ? 'Transcribing...'
+                      : !canChat
+                        ? isRetryingContactId
+                          ? 'Chat unavailable, retrying connection...'
+                          : 'Chat unavailable'
+                        : isSpendingBlocked
+                          ? spendingGate.blockedMessage || 'Spending limit reached'
+                          : initialLoadError
+                            ? 'Connection failed'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
                 !canChat ||
+                isUploading ||
                 initialLoadError ||
                 sseBlocked ||
                 isSpendingBlocked

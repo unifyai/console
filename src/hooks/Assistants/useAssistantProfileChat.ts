@@ -756,43 +756,8 @@ export function useAssistantProfileChat(
 
     clearTimers();
 
-    const messageId = uuidv4();
-    const newUserMessage: ChatMessage = {
-      id: messageId,
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-      attachments: attachments?.map((a) => ({
-        id: a.id,
-        filename: a.filename,
-        gsUrl: a.gsUrl,
-        contentType: a.contentType,
-        sizeBytes: a.sizeBytes,
-      })),
-    };
-
-    setChatHistories((prev) => {
-      const current = prev[currentAssistantId] || [];
-      const updated = [...current, newUserMessage].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      return { ...prev, [currentAssistantId]: updated };
-    });
-
     const messageToSend = inputValue.trim();
     setInputValue('');
-
-    typingDelayTimerRef.current = setTimeout(() => {
-      setIsAssistantReplying(true);
-    }, 5000);
-
-    const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
-    const payload: BroadcastMessagePayload = {
-      type: 'NEW_MESSAGE',
-      message: newUserMessage,
-    };
-    channel.postMessage(payload);
-    channel.close();
 
     const failedIds = new Set<string>();
 
@@ -837,25 +802,56 @@ export function useAssistantProfileChat(
 
           if (succeeded.length > 0) {
             uploadedAttachments = succeeded;
-
-            setChatHistories((prev) => {
-              const current = prev[currentAssistantId] || [];
-              return {
-                ...prev,
-                [currentAssistantId]: current.map((msg) =>
-                  msg.id === messageId ? { ...msg, attachments: uploadedAttachments } : msg
-                ),
-              };
-            });
           }
         } else {
-          // No attachments — clear pending list
           setPendingAttachments?.([]);
         }
 
-        // Send message if there's text or at least one successful upload
         const hasMessageContent = messageToSend || (uploadedAttachments && uploadedAttachments.length > 0);
-        if (hasMessageContent) {
+        if (!hasMessageContent) {
+          setInputValue(messageToSend);
+          stopReplying();
+          return;
+        }
+
+        // -- Uploads done, chips cleaned up. From here, failures should NOT restore attachments. --
+
+        const messageId = uuidv4();
+        const newUserMessage: ChatMessage = {
+          id: messageId,
+          role: 'user',
+          content: messageToSend,
+          timestamp: new Date(),
+          attachments: uploadedAttachments?.map((a) => ({
+            id: a.id,
+            filename: a.filename,
+            gsUrl: a.gsUrl,
+            contentType: a.contentType,
+            sizeBytes: a.sizeBytes,
+          })),
+        };
+
+        setChatHistories((prev) => {
+          const current = prev[currentAssistantId] || [];
+          const updated = [...current, newUserMessage].sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          return { ...prev, [currentAssistantId]: updated };
+        });
+
+        typingDelayTimerRef.current = setTimeout(() => {
+          setIsAssistantReplying(true);
+        }, 5000);
+
+        const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'NEW_MESSAGE',
+          message: newUserMessage,
+        };
+        channel.postMessage(payload);
+        channel.close();
+
+        try {
           const response = await assistantActions.chat.message({
             assistantId: parseInt(currentAssistant.agentId),
             contactId: currentContactId,
@@ -866,8 +862,10 @@ export function useAssistantProfileChat(
           if (response.detail) {
             throw new Error(response.detail);
           }
-        } else {
-          // All uploads failed and no text — remove the optimistic message
+        } catch (sendError) {
+          // Message-send failed but uploads already succeeded — remove the
+          // optimistic message and restore the text, but do NOT restore
+          // attachments (they were already uploaded to GCS).
           setChatHistories((prev) => ({
             ...prev,
             [currentAssistantId]: (prev[currentAssistantId] || []).filter(
@@ -876,20 +874,16 @@ export function useAssistantProfileChat(
           }));
           setInputValue(messageToSend);
           stopReplying();
+          const errorMsg = sendError instanceof Error ? sendError.message : 'Failed to send message.';
+          toast.error(errorMsg);
         }
       } catch (error) {
-        setChatHistories((prev) => ({
-          ...prev,
-          [currentAssistantId]: (prev[currentAssistantId] || []).filter(
-            (msg) => msg.id !== messageId
-          ),
-        }));
+        // Upload-phase failure — restore attachments so user can retry
         setInputValue(messageToSend);
         stopReplying();
         const errorMsg = error instanceof Error ? error.message : 'Failed to send message.';
         toast.error(errorMsg);
 
-        // Restore all attachments on message-send failure
         if (attachments && attachments.length > 0) {
           setPendingAttachments?.(
             attachments.map((a) => ({ ...a, uploadStatus: undefined }))
