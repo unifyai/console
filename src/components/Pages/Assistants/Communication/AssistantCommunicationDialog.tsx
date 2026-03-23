@@ -105,7 +105,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
-        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
+        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen',
+        assistant.deployEnv
       )
       .catch(console.error);
   }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
@@ -122,7 +123,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_webcam_started' : 'user_webcam_stopped',
-        isOn ? 'User enabled their webcam' : 'User disabled their webcam'
+        isOn ? 'User enabled their webcam' : 'User disabled their webcam',
+        assistant.deployEnv
       )
       .catch(console.error);
   }, [camToggle.enabled, assistant, assistantActions.desktop]);

@@ -793,7 +793,8 @@ export function useAssistantProfileChat(
                   )
                 );
               },
-            }
+            },
+            currentAssistant.deployEnv
           );
           uploadHandleRef.current = handle;
           const succeeded = await handle.promise;
@@ -869,6 +870,7 @@ export function useAssistantProfileChat(
             contactId: currentContactId,
             message: messageToSend,
             attachments: uploadedAttachments,
+            deployEnv: currentAssistant.deployEnv,
           });
 
           if (response.detail) {

@@ -41,6 +41,8 @@ import type { User } from '@/types/user';
 
 const MOCK_ORCHESTRA_URL = 'http://localhost:8000/v0';
 const MOCK_DISPATCH_URL = 'https://service.a.run.app/unify/meet';
+const MOCK_DISPATCH_URL_PREVIEW = 'https://service.a.run.app/unify/meet';
+const MOCK_DISPATCH_URL_STAGING = 'https://service.a.run.app/unify/meet';
 const MOCK_ADMIN_KEY = 'test-admin-key';
 
 describe('call.ts', () => {
@@ -229,6 +231,96 @@ describe('call.ts', () => {
         const result = await dispatchFn('assistant-123', 'room-abc');
 
         // Assert
+        expect(result).toHaveProperty('info');
+      }
+    );
+
+    it(
+      'dispatches to preview adapters when deployEnv is preview',
+      {
+        meta: {
+          alias: 'DispatchCall-PreviewEnv',
+          scenario: 'Assistant has deploy_env="preview"',
+          behavior: 'Request goes to unity-adapters-preview-* host instead of default',
+        },
+      },
+      async () => {
+        // Arrange
+        let capturedUrl = '';
+        server.use(
+          http.post(MOCK_DISPATCH_URL_PREVIEW, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ info: 'Assistant dispatched' });
+          })
+        );
+
+        // Act
+        const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
+        const result = await dispatchFn('assistant-123', 'room-abc', 'preview');
+
+        // Assert
+        expect(capturedUrl).toContain('unity-adapters-preview-');
+        expect(result).toHaveProperty('info');
+      }
+    );
+
+    it(
+      'preview deployEnv overrides staging environment',
+      {
+        meta: {
+          alias: 'DispatchCall-PreviewOverridesStaging',
+          scenario: 'ORCHESTRA_URL is staging but assistant has deploy_env="preview"',
+          behavior: 'Request goes to preview host, not staging host',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.stubEnv('ORCHESTRA_URL', 'https://api.staging.example.com');
+        let capturedUrl = '';
+        server.use(
+          http.post(MOCK_DISPATCH_URL_PREVIEW, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ info: 'OK' });
+          })
+        );
+
+        // Act
+        const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
+        const result = await dispatchFn('assistant-123', 'room-abc', 'preview');
+
+        // Assert
+        expect(capturedUrl).toContain('unity-adapters-preview-');
+        expect(capturedUrl).not.toContain('unity-adapters-staging-');
+        expect(result).toHaveProperty('info');
+      }
+    );
+
+    it(
+      'uses staging adapters when ORCHESTRA_URL is staging and no deployEnv',
+      {
+        meta: {
+          alias: 'DispatchCall-StagingFallback',
+          scenario: 'ORCHESTRA_URL contains "staging" and no deploy_env override',
+          behavior: 'Request goes to unity-adapters-staging-* host',
+        },
+      },
+      async () => {
+        // Arrange
+        vi.stubEnv('ORCHESTRA_URL', 'https://api.staging.example.com');
+        let capturedUrl = '';
+        server.use(
+          http.post(MOCK_DISPATCH_URL_STAGING, ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ info: 'OK' });
+          })
+        );
+
+        // Act
+        const dispatchFn = await dispatchAssistantToCall(TEST_API_KEY);
+        const result = await dispatchFn('assistant-123', 'room-abc');
+
+        // Assert
+        expect(capturedUrl).toContain('unity-adapters-staging-');
         expect(result).toHaveProperty('info');
       }
     );

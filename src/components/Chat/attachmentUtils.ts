@@ -317,11 +317,15 @@ export function createAttachment(file: File): Attachment {
  */
 export async function uploadAttachment(
   file: File,
-  assistantId: string
+  assistantId: string,
+  deployEnv?: string | null
 ): Promise<AttachmentUploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('assistant_id', assistantId);
+  if (deployEnv) {
+    formData.append('deploy_env', deployEnv);
+  }
 
   let response: Response;
   try {
@@ -373,7 +377,8 @@ export interface BatchUploadHandle {
 export function uploadAttachmentBatch(
   attachments: Attachment[],
   assistantId: string,
-  callbacks: BatchUploadCallbacks
+  callbacks: BatchUploadCallbacks,
+  deployEnv?: string | null
 ): BatchUploadHandle {
   const toUpload = attachments.filter((a) => a.file);
   const succeeded: Attachment[] = [];
@@ -393,7 +398,7 @@ export function uploadAttachmentBatch(
     callbacks.onStatusChange(attachment.id, 'uploading');
 
     try {
-      const result = await uploadAttachment(attachment.file!, assistantId);
+      const result = await uploadAttachment(attachment.file!, assistantId, deployEnv);
       if (cancelled) return;
       callbacks.onStatusChange(attachment.id, 'done');
       callbacks.onUploaded(attachment.id, result);

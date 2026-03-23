@@ -70,6 +70,8 @@ export interface Assistant {
   signedProfileVideoUrl?: string;
   // Demo fields
   demoId?: string | null;
+  // Deployment environment
+  deployEnv?: 'preview' | null;
 }
 
 export interface AssistantStatus {
@@ -463,7 +465,7 @@ export interface AssistantActions {
       assistantId: string,
       assistantName: string
     ) => Promise<ConnectionDetails | ResponseProps>;
-    dispatchToCall: (assistantId: string, roomName: string) => Promise<ResponseProps>;
+    dispatchToCall: (assistantId: string, roomName: string, deployEnv?: string | null) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
   desktop: {
@@ -472,7 +474,8 @@ export interface AssistantActions {
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,
-      message: string
+      message: string,
+      deployEnv?: string | null
     ) => Promise<ResponseProps>;
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
   };

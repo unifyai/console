@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { badRequest, internalError } from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
+import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
@@ -8,18 +9,16 @@ import { camelToSnakeObject } from '@/utils/casing';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assistantId, roomName } = body;
+    const { assistantId, roomName, deployEnv } = body;
 
     if (!assistantId || !roomName) {
       return badRequest('assistantId and roomName are required');
     }
 
-    // Hardcode the base URL as requested
     const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
-    // Append '-staging' if in a staging/preview environment (using Vercel's env var as an example)
     const isStaging = baseUrl.includes('staging');
-    const DISPATCH_URL = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/meet`;
+    const prefix = getAdaptersPrefix(deployEnv, isStaging);
+    const DISPATCH_URL = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/meet`;
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
     if (!ADMIN_KEY) {

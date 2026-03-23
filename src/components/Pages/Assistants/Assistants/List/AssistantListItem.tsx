@@ -194,6 +194,16 @@ export function AssistantListItem({
         </HoverCard>
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
+      {assistant.deployEnv === 'preview' && (
+        <span
+          className={cn(
+            `text-caption`,
+            isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+          )}
+        >
+          <Badge variant="outline">Preview</Badge>
+        </span>
+      )}
       {assistant.demoId && (
         <span
           className={cn(

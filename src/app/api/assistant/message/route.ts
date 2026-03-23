@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 import type { Attachment } from '@/types/assistants/chat';
 
 export async function POST(request: NextRequest) {
@@ -29,10 +30,11 @@ export async function POST(request: NextRequest) {
     message?: string;
     body?: string;
     attachments?: Attachment[];
+    deployEnv?: string | null;
   }>(requestBody);
 
   // Support both 'message' and 'body' fields
-  const { assistantId, contactId, attachments } = normalizedBody;
+  const { assistantId, contactId, attachments, deployEnv } = normalizedBody;
   const message = normalizedBody.message || normalizedBody.body;
 
   // Allow sending if there's a message OR attachments
@@ -59,7 +61,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
+  const prefix = getAdaptersPrefix(deployEnv, isStaging);
+  const webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/message`;
 
   const payload = camelToSnakeObject({
     assistantId,
