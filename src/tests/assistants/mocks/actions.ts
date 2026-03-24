@@ -7,7 +7,6 @@ import {
   mockSocialPlatforms,
 } from './data';
 import { vi } from 'vitest';
-import { TaskActions } from '@/types/assistants/task';
 
 export const mockAssistantActions: any = {
   assistant: {
@@ -154,9 +153,4 @@ export const mockAssistantActions: any = {
     sendSystemEvent: vi.fn(async () => ({ info: 'Event sent' })),
     listUserDesktops: vi.fn(async () => []),
   },
-};
-
-export const mockTaskActions: any = {
-  get: vi.fn(() => Promise.resolve({ logs: [], count: 0 })),
-  update: vi.fn(async () => ({ info: 'Tasks updated' })),
 };

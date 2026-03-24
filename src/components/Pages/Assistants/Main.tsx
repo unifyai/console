@@ -10,7 +10,6 @@ import {
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
-import { TaskActions } from '@/types/assistants/task';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
@@ -51,7 +50,6 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 
 interface MainProps {
-  taskActions: TaskActions;
   assistantActions: AssistantActions;
   userMeta: {
     image: string | null | undefined;
@@ -63,7 +61,7 @@ interface MainProps {
   };
 }
 
-export default function Main({ taskActions, assistantActions, userMeta }: MainProps) {
+export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
     usePanelManager();

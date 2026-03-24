@@ -22,7 +22,7 @@ import {
   mockStatuses,
   mockAssistantWithoutSocials,
 } from '@/tests/assistants/mocks/data';
-import { mockAssistantActions, mockTaskActions } from '@/tests/assistants/mocks/actions';
+import { mockAssistantActions } from '@/tests/assistants/mocks/actions';
 
 vi.mock('@/hooks/Assistants/useAssistantCall', () => ({
   useAssistantCall: vi.fn(() => ({
@@ -267,7 +267,6 @@ describe('Integration Tests', () => {
   const renderMain = (props: Partial<React.ComponentProps<typeof Main>> = {}) => {
     const defaultMainProps = {
       assistantActions: mockAssistantActions,
-      taskActions: mockTaskActions,
       userMeta: { image: null, timezone: 'UTC' },
     };
     return render(<Main {...defaultMainProps} {...props} />);
