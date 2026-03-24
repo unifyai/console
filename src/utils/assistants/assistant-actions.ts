@@ -791,7 +791,8 @@ export function formatRelativeTime(timestamp: Date | string): string {
  */
 export function areAllNodesExpanded(roots: ActionNode[], expandedNodeIds: Set<string>): boolean {
   function checkNode(node: ActionNode): boolean {
-    if (node.children.length > 0 && !expandedNodeIds.has(node.id)) {
+    const isExpandable = node.children.length > 0 || node.type === 'manager';
+    if (isExpandable && !expandedNodeIds.has(node.id)) {
       return false;
     }
     return node.children.every(checkNode);
