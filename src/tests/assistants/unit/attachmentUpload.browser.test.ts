@@ -123,7 +123,7 @@ describe('uploadAttachment Function - New Response Format', () => {
     const result = await uploadAttachment(file, '123');
 
     expect(result.gsUrl).toBeDefined();
-    expect(result.gsUrl).toMatch(/^gs:\/\/unify-message-attachments\//);
+    expect(result.gsUrl).toMatch(/^gs:\/\/assistant-message-attachments-staging\//);
   });
 
   it.fails('should return contentType in upload response', async () => {

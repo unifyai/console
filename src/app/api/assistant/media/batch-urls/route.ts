@@ -15,11 +15,8 @@ const SIGNED_URL_EXPIRY_MS = 15 * 60 * 1000;
 function resolveBucket(objectPath: string): string | undefined {
   const isPresetPath = objectPath.startsWith('preset_assistants/');
   return isPresetPath
-    ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME
-    : process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME
+    : process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME;
 }
 
 /**

@@ -91,9 +91,7 @@ export const listMediaFiles = async () => {
   }> => {
     'use server';
 
-    const bucketName =
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME;
     if (!bucketName) {
       console.error('[photo.ts listMediaFiles] GCS Bucket name environment variable is not set.');
       return { detail: 'Server configuration error: Bucket name missing.' };
@@ -158,18 +156,11 @@ export const downloadMedia = async () => {
     }
 
     // Preset media (paths starting with preset_assistants/) live in the
-    // presets bucket, not the regular media bucket.  This covers both
-    // preset photos (preset_assistants/photos/…) and preset videos
-    // (preset_assistants/videos/{name}_{provider}.mp4).  It also handles
-    // the legacy gs://bucket/preset_assistants/… URLs that were stored
-    // when the NEXT_PUBLIC bucket env vars were not yet set.
+    // presets bucket, not the regular media bucket.
     const isPresetPath = objectPath.startsWith('preset_assistants/');
     const bucketName = isPresetPath
-      ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME
-      : process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-        process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+      ? process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME
+      : process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME;
 
     if (!bucketName) {
       console.error('[photo.ts downloadMedia] GCS Bucket name environment variable is not set.');
@@ -224,10 +215,7 @@ export const downloadPresetPhoto = async () => {
     // Construct object path for preset photos stored under photos/ subfolder
     const objectPath = `preset_assistants/photos/${firstName}_${lastName}.jpg`;
 
-    const bucketName =
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME;
     if (!bucketName) {
       console.error(
         '[photo.ts downloadPresetPhoto] GCS Presets Bucket name environment variable is not set.'
@@ -282,10 +270,7 @@ export const downloadPresetVideo = async () => {
     // Construct object path using firstName, lastName, and provider
     const objectPath = `preset_assistants/videos/${firstName}_${lastName}_${provider.toLowerCase()}.mp4`;
 
-    const bucketName =
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-      process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+    const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME;
     if (!bucketName) {
       console.error(
         '[photo.ts downloadPresetVideo] GCS Presets Bucket name environment variable is not set.'
