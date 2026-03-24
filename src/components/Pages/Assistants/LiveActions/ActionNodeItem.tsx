@@ -2882,7 +2882,7 @@ export function ActionNodeItem({
   // invocation. After fetch, client-side filters out events that belong
   // to child MM nodes (they'll be fetched by the child's own ActionNodeItem).
   React.useEffect(() => {
-    if (node.status === 'running' || !canLoadToolLoop) return;
+    if (!canLoadToolLoop) return;
     if (!isExpanded) return;
     if (toolLoopFetchedRef.current) return;
     toolLoopFetchedRef.current = true;
@@ -2914,7 +2914,6 @@ export function ActionNodeItem({
 
     load();
   }, [
-    node.status,
     canLoadToolLoop,
     isExpanded,
     assistantId,
@@ -2933,9 +2932,14 @@ export function ActionNodeItem({
     loadChildren(node.id, node.hierarchy);
   }, [isExpanded, loadChildren, node.id, node.hierarchy, node.childrenLoaded, node.type]);
 
-  // Reset ToolLoop state when node starts running again
+  // Reset ToolLoop state when node transitions TO running (re-execution).
+  // Only fires on a genuine status change, not on initial mount — otherwise
+  // it would clear data the fetch effect just loaded for already-running nodes.
+  const prevStatusRef = React.useRef(node.status);
   React.useEffect(() => {
-    if (node.status === 'running') {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = node.status;
+    if (node.status === 'running' && prev !== 'running') {
       toolLoopFetchedRef.current = false;
       setRawToolLoopLogs([]);
       setIsToolLoopLoading(false);
