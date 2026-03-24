@@ -123,6 +123,49 @@ function rewriteCheckStatusResults(logs: ToolLoopLog[]): ToolLoopLog[] {
 }
 
 // ---------------------------------------------------------------------------
+// SSE ↔ polled dedup: SSE events may carry synthetic IDs (negative, or 0)
+// that differ from the database row IDs in polled data. Build a fingerprint
+// from backend-stable fields so the merge can identify duplicates.
+// ---------------------------------------------------------------------------
+
+function makeLogFingerprint(l: ToolLoopLog): string {
+  const ts = l.entries.eventTimestamp || l.ts;
+  const kind = l.entries.kind || '';
+  const role = l.entries.message?.role || '';
+  const raw = l.entries.message?.content;
+  const slice = typeof raw === 'string'
+    ? raw.slice(0, 80)
+    : Array.isArray(raw) && raw.length > 0
+      ? (raw[0]?.text || '').slice(0, 80)
+      : '';
+  return `${kind}|${role}|${ts}|${slice}`;
+}
+
+function deduplicateLiveLogs(
+  polled: ToolLoopLog[],
+  live: ToolLoopLog[]
+): ToolLoopLog[] {
+  if (polled.length === 0) return live;
+  if (live.length === 0) return polled;
+
+  const polledIds = new Set(polled.map((l) => l.id));
+  const polledEventIds = new Set(
+    polled.map((l) => l.entries.eventId).filter(Boolean)
+  );
+  const polledFingerprints = new Set(polled.map(makeLogFingerprint));
+
+  const extra = live.filter((l) => {
+    if (polledIds.has(l.id)) return false;
+    if (l.entries.eventId && polledEventIds.has(l.entries.eventId)) return false;
+    if (polledFingerprints.has(makeLogFingerprint(l))) return false;
+    return true;
+  });
+
+  if (extra.length === 0) return polled;
+  return [...polled, ...extra].sort((a, b) => a.id - b.id);
+}
+
+// ---------------------------------------------------------------------------
 // Drag-to-resize hook + handle for scrollable regions
 // ---------------------------------------------------------------------------
 
@@ -1374,6 +1417,7 @@ function ToolLoopMessage({
   onLayoutChange,
   assistantId,
   getToolLoopEvents,
+  suppressTrailingResponse,
 }: {
   log: ToolLoopLog;
   isLatestLog?: boolean;
@@ -1386,6 +1430,7 @@ function ToolLoopMessage({
   onLayoutChange?: () => void;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
+  suppressTrailingResponse?: boolean;
 }) {
   const { message } = log.entries;
   const time = formatEventTime(log.entries.eventTimestamp || log.ts);
@@ -1428,7 +1473,10 @@ function ToolLoopMessage({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy for deep liveToolLoopLogs mutations
   }, [child, descendantLiveLogCount]);
 
-  const effectiveChildLogs = childLogs.length > 0 ? childLogs : filteredChildLiveLogs;
+  const effectiveChildLogs = React.useMemo(
+    () => deduplicateLiveLogs(childLogs, filteredChildLiveLogs),
+    [childLogs, filteredChildLiveLogs]
+  );
 
   const childResolvedToolCallIds = React.useMemo(
     () => {
@@ -1921,7 +1969,7 @@ function ToolLoopMessage({
     }
     content = thinkingText || textContent;
     if (message.toolCalls?.length) trailingCallLine = renderCallLine();
-    else if (thinkingText && textContent && textContent.replace(/^\s+/, '')) {
+    else if (!suppressTrailingResponse && thinkingText && textContent && textContent.replace(/^\s+/, '')) {
       trailingResponseContent = textContent.replace(/^\s+/, '');
     }
   } else if (kind === 'tool_call') {
@@ -2115,6 +2163,7 @@ function ToolLoopConversation({
   nested,
   onLayoutChange: parentLayoutChange,
   resolvedToolCallIds: resolvedToolCallIdsProp,
+  suppressTrailingContentIds,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -2125,6 +2174,7 @@ function ToolLoopConversation({
   nested?: boolean;
   onLayoutChange?: () => void;
   resolvedToolCallIds?: Set<string>;
+  suppressTrailingContentIds?: Set<number>;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -2204,6 +2254,7 @@ function ToolLoopConversation({
               onLayoutChange={signalLayoutChange}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
+              suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
@@ -2227,6 +2278,7 @@ function LiveToolLoopTimeline({
   assistantId,
   getToolLoopEvents,
   resolvedToolCallIds: resolvedToolCallIdsProp,
+  suppressTrailingContentIds,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -2234,6 +2286,7 @@ function LiveToolLoopTimeline({
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   resolvedToolCallIds?: Set<string>;
+  suppressTrailingContentIds?: Set<number>;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -2319,6 +2372,7 @@ function LiveToolLoopTimeline({
               onLayoutChange={signalLayoutChange}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
+              suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
             />
           ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
@@ -2483,6 +2537,8 @@ function CollapsibleToolLoopSection({
   getToolLoopEvents,
   onLayoutChange,
   resolvedToolCallIds,
+  suppressTrailingContentIds,
+  promotedDuration,
 }: {
   logs: ToolLoopLog[];
   depth: number;
@@ -2494,6 +2550,8 @@ function CollapsibleToolLoopSection({
   getToolLoopEvents?: GetToolLoopEventsFn;
   onLayoutChange?: () => void;
   resolvedToolCallIds?: Set<string>;
+  suppressTrailingContentIds?: Set<number>;
+  promotedDuration?: string;
 }) {
   const signalActive = sectionToggleSignal && sectionToggleSignal.gen > 0;
   const [isOpen, setIsOpen] = React.useState(signalActive ? sectionToggleSignal.open : defaultOpen);
@@ -2510,6 +2568,7 @@ function CollapsibleToolLoopSection({
   const pad = `${20 + depth * 8}px`;
 
   const sectionDuration = React.useMemo(() => {
+    if (promotedDuration) return promotedDuration;
     if (logs.length < 2) return '';
     const first = new Date(logs[0].entries.eventTimestamp || logs[0].ts).getTime();
     const last = new Date(
@@ -2517,7 +2576,11 @@ function CollapsibleToolLoopSection({
     ).getTime();
     const ms = last - first;
     return ms > 0 ? formatCompactDuration(ms) : '';
-  }, [logs]);
+  }, [logs, promotedDuration]);
+
+  const stepCount = suppressTrailingContentIds && suppressTrailingContentIds.size > 0
+    ? logs.length - logs.reduce((n, l) => n + (suppressTrailingContentIds.has(l.id) ? 1 : 0), 0)
+    : logs.length;
 
   return (
     <div className="min-w-0">
@@ -2533,7 +2596,7 @@ function CollapsibleToolLoopSection({
         title={!isOpen ? 'Click to expand' : undefined}
       >
         <span>
-          {logs.length} {logs.length === 1 ? 'step' : 'steps'}
+          {stepCount} {stepCount === 1 ? 'step' : 'steps'}
           {sectionDuration && (
             <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>
           )}
@@ -2563,10 +2626,12 @@ function CollapsibleToolLoopSection({
           getToolLoopEvents={getToolLoopEvents}
           onLayoutChange={onLayoutChange}
           resolvedToolCallIds={resolvedToolCallIds}
+          suppressTrailingContentIds={suppressTrailingContentIds}
         />
       </div>
     </div>
   );
+
 }
 
 export function ActionNodeItem({
@@ -2643,11 +2708,16 @@ export function ActionNodeItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- childCount is a primitive proxy for node.children which is mutated in place
   }, [node.liveToolLoopLogs, childCount]);
 
-  // Unified data source: prefer polled data when available, fall back to
-  // filtered live data. Every downstream consumer uses this instead of
-  // referencing completedToolLoopLogs or liveToolLoopLogs directly.
-  const effectiveLogs =
-    completedToolLoopLogs.length > 0 ? completedToolLoopLogs : filteredLiveToolLoopLogs;
+  // Unified data source: polled data supplemented with any SSE-only events
+  // that haven't been persisted yet. The Orchestra fetch can race with the
+  // EventBus periodic flush — SSE events may arrive before the database has
+  // them, so we merge rather than hard-switch to avoid losing the response.
+  // Uses fingerprint-based dedup because SSE events may carry synthetic IDs
+  // (negative or 0) that differ from the database row IDs in polled data.
+  const effectiveLogs = React.useMemo(
+    () => deduplicateLiveLogs(completedToolLoopLogs, filteredLiveToolLoopLogs),
+    [completedToolLoopLogs, filteredLiveToolLoopLogs]
+  );
 
   // Resolved tool-call IDs computed from BOTH Orchestra and SSE logs so that
   // check_status_* synthetic completions (hidden from display by
@@ -2679,50 +2749,104 @@ export function ActionNodeItem({
 
   // Extract the full request text and the final response text as standalone
   // values so they can be rendered prominently outside the collapsed steps.
+  // Also tracks the log IDs so promotedLogIds can exclude them from the
+  // timeline without a second search that might find a different entry.
   // Persistent actions skip this — they have no single privileged request/response.
   const promoted = React.useMemo(() => {
-    if (node.persist) return { request: null, response: null };
+    if (node.persist) return { request: null, response: null, requestId: null as number | null, responseId: null as number | null, responseFromDedicatedEntry: false, duration: '' };
 
     let req: { content: string; time: string } | null = null;
+    let requestId: number | null = null;
+    let requestRawTs: string | null = null;
     const userMsg = effectiveLogs.find((l) => l.entries.message.role === 'user');
     if (userMsg) {
       const text = extractTextContent(userMsg.entries.message.content);
-      if (text)
+      if (text) {
+        requestRawTs = userMsg.entries.eventTimestamp || userMsg.ts;
         req = {
           content: text,
-          time: formatEventTime(userMsg.entries.eventTimestamp || userMsg.ts),
+          time: formatEventTime(requestRawTs),
         };
+        requestId = userMsg.id;
+      }
     }
 
     let resp: { content: string; time: string } | null = null;
+    let responseId: number | null = null;
+    let responseFromDedicatedEntry = false;
+    let responseRawTs: string | null = null;
+
+    // Prefer a dedicated kind='response' entry so the same log that gets
+    // promoted is the one excluded from the timeline (no mismatch when a
+    // thought with text content has a higher ID than the response).
     for (let i = effectiveLogs.length - 1; i >= 0; i--) {
-      const msg = effectiveLogs[i].entries.message;
-      if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
-        const text = extractTextContent(msg.content);
-        if (text) {
-          resp = {
-            content: text,
-            time: formatEventTime(effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts),
-          };
-          break;
+      if (resolveToolLoopKind(effectiveLogs[i].entries) !== 'response') continue;
+      const text = extractTextContent(effectiveLogs[i].entries.message.content);
+      if (text) {
+        responseRawTs = effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts;
+        resp = {
+          content: text,
+          time: formatEventTime(responseRawTs),
+        };
+        responseId = effectiveLogs[i].id;
+        responseFromDedicatedEntry = true;
+        break;
+      }
+    }
+
+    // Fall back to last assistant message without tool calls (covers nodes
+    // where the backend doesn't emit a separate kind='response' entry).
+    if (!resp) {
+      for (let i = effectiveLogs.length - 1; i >= 0; i--) {
+        const msg = effectiveLogs[i].entries.message;
+        if (msg.role === 'assistant' && (!msg.toolCalls || msg.toolCalls.length === 0)) {
+          const text = extractTextContent(msg.content);
+          if (text) {
+            responseRawTs = effectiveLogs[i].entries.eventTimestamp || effectiveLogs[i].ts;
+            resp = {
+              content: text,
+              time: formatEventTime(responseRawTs),
+            };
+            responseId = effectiveLogs[i].id;
+            break;
+          }
         }
       }
     }
 
-    return { request: req, response: resp };
+    let duration = '';
+    if (requestRawTs && responseRawTs) {
+      const ms = parseTs(responseRawTs).getTime() - parseTs(requestRawTs).getTime();
+      if (ms > 0) duration = formatCompactDuration(ms);
+    }
+
+    return { request: req, response: resp, requestId, responseId, responseFromDedicatedEntry, duration };
   }, [effectiveLogs, node.persist]);
 
   // IDs of the ToolLoop logs that are promoted (request + response) so they
-  // can be excluded from intermediate step sections.
+  // can be excluded from the timeline — they render once in the promoted
+  // section at the top of the expanded node.  Uses the IDs found by the
+  // promoted memo so both always agree on which entry to exclude.
   // Persistent actions have no promoted logs — everything renders in the timeline.
   const promotedLogIds = React.useMemo(() => {
     if (node.persist) return new Set<number>();
 
     const ids = new Set<number>();
-    const firstUser = effectiveLogs.find((l) => l.entries.message.role === 'user');
-    if (firstUser) ids.add(firstUser.id);
+    if (promoted.requestId != null) ids.add(promoted.requestId);
+    if (promoted.responseId != null && promoted.responseFromDedicatedEntry) ids.add(promoted.responseId);
     return ids;
-  }, [effectiveLogs, node.persist]);
+  }, [promoted, node.persist]);
+
+  // IDs of timeline logs whose trailing response content should be suppressed
+  // because that content is already shown in the promoted section. This applies
+  // when the promoted response was extracted from a thought entry (fallback)
+  // rather than a dedicated kind='response' entry — the thought itself stays
+  // in the timeline (for its thinking content) but its response tail is hidden.
+  const suppressTrailingContentIds = React.useMemo(() => {
+    const ids = new Set<number>();
+    if (promoted.responseId != null && !promoted.responseFromDedicatedEntry) ids.add(promoted.responseId);
+    return ids;
+  }, [promoted]);
 
   // Fallback content for non-manager nodes that can't load ToolLoop
   const fallbackContent = React.useMemo(() => {
@@ -2817,6 +2941,18 @@ export function ActionNodeItem({
       setIsToolLoopLoading(false);
     }
   }, [node.status]);
+
+  // Re-fetch ToolLoop data when the node object is rebuilt (e.g. after a
+  // manual refresh). buildActionTree creates new node objects; the changed
+  // reference signals that Orchestra data may now be fully persisted and
+  // rawToolLoopLogs could be stale from an earlier race with persistence.
+  const prevNodeRef = React.useRef(node);
+  React.useEffect(() => {
+    if (prevNodeRef.current !== node && node.status !== 'running' && toolLoopFetchedRef.current) {
+      toolLoopFetchedRef.current = false;
+    }
+    prevNodeRef.current = node;
+  }, [node]);
 
   // Determine what to render in the detail area.
   const hasToolLoopData = effectiveLogs.length > 0;
@@ -3008,6 +3144,7 @@ export function ActionNodeItem({
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
+                suppressTrailingContentIds={suppressTrailingContentIds}
               />
             );
           }
@@ -3022,6 +3159,7 @@ export function ActionNodeItem({
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
+                suppressTrailingContentIds={suppressTrailingContentIds}
               />
             );
           }
@@ -3036,6 +3174,8 @@ export function ActionNodeItem({
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               resolvedToolCallIds={resolvedToolCallIds}
+              suppressTrailingContentIds={suppressTrailingContentIds}
+              promotedDuration={promoted.duration}
             />
           );
         })()}
