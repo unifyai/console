@@ -190,6 +190,7 @@ export interface ToolLoopLogEntries {
   hierarchy: string[];
   hierarchyLabel: string;
   eventTimestamp?: string;
+  eventId?: string;
   toolAliases?: Record<string, string> | null;
 }
 
