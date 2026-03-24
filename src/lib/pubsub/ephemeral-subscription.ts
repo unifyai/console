@@ -23,7 +23,25 @@ export const PERSISTENT_EXPIRATION_TTL = '2678400s'; // 31 days
 /** Only retain recent messages — older history is loaded from Orchestra. */
 export const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
 
+/**
+ * When PUBSUB_EMULATOR_HOST is set, REST-based operations (ACK) go to the
+ * emulator instead of the production Google API endpoint.
+ */
+export function getPubSubApiBase(): string {
+  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST;
+  if (emulatorHost) {
+    const host = emulatorHost.startsWith('http') ? emulatorHost : `http://${emulatorHost}`;
+    return `${host}/v1`;
+  }
+  return 'https://pubsub.googleapis.com/v1';
+}
+
+/** @deprecated Use getPubSubApiBase() for emulator support */
 export const PUBSUB_API_BASE = 'https://pubsub.googleapis.com/v1';
+
+function isEmulatorMode(): boolean {
+  return !!process.env.PUBSUB_EMULATOR_HOST;
+}
 
 function getCredentials(): { credentials: any; projectId: string } {
   const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
@@ -50,7 +68,34 @@ function getCredentials(): { credentials: any; projectId: string } {
   return { credentials, projectId: credentials.project_id };
 }
 
+/**
+ * Returns an authenticated HTTP client for REST-based Pub/Sub operations.
+ *
+ * In emulator mode, returns a plain fetch wrapper with no auth (the emulator
+ * doesn't require credentials). The returned client exposes a `.request()`
+ * method matching the GoogleAuth client interface.
+ */
 export async function getAuthClient(): Promise<{ client: any; projectId: string }> {
+  if (isEmulatorMode()) {
+    const projectId = process.env.GCP_PROJECT_ID || 'local-test-project';
+    const client = {
+      async request(opts: { url: string; method: string; data?: any }) {
+        const res = await fetch(opts.url, {
+          method: opts.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: opts.data ? JSON.stringify(opts.data) : undefined,
+        });
+        if (!res.ok) {
+          const err: any = new Error(`Emulator request failed: ${res.status}`);
+          err.response = { status: res.status };
+          throw err;
+        }
+        return { data: await res.json().catch(() => ({})) };
+      },
+    };
+    return { client, projectId };
+  }
+
   const { credentials, projectId } = getCredentials();
 
   const auth = new GoogleAuth({
@@ -67,8 +112,19 @@ let _pubsubClient: PubSub | null = null;
 /**
  * Returns a singleton PubSub client for gRPC streaming operations.
  * Reuses the same client across connections to share gRPC channels.
+ *
+ * In emulator mode (@google-cloud/pubsub honors PUBSUB_EMULATOR_HOST
+ * automatically), no real credentials are needed.
  */
 export function getPubSubClient(): { pubsub: PubSub; projectId: string } {
+  if (isEmulatorMode()) {
+    const projectId = process.env.GCP_PROJECT_ID || 'local-test-project';
+    if (!_pubsubClient) {
+      _pubsubClient = new PubSub({ projectId });
+    }
+    return { pubsub: _pubsubClient, projectId };
+  }
+
   const { credentials, projectId } = getCredentials();
   if (!_pubsubClient) {
     _pubsubClient = new PubSub({ projectId, credentials });
@@ -91,7 +147,8 @@ export async function createEphemeralSubscription(
   subscriptionName: string,
   filter?: string
 ): Promise<string> {
-  const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
+  const apiBase = getPubSubApiBase();
+  const subscriptionUrl = `${apiBase}/projects/${projectId}/subscriptions/${subscriptionName}`;
   const topicPath = `projects/${projectId}/topics/${topicName}`;
 
   const data: Record<string, unknown> = {
@@ -136,7 +193,8 @@ export async function getOrCreateSubscription(
   subscriptionName: string,
   filter?: string
 ): Promise<string> {
-  const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
+  const apiBase = getPubSubApiBase();
+  const subscriptionUrl = `${apiBase}/projects/${projectId}/subscriptions/${subscriptionName}`;
   const topicPath = `projects/${projectId}/topics/${topicName}`;
 
   const data: Record<string, unknown> = {
@@ -164,10 +222,19 @@ export async function getOrCreateSubscription(
 }
 
 /**
- * Derives the Pub/Sub topic name for an assistant based on the assistant ID
- * and whether the environment is staging.
+ * Derives the Pub/Sub topic name for an assistant.
+ *
+ * Resolution order:
+ *   1. PUBSUB_TOPIC_SUFFIX env var (explicit override, e.g. "-staging")
+ *   2. ORCHESTRA_URL heuristic — localhost / staging → "-staging"
+ *   3. Production → no suffix
  */
 export function getTopicName(assistantId: string): string {
+  const explicitSuffix = process.env.PUBSUB_TOPIC_SUFFIX;
+  if (explicitSuffix !== undefined) {
+    return `unity-${assistantId}${explicitSuffix}`;
+  }
+
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
   const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
   return `unity-${assistantId}${isStaging ? '-staging' : ''}`;

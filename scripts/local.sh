@@ -17,6 +17,7 @@
 #   ./scripts/local.sh start --seed org-multi-role    # Specific scenario
 #   ./scripts/local.sh start --seed all               # Run all scenarios
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
+#   ./scripts/local.sh start --chat                   # + local Communication stack for chat
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
 #   ./scripts/local.sh status                         # Show status of all services
@@ -27,11 +28,14 @@
 #   - Poetry (for Orchestra)
 #   - Orchestra repo cloned as a sibling: ../orchestra
 #   - (--stripe) Stripe CLI installed and authenticated (`stripe login`)
+#   - (--chat)   Communication repo cloned as a sibling: ../communication
+#                 + gcloud CLI with Pub/Sub emulator component
 #
 # Environment:
-#   ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)
-#   CONSOLE_PORT          Next.js port (default: 3333)
-#   ORCHESTRA_PORT        Orchestra port (default: 8000)
+#   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
+#   COMMUNICATION_REPO_PATH   Path to communication repo (default: ../communication)
+#   CONSOLE_PORT              Next.js port (default: 3000)
+#   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
 set -euo pipefail
 
@@ -45,7 +49,14 @@ CONSOLE_REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_LOCAL_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/local.sh"
 
-CONSOLE_PORT="${CONSOLE_PORT:-3333}"
+COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../communication" 2>/dev/null && pwd -P || echo "")}"
+COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/local.sh}"
+COMMUNICATION_CONFIG_FILE="/tmp/communication-local.config"
+
+UNITY_REPO_PATH="${UNITY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
+UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
+
+CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 
 CONSOLE_PIDFILE="/tmp/console-local-dev.pid"
@@ -180,6 +191,297 @@ stop_orchestra() {
 }
 
 # =============================================================================
+# Communication Stack Management (--chat mode)
+# =============================================================================
+
+check_communication_prerequisites() {
+  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
+    log_error "Communication repo not found. Expected at: $CONSOLE_REPO_PATH/../communication"
+    log_info "Set COMMUNICATION_REPO_PATH to override."
+    return 1
+  fi
+  log_success "Communication repo found at: $COMMUNICATION_REPO_PATH"
+}
+
+is_communication_running() {
+  COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" check &>/dev/null
+}
+
+start_communication() {
+  if is_communication_running; then
+    log_success "Communication services already running"
+    load_communication_config
+    return 0
+  fi
+
+  log_info "Starting Communication services (Pub/Sub emulator + adapters)..."
+
+  # Build the env overrides for Communication's local.sh.
+  # ORCHESTRA_ADMIN_KEY is required so the adapters accept message dispatches
+  # from the Console. ORCHESTRA_URL lets adapters call back into Orchestra.
+  local comm_env=(COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH")
+  if [[ -n "$ADMIN_KEY" ]]; then
+    comm_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
+  fi
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    comm_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+  fi
+
+  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" start; then
+    log_error "Failed to start Communication services"
+    return 1
+  fi
+
+  load_communication_config
+  log_success "Communication services are running"
+}
+
+load_communication_config() {
+  if [[ ! -f "$COMMUNICATION_CONFIG_FILE" ]]; then
+    log_warn "Communication config file not found at $COMMUNICATION_CONFIG_FILE"
+    return 1
+  fi
+
+  # Source the key=value config written by communication/scripts/local.sh
+  while IFS='=' read -r key value; do
+    case "$key" in
+      UNITY_ADAPTERS_URL)    CHAT_ADAPTERS_URL="$value" ;;
+      PUBSUB_EMULATOR_HOST)  CHAT_PUBSUB_EMULATOR_HOST="$value" ;;
+      GCP_PROJECT_ID)        CHAT_GCP_PROJECT_ID="$value" ;;
+      TEST_ASSISTANT_ID)     CHAT_TEST_ASSISTANT_ID="$value" ;;
+    esac
+  done < "$COMMUNICATION_CONFIG_FILE"
+
+  log_info "Loaded Communication config:"
+  log_info "  Adapters URL:      ${CHAT_ADAPTERS_URL:-<not set>}"
+  log_info "  Pub/Sub Emulator:  ${CHAT_PUBSUB_EMULATOR_HOST:-<not set>}"
+  log_info "  GCP Project ID:    ${CHAT_GCP_PROJECT_ID:-<not set>}"
+  log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
+}
+
+stop_communication() {
+  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
+    log_info "Stopping Communication services..."
+    COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
+    log_success "Communication services stopped"
+  fi
+}
+
+# Env vars populated by load_communication_config
+CHAT_ADAPTERS_URL=""
+CHAT_PUBSUB_EMULATOR_HOST=""
+CHAT_GCP_PROJECT_ID=""
+CHAT_TEST_ASSISTANT_ID=""
+
+# =============================================================================
+# Unity Management (--chat mode)
+# =============================================================================
+
+is_unity_available() {
+  [[ -n "$UNITY_REPO_PATH" && -f "$UNITY_LOCAL_SCRIPT" ]]
+}
+
+is_unity_running() {
+  is_unity_available && bash "$UNITY_LOCAL_SCRIPT" check &>/dev/null
+}
+
+start_unity() {
+  if ! is_unity_available; then
+    log_warn "Unity repo not found at $CONSOLE_REPO_PATH/../unity — skipping."
+    log_info "Set UNITY_REPO_PATH to override. Chat will work but no responses will come back."
+    return 0
+  fi
+
+  if is_unity_running; then
+    log_success "Unity already running"
+    return 0
+  fi
+
+  # Resolve the actual assistant agentId from the database.  The seed
+  # creates assistants with auto-incremented IDs, so the first assistant
+  # is typically "1".  If the DB isn't available, fall back to the
+  # Communication TEST_ASSISTANT_ID.
+  local resolved_assistant_id
+  resolved_assistant_id=$(docker exec orchestra-local-db \
+    psql -U orchestra -d orchestra -t -A \
+    -c "SELECT agent_id FROM assistants ORDER BY agent_id LIMIT 1;" 2>/dev/null | head -1 || echo "")
+  resolved_assistant_id="${resolved_assistant_id:-${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}}"
+
+  log_info "Starting Unity (auto-detecting mode) for assistant=$resolved_assistant_id ..."
+
+  local unity_env=(
+    PUBSUB_EMULATOR_HOST="${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085}"
+    GCP_PROJECT_ID="${CHAT_GCP_PROJECT_ID:-local-test-project}"
+    ASSISTANT_ID="$resolved_assistant_id"
+    DEPLOY_ENV="staging"
+  )
+
+  # Forward Orchestra connection.
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    unity_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+  fi
+
+  # Forward LLM API keys from .env.local if present (for full CM mode).
+  for key in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+    local val
+    val=$(grep -E "^${key}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
+    if [[ -n "$val" ]]; then
+      unity_env+=("$key=$val")
+    fi
+  done
+
+  # UNIFY_KEY must be the local seed key so the CM can authenticate
+  # against the local Orchestra (the .env.local key is for production).
+  local local_unify_key
+  local_unify_key=$(docker exec orchestra-local-db \
+    psql -U orchestra -d orchestra -t -A \
+    -c "SELECT k.key FROM api_key k JOIN \"user\" u ON k.user_id = u.id ORDER BY k.id LIMIT 1;" 2>/dev/null | head -1 || echo "")
+  local_unify_key="${local_unify_key:-local-test-api-key}"
+  unity_env+=("UNIFY_KEY=$local_unify_key")
+
+  # Forward admin key from .env.local if available.
+  local admin_val
+  admin_val=$(grep -E "^ORCHESTRA_ADMIN_KEY=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
+  if [[ -n "$admin_val" ]]; then
+    unity_env+=("ORCHESTRA_ADMIN_KEY=$admin_val")
+  fi
+
+  # Populate full session details from the seeded assistant/user so the CM
+  # knows who the assistant is and who the owner is (replicating what the
+  # startup message provides in production).
+  local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id
+  _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT first_name FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT surname FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_about=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT about FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_age=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT age FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_nat=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT nationality FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_tz=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT timezone FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _u_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT user_id FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  if [[ -n "$_u_id" ]]; then
+    _u_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_last=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT last_name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_email=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT email FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+  fi
+
+  [[ -n "$_a_first" ]]   && unity_env+=("ASSISTANT_FIRST_NAME=$_a_first")
+  [[ -n "$_a_surname" ]] && unity_env+=("ASSISTANT_SURNAME=$_a_surname")
+  [[ -n "$_a_about" ]]   && unity_env+=("ASSISTANT_ABOUT=$_a_about")
+  [[ -n "$_a_age" ]]     && unity_env+=("ASSISTANT_AGE=$_a_age")
+  [[ -n "$_a_nat" ]]     && unity_env+=("ASSISTANT_NATIONALITY=$_a_nat")
+  [[ -n "$_a_tz" ]]      && unity_env+=("ASSISTANT_TIMEZONE=$_a_tz")
+  [[ -n "$_u_first" ]]   && unity_env+=("USER_FIRST_NAME=$_u_first")
+  [[ -n "$_u_last" ]]    && unity_env+=("USER_SURNAME=$_u_last")
+  [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
+  [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
+
+  if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start; then
+    log_warn "Unity failed to start — chat will work but no responses will come back."
+    return 0
+  fi
+
+  log_success "Unity is running"
+}
+
+stop_unity() {
+  if is_unity_available; then
+    log_info "Stopping Unity..."
+    bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    log_success "Unity stopped"
+  fi
+}
+
+create_seeded_assistant_topics() {
+  # Query Orchestra for all assistants and create Pub/Sub emulator topics
+  # for each one.  The echo responder auto-discovers new topics, so we
+  # don't need to restart it.
+  local emulator_host="${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085}"
+  local project_id="${CHAT_GCP_PROJECT_ID:-local-test-project}"
+  local suffix="-staging"
+  local api_key="${ADMIN_KEY:-local-test-api-key}"
+
+  if [[ -z "$emulator_host" ]]; then
+    return 0
+  fi
+
+  # Normalise emulator URL
+  local emulator_url="$emulator_host"
+  if [[ ! "$emulator_url" =~ ^http ]]; then
+    emulator_url="http://$emulator_url"
+  fi
+
+  # Query assistant agent_ids directly from the local Orchestra database.
+  local agent_ids
+  agent_ids=$(docker exec orchestra-local-db \
+    psql -U orchestra -d orchestra -t -A \
+    -c "SELECT agent_id FROM assistants;" 2>/dev/null | tr '\n' ' ' || echo "")
+
+  if [[ -z "$agent_ids" ]]; then
+    log_warn "No assistant agentIds found — skipping topic creation"
+    return 0
+  fi
+
+  log_info "Creating Pub/Sub topics for seeded assistants ..."
+  for agent_id in $agent_ids; do
+    local topic_name="unity-${agent_id}${suffix}"
+
+    # Create topic (ignore if exists)
+    local status
+    status=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/topics/${topic_name}" 2>/dev/null || echo "000")
+
+    if [[ "$status" == "200" || "$status" == "409" ]]; then
+      log_success "Topic ready: $topic_name"
+    else
+      log_warn "Failed to create topic $topic_name (HTTP $status)"
+      continue
+    fi
+
+    # Create the outbound subscription (for Console's chat SSE to receive replies)
+    local outbound_sub="${topic_name}-outbound-sub"
+    curl -s -o /dev/null \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${outbound_sub}" \
+      -H "Content-Type: application/json" \
+      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"unify_message_outbound\\\"\"}" \
+      2>/dev/null || true
+
+    # Create the system-error subscription
+    local syserr_sub="${topic_name}-system-error-sub"
+    curl -s -o /dev/null \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${syserr_sub}" \
+      -H "Content-Type: application/json" \
+      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"system_error\\\"\"}" \
+      2>/dev/null || true
+
+    # Create the actions subscription
+    local actions_sub="${topic_name}-actions-sub"
+    curl -s -o /dev/null \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${actions_sub}" \
+      -H "Content-Type: application/json" \
+      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"action_event\\\"\",\"messageRetentionDuration\":\"1800s\"}" \
+      2>/dev/null || true
+
+    # Create the CM's inbound subscription (unfiltered — receives all
+    # messages so the ConversationManager can process them).
+    local inbound_sub="${topic_name}-sub"
+    curl -s -o /dev/null \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
+      -H "Content-Type: application/json" \
+      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\"}" \
+      2>/dev/null || true
+  done
+}
+
+# =============================================================================
 # NPM Dependencies
 # =============================================================================
 
@@ -259,6 +561,19 @@ is_console_running() {
 }
 
 start_console() {
+  local with_chat="${1:-false}"
+
+  # Kill any stale Console processes on the port before checking, so we
+  # always start fresh with the correct environment variables.
+  local stale_pids
+  stale_pids=$(lsof -t -i ":${CONSOLE_PORT}" 2>/dev/null || true)
+  if [[ -n "$stale_pids" ]]; then
+    log_info "Cleaning up stale processes on port $CONSOLE_PORT ..."
+    echo "$stale_pids" | xargs kill -9 2>/dev/null || true
+    sleep 1
+    rm -f "$CONSOLE_PIDFILE"
+  fi
+
   if is_console_running; then
     log_success "Console already running on port $CONSOLE_PORT"
     return 0
@@ -267,6 +582,21 @@ start_console() {
   log_info "Starting Console on port $CONSOLE_PORT ..."
 
   cd "$CONSOLE_REPO_PATH"
+
+  # When --chat is active, inject the Communication stack env vars so Console
+  # connects to the local Pub/Sub emulator and dispatches messages to local adapters.
+  if [[ "$with_chat" == "true" && -n "$CHAT_PUBSUB_EMULATOR_HOST" ]]; then
+    export PUBSUB_EMULATOR_HOST="$CHAT_PUBSUB_EMULATOR_HOST"
+    export GCP_PROJECT_ID="${CHAT_GCP_PROJECT_ID:-local-test-project}"
+    export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+    export PUBSUB_TOPIC_SUFFIX="-staging"
+
+    log_info "Console chat env vars set:"
+    log_info "  PUBSUB_EMULATOR_HOST=$PUBSUB_EMULATOR_HOST"
+    log_info "  GCP_PROJECT_ID=$GCP_PROJECT_ID"
+    log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
+    log_info "  PUBSUB_TOPIC_SUFFIX=$PUBSUB_TOPIC_SUFFIX"
+  fi
 
   nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
   local pid=$!
@@ -402,6 +732,7 @@ cmd_start() {
   local with_org="$1"
   local with_stripe="$2"
   local seed_scenario="$3"
+  local with_chat="$4"
 
   # Resolve effective seed scenario:
   #   --seed X  → X                     (explicit)
@@ -424,6 +755,9 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     mode_label="$mode_label + stripe"
   fi
+  if [[ "$with_chat" == "true" ]]; then
+    mode_label="$mode_label + chat"
+  fi
 
   echo ""
   echo "=============================================="
@@ -433,6 +767,18 @@ cmd_start() {
 
   if ! check_prerequisites; then
     return 1
+  fi
+
+  # If --chat, start the Pub/Sub emulator + adapters early (Orchestra and
+  # the seed don't depend on them, but they take a moment to boot).
+  # Unity starts AFTER the seed so we know the actual assistant agentId.
+  if [[ "$with_chat" == "true" ]]; then
+    echo ""
+    if ! check_communication_prerequisites; then
+      return 1
+    fi
+    echo ""
+    start_communication || return 1
   fi
 
   echo ""
@@ -446,8 +792,19 @@ cmd_start() {
   echo ""
   run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
 
+  # After seeding, create Pub/Sub topics for seeded assistants and start
+  # Unity with the correct assistant ID.  The seed creates assistants in
+  # Orchestra with auto-incremented agentIds (1, 2, ...) but Communication
+  # only pre-creates topics for TEST_ASSISTANT_ID.
+  if [[ "$with_chat" == "true" && -n "$CHAT_PUBSUB_EMULATOR_HOST" ]]; then
+    echo ""
+    create_seeded_assistant_topics
+    echo ""
+    start_unity
+  fi
+
   echo ""
-  start_console || return 1
+  start_console "$with_chat" || return 1
 
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
@@ -464,6 +821,11 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     echo "  Stripe:    webhooks → http://localhost:${ORCHESTRA_PORT}/v0/webhooks/stripe"
   fi
+  if [[ "$with_chat" == "true" ]]; then
+    echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
+    echo "  Pub/Sub:   ${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085} (emulator)"
+    echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
+  fi
   echo ""
   echo "  Seed:      $seed_scenario"
   echo "  Login:     Use the Quick Sign-In panel on the login page"
@@ -471,6 +833,20 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
     echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
+  fi
+  if [[ "$with_chat" == "true" ]]; then
+    echo ""
+    local unity_mode
+    unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "not running")
+    echo "  Chat:      Messages dispatched to local adapters via Pub/Sub emulator."
+    echo "             Unity mode: $unity_mode"
+    if [[ "$unity_mode" == "echo" ]]; then
+      echo "             Messages are echoed back (no LLM). Set API keys for real responses."
+    elif [[ "$unity_mode" == "full-cm" ]]; then
+      echo "             Full ConversationManager active — LLM-powered responses."
+    fi
+    echo "             To test, send a message to an assistant whose agentId"
+    echo "             matches TEST_ASSISTANT_ID (${CHAT_TEST_ASSISTANT_ID:-default-test-assistant})."
   fi
   echo ""
 }
@@ -483,6 +859,13 @@ cmd_stop() {
   fi
   stop_console
   stop_orchestra
+  # Stop Unity and Communication if running (safe no-ops if not)
+  if is_unity_available && is_unity_running; then
+    stop_unity
+  fi
+  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
+    stop_communication
+  fi
   echo ""
   log_success "Local environment stopped"
 }
@@ -491,6 +874,7 @@ cmd_restart() {
   local with_org="$1"
   local with_stripe="$2"
   local seed_scenario="$3"
+  local with_chat="$4"
 
   # Resolve default early so validation works.
   if [[ -z "$seed_scenario" ]]; then
@@ -508,7 +892,7 @@ cmd_restart() {
 
   cmd_stop
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat"
 }
 
 cmd_status() {
@@ -541,6 +925,27 @@ cmd_status() {
     echo -e "${YELLOW}not running${NC} (start with --stripe)"
   fi
 
+  echo -n "  Chat:      "
+  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
+    echo -e "${GREEN}running${NC} (Communication stack)"
+    if [[ -f "$COMMUNICATION_CONFIG_FILE" ]]; then
+      load_communication_config 2>/dev/null
+    fi
+  else
+    echo -e "${YELLOW}not running${NC} (start with --chat)"
+  fi
+
+  echo -n "  Unity:     "
+  if is_unity_available && is_unity_running; then
+    local unity_mode
+    unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "unknown")
+    echo -e "${GREEN}running${NC} ($unity_mode mode)"
+  elif is_unity_available; then
+    echo -e "${YELLOW}not running${NC} (started by --chat)"
+  else
+    echo -e "${YELLOW}not found${NC} (set UNITY_REPO_PATH)"
+  fi
+
   echo ""
 }
 
@@ -552,12 +957,14 @@ main() {
   local cmd=""
   local with_org="false"
   local with_stripe="false"
+  local with_chat="false"
   local seed_scenario=""
 
   while (( "$#" )); do
     case "$1" in
       --org)    with_org="true"; shift ;;
       --stripe) with_stripe="true"; shift ;;
+      --chat)   with_chat="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
@@ -568,16 +975,16 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--chat] [--seed <scenario>]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
-      echo "  stop     Stop Console, Orchestra, and Stripe listener"
+      echo "  stop     Stop Console, Orchestra, Communication, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
       echo ""
@@ -590,11 +997,16 @@ main() {
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
       echo "                     Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
       echo "                     Then authenticate:   stripe login"
+      echo "  --chat             Start local Communication stack (Pub/Sub emulator + adapters)"
+      echo "                     for end-to-end chat testing without cloud dependencies."
+      echo "                     Requires: communication repo as sibling (../communication)"
+      echo "                               + gcloud CLI with pubsub-emulator component"
       echo ""
       echo "Environment:"
-      echo "  ORCHESTRA_REPO_PATH   Path to orchestra repo (default: ../orchestra)"
-      echo "  CONSOLE_PORT          Console port (default: 3333)"
-      echo "  ORCHESTRA_PORT        Orchestra port (default: 8000)"
+      echo "  ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)"
+      echo "  COMMUNICATION_REPO_PATH   Path to communication repo (default: ../communication)"
+      echo "  CONSOLE_PORT              Console port (default: 3000)"
+      echo "  ORCHESTRA_PORT            Orchestra port (default: 8000)"
       echo ""
       echo "Test credentials:"
       echo "  Password: testpass123 (all seed users)"
@@ -607,6 +1019,8 @@ main() {
       echo "  $0 start --seed all                   # all scenarios"
       echo "  $0 start --stripe                     # + Stripe webhook forwarding"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
+      echo "  $0 start --chat                       # + local chat (Pub/Sub + adapters)"
+      echo "  $0 start --chat --org                 # org-basic + local chat"
       ;;
     *)
       log_error "Unknown command: $cmd"

@@ -49,6 +49,10 @@ export function publish(assistantId: string, event: Record<string, unknown>): vo
   bus.forEach((listener) => listener(event));
 }
 
+/**
+ * Returns true when we can connect to a real (or emulated) Pub/Sub backend.
+ * Real credentials OR a running emulator both satisfy this check.
+ */
 export function hasCredentials(): boolean {
-  return !!process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+  return !!process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS || !!process.env.PUBSUB_EMULATOR_HOST;
 }
