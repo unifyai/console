@@ -735,7 +735,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   const computedListWidth = isAssistantListFolded ? LIST_MIN_WIDTH : assistantListWidth;
 
   return (
-    <>
+    <div className="flex h-full flex-col overflow-hidden">
       <Toaster richColors position="bottom-right" closeButton />
 
       <AssistantsBanners
@@ -766,7 +766,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
         pendingCreditToken={pendingToken}
       />
 
-      <div ref={contentContainerRef} className="flex h-full overflow-hidden bg-background">
+      <div ref={contentContainerRef} className="flex min-h-0 flex-1 overflow-hidden bg-background">
         {/* Assistant List */}
         <div
           className="relative h-full flex-shrink-0 border-r"
@@ -1007,6 +1007,6 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
           />
         </RoomContext.Provider>
       )}
-    </>
+    </div>
   );
 }
