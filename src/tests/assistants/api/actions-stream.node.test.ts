@@ -279,6 +279,56 @@ describe('Actions SSE Stream Route', () => {
   // Filtering
   // =========================================================================
 
+  it('filters out system_error messages (handled by dedicated stream)', async () => {
+    const controller = new AbortController();
+
+    const { GET } = await import('@/app/api/assistant/[assistantId]/actions/stream/route');
+
+    const req = new NextRequest(
+      `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/actions/stream`,
+      { method: 'GET', signal: controller.signal }
+    );
+    const response = await GET(req, { params: { assistantId: TEST_ASSISTANT_ID } });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // System error messages from Unity have `thread` at the top level,
+    // not wrapped in { event: ... } like ManagerMethod payloads.
+    const systemErrorMsg = {
+      data: Buffer.from(JSON.stringify({
+        thread: 'system_error',
+        event: { content: 'The assistant ran out of memory.' },
+      })),
+      id: 'syserr-1',
+      ackId: 'ack-syserr',
+      publishTime: new Date(),
+      ack: vi.fn(),
+      nack: vi.fn(),
+    };
+    const normalMsg = makeMockMessage(
+      { type: 'ManagerMethod', row_id: 3, manager: 'ContactManager', phase: 'incoming', calling_id: 'contact-2' },
+      { ackId: 'ack-normal' }
+    );
+
+    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    subEmitter?.emit('message', systemErrorMsg);
+    subEmitter?.emit('message', normalMsg);
+
+    await new Promise((r) => setTimeout(r, 50));
+    controller.abort();
+
+    const allData = await drainStream(response);
+    const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
+
+    expect(dataLines.length).toBe(1);
+    const parsed = JSON.parse(dataLines[0].replace('data: ', ''));
+    expect(parsed.data.entries.manager).toBe('ContactManager');
+
+    // System error should be ACKed without streaming to client
+    expect(systemErrorMsg.ack).toHaveBeenCalled();
+    expect(normalMsg.ack).toHaveBeenCalled();
+  });
+
   it('filters out excluded managers', async () => {
     const controller = new AbortController();
 

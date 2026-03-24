@@ -48,6 +48,7 @@ import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
+import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 
 interface MainProps {
   taskActions: TaskActions;
@@ -729,6 +730,9 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
     [assistants, profileAssistantId]
   );
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
+
+  // --- System error listener (assistant-level, above all interaction surfaces) ---
+  useAssistantSystemErrors(profileAssistant);
 
   // Determine active panel for width calculations
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
