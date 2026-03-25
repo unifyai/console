@@ -133,8 +133,16 @@ const WorkspaceContent = ({
   useEffect(() => {
     if (!autoComplete || autoCompleteTriggered.current) return;
     autoCompleteTriggered.current = true;
-    onPatchSession({ onboardingStep: 'completed' }).catch(() => {
-      // If the patch fails, show the normal onboarding UI
+
+    const extraParams: Record<string, string> = {};
+    const current = new URLSearchParams(window.location.search);
+    current.forEach((value, key) => { extraParams[key] = value; });
+
+    onPatchSession(
+      { onboardingStep: 'completed' },
+      '/assistants',
+      Object.keys(extraParams).length > 0 ? extraParams : undefined,
+    ).catch(() => {
       setIsLoading(false);
     });
   }, [autoComplete, onPatchSession]);

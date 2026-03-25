@@ -66,10 +66,18 @@ import {
 } from '@/lib/assistants/action';
 import { cookies } from 'next/headers';
 
-const AssistantsPage = async () => {
+const AssistantsPage = async ({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) => {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login?signout=true');
+    const creditToken = typeof searchParams?.token === 'string' ? searchParams.token : null;
+    const loginUrl = creditToken
+      ? `/login?signout=true&credit=${encodeURIComponent(creditToken)}`
+      : '/login?signout=true';
+    redirect(loginUrl);
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;

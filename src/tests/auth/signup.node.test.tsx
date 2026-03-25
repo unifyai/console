@@ -591,6 +591,45 @@ describe('Signup Journey', () => {
         expect(screen.getByTestId('workspace-continue')).toBeDisabled();
       });
     });
+
+    it('forwards credit token from URL params when completing onboarding', async () => {
+      mockWindowLocation('/login/onboarding', '?token=credit_grant_123');
+
+      const user = userEvent.setup();
+      renderOnboarding();
+
+      await user.click(screen.getByTestId('workspace-personal'));
+      await user.click(screen.getByTestId('workspace-continue'));
+
+      await waitFor(() => {
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/assistants',
+          { token: 'credit_grant_123' },
+        );
+      });
+    });
+
+    it('forwards credit token from URL params during auto-complete', async () => {
+      mockWindowLocation('/login/onboarding', '?token=auto_credit');
+
+      render(
+        <WorkspaceContent
+          onCreateOrg={mockCreateOrg}
+          onUpdateOnboarding={mockUpdateOnboarding}
+          onPatchSession={mockPatchSession}
+          autoComplete
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/assistants',
+          { token: 'auto_credit' },
+        );
+      });
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════════

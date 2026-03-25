@@ -999,6 +999,35 @@ describe('Login Journey', () => {
       expect(mockSignOut).not.toHaveBeenCalled();
       expect(screen.getByTestId('login-fragment')).toBeInTheDocument();
     });
+
+    it('preserves credit token through signout redirect', async () => {
+      mockSearchParamsMap = { signout: 'true', credit: 'cred_persist' };
+      mockSessionData = {
+        data: { user: { email: 'deleted@example.com' } },
+        status: 'authenticated',
+      };
+
+      const originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: { ...originalLocation, href: '' },
+      });
+
+      render(<Login />);
+
+      await waitFor(() => {
+        expect(mockSignOut).toHaveBeenCalledWith({ redirect: false });
+      });
+
+      await waitFor(() => {
+        expect(window.location.href).toBe('/login?credit=cred_persist');
+      });
+
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: originalLocation,
+      });
+    });
   });
 
   // ─── Authenticated Redirect ────────────────────────────────────────────────
@@ -1028,6 +1057,50 @@ describe('Login Journey', () => {
 
       render(<Login />);
       expect(mockRedirect).not.toHaveBeenCalled();
+    });
+
+    it('redirects to /assistants?token=… when credit token present and session exists', () => {
+      mockSearchParamsMap = { credit: 'cred_abc' };
+      mockSessionData = {
+        data: { user: { email: 'active@example.com' } },
+        status: 'authenticated',
+      };
+
+      render(<Login />);
+      expect(mockRedirect).toHaveBeenCalledWith('/assistants?token=cred_abc');
+    });
+
+    it('redirects to callbackUrl when session exists and callbackUrl is a relative path', () => {
+      mockSearchParamsMap = { callbackUrl: '/billing?view=credits' };
+      mockSessionData = {
+        data: { user: { email: 'active@example.com' } },
+        status: 'authenticated',
+      };
+
+      render(<Login />);
+      expect(mockRedirect).toHaveBeenCalledWith('/billing?view=credits');
+    });
+
+    it('rejects absolute callbackUrl and falls back to /assistants', () => {
+      mockSearchParamsMap = { callbackUrl: 'https://evil.com/steal' };
+      mockSessionData = {
+        data: { user: { email: 'active@example.com' } },
+        status: 'authenticated',
+      };
+
+      render(<Login />);
+      expect(mockRedirect).toHaveBeenCalledWith('/assistants');
+    });
+
+    it('credit token takes priority over plain callbackUrl', () => {
+      mockSearchParamsMap = { credit: 'cred_priority', callbackUrl: '/billing' };
+      mockSessionData = {
+        data: { user: { email: 'active@example.com' } },
+        status: 'authenticated',
+      };
+
+      render(<Login />);
+      expect(mockRedirect).toHaveBeenCalledWith('/assistants?token=cred_priority');
     });
   });
 });

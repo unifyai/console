@@ -5,6 +5,17 @@ import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 
+/**
+ * Carry a credit-grant `?token=` param through internal redirects
+ * (onboarding, MFA) so it survives until the Assistants page renders.
+ */
+function preserveCreditToken(source: URLSearchParams, target: URL): void {
+  const creditToken = source.get('token');
+  if (creditToken) {
+    target.searchParams.set('token', creditToken);
+  }
+}
+
 export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
@@ -65,7 +76,9 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     const mfaAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = mfaAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
-      return NextResponse.redirect(new URL('/login/mfa', request.url));
+      const mfaUrl = new URL('/login/mfa', request.url);
+      preserveCreditToken(searchParams, mfaUrl);
+      return NextResponse.redirect(mfaUrl);
     }
   }
 
@@ -76,7 +89,9 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     const onboardingAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
-      return NextResponse.redirect(new URL('/login/onboarding', request.url));
+      const onboardingUrl = new URL('/login/onboarding', request.url);
+      preserveCreditToken(searchParams, onboardingUrl);
+      return NextResponse.redirect(onboardingUrl);
     }
   }
 
