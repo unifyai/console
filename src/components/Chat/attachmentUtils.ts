@@ -6,6 +6,8 @@ import {
   Image,
   FileCode,
   FileArchive,
+  FileAudio,
+  FileVideo,
   File,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,18 +22,86 @@ export const MAX_FILE_SIZE_BYTES = 32 * 1024 * 1024;
 
 /** Allowed file extensions for upload */
 export const ALLOWED_EXTENSIONS = new Set([
-  // Images
+  // Images (raster)
   '.jpg',
   '.jpeg',
   '.png',
   '.gif',
   '.webp',
-  '.svg',
   '.bmp',
   '.ico',
   '.heic',
   '.heif',
   '.tiff',
+  '.tif',
+  '.avif',
+  '.jfif',
+  '.raw',
+  '.cr2',
+  '.nef',
+  '.arw',
+  '.dng',
+  // Images (vector)
+  '.svg',
+  '.eps',
+  // Video
+  '.mp4',
+  '.mov',
+  '.avi',
+  '.mkv',
+  '.webm',
+  '.wmv',
+  '.flv',
+  '.m4v',
+  '.mpg',
+  '.mpeg',
+  '.3gp',
+  '.ogv',
+  '.ts',
+  '.mts',
+  '.vob',
+  // Audio
+  '.mp3',
+  '.wav',
+  '.aac',
+  '.ogg',
+  '.flac',
+  '.wma',
+  '.m4a',
+  '.aiff',
+  '.aif',
+  '.opus',
+  '.mid',
+  '.midi',
+  '.amr',
+  '.ape',
+  '.wv',
+  // Adobe
+  '.psd',
+  '.ai',
+  '.indd',
+  '.idml',
+  '.xd',
+  '.fla',
+  '.swf',
+  '.prproj',
+  '.aep',
+  '.ppj',
+  '.sesx',
+  '.drp',
+  // Other design/multimedia
+  '.sketch',
+  '.fig',
+  '.blend',
+  '.fbx',
+  '.obj',
+  '.stl',
+  '.gltf',
+  '.glb',
+  '.usdz',
+  '.3ds',
+  '.dae',
+  '.lottie',
   // Documents
   '.pdf',
   '.doc',
@@ -39,27 +109,63 @@ export const ALLOWED_EXTENSIONS = new Set([
   '.txt',
   '.rtf',
   '.odt',
+  '.pages',
+  '.epub',
+  '.mobi',
   // Spreadsheets
   '.xls',
   '.xlsx',
   '.csv',
   '.ods',
+  '.numbers',
+  '.tsv',
   // Presentations
   '.ppt',
   '.pptx',
   '.odp',
+  '.key',
   // Archives
   '.zip',
+  '.tar',
+  '.gz',
+  '.bz2',
+  '.xz',
+  '.7z',
+  '.rar',
+  '.tgz',
   // Data
   '.json',
+  '.jsonl',
   '.xml',
   '.yaml',
   '.yml',
+  '.toml',
+  '.parquet',
+  '.avro',
+  '.ndjson',
   // Web
   '.html',
   '.htm',
+  '.css',
+  '.wasm',
   // Code
   '.py',
+  '.md',
+  '.markdown',
+  '.rst',
+  '.tex',
+  '.log',
+  '.sql',
+  // Fonts
+  '.ttf',
+  '.otf',
+  '.woff',
+  '.woff2',
+  // Subtitles / captions
+  '.srt',
+  '.vtt',
+  '.ass',
+  '.sub',
 ]);
 
 /** Blocked file extensions (security risk) */
@@ -97,56 +203,166 @@ const FILE_TYPE_MAP: Record<string, AttachmentType> = {
   pdf: 'pdf',
   doc: 'word',
   docx: 'word',
+  odt: 'word',
+  rtf: 'text',
+  pages: 'word',
+  epub: 'text',
+  mobi: 'text',
+
+  // Spreadsheets
   xls: 'excel',
   xlsx: 'excel',
   csv: 'excel',
+  ods: 'excel',
+  numbers: 'excel',
+  tsv: 'excel',
+
+  // Presentations
   ppt: 'powerpoint',
   pptx: 'powerpoint',
-  rtf: 'text',
+  odp: 'powerpoint',
+  key: 'powerpoint',
 
-  // Images
+  // Images (raster)
   png: 'image',
   jpg: 'image',
   jpeg: 'image',
   gif: 'image',
   webp: 'image',
-  svg: 'image',
   bmp: 'image',
   ico: 'image',
   heic: 'image',
   heif: 'image',
   tiff: 'image',
+  tif: 'image',
+  avif: 'image',
+  jfif: 'image',
+  raw: 'image',
+  cr2: 'image',
+  nef: 'image',
+  arw: 'image',
+  dng: 'image',
+
+  // Images (vector) / Design
+  svg: 'image',
+  eps: 'image',
+  psd: 'image',
+  ai: 'image',
+  sketch: 'image',
+  fig: 'image',
+  xd: 'image',
+  indd: 'image',
+  idml: 'image',
+
+  // Video
+  mp4: 'video',
+  mov: 'video',
+  avi: 'video',
+  mkv: 'video',
+  webm: 'video',
+  wmv: 'video',
+  flv: 'video',
+  m4v: 'video',
+  mpg: 'video',
+  mpeg: 'video',
+  '3gp': 'video',
+  ogv: 'video',
+  mts: 'video',
+  vob: 'video',
+
+  // Audio
+  mp3: 'audio',
+  wav: 'audio',
+  aac: 'audio',
+  ogg: 'audio',
+  flac: 'audio',
+  wma: 'audio',
+  m4a: 'audio',
+  aiff: 'audio',
+  aif: 'audio',
+  opus: 'audio',
+  mid: 'audio',
+  midi: 'audio',
+  amr: 'audio',
+  ape: 'audio',
+  wv: 'audio',
+  sesx: 'audio',
+
+  // Adobe project files
+  fla: 'video',
+  swf: 'video',
+  prproj: 'video',
+  aep: 'video',
+  ppj: 'video',
+  drp: 'video',
+
+  // 3D / Design
+  blend: 'image',
+  fbx: 'image',
+  obj: 'image',
+  stl: 'image',
+  gltf: 'image',
+  glb: 'image',
+  usdz: 'image',
+  '3ds': 'image',
+  dae: 'image',
+  lottie: 'image',
 
   // Text/Config
   txt: 'text',
   md: 'text',
+  markdown: 'text',
+  rst: 'text',
+  tex: 'text',
+  log: 'text',
   yaml: 'text',
   yml: 'text',
   toml: 'text',
   env: 'text',
+  srt: 'text',
+  vtt: 'text',
+  ass: 'text',
+  sub: 'text',
 
   // Code
   json: 'code',
+  jsonl: 'code',
+  ndjson: 'code',
   js: 'code',
   ts: 'code',
   tsx: 'code',
   jsx: 'code',
   py: 'code',
   html: 'code',
+  htm: 'code',
   css: 'code',
   xml: 'code',
   sql: 'code',
   sh: 'code',
   bat: 'code',
   ps1: 'code',
+  wasm: 'code',
 
   // Archives
   zip: 'archive',
   tar: 'archive',
   gz: 'archive',
+  bz2: 'archive',
+  xz: 'archive',
   rar: 'archive',
+  tgz: 'archive',
   // eslint-disable-next-line @typescript-eslint/naming-convention
   '7z': 'archive',
+
+  // Data
+  parquet: 'code',
+  avro: 'code',
+
+  // Fonts
+  ttf: 'generic',
+  otf: 'generic',
+  woff: 'generic',
+  woff2: 'generic',
 };
 
 /**
@@ -168,15 +384,17 @@ interface AttachmentConfig {
 }
 
 const ATTACHMENT_CONFIG: Record<AttachmentType, AttachmentConfig> = {
-  pdf: { icon: FileText, color: 'var(--file-pdf)' }, // Red
-  word: { icon: FileText, color: 'var(--file-word)' }, // Blue
-  excel: { icon: FileSpreadsheet, color: 'var(--file-excel)' }, // Green
-  powerpoint: { icon: Presentation, color: 'var(--file-powerpoint)' }, // Orange
-  image: { icon: Image, color: 'var(--file-image)' }, // Purple
-  text: { icon: FileText, color: 'var(--file-text)' }, // Blue-gray
-  code: { icon: FileCode, color: 'var(--file-code)' }, // Blue-gray
-  archive: { icon: FileArchive, color: 'var(--file-archive)' }, // Amber
-  generic: { icon: File, color: 'var(--file-generic)' }, // Gray
+  pdf: { icon: FileText, color: 'var(--file-pdf)' },
+  word: { icon: FileText, color: 'var(--file-word)' },
+  excel: { icon: FileSpreadsheet, color: 'var(--file-excel)' },
+  powerpoint: { icon: Presentation, color: 'var(--file-powerpoint)' },
+  image: { icon: Image, color: 'var(--file-image)' },
+  audio: { icon: FileAudio, color: 'var(--file-audio, var(--file-image))' },
+  video: { icon: FileVideo, color: 'var(--file-video, var(--file-image))' },
+  text: { icon: FileText, color: 'var(--file-text)' },
+  code: { icon: FileCode, color: 'var(--file-code)' },
+  archive: { icon: FileArchive, color: 'var(--file-archive)' },
+  generic: { icon: File, color: 'var(--file-generic)' },
 };
 
 /**
