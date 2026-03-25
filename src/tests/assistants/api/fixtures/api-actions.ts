@@ -984,7 +984,7 @@ export interface CreditGrantLink {
   token: string;
   expiresAt: string;
   creditAmount?: number | null;
-  maxClaims: number;
+  maxClaims: number | null;
   claimCount: number;
   claims?: CreditGrantLinkClaimDetail[];
 }
@@ -1015,7 +1015,7 @@ export const adminApi = {
   async createCreditGrantLink(
     expiresInDays: number = 7,
     creditAmount?: number | null,
-    maxClaims: number = 1
+    maxClaims: number | null = 1
   ): Promise<CreditGrantLink> {
     const adminKey = getAdminApiKey();
     const endpoint = `/api/admin/credit-grant-link`;

@@ -200,7 +200,7 @@ export function OneTimeLinkTable({
 
           const isDeletingThis = deletingLinkId === link.id;
           const isExpired = new Date(link.expiresAt) < new Date();
-          const isFullyRedeemed = link.claimCount >= link.maxClaims;
+          const isFullyRedeemed = link.maxClaims !== null && link.claimCount >= link.maxClaims;
           const hasClaims = link.claimCount > 0;
           const dimmed = isExpired && !hasClaims;
 
@@ -210,6 +210,7 @@ export function OneTimeLinkTable({
 
           if (isFullyRedeemed) {
             statusText = link.maxClaims === 1 ? 'Claimed' : 'Exhausted';
+
             StatusIcon = CheckCircle;
             statusColor = 'bg-green-100 text-green-800 border-green-300';
           } else if (isExpired) {
@@ -273,7 +274,7 @@ export function OneTimeLinkTable({
               <TableCell
                 className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}
               >
-                {link.claimCount}/{link.maxClaims}
+                {link.claimCount}/{link.maxClaims ?? '∞'}
               </TableCell>
               <TableCell className={cn('text-label text-center', dimmed && 'opacity-60')}>
                 {formatDistanceToNowStrict(new Date(link.expiresAt), { addSuffix: true })}

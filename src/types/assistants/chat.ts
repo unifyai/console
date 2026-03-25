@@ -4,6 +4,8 @@ export type AttachmentType =
   | 'excel'
   | 'powerpoint'
   | 'image'
+  | 'audio'
+  | 'video'
   | 'text'
   | 'code'
   | 'archive'
