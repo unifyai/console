@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
+import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import {
   Assistant,
@@ -12,12 +12,12 @@ import {
 } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
-import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
+import { AssistantProfilePanel } from './Profile/AssistantProfile';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AssistantHire } from './Assistants/Hire/AssistantHire';
-import { AssistantEdit } from './Assistants/Edit/AssistantEdit';
-import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
-import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
+import { AssistantHire } from './Hire/AssistantHire';
+import { AssistantEdit } from './Edit/AssistantEdit';
+import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
+import { PresetsPanel } from './Hire/Presets/AssistantHirePresetsList';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
@@ -35,8 +35,8 @@ import {
   PRIMARY_VOICE_PROVIDER,
 } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
-import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
+import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
+import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';

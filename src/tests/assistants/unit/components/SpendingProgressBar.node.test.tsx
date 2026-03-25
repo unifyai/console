@@ -12,7 +12,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { SpendingProgressBar } from '@/components/Pages/Assistants/Assistants/Profile/SpendingProgressBar';
+import { SpendingProgressBar } from '@/components/Pages/Assistants/Profile/SpendingProgressBar';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 
 describe('SpendingProgressBar', () => {

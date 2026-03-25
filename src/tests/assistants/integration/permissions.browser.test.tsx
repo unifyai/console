@@ -9,10 +9,10 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
   generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
 }));
 
-import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
-import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
-import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfileInfoPanel';
-import { AssistantSecretsManager } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSecretsManager';
+import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
+import { AssistantProfilePanel } from '@/components/Pages/Assistants/Profile/AssistantProfile';
+import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileInfoPanel';
+import { AssistantSecretsManager } from '@/components/Pages/Assistants/Profile/AssistantSecretsManager';
 
 import { createMockAssistant, mockStatuses } from '@/tests/assistants/mocks/data';
 import { mockAssistantActions } from '@/tests/assistants/mocks/actions';

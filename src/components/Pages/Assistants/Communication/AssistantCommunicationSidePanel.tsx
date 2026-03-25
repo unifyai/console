@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { Label } from '@/components/UI/label';
-import { AssistantProfileChatPanel } from '../Assistants/Profile/AssistantProfileChatPanel';
+import { AssistantProfileChatPanel } from '../Profile/AssistantProfileChatPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 

@@ -12,7 +12,7 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
 }));
 
 import Main from '@/components/Pages/Assistants/Main';
-import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
+import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 
 import { Assistant } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';

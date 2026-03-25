@@ -20,7 +20,7 @@
  */
 import * as React from 'react';
 import { vi } from 'vitest';
-import { AssistantSecretsManager } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSecretsManager';
+import { AssistantSecretsManager } from '@/components/Pages/Assistants/Profile/AssistantSecretsManager';
 import { Secret, SecretActions } from '@/types/assistants/secret';
 
 // =============================================================================

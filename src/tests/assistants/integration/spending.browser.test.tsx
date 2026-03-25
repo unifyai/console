@@ -14,7 +14,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
-import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfileInfoPanel';
+import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileInfoPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { AssistantSpend, SpendingLimitResponse } from '@/types/assistants/spending';
 

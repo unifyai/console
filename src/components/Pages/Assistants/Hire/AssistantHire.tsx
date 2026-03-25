@@ -22,8 +22,8 @@ import {
   LayoutList,
   MessageSquare,
 } from 'lucide-react';
-import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
-import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
+import { PresetsPanelProps } from '@/components/Pages/Assistants/Hire/Presets/AssistantHirePresetsList';
+import { HireFormProps } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';

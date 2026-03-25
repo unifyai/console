@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
 import { Loader2, Monitor, Link2, Unlink, ClipboardCopy, Check } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
+import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
 import { FaApple, FaWindows, FaUbuntu } from 'react-icons/fa';
 import type {

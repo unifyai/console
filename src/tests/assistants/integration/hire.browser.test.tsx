@@ -15,11 +15,11 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
 }));
 
 // Import components after mocking
-import { AssistantHire } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHire';
-import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
-import { PresetsPanel } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
-import { AssistantEdit } from '@/components/Pages/Assistants/Assistants/Edit/AssistantEdit';
-import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
+import { AssistantHire } from '@/components/Pages/Assistants/Hire/AssistantHire';
+import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
+import { PresetsPanel } from '@/components/Pages/Assistants/Hire/Presets/AssistantHirePresetsList';
+import { AssistantEdit } from '@/components/Pages/Assistants/Edit/AssistantEdit';
+import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { mockAssistantActions } from '../mocks/actions';
