@@ -9,7 +9,7 @@ export const generateOneTimeCreditGrantLink = async () => {
   return async (
     expiresInDays: number = 7,
     creditAmount: number | null = null,
-    maxClaims: number = 1,
+    maxClaims: number | null = 1,
     name: string | null = null
   ): Promise<OneTimeLinkResponse | ResponseProps> => {
     'use server';

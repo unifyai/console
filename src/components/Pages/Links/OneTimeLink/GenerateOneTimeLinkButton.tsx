@@ -18,7 +18,7 @@ interface GenerateOneTimeLinkButtonProps {
   onGenerateLink: (
     expiresInDays: number,
     creditAmount: number | null,
-    maxClaims: number,
+    maxClaims: number | null,
     name: string | null
   ) => Promise<string | null>;
   isLoading: boolean;
@@ -33,6 +33,7 @@ export function GenerateOneTimeLinkButton({
   const [expiresInDays, setExpiresInDays] = React.useState<number>(7);
   const [creditAmount, setCreditAmount] = React.useState<string>('');
   const [maxClaims, setMaxClaims] = React.useState<number>(1);
+  const [unlimitedClaims, setUnlimitedClaims] = React.useState(false);
   const [linkName, setLinkName] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -47,13 +48,13 @@ export function GenerateOneTimeLinkButton({
       showErrorToast('Credit amount must be a positive number.');
       return;
     }
-    if (maxClaims < 1) {
+    if (!unlimitedClaims && maxClaims < 1) {
       showErrorToast('Max claims must be at least 1.');
       return;
     }
     setIsGenerating(true);
     setGeneratedUrl(null);
-    const url = await onGenerateLink(expiresInDays, parsedAmount, maxClaims, linkName.trim() || null);
+    const url = await onGenerateLink(expiresInDays, parsedAmount, unlimitedClaims ? null : maxClaims, linkName.trim() || null);
     if (url) {
       setGeneratedUrl(url);
     }
@@ -82,6 +83,7 @@ export function GenerateOneTimeLinkButton({
     setExpiresInDays(7);
     setCreditAmount('');
     setMaxClaims(1);
+    setUnlimitedClaims(false);
     setLinkName('');
   };
 
@@ -103,8 +105,9 @@ export function GenerateOneTimeLinkButton({
         <DialogHeader>
           <DialogTitle>Generate Credit Grant Link</DialogTitle>
           <DialogDescription>
-            Create a link that grants credits when claimed. Set max claims &gt; 1 to allow
-            multiple users to redeem the same link. Each user can only ever claim one link.
+            Create a link that grants credits when claimed. Set max claims &gt; 1 or check
+            unlimited (∞) to allow multiple users to redeem the same link. Each user can only
+            ever claim one link.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -155,15 +158,27 @@ export function GenerateOneTimeLinkButton({
             <Label htmlFor="maxClaims" className="col-span-1 text-right">
               Max claims
             </Label>
-            <Input
-              id="maxClaims"
-              type="number"
-              value={maxClaims}
-              onChange={(e) => setMaxClaims(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="col-span-2 h-9"
-              min="1"
-            />
-            <span className="text-body-muted col-span-1">users</span>
+            {unlimitedClaims ? (
+              <span className="text-body-muted col-span-2 px-3 text-sm">Unlimited</span>
+            ) : (
+              <Input
+                id="maxClaims"
+                type="number"
+                value={maxClaims}
+                onChange={(e) => setMaxClaims(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="col-span-2 h-9"
+                min="1"
+              />
+            )}
+            <label className="col-span-1 flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={unlimitedClaims}
+                onChange={(e) => setUnlimitedClaims(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              <span className="text-body-muted whitespace-nowrap">∞</span>
+            </label>
           </div>
           {generatedUrl && (
             <div className="mt-2 space-y-2">
@@ -191,9 +206,11 @@ export function GenerateOneTimeLinkButton({
               </div>
               <p className="text-caption flex items-center">
                 <AlertTriangle className="mr-1 h-3 w-3 text-orange-500" />
-                {maxClaims === 1
-                  ? 'This link can only be used once.'
-                  : `This link can be claimed by up to ${maxClaims} users.`}
+                {unlimitedClaims
+                  ? 'This link can be claimed by unlimited users.'
+                  : maxClaims === 1
+                    ? 'This link can only be used once.'
+                    : `This link can be claimed by up to ${maxClaims} users.`}
               </p>
             </div>
           )}

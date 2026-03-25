@@ -16,7 +16,7 @@ export interface OneTimeLinkResponse {
   name?: string | null;
   expiresAt: string;
   creditAmount?: number | null;
-  maxClaims: number;
+  maxClaims: number | null;
   claimCount: number;
   claims?: CreditGrantLinkClaimDetail[];
 }
@@ -27,7 +27,7 @@ export interface OneTimeLinkEntry {
   name?: string | null;
   expiresAt: string;
   creditAmount?: number | null;
-  maxClaims: number;
+  maxClaims: number | null;
   claimCount: number;
   claims?: CreditGrantLinkClaimDetail[];
 }
@@ -36,7 +36,7 @@ export interface AdminCreditGrantActions {
   generateOneTimeLink: (
     expiresInDays?: number,
     creditAmount?: number | null,
-    maxClaims?: number,
+    maxClaims?: number | null,
     name?: string | null
   ) => Promise<OneTimeLinkResponse | ResponseProps>;
   listOneTimeLinks: (limit: number, offset: number) => Promise<OneTimeLinkEntry[] | ResponseProps>;

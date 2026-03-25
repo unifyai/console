@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
 
   const { expiresInDays = 7, creditAmount = null, maxClaims = 1, name = null } = requestBody;
 
-  const snakeCaseBody: Record<string, unknown> = camelToSnakeObject({ expiresInDays, maxClaims });
+  const snakeCaseBody: Record<string, unknown> = camelToSnakeObject({ expiresInDays });
+  snakeCaseBody.max_claims = maxClaims;
   if (creditAmount != null) {
     snakeCaseBody.credit_amount = creditAmount;
   }
