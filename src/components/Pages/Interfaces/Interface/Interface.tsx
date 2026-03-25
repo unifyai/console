@@ -33,7 +33,7 @@ import {
 import { ResourcesActions } from '@/types/resource';
 import { User } from '@/types/user';
 import { debounce } from 'lodash';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/Common/useMobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
