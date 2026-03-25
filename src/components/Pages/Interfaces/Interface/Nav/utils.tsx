@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { cn } from '@/utils/misc/cn';
+import { cn } from '@/lib/utils';
 import { Icon } from '@/components/UI/icon-picker';
 
 /**

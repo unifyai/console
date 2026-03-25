@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { cn } from '@/utils/misc/cn';
+import { cn } from '@/lib/utils';
 import {
   Plus,
   MoreHorizontal,

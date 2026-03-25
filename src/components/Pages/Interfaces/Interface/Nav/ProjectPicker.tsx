@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { cn } from '@/utils/misc/cn';
+import { cn } from '@/lib/utils';
 import { ChevronsUpDown, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';

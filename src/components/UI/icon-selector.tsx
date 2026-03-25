@@ -2,7 +2,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
-import { cn } from '@/utils/misc/cn';
+import { cn } from '@/lib/utils';
 import Fuse from 'fuse.js';
 import { Icon, IconName } from '@/components/UI/icon-picker';
 import { iconsData } from '@/components/UI/icons-data';
