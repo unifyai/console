@@ -4,7 +4,16 @@ import { Table, TableCell, TableHead, TableRow } from '@/components/UI/table';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { OneTimeLinkEntry } from '@/types/admin';
-import { Trash2, Loader2, CheckCircle, HelpCircle, Copy, Check, CircleOff } from 'lucide-react';
+import {
+  Trash2,
+  Loader2,
+  CheckCircle,
+  HelpCircle,
+  Copy,
+  Check,
+  CircleOff,
+  ChevronDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNowStrict } from 'date-fns';
 import {
@@ -35,8 +44,14 @@ const SkeletonRow = () => (
     <TableCell>
       <div className="h-4 w-full rounded bg-muted"></div>
     </TableCell>
+    <TableCell>
+      <div className="h-4 w-20 rounded bg-muted"></div>
+    </TableCell>
     <TableCell className="text-center">
       <div className="mx-auto h-4 w-16 rounded bg-muted"></div>
+    </TableCell>
+    <TableCell className="text-center">
+      <div className="mx-auto h-4 w-12 rounded bg-muted"></div>
     </TableCell>
     <TableCell className="text-center">
       <div className="mx-auto h-4 w-24 rounded bg-muted"></div>
@@ -83,6 +98,7 @@ export function OneTimeLinkTable({
   const [deletingLinkId, setDeletingLinkId] = React.useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<OneTimeLinkEntry | null>(null);
   const [copiedToken, setCopiedToken] = React.useState<string | null>(null);
+  const [expandedLinkId, setExpandedLinkId] = React.useState<string | null>(null);
   const virtuosoRef = React.useRef<TableVirtuosoHandle>(null);
 
   const handleDelete = async (linkId: string) => {
@@ -125,11 +141,13 @@ export function OneTimeLinkTable({
 
   const headerRow = (
     <TableRow>
-      <TableHead className="w-[25%] min-w-[180px]">Token</TableHead>
-      <TableHead className="w-[12%] min-w-[90px] text-center">Credits</TableHead>
-      <TableHead className="w-[18%] min-w-[120px] text-center">Expires At</TableHead>
-      <TableHead className="w-[12%] min-w-[90px] text-center">Status</TableHead>
-      <TableHead className="w-[23%] min-w-[150px]">Claimed By</TableHead>
+      <TableHead className="w-[18%] min-w-[160px]">Token</TableHead>
+      <TableHead className="w-[12%] min-w-[100px]">Name</TableHead>
+      <TableHead className="w-[8%] min-w-[70px] text-center">Credits</TableHead>
+      <TableHead className="w-[8%] min-w-[70px] text-center">Claims</TableHead>
+      <TableHead className="w-[13%] min-w-[110px] text-center">Expires At</TableHead>
+      <TableHead className="w-[10%] min-w-[80px] text-center">Status</TableHead>
+      <TableHead className="w-[21%] min-w-[150px]">Claimed By</TableHead>
       <TableHead className="w-[10%] min-w-[80px] text-right">Actions</TableHead>
     </TableRow>
   );
@@ -174,7 +192,7 @@ export function OneTimeLinkTable({
         itemContent={(_index, link) => {
           if (link.id === LOADING_MORE_LINKS_ID) {
             return (
-              <TableCell colSpan={6} className="h-[57px] p-4 text-center">
+              <TableCell colSpan={8} className="h-[57px] p-4 text-center">
                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
               </TableCell>
             );
@@ -182,29 +200,35 @@ export function OneTimeLinkTable({
 
           const isDeletingThis = deletingLinkId === link.id;
           const isExpired = new Date(link.expiresAt) < new Date();
-          const isClaimed = !!link.claimedAt;
+          const isFullyRedeemed = link.claimCount >= link.maxClaims;
+          const hasClaims = link.claimCount > 0;
+          const dimmed = isExpired && !hasClaims;
 
           let statusText = 'Active';
           let StatusIcon = HelpCircle;
           let statusColor = 'bg-blue-100 text-blue-800 border-blue-300';
 
-          if (isClaimed) {
-            statusText = 'Claimed';
+          if (isFullyRedeemed) {
+            statusText = link.maxClaims === 1 ? 'Claimed' : 'Exhausted';
             StatusIcon = CheckCircle;
             statusColor = 'bg-green-100 text-green-800 border-green-300';
           } else if (isExpired) {
             statusText = 'Expired';
             StatusIcon = CircleOff;
             statusColor = 'bg-gray-100 text-gray-800 border-gray-300 opacity-70';
+          } else if (hasClaims) {
+            statusText = 'Partial';
+            StatusIcon = CheckCircle;
+            statusColor = 'bg-amber-100 text-amber-800 border-amber-300';
           }
+
+          const claims = link.claims ?? [];
+          const firstClaim = claims[0];
 
           return (
             <>
               <TableCell
-                className={cn(
-                  'truncate font-mono text-xs',
-                  isExpired && !isClaimed && 'opacity-60'
-                )}
+                className={cn('truncate font-mono text-caption', dimmed && 'opacity-60')}
                 title={link.token}
               >
                 <div className="flex items-center gap-2">
@@ -232,19 +256,29 @@ export function OneTimeLinkTable({
                 </div>
               </TableCell>
               <TableCell
-                className={cn(
-                  'text-label text-center font-mono',
-                  isExpired && !isClaimed && 'opacity-60'
+                className={cn('text-label truncate', dimmed && 'opacity-60')}
+                title={link.name || ''}
+              >
+                {link.name ? (
+                  <span className="truncate">{link.name}</span>
+                ) : (
+                  <span className="italic text-muted-foreground">—</span>
                 )}
+              </TableCell>
+              <TableCell
+                className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}
               >
                 {formatCreditAmount(link.creditAmount)}
               </TableCell>
               <TableCell
-                className={cn('text-label text-center', isExpired && !isClaimed && 'opacity-60')}
+                className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}
               >
+                {link.claimCount}/{link.maxClaims}
+              </TableCell>
+              <TableCell className={cn('text-label text-center', dimmed && 'opacity-60')}>
                 {formatDistanceToNowStrict(new Date(link.expiresAt), { addSuffix: true })}
               </TableCell>
-              <TableCell className={cn('text-center', isExpired && !isClaimed && 'opacity-60')}>
+              <TableCell className={cn('text-center', dimmed && 'opacity-60')}>
                 <Badge
                   variant="outline"
                   className={cn('text-label whitespace-nowrap px-2 py-0.5 capitalize', statusColor)}
@@ -253,28 +287,64 @@ export function OneTimeLinkTable({
                   {statusText}
                 </Badge>
               </TableCell>
-              <TableCell
-                className={cn('text-label truncate', isExpired && !isClaimed && 'opacity-60')}
-                title={link.claimedByEmail || link.userId || undefined}
-              >
-                {link.claimedByEmail || link.userId ? (
+              <TableCell className={cn('text-label', dimmed && 'opacity-60')}>
+                {claims.length === 0 ? (
+                  <span className="italic text-muted-foreground">N/A</span>
+                ) : claims.length === 1 ? (
                   <div className="flex flex-col gap-0.5">
                     <span className="truncate">
-                      {link.claimedByEmail || (
-                        <span className="text-muted-foreground/70 italic">{link.userId} (ID)</span>
+                      {firstClaim!.claimedByEmail || (
+                        <span className="text-muted-foreground/70 italic">
+                          {firstClaim!.userId} (ID)
+                        </span>
                       )}
                     </span>
-                    {link.claimedForOrg && (
+                    {firstClaim!.claimedForOrg && (
                       <span className="text-[11px] text-muted-foreground">
-                        → {link.claimedForOrg}
+                        &rarr; {firstClaim!.claimedForOrg}
                       </span>
                     )}
                   </div>
                 ) : (
-                  <span className="italic text-muted-foreground">N/A</span>
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      className="flex items-center gap-1 text-left text-xs hover:underline"
+                      onClick={() =>
+                        setExpandedLinkId(expandedLinkId === link.id ? null : link.id)
+                      }
+                    >
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 transition-transform',
+                          expandedLinkId === link.id && 'rotate-180'
+                        )}
+                      />
+                      {claims.length} claimers
+                    </button>
+                    {expandedLinkId === link.id && (
+                      <div className="mt-1 flex flex-col gap-1 border-l-2 border-muted pl-2">
+                        {claims.map((c, i) => (
+                          <div key={i} className="text-[11px]">
+                            <span className="truncate">
+                              {c.claimedByEmail || (
+                                <span className="text-muted-foreground/70 italic">
+                                  {c.userId}
+                                </span>
+                              )}
+                            </span>
+                            {c.claimedForOrg && (
+                              <span className="ml-1 text-muted-foreground">
+                                &rarr; {c.claimedForOrg}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </TableCell>
-              <TableCell className={cn('text-right', isExpired && !isClaimed && 'opacity-60')}>
+              <TableCell className={cn('text-right', dimmed && 'opacity-60')}>
                 {isDeletingThis ? (
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 ) : (

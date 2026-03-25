@@ -106,14 +106,16 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
   // Function to generate a new link
   const generateNewLink = async (
     expiresInDays: number = 7,
-    creditAmount: number | null = null
+    creditAmount: number | null = null,
+    maxClaims: number = 1,
+    name: string | null = null
   ): Promise<string | null> => {
     setIsGeneratingLink(true);
     setGenerationError(null);
-    setGeneratedLinkData(null); // Clear previous specific generation data
+    setGeneratedLinkData(null);
     const toastId = showLoadingToast('Generating credit grant link...');
 
-    const result = await adminActions.generateOneTimeLink(expiresInDays, creditAmount);
+    const result = await adminActions.generateOneTimeLink(expiresInDays, creditAmount, maxClaims, name);
 
     if ('detail' in result) {
       const errorMsg = (result as ResponseProps).detail;
