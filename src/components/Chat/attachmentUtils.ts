@@ -198,6 +198,7 @@ export const BLOCKED_EXTENSIONS = new Set([
 // FILE TYPE DETECTION
 // =============================================================================
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 const FILE_TYPE_MAP: Record<string, AttachmentType> = {
   // Documents
   pdf: 'pdf',
