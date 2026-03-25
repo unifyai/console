@@ -5,7 +5,6 @@ import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 const storage = new Storage();
 
 const ALLOWED_BUCKETS = new Set([
-  'assistant-call-recordings',
   'assistant-call-recordings-production',
   'assistant-call-recordings-staging',
   'assistant-media-production',
@@ -15,13 +14,11 @@ const ALLOWED_BUCKETS = new Set([
   'assistant-message-attachments-staging',
   'console-app-profile-images',
   'hub-provider-images',
-  'hired_assistants_images',
   'interface-file-system',
   'interface-file-system-staging',
   'log-images-bucket',
   'test-log-images-bucket',
   'unify-generated-plots',
-  'unify-message-attachments',
 ]);
 
 export async function GET(request: NextRequest) {

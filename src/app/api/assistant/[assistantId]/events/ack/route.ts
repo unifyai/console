@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getAuthClient,
   getTopicName,
-  PUBSUB_API_BASE,
+  getPubSubApiBase,
 } from '@/lib/pubsub/ephemeral-subscription';
 
 export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     const { client, projectId } = await getAuthClient();
     const topicName = getTopicName(assistantId);
     const subscriptionName = `${topicName}-chat-${contactId}`;
-    const subscriptionUrl = `${PUBSUB_API_BASE}/projects/${projectId}/subscriptions/${subscriptionName}`;
+    const subscriptionUrl = `${getPubSubApiBase()}/projects/${projectId}/subscriptions/${subscriptionName}`;
 
     await client.request({
       url: `${subscriptionUrl}:acknowledge`,

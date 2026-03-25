@@ -98,7 +98,7 @@ describe('Attachment Upload Flow - New Metadata', () => {
         // Check the chip's data attribute for gsUrl (implementation dependent)
         const chip = chips[0];
         expect(chip.dataset.gsUrl).toBeDefined();
-        expect(chip.dataset.gsUrl).toMatch(/^gs:\/\/unify-message-attachments\//);
+        expect(chip.dataset.gsUrl).toMatch(/^gs:\/\/assistant-message-attachments-production\//);
       }
     );
 

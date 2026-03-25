@@ -221,7 +221,7 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
 }
 
 function buildSlideDoc(slideHtml: string): string {
-  return `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:#fff;}</style></head><body>${slideHtml}</body></html>`;
+  return `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:var(--background);}</style></head><body>${slideHtml}</body></html>`;
 }
 
 function SlidesViewer({ slides }: { slides: string[] }) {
@@ -307,7 +307,7 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
 
   if (content.status === 'text') {
     return (
-      <pre className="styled-scrollbar max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+      <pre className="styled-scrollbar max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-4 font-mono text-caption leading-relaxed">
         {content.content}
       </pre>
     );

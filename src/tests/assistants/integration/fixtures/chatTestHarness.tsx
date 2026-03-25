@@ -20,7 +20,7 @@
 import * as React from 'react';
 import { vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
+import { AssistantProfilePanel } from '@/components/Pages/Assistants/Profile/AssistantProfile';
 import { createMockAssistant } from '../../mocks/data';
 import { mockAssistantActions } from '../../mocks/actions';
 import { AssistantActions, Assistant } from '@/types/assistants/assistant';

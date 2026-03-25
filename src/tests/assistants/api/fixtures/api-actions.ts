@@ -736,48 +736,6 @@ export const secretApi = {
 };
 
 // ============================================
-// Task API Actions
-// ============================================
-
-export const taskApi = {
-  async list(
-    userName: string,
-    assistantName: string,
-    filter: string | null,
-    limit: number,
-    offset: number,
-    apiKey?: string
-  ): Promise<{ logs?: Array<Record<string, unknown>>; detail?: string }> {
-    const params = new URLSearchParams({ userName, assistantName });
-    if (filter) params.set('filter', filter);
-    params.set('limit', String(limit));
-    params.set('offset', String(offset));
-    const endpoint = `/api/assistant/tasks?${params.toString()}`;
-    const res = await apiFetch(endpoint, {}, apiKey);
-    return parseResponse(res, endpoint);
-  },
-
-  async update(
-    userName: string,
-    assistantName: string,
-    logIds: number[],
-    updates: Record<string, unknown>,
-    apiKey?: string
-  ): Promise<{ info?: string; detail?: string }> {
-    const endpoint = '/api/assistant/tasks';
-    const res = await apiFetch(
-      endpoint,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ userName, assistantName, logIds, updates }),
-      },
-      apiKey
-    );
-    return parseResponse(res, endpoint);
-  },
-};
-
-// ============================================
 // Extended Photo API Actions
 // ============================================
 

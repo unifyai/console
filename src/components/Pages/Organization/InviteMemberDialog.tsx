@@ -120,7 +120,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers, roles }: InviteMemberDi
         </Tooltip>
       </TooltipProvider>
 
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <div className="flex flex-col gap-2">
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4" noValidate>
             {/* Email Input */}

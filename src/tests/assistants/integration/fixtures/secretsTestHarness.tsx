@@ -20,7 +20,7 @@
  */
 import * as React from 'react';
 import { vi } from 'vitest';
-import { AssistantSecretsManager } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSecretsManager';
+import { AssistantSecretsManager } from '@/components/Pages/Assistants/Profile/AssistantSecretsManager';
 import { Secret, SecretActions } from '@/types/assistants/secret';
 
 // =============================================================================
@@ -108,7 +108,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
   };
 
   return {
-    get: vi.fn(async (_assistantId: string): Promise<Secret[] | { detail: string }> => {
+    get: vi.fn(async (_assistantId: string, _ownerId: string): Promise<Secret[] | { detail: string }> => {
       await maybeDelay();
       if (!getSuccess) return { detail: errorMessage };
       return secrets;
@@ -116,6 +116,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
     create: vi.fn(
       async (
         _assistantId: string,
+        _ownerId: string,
         _secret: { name: string; value: string; description?: string }
       ): Promise<{ info?: string; detail?: string }> => {
         await maybeDelay();
@@ -126,13 +127,14 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
     update: vi.fn(
       async (
         _logId: number,
+        _ownerId: string,
         _payload: { name?: string; value?: string; description?: string }
       ): Promise<{ info?: string; detail?: string }> => {
         await maybeDelay();
         return { info: 'Secret updated' };
       }
     ),
-    delete: vi.fn(async (_logId: number): Promise<{ info?: string; detail?: string }> => {
+    delete: vi.fn(async (_logId: number, _ownerId: string): Promise<{ info?: string; detail?: string }> => {
       await maybeDelay();
       if (!deleteSuccess) return { detail: errorMessage };
       return { info: 'Secret deleted' };
@@ -145,7 +147,7 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
  */
 export function createPendingSecretActions(): SecretActions {
   return {
-    get: vi.fn((_assistantId: string) => new Promise<Secret[]>(() => {})), // Never resolves
+    get: vi.fn((_assistantId: string, _ownerId: string) => new Promise<Secret[]>(() => {})),
     create: vi.fn(() => new Promise<{ info: string }>(() => {})),
     update: vi.fn(() => new Promise<{ info: string }>(() => {})),
     delete: vi.fn(() => new Promise<{ info: string }>(() => {})),
@@ -163,6 +165,8 @@ export interface SecretsTestHarnessProps {
   onClose?: () => void;
   /** User ID for security filtering */
   userId?: string;
+  /** Owner ID (assistant owner's user ID) */
+  ownerId?: string;
   /** Assistant ID for security filtering */
   assistantId?: string;
   /** Secret actions implementation */
@@ -178,6 +182,7 @@ export function SecretsTestHarness({
   isOpen = true,
   onClose,
   userId = 'test-user-id',
+  ownerId = 'test-owner-id',
   assistantId = 'test-assistant-id',
   secretActions,
   canWrite = true,
@@ -189,6 +194,7 @@ export function SecretsTestHarness({
       isOpen={isOpen}
       onClose={onClose ?? vi.fn()}
       assistantId={assistantId}
+      ownerId={ownerId}
       secretActions={actions}
       canWrite={canWrite}
     />

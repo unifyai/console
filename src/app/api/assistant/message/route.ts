@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 import type { Attachment } from '@/types/assistants/chat';
 
 export async function POST(request: NextRequest) {
@@ -29,10 +30,11 @@ export async function POST(request: NextRequest) {
     message?: string;
     body?: string;
     attachments?: Attachment[];
+    deployEnv?: string | null;
   }>(requestBody);
 
   // Support both 'message' and 'body' fields
-  const { assistantId, contactId, attachments } = normalizedBody;
+  const { assistantId, contactId, attachments, deployEnv } = normalizedBody;
   const message = normalizedBody.message || normalizedBody.body;
 
   // Allow sending if there's a message OR attachments
@@ -50,16 +52,25 @@ export async function POST(request: NextRequest) {
   const isLocal = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
   const isStaging = orchestraUrl.includes('staging') || isLocal;
 
-  // In local dev, skip the actual message dispatch to avoid polluting staging
-  // assistants. Uploads already went through; this just acknowledges the message.
-  if (isLocal) {
-    return NextResponse.json(
-      { info: 'Message accepted (local dev — dispatch skipped).' },
-      { status: 202 }
-    );
-  }
+  // LOCAL_ADAPTERS_URL allows local dev to dispatch messages to a locally
+  // running Communication adapters instance (e.g. via communication/scripts/local.sh)
+  // instead of silently swallowing them. When unset, local dev still skips
+  // dispatch to avoid accidentally hitting staging adapters.
+  const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
 
-  const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/message`;
+  let webhookUrl: string;
+  if (isLocal) {
+    if (!localAdaptersUrl) {
+      return NextResponse.json(
+        { info: 'Message accepted (local dev — dispatch skipped). Set LOCAL_ADAPTERS_URL to dispatch to local adapters.' },
+        { status: 202 }
+      );
+    }
+    webhookUrl = `${localAdaptersUrl}/unify/message`;
+  } else {
+    const prefix = getAdaptersPrefix(deployEnv, isStaging);
+    webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/message`;
+  }
 
   const payload = camelToSnakeObject({
     assistantId,

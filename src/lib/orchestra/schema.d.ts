@@ -3669,6 +3669,11 @@ export interface components {
        * @example America/New_York
        */
       timezone?: string | null;
+      /**
+       * Deploy Env
+       * @description Deployment environment override for this assistant. When set to "preview", the assistant uses the preview adapters service.
+       */
+      deploy_env?: 'preview' | null;
     };
     /** AssistantPhotoUploadResponse */
     AssistantPhotoUploadResponse: {
@@ -3898,6 +3903,11 @@ export interface components {
        * @example 100
        */
       monthly_spending_cap?: number | null;
+      /**
+       * Deploy Env
+       * @description Deployment environment override for this assistant. When set to "preview", the assistant uses the preview adapters service.
+       */
+      deploy_env?: 'preview' | null;
     };
     /**
      * AssistantSpendingLimitResponse

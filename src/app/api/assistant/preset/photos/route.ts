@@ -17,10 +17,7 @@ function isValidName(name: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  const bucketName =
-    process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME ||
-    process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME ||
-    process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+  const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME;
 
   if (!bucketName || !storage) {
     return NextResponse.json(

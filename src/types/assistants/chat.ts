@@ -107,4 +107,6 @@ export interface UnifyMessage {
   message: string;
   /** Attachments with full metadata for transcript logging */
   attachments?: Attachment[];
+  /** Deployment environment override — 'preview' routes to preview adapters */
+  deployEnv?: string | null;
 }

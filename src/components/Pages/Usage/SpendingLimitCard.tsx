@@ -19,7 +19,7 @@ import { Button } from '@/components/UI/button';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
 import { Target, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SpendingLimitDialog } from '@/components/Pages/Assistants/Assistants/Profile/SpendingLimitDialog';
+import { SpendingLimitDialog } from '@/components/Pages/Assistants/Profile/SpendingLimitDialog';
 
 export interface SpendingLimitData {
   /** Type of limit being displayed */

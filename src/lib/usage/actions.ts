@@ -6,7 +6,7 @@
  * These are bound server actions that capture the API key in a closure.
  * The API key is never exposed to the client - only the action function is passed.
  *
- * This follows the same pattern as lib/interfaces/tiles.ts and lib/assistants/task.ts
+ * This follows the same pattern as lib/interfaces/tiles.ts
  */
 
 import { UsageMetricsResponse, UsageApiError, TimeGranularity } from '@/types/usage';

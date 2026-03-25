@@ -7,7 +7,7 @@
  * all billing state + business logic. Components consume its return value.
  *
  * Pattern mirrors:
- *   @/hooks/useOrganization.ts
+ *   @/hooks/Organizations/useOrganization.ts
  *   @/hooks/Assistants/useAssistantActions.ts
  */
 

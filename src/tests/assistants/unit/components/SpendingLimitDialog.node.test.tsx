@@ -14,7 +14,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SpendingLimitDialog } from '@/components/Pages/Assistants/Assistants/Profile/SpendingLimitDialog';
+import { SpendingLimitDialog } from '@/components/Pages/Assistants/Profile/SpendingLimitDialog';
 
 describe('SpendingLimitDialog', () => {
   const defaultProps = {

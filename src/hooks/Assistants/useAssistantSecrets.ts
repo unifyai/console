@@ -15,7 +15,11 @@ interface SecretFormData {
   description: string;
 }
 
-export function useAssistantSecrets(assistantId: string | null, secretActions: SecretActions) {
+export function useAssistantSecrets(
+  assistantId: string | null,
+  ownerId: string | null,
+  secretActions: SecretActions
+) {
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -28,11 +32,11 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
   const { reset } = formMethods;
 
   const fetchSecrets = React.useCallback(async () => {
-    if (!assistantId) return;
+    if (!assistantId || !ownerId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const result = await secretActions.get(assistantId);
+      const result = await secretActions.get(assistantId, ownerId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
       const sortedSecrets = (result as Secret[]).sort((a, b) => a.name.localeCompare(b.name));
       setSecrets(sortedSecrets);
@@ -48,7 +52,7 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
     } finally {
       setIsLoading(false);
     }
-  }, [assistantId, secretActions]);
+  }, [assistantId, ownerId, secretActions]);
 
   React.useEffect(() => {
     if (assistantId) {
@@ -78,10 +82,10 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
   };
 
   const handleDeleteSecret = async (secretToDelete: Secret) => {
-    if (!assistantId) return;
+    if (!assistantId || !ownerId) return;
     const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
     try {
-      const result = await secretActions.delete(secretToDelete.logId);
+      const result = await secretActions.delete(secretToDelete.logId, ownerId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
@@ -92,7 +96,7 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
   };
 
   const onSubmit = async (data: SecretFormData) => {
-    if (!assistantId) return;
+    if (!assistantId || !ownerId) return;
 
     setIsSubmitting(true);
 
@@ -111,7 +115,7 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
           return;
         }
 
-        const result = await secretActions.update(selectedSecret.logId, payload);
+        const result = await secretActions.update(selectedSecret.logId, ownerId, payload);
         if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
         toast.success('Secret updated.', { id: toastId });
@@ -129,7 +133,7 @@ export function useAssistantSecrets(assistantId: string | null, secretActions: S
           value: data.value,
           description: data.description || undefined,
         };
-        const result = await secretActions.create(assistantId, payload);
+        const result = await secretActions.create(assistantId, ownerId, payload);
         if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
         toast.success('Secret created.', { id: toastId });

@@ -187,6 +187,14 @@ function createPubSubStream(
         try {
           const rawData = message.data.toString('utf-8');
           const payload = JSON.parse(rawData);
+
+          // System error messages are handled by the dedicated system-errors
+          // SSE stream — skip them here to avoid ghost action tree nodes.
+          if (payload.thread === 'system_error') {
+            message.ack();
+            return;
+          }
+
           const eventPayload = payload.event || payload;
           const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
           const shaped = reshapeToLogEntry(camelEvent);

@@ -1,7 +1,6 @@
 import React from 'react';
-import { render, screen, within, waitFor } from '@/tests/render';
+import { render, screen, waitFor } from '@/tests/render';
 import { describe, it, expect, vi } from 'vitest';
-import userEvent from '@testing-library/user-event';
 
 // Mock the Server Action module before importing components that use it
 // This prevents loading next-auth dependencies in the browser environment
@@ -10,16 +9,13 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
   generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
 }));
 
-import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
-import { AssistantProfilePanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfile';
-import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Assistants/Profile/AssistantProfileInfoPanel';
-import { AssistantSecretsManager } from '@/components/Pages/Assistants/Assistants/Profile/AssistantSecretsManager';
-import { TaskListItem } from '@/components/Pages/Assistants/Tasks/List/TaskListItem';
+import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
+import { AssistantProfilePanel } from '@/components/Pages/Assistants/Profile/AssistantProfile';
+import { AssistantProfileInfoPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileInfoPanel';
+import { AssistantSecretsManager } from '@/components/Pages/Assistants/Profile/AssistantSecretsManager';
 
 import { createMockAssistant, mockStatuses } from '@/tests/assistants/mocks/data';
-import { mockAssistantActions, mockTaskActions } from '@/tests/assistants/mocks/actions';
-import { Accordion } from '@/components/UI/accordion';
-import { Task, Status, Priority } from '@/types/assistants/task';
+import { mockAssistantActions } from '@/tests/assistants/mocks/actions';
 
 vi.mock('@/hooks/Assistants/useAssistantCall', () => ({
   useAssistantCall: vi.fn(() => ({
@@ -169,7 +165,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
 
   describe('AssistantSecretsManager - canWrite prop', () => {
     const mockSecretActions = {
-      get: vi.fn(async (_assistantId: string) => [
+      get: vi.fn(async (_assistantId: string, _ownerId: string) => [
         { logId: 1, name: 'API_KEY', description: 'Test key' },
       ]),
       create: vi.fn(async () => ({ info: 'Created' })),
@@ -181,6 +177,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
       isOpen: true,
       onClose: vi.fn(),
       userId: 'test-user-id',
+      ownerId: 'test-owner-id',
       assistantId: 'test-assistant-id',
       secretActions: mockSecretActions,
     };
@@ -228,69 +225,4 @@ describe('Assistant Permissions - Behavior Tests', () => {
     });
   });
 
-  describe('TaskListItem - canEditTask prop', () => {
-    const mockTask: Task = {
-      taskId: 1,
-      logId: 1,
-      name: 'Test Task',
-      description: 'Test description',
-      status: Status.queued,
-      priority: Priority.normal,
-      deadline: undefined,
-      schedule: {},
-      assistantId: myAssistant.agentId,
-    };
-
-    const defaultTaskProps = {
-      task: mockTask,
-      assistant: myAssistant,
-      updateTask: mockTaskActions.update,
-      onTaskUpdate: vi.fn(),
-    };
-
-    it('should enable textarea when canEditTask=true', async () => {
-      const user = userEvent.setup();
-      render(
-        <Accordion type="multiple" defaultValue={['1']}>
-          <TaskListItem {...defaultTaskProps} canEditTask={true} />
-        </Accordion>
-      );
-
-      const textarea = screen.getByPlaceholderText('Task description...');
-      expect(textarea).not.toBeDisabled();
-      expect(textarea).not.toHaveAttribute('readonly');
-    });
-
-    it('should disable textarea when canEditTask=false', async () => {
-      render(
-        <Accordion type="multiple" defaultValue={['1']}>
-          <TaskListItem {...defaultTaskProps} canEditTask={false} />
-        </Accordion>
-      );
-
-      const textarea = screen.getByPlaceholderText('Task description...');
-      expect(textarea).toBeDisabled();
-      expect(textarea).toHaveAttribute('readonly');
-    });
-
-    it('should not show save/discard buttons when editing with canEditTask=false', async () => {
-      const user = userEvent.setup();
-      render(
-        <Accordion type="multiple" defaultValue={['1']}>
-          <TaskListItem {...defaultTaskProps} canEditTask={false} />
-        </Accordion>
-      );
-
-      // The save and discard buttons should not appear even if somehow text changes
-      const saveButtons = screen
-        .queryAllByRole('button')
-        .filter((btn) => btn.querySelector('.lucide-save'));
-      const discardButtons = screen
-        .queryAllByRole('button')
-        .filter((btn) => btn.querySelector('.lucide-undo-2'));
-
-      expect(saveButtons.length).toBe(0);
-      expect(discardButtons.length).toBe(0);
-    });
-  });
 });

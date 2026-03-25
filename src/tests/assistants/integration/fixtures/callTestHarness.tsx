@@ -24,10 +24,9 @@ import { vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import Main from '@/components/Pages/Assistants/Main';
-import { mockAssistantActions, mockTaskActions } from '../../mocks/actions';
+import { mockAssistantActions } from '../../mocks/actions';
 import { mockAssistants } from '../../mocks/data';
 import { AssistantActions } from '@/types/assistants/assistant';
-import { TaskActions } from '@/types/assistants/task';
 
 // =============================================================================
 // LIVEKIT MOCK CLASSES
@@ -308,8 +307,6 @@ export function setupWorkspaceMock(
 export interface CallTestHarnessProps {
   /** Override assistant actions */
   assistantActionsOverride?: Partial<AssistantActions>;
-  /** Override task actions */
-  taskActionsOverride?: Partial<TaskActions>;
   /** User metadata */
   userMeta?: { image: string | null | undefined; timezone?: string | null | undefined };
 }
@@ -320,7 +317,6 @@ export interface CallTestHarnessProps {
  */
 export function CallTestHarness({
   assistantActionsOverride = {},
-  taskActionsOverride = {},
   userMeta = { image: 'test-image.jpg', timezone: 'UTC' },
 }: CallTestHarnessProps) {
   const actions = React.useMemo(
@@ -331,15 +327,7 @@ export function CallTestHarness({
     [assistantActionsOverride]
   );
 
-  const taskActions = React.useMemo(
-    () => ({
-      ...mockTaskActions,
-      ...taskActionsOverride,
-    }),
-    [taskActionsOverride]
-  );
-
-  return <Main taskActions={taskActions} assistantActions={actions} userMeta={userMeta} />;
+  return <Main assistantActions={actions} userMeta={userMeta} />;
 }
 
 // =============================================================================

@@ -4,6 +4,7 @@ import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 
@@ -125,7 +126,8 @@ export const sendSystemEvent = async () => {
   return async (
     assistantId: string,
     eventType: SystemEventType,
-    message: string
+    message: string,
+    deployEnv?: string | null
   ): Promise<ResponseProps> => {
     'use server';
 
@@ -140,7 +142,8 @@ export const sendSystemEvent = async () => {
     const orchestraUrl = process.env.ORCHESTRA_URL || '';
     const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
 
-    const webhookUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unity/system-event`;
+    const prefix = getAdaptersPrefix(deployEnv, isStaging);
+    const webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unity/system-event`;
 
     // API expects snake_case - convert camelCase to snake_case
     const payload = camelToSnakeObject({

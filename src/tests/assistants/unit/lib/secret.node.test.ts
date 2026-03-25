@@ -12,12 +12,17 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/server';
 import { getSecrets, createSecret, deleteSecret } from '@/lib/assistants/secret';
 
-// Mock environment variables
+// Mock the owner module so tests don't hit the admin API
+vi.mock('@/lib/assistants/owner', () => ({
+  resolveOwnerApiKeyForAssistant: vi.fn(async () => 'owner-api-key'),
+}));
+
 const MOCK_BASE_URL = 'http://localhost:3000';
 
 describe('secret.ts', () => {
   const TEST_API_KEY = 'test-api-key';
   const USER_ID = 'user-id-456';
+  const OWNER_ID = 'owner-id-123';
   const ASSISTANT_ID = 'assistant-id-789';
 
   beforeEach(() => {
@@ -59,7 +64,7 @@ describe('secret.ts', () => {
         // Act
         // Act - isOrgContext=false for personal workspace
         const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
-        const result = await getSecretsFn(ASSISTANT_ID);
+        const result = await getSecretsFn(ASSISTANT_ID, OWNER_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -89,11 +94,10 @@ describe('secret.ts', () => {
           })
         );
 
-        // Act - isOrgContext=false for personal workspace
+        // Act - isOrgContext=false for personal workspace (user IS the owner)
         const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', false);
-        await getSecretsFn('test-assistant-id');
+        await getSecretsFn('test-assistant-id', 'test-user-id');
 
-        // Assert - URL should contain All/Secrets context and both security filters
         expect(capturedUrl).toContain('All/Secrets');
         const decodedUrl = decodeURIComponent(capturedUrl);
         expect(decodedUrl).toContain("_user_id == 'test-user-id'");
@@ -122,7 +126,7 @@ describe('secret.ts', () => {
 
         // Act - isOrgContext=true for organization workspace
         const getSecretsFn = await getSecrets(TEST_API_KEY, 'test-user-id', true);
-        await getSecretsFn('test-assistant-id');
+        await getSecretsFn('test-assistant-id', 'test-owner-id');
 
         // Assert - URL should contain _assistant_id but NOT _user_id
         expect(capturedUrl).toContain('All/Secrets');
@@ -151,7 +155,7 @@ describe('secret.ts', () => {
 
         // Act
         const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
-        const result = await getSecretsFn(ASSISTANT_ID);
+        const result = await getSecretsFn(ASSISTANT_ID, OWNER_ID);
 
         // Assert
         expect(Array.isArray(result)).toBe(true);
@@ -185,11 +189,12 @@ describe('secret.ts', () => {
 
         // Act
         const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
-        const result = await getSecretsFn(ASSISTANT_ID);
+        const result = await getSecretsFn(ASSISTANT_ID, OWNER_ID);
 
-        // Assert
-        expect(result).toHaveLength(1);
+        // id '1' and '2' are valid (have numeric ID + name), 'invalid' and '4' are filtered out
+        expect(result).toHaveLength(2);
         expect((result as any[])[0]).toHaveProperty('name', 'VALID');
+        expect((result as any[])[1]).toHaveProperty('name', 'NO_VALUE');
       }
     );
 
@@ -212,7 +217,7 @@ describe('secret.ts', () => {
 
         // Act
         const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
-        const result = await getSecretsFn(ASSISTANT_ID);
+        const result = await getSecretsFn(ASSISTANT_ID, OWNER_ID);
 
         // Assert
         expect(result).toHaveProperty('detail', 'Database error');
@@ -238,7 +243,7 @@ describe('secret.ts', () => {
 
         // Act
         const getSecretsFn = await getSecrets(TEST_API_KEY, USER_ID, false);
-        const result = await getSecretsFn(ASSISTANT_ID);
+        const result = await getSecretsFn(ASSISTANT_ID, OWNER_ID);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -275,14 +280,15 @@ describe('secret.ts', () => {
 
         // Act
         const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
-        const result = await createFn(ASSISTANT_ID, {
+        const result = await createFn(ASSISTANT_ID, OWNER_ID, {
           name: 'NEW_SECRET',
           value: 'secret-value',
         });
 
         // Assert
         expect(result).toHaveProperty('info', 'Secret created successfully.');
-        expect(mirrorContexts).toContain(`${USER_ID}/All/Secrets`);
+        // Mirror contexts must use the OWNER ID, not the logged-in user ID
+        expect(mirrorContexts).toContain(`${OWNER_ID}/All/Secrets`);
         expect(mirrorContexts).toContain('All/Secrets');
       }
     );
@@ -311,21 +317,21 @@ describe('secret.ts', () => {
         );
 
         // Act
-        const createFn = await createSecret(TEST_API_KEY, 'test-user-id', false);
-        await createFn('test-assistant-id', {
+        const createFn = await createSecret(TEST_API_KEY, 'logged-in-user-id', false);
+        await createFn('test-assistant-id', 'the-owner-id', {
           name: 'API_KEY',
           value: 'secret123',
           description: 'My API key',
         });
 
-        // Assert — writes to the primary user/assistant context
+        // Context path must use the OWNER's ID, not the logged-in user's ID
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
-        expect(capturedBody).toHaveProperty('context', 'test-user-id/test-assistant-id/Secrets');
+        expect(capturedBody).toHaveProperty('context', 'the-owner-id/test-assistant-id/Secrets');
         expect(capturedBody.entries).toHaveLength(1);
         expect(capturedBody.entries[0]).toHaveProperty('name', 'API_KEY');
         expect(capturedBody.entries[0]).toHaveProperty('value', 'secret123');
         /* eslint-disable @typescript-eslint/naming-convention */
-        expect(capturedBody.entries[0]).toHaveProperty('_user_id', 'test-user-id');
+        expect(capturedBody.entries[0]).toHaveProperty('_user_id', 'the-owner-id');
         expect(capturedBody.entries[0]).toHaveProperty('_assistant_id', 'test-assistant-id');
         /* eslint-enable @typescript-eslint/naming-convention */
       }
@@ -350,12 +356,11 @@ describe('secret.ts', () => {
 
         // Act
         const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
-        const result = await createFn(ASSISTANT_ID, {
+        const result = await createFn(ASSISTANT_ID, OWNER_ID, {
           name: 'EXISTING',
           value: 'value',
         });
 
-        // Assert
         expect(result).toHaveProperty('detail', 'Duplicate secret name');
       }
     );
@@ -379,12 +384,11 @@ describe('secret.ts', () => {
 
         // Act
         const createFn = await createSecret(TEST_API_KEY, USER_ID, false);
-        const result = await createFn(ASSISTANT_ID, {
+        const result = await createFn(ASSISTANT_ID, OWNER_ID, {
           name: 'SECRET',
           value: 'value',
         });
 
-        // Assert
         expect(result).toHaveProperty('detail');
       }
     );
@@ -410,9 +414,8 @@ describe('secret.ts', () => {
 
         // Act
         const deleteFn = await deleteSecret(TEST_API_KEY);
-        const result = await deleteFn(1);
+        const result = await deleteFn(1, OWNER_ID);
 
-        // Assert
         expect(result).toHaveProperty('info', 'Secret deleted successfully.');
       }
     );
@@ -438,9 +441,8 @@ describe('secret.ts', () => {
 
         // Act
         const deleteFn = await deleteSecret(TEST_API_KEY);
-        await deleteFn(42);
+        await deleteFn(42, OWNER_ID);
 
-        // Assert
         expect(capturedBody).toHaveProperty('projectName', 'Assistants');
         expect(capturedBody).toHaveProperty('context', 'All/Secrets');
         expect(capturedBody.idsAndFields).toEqual([[42, null]]);
@@ -466,9 +468,8 @@ describe('secret.ts', () => {
 
         // Act
         const deleteFn = await deleteSecret(TEST_API_KEY);
-        const result = await deleteFn(999);
+        const result = await deleteFn(999, OWNER_ID);
 
-        // Assert
         expect(result).toHaveProperty('detail', 'Secret not found');
       }
     );
@@ -492,7 +493,7 @@ describe('secret.ts', () => {
 
         // Act
         const deleteFn = await deleteSecret(TEST_API_KEY);
-        const result = await deleteFn(1);
+        const result = await deleteFn(1, OWNER_ID);
 
         // Assert
         expect(result).toHaveProperty('detail');
@@ -518,7 +519,7 @@ describe('secret.ts', () => {
 
         // Act
         const deleteFn = await deleteSecret(TEST_API_KEY);
-        const result = await deleteFn(1);
+        const result = await deleteFn(1, OWNER_ID);
 
         // Assert
         expect(result).toHaveProperty('detail');

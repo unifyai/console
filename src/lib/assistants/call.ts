@@ -4,6 +4,7 @@ import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-
 import { getCurrentUser } from '@/lib/user/user';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { camelToSnakeObject } from '@/utils/casing';
+import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
@@ -95,7 +96,7 @@ export const deleteCallRoom = async () => {
 };
 
 export const dispatchAssistantToCall = async (_apiKey: string) => {
-  return async (assistantId: string, roomName: string): Promise<ResponseProps> => {
+  return async (assistantId: string, roomName: string, deployEnv?: string | null): Promise<ResponseProps> => {
     'use server';
     try {
       const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
@@ -105,7 +106,8 @@ export const dispatchAssistantToCall = async (_apiKey: string) => {
 
       const baseUrl = process.env.ORCHESTRA_URL ?? '';
       const isStaging = baseUrl.includes('staging');
-      const dispatchUrl = `https://unity-adapters-${isStaging ? 'staging-' : ''}ky4ja5fxna-uc.a.run.app/unify/meet`;
+      const prefix = getAdaptersPrefix(deployEnv, isStaging);
+      const dispatchUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/meet`;
 
       const dispatchPayload = camelToSnakeObject({
         assistantId,

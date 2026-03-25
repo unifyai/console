@@ -389,6 +389,19 @@ export function useAssistantActions(
 
       if (allRootLogs.length > 0) {
         const result = buildActionTree(allRootLogs);
+
+        // Preserve liveToolLoopLogs from old nodes so that SSE data isn't
+        // lost when refresh() rebuilds the tree with fresh node objects.
+        const prevMap = nodeMapRef.current;
+        if (prevMap.size > 0) {
+          result.nodeMap.forEach((newNode, key) => {
+            const oldNode = prevMap.get(key);
+            if (oldNode?.liveToolLoopLogs?.length) {
+              newNode.liveToolLoopLogs = oldNode.liveToolLoopLogs;
+            }
+          });
+        }
+
         nodeMapRef.current = result.nodeMap;
         setRoots(result.roots);
         setNodeMap(result.nodeMap);
@@ -497,8 +510,9 @@ export function useAssistantActions(
           }
 
           const eventTs = toolEntries.eventTimestamp ?? parsed.data.ts ?? new Date().toISOString();
+          const rawId = toolEntries.rowId ?? parsed.data.id;
           const toolLog: ToolLoopLog = {
-            id: toolEntries.rowId ?? parsed.data.id ?? Date.now(),
+            id: rawId && rawId > 0 ? rawId : -(Date.now() + Math.round(Math.random() * 10000)),
             ts: eventTs,
             entries: {
               kind: toolEntries.kind ?? undefined,
@@ -507,6 +521,7 @@ export function useAssistantActions(
               hierarchy: toolEntries.hierarchy,
               hierarchyLabel: toolEntries.hierarchyLabel ?? '',
               eventTimestamp: eventTs,
+              eventId: eventId ?? undefined,
               toolAliases: toolEntries.toolAliases ?? null,
             },
           };

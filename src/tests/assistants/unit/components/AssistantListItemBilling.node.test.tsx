@@ -32,7 +32,7 @@ vi.mock('@/components/UI/hover-card', () => ({
     React.createElement('div', { 'data-testid': 'hover-card-content' }, children),
 }));
 
-import { AssistantListItem } from '@/components/Pages/Assistants/Assistants/List/AssistantListItem';
+import { AssistantListItem } from '@/components/Pages/Assistants/List/AssistantListItem';
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 

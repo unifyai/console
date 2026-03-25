@@ -4,7 +4,6 @@
  * Validates that:
  *   1. The API Key section has been removed
  *   2. The Account section with ProfileForm is still rendered
- *   3. The UnifyKey / APIKeyPanel component is NOT imported or rendered
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -23,11 +22,6 @@ vi.mock('@/components/Pages/Profile/Form', () => ({
   default: ({ user }: { user: any }) => (
     <div data-testid="profile-form">ProfileForm for {user.name}</div>
   ),
-}));
-
-// Mock the APIKeyPanel so we can detect if it gets rendered
-vi.mock('@/components/Pages/Keys/UserAPIKeyPanel/APIKeyPanel', () => ({
-  default: () => <div data-testid="api-key-panel">APIKeyPanel</div>,
 }));
 
 // ─── Import after mocks ────────────────────────────────────────────────────
@@ -58,13 +52,6 @@ describe('Profile Main component', () => {
     render(result);
 
     expect(screen.queryByText(/grab or update your api key/i)).toBeNull();
-  });
-
-  it('does NOT render the APIKeyPanel component', async () => {
-    const result = await Main({ user: mockUser as any, onPrem: undefined });
-    render(result);
-
-    expect(screen.queryByTestId('api-key-panel')).toBeNull();
   });
 
   it('renders the Account section heading', async () => {

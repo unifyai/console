@@ -16,7 +16,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 // Mock the SpendingLimitDialog since we test it separately
-vi.mock('@/components/Pages/Assistants/Assistants/Profile/SpendingLimitDialog', () => ({
+vi.mock('@/components/Pages/Assistants/Profile/SpendingLimitDialog', () => ({
   SpendingLimitDialog: ({
     open,
     onOpenChange,

@@ -63,6 +63,10 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const preSearchExpandedRef = React.useRef<Set<string> | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const prevRootIdsRef = React.useRef<Set<string>>(new Set());
+  // When true, the next roots load skips auto-expand (historic pulls should
+  // start collapsed).  Stays true across the intermediate empty-roots state
+  // that refresh(true) causes, and resets once real data arrives.
+  const suppressAutoExpandRef = React.useRef(false);
 
   // ==========================================================================
   // Visibility-based Polling
@@ -155,7 +159,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   const expandableNodeIds = React.useMemo(() => getExpandableNodeIds(displayRoots), [displayRoots]);
 
   const allExpanded = React.useMemo(() => {
-    if (expandableNodeIds.size === 0) return true;
+    if (expandableNodeIds.size === 0) return false;
     return areAllNodesExpanded(displayRoots, expandedNodeIds);
   }, [displayRoots, expandedNodeIds, expandableNodeIds]);
 
@@ -209,16 +213,21 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       isFirstRenderRef.current = false;
       return;
     }
-    // Clear tree so the loading state shows while re-fetching
+    suppressAutoExpandRef.current = true;
+    setExpandedNodeIds(new Set());
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeWindowKey]);
 
-  // Manual refresh handler (polls from Orchestra on demand)
+  // Manual refresh handler (polls from Orchestra on demand).
+  // Mirrors the historic-pull behaviour: nodes start collapsed and
+  // auto-expand is suppressed so the refreshed tree isn't noisy.
   const [isManualRefreshing, setIsManualRefreshing] = React.useState(false);
   const handleManualRefresh = React.useCallback(async () => {
     if (isManualRefreshing) return;
     setIsManualRefreshing(true);
+    suppressAutoExpandRef.current = true;
+    setExpandedNodeIds(new Set());
     try {
       await refresh();
     } finally {
@@ -244,9 +253,23 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
   // Effects
   // ==========================================================================
 
-  // Auto-expand newly arriving root action nodes
+  // Auto-expand newly arriving root action nodes (live SSE only).
+  // Historic pulls (time-window change) and manual refreshes set
+  // suppressAutoExpandRef so bulk-loaded roots start collapsed.
   React.useEffect(() => {
     const currentIds = new Set(roots.map((r) => r.id));
+
+    if (suppressAutoExpandRef.current) {
+      prevRootIdsRef.current = currentIds;
+      if (currentIds.size > 0) suppressAutoExpandRef.current = false;
+      return;
+    }
+
+    // Skip transient empty state (e.g. clearTree during refresh) so that
+    // prevRootIdsRef isn't reset — otherwise every root looks "new" when
+    // the real data arrives and all nodes would auto-expand.
+    if (currentIds.size === 0) return;
+
     const newIds: string[] = [];
     currentIds.forEach((id) => {
       if (!prevRootIdsRef.current.has(id)) newIds.push(id);

@@ -10,7 +10,7 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
 }));
 
 import Main from '@/components/Pages/Assistants/Main';
-import { mockAssistantActions, mockTaskActions } from '../mocks/actions';
+import { mockAssistantActions } from '../mocks/actions';
 import { mockAssistants } from '../mocks/data';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import { EventEmitter } from 'events';
@@ -174,7 +174,6 @@ describe('Assistant Call', () => {
   const renderPage = () => {
     return render(
       <Main
-        taskActions={mockTaskActions}
         assistantActions={mockAssistantActions}
         userMeta={{ image: 'test-image.jpg', timezone: 'UTC' }}
       />

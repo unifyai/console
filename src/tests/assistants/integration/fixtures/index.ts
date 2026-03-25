@@ -124,36 +124,3 @@ export {
   type SecretsTestHarnessProps,
 } from './secretsTestHarness';
 
-// Tasks Test Harness
-export {
-  // Re-export enums
-  Status,
-  Priority,
-  // Factories
-  createMockTask,
-  createMockTasks,
-  resetTaskIdCounter,
-  createMockTaskActions,
-  createPendingTaskActions,
-  // Components
-  TaskTestHarness,
-  TasksListTestHarness,
-  // Query Helpers
-  getTaskElements,
-  getTaskEditControls,
-  getStatusBadge,
-  getPriorityIndicator,
-  // Styling Verification
-  statusVariantMap,
-  priorityClassMap,
-  hasPriorityStyling,
-  // Interaction Helpers
-  editTaskDescription,
-  saveTaskChanges,
-  discardTaskChanges,
-  toggleTaskExpansion,
-  // Types
-  type MockTaskActionsOptions,
-  type TaskTestHarnessProps,
-  type TasksListTestHarnessProps,
-} from './tasksTestHarness';

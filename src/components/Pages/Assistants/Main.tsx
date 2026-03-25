@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AssistantList } from '@/components/Pages/Assistants/Assistants/List/AssistantList';
+import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import {
   Assistant,
@@ -10,15 +10,14 @@ import {
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
-import { TaskActions } from '@/types/assistants/task';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
-import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
+import { AssistantProfilePanel } from './Profile/AssistantProfile';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AssistantHire } from './Assistants/Hire/AssistantHire';
-import { AssistantEdit } from './Assistants/Edit/AssistantEdit';
-import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
-import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
+import { AssistantHire } from './Hire/AssistantHire';
+import { AssistantEdit } from './Edit/AssistantEdit';
+import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
+import { PresetsPanel } from './Hire/Presets/AssistantHirePresetsList';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
@@ -36,8 +35,8 @@ import {
   PRIMARY_VOICE_PROVIDER,
 } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
-import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
+import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
+import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
@@ -48,9 +47,9 @@ import { useOrgSpending } from '@/hooks/Organizations/useOrgSpending';
 import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
+import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 
 interface MainProps {
-  taskActions: TaskActions;
   assistantActions: AssistantActions;
   userMeta: {
     image: string | null | undefined;
@@ -62,7 +61,7 @@ interface MainProps {
   };
 }
 
-export default function Main({ taskActions, assistantActions, userMeta }: MainProps) {
+export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
     usePanelManager();
@@ -730,12 +729,15 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
   );
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
+  // --- System error listener (assistant-level, above all interaction surfaces) ---
+  useAssistantSystemErrors(profileAssistant);
+
   // Determine active panel for width calculations
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
   const computedListWidth = isAssistantListFolded ? LIST_MIN_WIDTH : assistantListWidth;
 
   return (
-    <>
+    <div className="flex h-full flex-col overflow-hidden">
       <Toaster richColors position="bottom-right" closeButton />
 
       <AssistantsBanners
@@ -766,7 +768,7 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
         pendingCreditToken={pendingToken}
       />
 
-      <div ref={contentContainerRef} className="flex h-full overflow-hidden bg-background">
+      <div ref={contentContainerRef} className="flex min-h-0 flex-1 overflow-hidden bg-background">
         {/* Assistant List */}
         <div
           className="relative h-full flex-shrink-0 border-r"
@@ -1007,6 +1009,6 @@ export default function Main({ taskActions, assistantActions, userMeta }: MainPr
           />
         </RoomContext.Provider>
       )}
-    </>
+    </div>
   );
 }

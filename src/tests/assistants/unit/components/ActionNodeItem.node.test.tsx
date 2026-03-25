@@ -2,7 +2,6 @@
  * Unit tests for ActionNodeItem and related action UI components.
  *
  * Tests cover:
- * - StatusIndicator states
  * - ActionNodeItem rendering
  * - Expand/collapse behavior
  * - Node states (running, completed, error)
@@ -15,7 +14,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { StatusIndicator } from '@/components/Pages/Assistants/LiveActions/StatusIndicator';
 import { ActionNodeItem } from '@/components/Pages/Assistants/LiveActions/ActionNodeItem';
 import { ActionTree } from '@/components/Pages/Assistants/LiveActions/ActionTree';
 import type { ActionNode } from '@/types/assistants/action';
@@ -37,63 +35,6 @@ function createMockNode(overrides: Partial<ActionNode> = {}): ActionNode {
     ...overrides,
   };
 }
-
-// =============================================================================
-// StatusIndicator Tests
-// =============================================================================
-
-describe('StatusIndicator', () => {
-  it(
-    'renders spinner for running status',
-    {
-      meta: {
-        alias: 'StatusIndicator-Running',
-        scenario: 'Status is running',
-        behavior: 'Shows animated spinner',
-      },
-    },
-    () => {
-      render(<StatusIndicator status="running" />);
-
-      const indicator = screen.getByTestId('status-indicator');
-      expect(indicator).toHaveAttribute('data-status', 'running');
-    }
-  );
-
-  it(
-    'renders checkmark for completed status',
-    {
-      meta: {
-        alias: 'StatusIndicator-Completed',
-        scenario: 'Status is completed',
-        behavior: 'Shows checkmark icon',
-      },
-    },
-    () => {
-      render(<StatusIndicator status="completed" />);
-
-      const indicator = screen.getByTestId('status-indicator');
-      expect(indicator).toHaveAttribute('data-status', 'completed');
-    }
-  );
-
-  it(
-    'renders error icon for error status',
-    {
-      meta: {
-        alias: 'StatusIndicator-Error',
-        scenario: 'Status is error',
-        behavior: 'Shows error icon',
-      },
-    },
-    () => {
-      render(<StatusIndicator status="error" />);
-
-      const indicator = screen.getByTestId('status-indicator');
-      expect(indicator).toHaveAttribute('data-status', 'error');
-    }
-  );
-});
 
 // =============================================================================
 // ActionNodeItem Tests

@@ -1,6 +1,5 @@
 import { getCurrentUser } from '@/lib/user/user';
 import Main from '@/components/Pages/Assistants/Main';
-import { getTasks, updateTask } from '@/lib/assistants/task';
 import {
   createAssistant,
   deleteAssistant,
@@ -43,7 +42,6 @@ import {
   fetchContactCosts,
   createAssistantContact,
 } from '@/lib/assistants/contact';
-import { TaskActions } from '@/types/assistants/task';
 import { AssistantActions } from '@/types/assistants/assistant';
 import { redirect } from 'next/navigation';
 import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
@@ -132,10 +130,10 @@ const AssistantsPage = async () => {
       fetchContactCosts: await fetchContactCosts(adminKey),
     },
     secret: {
-      get: await getSecrets(apiKey, user.id, isOrgContext),
-      create: await createSecret(apiKey, user.id, isOrgContext),
-      update: await updateSecret(apiKey),
-      delete: await deleteSecret(apiKey),
+      get: await getSecrets(apiKey, user.id, isOrgContext, orgId),
+      create: await createSecret(apiKey, user.id, isOrgContext, orgId),
+      update: await updateSecret(apiKey, isOrgContext, orgId),
+      delete: await deleteSecret(apiKey, isOrgContext, orgId),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
@@ -159,11 +157,6 @@ const AssistantsPage = async () => {
     },
   };
 
-  const taskActions: TaskActions = {
-    get: await getTasks(apiKey, user.id, isOrgContext),
-    update: await updateTask(apiKey),
-  };
-
   const userMeta = {
     image: user.image,
     timezone: user.timezone,
@@ -177,7 +170,6 @@ const AssistantsPage = async () => {
     <div className="h-full w-full">
       <Main
         assistantActions={assistantActions}
-        taskActions={taskActions}
         userMeta={userMeta}
       />
     </div>
