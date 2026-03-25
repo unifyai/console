@@ -46,7 +46,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
-import { UnifiedMember } from '@/hooks/useOrganization';
+import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { formatSpendAmount } from '@/types/assistants/spending';

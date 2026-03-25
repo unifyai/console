@@ -14,7 +14,7 @@ import {
   getCurrentMonth,
 } from '@/types/organization';
 import { ResponseProps } from '@/types/common';
-import { UnifiedMember } from '@/hooks/useOrganization';
+import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { Team } from '@/types/team';
 import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';

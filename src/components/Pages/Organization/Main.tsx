@@ -7,9 +7,9 @@ import { Organization, OrganizationActions } from '@/types/organization';
 import { TeamActions } from '@/types/team';
 import { RoleActions } from '@/types/role';
 import { MfaSettingsActions } from './SecuritySettingsPanel';
-import { useOrganization } from '@/hooks/useOrganization';
-import { useTeams } from '@/hooks/useTeams';
-import { useRoles } from '@/hooks/useRoles';
+import { useOrganization } from '@/hooks/Organizations/useOrganization';
+import { useTeams } from '@/hooks/Organizations/useTeams';
+import { useRoles } from '@/hooks/Organizations/useRoles';
 import { snakeToCamelObject } from '@/utils/casing';
 import { Toaster } from 'sonner';
 
