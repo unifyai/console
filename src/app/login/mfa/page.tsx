@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import TotpInput from '@/components/Common/Auth/TotpInput';
@@ -33,6 +33,14 @@ import { Loader2 } from 'lucide-react';
  */
 const MfaPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const assistantsUrl = useMemo(() => {
+    const creditToken = searchParams?.get('token');
+    return creditToken
+      ? `/assistants?token=${encodeURIComponent(creditToken)}`
+      : '/assistants';
+  }, [searchParams]);
 
   // MFA status detection
   const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null); // null = loading
@@ -87,13 +95,13 @@ const MfaPage = () => {
         }
 
         // mfaPending already cleared server-side by the verify route
-        router.push('/assistants');
+        router.push(assistantsUrl);
       } catch {
         setError('Verification failed. Please try again.');
         setIsLoading(false);
       }
     },
-    [router]
+    [router, assistantsUrl]
   );
 
   const handleRecoverySubmit = useCallback(async () => {
@@ -125,13 +133,13 @@ const MfaPage = () => {
             'Please regenerate your codes in Security Settings.'
         );
         setTimeout(() => {
-          router.push('/assistants');
+          router.push(assistantsUrl);
         }, 3000);
         return;
       }
 
       // mfaPending already cleared server-side by the verify-recovery route
-      router.push('/assistants');
+      router.push(assistantsUrl);
     } catch {
       setError('Recovery code verification failed. Please try again.');
       setIsLoading(false);
@@ -146,8 +154,8 @@ const MfaPage = () => {
     // The TotpSetup component already confirmed MFA with Orchestra, so we
     // redirect to /assistants — the middleware will allow access since MFA
     // is now enabled and the session will be refreshed on next page load.
-    router.push('/assistants');
-  }, [router]);
+    router.push(assistantsUrl);
+  }, [router, assistantsUrl]);
 
   // --- Back to login ---
 

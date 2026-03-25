@@ -17,12 +17,14 @@ export async function POST(request: NextRequest) {
     return badRequest('Invalid request body');
   }
 
-  const { expiresInDays = 7, creditAmount = null } = requestBody;
+  const { expiresInDays = 7, creditAmount = null, maxClaims = 1, name = null } = requestBody;
 
-  // Transform camelCase keys to snake_case for Orchestra API
-  const snakeCaseBody: Record<string, unknown> = camelToSnakeObject({ expiresInDays });
+  const snakeCaseBody: Record<string, unknown> = camelToSnakeObject({ expiresInDays, maxClaims });
   if (creditAmount != null) {
     snakeCaseBody.credit_amount = creditAmount;
+  }
+  if (name) {
+    snakeCaseBody.name = name;
   }
 
   const backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/credit-grant-link`;

@@ -17,8 +17,10 @@ import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/not
 interface GenerateOneTimeLinkButtonProps {
   onGenerateLink: (
     expiresInDays: number,
-    creditAmount: number | null
-  ) => Promise<string | null>; // Returns the full URL or null
+    creditAmount: number | null,
+    maxClaims: number,
+    name: string | null
+  ) => Promise<string | null>;
   isLoading: boolean;
 }
 
@@ -30,6 +32,8 @@ export function GenerateOneTimeLinkButton({
   const [generatedUrl, setGeneratedUrl] = React.useState<string | null>(null);
   const [expiresInDays, setExpiresInDays] = React.useState<number>(7);
   const [creditAmount, setCreditAmount] = React.useState<string>('');
+  const [maxClaims, setMaxClaims] = React.useState<number>(1);
+  const [linkName, setLinkName] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
 
@@ -43,13 +47,16 @@ export function GenerateOneTimeLinkButton({
       showErrorToast('Credit amount must be a positive number.');
       return;
     }
+    if (maxClaims < 1) {
+      showErrorToast('Max claims must be at least 1.');
+      return;
+    }
     setIsGenerating(true);
     setGeneratedUrl(null);
-    const url = await onGenerateLink(expiresInDays, parsedAmount);
+    const url = await onGenerateLink(expiresInDays, parsedAmount, maxClaims, linkName.trim() || null);
     if (url) {
       setGeneratedUrl(url);
     }
-    // Error toast is handled by the hook
     setIsGenerating(false);
   };
 
@@ -71,9 +78,11 @@ export function GenerateOneTimeLinkButton({
 
   const handleDialogClose = () => {
     setIsDialogOpen(false);
-    setGeneratedUrl(null); // Reset generated URL when dialog closes
-    setExpiresInDays(7); // Reset expiration days
-    setCreditAmount(''); // Reset credit amount
+    setGeneratedUrl(null);
+    setExpiresInDays(7);
+    setCreditAmount('');
+    setMaxClaims(1);
+    setLinkName('');
   };
 
   return (
@@ -94,11 +103,24 @@ export function GenerateOneTimeLinkButton({
         <DialogHeader>
           <DialogTitle>Generate Credit Grant Link</DialogTitle>
           <DialogDescription>
-            Create a unique link that grants credits to the user who claims it. Each link can only be
-            used once and each user can only claim one link ever.
+            Create a link that grants credits when claimed. Set max claims &gt; 1 to allow
+            multiple users to redeem the same link. Each user can only ever claim one link.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="linkName" className="col-span-1 text-right">
+              Name
+            </Label>
+            <Input
+              id="linkName"
+              type="text"
+              value={linkName}
+              onChange={(e) => setLinkName(e.target.value)}
+              className="col-span-3 h-9"
+              placeholder="e.g. Twitter campaign, Partner outreach"
+            />
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="expiresInDays" className="col-span-1 text-right">
               Expires in
@@ -129,6 +151,20 @@ export function GenerateOneTimeLinkButton({
             />
             <span className="text-body-muted col-span-1">USD</span>
           </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="maxClaims" className="col-span-1 text-right">
+              Max claims
+            </Label>
+            <Input
+              id="maxClaims"
+              type="number"
+              value={maxClaims}
+              onChange={(e) => setMaxClaims(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="col-span-2 h-9"
+              min="1"
+            />
+            <span className="text-body-muted col-span-1">users</span>
+          </div>
           {generatedUrl && (
             <div className="mt-2 space-y-2">
               <Label htmlFor="generatedLink">Generated Link:</Label>
@@ -155,7 +191,9 @@ export function GenerateOneTimeLinkButton({
               </div>
               <p className="text-caption flex items-center">
                 <AlertTriangle className="mr-1 h-3 w-3 text-orange-500" />
-                This link can only be used once.
+                {maxClaims === 1
+                  ? 'This link can only be used once.'
+                  : `This link can be claimed by up to ${maxClaims} users.`}
               </p>
             </div>
           )}

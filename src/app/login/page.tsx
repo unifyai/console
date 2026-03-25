@@ -71,7 +71,10 @@ const Login = () => {
       // updates and the session context (which could briefly trigger
       // redirect('/assistants') before the session clears).
       signOut({ redirect: false }).then(() => {
-        window.location.href = '/login';
+        const loginUrl = creditToken
+          ? `/login?credit=${encodeURIComponent(creditToken)}`
+          : '/login';
+        window.location.href = loginUrl;
       });
     } else if (session.status === 'unauthenticated') {
       // Already signed out (or cookie was cleared another way)
@@ -81,10 +84,17 @@ const Login = () => {
     // While session.status === 'loading', we wait
   }, [shouldSignOut, session.status, router]);
 
-  // Redirect authenticated users to /assistants — but NOT if we're in the
-  // middle of signing them out due to a deleted backend account.
+  // Redirect authenticated users — but NOT if we're in the middle of signing
+  // them out due to a deleted backend account.  Honour the callbackUrl
+  // (which may contain a credit-grant token) so the token survives.
   if (session.data && !isSigningOut) {
-    redirect('/assistants');
+    if (creditToken) {
+      redirect(`/assistants?token=${encodeURIComponent(creditToken)}`);
+    } else if (callbackUrl) {
+      redirect(callbackUrl.startsWith('/') ? callbackUrl : '/assistants');
+    } else {
+      redirect('/assistants');
+    }
   }
 
   // Show a loader while we're clearing a stale session

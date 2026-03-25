@@ -2,34 +2,42 @@ import { ResponseProps } from './common';
 
 export const ADMIN_TABLE_PAGE_SIZE = 30;
 
+export interface CreditGrantLinkClaimDetail {
+  userId: string;
+  organizationId?: number | null;
+  claimedAt?: string | null;
+  claimedByEmail?: string | null;
+  claimedForOrg?: string | null;
+}
+
 export interface OneTimeLinkResponse {
-  // Used for generation response
   id: string;
   token: string;
-  expiresAt: string; // ISO date string
-  claimedAt?: string | null; // ISO date string
-  userId?: string | null;
-  organizationId?: number | null;
+  name?: string | null;
+  expiresAt: string;
   creditAmount?: number | null;
+  maxClaims: number;
+  claimCount: number;
+  claims?: CreditGrantLinkClaimDetail[];
 }
 
 export interface OneTimeLinkEntry {
-  // Used for listing links
   id: string;
   token: string;
-  expiresAt: string; // ISO date string
-  claimedAt?: string | null;
-  userId?: string | null;
-  organizationId?: number | null;
-  claimedByEmail?: string | null; // Added for displaying email
-  claimedForOrg?: string | null; // Org name if claimed for an org
+  name?: string | null;
+  expiresAt: string;
   creditAmount?: number | null;
+  maxClaims: number;
+  claimCount: number;
+  claims?: CreditGrantLinkClaimDetail[];
 }
 
 export interface AdminCreditGrantActions {
   generateOneTimeLink: (
     expiresInDays?: number,
-    creditAmount?: number | null
+    creditAmount?: number | null,
+    maxClaims?: number,
+    name?: string | null
   ) => Promise<OneTimeLinkResponse | ResponseProps>;
   listOneTimeLinks: (limit: number, offset: number) => Promise<OneTimeLinkEntry[] | ResponseProps>;
   deleteOneTimeLink: (linkId: string) => Promise<ResponseProps>;

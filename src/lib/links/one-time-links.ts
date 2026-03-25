@@ -8,14 +8,19 @@ import {
 export const generateOneTimeCreditGrantLink = async () => {
   return async (
     expiresInDays: number = 7,
-    creditAmount: number | null = null
+    creditAmount: number | null = null,
+    maxClaims: number = 1,
+    name: string | null = null
   ): Promise<OneTimeLinkResponse | ResponseProps> => {
     'use server';
 
     try {
-      const body: Record<string, unknown> = { expiresInDays };
+      const body: Record<string, unknown> = { expiresInDays, maxClaims };
       if (creditAmount != null) {
         body.creditAmount = creditAmount;
+      }
+      if (name) {
+        body.name = name;
       }
 
       const response = await fetch(

@@ -971,13 +971,22 @@ export const desktopApiExtended = {
 // Admin API Actions
 // ============================================
 
+export interface CreditGrantLinkClaimDetail {
+  userId: string;
+  organizationId?: number | null;
+  claimedAt?: string | null;
+  claimedByEmail?: string | null;
+  claimedForOrg?: string | null;
+}
+
 export interface CreditGrantLink {
   id: string;
   token: string;
   expiresAt: string;
-  claimedAt?: string | null;
-  userId?: string | null;
   creditAmount?: number | null;
+  maxClaims: number;
+  claimCount: number;
+  claims?: CreditGrantLinkClaimDetail[];
 }
 
 export interface CreditGrantLinksResponse {
@@ -1005,11 +1014,12 @@ export const adminApi = {
    */
   async createCreditGrantLink(
     expiresInDays: number = 7,
-    creditAmount?: number | null
+    creditAmount?: number | null,
+    maxClaims: number = 1
   ): Promise<CreditGrantLink> {
     const adminKey = getAdminApiKey();
     const endpoint = `/api/admin/credit-grant-link`;
-    const body: Record<string, unknown> = { expiresInDays };
+    const body: Record<string, unknown> = { expiresInDays, maxClaims };
     if (creditAmount != null) {
       body.creditAmount = creditAmount;
     }

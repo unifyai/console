@@ -38,18 +38,21 @@ const API_TIMEOUT = 30_000;
  *
  * Call once in `beforeEach`; the property is set with `writable: true` so
  * subsequent calls in the same test or `afterEach` cleanups work correctly.
+ *
+ * @param pathname  URL path (default `/login`)
+ * @param search    Query string including the leading `?` (default `''`)
  */
-export function mockWindowLocation(pathname = '/login') {
+export function mockWindowLocation(pathname = '/login', search = '') {
   Object.defineProperty(window, 'location', {
     value: {
-      href: `http://localhost:3000${pathname}`,
+      href: `http://localhost:3000${pathname}${search}`,
       origin: 'http://localhost:3000',
       protocol: 'http:',
       host: 'localhost:3000',
       hostname: 'localhost',
       port: '3000',
       pathname,
-      search: '',
+      search,
       hash: '',
       assign: vi.fn(),
       replace: vi.fn(),

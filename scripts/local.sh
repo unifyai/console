@@ -498,7 +498,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify all)
+VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links all)
 
 validate_seed_scenario() {
   local scenario="$1"
@@ -535,6 +535,7 @@ run_seed_scenario() {
   export NEXT_PUBLIC_BASE_URL="http://localhost:${CONSOLE_PORT}"
   export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
   export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
+  export ORCHESTRA_ADMIN_KEY="${ADMIN_KEY:-local-admin-key}"
 
   if npx tsx src/tests/seeds/run.ts "$scenario"; then
     log_success "Seed scenario '$scenario' completed"
@@ -991,7 +992,7 @@ main() {
       echo "Flags:"
       echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"
       echo "                     Scenarios: personal-workspace, org-basic, org-multi-role,"
-      echo "                               org-unify, all"
+      echo "                               org-unify, credit-grant-links, all"
       echo "                     See: src/tests/seeds/run.ts --list"
       echo "  --org              Shorthand for --seed org-basic"
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"

@@ -26,6 +26,7 @@ import { server } from '@/tests/server';
 const mockUpdate = vi.fn().mockResolvedValue(undefined);
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 const pushMock = vi.fn();
+let mockMfaSearchParams: Record<string, string> = {};
 
 vi.mock('next-auth/react', () => ({
   useSession: () => ({
@@ -39,6 +40,11 @@ vi.mock('next-auth/react', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock, refresh: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/login/mfa',
+  useSearchParams: () => {
+    const params = new URLSearchParams();
+    Object.entries(mockMfaSearchParams).forEach(([k, v]) => params.set(k, v));
+    return params;
+  },
 }));
 
 vi.mock('framer-motion', () => ({
@@ -67,6 +73,7 @@ import { mockWindowLocation } from './fixtures';
 describe('MFA Journey', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMfaSearchParams = {};
     mockWindowLocation('/login/mfa');
   });
 
@@ -620,6 +627,81 @@ describe('MFA Journey', () => {
       expect(screen.getByText('Checking authentication status...')).toBeInTheDocument();
       expect(screen.queryByTestId('totp-input')).not.toBeInTheDocument();
       expect(screen.queryByTestId('totp-qr-step')).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Credit Token Forwarding ──────────────────────────────────────────────
+
+  describe('Credit Token Forwarding', () => {
+    beforeEach(() => {
+      server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json({ enabled: true })));
+    });
+
+    it('forwards credit token to /assistants after TOTP verification', async () => {
+      mockMfaSearchParams = { token: 'credit_abc' };
+      server.use(
+        http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })),
+      );
+
+      const user = userEvent.setup();
+      render(<MfaPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('totp-input')).toBeInTheDocument();
+      });
+
+      for (let i = 0; i < 6; i++) {
+        await user.type(screen.getByTestId(`totp-digit-${i}`), '123456'[i]);
+      }
+
+      await waitFor(() => {
+        expect(pushMock).toHaveBeenCalledWith('/assistants?token=credit_abc');
+      });
+    });
+
+    it('forwards credit token after recovery code verification', async () => {
+      mockMfaSearchParams = { token: 'credit_xyz' };
+      server.use(
+        http.post('/api/auth/mfa/verify-recovery', () =>
+          HttpResponse.json({ remainingCodes: 5 }),
+        ),
+      );
+
+      const user = userEvent.setup();
+      render(<MfaPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('totp-input')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('use-recovery-code'));
+      await user.type(screen.getByTestId('recovery-code-input'), 'ABCD-1234-EFGH');
+      await user.click(screen.getByTestId('recovery-submit'));
+
+      await waitFor(() => {
+        expect(pushMock).toHaveBeenCalledWith('/assistants?token=credit_xyz');
+      });
+    });
+
+    it('redirects to bare /assistants when no credit token is present', async () => {
+      server.use(
+        http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })),
+      );
+
+      const user = userEvent.setup();
+      render(<MfaPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('totp-input')).toBeInTheDocument();
+      });
+
+      for (let i = 0; i < 6; i++) {
+        await user.type(screen.getByTestId(`totp-digit-${i}`), '123456'[i]);
+      }
+
+      await waitFor(() => {
+        expect(pushMock).toHaveBeenCalledWith('/assistants');
+      });
     });
   });
 });
