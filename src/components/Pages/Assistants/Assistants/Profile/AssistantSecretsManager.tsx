@@ -16,6 +16,7 @@ interface AssistantSecretsManagerProps {
   isOpen: boolean;
   onClose: () => void;
   assistantId: string | null;
+  ownerId: string | null;
   secretActions: SecretActions;
   /** Whether the current user can create/edit/delete secrets */
   canWrite?: boolean;
@@ -33,6 +34,7 @@ export function AssistantSecretsManager({
   isOpen,
   onClose,
   assistantId,
+  ownerId,
   secretActions,
   canWrite = true,
 }: AssistantSecretsManagerProps) {
@@ -46,7 +48,7 @@ export function AssistantSecretsManager({
     handleNewSecret,
     handleDeleteSecret,
     onSubmit,
-  } = useAssistantSecrets(assistantId, secretActions);
+  } = useAssistantSecrets(assistantId, ownerId, secretActions);
 
   const [isCreating, setIsCreating] = React.useState(false);
   const {

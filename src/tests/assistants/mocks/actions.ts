@@ -136,6 +136,7 @@ export const mockAssistantActions: any = {
   secret: {
     get: vi.fn(async () => []),
     create: vi.fn(async () => ({ info: 'Secret created' })),
+    update: vi.fn(async () => ({ info: 'Secret updated' })),
     delete: vi.fn(async () => ({ info: 'Secret deleted' })),
   },
   call: {

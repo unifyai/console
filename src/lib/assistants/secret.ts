@@ -6,22 +6,19 @@ import {
   buildAssistantIdFilter,
   combineFilters,
 } from '@/utils/assistants/filterExpressions';
+import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
 
-/**
- * Mirrors log IDs to the All aggregation contexts so reads from All/
- * see data written to a primary user/assistant context.
- */
 async function mirrorToAllContexts(
   apiKey: string,
   logIds: number[],
-  userId: string,
+  ownerId: string,
   suffix: string
 ): Promise<void> {
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
-  const allContexts = [`${userId}/All${suffix}`, `All${suffix}`];
+  const allContexts = [`${ownerId}/All${suffix}`, `All${suffix}`];
   /* eslint-disable @typescript-eslint/naming-convention */
   const results = await Promise.all(
     allContexts.map((ctx) =>
@@ -56,32 +53,32 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
   };
 };
 
-/**
- * Factory for getSecrets server action.
- *
- * @param isOrgContext - When true, skip _user_id filtering since org members should see all secrets.
- *                       The API key scopes data to the organization, preventing cross-org leaks.
- *                       In personal workspaces, _user_id filtering prevents same-name user leaks.
- */
-export const getSecrets = async (apiKey: string, userId: string, isOrgContext: boolean) => {
-  return async (assistantId: string): Promise<Secret[] | ResponseProps> => {
+export const getSecrets = async (
+  apiKey: string,
+  userId: string,
+  isOrgContext: boolean,
+  orgId: number | null = null
+) => {
+  return async (assistantId: string, ownerId: string): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
+      const effectiveKey = isOrgContext
+        ? await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey)
+        : apiKey;
+      const effectiveUserId = isOrgContext ? ownerId : userId;
+
       const context = `All${CONTEXT_SUFFIX}`;
-      // Build security filters based on workspace context
-      // - Org workspace: API key scopes to org, all members see all secrets, no _user_id filter needed
-      // - Personal workspace: Filter by _user_id to prevent same-name user data leaks
       const securityFilters: string[] = [];
       if (!isOrgContext) {
-        securityFilters.push(buildUserIdFilter(userId));
+        securityFilters.push(buildUserIdFilter(effectiveUserId));
       }
       securityFilters.push(buildAssistantIdFilter(assistantId));
       const securityFilter = combineFilters(securityFilters);
       const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&filterExpr=${encodeURIComponent(securityFilter)}&excludeFields=value`;
 
-      const response = await fetch(url, { method: 'GET', headers: { apiKey } });
+      const response = await fetch(url, { method: 'GET', headers: { apiKey: effectiveKey } });
 
-      if (response.status === 404) return []; // No secrets found is not an error
+      if (response.status === 404) return [];
 
       const data = await response.json();
       if (!response.ok)
@@ -100,21 +97,26 @@ export const getSecrets = async (apiKey: string, userId: string, isOrgContext: b
   };
 };
 
-/**
- * Factory for createSecret server action.
- *
- * The `_user_id` field is always included in the log entry for audit purposes
- * (tracking who created the secret), regardless of workspace context.
- */
-export const createSecret = async (apiKey: string, userId: string, _isOrgContext: boolean) => {
-  return async (assistantId: string, payload: SecretPayload): Promise<ResponseProps> => {
+export const createSecret = async (
+  apiKey: string,
+  _userId: string,
+  _isOrgContext: boolean,
+  orgId: number | null = null
+) => {
+  return async (
+    assistantId: string,
+    ownerId: string,
+    payload: SecretPayload
+  ): Promise<ResponseProps> => {
     'use server';
     try {
-      const primaryContext = `${userId}/${assistantId}${CONTEXT_SUFFIX}`;
+      const effectiveKey = await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey);
+
+      const primaryContext = `${ownerId}/${assistantId}${CONTEXT_SUFFIX}`;
       /* eslint-disable @typescript-eslint/naming-convention */
       const entriesWithPrivateFields = {
         ...payload,
-        _user_id: userId,
+        _user_id: ownerId,
         _assistant_id: assistantId,
       };
       /* eslint-enable @typescript-eslint/naming-convention */
@@ -126,7 +128,7 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
 
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
         method: 'POST',
-        headers: { apiKey, 'Content-Type': 'application/json' },
+        headers: { apiKey: effectiveKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
@@ -138,7 +140,7 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
       const data = await response.json();
       const logIds: number[] | undefined = data?.logEventIds;
       if (logIds?.length) {
-        await mirrorToAllContexts(apiKey, logIds, userId, CONTEXT_SUFFIX);
+        await mirrorToAllContexts(effectiveKey, logIds, ownerId, CONTEXT_SUFFIX);
       }
 
       return { info: 'Secret created successfully.' };
@@ -149,10 +151,20 @@ export const createSecret = async (apiKey: string, userId: string, _isOrgContext
   };
 };
 
-export const updateSecret = async (apiKey: string) => {
-  return async (logId: number, payload: SecretUpdatePayload): Promise<ResponseProps> => {
+export const updateSecret = async (
+  apiKey: string,
+  _isOrgContext: boolean = false,
+  orgId: number | null = null
+) => {
+  return async (
+    logId: number,
+    ownerId: string,
+    payload: SecretUpdatePayload
+  ): Promise<ResponseProps> => {
     'use server';
     try {
+      const effectiveKey = await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey);
+
       const body = {
         logs: [logId],
         entries: payload,
@@ -161,7 +173,7 @@ export const updateSecret = async (apiKey: string) => {
 
       const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
         method: 'PUT',
-        headers: { apiKey, 'Content-Type': 'application/json' },
+        headers: { apiKey: effectiveKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
@@ -178,10 +190,16 @@ export const updateSecret = async (apiKey: string) => {
   };
 };
 
-export const deleteSecret = async (apiKey: string) => {
-  return async (logId: number): Promise<ResponseProps> => {
+export const deleteSecret = async (
+  apiKey: string,
+  _isOrgContext: boolean = false,
+  orgId: number | null = null
+) => {
+  return async (logId: number, ownerId: string): Promise<ResponseProps> => {
     'use server';
     try {
+      const effectiveKey = await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey);
+
       const context = `All${CONTEXT_SUFFIX}`;
       const url = `${process.env.NEXTAUTH_URL}/api/logs`;
       const body = {
@@ -193,7 +211,7 @@ export const deleteSecret = async (apiKey: string) => {
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
-          apiKey,
+          apiKey: effectiveKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -203,14 +221,12 @@ export const deleteSecret = async (apiKey: string) => {
         return { info: 'Secret deleted successfully.' };
       }
 
-      // Handle non-ok responses
       let detail = `Failed to delete secret: ${response.statusText}`;
       try {
-        // Try to parse a JSON error body, but don't fail if it's empty
         const data = await response.json();
         detail = data.detail || detail;
       } catch (e) {
-        // Ignore JSON parsing errors for empty bodies, use status text
+        // Ignore JSON parsing errors for empty bodies
       }
       return { detail };
     } catch (error) {

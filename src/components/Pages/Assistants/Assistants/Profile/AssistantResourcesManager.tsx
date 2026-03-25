@@ -113,6 +113,7 @@ export function AssistantResourcesManager({
           isOpen={isSecretsManagerOpen}
           onClose={() => setIsSecretsManagerOpen(false)}
           assistantId={assistant.agentId}
+          ownerId={assistant.userId}
           secretActions={assistantActions.secret}
           canWrite={canWrite}
         />

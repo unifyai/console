@@ -130,10 +130,10 @@ const AssistantsPage = async () => {
       fetchContactCosts: await fetchContactCosts(adminKey),
     },
     secret: {
-      get: await getSecrets(apiKey, user.id, isOrgContext),
-      create: await createSecret(apiKey, user.id, isOrgContext),
-      update: await updateSecret(apiKey),
-      delete: await deleteSecret(apiKey),
+      get: await getSecrets(apiKey, user.id, isOrgContext, orgId),
+      create: await createSecret(apiKey, user.id, isOrgContext, orgId),
+      update: await updateSecret(apiKey, isOrgContext, orgId),
+      delete: await deleteSecret(apiKey, isOrgContext, orgId),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
