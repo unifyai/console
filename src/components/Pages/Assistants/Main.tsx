@@ -23,6 +23,7 @@ import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
 import { useCreditGrantLink } from '@/hooks/Billing/useCreditGrantLink';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
+import { useBillingEvents } from '@/hooks/Billing/useBillingEvents';
 import { AssistantsBanners } from './AssistantsBanners';
 import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
@@ -249,6 +250,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     refetch: refetchBillingStatus,
     startPolling: startBillingPolling,
   } = useBillingStatus();
+  useBillingEvents();
   const { pendingToken, claimPendingToken } = useCreditGrantLink();
   const [isStripePanelOpen, setIsStripePanelOpen] = React.useState(false);
 
@@ -423,6 +425,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isRefreshing:
       (isUserSpendingEnabled ? userSpendingData.isRefreshing : false) ||
       (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
+    credits,
+    isBillingLoading,
   });
 
   // Reset assistant spending when profile changes

@@ -17,7 +17,8 @@
 #   ./scripts/local.sh start --seed org-multi-role    # Specific scenario
 #   ./scripts/local.sh start --seed all               # Run all scenarios
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
-#   ./scripts/local.sh start --chat                   # + local Communication stack for chat
+#   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
+#   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (adapters + Unity)
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
 #   ./scripts/local.sh status                         # Show status of all services
@@ -28,8 +29,8 @@
 #   - Poetry (for Orchestra)
 #   - Orchestra repo cloned as a sibling: ../orchestra
 #   - (--stripe) Stripe CLI installed and authenticated (`stripe login`)
-#   - (--chat)   Communication repo cloned as a sibling: ../communication
-#                 + gcloud CLI with Pub/Sub emulator component
+#   - (--pubsub) gcloud CLI with Pub/Sub emulator component
+#   - (--chat)   Everything for --pubsub, plus Communication repo: ../communication
 #
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
@@ -126,6 +127,142 @@ check_prerequisites() {
 }
 
 # =============================================================================
+# Pub/Sub Emulator Management (Console-owned)
+# =============================================================================
+
+PUBSUB_EMULATOR_PORT="${PUBSUB_EMULATOR_PORT:-8085}"
+PUBSUB_GCP_PROJECT_ID="${PUBSUB_GCP_PROJECT_ID:-local-test-project}"
+PUBSUB_TOPIC_SUFFIX_VAL="-staging"
+
+EMULATOR_PIDFILE="/tmp/console-pubsub-emulator.pid"
+EMULATOR_LOGFILE="/tmp/console-pubsub-emulator.log"
+LOCAL_PUBSUB_HOST="localhost:${PUBSUB_EMULATOR_PORT}"
+
+check_gcloud() {
+  if ! command -v gcloud &>/dev/null; then
+    log_error "gcloud CLI is not installed"
+    log_info "Install from: https://cloud.google.com/sdk/docs/install"
+    return 1
+  fi
+  return 0
+}
+
+check_java() {
+  if ! command -v java &>/dev/null; then
+    log_error "Java is required for Pub/Sub emulator but not installed"
+    log_info "Install Java with one of:"
+    log_info "  macOS:  brew install openjdk"
+    log_info "  Ubuntu: sudo apt install default-jdk"
+    return 1
+  fi
+  return 0
+}
+
+check_pubsub_emulator() {
+  if ! check_java; then return 1; fi
+
+  local sdk_root
+  sdk_root="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || echo "")"
+
+  local emulator_found=false
+  for candidate in \
+    "${sdk_root:+$sdk_root/platform/pubsub-emulator}" \
+    "/usr/lib/google-cloud-sdk/platform/pubsub-emulator" \
+    "$HOME/google-cloud-sdk/platform/pubsub-emulator"; do
+    if [[ -n "$candidate" && -d "$candidate" ]]; then
+      emulator_found=true
+      break
+    fi
+  done
+
+  if [[ "$emulator_found" == "false" ]]; then
+    if gcloud components install pubsub-emulator --quiet 2>/dev/null; then
+      emulator_found=true
+    else
+      log_error "Pub/Sub emulator is not installed"
+      log_info "Install with one of:"
+      log_info "  apt:    sudo apt-get install google-cloud-cli-pubsub-emulator"
+      log_info "  gcloud: gcloud components install pubsub-emulator"
+      return 1
+    fi
+  fi
+
+  mkdir -p "$HOME/.config/gcloud/emulators/pubsub" 2>/dev/null || true
+  mkdir -p "$HOME/.config/gcloud/logs" 2>/dev/null || true
+
+  log_success "Pub/Sub emulator is available"
+  return 0
+}
+
+is_emulator_running() {
+  if [[ -f "$EMULATOR_PIDFILE" ]]; then
+    local pid
+    pid=$(cat "$EMULATOR_PIDFILE")
+    if kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  if lsof -i ":${PUBSUB_EMULATOR_PORT}" -sTCP:LISTEN &>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+start_pubsub_emulator() {
+  log_info "Starting Pub/Sub emulator on port $PUBSUB_EMULATOR_PORT..."
+
+  if is_emulator_running; then
+    log_success "Pub/Sub emulator already running"
+    return 0
+  fi
+
+  gcloud beta emulators pubsub start \
+    --project="$PUBSUB_GCP_PROJECT_ID" \
+    --host-port="localhost:${PUBSUB_EMULATOR_PORT}" \
+    > "$EMULATOR_LOGFILE" 2>&1 &
+  local pid=$!
+  echo "$pid" > "$EMULATOR_PIDFILE"
+
+  log_info "Waiting for Pub/Sub emulator to be ready..."
+  local max_attempts=30
+  local attempt=0
+  while (( attempt < max_attempts )); do
+    if curl -s "http://localhost:${PUBSUB_EMULATOR_PORT}" &>/dev/null; then
+      log_success "Pub/Sub emulator is ready"
+      return 0
+    fi
+    sleep 1
+    ((attempt++)) || true
+  done
+
+  log_error "Pub/Sub emulator failed to start within 30 seconds"
+  log_info "Check logs at: $EMULATOR_LOGFILE"
+  return 1
+}
+
+stop_pubsub_emulator() {
+  if [[ -f "$EMULATOR_PIDFILE" ]]; then
+    local pid
+    pid=$(cat "$EMULATOR_PIDFILE")
+    if kill -0 "$pid" 2>/dev/null; then
+      log_info "Stopping Pub/Sub emulator (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$EMULATOR_PIDFILE"
+  fi
+
+  local port_pids
+  port_pids=$(lsof -t -i ":${PUBSUB_EMULATOR_PORT}" 2>/dev/null || true)
+  if [[ -n "$port_pids" ]]; then
+    echo "$port_pids" | xargs kill -9 2>/dev/null || true
+  fi
+
+  log_success "Pub/Sub emulator stopped"
+}
+
+# =============================================================================
 # Orchestra Management (delegates to orchestra/scripts/local.sh)
 # =============================================================================
 
@@ -191,13 +328,14 @@ stop_orchestra() {
 }
 
 # =============================================================================
-# Communication Stack Management (--chat mode)
+# Communication Adapters Management (--chat mode, adapters only)
 # =============================================================================
 
 check_communication_prerequisites() {
   if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
     log_error "Communication repo not found. Expected at: $CONSOLE_REPO_PATH/../communication"
     log_info "Set COMMUNICATION_REPO_PATH to override."
+    log_info "(Only required for --chat; --pubsub works without it.)"
     return 1
   fi
   log_success "Communication repo found at: $COMMUNICATION_REPO_PATH"
@@ -207,18 +345,15 @@ is_communication_running() {
   COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" check &>/dev/null
 }
 
-start_communication() {
+start_communication_adapters() {
   if is_communication_running; then
-    log_success "Communication services already running"
+    log_success "Communication adapters already running"
     load_communication_config
     return 0
   fi
 
-  log_info "Starting Communication services (Pub/Sub emulator + adapters)..."
+  log_info "Starting Communication adapters (connecting to Console-managed emulator)..."
 
-  # Build the env overrides for Communication's local.sh.
-  # ORCHESTRA_ADMIN_KEY is required so the adapters accept message dispatches
-  # from the Console. ORCHESTRA_URL lets adapters call back into Orchestra.
   local comm_env=(COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH")
   if [[ -n "$ADMIN_KEY" ]]; then
     comm_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
@@ -226,14 +361,16 @@ start_communication() {
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
     comm_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
   fi
+  comm_env+=(PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST")
+  comm_env+=(GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID")
 
-  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" start; then
-    log_error "Failed to start Communication services"
+  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" start --no-emulator; then
+    log_error "Failed to start Communication adapters"
     return 1
   fi
 
   load_communication_config
-  log_success "Communication services are running"
+  log_success "Communication adapters are running"
 }
 
 load_communication_config() {
@@ -242,35 +379,27 @@ load_communication_config() {
     return 1
   fi
 
-  # Source the key=value config written by communication/scripts/local.sh
   while IFS='=' read -r key value; do
     case "$key" in
       UNITY_ADAPTERS_URL)    CHAT_ADAPTERS_URL="$value" ;;
-      PUBSUB_EMULATOR_HOST)  CHAT_PUBSUB_EMULATOR_HOST="$value" ;;
-      GCP_PROJECT_ID)        CHAT_GCP_PROJECT_ID="$value" ;;
       TEST_ASSISTANT_ID)     CHAT_TEST_ASSISTANT_ID="$value" ;;
     esac
   done < "$COMMUNICATION_CONFIG_FILE"
 
   log_info "Loaded Communication config:"
   log_info "  Adapters URL:      ${CHAT_ADAPTERS_URL:-<not set>}"
-  log_info "  Pub/Sub Emulator:  ${CHAT_PUBSUB_EMULATOR_HOST:-<not set>}"
-  log_info "  GCP Project ID:    ${CHAT_GCP_PROJECT_ID:-<not set>}"
   log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
 }
 
 stop_communication() {
   if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    log_info "Stopping Communication services..."
+    log_info "Stopping Communication adapters..."
     COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
-    log_success "Communication services stopped"
+    log_success "Communication adapters stopped"
   fi
 }
 
-# Env vars populated by load_communication_config
 CHAT_ADAPTERS_URL=""
-CHAT_PUBSUB_EMULATOR_HOST=""
-CHAT_GCP_PROJECT_ID=""
 CHAT_TEST_ASSISTANT_ID=""
 
 # =============================================================================
@@ -310,8 +439,8 @@ start_unity() {
   log_info "Starting Unity (auto-detecting mode) for assistant=$resolved_assistant_id ..."
 
   local unity_env=(
-    PUBSUB_EMULATOR_HOST="${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085}"
-    GCP_PROJECT_ID="${CHAT_GCP_PROJECT_ID:-local-test-project}"
+    PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
+    GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
     ASSISTANT_ID="$resolved_assistant_id"
     DEPLOY_ENV="staging"
   )
@@ -401,19 +530,14 @@ stop_unity() {
 }
 
 create_seeded_assistant_topics() {
-  # Query Orchestra for all assistants and create Pub/Sub emulator topics
-  # for each one.  The echo responder auto-discovers new topics, so we
-  # don't need to restart it.
-  local emulator_host="${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085}"
-  local project_id="${CHAT_GCP_PROJECT_ID:-local-test-project}"
-  local suffix="-staging"
-  local api_key="${ADMIN_KEY:-local-test-api-key}"
+  local emulator_host="$LOCAL_PUBSUB_HOST"
+  local project_id="$PUBSUB_GCP_PROJECT_ID"
+  local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
 
   if [[ -z "$emulator_host" ]]; then
     return 0
   fi
 
-  # Normalise emulator URL
   local emulator_url="$emulator_host"
   if [[ ! "$emulator_url" =~ ^http ]]; then
     emulator_url="http://$emulator_url"
@@ -478,6 +602,44 @@ create_seeded_assistant_topics() {
       -H "Content-Type: application/json" \
       -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\"}" \
       2>/dev/null || true
+  done
+}
+
+create_seeded_billing_topics() {
+  local emulator_host="$LOCAL_PUBSUB_HOST"
+  local project_id="$PUBSUB_GCP_PROJECT_ID"
+  local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
+
+  if [[ -z "$emulator_host" ]]; then
+    return 0
+  fi
+
+  local emulator_url="$emulator_host"
+  if [[ ! "$emulator_url" =~ ^http ]]; then
+    emulator_url="http://$emulator_url"
+  fi
+
+  local ba_ids
+  ba_ids=$(docker exec orchestra-local-db \
+    psql -U orchestra -d orchestra -tAc \
+    "SELECT id FROM billing_account;" 2>/dev/null | tr '\n' ' ' || echo "")
+
+  if [[ -z "$ba_ids" ]]; then
+    return 0
+  fi
+
+  log_info "Creating Pub/Sub billing topics for seeded accounts..."
+  for ba_id in $ba_ids; do
+    local topic_name="billing-account-${ba_id}${suffix}"
+    local status
+    status=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X PUT "${emulator_url}/v1/projects/${project_id}/topics/${topic_name}" 2>/dev/null || echo "000")
+
+    if [[ "$status" == "200" || "$status" == "409" ]]; then
+      log_success "Billing topic ready: $topic_name"
+    else
+      log_warn "Failed to create billing topic $topic_name (HTTP $status)"
+    fi
   done
 }
 
@@ -562,7 +724,8 @@ is_console_running() {
 }
 
 start_console() {
-  local with_chat="${1:-false}"
+  local with_pubsub="${1:-false}"
+  local with_chat="${2:-false}"
 
   # Kill any stale Console processes on the port before checking, so we
   # always start fresh with the correct environment variables.
@@ -584,19 +747,22 @@ start_console() {
 
   cd "$CONSOLE_REPO_PATH"
 
-  # When --chat is active, inject the Communication stack env vars so Console
-  # connects to the local Pub/Sub emulator and dispatches messages to local adapters.
-  if [[ "$with_chat" == "true" && -n "$CHAT_PUBSUB_EMULATOR_HOST" ]]; then
-    export PUBSUB_EMULATOR_HOST="$CHAT_PUBSUB_EMULATOR_HOST"
-    export GCP_PROJECT_ID="${CHAT_GCP_PROJECT_ID:-local-test-project}"
-    export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-    export PUBSUB_TOPIC_SUFFIX="-staging"
+  # When --pubsub or --chat is active, inject the Pub/Sub emulator env vars
+  # so Console connects to the local emulator for billing events (and chat).
+  if [[ "$with_pubsub" == "true" || "$with_chat" == "true" ]]; then
+    export PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
+    export GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
+    export PUBSUB_TOPIC_SUFFIX="$PUBSUB_TOPIC_SUFFIX_VAL"
 
-    log_info "Console chat env vars set:"
+    log_info "Console Pub/Sub env vars set:"
     log_info "  PUBSUB_EMULATOR_HOST=$PUBSUB_EMULATOR_HOST"
     log_info "  GCP_PROJECT_ID=$GCP_PROJECT_ID"
-    log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
     log_info "  PUBSUB_TOPIC_SUFFIX=$PUBSUB_TOPIC_SUFFIX"
+
+    if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
+      export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
+    fi
   fi
 
   nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
@@ -734,6 +900,7 @@ cmd_start() {
   local with_stripe="$2"
   local seed_scenario="$3"
   local with_chat="$4"
+  local with_pubsub="$5"
 
   # Resolve effective seed scenario:
   #   --seed X  → X                     (explicit)
@@ -756,6 +923,9 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     mode_label="$mode_label + stripe"
   fi
+  if [[ "$with_pubsub" == "true" ]]; then
+    mode_label="$mode_label + pubsub"
+  fi
   if [[ "$with_chat" == "true" ]]; then
     mode_label="$mode_label + chat"
   fi
@@ -770,16 +940,28 @@ cmd_start() {
     return 1
   fi
 
-  # If --chat, start the Pub/Sub emulator + adapters early (Orchestra and
-  # the seed don't depend on them, but they take a moment to boot).
-  # Unity starts AFTER the seed so we know the actual assistant agentId.
+  # Start the Pub/Sub emulator (Console-managed) early if --pubsub or --chat.
+  if [[ "$with_pubsub" == "true" || "$with_chat" == "true" ]]; then
+    echo ""
+    if ! check_gcloud; then
+      log_error "gcloud CLI required for Pub/Sub emulator"
+      return 1
+    fi
+    if ! check_pubsub_emulator; then
+      return 1
+    fi
+    echo ""
+    start_pubsub_emulator || return 1
+  fi
+
+  # If --chat, also start the Communication adapters (needs Communication repo).
   if [[ "$with_chat" == "true" ]]; then
     echo ""
     if ! check_communication_prerequisites; then
       return 1
     fi
     echo ""
-    start_communication || return 1
+    start_communication_adapters || return 1
   fi
 
   echo ""
@@ -793,19 +975,19 @@ cmd_start() {
   echo ""
   run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
 
-  # After seeding, create Pub/Sub topics for seeded assistants and start
-  # Unity with the correct assistant ID.  The seed creates assistants in
-  # Orchestra with auto-incremented agentIds (1, 2, ...) but Communication
-  # only pre-creates topics for TEST_ASSISTANT_ID.
-  if [[ "$with_chat" == "true" && -n "$CHAT_PUBSUB_EMULATOR_HOST" ]]; then
+  # After seeding, create Pub/Sub topics for seeded assistants/billing accounts.
+  if [[ "$with_pubsub" == "true" || "$with_chat" == "true" ]] && is_emulator_running; then
     echo ""
-    create_seeded_assistant_topics
-    echo ""
-    start_unity
+    create_seeded_billing_topics
+    if [[ "$with_chat" == "true" ]]; then
+      create_seeded_assistant_topics
+      echo ""
+      start_unity
+    fi
   fi
 
   echo ""
-  start_console "$with_chat" || return 1
+  start_console "$with_pubsub" "$with_chat" || return 1
 
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
@@ -822,9 +1004,11 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     echo "  Stripe:    webhooks → http://localhost:${ORCHESTRA_PORT}/v0/webhooks/stripe"
   fi
+  if [[ "$with_pubsub" == "true" || "$with_chat" == "true" ]]; then
+    echo "  Pub/Sub:   $LOCAL_PUBSUB_HOST (emulator)"
+  fi
   if [[ "$with_chat" == "true" ]]; then
     echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
-    echo "  Pub/Sub:   ${CHAT_PUBSUB_EMULATOR_HOST:-localhost:8085} (emulator)"
     echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
   fi
   echo ""
@@ -834,6 +1018,11 @@ cmd_start() {
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
     echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
+  fi
+  if [[ "$with_pubsub" == "true" && "$with_chat" != "true" ]]; then
+    echo ""
+    echo "  Pub/Sub:   Emulator running for real-time billing events."
+    echo "             Billing topics created for all seeded accounts."
   fi
   if [[ "$with_chat" == "true" ]]; then
     echo ""
@@ -860,12 +1049,14 @@ cmd_stop() {
   fi
   stop_console
   stop_orchestra
-  # Stop Unity and Communication if running (safe no-ops if not)
   if is_unity_available && is_unity_running; then
     stop_unity
   fi
   if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
     stop_communication
+  fi
+  if is_emulator_running; then
+    stop_pubsub_emulator
   fi
   echo ""
   log_success "Local environment stopped"
@@ -876,6 +1067,7 @@ cmd_restart() {
   local with_stripe="$2"
   local seed_scenario="$3"
   local with_chat="$4"
+  local with_pubsub="$5"
 
   # Resolve default early so validation works.
   if [[ -z "$seed_scenario" ]]; then
@@ -893,7 +1085,7 @@ cmd_restart() {
 
   cmd_stop
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub"
 }
 
 cmd_status() {
@@ -926,9 +1118,16 @@ cmd_status() {
     echo -e "${YELLOW}not running${NC} (start with --stripe)"
   fi
 
+  echo -n "  Pub/Sub:   "
+  if is_emulator_running; then
+    echo -e "${GREEN}running${NC} (port $PUBSUB_EMULATOR_PORT)"
+  else
+    echo -e "${YELLOW}not running${NC} (start with --pubsub or --chat)"
+  fi
+
   echo -n "  Chat:      "
   if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
-    echo -e "${GREEN}running${NC} (Communication stack)"
+    echo -e "${GREEN}running${NC} (Communication adapters)"
     if [[ -f "$COMMUNICATION_CONFIG_FILE" ]]; then
       load_communication_config 2>/dev/null
     fi
@@ -959,13 +1158,15 @@ main() {
   local with_org="false"
   local with_stripe="false"
   local with_chat="false"
+  local with_pubsub="false"
   local seed_scenario=""
 
   while (( "$#" )); do
     case "$1" in
       --org)    with_org="true"; shift ;;
       --stripe) with_stripe="true"; shift ;;
-      --chat)   with_chat="true"; shift ;;
+      --chat)   with_chat="true"; with_pubsub="true"; shift ;;
+      --pubsub) with_pubsub="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
@@ -976,16 +1177,16 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--chat] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--pubsub] [--chat] [--seed <scenario>]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
-      echo "  stop     Stop Console, Orchestra, Communication, and Stripe listener"
+      echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Communication, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
       echo ""
@@ -999,8 +1200,11 @@ main() {
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
       echo "                     Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
       echo "                     Then authenticate:   stripe login"
-      echo "  --chat             Start local Communication stack (Pub/Sub emulator + adapters)"
-      echo "                     for end-to-end chat testing without cloud dependencies."
+      echo "  --pubsub           Start Pub/Sub emulator for real-time billing events."
+      echo "                     Creates billing topics for all seeded accounts."
+      echo "                     Requires: gcloud CLI with pubsub-emulator component"
+      echo "  --chat             Start Pub/Sub emulator + Communication adapters + Unity."
+      echo "                     Includes everything --pubsub does, plus chat functionality."
       echo "                     Requires: communication repo as sibling (../communication)"
       echo "                               + gcloud CLI with pubsub-emulator component"
       echo ""
@@ -1009,6 +1213,7 @@ main() {
       echo "  COMMUNICATION_REPO_PATH   Path to communication repo (default: ../communication)"
       echo "  CONSOLE_PORT              Console port (default: 3000)"
       echo "  ORCHESTRA_PORT            Orchestra port (default: 8000)"
+      echo "  PUBSUB_EMULATOR_PORT      Pub/Sub emulator port (default: 8085)"
       echo ""
       echo "Test credentials:"
       echo "  Password: testpass123 (all seed users)"
@@ -1021,7 +1226,8 @@ main() {
       echo "  $0 start --seed all                   # all scenarios"
       echo "  $0 start --stripe                     # + Stripe webhook forwarding"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
-      echo "  $0 start --chat                       # + local chat (Pub/Sub + adapters)"
+      echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
+      echo "  $0 start --chat                       # + Pub/Sub + chat (adapters + Unity)"
       echo "  $0 start --chat --org                 # org-basic + local chat"
       ;;
     *)

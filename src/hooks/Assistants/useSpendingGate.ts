@@ -51,6 +51,12 @@ export interface UseSpendingGateConfig {
 
   /** Whether any of the spending data is refreshing in background */
   isRefreshing?: boolean;
+
+  /** Current credit balance (negative = exhausted). Omit to skip credit gating. */
+  credits?: number;
+
+  /** Whether credit balance is still loading */
+  isBillingLoading?: boolean;
 }
 
 /**
@@ -80,6 +86,8 @@ export function useSpendingGate({
   orgSpending,
   isLoading,
   isRefreshing = false,
+  credits,
+  isBillingLoading = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
   return React.useMemo(() => {
     // Convert to limit status objects
@@ -87,8 +95,13 @@ export function useSpendingGate({
     const userLimit = toLimitStatus(userSpending);
     const orgLimit = toLimitStatus(orgSpending);
 
-    // Determine if blocked and why
-    const blockReason = determineBlockReason(assistantLimit, userLimit, orgLimit);
+    // Credit exhaustion takes priority over spending limits
+    const creditsExhausted =
+      credits !== undefined && !isBillingLoading && credits < 0;
+
+    const blockReason: SpendingBlockReason = creditsExhausted
+      ? 'no_credits'
+      : determineBlockReason(assistantLimit, userLimit, orgLimit);
     const isBlocked = blockReason !== null;
     const blockedMessage = getBlockedMessage(blockReason);
 
@@ -104,7 +117,7 @@ export function useSpendingGate({
         org: orgLimit,
       },
     };
-  }, [assistantSpending, userSpending, orgSpending, isLoading, isRefreshing]);
+  }, [assistantSpending, userSpending, orgSpending, isLoading, isRefreshing, credits, isBillingLoading]);
 }
 
 /**

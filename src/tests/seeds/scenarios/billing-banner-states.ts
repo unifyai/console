@@ -19,6 +19,64 @@
  *
  * Run:
  *   npx tsx src/tests/seeds/run.ts billing-banner-states
+ *
+ * ## Testing Real-Time Billing Events
+ *
+ * Start the stack with the `--pubsub` flag to enable real-time billing events:
+ *
+ *   ./scripts/local.sh start --pubsub --seed billing-banner-states
+ *
+ * Log in as a user with positive credits (e.g. `paidRemaining`), then use the
+ * commands below to simulate credit exhaustion and restoration. Each command
+ * first updates the database so the balance is consistent, then publishes an
+ * event to the Pub/Sub emulator so the UI reacts instantly.
+ *
+ * **Find the billing_account_id for the logged-in user:**
+ *
+ *   docker exec orchestra-local-db psql -U orchestra -d orchestra -c \
+ *     "SELECT u.id, u.name, ba.id AS ba_id, ba.credits
+ *      FROM \"user\" u JOIN billing_account ba ON u.billing_account_id = ba.id;"
+ *
+ * ### Simulate credits exhausted (replace BA_ID with the billing_account_id):
+ *
+ *   # 1. Set balance to negative in the database
+ *   docker exec orchestra-local-db psql -U orchestra -d orchestra -c \
+ *     "UPDATE billing_account SET credits = -1.00 WHERE id = BA_ID;"
+ *
+ *   # 2. Publish the event to the Pub/Sub emulator (base64 -w 0 avoids line wrapping)
+ *   curl -s -X POST "http://localhost:8085/v1/projects/local-test-project/topics/billing-account-BA_ID-staging:publish" \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"messages": [{"data": "'$(echo -n '{"event_type":"credits_exhausted","billing_account_id":BA_ID,"balance":-1.00}' | base64 -w 0)'", "attributes": {"thread": "billing_event"}}]}'
+ *
+ * ### Simulate credits restored (replace BA_ID with the billing_account_id):
+ *
+ *   # 1. Restore balance in the database
+ *   docker exec orchestra-local-db psql -U orchestra -d orchestra -c \
+ *     "UPDATE billing_account SET credits = 50.00 WHERE id = BA_ID;"
+ *
+ *   # 2. Publish the event to the Pub/Sub emulator (base64 -w 0 avoids line wrapping)
+ *   curl -s -X POST "http://localhost:8085/v1/projects/local-test-project/topics/billing-account-BA_ID-staging:publish" \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"messages": [{"data": "'$(echo -n '{"event_type":"credits_restored","billing_account_id":BA_ID,"balance":50.00}' | base64 -w 0)'", "attributes": {"thread": "billing_event"}}]}'
+ *
+ * ### In-memory mode (without --pubsub):
+ *
+ * If running without `--pubsub`, make sure `COMMS_SERVICE_ACCOUNT_CREDENTIALS`
+ * is empty in `.env.local`, then use the push endpoint instead:
+ *
+ *   # Credits exhausted
+ *   docker exec orchestra-local-db psql -U orchestra -d orchestra -c \
+ *     "UPDATE billing_account SET credits = -1.00 WHERE id = BA_ID;"
+ *   curl -s -X POST http://localhost:3000/api/billing/events/push \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"billing_account_id": BA_ID, "event_type": "credits_exhausted", "balance": -1.00}'
+ *
+ *   # Credits restored
+ *   docker exec orchestra-local-db psql -U orchestra -d orchestra -c \
+ *     "UPDATE billing_account SET credits = 50.00 WHERE id = BA_ID;"
+ *   curl -s -X POST http://localhost:3000/api/billing/events/push \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"billing_account_id": BA_ID, "event_type": "credits_restored", "balance": 50.00}'
  */
 
 import type { SeededState } from '../types';
@@ -139,8 +197,8 @@ DECLARE
   _ba_id integer;
 BEGIN
   SELECT billing_account_id INTO _ba_id FROM "user" WHERE id = '${userId}';
-  INSERT INTO recharge (billing_account_id, type, quantity, amount_usd, status)
-  VALUES (_ba_id, 'payment', ${amount}, ${amount}, 'PAID');
+  INSERT INTO recharge (billing_account_id, type, quantity, amount_usd, status, at)
+  VALUES (_ba_id, 'payment', ${amount}, ${amount}, 'PAID', NOW());
 END
 \\$\\$;
 `);

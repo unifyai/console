@@ -16,7 +16,7 @@
  * The reason why spending is blocked.
  * Used for UI messaging and logging.
  */
-export type SpendingBlockReason = 'assistant_limit' | 'user_limit' | 'org_limit' | null;
+export type SpendingBlockReason = 'no_credits' | 'assistant_limit' | 'user_limit' | 'org_limit' | null;
 
 /**
  * Status of the spending gate for a given context.
@@ -93,6 +93,8 @@ export const DEFAULT_SPENDING_GATE_STATUS: SpendingGateStatus = {
  */
 export function getBlockedMessage(reason: SpendingBlockReason): string | null {
   switch (reason) {
+    case 'no_credits':
+      return 'You have run out of credits.';
     case 'assistant_limit':
       return "This assistant's monthly spending limit has been reached.";
     case 'user_limit':
