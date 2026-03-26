@@ -5,10 +5,8 @@ import { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import { formatSpendAmount } from '@/types/assistants/spending';
 
 interface AssistantsBannersProps {
-  /** Whether the billing account has any credits */
-  hasCredits: boolean;
-  /** Whether the account has prior billing history (at least one paid recharge) */
-  hasBillingHistory: boolean;
+  /** Current credit balance */
+  credits: number;
   /** Whether billing data is still loading */
   isBillingLoading: boolean;
   /** Spending gate status for limit-reached banners */
@@ -25,15 +23,14 @@ interface AssistantsBannersProps {
  *
  * Currently handles three mutually-exclusive cases (in priority order):
  * 1. **Account status** — account is PAST_DUE, SUSPENDED, or CLOSED.
- * 2. **Out of credits** — credit balance is depleted for a user/org that has
- *    prior billing history (`hasBillingHistory`). Brand-new users who have never
- *    interacted with billing are excluded.
+ * 2. **Out of credits** — credit balance has gone negative (credits < 0).
+ *    Brand-new users (credits === 0) are excluded because they haven't
+ *    interacted with billing yet.
  * 3. **Spending limit reached** — a user, org, or assistant spending limit has
  *    been exceeded.
  */
 export function AssistantsBanners({
-  hasCredits,
-  hasBillingHistory,
+  credits,
   isBillingLoading,
   spendingGateStatus,
   isOrgWorkspace,
@@ -86,8 +83,8 @@ export function AssistantsBanners({
     }
   }
 
-  // Out of credits — shown when balance is depleted for users who have billing history
-  if (!hasCredits && !isBillingLoading && hasBillingHistory && !spendingGateStatus.isBlocked) {
+  // Out of credits — shown when balance has gone negative (excludes brand-new users at 0)
+  if (credits < 0 && !isBillingLoading && !spendingGateStatus.isBlocked) {
     return (
       <div
         className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"

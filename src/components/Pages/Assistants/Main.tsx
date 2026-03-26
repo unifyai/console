@@ -243,8 +243,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Billing Status & Credit Grant Link ---
   const {
-    hasBillingHistory,
-    hasCredits,
+    credits,
     accountStatus,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
@@ -738,8 +737,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <AssistantsBanners
-        hasCredits={hasCredits}
-        hasBillingHistory={hasBillingHistory}
+        credits={credits}
         isBillingLoading={isBillingLoading}
         spendingGateStatus={spendingGateStatus}
         isOrgWorkspace={!!userMeta.orgId}

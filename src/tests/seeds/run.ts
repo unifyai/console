@@ -19,6 +19,7 @@ import { seedOrgBasic } from './scenarios/org-basic';
 import { seedOrgMultiRole } from './scenarios/org-multi-role';
 import { seedOrgAndOutsider } from './scenarios/org-unify';
 import { seedCreditGrantLinks } from './scenarios/credit-grant-links';
+import { seedBillingBannerStates } from './scenarios/billing-banner-states';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
@@ -26,6 +27,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,
   'credit-grant-links': seedCreditGrantLinks,
+  'billing-banner-states': seedBillingBannerStates,
 };
 
 async function main(): Promise<void> {
