@@ -32,6 +32,15 @@ vi.mock('sonner', () => ({
   },
 }));
 
+// Mock call sounds so tests don't need AudioContext
+vi.mock('@/hooks/Assistants/useCallSounds', () => ({
+  useCallSounds: () => ({
+    startRinging: vi.fn(),
+    stopRinging: vi.fn(),
+    playHangup: vi.fn(),
+  }),
+}));
+
 // Factory for mock assistant
 const createMockAssistant = (overrides: Partial<Assistant> = {}): Assistant => ({
   agentId: 'assistant-1',

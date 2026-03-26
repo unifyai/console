@@ -5,6 +5,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
+import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
@@ -37,6 +38,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [isRemoteControlInteractiveLoading, setIsRemoteControlInteractiveLoading] =
     React.useState(false);
 
+  const { startRinging, stopRinging, playHangup } = useCallSounds();
+
+  // Track whether we were truly connected so we only play hangup when appropriate
+  const wasConnectedRef = React.useRef(false);
+
   const toggleSpeakerMute = React.useCallback(() => {
     setIsSpeakerMuted((prev) => !prev);
   }, []);
@@ -59,6 +65,12 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   }, []);
 
   const onDisconnected = React.useCallback(() => {
+    stopRinging();
+    if (wasConnectedRef.current) {
+      playHangup();
+    }
+    wasConnectedRef.current = false;
+
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
@@ -71,7 +83,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     isRedispatchingRef.current = false;
     stopRemoteControl();
     clearAssistantJoinTimeout();
-  }, [clearAssistantJoinTimeout, stopRemoteControl]);
+  }, [clearAssistantJoinTimeout, stopRemoteControl, stopRinging, playHangup]);
 
   const connect = React.useCallback(
     async (assistant: Assistant, type: 'video' | 'audio') => {
@@ -92,6 +104,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setActiveCallAssistant(assistant);
       setError(null);
       setConnectionError(null);
+      startRinging();
       try {
         const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
 
@@ -149,6 +162,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         ]);
         setIsConnected(true);
         setIsConnecting(false);
+        wasConnectedRef.current = true;
 
         if (room.remoteParticipants.size < 1) {
           setIsWaitingForAssistant(true);
@@ -161,12 +175,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             setIsWaitingForAssistant(false);
           }, timeoutDuration);
         } else {
-          setIsWaitingForAssistant(false); // Assistant was already present
+          setIsWaitingForAssistant(false);
+          stopRinging();
         }
       } catch (e: any) {
         // Only handle error if this attempt is still the current one
         if (isStaleAttempt()) return;
 
+        stopRinging();
         setIsConnecting(false);
         toast.error(`Failed to start call. Please try again.`);
         setError(`Failed to start call: ${e.message}`);
@@ -179,7 +195,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         onDisconnected();
       }
     },
-    [room, assistantActions.call, onDisconnected]
+    [room, assistantActions.call, onDisconnected, startRinging, stopRinging]
   );
 
   const disconnect = React.useCallback(async () => {
@@ -405,6 +421,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setWaitingMessage(null);
       isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
+      stopRinging();
       if (readyFallbackTimer) {
         clearTimeout(readyFallbackTimer);
         readyFallbackTimer = null;
@@ -484,7 +501,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       clearAssistantJoinTimeout();
     };
-  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call]);
+  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call, stopRinging]);
 
   // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
   // with a low-frequency fallback poll.

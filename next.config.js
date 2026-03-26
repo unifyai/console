@@ -69,6 +69,12 @@ const nextConfig = {
     // Modify the file loader rule to ignore *.svg, since we have it handled now.
     fileLoaderRule.exclude = /\.svg$/i;
 
+    // Handle audio file imports (.mp3, .wav)
+    config.module.rules.push({
+      test: /\.(mp3|wav|ogg)$/i,
+      type: 'asset/resource',
+    });
+
     return config;
   },
   async redirects() {
