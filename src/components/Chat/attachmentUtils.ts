@@ -266,7 +266,7 @@ const FILE_TYPE_MAP: Record<string, AttachmentType> = {
   m4v: 'video',
   mpg: 'video',
   mpeg: 'video',
-  '3gp': 'video',
+  ['3gp']: 'video',
   ogv: 'video',
   mts: 'video',
   vob: 'video',
@@ -305,7 +305,7 @@ const FILE_TYPE_MAP: Record<string, AttachmentType> = {
   gltf: 'image',
   glb: 'image',
   usdz: 'image',
-  '3ds': 'image',
+  ['3ds']: 'image',
   dae: 'image',
   lottie: 'image',
 
