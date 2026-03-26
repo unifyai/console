@@ -11,7 +11,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { Toaster } from 'sonner';
+
 import { DemoActions, DemoAssistant, DemoAssistantCreatePayload, DemoContact } from '@/types/demo';
 import { useDemoAssistants } from '@/hooks/Assistants/useDemoAssistants';
 import { Button } from '@/components/UI/button';
@@ -735,7 +735,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
         </div>
       </div>
 
-      <Toaster richColors position="bottom-right" closeButton />
     </div>
   );
 }

@@ -11,7 +11,6 @@ import {
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
-import { Toaster } from 'sonner';
 import { AssistantProfilePanel } from './Profile/AssistantProfile';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Hire/AssistantHire';
@@ -738,8 +737,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <Toaster richColors position="bottom-right" closeButton />
-
       <AssistantsBanners
         hasCredits={hasCredits}
         hasBillingHistory={hasBillingHistory}

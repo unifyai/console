@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </MfaEnforcementGate>
                   </main>
                 </Suspense>
-                <Toaster />
+                <Toaster richColors position="bottom-right" closeButton />
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

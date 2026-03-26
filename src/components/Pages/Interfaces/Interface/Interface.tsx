@@ -40,7 +40,7 @@ import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreP
 import { useShallow } from 'zustand/react/shallow';
 import { Command } from '@/contexts/slices/selectors/commands';
 import { iconMap } from '@/constants/logs';
-import dynamic from 'next/dynamic';
+
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Interfaces/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
@@ -95,7 +95,7 @@ const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
 const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
 const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
-const Toaster = dynamic(() => import('sonner').then((m) => m.Toaster), { ssr: false });
+
 
 /**
  * Debug flag for tab prefetching indicators
@@ -1830,7 +1830,6 @@ const Interface = ({
               <div className="relative h-full min-w-0 flex-1">
                 <ScrollArea ref={pageScrollContainerRef} className="h-full min-w-0 flex-1">
                   <div className="relative bg-background pt-3" ref={gridRef}>
-                    <Toaster richColors position="bottom-right" closeButton />
                     {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
               the user sees a Skeleton while the tabs are being loaded

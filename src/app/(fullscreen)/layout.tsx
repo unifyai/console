@@ -31,7 +31,7 @@ export default function FullscreenLayout({ children }: { children: React.ReactNo
                   <NuqsAdapter>{children}</NuqsAdapter>
                 </main>
               </Suspense>
-              <Toaster />
+              <Toaster richColors position="bottom-right" closeButton />
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

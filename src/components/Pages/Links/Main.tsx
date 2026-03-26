@@ -6,7 +6,7 @@ import { OneTimeLinkTable } from '@/components/Pages/Links/OneTimeLink/OneTimeLi
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
 import { Button } from '@/components/UI/button';
 import { Terminal, RefreshCw } from 'lucide-react';
-import { Toaster } from 'sonner';
+
 import { useApprovalLinks } from '@/hooks/Links/useOneTimeCreditLinks';
 import { AdminCreditGrantActions } from '@/types/admin';
 

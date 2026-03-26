@@ -11,7 +11,7 @@ import { useOrganization } from '@/hooks/Organizations/useOrganization';
 import { useTeams } from '@/hooks/Organizations/useTeams';
 import { useRoles } from '@/hooks/Organizations/useRoles';
 import { snakeToCamelObject } from '@/utils/casing';
-import { Toaster } from 'sonner';
+
 
 export interface MemberAssistantInfo {
   agentId: string;
@@ -131,7 +131,6 @@ const Main = ({
 
   return (
     <>
-      <Toaster richColors position="bottom-right" closeButton />
       <div className="relative flex h-full overflow-auto bg-background">
         {currentOrg ? (
           <OrganizationWorkspaceView
