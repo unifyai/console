@@ -1,11 +1,13 @@
 'use server';
 
+import { AxiosError } from 'axios';
 import { ResponseProps } from '@/types/common';
 import {
   SyncableLogEntry,
   ContactSyncUserPayload,
   ContactSyncAssistantPayload,
 } from '@/types/assistants/contact-sync';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 /**
  * Fields that trigger contact sync when updated.
@@ -15,49 +17,37 @@ import {
 const SYNCABLE_FIELDS = ['timezone', 'bio'] as const;
 
 /**
- * Sync user profile fields via the admin API.
- * Calls POST /api/admin/contact-sync/user
+ * Sync user profile fields directly via Orchestra admin API.
+ * POST /v0/admin/assistant/update-user
  */
 async function syncUserContact(payload: ContactSyncUserPayload): Promise<ResponseProps> {
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-sync/user`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return { detail: data.detail || `User sync failed: ${response.status}` };
-    }
+    await OrchestraAdminClient.post('/assistant/update-user', payload);
     return { info: 'User contact synced' };
   } catch (error) {
+    if (error instanceof AxiosError && error.response?.data?.detail) {
+      return { detail: `User sync failed: ${error.response.data.detail}` };
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return { detail: `User sync error: ${message}` };
   }
 }
 
 /**
- * Sync assistant profile fields via the admin API.
- * Calls POST /api/admin/contact-sync/assistant
+ * Sync assistant profile fields directly via Orchestra admin API.
+ * PATCH /v0/admin/assistant/{assistantId}
  */
 async function syncAssistantContact(
   assistantId: number,
   payload: ContactSyncAssistantPayload
 ): Promise<ResponseProps> {
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-sync/assistant`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assistantId: assistantId, ...payload }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return { detail: data.detail || `Assistant sync failed: ${response.status}` };
-    }
+    await OrchestraAdminClient.patch(`/assistant/${assistantId}`, payload);
     return { info: 'Assistant contact synced' };
   } catch (error) {
+    if (error instanceof AxiosError && error.response?.data?.detail) {
+      return { detail: `Assistant sync failed: ${error.response.data.detail}` };
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return { detail: `Assistant sync error: ${message}` };
   }

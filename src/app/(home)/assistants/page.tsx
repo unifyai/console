@@ -135,7 +135,7 @@ const AssistantsPage = async ({
       listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
       listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
       verifySocialAccount: await verifySocialAccount(adminKey),
-      fetchContactCosts: await fetchContactCosts(adminKey),
+      fetchContactCosts: await fetchContactCosts(),
     },
     secret: {
       get: await getSecrets(apiKey, user.id, isOrgContext, orgId),

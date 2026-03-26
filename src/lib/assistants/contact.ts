@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { ResponseProps } from '@/types/common';
 import {
   AvailablePhoneCountry,
@@ -11,6 +12,7 @@ import {
   AssistantContactCreatePayload,
   ContactCosts,
 } from '@/types/assistants/contact';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 export const listAllAssistantEmails = async (apiKey: string) => {
   return async (): Promise<string[] | ResponseProps> => {
@@ -235,45 +237,31 @@ export const createAssistantContact = async (apiKey: string) => {
 };
 
 /**
- * Fetch contact costs from the admin billing endpoint.
+ * Fetch contact costs directly from Orchestra admin API.
  *
- * Calls GET /api/admin/contact-costs which proxies to
- * GET /v0/admin/billing/contact-costs in Orchestra.
+ * Calls GET /v0/admin/billing/contact-costs via OrchestraAdminClient.
  *
- * Returns a keyed map of costs per contact type. Falls back to hardcoded
- * defaults if the fetch fails.
+ * Returns a keyed map of costs per contact type.
  */
-export const fetchContactCosts = async (adminKey: string) => {
+export const fetchContactCosts = async () => {
   return async (): Promise<ContactCosts | ResponseProps> => {
     'use server';
 
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/contact-costs`, {
-        method: 'GET',
-        headers: { apiKey: adminKey },
-      });
+      const response = await OrchestraAdminClient.get('/billing/contact-costs');
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.warn(
-          '[contact.ts fetchContactCosts] Backend returned error:',
-          data.detail
-        );
-        return { detail: data.detail || 'Failed to fetch contact costs' };
-      }
-
-      // data is an array of AssistantContactCost rows (already camelCase from the route)
       if (Array.isArray(data)) {
         return buildCostsFromRows(data as AssistantContactCost[]);
       }
 
-      console.warn(
-        '[contact.ts fetchContactCosts] Unexpected response format'
-      );
+      console.warn('[contact.ts fetchContactCosts] Unexpected response format');
       return { detail: 'Unexpected response format when fetching contact costs' };
     } catch (error) {
-      console.error('[contact.ts fetchContactCosts] Error fetching contact costs:', error);
+      console.error('[contact.ts fetchContactCosts] Error:', error);
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        return { detail: error.response.data.detail };
+      }
       return { detail: error instanceof Error ? error.message : 'Unknown error fetching contact costs' };
     }
   };

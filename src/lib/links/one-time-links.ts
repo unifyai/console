@@ -1,9 +1,11 @@
+import { AxiosError } from 'axios';
 import { ResponseProps } from '@/types/common';
 import {
   OneTimeLinkResponse,
   OneTimeLinkEntry,
   ADMIN_TABLE_PAGE_SIZE,
 } from '@/types/admin';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 export const generateOneTimeCreditGrantLink = async () => {
   return async (
@@ -16,29 +18,16 @@ export const generateOneTimeCreditGrantLink = async () => {
 
     try {
       const body: Record<string, unknown> = { expiresInDays, maxClaims };
-      if (creditAmount != null) {
-        body.creditAmount = creditAmount;
-      }
-      if (name) {
-        body.name = name;
-      }
+      if (creditAmount != null) body.creditAmount = creditAmount;
+      if (name) body.name = name;
 
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/admin/credit-grant-link`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || `Failed to generate link: ${response.statusText}` };
-      }
-      return data as OneTimeLinkResponse;
+      const response = await OrchestraAdminClient.post('/credit-grant-link', body);
+      return response.data as OneTimeLinkResponse;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error generating link.';
-      return { detail: message };
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        return { detail: error.response.data.detail };
+      }
+      return { detail: error instanceof Error ? error.message : 'Unknown error generating link.' };
     }
   };
 };
@@ -50,27 +39,17 @@ export const listOneTimeCreditGrantLinks = async () => {
   ): Promise<OneTimeLinkEntry[] | ResponseProps> => {
     'use server';
     try {
-      const queryParams = new URLSearchParams({
-        limit: String(limit),
-        offset: String(offset),
+      const response = await OrchestraAdminClient.get('/credit-grant-link', {
+        params: { limit, offset },
       });
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/admin/credit-grant-link?${queryParams.toString()}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        return { detail: data.detail || `Failed to list links: ${response.statusText}` };
-      }
-      return data as OneTimeLinkEntry[];
+      return response.data as OneTimeLinkEntry[];
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown error listing credit grant links.';
-      return { detail: message };
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        return { detail: error.response.data.detail };
+      }
+      return {
+        detail: error instanceof Error ? error.message : 'Unknown error listing credit grant links.',
+      };
     }
   };
 };
@@ -79,28 +58,13 @@ export const deleteOneTimeCreditGrantLink = async () => {
   return async (linkId: string): Promise<ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/admin/credit-grant-link/${linkId}`,
-        {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-      if (response.status === 204) {
-        // No Content
-        return { info: 'Link deleted successfully.' };
-      }
-      if (!response.ok) {
-        const data = await response
-          .json()
-          .catch(() => ({ detail: `Failed to delete link: ${response.statusText}` }));
-        return { detail: data.detail || `Failed to delete link: ${response.statusText}` };
-      }
-      const data = await response.json().catch(() => null);
-      return { info: data?.message || 'Link deleted successfully.' };
+      await OrchestraAdminClient.delete(`/credit-grant-link/${linkId}`);
+      return { info: 'Link deleted successfully.' };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error deleting link.';
-      return { detail: message };
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        return { detail: error.response.data.detail };
+      }
+      return { detail: error instanceof Error ? error.message : 'Unknown error deleting link.' };
     }
   };
 };

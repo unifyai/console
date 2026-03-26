@@ -12,10 +12,6 @@
  */
 
 import * as React from 'react';
-import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/user/user';
-import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
-import { Terminal } from 'lucide-react';
 import OrganizationsAdminMain from '@/components/Pages/Admin/OrganizationsMain';
 import {
   listOrganizationsAction,
@@ -34,33 +30,6 @@ import {
 import type { AdminOnboardingActions } from '@/types/admin';
 
 const AdminOrganizationsPage = async () => {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect('/login?signout=true');
-  }
-
-  // Only Unify org Owner / Admin may access
-  const isUnifyAdmin =
-    user.organizations.find(
-      (o) =>
-        o.name === 'Unify' &&
-        ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
-    ) !== undefined;
-
-  if (!isUnifyAdmin) {
-    return (
-      <div className="flex h-screen items-center justify-center p-4">
-        <Alert variant="destructive" className="w-auto max-w-md">
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>Access Denied</AlertTitle>
-          <AlertDescription>
-            You must be a Unify organization admin to access the organizations
-            dashboard.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
   const actions: AdminOnboardingActions = {
     listOrganizations: await listOrganizationsAction(),

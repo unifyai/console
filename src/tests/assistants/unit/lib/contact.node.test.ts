@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/tests/server';
 import {
@@ -19,6 +20,17 @@ import {
   fetchContactCosts,
   createAssistantContact,
 } from '@/lib/assistants/contact';
+import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+
+vi.mock('@/lib/orchestra/orchestra-client', () => ({
+  OrchestraAdminClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
+  },
+}));
 
 // Mock environment variables
 const MOCK_BASE_URL = 'http://localhost:3000';
@@ -490,29 +502,35 @@ describe('contact.ts', () => {
   });
 
   describe('fetchContactCosts', () => {
+    afterEach(() => {
+      vi.mocked(OrchestraAdminClient.get).mockReset();
+    });
+
     it(
       'returns ContactCosts map on success',
       {
         meta: {
           alias: 'FetchCosts-Success',
-          scenario: 'API returns cost rows',
+          scenario: 'OrchestraAdminClient returns cost rows',
           behavior: 'Returns keyed ContactCosts object',
         },
       },
       async () => {
         // Arrange
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
-            return HttpResponse.json([
-              { id: 1, contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
-              { id: 2, contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
-              { id: 3, contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
-            ]);
-          })
-        );
+        vi.mocked(OrchestraAdminClient.get).mockResolvedValueOnce({
+          data: [
+            { contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
+            { contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
+            { contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+          ],
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        });
 
         // Act
-        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const fetchFn = await fetchContactCosts();
         const result = await fetchFn();
 
         // Assert - should return ContactCosts map, not raw array
@@ -522,6 +540,7 @@ describe('contact.ts', () => {
         expect(costs.email.monthlyCost).toBe(14.0);
         expect(costs.whatsapp.monthlyCost).toBe(5.0);
         expect(costs.whatsapp.oneTimeCost).toBe(5.0);
+        expect(OrchestraAdminClient.get).toHaveBeenCalledWith('/billing/contact-costs');
       }
     );
 
@@ -530,24 +549,28 @@ describe('contact.ts', () => {
       {
         meta: {
           alias: 'FetchCosts-Fallback',
-          scenario: 'API returns error',
+          scenario: 'OrchestraAdminClient returns error',
           behavior: 'Returns ResponseProps with detail describing the error',
         },
       },
       async () => {
         // Arrange
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
-            return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
-          })
-        );
+        const error = new AxiosError('Request failed with status code 401');
+        error.response = {
+          data: { detail: 'Unauthorized' },
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        };
+        vi.mocked(OrchestraAdminClient.get).mockRejectedValueOnce(error);
 
         // Act
-        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const fetchFn = await fetchContactCosts();
         const result = await fetchFn();
 
-        // Assert - should return error response
-        expect(result).toHaveProperty('detail');
+        // Assert - should return error response with detail from backend
+        expect(result).toHaveProperty('detail', 'Unauthorized');
       }
     );
 
@@ -556,24 +579,22 @@ describe('contact.ts', () => {
       {
         meta: {
           alias: 'FetchCosts-NetworkError',
-          scenario: 'Network error during fetch',
+          scenario: 'Network error during request',
           behavior: 'Returns ResponseProps with detail describing the error',
         },
       },
       async () => {
         // Arrange
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
-            return HttpResponse.error();
-          })
+        vi.mocked(OrchestraAdminClient.get).mockRejectedValueOnce(
+          new Error('Network Error')
         );
 
         // Act
-        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const fetchFn = await fetchContactCosts();
         const result = await fetchFn();
 
         // Assert - should return error response
-        expect(result).toHaveProperty('detail');
+        expect(result).toHaveProperty('detail', 'Network Error');
       }
     );
 
@@ -582,20 +603,22 @@ describe('contact.ts', () => {
       {
         meta: {
           alias: 'FetchCosts-UnexpectedFormat',
-          scenario: 'API returns non-array response',
+          scenario: 'OrchestraAdminClient returns non-array response',
           behavior: 'Returns ResponseProps with detail describing the error',
         },
       },
       async () => {
         // Arrange
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
-            return HttpResponse.json({ data: 'unexpected' });
-          })
-        );
+        vi.mocked(OrchestraAdminClient.get).mockResolvedValueOnce({
+          data: { data: 'unexpected' },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        });
 
         // Act
-        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const fetchFn = await fetchContactCosts();
         const result = await fetchFn();
 
         // Assert - should return error response
@@ -608,25 +631,27 @@ describe('contact.ts', () => {
       {
         meta: {
           alias: 'FetchCosts-DefaultRow',
-          scenario: 'API returns multiple rows per contact type',
+          scenario: 'OrchestraAdminClient returns multiple rows per contact type',
           behavior: 'Picks the default row (provider=null, countryCode=null)',
         },
       },
       async () => {
         // Arrange - two phone rows, one default, one US-specific
-        server.use(
-          http.get(`${MOCK_BASE_URL}/api/admin/contact-costs`, () => {
-            return HttpResponse.json([
-              { id: 1, contactType: 'phone', provider: 'twilio', countryCode: 'US', monthlyCost: 2.0, oneTimeCost: 5.0 },
-              { id: 2, contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
-              { id: 3, contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
-              { id: 4, contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
-            ]);
-          })
-        );
+        vi.mocked(OrchestraAdminClient.get).mockResolvedValueOnce({
+          data: [
+            { contactType: 'phone', provider: 'twilio', countryCode: 'US', monthlyCost: 2.0, oneTimeCost: 5.0 },
+            { contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
+            { contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
+            { contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+          ],
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        });
 
         // Act
-        const fetchFn = await fetchContactCosts(TEST_API_KEY);
+        const fetchFn = await fetchContactCosts();
         const result = await fetchFn();
 
         // Assert - should prefer the default row (1.5) over US-specific (2.0)
