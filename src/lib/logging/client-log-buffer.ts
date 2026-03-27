@@ -48,6 +48,7 @@ interface LogEntry {
 interface FlushContext {
   assistantId?: string;
   contactId?: number | null;
+  userEmail?: string;
 }
 
 const FLUSH_INTERVAL_MS = 5_000;
@@ -70,6 +71,7 @@ function flush() {
   const body = {
     assistantId: flushContext.assistantId,
     contactId: flushContext.contactId,
+    userEmail: flushContext.userEmail,
     entries,
   };
 

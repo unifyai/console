@@ -120,8 +120,8 @@ export function useAssistantProfileChat(
     setLoadMoreError(false);
     setConnectionStatus('connecting');
     initDoneRef.current = false;
-    if (assistantId) setLogContext({ assistantId });
-  }, [assistantId]);
+    if (assistantId) setLogContext({ assistantId, userEmail: userEmail ?? undefined });
+  }, [assistantId, userEmail]);
 
   // =========================================================================
   // Typing helpers
@@ -579,7 +579,7 @@ export function useAssistantProfileChat(
 
     eventSource.onopen = () => {
       clientLog('SSE_OPEN', { assistant: assistantId, contact: contactId, url: eventSource.url });
-      setLogContext({ assistantId: assistantId!, contactId });
+      setLogContext({ assistantId: assistantId!, contactId, userEmail: userEmail ?? undefined });
       setConnectionStatus('connected');
       sseReconnectAttemptsRef.current = 0;
     };
