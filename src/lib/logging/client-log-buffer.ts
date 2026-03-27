@@ -125,3 +125,11 @@ export function clientLog(event: string, data?: Record<string, unknown>) {
   if (buffer.length >= FLUSH_THRESHOLD) flush();
   else schedule();
 }
+
+/**
+ * Force an immediate flush of buffered client logs.
+ * Useful for persisting critical diagnostic events before a user retries/closes.
+ */
+export function flushClientLogs() {
+  flush();
+}

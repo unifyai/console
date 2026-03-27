@@ -27,7 +27,10 @@ export async function fetchAssistants(
     const data = await res.json();
 
     if (!res.ok) {
-      return { detail: data?.detail || `Failed to list assistants: ${res.statusText}`, status: res.status } as ResponseProps;
+      return {
+        detail: data?.detail || `Failed to list assistants: ${res.statusText}`,
+        status: res.status,
+      } as ResponseProps;
     }
     return data;
   } catch (error) {
@@ -35,9 +38,7 @@ export async function fetchAssistants(
   }
 }
 
-export async function fetchAssistantStatus(
-  assistantId: string
-): Promise<AssistantStatus | null> {
+export async function fetchAssistantStatus(assistantId: string): Promise<AssistantStatus | null> {
   try {
     const res = await fetch(`/api/assistant/${assistantId}/status`);
     if (!res.ok) return null;
@@ -76,19 +77,56 @@ export async function fetchPresetPhotoUrls(
  * Returns a map of original path → signed URL.
  */
 export async function fetchMediaSignedUrls(
-  paths: string[]
+  paths: string[],
+  options?: {
+    onDiagnostic?: (diagnostic: {
+      pathCount: number;
+      ok: boolean;
+      status: number | null;
+      returnedUrlCount: number;
+      durationMs: number;
+      error?: string;
+    }) => void;
+  }
 ): Promise<Record<string, string>> {
   if (paths.length === 0) return {};
+  const startedAt = Date.now();
   try {
     const res = await fetch('/api/assistant/media/batch-urls', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paths }),
     });
-    if (!res.ok) return {};
+    if (!res.ok) {
+      options?.onDiagnostic?.({
+        pathCount: paths.length,
+        ok: false,
+        status: res.status,
+        returnedUrlCount: 0,
+        durationMs: Date.now() - startedAt,
+        error: 'non_ok_response',
+      });
+      return {};
+    }
     const data = await res.json();
-    return data.urls ?? {};
-  } catch {
+    const urls = data.urls ?? {};
+    options?.onDiagnostic?.({
+      pathCount: paths.length,
+      ok: true,
+      status: res.status,
+      returnedUrlCount: Object.keys(urls).length,
+      durationMs: Date.now() - startedAt,
+    });
+    return urls;
+  } catch (error) {
+    options?.onDiagnostic?.({
+      pathCount: paths.length,
+      ok: false,
+      status: null,
+      returnedUrlCount: 0,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'unknown_error',
+    });
     return {};
   }
 }
