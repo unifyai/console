@@ -51,6 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return new NextResponse('contactId query parameter is required.', { status: 400 });
   }
 
+  const clientSessionId = request.nextUrl.searchParams.get('sid') || 'none';
   const connId = `${assistantId}:${contactId}:${Date.now()}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
     console.log(`[Chat SSE ${connId}] ${msg}`, data ? JSON.stringify(data) : '');
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       topicName,
       subscriptionName,
       subscriptionCreated,
+      clientSessionId,
       filter: CHAT_FILTER,
       retentionSec: MESSAGE_RETENTION_DURATION,
     });

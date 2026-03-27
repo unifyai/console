@@ -7,6 +7,7 @@ import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/set
 import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
 import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts, fetchTranscriptsDirect } from './useContactIdPrefetch';
+import { clientLog, setLogContext, getSessionId } from '@/lib/logging/client-log-buffer';
 
 /**
  * Chat initialization follows a linear phase progression:
@@ -119,6 +120,7 @@ export function useAssistantProfileChat(
     setLoadMoreError(false);
     setConnectionStatus('connecting');
     initDoneRef.current = false;
+    if (assistantId) setLogContext({ assistantId });
   }, [assistantId]);
 
   // =========================================================================
@@ -161,13 +163,11 @@ export function useAssistantProfileChat(
       if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
         const prev = transcriptCutoffsRef.current[id] || 0;
         transcriptCutoffsRef.current[id] = maxTime;
-        console.log(
-          `[Chat Client] CUTOFF_SET assistant=${id} cutoff=${new Date(maxTime).toISOString()} prev=${prev ? new Date(prev).toISOString() : '0'} fromMsgCount=${msgs.length}`
-        );
+        clientLog('CUTOFF_SET', { assistant: id, cutoff: new Date(maxTime).toISOString(), prev: prev ? new Date(prev).toISOString() : '0', fromMsgCount: msgs.length });
       }
     } else if (!transcriptCutoffsRef.current[id]) {
       transcriptCutoffsRef.current[id] = 0;
-      console.log(`[Chat Client] CUTOFF_SET assistant=${id} cutoff=0 (empty transcripts)`);
+      clientLog('CUTOFF_SET', { assistant: id, cutoff: '0', reason: 'empty transcripts' });
     }
   }, []);
 
@@ -566,7 +566,7 @@ export function useAssistantProfileChat(
     const userContactId = contactId;
 
     const eventSource = new EventSource(
-      `/api/assistant/${assistantId}/events?contactId=${contactId}`
+      `/api/assistant/${assistantId}/events?contactId=${contactId}&sid=${getSessionId()}`
     );
 
     const ack = (ackId: string) => {
@@ -578,7 +578,8 @@ export function useAssistantProfileChat(
     };
 
     eventSource.onopen = () => {
-      console.log(`[Chat Client] SSE_OPEN assistant=${assistantId} contact=${contactId} url=${eventSource.url}`);
+      clientLog('SSE_OPEN', { assistant: assistantId, contact: contactId, url: eventSource.url });
+      setLogContext({ assistantId: assistantId!, contactId });
       setConnectionStatus('connected');
       sseReconnectAttemptsRef.current = 0;
     };
@@ -597,9 +598,7 @@ export function useAssistantProfileChat(
 
         const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
-          console.log(
-            `[Chat Client] FILTERED_CONTACT msgId=${msgId} msgContact=${messageContactId} myContact=${userContactId}`
-          );
+          clientLog('FILTERED_CONTACT', { msgId, msgContact: messageContactId, myContact: userContactId });
           if (ackId) ack(ackId);
           return;
         }
@@ -608,11 +607,7 @@ export function useAssistantProfileChat(
           const msgTime = new Date(publishTimeStr).getTime();
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
           if (msgTime < cutoff) {
-            const ageMs = Date.now() - msgTime;
-            const cutoffAge = Date.now() - cutoff;
-            console.log(
-              `[Chat Client] FILTERED_CUTOFF msgId=${msgId} publishTime=${publishTimeStr} ageMs=${ageMs} cutoff=${new Date(cutoff).toISOString()} cutoffAgeMs=${cutoffAge} thread=${thread}`
-            );
+            clientLog('FILTERED_CUTOFF', { msgId, publishTime: publishTimeStr, ageMs: Date.now() - msgTime, cutoff: new Date(cutoff).toISOString(), cutoffAgeMs: Date.now() - cutoff, thread });
             if (ackId) ack(ackId);
             return;
           }
@@ -639,9 +634,7 @@ export function useAssistantProfileChat(
           const msgAgeMs = publishTimeStr ? Date.now() - new Date(publishTimeStr).getTime() : 0;
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
 
-          console.log(
-            `[Chat Client] MSG_RECV msgId=${serverMsgId} publishTime=${publishTimeStr ?? 'none'} ageMs=${msgAgeMs} resolvedTimestamp=${timestamp.toISOString()} cutoff=${cutoff ? new Date(cutoff).toISOString() : '0'} thread=${thread} content="${contentPreview}"`
-          );
+          clientLog('MSG_RECV', { msgId: serverMsgId, publishTime: publishTimeStr ?? 'none', ageMs: msgAgeMs, resolvedTimestamp: timestamp.toISOString(), cutoff: cutoff ? new Date(cutoff).toISOString() : '0', thread, content: contentPreview });
 
           const rawAttachments = messagePayload.event?.attachments;
           const attachments: Attachment[] | undefined = Array.isArray(rawAttachments)
@@ -669,7 +662,7 @@ export function useAssistantProfileChat(
           setChatHistories((prev) => {
             const currentHistory = prev[assistantId] || [];
             if (serverMsgId && currentHistory.some((m) => m.id === serverMsgId)) {
-              console.log(`[Chat Client] DEDUP_ID msgId=${serverMsgId}`);
+              clientLog('DEDUP_ID', { msgId: serverMsgId });
               if (ackId) ack(ackId);
               return prev;
             }
@@ -681,9 +674,7 @@ export function useAssistantProfileChat(
               lastMsg.role === 'assistant' &&
               lastMsg.content === content
             ) {
-              console.log(
-                `[Chat Client] DEDUP_CONTENT msgId=${serverMsgId} matchedId=${lastMsg.id}`
-              );
+              clientLog('DEDUP_CONTENT', { msgId: serverMsgId, matchedId: lastMsg.id });
               if (ackId) ack(ackId);
               return prev;
             }
@@ -695,23 +686,18 @@ export function useAssistantProfileChat(
 
             const insertIndex = updatedList.findIndex((m) => m.id === serverMsgId);
             const isAtEnd = insertIndex === updatedList.length - 1;
-            console.log(
-              `[Chat Client] MSG_INSERTED msgId=${serverMsgId} position=${insertIndex}/${updatedList.length} isAtEnd=${isAtEnd} historyLen=${currentHistory.length}`
-            );
+            clientLog('MSG_INSERTED', { msgId: serverMsgId, position: insertIndex, total: updatedList.length, isAtEnd, historyLen: currentHistory.length });
             if (!isAtEnd) {
               const neighbors = updatedList.slice(
                 Math.max(0, insertIndex - 1),
                 insertIndex + 2
-              );
-              console.warn(
-                `[Chat Client] MSG_NOT_AT_END — message sorted before existing messages!`,
-                neighbors.map((m) => ({
-                  id: m.id,
-                  role: m.role,
-                  ts: new Date(m.timestamp).toISOString(),
-                  content: m.content.slice(0, 40),
-                }))
-              );
+              ).map((m) => ({
+                id: m.id,
+                role: m.role,
+                ts: new Date(m.timestamp).toISOString(),
+                content: m.content.slice(0, 40),
+              }));
+              clientLog('MSG_NOT_AT_END', { msgId: serverMsgId, position: insertIndex, neighbors });
             }
 
             return { ...prev, [assistantId]: updatedList };
@@ -727,12 +713,10 @@ export function useAssistantProfileChat(
           channel.postMessage(payload);
           channel.close();
         } else {
-          console.log(
-            `[Chat Client] IGNORED_THREAD msgId=${msgId} thread=${thread}`
-          );
+          clientLog('IGNORED_THREAD', { msgId, thread });
         }
       } catch (error) {
-        console.error('[Chat Client] onmessage error:', error);
+        clientLog('SSE_MSG_ERROR', { error: String(error) });
       }
     };
 
@@ -740,9 +724,7 @@ export function useAssistantProfileChat(
       const attempt = sseReconnectAttemptsRef.current;
       const willRetry = attempt < SSE_MAX_RECONNECT_ATTEMPTS;
       const delay = willRetry ? SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempt) : 0;
-      console.warn(
-        `[Chat Client] SSE_ERROR assistant=${assistantId} attempt=${attempt}/${SSE_MAX_RECONNECT_ATTEMPTS} willRetry=${willRetry} retryDelay=${delay}ms`
-      );
+      clientLog('SSE_ERROR', { assistant: assistantId, attempt, maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS, willRetry, retryDelayMs: delay });
 
       eventSource.close();
 
@@ -758,9 +740,7 @@ export function useAssistantProfileChat(
           setSseReconnectTrigger((prev) => prev + 1);
         }, delay);
       } else {
-        console.error(
-          `[Chat Client] SSE_GAVE_UP assistant=${assistantId} — all ${SSE_MAX_RECONNECT_ATTEMPTS} reconnection attempts exhausted`
-        );
+        clientLog('SSE_GAVE_UP', { assistant: assistantId, maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS });
         setConnectionStatus('error');
         sseReconnectAttemptsRef.current = 0;
       }
