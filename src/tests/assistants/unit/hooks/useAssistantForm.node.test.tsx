@@ -115,6 +115,7 @@ const createMockAssistantActions = (): AssistantActions => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn(),
+    buildLiveviewUrl: vi.fn(async (rawUrl: string) => ({ liveviewUrl: `${rawUrl}?password=test-key` })),
     checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn(),
     listUserDesktops: vi.fn(),

@@ -1,13 +1,22 @@
 import * as React from 'react';
+import { fetchAssistantStatus } from '@/lib/client/assistant';
 
 const DESKTOP_READY_FALLBACK_INTERVAL = 15000;
+
+export interface DesktopReadyState {
+  isDesktopReady: boolean;
+  /** Raw liveview URL from the `assistant_desktop_ready` event (no password). */
+  eventLiveviewUrl: string | null;
+}
 
 /**
  * Detects when an assistant's desktop VM is ready via two mechanisms:
  *
  * 1. BroadcastChannel — `useAssistantProfileChat` receives the
  *    `assistant_desktop_ready` event over SSE and broadcasts it.
- *    This is instant and zero-cost.
+ *    This is instant and zero-cost. If the event payload contains
+ *    `liveview_url`, it is captured so callers can skip the logs
+ *    API roundtrip.
  *
  * 2. Low-frequency fallback poll via `getLiveviewUrl` — covers the
  *    case where no SSE listener is active (e.g. standalone fullscreen
@@ -21,12 +30,14 @@ export function useDesktopReady(
     | ((id: string) => Promise<{ liveviewUrl?: string } | { detail: string }>)
     | undefined,
   initialValue = false
-): boolean {
+): DesktopReadyState {
   const [isDesktopReady, setIsDesktopReady] = React.useState(initialValue);
+  const [eventLiveviewUrl, setEventLiveviewUrl] = React.useState<string | null>(null);
 
   // Reset when assistant changes
   React.useEffect(() => {
     setIsDesktopReady(initialValue);
+    setEventLiveviewUrl(null);
   }, [assistantId, initialValue]);
 
   // Primary: listen for BroadcastChannel events from useAssistantProfileChat
@@ -34,8 +45,12 @@ export function useDesktopReady(
     if (!assistantId || isDesktopReady) return;
 
     const channel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
-    channel.onmessage = () => {
+    channel.onmessage = (e: MessageEvent) => {
       setIsDesktopReady(true);
+      const url = e.data?.liveview_url ?? e.data?.liveviewUrl;
+      if (typeof url === 'string' && url) {
+        setEventLiveviewUrl(url);
+      }
     };
     return () => channel.close();
   }, [assistantId, isDesktopReady]);
@@ -50,7 +65,10 @@ export function useDesktopReady(
       try {
         const result = await getLiveviewUrl(assistantId);
         if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-          setIsDesktopReady(true);
+          const status = await fetchAssistantStatus(assistantId);
+          if (!cancelled && status?.running) {
+            setIsDesktopReady(true);
+          }
         }
       } catch {
         // not ready yet
@@ -66,5 +84,5 @@ export function useDesktopReady(
     };
   }, [assistantId, getLiveviewUrl, isDesktopReady]);
 
-  return isDesktopReady;
+  return { isDesktopReady, eventLiveviewUrl };
 }

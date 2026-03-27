@@ -51,6 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return new NextResponse('contactId query parameter is required.', { status: 400 });
   }
 
+  const clientSessionId = request.nextUrl.searchParams.get('sid') || 'none';
   const connId = `${assistantId}:${contactId}:${Date.now()}`;
   const log = (msg: string, data?: Record<string, unknown>) =>
     console.log(`[Chat SSE ${connId}] ${msg}`, data ? JSON.stringify(data) : '');
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       topicName,
       subscriptionName,
       subscriptionCreated,
+      clientSessionId,
       filter: CHAT_FILTER,
       retentionSec: MESSAGE_RETENTION_DURATION,
     });
@@ -170,6 +172,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+            message.ack();
             log('MSG_SENT', { msgId: message.id });
           } catch {
             log('MSG_WRITE_FAIL', { msgId: message.id });

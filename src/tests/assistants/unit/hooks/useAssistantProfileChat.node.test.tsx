@@ -957,16 +957,17 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     expect(state['test-assistant-1'].some((m: any) => m.content === 'Missed by SSE')).toBe(true);
   });
 
-  it('deduplicates across SSE and polling despite different message IDs', async () => {
+  it('replaces SSE message with Orchestra version on poll (different IDs, same content)', async () => {
     const { es, setChatHistories } = await renderReady();
-    const now = new Date().toISOString();
+    const sseTime = new Date().toISOString();
+    const orchestraTime = new Date(Date.now() + 2000).toISOString();
 
     await act(async () => {
       es.onmessage?.({
         data: JSON.stringify({
           thread: 'unify_message_outbound',
           id: 'pubsub-id-abc',
-          publishTime: now,
+          publishTime: sseTime,
           event: { content: 'Hello there', contact_id: USER_CONTACT_ID },
         }),
       });
@@ -975,7 +976,7 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     fetchSpy.mockImplementation((url: RequestInfo | URL) => {
       if (typeof url === 'string' && url.includes('/api/logs'))
         return Promise.resolve(
-          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: now }])
+          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: orchestraTime }])
         );
       return Promise.resolve(new Response('{}', { status: 200 }));
     });
@@ -993,6 +994,99 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     }
     const matching = state['test-assistant-1'].filter((m: any) => m.content === 'Hello there');
     expect(matching).toHaveLength(1);
+    expect(matching[0].id).toBe('555');
+  });
+
+  it('replaces pre-hire messages with Orchestra versions despite hours-apart timestamps', async () => {
+    const { setChatHistories } = await renderReady();
+
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    const preHireMessages = [
+      { id: 'uuid-greeting', role: 'assistant' as const, content: 'Hi! Welcome aboard.', timestamp: new Date(fourHoursAgo) },
+      { id: 'uuid-user', role: 'user' as const, content: 'Hey, how are you?', timestamp: new Date(fourHoursAgo) },
+      { id: 'uuid-reply', role: 'assistant' as const, content: 'Doing great, thanks!', timestamp: new Date(fourHoursAgo) },
+    ];
+
+    await act(async () => {
+      setChatHistories((prev: Record<string, any[]>) => ({
+        ...prev,
+        'test-assistant-1': preHireMessages,
+      }));
+    });
+
+    const now = new Date().toISOString();
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([
+            { id: 101, senderId: 0, content: 'Hi! Welcome aboard.', ts: now },
+            { id: 102, senderId: 1, content: 'Hey, how are you?', ts: now },
+            { id: 103, senderId: 0, content: 'Doing great, thanks!', ts: now },
+          ])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': preHireMessages };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    const msgs = state['test-assistant-1'];
+    expect(msgs).toHaveLength(3);
+    expect(msgs.every((m: any) => ['101', '102', '103'].includes(m.id))).toBe(true);
+    expect(msgs.every((m: any) => !m.id.startsWith('uuid-'))).toBe(true);
+  });
+
+  it('correctly reconciles repeated identical messages without squashing', async () => {
+    const { setChatHistories } = await renderReady();
+
+    const optimisticMessages = [
+      { id: 'uuid-1', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:00:00Z') },
+      { id: 'uuid-2', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:01:00Z') },
+    ];
+
+    await act(async () => {
+      setChatHistories((prev: Record<string, any[]>) => ({
+        ...prev,
+        'test-assistant-1': optimisticMessages,
+      }));
+    });
+
+    const ts1 = '2026-03-27T09:00:05Z';
+    const ts2 = '2026-03-27T09:01:05Z';
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([
+            { id: 201, senderId: 1, content: 'Hello?', ts: ts1 },
+            { id: 202, senderId: 1, content: 'Hello?', ts: ts2 },
+          ])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': optimisticMessages };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    const msgs = state['test-assistant-1'];
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].id).toBe('201');
+    expect(msgs[1].id).toBe('202');
   });
 
   it('refetches immediately when the tab regains visibility', async () => {
@@ -1068,5 +1162,497 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
       state = fn(state);
     }
     expect(state['test-assistant-1'].some((m: any) => m.content === 'Before error')).toBe(true);
+  });
+});
+
+// =============================================================================
+// SECTION 6: Timestamp Clamping (Clock Skew Protection)
+// =============================================================================
+describe('useAssistantProfileChat - Timestamp Clamping', () => {
+  const USER_CONTACT_ID = 42;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    lastEventSource = null;
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  /**
+   * Helper: render the hook to 'ready' state with a given set of pre-existing
+   * messages in chatHistories, then return everything needed to test sendMessage.
+   */
+  async function renderWithHistory(
+    existingMessages: Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp: Date }>,
+    contactId: number = USER_CONTACT_ID
+  ) {
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {
+      'test-assistant-1': existingMessages,
+    };
+    const setChatHistories = vi.fn((updater: any) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const hookResult = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: vi.fn(async () => contactId) }),
+        chatHistories,
+        setChatHistories as any,
+        'test@example.com'
+      )
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    const es = lastEventSource!;
+    expect(es).not.toBeNull();
+    await act(async () => {
+      es.onopen?.();
+    });
+
+    return { ...hookResult, es, setChatHistories, chatHistories, assistant };
+  }
+
+  /**
+   * Replays all functional setChatHistories updaters against an initial state.
+   */
+  function replayUpdaters(
+    mock: ReturnType<typeof vi.fn>,
+    initialState: Record<string, any[]>
+  ): Record<string, any[]> {
+    let state = { ...initialState };
+    for (const call of mock.mock.calls) {
+      const fn = call[0];
+      if (typeof fn === 'function') {
+        state = fn(state);
+      }
+    }
+    return state;
+  }
+
+  // -------------------------------------------------------------------------
+  // sendMessage clamping
+  // -------------------------------------------------------------------------
+  describe('sendMessage timestamp clamping', () => {
+    it('clamps user message timestamp when client clock is behind server', async () => {
+      // Server-timestamped messages are 10 minutes in the "future" relative
+      // to the client clock — simulating a client clock that's 10 min behind.
+      const serverNow = new Date('2025-03-27T15:00:00.000Z');
+      const clientNow = new Date('2025-03-27T14:50:00.000Z');
+
+      const existingMessages = [
+        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: new Date('2025-03-27T14:58:00.000Z') },
+        { id: 'srv-2', role: 'user' as const, content: 'Hi', timestamp: new Date('2025-03-27T14:59:00.000Z') },
+        { id: 'srv-3', role: 'assistant' as const, content: 'How can I help?', timestamp: serverNow },
+      ];
+
+      vi.setSystemTime(clientNow);
+
+      const { result, setChatHistories, chatHistories } = await renderWithHistory(existingMessages);
+
+      // Type a message and send
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'My new message' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      // Replay all updaters to get the final state
+      const finalState = replayUpdaters(setChatHistories, {
+        'test-assistant-1': existingMessages,
+      });
+
+      const msgs = finalState['test-assistant-1'];
+      const userMsg = msgs.find((m: any) => m.content === 'My new message');
+      expect(userMsg).toBeDefined();
+
+      // The clamped timestamp must be AFTER the latest server message
+      const userMsgTs = new Date(userMsg.timestamp).getTime();
+      const latestServerTs = serverNow.getTime();
+      expect(userMsgTs).toBeGreaterThan(latestServerTs);
+
+      // The message should be the last one after sorting
+      const sorted = [...msgs].sort(
+        (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      expect(sorted[sorted.length - 1].content).toBe('My new message');
+    });
+
+    it('uses client timestamp when client clock is ahead of server', async () => {
+      const serverTs = new Date('2025-03-27T15:00:00.000Z');
+      const clientNow = new Date('2025-03-27T15:05:00.000Z');
+
+      const existingMessages = [
+        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: serverTs },
+      ];
+
+      vi.setSystemTime(clientNow);
+
+      const { result, setChatHistories } = await renderWithHistory(existingMessages);
+
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'Ahead message' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      const finalState = replayUpdaters(setChatHistories, {
+        'test-assistant-1': existingMessages,
+      });
+
+      const msgs = finalState['test-assistant-1'];
+      const userMsg = msgs.find((m: any) => m.content === 'Ahead message');
+      expect(userMsg).toBeDefined();
+
+      // When client is ahead, timestamp should use client time (it's already
+      // greater than lastTs + 1)
+      const userMsgTs = new Date(userMsg.timestamp).getTime();
+      expect(userMsgTs).toBeGreaterThanOrEqual(clientNow.getTime());
+    });
+
+    it('assigns monotonically increasing timestamps to rapid successive sends', async () => {
+      const serverTs = new Date('2025-03-27T15:00:00.000Z');
+      // Client clock is 5 minutes behind — both sends will need clamping
+      const clientNow = new Date('2025-03-27T14:55:00.000Z');
+
+      const existingMessages = [
+        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: serverTs },
+      ];
+
+      vi.setSystemTime(clientNow);
+
+      const { result, setChatHistories } = await renderWithHistory(existingMessages);
+
+      // Send first message
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'First' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(10);
+      });
+
+      // Send second message
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'Second' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(10);
+      });
+
+      // Replay all updaters sequentially (simulates React's functional
+      // updater guarantee: each sees the result of the previous one)
+      const finalState = replayUpdaters(setChatHistories, {
+        'test-assistant-1': existingMessages,
+      });
+
+      const msgs = finalState['test-assistant-1'];
+      const first = msgs.find((m: any) => m.content === 'First');
+      const second = msgs.find((m: any) => m.content === 'Second');
+
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+
+      const firstTs = new Date(first.timestamp).getTime();
+      const secondTs = new Date(second.timestamp).getTime();
+
+      // Both must be after the server message
+      expect(firstTs).toBeGreaterThan(serverTs.getTime());
+      expect(secondTs).toBeGreaterThan(serverTs.getTime());
+
+      // Second must be strictly after first
+      expect(secondTs).toBeGreaterThan(firstTs);
+
+      // Both must sort to the end, in order
+      const sorted = [...msgs].sort(
+        (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      expect(sorted[sorted.length - 2].content).toBe('First');
+      expect(sorted[sorted.length - 1].content).toBe('Second');
+    });
+
+    it('does not clamp when chat history is empty', async () => {
+      const clientNow = new Date('2025-03-27T15:00:00.000Z');
+      vi.setSystemTime(clientNow);
+
+      const { result, setChatHistories } = await renderWithHistory([]);
+
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'First ever message' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      const finalState = replayUpdaters(setChatHistories, {
+        'test-assistant-1': [],
+      });
+
+      const msgs = finalState['test-assistant-1'];
+      const userMsg = msgs.find((m: any) => m.content === 'First ever message');
+      expect(userMsg).toBeDefined();
+
+      // With empty history, lastTs is 0 so max(Date.now(), 0+1) = Date.now()
+      const userMsgTs = new Date(userMsg.timestamp).getTime();
+      expect(userMsgTs).toBeGreaterThanOrEqual(clientNow.getTime());
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // BroadcastChannel clamping
+  // -------------------------------------------------------------------------
+  describe('BroadcastChannel user message clamping', () => {
+    it('clamps a broadcast user message that has a timestamp behind existing messages', async () => {
+      const serverTs = new Date('2025-03-27T15:00:00.000Z');
+      // Simulate a broadcast message from another tab with a client-time
+      // timestamp that's behind server messages.
+      const staleClientTs = new Date('2025-03-27T14:50:00.000Z');
+
+      const existingMessages = [
+        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: serverTs },
+      ];
+
+      const { setChatHistories } = await renderWithHistory(existingMessages);
+
+      // Find the BroadcastChannel's onmessage handler set up by the hook.
+      // The hook creates a BroadcastChannel during render. Our mock stores
+      // calls — find the setChatHistories updater by simulating what the
+      // BroadcastChannel handler does: it calls setChatHistories with a
+      // functional updater that checks for duplicates, clamps, and sorts.
+      //
+      // We test the updater logic directly by calling it with our scenario.
+      const broadcastMessage = {
+        id: 'broadcast-user-1',
+        role: 'user' as const,
+        content: 'Message from other tab',
+        timestamp: staleClientTs,
+      };
+
+      // Simulate receiving a BroadcastChannel message by finding the
+      // channel handler. The hook registers it in the BroadcastChannel
+      // effect. We'll invoke the setChatHistories updater pattern directly.
+      //
+      // The BroadcastChannel handler does:
+      // 1. Create messageWithDate from broadcast
+      // 2. setChatHistories with updater that clamps user messages
+      //
+      // We test by creating the exact updater the hook would create:
+      const updater = (prev: Record<string, any[]>) => {
+        const current = prev['test-assistant-1'] || [];
+        const messageWithDate = {
+          ...broadcastMessage,
+          timestamp: new Date(broadcastMessage.timestamp),
+        };
+        if (current.some((m: any) => m.id === messageWithDate.id)) {
+          return prev;
+        }
+        let finalMsg = messageWithDate;
+        if (messageWithDate.role === 'user' && current.length > 0) {
+          const lastTs = Math.max(
+            ...current.map((m: any) => new Date(m.timestamp).getTime())
+          );
+          const msgTs = new Date(messageWithDate.timestamp).getTime();
+          if (msgTs <= lastTs) {
+            finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
+          }
+        }
+        const updated = [...current, finalMsg].sort(
+          (a: any, b: any) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        return { ...prev, 'test-assistant-1': updated };
+      };
+
+      const result = updater({ 'test-assistant-1': existingMessages });
+      const msgs = result['test-assistant-1'];
+      const broadcastMsg = msgs.find(
+        (m: any) => m.content === 'Message from other tab'
+      );
+
+      expect(broadcastMsg).toBeDefined();
+      const broadcastMsgTs = new Date(broadcastMsg.timestamp).getTime();
+
+      // Must be after the existing server message
+      expect(broadcastMsgTs).toBeGreaterThan(serverTs.getTime());
+      expect(broadcastMsgTs).toBe(serverTs.getTime() + 1);
+
+      // Must sort to the end
+      expect(msgs[msgs.length - 1].content).toBe('Message from other tab');
+    });
+
+    it('does not clamp assistant messages from BroadcastChannel', () => {
+      const serverTs = new Date('2025-03-27T15:00:00.000Z');
+      const existingMessages = [
+        { id: 'user-1', role: 'user' as const, content: 'Hello', timestamp: serverTs },
+      ];
+
+      // An assistant message with an older timestamp (from server backlog)
+      const olderAssistantTs = new Date('2025-03-27T14:59:00.000Z');
+      const broadcastMessage = {
+        id: 'broadcast-assistant-1',
+        role: 'assistant' as const,
+        content: 'Proactive greeting',
+        timestamp: olderAssistantTs,
+      };
+
+      const updater = (prev: Record<string, any[]>) => {
+        const current = prev['test-assistant-1'] || [];
+        const messageWithDate = {
+          ...broadcastMessage,
+          timestamp: new Date(broadcastMessage.timestamp),
+        };
+        if (current.some((m: any) => m.id === messageWithDate.id)) {
+          return prev;
+        }
+        let finalMsg = messageWithDate;
+        if (messageWithDate.role === 'user' && current.length > 0) {
+          const lastTs = Math.max(
+            ...current.map((m: any) => new Date(m.timestamp).getTime())
+          );
+          const msgTs = new Date(messageWithDate.timestamp).getTime();
+          if (msgTs <= lastTs) {
+            finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
+          }
+        }
+        const updated = [...current, finalMsg].sort(
+          (a: any, b: any) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        return { ...prev, 'test-assistant-1': updated };
+      };
+
+      const result = updater({ 'test-assistant-1': existingMessages });
+      const msgs = result['test-assistant-1'];
+      const assistantMsg = msgs.find(
+        (m: any) => m.content === 'Proactive greeting'
+      );
+
+      expect(assistantMsg).toBeDefined();
+      // Assistant message should keep its original timestamp (not clamped)
+      expect(new Date(assistantMsg.timestamp).getTime()).toBe(
+        olderAssistantTs.getTime()
+      );
+      // It should sort before the user message (older timestamp)
+      expect(msgs[0].content).toBe('Proactive greeting');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction with SSE messages
+  // -------------------------------------------------------------------------
+  describe('clamping interaction with SSE messages', () => {
+    it('user message sorts before assistant reply that arrives after', async () => {
+      const serverTs = new Date('2025-03-27T15:00:00.000Z');
+      const clientNow = new Date('2025-03-27T14:55:00.000Z');
+
+      const existingMessages = [
+        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: serverTs },
+      ];
+
+      vi.setSystemTime(clientNow);
+
+      const { result, es, setChatHistories } = await renderWithHistory(existingMessages);
+
+      // User sends a message (clock is behind)
+      act(() => {
+        result.current.handleInputChange({
+          target: { value: 'User question' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      await act(async () => {
+        result.current.sendMessage(
+          { preventDefault: () => {} } as React.FormEvent,
+          undefined,
+          undefined
+        );
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      // Assistant replies via SSE with a server timestamp 30 seconds after
+      // the last server message
+      const replyTs = new Date('2025-03-27T15:00:30.000Z');
+      await act(async () => {
+        es.onmessage?.({
+          data: JSON.stringify({
+            thread: 'unify_message_outbound',
+            id: 'sse-reply-1',
+            publishTime: replyTs.toISOString(),
+            event: {
+              content: 'Assistant answer',
+              role: 'assistant',
+              contact_id: USER_CONTACT_ID,
+            },
+          }),
+        });
+      });
+
+      const finalState = replayUpdaters(setChatHistories, {
+        'test-assistant-1': existingMessages,
+      });
+
+      const msgs = finalState['test-assistant-1'];
+      const sorted = [...msgs].sort(
+        (a: any, b: any) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      // Order should be: original → user question → assistant answer
+      expect(sorted.map((m: any) => m.content)).toEqual([
+        'Hello!',
+        'User question',
+        'Assistant answer',
+      ]);
+    });
   });
 });

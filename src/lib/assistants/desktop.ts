@@ -47,7 +47,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
         return { detail: 'Server configuration error: Application URL not found.' };
       }
 
-      const filterExpr = `user_id == '${userId}' and assistant_id == '${assistantId}' and running == 'true'`;
+      const filterExpr = `user_id == '${userId}' and assistant_id == '${assistantId}'`;
 
       const url = new URL(`${nextAuthUrl}/api/logs`);
       url.searchParams.append('projectName', 'AssistantJobs');
@@ -102,6 +102,15 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
           : 'Unknown server error occurred while fetching session URL.';
       return { detail: errorMessage };
     }
+  };
+};
+
+export const buildLiveviewUrl = async (userApiKey: string) => {
+  return async (rawUrl: string): Promise<{ liveviewUrl: string }> => {
+    'use server';
+    const urlObj = new URL(rawUrl);
+    urlObj.searchParams.set('password', userApiKey);
+    return { liveviewUrl: urlObj.toString() };
   };
 };
 

@@ -254,6 +254,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     assistantActions.call,
   ]);
 
+  const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
+    isConnected ? activeCallAssistant?.agentId : undefined,
+    assistantActions.desktop.getLiveviewUrl
+  );
+
   const toggleRemoteControl = React.useCallback(async () => {
     if (!activeCallAssistant) return;
 
@@ -284,13 +289,22 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     const toastId = toast.loading('Starting assistant screen sharing...');
 
     try {
-      const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
-      if (result.liveviewUrl) {
-        const healthy = await assistantActions.desktop.checkLiveviewHealth(result.liveviewUrl);
+      let resolvedUrl: string | undefined;
+
+      if (eventLiveviewUrl) {
+        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl);
+        resolvedUrl = built.liveviewUrl;
+      } else {
+        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
+        resolvedUrl = result.liveviewUrl;
+      }
+
+      if (resolvedUrl) {
+        const healthy = await assistantActions.desktop.checkLiveviewHealth(resolvedUrl);
         if (!healthy) {
           throw new Error('Desktop is not reachable — it may still be starting up.');
         }
-        setLiveviewUrl(result.liveviewUrl);
+        setLiveviewUrl(resolvedUrl);
         setIsRemoteControlActive(true);
         setIsRemoteControlInteractive(false);
         assistantActions.desktop
@@ -319,6 +333,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     stopRemoteControl,
     assistantActions.desktop,
     activeCallAssistant,
+    eventLiveviewUrl,
   ]);
 
   const toggleRemoteControlInteractive = React.useCallback(async () => {
@@ -502,13 +517,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       clearAssistantJoinTimeout();
     };
   }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call, stopRinging]);
-
-  // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
-  // with a low-frequency fallback poll.
-  const isDesktopReady = useDesktopReady(
-    isConnected ? activeCallAssistant?.agentId : undefined,
-    assistantActions.desktop.getLiveviewUrl
-  );
 
   // Ensure proper cleanup on component unmount
   React.useEffect(() => {

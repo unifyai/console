@@ -17,6 +17,7 @@ import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
+import { clientLog } from '@/lib/logging/client-log-buffer';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import {
@@ -56,6 +57,7 @@ interface AssistantProfileChatPanelProps {
   onFirstViewCompleted?: () => void;
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
+  onAssistantReply?: (assistantId: string) => void;
 }
 
 const IS_LOCAL_DEV =
@@ -72,6 +74,7 @@ export function AssistantProfileChatPanel({
   preHireChat,
   onFirstViewCompleted,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
+  onAssistantReply,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -113,7 +116,8 @@ export function AssistantProfileChatPanel({
     userEmail,
     isFirstView,
     preHireChat,
-    onFirstViewCompleted
+    onFirstViewCompleted,
+    onAssistantReply
   );
 
   const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
@@ -316,9 +320,10 @@ export function AssistantProfileChatPanel({
       prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
     isAtBottomRef.current = wasBottom;
 
-    // Only auto-scroll to bottom if we aren't currently loading old history (which keeps us at top)
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
+    } else if (scrollHeight !== prevScrollHeight && !wasBottom) {
+      clientLog('SCROLL_NOT_STICKY', { wasBottom, isLoadingMore, scrollHeightDelta: scrollHeight - (prevScrollHeight ?? 0), msgCount: messages.length });
     }
 
     prevScrollHeightRef.current = scrollHeight;

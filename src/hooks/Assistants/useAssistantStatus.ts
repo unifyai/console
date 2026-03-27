@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { fetchAssistantStatus } from '@/lib/client/assistant';
 
-const POLLING_INTERVAL = 60000; // Poll every minute
+const POLLING_INTERVAL = 60000;
 
 export function useAssistantStatus(assistants: Assistant[]) {
   const [statuses, setStatuses] = React.useState<Map<string, AssistantStatus | null>>(new Map());
@@ -44,23 +44,39 @@ export function useAssistantStatus(assistants: Assistant[]) {
     });
   }, []);
 
-  React.useEffect(() => {
+  const restartPoller = React.useCallback(() => {
     if (pollerRef.current) {
       clearInterval(pollerRef.current);
     }
-
-    fetchAllStatuses();
-
     pollerRef.current = setInterval(() => {
       fetchAllStatuses();
     }, POLLING_INTERVAL);
+  }, [fetchAllStatuses]);
+
+  const markOnline = React.useCallback(
+    (assistantId: string) => {
+      setStatuses((prev) => {
+        const existing = prev.get(assistantId);
+        if (existing?.running) return prev;
+        const next = new Map(prev);
+        next.set(assistantId, { running: true, jobName: existing?.jobName ?? null });
+        return next;
+      });
+      restartPoller();
+    },
+    [restartPoller]
+  );
+
+  React.useEffect(() => {
+    fetchAllStatuses();
+    restartPoller();
 
     return () => {
       if (pollerRef.current) {
         clearInterval(pollerRef.current);
       }
     };
-  }, [assistantIdsKey, fetchAllStatuses]);
+  }, [assistantIdsKey, fetchAllStatuses, restartPoller]);
 
-  return { statuses };
+  return { statuses, markOnline };
 }
