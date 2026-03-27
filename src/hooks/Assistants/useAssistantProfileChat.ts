@@ -527,7 +527,19 @@ export function useAssistantProfileChat(
         if (current.some((m) => m.id === messageWithDate.id)) {
           return prev;
         }
-        const updated = [...current, messageWithDate].sort(
+        // Clamp user messages to prevent clock-skew mis-ordering
+        // (same fix as sendMessage — all tabs share the same skewed clock)
+        let finalMsg = messageWithDate;
+        if (messageWithDate.role === 'user' && current.length > 0) {
+          const lastTs = Math.max(
+            ...current.map((m) => new Date(m.timestamp).getTime())
+          );
+          const msgTs = new Date(messageWithDate.timestamp).getTime();
+          if (msgTs <= lastTs) {
+            finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
+          }
+        }
+        const updated = [...current, finalMsg].sort(
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         return { ...prev, [assistantId]: updated };
@@ -984,12 +996,23 @@ export function useAssistantProfileChat(
           })),
         };
 
+        // Clamp the optimistic timestamp inside the updater so it always
+        // sorts after every existing message. This prevents client-server
+        // clock skew from placing the message before recent server-
+        // timestamped messages. The updater's `prev` is guaranteed to
+        // include prior queued sends (React processes functional updaters
+        // sequentially), so rapid successive sends each get a distinct,
+        // monotonically increasing timestamp.
+        let clampedMessage = newUserMessage;
         setChatHistories((prev) => {
           const current = prev[currentAssistantId] || [];
-          const updated = [...current, newUserMessage].sort(
-            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
-          return { ...prev, [currentAssistantId]: updated };
+          const lastTs = current.length > 0
+            ? Math.max(...current.map((m) => new Date(m.timestamp).getTime()))
+            : 0;
+          const msgTs = new Date(newUserMessage.timestamp).getTime();
+          const clampedTs = new Date(Math.max(msgTs, lastTs + 1));
+          clampedMessage = { ...newUserMessage, timestamp: clampedTs };
+          return { ...prev, [currentAssistantId]: [...current, clampedMessage] };
         });
         setInputValue('');
 
@@ -1000,7 +1023,7 @@ export function useAssistantProfileChat(
         const channel = new BroadcastChannel(`assistant-chat-sync-${currentAssistantId}`);
         const payload: BroadcastMessagePayload = {
           type: 'NEW_MESSAGE',
-          message: newUserMessage,
+          message: clampedMessage,
         };
         channel.postMessage(payload);
         channel.close();
