@@ -19,6 +19,8 @@ import { MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';
 const ANIMATION_POLLING_INTERVAL = 5000;
 const BALANCE_CHECK_MAX_ATTEMPTS = 2;
 const BALANCE_CHECK_RETRY_DELAY_MS = 300;
+const PROFILE_FACE_COMPOSITION_INSTRUCTION =
+  'Use a face-focused profile-photo composition: close-up head-and-shoulders framing with the face centered and clearly visible. Avoid full-body framing.';
 
 type BalanceCheckResult = { ok: true; balance: number } | { ok: false; reason: string };
 
@@ -54,6 +56,14 @@ function extractBalanceFromPayload(payload: unknown): number | null {
 }
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function appendProfileFaceInstruction(prompt: string): string {
+  const trimmedPrompt = prompt.trim();
+  if (!trimmedPrompt) {
+    return PROFILE_FACE_COMPOSITION_INSTRUCTION;
+  }
+  return `${trimmedPrompt}\n${PROFILE_FACE_COMPOSITION_INSTRUCTION}`;
+}
 
 const fetchBalance = async (): Promise<BalanceCheckResult> => {
   for (let attempt = 1; attempt <= BALANCE_CHECK_MAX_ATTEMPTS; attempt += 1) {
@@ -268,7 +278,7 @@ export function usePhotoCreator(
 
     toast.loading('Generating photo...', { id: toastId });
 
-    const description = prompt;
+    const description = appendProfileFaceInstruction(prompt);
     const finalPromptParts = [];
     if (firstName && surname) {
       finalPromptParts.push(`Name: ${firstName} ${surname}`);
@@ -371,7 +381,7 @@ export function usePhotoCreator(
 
     try {
       const formData = new FormData();
-      formData.append('prompt', prompt);
+      formData.append('prompt', appendProfileFaceInstruction(prompt));
       formData.append('aspect_ratio', 'match_input_image');
       formData.append('output_format', 'jpg');
       formData.append('safety_tolerance', '2.0');
