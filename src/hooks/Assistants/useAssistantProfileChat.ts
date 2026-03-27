@@ -801,15 +801,20 @@ export function useAssistantProfileChat(
           const existingIds = new Set(current.map((m) => m.id));
           let reconciled = [...current];
           let changed = false;
+          const claimed = new Set<number>();
 
           for (const m of fetched) {
             if (existingIds.has(m.id)) continue;
 
             const matchIdx = reconciled.findIndex(
-              (existing) => existing.role === m.role && existing.content === m.content
+              (existing, idx) =>
+                !claimed.has(idx) &&
+                existing.role === m.role &&
+                existing.content === m.content
             );
 
             if (matchIdx !== -1) {
+              claimed.add(matchIdx);
               reconciled[matchIdx] = m;
               changed = true;
             } else {

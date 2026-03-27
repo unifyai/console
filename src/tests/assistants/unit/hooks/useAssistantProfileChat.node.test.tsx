@@ -1044,6 +1044,51 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     expect(msgs.every((m: any) => !m.id.startsWith('uuid-'))).toBe(true);
   });
 
+  it('correctly reconciles repeated identical messages without squashing', async () => {
+    const { setChatHistories } = await renderReady();
+
+    const optimisticMessages = [
+      { id: 'uuid-1', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:00:00Z') },
+      { id: 'uuid-2', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:01:00Z') },
+    ];
+
+    await act(async () => {
+      setChatHistories((prev: Record<string, any[]>) => ({
+        ...prev,
+        'test-assistant-1': optimisticMessages,
+      }));
+    });
+
+    const ts1 = '2026-03-27T09:00:05Z';
+    const ts2 = '2026-03-27T09:01:05Z';
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([
+            { id: 201, senderId: 1, content: 'Hello?', ts: ts1 },
+            { id: 202, senderId: 1, content: 'Hello?', ts: ts2 },
+          ])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': optimisticMessages };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    const msgs = state['test-assistant-1'];
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].id).toBe('201');
+    expect(msgs[1].id).toBe('202');
+  });
+
   it('refetches immediately when the tab regains visibility', async () => {
     await renderReady();
 
