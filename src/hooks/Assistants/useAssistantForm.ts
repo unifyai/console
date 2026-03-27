@@ -412,6 +412,10 @@ export function useAssistantForm(
       const profileVideoPath = assistant.profileVideo ?? null;
       const shouldRefreshPhotoPreview = isGcsPhoto(profilePhotoPath);
       const shouldRefreshVideoPreview = isGcsPhoto(profileVideoPath);
+      const initialPhotoPreviewUrl =
+        assistant.signedProfilePhotoUrl || (shouldRefreshPhotoPreview ? null : profilePhotoPath);
+      const initialVideoPreviewUrl =
+        assistant.signedProfileVideoUrl || (shouldRefreshVideoPreview ? null : profileVideoPath);
 
       reset({
         ...getValues(),
@@ -425,12 +429,8 @@ export function useAssistantForm(
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
         // Media
-        photoPreviewUrl: shouldRefreshPhotoPreview
-          ? null
-          : assistant.signedProfilePhotoUrl || profilePhotoPath,
-        videoPreviewUrl: shouldRefreshVideoPreview
-          ? null
-          : assistant.signedProfileVideoUrl || profileVideoPath,
+        photoPreviewUrl: initialPhotoPreviewUrl,
+        videoPreviewUrl: initialVideoPreviewUrl,
         profilePhotoUrl: profilePhotoPath,
         profileVideoUrl: profileVideoPath,
         photoFile: null,
@@ -468,10 +468,20 @@ export function useAssistantForm(
         }
 
         if (shouldRefreshPhotoPreview && profilePhotoPath) {
-          setValue('photoPreviewUrl', signedUrlMap[profilePhotoPath] ?? null);
+          const refreshedPhotoPreviewUrl = signedUrlMap[profilePhotoPath];
+          if (refreshedPhotoPreviewUrl) {
+            setValue('photoPreviewUrl', refreshedPhotoPreviewUrl);
+          } else if (!initialPhotoPreviewUrl) {
+            setValue('photoPreviewUrl', null);
+          }
         }
         if (shouldRefreshVideoPreview && profileVideoPath) {
-          setValue('videoPreviewUrl', signedUrlMap[profileVideoPath] ?? null);
+          const refreshedVideoPreviewUrl = signedUrlMap[profileVideoPath];
+          if (refreshedVideoPreviewUrl) {
+            setValue('videoPreviewUrl', refreshedVideoPreviewUrl);
+          } else if (!initialVideoPreviewUrl) {
+            setValue('videoPreviewUrl', null);
+          }
         }
       })();
     },
