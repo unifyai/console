@@ -110,6 +110,10 @@ export function useAssistantProfileChat(
   // Reset when assistant changes
   // =========================================================================
   React.useEffect(() => {
+    if (assistantId) {
+      clientLog('CHAT_OPENED', { assistant: assistantId, userEmail: userEmail ?? 'unknown' });
+      setLogContext({ assistantId, userEmail: userEmail ?? undefined });
+    }
     setPhase('uninitialized');
     setContactId(null);
     setInitialLoadError(false);
@@ -120,7 +124,9 @@ export function useAssistantProfileChat(
     setLoadMoreError(false);
     setConnectionStatus('connecting');
     initDoneRef.current = false;
-    if (assistantId) setLogContext({ assistantId, userEmail: userEmail ?? undefined });
+    return () => {
+      if (assistantId) clientLog('CHAT_CLOSED', { assistant: assistantId });
+    };
   }, [assistantId, userEmail]);
 
   // =========================================================================
