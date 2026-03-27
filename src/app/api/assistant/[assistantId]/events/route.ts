@@ -170,6 +170,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+            message.ack();
             log('MSG_SENT', { msgId: message.id });
           } catch {
             log('MSG_WRITE_FAIL', { msgId: message.id });
