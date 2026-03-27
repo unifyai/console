@@ -237,7 +237,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [profileParam, assistants, handleShowProfile]);
 
   // --- Assistant Status Polling ---
-  const { statuses: assistantStatuses } = useAssistantStatus(assistants);
+  const { statuses: assistantStatuses, markOnline: markAssistantOnline } = useAssistantStatus(assistants);
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
@@ -835,6 +835,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
                   onAssistantSpendingChange={setProfileAssistantSpending}
+                  onAssistantReply={markAssistantOnline}
                   onAssistantUpdated={(id, patch) => {
                     setAssistants((prev) =>
                       prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))

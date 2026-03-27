@@ -57,6 +57,7 @@ interface AssistantProfileChatPanelProps {
   onFirstViewCompleted?: () => void;
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
+  onAssistantReply?: (assistantId: string) => void;
 }
 
 const IS_LOCAL_DEV =
@@ -73,6 +74,7 @@ export function AssistantProfileChatPanel({
   preHireChat,
   onFirstViewCompleted,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
+  onAssistantReply,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -114,7 +116,8 @@ export function AssistantProfileChatPanel({
     userEmail,
     isFirstView,
     preHireChat,
-    onFirstViewCompleted
+    onFirstViewCompleted,
+    onAssistantReply
   );
 
   const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;

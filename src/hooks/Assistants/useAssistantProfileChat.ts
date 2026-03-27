@@ -51,7 +51,8 @@ export function useAssistantProfileChat(
   userEmail: string | null | undefined,
   isFirstView?: boolean,
   preHireChat?: ChatMessage[],
-  onFirstViewCompleted?: () => void
+  onFirstViewCompleted?: () => void,
+  onAssistantReply?: (assistantId: string) => void
 ) {
   const assistantId = assistant?.agentId || null;
 
@@ -75,6 +76,8 @@ export function useAssistantProfileChat(
   // the SSE effect from creating a spurious connection during the render where
   // assistantId has changed but phase/contactId haven't been reset yet.
   const activeAssistantIdRef = React.useRef<string | null>(null);
+  const onAssistantReplyRef = React.useRef(onAssistantReply);
+  onAssistantReplyRef.current = onAssistantReply;
   // Session-wide cache so switching back to a previously-viewed assistant
   // doesn't re-resolve contactId (avoids "Connecting..." flash on every switch).
   const contactIdCacheRef = React.useRef<Map<string, number>>(new Map());
@@ -716,6 +719,8 @@ export function useAssistantProfileChat(
 
             return { ...prev, [assistantId]: updatedList };
           });
+
+          onAssistantReplyRef.current?.(assistantId);
 
           const broadcastMsg = { ...newAssistantMessage };
           delete broadcastMsg.__ackId;

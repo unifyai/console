@@ -290,6 +290,121 @@ describe('useAssistantStatus', () => {
   });
 
   // ===========================================================================
+  // markOnline
+  // ===========================================================================
+
+  describe('markOnline', () => {
+    it('sets an offline assistant to running', async () => {
+      mockFetchAssistantStatus.mockImplementation((id: string) =>
+        Promise.resolve(createMockStatus(id !== '1'))
+      );
+
+      const assistants = [createMockAssistant('1'), createMockAssistant('2')];
+      const { result } = renderHook(() => useAssistantStatus(assistants));
+
+      await waitFor(() => {
+        expect(result.current.statuses.get('1')?.running).toBe(false);
+        expect(result.current.statuses.get('2')?.running).toBe(true);
+      });
+
+      act(() => {
+        result.current.markOnline('1');
+      });
+
+      expect(result.current.statuses.get('1')?.running).toBe(true);
+      expect(result.current.statuses.get('2')?.running).toBe(true);
+    });
+
+    it('is a no-op when the assistant is already running', async () => {
+      const assistants = [createMockAssistant('1')];
+      const { result } = renderHook(() => useAssistantStatus(assistants));
+
+      await waitFor(() => {
+        expect(result.current.statuses.get('1')?.running).toBe(true);
+      });
+
+      const statusesBefore = result.current.statuses;
+
+      act(() => {
+        result.current.markOnline('1');
+      });
+
+      // Same Map reference — state setter returned prev (no-op)
+      expect(result.current.statuses).toBe(statusesBefore);
+    });
+
+    it('preserves the existing jobName', async () => {
+      mockFetchAssistantStatus.mockResolvedValue({ running: false, jobName: 'my-job' });
+      const assistants = [createMockAssistant('1')];
+      const { result } = renderHook(() => useAssistantStatus(assistants));
+
+      await waitFor(() => {
+        expect(result.current.statuses.get('1')?.running).toBe(false);
+      });
+
+      act(() => {
+        result.current.markOnline('1');
+      });
+
+      expect(result.current.statuses.get('1')).toEqual({ running: true, jobName: 'my-job' });
+    });
+
+    it('handles marking an assistant with no prior status', async () => {
+      const assistants = [createMockAssistant('1')];
+      const { result } = renderHook(() => useAssistantStatus(assistants));
+
+      // Before the fetch resolves, markOnline for an unknown assistant
+      act(() => {
+        result.current.markOnline('unknown');
+      });
+
+      expect(result.current.statuses.get('unknown')).toEqual({ running: true, jobName: null });
+    });
+
+    it('resets the polling interval so the next fetch is delayed', async () => {
+      vi.useFakeTimers();
+      try {
+        mockFetchAssistantStatus.mockResolvedValue(createMockStatus(false));
+
+        const assistants = [createMockAssistant('1')];
+        const { result } = renderHook(() => useAssistantStatus(assistants));
+
+        // Let the initial fetch's microtask resolve
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        const callsAfterInit = mockFetchAssistantStatus.mock.calls.length;
+
+        // Advance 50s (within the 60s window) — no poll yet
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(50_000);
+        });
+        expect(mockFetchAssistantStatus.mock.calls.length).toBe(callsAfterInit);
+
+        // markOnline at t=50s resets the timer
+        act(() => {
+          result.current.markOnline('1');
+        });
+
+        // Advance another 50s (t=100s). Without reset, poll would have fired at t=60s.
+        // With reset, the next poll is at t=110s (50s + 60s), so still no fetch.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(50_000);
+        });
+        expect(mockFetchAssistantStatus.mock.calls.length).toBe(callsAfterInit);
+
+        // Advance 10 more seconds (t=110s) — now the poll should fire
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(mockFetchAssistantStatus.mock.calls.length).toBeGreaterThan(callsAfterInit);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // ===========================================================================
   // Edge Cases
   // ===========================================================================
 

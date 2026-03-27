@@ -52,6 +52,7 @@ interface AssistantProfilePanelProps {
   spendingGate?: SpendingGateStatus;
   /** Callback when assistant spending data changes (for spending gate) */
   onAssistantSpendingChange?: (display: SpendingDisplayProps | null) => void;
+  onAssistantReply?: (assistantId: string) => void;
   onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
 }
 
@@ -108,6 +109,7 @@ export function AssistantProfilePanel({
   canWrite = true,
   showSpending = true,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
+  onAssistantReply,
   onAssistantSpendingChange,
   onAssistantUpdated,
 }: AssistantProfilePanelProps) {
@@ -283,6 +285,7 @@ export function AssistantProfilePanel({
               preHireChat={preHireChat}
               onFirstViewCompleted={onFirstViewCompleted}
               spendingGate={spendingGate}
+              onAssistantReply={onAssistantReply}
             />
           </AccordionContent>
         </AccordionItem>
