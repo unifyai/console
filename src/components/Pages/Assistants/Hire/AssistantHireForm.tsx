@@ -231,6 +231,7 @@ export function HireForm({
   ]);
 
   const isEditMode = mode === 'edit';
+  const shouldUseAnimateClickShortcut = !(isEditMode && !!rhfProfileVideoUrl && !videoFile);
   const handlePhotoViewerClick = () => {
     // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
     setPhotoCustomizationTab('animate');
@@ -280,7 +281,6 @@ export function HireForm({
         v.isUserVoiceInOrchestra
     );
     setValue('voiceExists', userHasVoice, { shouldValidate: true });
-
   }, [getValues, setValue, allDisplayableVoices]);
 
   return (
@@ -458,7 +458,7 @@ export function HireForm({
                       className="flex-shrink-0"
                       isPlayable={isVideoPlayable}
                       disabled={isSubmitting}
-                      onClick={handlePhotoViewerClick}
+                      onClick={shouldUseAnimateClickShortcut ? handlePhotoViewerClick : undefined}
                       shouldAutoplay={shouldAutoplayVideo}
                       onAutoplay={handleVideoAutoplayed}
                     />

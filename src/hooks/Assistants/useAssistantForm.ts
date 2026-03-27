@@ -20,6 +20,8 @@ import { ASSISTANT_ONBOARDING_FEE, PRIMARY_VOICE_PROVIDER } from '@/constants/as
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
+import { fetchMediaSignedUrls } from '@/lib/client/assistant';
+import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -36,6 +38,8 @@ export function useAssistantForm(
   const isSubmittingRef = React.useRef(false);
   // Ref to track preset selection operations and ignore stale video downloads
   const presetOperationIdRef = React.useRef(0);
+  // Ref to ignore stale signed-URL refreshes when rapidly switching assistants
+  const editMediaRefreshRequestIdRef = React.useRef(0);
 
   const defaultVoice = getDefaultVoiceForProvider();
 
@@ -336,6 +340,7 @@ export function useAssistantForm(
     },
     [
       setValue,
+      getValues,
       handleMediaRemove,
       clearErrors,
       defaultVoice,
@@ -395,11 +400,18 @@ export function useAssistantForm(
        ---------------------------- */
   const loadAssistantForEdit = React.useCallback(
     (assistant: Assistant) => {
+      const thisRequestId = editMediaRefreshRequestIdRef.current + 1;
+      editMediaRefreshRequestIdRef.current = thisRequestId;
+
       setEditingAssistant(assistant);
 
       const assistantVoiceDetails = registeredVoices.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
+      const profilePhotoPath = assistant.profilePhoto ?? null;
+      const profileVideoPath = assistant.profileVideo ?? null;
+      const shouldRefreshPhotoPreview = isGcsPhoto(profilePhotoPath);
+      const shouldRefreshVideoPreview = isGcsPhoto(profileVideoPath);
 
       reset({
         ...getValues(),
@@ -413,10 +425,14 @@ export function useAssistantForm(
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
         // Media
-        photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profilePhoto,
-        videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profileVideo,
-        profilePhotoUrl: assistant.profilePhoto,
-        profileVideoUrl: assistant.profileVideo,
+        photoPreviewUrl: shouldRefreshPhotoPreview
+          ? null
+          : assistant.signedProfilePhotoUrl || profilePhotoPath,
+        videoPreviewUrl: shouldRefreshVideoPreview
+          ? null
+          : assistant.signedProfileVideoUrl || profileVideoPath,
+        profilePhotoUrl: profilePhotoPath,
+        profileVideoUrl: profileVideoPath,
         photoFile: null,
         videoFile: null,
 
@@ -435,8 +451,31 @@ export function useAssistantForm(
         operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
       setShowInsufficientFundsHint(false);
+
+      const gcsMediaPaths: string[] = [
+        ...(shouldRefreshPhotoPreview && profilePhotoPath ? [profilePhotoPath] : []),
+        ...(shouldRefreshVideoPreview && profileVideoPath ? [profileVideoPath] : []),
+      ];
+
+      if (gcsMediaPaths.length === 0) {
+        return;
+      }
+
+      void (async () => {
+        const signedUrlMap = await fetchMediaSignedUrls(gcsMediaPaths);
+        if (editMediaRefreshRequestIdRef.current !== thisRequestId) {
+          return;
+        }
+
+        if (shouldRefreshPhotoPreview && profilePhotoPath) {
+          setValue('photoPreviewUrl', signedUrlMap[profilePhotoPath] ?? null);
+        }
+        if (shouldRefreshVideoPreview && profileVideoPath) {
+          setValue('videoPreviewUrl', signedUrlMap[profileVideoPath] ?? null);
+        }
+      })();
     },
-    [reset, getValues, registeredVoices]
+    [reset, getValues, registeredVoices, setValue]
   );
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
@@ -481,8 +520,7 @@ export function useAssistantForm(
       if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
       if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
       if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
-      if (data.nationality !== editingAssistant.nationality)
-        payload.nationality = data.nationality;
+      if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together — always
