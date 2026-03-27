@@ -194,7 +194,7 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
   const [activeIndex, setActiveIndex] = React.useState(0);
 
   return (
-    <div className="flex max-h-[75vh] flex-col">
+    <div className="flex max-h-[75vh] min-w-0 flex-col">
       {sheets.length > 1 && (
         <div className="flex gap-1 border-b border-border pb-2 mb-2">
           {sheets.map((sheet, i) => (
@@ -213,7 +213,7 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
         </div>
       )}
       <div
-        className="styled-scrollbar attachment-spreadsheet flex-1 overflow-auto rounded-md"
+        className="styled-scrollbar attachment-spreadsheet min-w-0 flex-1 overflow-auto rounded-md"
         dangerouslySetInnerHTML={{ __html: sheets[activeIndex]?.html ?? '' }}
       />
     </div>
@@ -393,7 +393,7 @@ export function AttachmentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl overflow-hidden">
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
             <div className="min-w-0">
