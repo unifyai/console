@@ -1401,6 +1401,55 @@ describe('Assistant Hire Flow', () => {
 
   describe('F. Assistant Update Flow', () => {
     it(
+      'should refresh signed video URL for GCS-backed edit media',
+      {
+        meta: {
+          alias: 'Edit-Refresh-Video-SignedURL',
+          behavior: 'Requests a fresh signed URL for existing GCS profile videos in edit mode',
+          scenario: 'Opening edit dialog with stale signedProfileVideoUrl',
+        },
+      },
+      async () => {
+        const originalFetch = window.fetch;
+        const fetchSpy = vi
+          .spyOn(window, 'fetch')
+          .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (url.includes('/api/assistant/media/batch-urls')) {
+              return new Response(
+                JSON.stringify({
+                  urls: {
+                    'gs://bucket/1132/video/alien-edit-flow.mp4':
+                      'https://signed.example.com/alien-edit-flow.mp4?fresh=1',
+                  },
+                }),
+                {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' },
+                }
+              );
+            }
+            return originalFetch(input, init);
+          });
+
+        const assistantWithStaleVideo = {
+          ...mockAssistants[0],
+          profileVideo: 'gs://bucket/1132/video/alien-edit-flow.mp4',
+          signedProfileVideoUrl: 'https://signed.example.com/alien-edit-flow.mp4?stale=1',
+        };
+
+        render(<EditFlowTestWrapper assistant={assistantWithStaleVideo} />);
+
+        await waitFor(() => {
+          const refreshCall = fetchSpy.mock.calls.find((call) =>
+            String(call[0]).includes('/api/assistant/media/batch-urls')
+          );
+          expect(refreshCall).toBeDefined();
+        });
+      }
+    );
+
+    it(
       'should load assistant data into form',
       {
         meta: {
