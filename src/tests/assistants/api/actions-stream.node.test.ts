@@ -252,7 +252,7 @@ describe('Actions SSE Stream Route', () => {
       display_label: 'ContactManager.ask',
     });
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', msg);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -295,10 +295,12 @@ describe('Actions SSE Stream Route', () => {
     // System error messages from Unity have `thread` at the top level,
     // not wrapped in { event: ... } like ManagerMethod payloads.
     const systemErrorMsg = {
-      data: Buffer.from(JSON.stringify({
-        thread: 'system_error',
-        event: { content: 'The assistant ran out of memory.' },
-      })),
+      data: Buffer.from(
+        JSON.stringify({
+          thread: 'system_error',
+          event: { content: 'The assistant ran out of memory.' },
+        })
+      ),
       id: 'syserr-1',
       ackId: 'ack-syserr',
       publishTime: new Date(),
@@ -306,11 +308,17 @@ describe('Actions SSE Stream Route', () => {
       nack: vi.fn(),
     };
     const normalMsg = makeMockMessage(
-      { type: 'ManagerMethod', row_id: 3, manager: 'ContactManager', phase: 'incoming', calling_id: 'contact-2' },
+      {
+        type: 'ManagerMethod',
+        row_id: 3,
+        manager: 'ContactManager',
+        phase: 'incoming',
+        calling_id: 'contact-2',
+      },
       { ackId: 'ack-normal' }
     );
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', systemErrorMsg);
     subEmitter?.emit('message', normalMsg);
 
@@ -343,15 +351,27 @@ describe('Actions SSE Stream Route', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     const excludedMsg = makeMockMessage(
-      { type: 'ManagerMethod', row_id: 1, manager: 'MemoryManager', phase: 'incoming', calling_id: 'mem-1' },
+      {
+        type: 'ManagerMethod',
+        row_id: 1,
+        manager: 'MemoryManager',
+        phase: 'incoming',
+        calling_id: 'mem-1',
+      },
       { ackId: 'ack-excluded' }
     );
     const includedMsg = makeMockMessage(
-      { type: 'ManagerMethod', row_id: 2, manager: 'ContactManager', phase: 'incoming', calling_id: 'contact-1' },
+      {
+        type: 'ManagerMethod',
+        row_id: 2,
+        manager: 'ContactManager',
+        phase: 'incoming',
+        calling_id: 'contact-1',
+      },
       { ackId: 'ack-included' }
     );
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', excludedMsg);
     subEmitter?.emit('message', includedMsg);
 

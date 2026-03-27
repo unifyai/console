@@ -141,9 +141,7 @@ describe('System Errors SSE Stream Route', () => {
       const ctrl1 = new AbortController();
       const ctrl2 = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req1 = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -187,9 +185,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -221,9 +217,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -258,9 +252,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -291,9 +283,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -313,7 +303,7 @@ describe('System Errors SSE Stream Route', () => {
         { id: 'err-msg-1', ackId: 'ack-err-1' }
       );
 
-      const subEmitter = [...mockSubscriptionInstances.values()][0];
+      const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
       subEmitter?.emit('message', msg);
 
       await new Promise((r) => setTimeout(r, 50));
@@ -322,9 +312,7 @@ describe('System Errors SSE Stream Route', () => {
       const allData = await drainStream(response);
       expect(allData).toContain(': connected');
 
-      const dataLines = allData
-        .split('\n')
-        .filter((l) => l.startsWith('data: '));
+      const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
       expect(dataLines.length).toBe(1);
 
       const parsed = JSON.parse(dataLines[0].replace('data: ', ''));
@@ -350,9 +338,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -375,16 +361,14 @@ describe('System Errors SSE Stream Route', () => {
         { id: 'err-structured-1' }
       );
 
-      const subEmitter = [...mockSubscriptionInstances.values()][0];
+      const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
       subEmitter?.emit('message', msg);
 
       await new Promise((r) => setTimeout(r, 50));
       controller.abort();
 
       const allData = await drainStream(response);
-      const dataLines = allData
-        .split('\n')
-        .filter((l) => l.startsWith('data: '));
+      const dataLines = allData.split('\n').filter((l) => l.startsWith('data: '));
       expect(dataLines.length).toBe(1);
 
       const parsed = JSON.parse(dataLines[0].replace('data: ', ''));
@@ -408,9 +392,7 @@ describe('System Errors SSE Stream Route', () => {
     async () => {
       vi.stubEnv('COMMS_SERVICE_ACCOUNT_CREDENTIALS', '');
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const controller = new AbortController();
       const req = new NextRequest(
@@ -438,14 +420,11 @@ describe('System Errors SSE Stream Route', () => {
       },
     },
     async () => {
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
-      const req = new NextRequest(
-        `http://localhost/api/assistant//system-errors/stream`,
-        { method: 'GET' }
-      );
+      const req = new NextRequest(`http://localhost/api/assistant//system-errors/stream`, {
+        method: 'GET',
+      });
       const response = await GET(req, { params: { assistantId: '' } });
 
       expect(response.status).toBe(400);
@@ -469,9 +448,7 @@ describe('System Errors SSE Stream Route', () => {
       const notFoundError = Object.assign(new Error('NOT_FOUND'), { code: 5 });
       mockTopicCreateSubscription.mockRejectedValueOnce(notFoundError);
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -504,9 +481,7 @@ describe('System Errors SSE Stream Route', () => {
       vi.stubEnv('ORCHESTRA_URL', 'https://api-staging.unify.ai');
       const controller = new AbortController();
 
-      const { GET } = await import(
-        '@/app/api/assistant/[assistantId]/system-errors/stream/route'
-      );
+      const { GET } = await import('@/app/api/assistant/[assistantId]/system-errors/stream/route');
 
       const req = new NextRequest(
         `http://localhost/api/assistant/${TEST_ASSISTANT_ID}/system-errors/stream`,
@@ -521,9 +496,7 @@ describe('System Errors SSE Stream Route', () => {
       await drainStream(res);
 
       expect(createdSubscriptions.length).toBe(1);
-      expect(createdSubscriptions[0].name).toContain(
-        `unity-${TEST_ASSISTANT_ID}-staging`
-      );
+      expect(createdSubscriptions[0].name).toContain(`unity-${TEST_ASSISTANT_ID}-staging`);
     }
   );
 });

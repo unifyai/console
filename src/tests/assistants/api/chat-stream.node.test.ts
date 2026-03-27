@@ -100,7 +100,10 @@ function makeMockMessage(
   };
 }
 
-async function collectStream(response: Response, { until }: { until: () => boolean }): Promise<string> {
+async function collectStream(
+  response: Response,
+  { until }: { until: () => boolean }
+): Promise<string> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   const parts: string[] = [];
@@ -324,7 +327,7 @@ describe('Chat SSE Stream Route', () => {
     );
 
     // Find the subscription emitter and emit a message
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', msg);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -352,11 +355,14 @@ describe('Chat SSE Stream Route', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     const msg = makeMockMessage(
-      { thread: 'unify_message_outbound', event: { content: 'Hello from assistant', contact_id: 42 } },
+      {
+        thread: 'unify_message_outbound',
+        event: { content: 'Hello from assistant', contact_id: 42 },
+      },
       { ackId: 'ack-for-client', id: 'msg-server-1' }
     );
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', msg);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -386,7 +392,7 @@ describe('Chat SSE Stream Route', () => {
 
     await new Promise((r) => setTimeout(r, 50));
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     expect(subEmitter?.listenerCount('message')).toBe(1);
 
     controller.abort();
