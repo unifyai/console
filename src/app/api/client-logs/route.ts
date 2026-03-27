@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     await client.POST('/v0/logs', {
       body: {
         project_name: 'ConsoleDiagnostics',
-        context: { name: 'ChatClient' },
+        context: 'ChatClient',
         entries: {
           assistantId: assistantId ?? 'unknown',
           contactId: contactId ?? null,
