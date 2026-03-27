@@ -12,6 +12,8 @@ import { AssistantPhotoViewer } from '../Hire/AssistantHirePhotoPreview';
 import { Skeleton } from '@/components/UI/skeleton';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { fetchMediaSignedUrls } from '@/lib/client/assistant';
+import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 
 import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
@@ -72,6 +74,17 @@ interface AssistantProfileInfoPanelProps {
   onSpendingDisplayChange?: (display: SpendingDisplayProps | null) => void;
 }
 
+function getInitialVideoSrc(assistant: Assistant): string | undefined {
+  if (assistant.signedProfileVideoUrl) {
+    return assistant.signedProfileVideoUrl;
+  }
+  const videoPath = assistant.profileVideo ?? undefined;
+  if (videoPath && !isGcsPhoto(videoPath)) {
+    return videoPath;
+  }
+  return undefined;
+}
+
 export function AssistantProfileInfoPanel({
   assistant,
   onEdit,
@@ -82,7 +95,11 @@ export function AssistantProfileInfoPanel({
   const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
   const [isVideoLoading, setIsVideoLoading] = React.useState(false);
   const [isIdCopied, setIsIdCopied] = React.useState(false);
+  const [videoSrc, setVideoSrc] = React.useState<string | undefined>(() =>
+    getInitialVideoSrc(assistant)
+  );
   const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const videoOpenRequestIdRef = React.useRef(0);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const resolvedSupervisorImage = useResolvedImageUrl(assistant.userImage);
 
@@ -108,7 +125,11 @@ export function AssistantProfileInfoPanel({
   }, [spendingData.display, onSpendingDisplayChange]);
 
   const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profilePhoto ?? undefined);
-  const videoSrc = assistant.signedProfileVideoUrl || (assistant.profileVideo ?? undefined);
+  const hasVideo = Boolean(assistant.profileVideo || assistant.signedProfileVideoUrl);
+
+  React.useEffect(() => {
+    setVideoSrc(getInitialVideoSrc(assistant));
+  }, [assistant]);
 
   const cleanupVideoTimeout = React.useCallback(() => {
     if (videoLoadTimeoutRef.current) {
@@ -117,22 +138,66 @@ export function AssistantProfileInfoPanel({
     }
   }, []);
 
+  React.useEffect(() => cleanupVideoTimeout, [cleanupVideoTimeout]);
+
+  const resolveFreshVideoSrc = React.useCallback(async (): Promise<string | undefined> => {
+    const profileVideo = assistant.profileVideo;
+    if (!profileVideo) {
+      return videoSrc;
+    }
+    if (!isGcsPhoto(profileVideo)) {
+      return profileVideo;
+    }
+    const signedUrlMap = await fetchMediaSignedUrls([profileVideo]);
+    const refreshedVideoSrc = signedUrlMap[profileVideo];
+    if (refreshedVideoSrc) {
+      setVideoSrc(refreshedVideoSrc);
+      return refreshedVideoSrc;
+    }
+    return assistant.signedProfileVideoUrl ?? undefined;
+  }, [assistant.profileVideo, assistant.signedProfileVideoUrl, videoSrc]);
+
   const handlePopoverOpenChange = (open: boolean) => {
-    setIsVideoPopoverOpen(open);
-    if (open && videoSrc) {
+    if (!open) {
+      videoOpenRequestIdRef.current += 1;
+      setIsVideoPopoverOpen(false);
+      setIsVideoLoading(false);
+      cleanupVideoTimeout();
+      return;
+    }
+
+    void (async () => {
+      const requestId = videoOpenRequestIdRef.current + 1;
+      videoOpenRequestIdRef.current = requestId;
+
       setIsVideoLoading(true);
-      cleanupVideoTimeout(); // Clear any existing timeout
-      // Set a new timeout
+      cleanupVideoTimeout();
+
+      let nextVideoSrc: string | undefined;
+      try {
+        nextVideoSrc = await resolveFreshVideoSrc();
+      } catch {
+        nextVideoSrc = undefined;
+      }
+
+      if (videoOpenRequestIdRef.current !== requestId) return;
+
+      if (!nextVideoSrc) {
+        setIsVideoLoading(false);
+        setIsVideoPopoverOpen(false);
+        toast.error('Video preview failed to load.');
+        return;
+      }
+
+      setVideoSrc(nextVideoSrc);
+      setIsVideoPopoverOpen(true);
       videoLoadTimeoutRef.current = setTimeout(() => {
+        if (videoOpenRequestIdRef.current !== requestId) return;
         setIsVideoLoading(false);
         setIsVideoPopoverOpen(false);
         toast.error('Video preview failed to load in time.');
       }, 5000);
-    } else {
-      // Cleanup on close
-      setIsVideoLoading(false);
-      cleanupVideoTimeout();
-    }
+    })();
   };
 
   const handleVideoCanPlay = () => {
@@ -164,7 +229,7 @@ export function AssistantProfileInfoPanel({
                 {isVideoPopoverOpen && isVideoLoading && (
                   <Skeleton className="absolute inset-0 z-10 h-20 w-20 rounded-lg sm:h-20 sm:w-20" />
                 )}
-                {videoSrc && (
+                {hasVideo && (
                   <div className="bg-muted-foreground/20 absolute left-0 top-0 -z-10 h-full w-full -translate-x-2 -translate-y-2 transform rounded-lg transition-transform duration-200 ease-in-out group-data-[state=open]:translate-x-0 group-data-[state=open]:translate-y-0" />
                 )}
               </div>
