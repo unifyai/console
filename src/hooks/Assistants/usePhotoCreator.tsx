@@ -17,6 +17,10 @@ import { Button } from '@/components/UI/button';
 import { MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';
 
 const ANIMATION_POLLING_INTERVAL = 5000;
+const BALANCE_CHECK_MAX_ATTEMPTS = 2;
+const BALANCE_CHECK_RETRY_DELAY_MS = 300;
+
+type BalanceCheckResult = { ok: true; balance: number } | { ok: false; reason: string };
 
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -29,17 +33,62 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-const fetchBalance = async (): Promise<number> => {
-  try {
-    const balanceData = await fetch(`/api/billing/balance`).then((res) => res.json());
-    if (balanceData && typeof balanceData.fullBalance === 'number') {
-      return balanceData.fullBalance;
-    }
-    return 0;
-  } catch (error) {
-    toast.error('Could not verify your credit balance.');
-    return 0;
+function extractBalanceFromPayload(payload: unknown): number | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
   }
+
+  const data = payload as Record<string, unknown>;
+  if (typeof data.fullBalance === 'number' && Number.isFinite(data.fullBalance)) {
+    return data.fullBalance;
+  }
+
+  if (typeof data.balance === 'string') {
+    const parsedBalance = Number.parseFloat(data.balance);
+    if (Number.isFinite(parsedBalance)) {
+      return parsedBalance;
+    }
+  }
+
+  return null;
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchBalance = async (): Promise<BalanceCheckResult> => {
+  for (let attempt = 1; attempt <= BALANCE_CHECK_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch('/api/billing/balance', { cache: 'no-store' });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        const errorDetail =
+          (errorPayload as Record<string, unknown> | null)?.error ??
+          (errorPayload as Record<string, unknown> | null)?.detail;
+        throw new Error(
+          typeof errorDetail === 'string'
+            ? errorDetail
+            : `Balance check request failed with status ${response.status}`
+        );
+      }
+
+      const balanceData = await response.json();
+      const balance = extractBalanceFromPayload(balanceData);
+      if (balance !== null) {
+        return { ok: true, balance };
+      }
+      throw new Error('Balance check response did not include a numeric balance.');
+    } catch (error) {
+      if (attempt === BALANCE_CHECK_MAX_ATTEMPTS) {
+        return {
+          ok: false,
+          reason: error instanceof Error ? error.message : 'Unknown balance verification error',
+        };
+      }
+      await wait(BALANCE_CHECK_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  return { ok: false, reason: 'Balance verification failed.' };
 };
 
 const AnimationProgressToast = ({
@@ -171,6 +220,12 @@ export function usePhotoCreator(
     });
   };
 
+  const balanceCheckFailedToast = () => {
+    toast.error('Could not verify your credit balance.', {
+      description: 'Please try again. We did not mark this as insufficient funds.',
+    });
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast.error('Please enter a prompt to generate a photo.');
@@ -189,7 +244,7 @@ export function usePhotoCreator(
     setIsProcessing(true);
     const toastId = toast.loading('Checking your balance...');
 
-    const currentBalance = await fetchBalance();
+    const balanceCheck = await fetchBalance();
 
     // Check if this operation is still current
     if (operationIdRef.current !== thisOperationId) {
@@ -197,7 +252,14 @@ export function usePhotoCreator(
       return;
     }
 
-    if (currentBalance < photoOperationCost) {
+    if (!balanceCheck.ok) {
+      balanceCheckFailedToast();
+      toast.dismiss(toastId);
+      setIsProcessing(false);
+      return;
+    }
+
+    if (balanceCheck.balance < photoOperationCost) {
       insufficientFundsToast('generation');
       toast.dismiss(toastId);
       setIsProcessing(false);
@@ -283,7 +345,7 @@ export function usePhotoCreator(
     setIsProcessing(true);
     const toastId = toast.loading('Checking your balance...');
 
-    const currentBalance = await fetchBalance();
+    const balanceCheck = await fetchBalance();
 
     // Check if this operation is still current
     if (operationIdRef.current !== thisOperationId) {
@@ -291,7 +353,14 @@ export function usePhotoCreator(
       return;
     }
 
-    if (currentBalance < photoOperationCost) {
+    if (!balanceCheck.ok) {
+      balanceCheckFailedToast();
+      toast.dismiss(toastId);
+      setIsProcessing(false);
+      return;
+    }
+
+    if (balanceCheck.balance < photoOperationCost) {
       insufficientFundsToast('editing');
       toast.dismiss(toastId);
       setIsProcessing(false);
@@ -368,7 +437,9 @@ export function usePhotoCreator(
       return;
     }
     if (ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH) {
-      toast.error(`Text must be at least ${MIN_TTS_PROMPT_LENGTH} characters to generate enough audio.`);
+      toast.error(
+        `Text must be at least ${MIN_TTS_PROMPT_LENGTH} characters to generate enough audio.`
+      );
       return;
     }
     if (!imageSource) {
@@ -436,7 +507,7 @@ export function usePhotoCreator(
 
       toast.loading('Checking your balance...', { id: toastIdRef.current });
 
-      const currentBalance = await fetchBalance();
+      const balanceCheck = await fetchBalance();
 
       // Check if this operation is still current
       if (operationIdRef.current !== thisOperationId) {
@@ -445,7 +516,15 @@ export function usePhotoCreator(
         return;
       }
 
-      if (currentBalance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
+      if (!balanceCheck.ok) {
+        balanceCheckFailedToast();
+        setIsProcessing(false);
+        toast.dismiss(toastIdRef.current);
+        toastIdRef.current = undefined;
+        return;
+      }
+
+      if (balanceCheck.balance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
         insufficientFundsToast('animation');
         setIsProcessing(false);
         toast.dismiss(toastIdRef.current);
