@@ -6,6 +6,7 @@ import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import {
   Assistant,
   AssistantActions,
+  AssistantFormData,
   AssistantPreset,
   AssistantUpdatePayload,
   VoiceOption,
@@ -31,9 +32,7 @@ import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissi
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
-import {
-  PRIMARY_VOICE_PROVIDER,
-} from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
@@ -48,6 +47,7 @@ import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
+import { seedMediaSignedUrls } from '@/lib/client/assistant';
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -59,6 +59,10 @@ interface MainProps {
     isOrgContext?: boolean;
     mfaSetupRequired?: boolean;
   };
+}
+
+function isSignedMediaUrl(url: string | null | undefined): url is string {
+  return Boolean(url && (url.startsWith('https://') || url.startsWith('http://')));
 }
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
@@ -221,7 +225,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     updateAssistantProfile,
   } = useAssistants(assistantActions, !!userMeta.isOrgContext);
 
-
   // --- Deep-link to a specific assistant via ?profile=<agentId> ---
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
@@ -237,7 +240,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [profileParam, assistants, handleShowProfile]);
 
   // --- Assistant Status Polling ---
-  const { statuses: assistantStatuses, markOnline: markAssistantOnline } = useAssistantStatus(assistants);
+  const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
+    useAssistantStatus(assistants);
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
@@ -380,10 +384,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const disabledAction = React.useCallback(async () => ({ detail: 'disabled' }) as const, []);
 
   // User spending (personal workspace or member spending)
-  const userSpendingConfig = React.useMemo(() => ({
-    setLimitAction: disabledAction,
-    enablePolling: true,
-  }), [disabledAction]);
+  const userSpendingConfig = React.useMemo(
+    () => ({
+      setLimitAction: disabledAction,
+      enablePolling: true,
+    }),
+    [disabledAction]
+  );
 
   const userSpendingData = useUserSpending(userSpendingConfig);
 
@@ -509,19 +516,83 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Callbacks for form success ---
   const handleHireSuccess = React.useCallback(
-    (newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
-      refreshAssistants(false);
-      fetchUserVoices();
-      refetchBillingStatus();
+    (newAssistant: Assistant, formData: AssistantFormData, preHireChat?: ChatMessage[]) => {
+      const optimisticSignedUrlsByPath: Record<string, string> = {};
+      const optimisticSignedPatch: Partial<
+        Pick<Assistant, 'signedProfilePhotoUrl' | 'signedProfileVideoUrl'>
+      > = {};
+
+      const registerOptimisticSignedUrl = (
+        mediaPath: string | null | undefined,
+        signedUrl: string | null | undefined,
+        field: 'signedProfilePhotoUrl' | 'signedProfileVideoUrl'
+      ) => {
+        if (!mediaPath || !isSignedMediaUrl(signedUrl)) return;
+        optimisticSignedUrlsByPath[mediaPath] = signedUrl;
+        optimisticSignedPatch[field] = signedUrl;
+      };
+
+      registerOptimisticSignedUrl(
+        newAssistant.profilePhoto,
+        newAssistant.signedProfilePhotoUrl,
+        'signedProfilePhotoUrl'
+      );
+      registerOptimisticSignedUrl(
+        newAssistant.profileVideo,
+        newAssistant.signedProfileVideoUrl,
+        'signedProfileVideoUrl'
+      );
+      registerOptimisticSignedUrl(
+        formData.profilePhotoUrl,
+        formData.photoPreviewUrl,
+        'signedProfilePhotoUrl'
+      );
+      registerOptimisticSignedUrl(
+        formData.profileVideoUrl,
+        formData.videoPreviewUrl,
+        'signedProfileVideoUrl'
+      );
+
+      if (Object.keys(optimisticSignedUrlsByPath).length > 0) {
+        seedMediaSignedUrls(optimisticSignedUrlsByPath);
+      }
+
+      const optimisticAssistant: Assistant = {
+        ...newAssistant,
+        ...(formData.profilePhotoUrl && !newAssistant.profilePhoto
+          ? { profilePhoto: formData.profilePhotoUrl }
+          : {}),
+        ...(formData.profileVideoUrl && !newAssistant.profileVideo
+          ? { profileVideo: formData.profileVideoUrl }
+          : {}),
+        ...optimisticSignedPatch,
+      };
 
       setIsHireDialogOpen(false);
-      setNewlyHiredInfo({ assistant: newAssistant, preHireChat });
-      handleShowProfile(newAssistant.agentId);
+      setAssistants((currentAssistants) => {
+        const existingAssistant = currentAssistants.find(
+          (assistant) => assistant.agentId === optimisticAssistant.agentId
+        );
+        if (!existingAssistant) {
+          return [optimisticAssistant, ...currentAssistants];
+        }
+        return currentAssistants.map((assistant) =>
+          assistant.agentId === optimisticAssistant.agentId
+            ? { ...assistant, ...optimisticAssistant }
+            : assistant
+        );
+      });
+      setNewlyHiredInfo({ assistant: optimisticAssistant, preHireChat });
+      handleShowProfile(optimisticAssistant.agentId);
       if (formData.setup === 'local' && formData.operatingSystem) {
         setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
       }
+
+      refreshAssistants(false);
+      fetchUserVoices();
+      refetchBillingStatus();
     },
-    [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices]
+    [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices, setAssistants]
   );
 
   const handleUpdateSuccess = React.useCallback(
@@ -626,7 +697,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
       selectPresetForHireForm(currentFilteredPresets[0]);
     }
-  }, [needsPresetSelection, currentFilteredPresets, userHasChangedPreset, selectPresetForHireForm, formMethods]);
+  }, [
+    needsPresetSelection,
+    currentFilteredPresets,
+    userHasChangedPreset,
+    selectPresetForHireForm,
+    formMethods,
+  ]);
 
   const handleOpenEditDialog = React.useCallback(
     (assistant: Assistant) => {

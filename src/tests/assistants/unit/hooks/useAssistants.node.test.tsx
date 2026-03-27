@@ -36,9 +36,13 @@ vi.mock('@/utils/assistants/gcs-utils', () => ({
 // Mock client fetch module
 const mockFetchAssistants = vi.fn();
 const mockFetchMediaSignedUrls = vi.fn();
+const mockReadCachedMediaSignedUrls = vi.fn();
+const mockSeedMediaSignedUrls = vi.fn();
 vi.mock('@/lib/client/assistant', () => ({
   fetchAssistants: (...args: any[]) => mockFetchAssistants(...args),
   fetchMediaSignedUrls: (...args: any[]) => mockFetchMediaSignedUrls(...args),
+  readCachedMediaSignedUrls: (...args: any[]) => mockReadCachedMediaSignedUrls(...args),
+  seedMediaSignedUrls: (...args: any[]) => mockSeedMediaSignedUrls(...args),
 }));
 
 // Create stable mock functions at module level to prevent re-render loops
@@ -92,6 +96,8 @@ describe('useAssistants', () => {
     // Default mock implementations
     mockFetchAssistants.mockResolvedValue([]);
     mockFetchMediaSignedUrls.mockResolvedValue({});
+    mockReadCachedMediaSignedUrls.mockReturnValue({});
+    mockSeedMediaSignedUrls.mockImplementation(() => {});
     mockDeleteAction.mockResolvedValue({});
     mockUpdateAction.mockResolvedValue({});
   });
@@ -106,11 +112,13 @@ describe('useAssistants', () => {
 
   describe('initial loading', () => {
     it('starts with loading state true and empty assistants', () => {
-      mockFetchAssistants.mockResolvedValue([]);
-      const { result } = renderHook(() => useAssistants(mockActions, false));
+      mockFetchAssistants.mockReturnValue(new Promise(() => {}));
+      const { result, unmount } = renderHook(() => useAssistants(mockActions, false));
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.assistants).toEqual([]);
+
+      unmount();
     });
 
     it('fetches assistants on mount', async () => {
@@ -129,6 +137,7 @@ describe('useAssistants', () => {
       const { result } = renderHook(() => useAssistants(mockActions, false));
 
       await waitFor(() => {
+        expect(result.current.error).toBeNull();
         expect(result.current.assistants).toHaveLength(2);
         expect(result.current.isLoading).toBe(false);
       });
@@ -188,9 +197,7 @@ describe('useAssistants', () => {
     });
 
     it('batch-fetches both photo and video URLs when both exist', async () => {
-      const assistants = [
-        createMockAssistant('1', true, true),
-      ];
+      const assistants = [createMockAssistant('1', true, true)];
       mockFetchAssistants.mockResolvedValue(assistants);
       mockFetchMediaSignedUrls.mockResolvedValue({
         'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
@@ -284,6 +291,63 @@ describe('useAssistants', () => {
       });
 
       expect(result.current.assistants[0].signedProfilePhotoUrl).toBeUndefined();
+    });
+
+    it('applies cached signed URLs immediately and fetches only unresolved paths', async () => {
+      const assistants = [
+        createMockAssistant('1', true, false),
+        createMockAssistant('2', true, false),
+      ];
+      mockFetchAssistants.mockResolvedValue(assistants);
+      mockReadCachedMediaSignedUrls.mockReturnValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/cached-photo-1.jpg',
+      });
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-2.jpg': 'https://signed/fresh-photo-2.jpg',
+      });
+
+      const { result } = renderHook(() => useAssistants(mockActions, false));
+
+      await waitFor(() => {
+        const assistant1 = result.current.assistants.find((a) => a.agentId === '1');
+        const assistant2 = result.current.assistants.find((a) => a.agentId === '2');
+        expect(assistant1?.signedProfilePhotoUrl).toBe('https://signed/cached-photo-1.jpg');
+        expect(assistant2?.signedProfilePhotoUrl).toBe('https://signed/fresh-photo-2.jpg');
+      });
+
+      expect(mockFetchMediaSignedUrls).toHaveBeenCalledWith(['gs://bucket/photo-2.jpg']);
+    });
+
+    it('preserves signed URLs across refresh when media paths are unchanged', async () => {
+      const assistants = [createMockAssistant('1', true, false)];
+      mockFetchAssistants.mockResolvedValueOnce(assistants).mockResolvedValueOnce(assistants);
+      mockReadCachedMediaSignedUrls
+        .mockReturnValueOnce({})
+        .mockReturnValueOnce({ 'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg' });
+      mockFetchMediaSignedUrls.mockResolvedValue({
+        'gs://bucket/photo-1.jpg': 'https://signed/photo-1.jpg',
+      });
+
+      const { result } = renderHook(() => useAssistants(mockActions, false));
+
+      await waitFor(() => {
+        expect(result.current.assistants[0]?.signedProfilePhotoUrl).toBe(
+          'https://signed/photo-1.jpg'
+        );
+      });
+
+      await act(async () => {
+        await result.current.refreshAssistants(false);
+      });
+
+      await waitFor(() => {
+        expect(result.current.assistants[0]?.signedProfilePhotoUrl).toBe(
+          'https://signed/photo-1.jpg'
+        );
+      });
+
+      expect(mockFetchMediaSignedUrls).toHaveBeenCalledTimes(1);
+      expect(mockSeedMediaSignedUrls).toHaveBeenCalled();
     });
   });
 

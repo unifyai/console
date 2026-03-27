@@ -777,9 +777,17 @@ export function useAssistantForm(
         }
       }
 
+      const assistantForSuccess: Assistant = {
+        ...createdAssistant,
+        ...(finalImageUrlToSend ? { profilePhoto: finalImageUrlToSend } : {}),
+        ...(finalVideoUrlToSend ? { profileVideo: finalVideoUrlToSend } : {}),
+        ...(mediaUpdate.profilePhoto ? { profilePhoto: mediaUpdate.profilePhoto } : {}),
+        ...(mediaUpdate.profileVideo ? { profileVideo: mediaUpdate.profileVideo } : {}),
+      };
+
       toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
       resetFormAndHints();
-      if (onHireSuccess) onHireSuccess(createdAssistant, data, finalChatHistory);
+      if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {
       const isRHFError = !!(
         formMethods.formState.errors.age ||
