@@ -29,7 +29,7 @@ import {
   ContactFormData,
   AssistantActions,
 } from '@/types/assistants/assistant';
-import { FormProvider, useFormContext, useWatch, useFieldArray } from 'react-hook-form';
+import { FormProvider, useFormContext, useWatch } from 'react-hook-form';
 import {
   EMAIL_DOMAIN_WITH_AT,
   FALLBACK_DEFAULT_COUNTRY_CODE,
@@ -204,195 +204,6 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
       )}
       {errors.userPhone && !isVerificationFlowActive && (
         <p className="text-body text-strong mt-1 text-destructive">{errors.userPhone.message}</p>
-      )}
-    </div>
-  );
-};
-
-const WhatsAppVerificationSection: React.FC<{
-  assistantActions: AssistantActions;
-  cost: number | null;
-}> = ({ assistantActions, cost }) => {
-  const {
-    control,
-    getValues,
-    setValue,
-    formState: { errors },
-    clearErrors,
-  } = useFormContext<ContactFormData>();
-  const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
-
-  const { fields, append } = useFieldArray({ control, name: 'socialAccounts' });
-  const whatsAppAccountIndex = fields.findIndex((field) => field.platform === 'whatsapp');
-
-  React.useEffect(() => {
-    if (whatsAppAccountIndex === -1) {
-      append({
-        platform: 'whatsapp',
-        identifier: '',
-        isVerified: false,
-        isVerifying: false,
-        verificationCodeSent: null,
-        verificationSentAt: null,
-        verificationAttempts: 0,
-        verificationError: null,
-        isInitial: false,
-      });
-    }
-  }, [whatsAppAccountIndex, append]);
-
-  const account = useWatch({ control, name: `socialAccounts.${whatsAppAccountIndex}` });
-
-  const fieldNames = React.useMemo(
-    () => ({
-      identifier: `socialAccounts.${whatsAppAccountIndex}.identifier` as const,
-      isVerified: `socialAccounts.${whatsAppAccountIndex}.isVerified` as const,
-      isVerifying: `socialAccounts.${whatsAppAccountIndex}.isVerifying` as const,
-      verificationCodeSent: `socialAccounts.${whatsAppAccountIndex}.verificationCodeSent` as const,
-      verificationSentAt: `socialAccounts.${whatsAppAccountIndex}.verificationSentAt` as const,
-      verificationAttempts: `socialAccounts.${whatsAppAccountIndex}.verificationAttempts` as const,
-      verificationError: `socialAccounts.${whatsAppAccountIndex}.verificationError` as const,
-    }),
-    [whatsAppAccountIndex]
-  );
-
-  const {
-    isVerifying,
-    isVerificationFlowActive,
-    verificationError,
-    cooldown,
-    verificationInput,
-    setVerificationInput,
-    handleVerify,
-    handleCancelVerification,
-    handleSubmitCode,
-  } = useAccountVerification<ContactFormData>({
-    platform: 'whatsapp',
-    fieldNames,
-    assistantActions,
-  });
-
-  const handleVerifyClick = (isRetry: boolean) => {
-    const identifier = getValues(fieldNames.identifier);
-    if (!identifier || identifier.trim() === '') {
-      toast.error(`Please enter a WhatsApp phone number to verify.`);
-      return;
-    }
-    handleVerify(isRetry);
-  };
-
-  const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setValue(fieldNames.identifier, newValue, { shouldDirty: true });
-    if (getValues(fieldNames.isVerified)) {
-      setValue(fieldNames.isVerified, false, { shouldDirty: true });
-    }
-    if (errors.socialAccounts?.[whatsAppAccountIndex]?.identifier) {
-      clearErrors(fieldNames.identifier);
-    }
-  };
-
-  if (whatsAppAccountIndex === -1) {
-    return <Loader2 className="h-5 w-5 animate-spin" />;
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Input
-          id={`socialAccounts_${whatsAppAccountIndex}_identifier`}
-          placeholder={`Your WhatsApp phone number...`}
-          className="h-9 flex-1"
-          value={account?.identifier || ''}
-          disabled={isVerifying || account?.isVerified}
-          onChange={handleIdentifierChange}
-        />
-        {account?.isVerified ? (
-          <Button type="button" variant="default" className="h-9" disabled>
-            <CheckCircle2 className="mr-2 h-4 w-4" /> Verified
-          </Button>
-        ) : (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip open={!isVerifying ? isTooltipOpen : false} onOpenChange={setIsTooltipOpen}>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9"
-                  onClick={() => handleVerifyClick(false)}
-                  disabled={isVerifying || !account?.identifier}
-                >
-                  {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isVerifying ? 'Verifying...' : 'Verify'}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>
-                  {cost !== null
-                    ? `Costs $${cost.toFixed(2)} credits to pair with your assistant. Verify first to link.`
-                    : 'A setup fee applies to pair with your assistant. Verify first to link.'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-      {isVerificationFlowActive && (
-        <div className="flex items-start gap-3 border-l-2 border-muted pl-4">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Input
-                id={`socialAccounts_${whatsAppAccountIndex}_verification_code`}
-                placeholder="Enter verification code..."
-                value={verificationInput}
-                onChange={(e) => setVerificationInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSubmitCode();
-                  }
-                }}
-                className={cn('h-9', verificationError && 'border-destructive')}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 flex-shrink-0"
-                onClick={handleSubmitCode}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            {verificationError && (
-              <p className="text-body text-strong mt-1 flex items-center gap-1.5 text-destructive">
-                <AlertCircle className="h-3.5 w-3.5" />
-                {verificationError}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 pt-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9"
-              onClick={() => handleVerifyClick(true)}
-              disabled={cooldown > 0}
-            >
-              {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend'}
-            </Button>
-            <Button
-              type="button"
-              variant="warning"
-              size="sm"
-              className="h-9"
-              onClick={handleCancelVerification}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -711,40 +522,13 @@ export function AssistantContactManager({
                 )}
               </TabsContent>
               <TabsContent value="whatsapp" className="py-4">
-                {assistant.assistantWhatsappNumber ? (
-                  <DisplayContactField
-                    label="WhatsApp Number"
-                    value={assistant.assistantWhatsappNumber}
-                  />
-                ) : canWrite ? (
-                  <div>
-                    <div className="flex flex-row items-center gap-2 pb-1">
-                      <Label htmlFor="user_whatsapp">Your WhatsApp Number</Label>
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side="right"
-                            align="end"
-                            className="text-caption max-w-xs"
-                          >
-                            <p>
-                              {'This is the WhatsApp number you will contact the assistant with.'}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <WhatsAppVerificationSection
-                      assistantActions={assistantActions}
-                      cost={creationCost}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-body text-muted-foreground">No WhatsApp number configured.</p>
-                )}
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <WhatsApp sx={{ fontSize: '40px' }} className="mb-3 text-muted-foreground" />
+                  <p className="text-body text-strong text-foreground">Coming Soon</p>
+                  <p className="text-body text-muted-foreground mt-1 max-w-xs">
+                    WhatsApp integration is currently under development. Stay tuned!
+                  </p>
+                </div>
               </TabsContent>
             </Tabs>
           )}
