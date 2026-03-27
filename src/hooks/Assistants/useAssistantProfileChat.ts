@@ -636,8 +636,9 @@ export function useAssistantProfileChat(
             '';
           const incomingId = messagePayload.id;
           const serverMsgId = incomingId || uuidv4();
-          const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
-          const msgAgeMs = publishTimeStr ? Date.now() - new Date(publishTimeStr).getTime() : 0;
+          if (!publishTimeStr) clientLog('SSE_MISSING_PUBLISH_TIME', { msgId: serverMsgId });
+          const timestamp = new Date(publishTimeStr || new Date().toISOString());
+          const msgAgeMs = publishTimeStr ? Date.now() - timestamp.getTime() : 0;
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
 
           clientLog('MSG_RECV', { msgId: serverMsgId, publishTime: publishTimeStr ?? 'none', ageMs: msgAgeMs, resolvedTimestamp: timestamp.toISOString(), cutoff: cutoff ? new Date(cutoff).toISOString() : '0', thread, content: contentPreview });
@@ -798,26 +799,30 @@ export function useAssistantProfileChat(
         setChatHistories((prev) => {
           const current = prev[currentAssistantId] || [];
           const existingIds = new Set(current.map((m) => m.id));
-          const newMessages = fetched.filter((m) => {
-            if (existingIds.has(m.id)) return false;
-            // SSE messages use Pub/Sub messageId while transcripts use
-            // Orchestra log row ID — pure ID dedup misses cross-path
-            // duplicates. Fall back to content+role+timestamp proximity.
-            return !current.some(
-              (existing) =>
-                existing.role === m.role &&
-                existing.content === m.content &&
-                Math.abs(
-                  new Date(existing.timestamp).getTime() - new Date(m.timestamp).getTime()
-                ) < 60_000
-            );
-          });
-          if (newMessages.length === 0) return prev;
+          let reconciled = [...current];
+          let changed = false;
 
-          const updated = [...current, ...newMessages].sort(
+          for (const m of fetched) {
+            if (existingIds.has(m.id)) continue;
+
+            const matchIdx = reconciled.findIndex(
+              (existing) => existing.role === m.role && existing.content === m.content
+            );
+
+            if (matchIdx !== -1) {
+              reconciled[matchIdx] = m;
+              changed = true;
+            } else {
+              reconciled.push(m);
+              changed = true;
+            }
+          }
+
+          if (!changed) return prev;
+          reconciled.sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
-          return { ...prev, [currentAssistantId]: updated };
+          return { ...prev, [currentAssistantId]: reconciled };
         });
       } catch {
         // Silent — SSE is the primary mechanism, this is just a safety net

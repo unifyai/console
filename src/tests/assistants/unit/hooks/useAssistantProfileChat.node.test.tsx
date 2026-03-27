@@ -957,16 +957,17 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     expect(state['test-assistant-1'].some((m: any) => m.content === 'Missed by SSE')).toBe(true);
   });
 
-  it('deduplicates across SSE and polling despite different message IDs', async () => {
+  it('replaces SSE message with Orchestra version on poll (different IDs, same content)', async () => {
     const { es, setChatHistories } = await renderReady();
-    const now = new Date().toISOString();
+    const sseTime = new Date().toISOString();
+    const orchestraTime = new Date(Date.now() + 2000).toISOString();
 
     await act(async () => {
       es.onmessage?.({
         data: JSON.stringify({
           thread: 'unify_message_outbound',
           id: 'pubsub-id-abc',
-          publishTime: now,
+          publishTime: sseTime,
           event: { content: 'Hello there', contact_id: USER_CONTACT_ID },
         }),
       });
@@ -975,7 +976,7 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     fetchSpy.mockImplementation((url: RequestInfo | URL) => {
       if (typeof url === 'string' && url.includes('/api/logs'))
         return Promise.resolve(
-          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: now }])
+          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: orchestraTime }])
         );
       return Promise.resolve(new Response('{}', { status: 200 }));
     });
@@ -993,6 +994,54 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     }
     const matching = state['test-assistant-1'].filter((m: any) => m.content === 'Hello there');
     expect(matching).toHaveLength(1);
+    expect(matching[0].id).toBe('555');
+  });
+
+  it('replaces pre-hire messages with Orchestra versions despite hours-apart timestamps', async () => {
+    const { setChatHistories } = await renderReady();
+
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    const preHireMessages = [
+      { id: 'uuid-greeting', role: 'assistant' as const, content: 'Hi! Welcome aboard.', timestamp: new Date(fourHoursAgo) },
+      { id: 'uuid-user', role: 'user' as const, content: 'Hey, how are you?', timestamp: new Date(fourHoursAgo) },
+      { id: 'uuid-reply', role: 'assistant' as const, content: 'Doing great, thanks!', timestamp: new Date(fourHoursAgo) },
+    ];
+
+    await act(async () => {
+      setChatHistories((prev: Record<string, any[]>) => ({
+        ...prev,
+        'test-assistant-1': preHireMessages,
+      }));
+    });
+
+    const now = new Date().toISOString();
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([
+            { id: 101, senderId: 0, content: 'Hi! Welcome aboard.', ts: now },
+            { id: 102, senderId: 1, content: 'Hey, how are you?', ts: now },
+            { id: 103, senderId: 0, content: 'Doing great, thanks!', ts: now },
+          ])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': preHireMessages };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    const msgs = state['test-assistant-1'];
+    expect(msgs).toHaveLength(3);
+    expect(msgs.every((m: any) => ['101', '102', '103'].includes(m.id))).toBe(true);
+    expect(msgs.every((m: any) => !m.id.startsWith('uuid-'))).toBe(true);
   });
 
   it('refetches immediately when the tab regains visibility', async () => {
