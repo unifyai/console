@@ -168,10 +168,11 @@ async function fetchContactIdDirect(
   }
 }
 
-async function fetchTranscriptsDirect(
+export async function fetchTranscriptsDirect(
   contactId: number,
   ownerId: string,
-  assistantId: string
+  assistantId: string,
+  limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
   try {
     const messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
@@ -183,7 +184,7 @@ async function fetchTranscriptsDirect(
     const params = new URLSearchParams({
       projectName: 'Assistants',
       context: 'All/Transcripts',
-      limit: String(TRANSCRIPT_LIMIT),
+      limit: String(limit),
       filterExpr,
     });
 

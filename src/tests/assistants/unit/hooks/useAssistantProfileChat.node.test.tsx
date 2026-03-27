@@ -855,3 +855,218 @@ describe('useAssistantProfileChat - SSE Contact Filtering', () => {
     expect(result['test-assistant-1'].some((m: any) => m.content === 'no contact')).toBe(true);
   });
 });
+
+// =============================================================================
+// SECTION 5: Polling Fallback for Missed SSE Messages
+// =============================================================================
+describe('useAssistantProfileChat - Polling Fallback', () => {
+  const USER_CONTACT_ID = 42;
+  const POLL_INTERVAL_MS = 15_000;
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  function makeTranscriptResponse(
+    messages: Array<{ id: number; senderId: number; content: string; ts?: string }>
+  ) {
+    return new Response(
+      JSON.stringify({
+        logs: messages.map((m) => ({
+          id: m.id,
+          ts: m.ts ?? new Date().toISOString(),
+          entries: {
+            senderId: m.senderId,
+            content: m.content,
+            messageId: m.id,
+            medium: 'unify_message',
+            attachments: [],
+          },
+        })),
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    lastEventSource = null;
+    sessionStorage.clear();
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('{}', { status: 200 }))
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  async function renderReady(contactId: number = USER_CONTACT_ID) {
+    const assistant = createMockAssistant();
+    const chatHistories: Record<string, any[]> = {};
+    const setChatHistories = vi.fn((updater: any) => {
+      if (typeof updater === 'function') {
+        Object.assign(chatHistories, updater(chatHistories));
+      }
+    });
+
+    const hookResult = renderHook(() =>
+      useAssistantProfileChat(
+        assistant,
+        createMockAssistantActions({ getContactId: vi.fn(async () => contactId) }),
+        chatHistories,
+        setChatHistories,
+        'test@example.com'
+      )
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    const es = lastEventSource!;
+    expect(es).not.toBeNull();
+    await act(async () => {
+      es.onopen?.();
+    });
+
+    return { ...hookResult, es, setChatHistories, chatHistories, assistant };
+  }
+
+  it('polls for transcripts and merges messages that SSE missed', async () => {
+    const { setChatHistories } = await renderReady();
+
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([{ id: 999, senderId: 0, content: 'Missed by SSE' }])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': [] };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    expect(state['test-assistant-1'].some((m: any) => m.content === 'Missed by SSE')).toBe(true);
+  });
+
+  it('deduplicates across SSE and polling despite different message IDs', async () => {
+    const { es, setChatHistories } = await renderReady();
+    const now = new Date().toISOString();
+
+    await act(async () => {
+      es.onmessage?.({
+        data: JSON.stringify({
+          thread: 'unify_message_outbound',
+          id: 'pubsub-id-abc',
+          publishTime: now,
+          event: { content: 'Hello there', contact_id: USER_CONTACT_ID },
+        }),
+      });
+    });
+
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: now }])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': [] };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    const matching = state['test-assistant-1'].filter((m: any) => m.content === 'Hello there');
+    expect(matching).toHaveLength(1);
+  });
+
+  it('refetches immediately when the tab regains visibility', async () => {
+    await renderReady();
+
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.resolve(
+          makeTranscriptResponse([{ id: 888, senderId: 0, content: 'After tab switch' }])
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    const callsBefore = fetchSpy.mock.calls.length;
+
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        writable: true,
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        writable: true,
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    const logsCalls = fetchSpy.mock.calls
+      .slice(callsBefore)
+      .filter((c: [RequestInfo | URL, RequestInit?]) => typeof c[0] === 'string' && (c[0] as string).includes('/api/logs'));
+    expect(logsCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('silently handles polling errors without disrupting the chat', async () => {
+    const { es, setChatHistories } = await renderReady();
+
+    await act(async () => {
+      es.onmessage?.({
+        data: JSON.stringify({
+          thread: 'unify_message_outbound',
+          id: 'pre-error-msg',
+          publishTime: new Date().toISOString(),
+          event: { content: 'Before error', contact_id: USER_CONTACT_ID },
+        }),
+      });
+    });
+
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      if (typeof url === 'string' && url.includes('/api/logs'))
+        return Promise.reject(new Error('network down'));
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 1000);
+    });
+
+    const updaters = setChatHistories.mock.calls
+      .map((c: any) => c[0])
+      .filter((fn: any) => typeof fn === 'function');
+    let state: Record<string, any[]> = { 'test-assistant-1': [] };
+    for (const fn of updaters) {
+      state = fn(state);
+    }
+    expect(state['test-assistant-1'].some((m: any) => m.content === 'Before error')).toBe(true);
+  });
+});

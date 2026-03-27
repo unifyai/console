@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
-import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts } from './useContactIdPrefetch';
+import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts, fetchTranscriptsDirect } from './useContactIdPrefetch';
 
 /**
  * Chat initialization follows a linear phase progression:
@@ -159,10 +159,15 @@ export function useAssistantProfileChat(
     if (msgs.length > 0) {
       const maxTime = Math.max(...msgs.map((m) => new Date(m.timestamp).getTime()));
       if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
+        const prev = transcriptCutoffsRef.current[id] || 0;
         transcriptCutoffsRef.current[id] = maxTime;
+        console.log(
+          `[Chat Client] CUTOFF_SET assistant=${id} cutoff=${new Date(maxTime).toISOString()} prev=${prev ? new Date(prev).toISOString() : '0'} fromMsgCount=${msgs.length}`
+        );
       }
     } else if (!transcriptCutoffsRef.current[id]) {
       transcriptCutoffsRef.current[id] = 0;
+      console.log(`[Chat Client] CUTOFF_SET assistant=${id} cutoff=0 (empty transcripts)`);
     }
   }, []);
 
@@ -561,6 +566,7 @@ export function useAssistantProfileChat(
     };
 
     eventSource.onopen = () => {
+      console.log(`[Chat Client] SSE_OPEN assistant=${assistantId} contact=${contactId} url=${eventSource.url}`);
       setConnectionStatus('connected');
       sseReconnectAttemptsRef.current = 0;
     };
@@ -570,23 +576,37 @@ export function useAssistantProfileChat(
       try {
         const messagePayload: any = JSON.parse(event.data);
         const ackId: string | undefined = messagePayload.__ackId;
+        const thread = messagePayload.thread ?? 'none';
+        const publishTimeStr: string | undefined = messagePayload.publishTime;
+        const msgId = messagePayload.id ?? 'no-id';
+        const contentPreview = String(
+          messagePayload.event?.content ?? messagePayload.content ?? ''
+        ).slice(0, 60);
 
         const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
+          console.log(
+            `[Chat Client] FILTERED_CONTACT msgId=${msgId} msgContact=${messageContactId} myContact=${userContactId}`
+          );
           if (ackId) ack(ackId);
           return;
         }
 
-        if (messagePayload.publishTime) {
-          const msgTime = new Date(messagePayload.publishTime).getTime();
+        if (publishTimeStr) {
+          const msgTime = new Date(publishTimeStr).getTime();
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
           if (msgTime < cutoff) {
+            const ageMs = Date.now() - msgTime;
+            const cutoffAge = Date.now() - cutoff;
+            console.log(
+              `[Chat Client] FILTERED_CUTOFF msgId=${msgId} publishTime=${publishTimeStr} ageMs=${ageMs} cutoff=${new Date(cutoff).toISOString()} cutoffAgeMs=${cutoffAge} thread=${thread}`
+            );
             if (ackId) ack(ackId);
             return;
           }
         }
 
-        if (messagePayload.thread === 'assistant_desktop_ready') {
+        if (thread === 'assistant_desktop_ready') {
           if (ackId) ack(ackId);
           const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
           desktopChannel.postMessage(messagePayload.event ?? {});
@@ -594,7 +614,7 @@ export function useAssistantProfileChat(
           return;
         }
 
-        if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
+        if (thread === 'unify_message_outbound' || messagePayload.event) {
           const content =
             messagePayload.event?.content ??
             messagePayload.event?.body ??
@@ -603,8 +623,13 @@ export function useAssistantProfileChat(
             '';
           const incomingId = messagePayload.id;
           const serverMsgId = incomingId || uuidv4();
-          const publishTimeStr = messagePayload.publishTime;
           const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
+          const msgAgeMs = publishTimeStr ? Date.now() - new Date(publishTimeStr).getTime() : 0;
+          const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
+
+          console.log(
+            `[Chat Client] MSG_RECV msgId=${serverMsgId} publishTime=${publishTimeStr ?? 'none'} ageMs=${msgAgeMs} resolvedTimestamp=${timestamp.toISOString()} cutoff=${cutoff ? new Date(cutoff).toISOString() : '0'} thread=${thread} content="${contentPreview}"`
+          );
 
           const rawAttachments = messagePayload.event?.attachments;
           const attachments: Attachment[] | undefined = Array.isArray(rawAttachments)
@@ -632,6 +657,7 @@ export function useAssistantProfileChat(
           setChatHistories((prev) => {
             const currentHistory = prev[assistantId] || [];
             if (serverMsgId && currentHistory.some((m) => m.id === serverMsgId)) {
+              console.log(`[Chat Client] DEDUP_ID msgId=${serverMsgId}`);
               if (ackId) ack(ackId);
               return prev;
             }
@@ -643,6 +669,9 @@ export function useAssistantProfileChat(
               lastMsg.role === 'assistant' &&
               lastMsg.content === content
             ) {
+              console.log(
+                `[Chat Client] DEDUP_CONTENT msgId=${serverMsgId} matchedId=${lastMsg.id}`
+              );
               if (ackId) ack(ackId);
               return prev;
             }
@@ -651,6 +680,28 @@ export function useAssistantProfileChat(
             updatedList.sort(
               (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             );
+
+            const insertIndex = updatedList.findIndex((m) => m.id === serverMsgId);
+            const isAtEnd = insertIndex === updatedList.length - 1;
+            console.log(
+              `[Chat Client] MSG_INSERTED msgId=${serverMsgId} position=${insertIndex}/${updatedList.length} isAtEnd=${isAtEnd} historyLen=${currentHistory.length}`
+            );
+            if (!isAtEnd) {
+              const neighbors = updatedList.slice(
+                Math.max(0, insertIndex - 1),
+                insertIndex + 2
+              );
+              console.warn(
+                `[Chat Client] MSG_NOT_AT_END — message sorted before existing messages!`,
+                neighbors.map((m) => ({
+                  id: m.id,
+                  role: m.role,
+                  ts: new Date(m.timestamp).toISOString(),
+                  content: m.content.slice(0, 40),
+                }))
+              );
+            }
+
             return { ...prev, [assistantId]: updatedList };
           });
 
@@ -663,18 +714,28 @@ export function useAssistantProfileChat(
           };
           channel.postMessage(payload);
           channel.close();
+        } else {
+          console.log(
+            `[Chat Client] IGNORED_THREAD msgId=${msgId} thread=${thread}`
+          );
         }
       } catch (error) {
-        console.error('[Chat SSE] onmessage error:', error);
+        console.error('[Chat Client] onmessage error:', error);
       }
     };
 
     eventSource.onerror = () => {
+      const attempt = sseReconnectAttemptsRef.current;
+      const willRetry = attempt < SSE_MAX_RECONNECT_ATTEMPTS;
+      const delay = willRetry ? SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempt) : 0;
+      console.warn(
+        `[Chat Client] SSE_ERROR assistant=${assistantId} attempt=${attempt}/${SSE_MAX_RECONNECT_ATTEMPTS} willRetry=${willRetry} retryDelay=${delay}ms`
+      );
+
       eventSource.close();
 
-      if (sseReconnectAttemptsRef.current < SSE_MAX_RECONNECT_ATTEMPTS) {
+      if (willRetry) {
         setConnectionStatus('reconnecting');
-        const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, sseReconnectAttemptsRef.current);
         sseReconnectAttemptsRef.current += 1;
 
         if (sseReconnectTimeoutRef.current) {
@@ -685,6 +746,9 @@ export function useAssistantProfileChat(
           setSseReconnectTrigger((prev) => prev + 1);
         }, delay);
       } else {
+        console.error(
+          `[Chat Client] SSE_GAVE_UP assistant=${assistantId} — all ${SSE_MAX_RECONNECT_ATTEMPTS} reconnection attempts exhausted`
+        );
         setConnectionStatus('error');
         sseReconnectAttemptsRef.current = 0;
       }
@@ -699,6 +763,83 @@ export function useAssistantProfileChat(
       }
     };
   }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
+
+  // =========================================================================
+  // Polling fallback for missed SSE messages
+  // =========================================================================
+  // SSE is the primary delivery mechanism, but connections can silently fail
+  // (Vercel function timeout, Pub/Sub gRPC stream errors, tab backgrounding).
+  // This effect periodically fetches recent transcripts and merges any
+  // messages the SSE missed. Also refetches immediately when the tab regains
+  // visibility, which is the most common "where's my reply?" scenario.
+  React.useEffect(() => {
+    if (phase !== 'ready' || !assistantId || !assistant || contactId === null) return;
+
+    const currentAssistantId = assistantId;
+    const currentOwnerId = assistant.userId;
+    const currentContactId = contactId;
+
+    const POLL_LIMIT = 10;
+    const POLL_INTERVAL_MS = 15_000;
+
+    const mergeRecentTranscripts = async () => {
+      try {
+        const result = await fetchTranscriptsDirect(
+          currentContactId,
+          currentOwnerId,
+          currentAssistantId,
+          POLL_LIMIT
+        );
+        if ('detail' in result) return;
+
+        const fetched = [...(result as ChatMessage[])].reverse();
+        if (fetched.length === 0) return;
+
+        recordTranscriptTimestamp(currentAssistantId, fetched);
+
+        setChatHistories((prev) => {
+          const current = prev[currentAssistantId] || [];
+          const existingIds = new Set(current.map((m) => m.id));
+          const newMessages = fetched.filter((m) => {
+            if (existingIds.has(m.id)) return false;
+            // SSE messages use Pub/Sub messageId while transcripts use
+            // Orchestra log row ID — pure ID dedup misses cross-path
+            // duplicates. Fall back to content+role+timestamp proximity.
+            return !current.some(
+              (existing) =>
+                existing.role === m.role &&
+                existing.content === m.content &&
+                Math.abs(
+                  new Date(existing.timestamp).getTime() - new Date(m.timestamp).getTime()
+                ) < 60_000
+            );
+          });
+          if (newMessages.length === 0) return prev;
+
+          const updated = [...current, ...newMessages].sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          return { ...prev, [currentAssistantId]: updated };
+        });
+      } catch {
+        // Silent — SSE is the primary mechanism, this is just a safety net
+      }
+    };
+
+    const interval = setInterval(mergeRecentTranscripts, POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        mergeRecentTranscripts();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [phase, assistantId, assistant, contactId, setChatHistories, recordTranscriptTimestamp]);
 
   // =========================================================================
   // ACK displayed messages

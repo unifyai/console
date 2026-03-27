@@ -51,6 +51,10 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return new NextResponse('contactId query parameter is required.', { status: 400 });
   }
 
+  const connId = `${assistantId}:${contactId}:${Date.now()}`;
+  const log = (msg: string, data?: Record<string, unknown>) =>
+    console.log(`[Chat SSE ${connId}] ${msg}`, data ? JSON.stringify(data) : '');
+
   let subscriptionName: string;
 
   try {
@@ -59,21 +63,28 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     subscriptionName = `${topicName}-chat-${contactId}`;
 
     const topic = pubsub.topic(topicName);
+    let subscriptionCreated = false;
     try {
       await topic.createSubscription(subscriptionName, {
         filter: CHAT_FILTER,
         expirationPolicy: { ttl: { seconds: parseInt(PERSISTENT_EXPIRATION_TTL) } },
         messageRetentionDuration: { seconds: parseInt(MESSAGE_RETENTION_DURATION) },
       });
+      subscriptionCreated = true;
     } catch (err: any) {
       // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
       if (err.code !== 6) throw err;
     }
 
-    if (__DEV__)
-      console.log(`[Chat SSE] Persistent subscription: ${subscriptionName} on topic: ${topicName}`);
+    log('CONNECT', {
+      topicName,
+      subscriptionName,
+      subscriptionCreated,
+      filter: CHAT_FILTER,
+      retentionSec: MESSAGE_RETENTION_DURATION,
+    });
   } catch (error: any) {
-    console.error('[Chat SSE] Setup error:', error.message);
+    console.error(`[Chat SSE ${connId}] SETUP_ERROR`, error.message, error.stack);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
     });
@@ -81,7 +92,12 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
   const stream = new ReadableStream({
     start(controller) {
-      if (__DEV__) console.log(`[Chat SSE] Stream started for assistant=${assistantId}`);
+      const startTime = Date.now();
+      let messageCount = 0;
+      let keepAliveCount = 0;
+      let errorCount = 0;
+
+      log('STREAM_START');
 
       try {
         controller.enqueue(encoder.encode(': connected\n\n'));
@@ -94,9 +110,11 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
           clearInterval(keepAliveInterval);
           return;
         }
+        keepAliveCount++;
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
+          log('KEEPALIVE_WRITE_FAIL', { keepAliveCount, elapsed: Date.now() - startTime });
           clearInterval(keepAliveInterval);
         }
       }, 15000);
@@ -106,9 +124,12 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
       const messageHandler = (message: Message) => {
         if (request.signal.aborted) {
+          log('MSG_NACK_ABORTED', { msgId: message.id });
           message.nack();
           return;
         }
+
+        messageCount++;
 
         try {
           const rawData = message.data.toString('utf-8');
@@ -119,32 +140,58 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
             payload = { rawContent: rawData };
           }
 
+          const thread = payload.thread ?? message.attributes?.thread ?? 'unknown';
+          const eventContactId = payload.event?.contact_id ?? payload.contact_id;
+          const content = payload.event?.content ?? payload.event?.body ?? payload.content ?? '';
+          const contentPreview = typeof content === 'string' ? content.slice(0, 80) : String(content).slice(0, 80);
+          const publishTime = message.publishTime?.toISOString();
+          const deliveryAttempt = message.deliveryAttempt;
+          const ageMs = message.publishTime ? Date.now() - message.publishTime.getTime() : null;
+
+          log('MSG_RECV', {
+            msgId: message.id,
+            publishTime,
+            ageMs,
+            thread,
+            contactId: eventContactId,
+            deliveryAttempt,
+            contentPreview,
+            messageCount,
+            elapsed: Date.now() - startTime,
+          });
+
           payload.id = message.id;
-          payload.publishTime = message.publishTime?.toISOString();
+          payload.publishTime = publishTime;
           payload.__ackId = message.ackId;
           if (payload.event && typeof payload.event === 'object') {
             payload.event.id = message.id;
-            payload.event.publishTime = message.publishTime?.toISOString();
+            payload.event.publishTime = publishTime;
           }
 
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+            log('MSG_SENT', { msgId: message.id });
           } catch {
+            log('MSG_WRITE_FAIL', { msgId: message.id });
             message.nack();
             return;
           }
-          // Don't ack here — the browser ACKs via POST /events/ack after display.
-          // The gRPC library auto-extends the ack deadline while this subscriber
-          // is open. On disconnect, the deadline expires and Pub/Sub redelivers.
         } catch (err) {
-          console.error('[Chat SSE] Error processing message:', err);
+          log('MSG_PROCESS_ERROR', { msgId: message.id, error: String(err) });
           message.nack();
         }
       };
 
       const errorHandler = (err: Error) => {
+        errorCount++;
         if (!request.signal.aborted) {
-          console.error('[Chat SSE] Subscriber error:', err.message);
+          log('SUBSCRIBER_ERROR', {
+            error: err.message,
+            stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+            errorCount,
+            messageCount,
+            elapsed: Date.now() - startTime,
+          });
         }
       };
 
@@ -152,11 +199,13 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
       subscription.on('error', errorHandler);
 
       request.signal.addEventListener('abort', () => {
+        const elapsed = Date.now() - startTime;
+        log('STREAM_END', { elapsed, messageCount, keepAliveCount, errorCount });
+
         clearInterval(keepAliveInterval);
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
-        if (__DEV__) console.log(`[Chat SSE] Stream ended for assistant=${assistantId}`);
         try {
           controller.close();
         } catch {
