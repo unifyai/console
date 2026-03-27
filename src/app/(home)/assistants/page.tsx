@@ -52,6 +52,7 @@ import {
 } from '@/lib/assistants/call';
 import {
   getLiveviewUrl,
+  buildLiveviewUrl,
   checkLiveviewHealth,
   sendSystemEvent,
   listUserDesktops,
@@ -150,6 +151,7 @@ const AssistantsPage = async ({
     },
     desktop: {
       getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
+      buildLiveviewUrl: await buildLiveviewUrl(user.apiKey),
       checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),

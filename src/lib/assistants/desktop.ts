@@ -105,6 +105,15 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
   };
 };
 
+export const buildLiveviewUrl = async (userApiKey: string) => {
+  return async (rawUrl: string): Promise<{ liveviewUrl: string }> => {
+    'use server';
+    const urlObj = new URL(rawUrl);
+    urlObj.searchParams.set('password', userApiKey);
+    return { liveviewUrl: urlObj.toString() };
+  };
+};
+
 export const checkLiveviewHealth = async () => {
   return async (liveviewUrl: string): Promise<boolean> => {
     'use server';

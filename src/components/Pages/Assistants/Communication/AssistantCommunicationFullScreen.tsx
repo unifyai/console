@@ -415,7 +415,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
   // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
   // with a low-frequency fallback poll.
-  const isDesktopReady = useDesktopReady(
+  const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
     !isConnecting ? assistant?.agentId : undefined,
     assistantActions.desktop.getLiveviewUrl,
     callData?.handoffState?.isDesktopReady
@@ -466,14 +466,28 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     setIsRemoteControlLoading(true);
     const toastId = toast.loading('Starting assistant screen sharing...');
     try {
-      const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
-      if ('liveviewUrl' in result && result.liveviewUrl) {
-        const healthy = await assistantActions.desktop.checkLiveviewHealth(result.liveviewUrl);
+      let resolvedUrl: string | undefined;
+
+      if (eventLiveviewUrl) {
+        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl);
+        resolvedUrl = built.liveviewUrl;
+      } else {
+        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
+        if ('detail' in result) {
+          console.error('[FullScreen] Failed to get liveview URL:', result.detail);
+          toast.error(result.detail, { id: toastId });
+          return;
+        }
+        resolvedUrl = result.liveviewUrl;
+      }
+
+      if (resolvedUrl) {
+        const healthy = await assistantActions.desktop.checkLiveviewHealth(resolvedUrl);
         if (!healthy) {
           toast.error('Desktop is not reachable — it may still be starting up.', { id: toastId });
           return;
         }
-        setLiveviewUrl(result.liveviewUrl);
+        setLiveviewUrl(resolvedUrl);
         setIsRemoteControlActive(true);
         assistantActions.desktop
           .sendSystemEvent(
@@ -484,11 +498,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
           )
           .catch(console.error);
         toast.success('Assistant screen sharing started.', { id: toastId });
-      } else if ('detail' in result) {
-        console.error('[FullScreen] Failed to get liveview URL:', result.detail);
-        toast.error('detail' in result ? result.detail : 'Could not start screen sharing.', {
-          id: toastId,
-        });
+      } else {
+        toast.error('Could not start screen sharing.', { id: toastId });
       }
     } catch (err) {
       console.error('[FullScreen] Error fetching liveview URL:', err);
@@ -502,6 +513,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     stopRemoteControl,
     assistantActions.desktop,
     assistant,
+    eventLiveviewUrl,
   ]);
 
   // Toggle interactive mode for remote control

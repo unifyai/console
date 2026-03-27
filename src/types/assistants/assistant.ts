@@ -470,6 +470,7 @@ export interface AssistantActions {
   };
   desktop: {
     getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+    buildLiveviewUrl: (rawUrl: string) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
     sendSystemEvent: (
       assistantId: string,
