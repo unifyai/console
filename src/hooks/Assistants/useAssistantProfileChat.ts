@@ -206,37 +206,34 @@ export function useAssistantProfileChat(
     if (isFirstView && !initDoneRef.current) {
       initDoneRef.current = true;
       const initialHistory = preHireChat || [];
+      clientLog('PHASE', { from: 'uninitialized', to: 'ready', reason: 'first_view', preHireMsgCount: initialHistory.length });
       recordTranscriptTimestamp(assistantId, initialHistory);
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
-      // The hiring user is ALWAYS contact ID 1 (owner). The SSE endpoint
-      // and message webhook don't validate that the contact record exists
-      // in the Contacts table — they only use the ID as a namespace. So
-      // we can skip resolution entirely and go straight to 'ready'.
       const ownerId = cachedId ?? OWNER_CONTACT_ID;
       contactIdCacheRef.current.set(assistantId, ownerId);
       setSessionContactId(assistantId, ownerId, userEmail);
       setContactId(ownerId);
       setPhase('ready');
     } else if (chatHistories[assistantId] !== undefined) {
-      // History already exists — either from a previous view or from the
-      // prefetch hook writing transcripts on page load. Record a proper
-      // cutoff so the SSE filter discards backlog messages that are already
-      // in the transcript history.
       if (!transcriptCutoffsRef.current[assistantId]) {
         recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
       }
       if (cachedId !== undefined) {
+        clientLog('PHASE', { from: 'uninitialized', to: 'ready', reason: 'history_exists', contactSource: 'cache', historyLen: chatHistories[assistantId]?.length ?? 0 });
         setContactId(cachedId);
         setPhase('ready');
       } else {
+        clientLog('PHASE', { from: 'uninitialized', to: 'pending_contact', reason: 'history_exists_no_contact' });
         setPhase('pending_contact');
       }
     } else {
       if (cachedId !== undefined) {
+        clientLog('PHASE', { from: 'uninitialized', to: 'loading_transcripts', reason: 'no_history', contactSource: 'cache' });
         setContactId(cachedId);
         setPhase('loading_transcripts');
       } else {
+        clientLog('PHASE', { from: 'uninitialized', to: 'resolving_contact', reason: 'no_history_no_contact' });
         setPhase('resolving_contact');
       }
     }
@@ -259,19 +256,21 @@ export function useAssistantProfileChat(
     if (!assistantId || !assistant) return;
 
     if (!userEmail) {
+      clientLog('PHASE', { from: phase, to: 'error', reason: 'no_email' });
       setCanChat(false);
       setInitialLoadError(true);
       setPhase('error');
       return;
     }
 
-    // Re-check sessionStorage — the prefetch hook may have written the
-    // contact ID between the Phase 1 init check and this effect firing.
     const prefetchedId = getSessionContactId(assistantId, userEmail);
     if (prefetchedId !== undefined) {
       contactIdCacheRef.current.set(assistantId, prefetchedId);
       setContactId(prefetchedId);
       setCanChat(true);
+      const nextPhase = phase === 'pending_contact' ? 'ready' : 'loading_transcripts';
+      clientLog('CONTACT_RESOLVED', { contactId: prefetchedId, source: 'session_prefetch' });
+      clientLog('PHASE', { from: phase, to: nextPhase, reason: 'prefetch_hit' });
       if (phase === 'pending_contact') {
         setPhase('ready');
       } else {
@@ -300,11 +299,14 @@ export function useAssistantProfileChat(
         if (cancelled) return;
 
         if (id !== null) {
+          clientLog('CONTACT_RESOLVED', { contactId: id, source: 'api', attempt });
           contactIdCacheRef.current.set(currentAssistantId, id);
           setSessionContactId(currentAssistantId, id, userEmail);
           setContactId(id);
           setCanChat(true);
           setIsRetryingContactId(false);
+          const nextPhase = skipTranscripts ? 'ready' : 'loading_transcripts';
+          clientLog('PHASE', { from: phase, to: nextPhase, reason: 'contact_resolved' });
           if (skipTranscripts) {
             setPhase('ready');
           } else {
@@ -381,21 +383,23 @@ export function useAssistantProfileChat(
         if (cancelled) return;
 
         if ('detail' in result) {
+          clientLog('PHASE', { from: 'loading_transcripts', to: 'error', reason: 'transcript_error', detail: (result as any).detail });
           setInitialLoadError(true);
           setPhase('error');
         } else {
-          // Use non-mutating reverse — the same result array may be shared
-          // with the prefetch hook's .then() handler if they coalesced.
           const history = [...(result as ChatMessage[])].reverse();
+          clientLog('TRANSCRIPTS_LOADED', { count: history.length, assistant: currentAssistantId });
           recordTranscriptTimestamp(currentAssistantId, history);
           setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
           if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
             setHasMoreMessages(false);
           }
+          clientLog('PHASE', { from: 'loading_transcripts', to: 'ready', reason: 'transcripts_loaded' });
           setPhase('ready');
         }
       } catch {
         if (cancelled) return;
+        clientLog('PHASE', { from: 'loading_transcripts', to: 'error', reason: 'transcript_exception' });
         setInitialLoadError(true);
         setPhase('error');
       }
@@ -442,7 +446,7 @@ export function useAssistantProfileChat(
     }
     if (cachedId === undefined) return;
 
-    // Both ready — skip directly to ready
+    clientLog('PHASE', { from: phase, to: 'ready', reason: 'prefetch_fast_path', historyLen: chatHistories[assistantId]?.length ?? 0 });
     if (!transcriptCutoffsRef.current[assistantId]) {
       recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
     }
@@ -528,13 +532,13 @@ export function useAssistantProfileChat(
         ...incomingMsg,
         timestamp: new Date(incomingMsg.timestamp),
       };
+      clientLog('BROADCAST_RECV', { msgId: incomingMsg.id, role: incomingMsg.role, content: String(incomingMsg.content).slice(0, 40) });
       setChatHistories((prev) => {
         const current = prev[assistantId] || [];
         if (current.some((m) => m.id === messageWithDate.id)) {
+          clientLog('BROADCAST_DEDUP', { msgId: incomingMsg.id });
           return prev;
         }
-        // Clamp user messages to prevent clock-skew mis-ordering
-        // (same fix as sendMessage — all tabs share the same skewed clock)
         let finalMsg = messageWithDate;
         if (messageWithDate.role === 'user' && current.length > 0) {
           const lastTs = Math.max(
@@ -542,6 +546,7 @@ export function useAssistantProfileChat(
           );
           const msgTs = new Date(messageWithDate.timestamp).getTime();
           if (msgTs <= lastTs) {
+            clientLog('BROADCAST_CLAMP', { msgId: incomingMsg.id, original: new Date(msgTs).toISOString(), clamped: new Date(lastTs + 1).toISOString() });
             finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
           }
         }
@@ -580,7 +585,9 @@ export function useAssistantProfileChat(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ackId, contactId: userContactId }),
-      }).catch(() => {});
+      })
+        .then((r) => { if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status }); })
+        .catch((e) => { clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e) }); });
     };
 
     eventSource.onopen = () => {
@@ -789,7 +796,10 @@ export function useAssistantProfileChat(
           currentAssistantId,
           POLL_LIMIT
         );
-        if ('detail' in result) return;
+        if ('detail' in result) {
+          clientLog('POLL_ERROR', { detail: (result as any).detail });
+          return;
+        }
 
         const fetched = [...(result as ChatMessage[])].reverse();
         if (fetched.length === 0) return;
@@ -824,13 +834,16 @@ export function useAssistantProfileChat(
           }
 
           if (!changed) return prev;
+          const added = reconciled.length - current.length;
+          const replaced = claimed.size;
+          clientLog('POLL_RESULT', { fetched: fetched.length, replaced, added, totalAfter: reconciled.length });
           reconciled.sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
           return { ...prev, [currentAssistantId]: reconciled };
         });
-      } catch {
-        // Silent — SSE is the primary mechanism, this is just a safety net
+      } catch (err) {
+        clientLog('POLL_ERROR', { error: String(err) });
       }
     };
 
@@ -861,7 +874,9 @@ export function useAssistantProfileChat(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ackId, contactId }),
-        }).catch(() => {});
+        })
+          .then((r) => { if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status, msgId: msg.id }); })
+          .catch((e) => { clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e), msgId: msg.id }); });
         setChatHistories((prev) => {
           const current = prev[assistantId] || [];
           return {
@@ -1000,6 +1015,7 @@ export function useAssistantProfileChat(
         // sequentially), so rapid successive sends each get a distinct,
         // monotonically increasing timestamp.
         let clampedMessage = newUserMessage;
+        clientLog('SEND_OPTIMISTIC', { msgId: messageId, content: messageToSend.slice(0, 60), attachments: uploadedAttachments?.length ?? 0 });
         setChatHistories((prev) => {
           const current = prev[currentAssistantId] || [];
           const lastTs = current.length > 0
@@ -1036,10 +1052,10 @@ export function useAssistantProfileChat(
           if (response.detail) {
             throw new Error(response.detail);
           }
+          clientLog('SEND_OK', { msgId: messageId });
         } catch (sendError) {
-          // Message-send failed but uploads already succeeded — remove the
-          // optimistic message and restore the text, but do NOT restore
-          // attachments (they were already uploaded to GCS).
+          const errorMsg = sendError instanceof Error ? sendError.message : 'Failed to send message.';
+          clientLog('SEND_ROLLBACK', { msgId: messageId, error: errorMsg });
           setChatHistories((prev) => ({
             ...prev,
             [currentAssistantId]: (prev[currentAssistantId] || []).filter(
@@ -1048,7 +1064,6 @@ export function useAssistantProfileChat(
           }));
           setInputValue(messageToSend);
           stopReplying();
-          const errorMsg = sendError instanceof Error ? sendError.message : 'Failed to send message.';
           toast.error(errorMsg);
         }
       } catch (error) {

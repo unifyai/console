@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
+import { clientLog } from '@/lib/logging/client-log-buffer';
 import {
   buildUserIdFilter,
   buildAssistantIdFilter,
@@ -292,10 +293,9 @@ export function useContactIdPrefetch(
         ? Promise.resolve(cachedId)
         : fetchContactIdDirect(email, assistant.userId, assistant.agentId)
             .then((id) => {
+              clientLog('PREFETCH_CONTACT', { assistant: assistant.agentId, source: id !== null ? 'api' : 'null', contactId: id });
               if (id !== null) {
                 setSessionContactId(assistant.agentId, id, email);
-                // Also register in the dedup map so the chat hook's
-                // getOrFetchContactId call resolves instantly
               }
               return id;
             });
@@ -304,23 +304,28 @@ export function useContactIdPrefetch(
         .then((contactId) => {
           if (contactId === null || !setChatHistories) return;
 
-          // Prefetch transcripts — fire and forget.
-          // Uses direct fetch to bypass server action queue.
           return fetchTranscriptsDirect(
             contactId,
             assistant.userId,
             assistant.agentId
           ).then((result) => {
-            if ('detail' in result) return; // API error — ignore silently
+            if ('detail' in result) {
+              clientLog('PREFETCH_TRANSCRIPTS', { assistant: assistant.agentId, error: (result as any).detail });
+              return;
+            }
             const history = [...(result as ChatMessage[])].reverse();
+            clientLog('PREFETCH_TRANSCRIPTS', { assistant: assistant.agentId, count: history.length });
             setChatHistories((prev) => {
-              if (prev[assistant.agentId] !== undefined) return prev;
+              if (prev[assistant.agentId] !== undefined) {
+                clientLog('PREFETCH_SKIP', { assistant: assistant.agentId, reason: 'already_exists' });
+                return prev;
+              }
               return { ...prev, [assistant.agentId]: history };
             });
           });
         })
-        .catch(() => {
-          // Silently ignore — the chat hook will resolve on demand
+        .catch((err) => {
+          clientLog('PREFETCH_ERROR', { assistant: assistant.agentId, error: String(err) });
         });
     }
   }, [assistants, chatActions, userEmail, setChatHistories]);
