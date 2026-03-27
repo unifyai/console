@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { fetchAssistantStatus } from '@/lib/client/assistant';
 
 const DESKTOP_READY_FALLBACK_INTERVAL = 15000;
 
@@ -64,7 +65,10 @@ export function useDesktopReady(
       try {
         const result = await getLiveviewUrl(assistantId);
         if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-          setIsDesktopReady(true);
+          const status = await fetchAssistantStatus(assistantId);
+          if (!cancelled && status?.running) {
+            setIsDesktopReady(true);
+          }
         }
       } catch {
         // not ready yet
