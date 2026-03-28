@@ -9,7 +9,7 @@ import {
   combineFilters,
 } from '@/utils/assistants/filterExpressions';
 
-const CONTACT_ID_SESSION_PREFIX = "assistant_contact_id:";
+const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
 
 // ── sessionStorage-backed contact ID cache ──────────────────────────────
@@ -104,7 +104,11 @@ const inflightTranscripts = new Map<string, Promise<ChatMessage[] | ResponseProp
  * assistant+contactId combination.
  */
 export function getOrFetchTranscripts(
-  getTranscripts: (contactId: number, ownerId: string, assistantId: string) => Promise<ChatMessage[] | ResponseProps>,
+  getTranscripts: (
+    contactId: number,
+    ownerId: string,
+    assistantId: string
+  ) => Promise<ChatMessage[] | ResponseProps>,
   contactId: number,
   ownerId: string,
   assistantId: string
@@ -206,7 +210,6 @@ export async function fetchTranscriptsDirect(
       .map((log: Record<string, any>): ChatMessage | null => {
         const entries = log.entries;
         const id = log.id;
-        const timestamp = log.ts;
         if (
           !entries ||
           typeof entries.content !== 'string' ||
@@ -218,7 +221,7 @@ export async function fetchTranscriptsDirect(
           id: String(id),
           role: entries.senderId === 0 ? 'assistant' : 'user',
           content: entries.content,
-          timestamp: new Date(timestamp as string),
+          timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
@@ -289,11 +292,15 @@ export function useContactIdPrefetch(
     for (const assistant of toProcess) {
       // Check sessionStorage first — if cached, skip the contact ID fetch
       const cachedId = getSessionContactId(assistant.agentId, email);
-      const contactIdPromise = cachedId !== undefined
-        ? Promise.resolve(cachedId)
-        : fetchContactIdDirect(email, assistant.userId, assistant.agentId)
-            .then((id) => {
-              clientLog('PREFETCH_CONTACT', { assistant: assistant.agentId, source: id !== null ? 'api' : 'null', contactId: id });
+      const contactIdPromise =
+        cachedId !== undefined
+          ? Promise.resolve(cachedId)
+          : fetchContactIdDirect(email, assistant.userId, assistant.agentId).then((id) => {
+              clientLog('PREFETCH_CONTACT', {
+                assistant: assistant.agentId,
+                source: id !== null ? 'api' : 'null',
+                contactId: id,
+              });
               if (id !== null) {
                 setSessionContactId(assistant.agentId, id, email);
               }
@@ -304,25 +311,32 @@ export function useContactIdPrefetch(
         .then((contactId) => {
           if (contactId === null || !setChatHistories) return;
 
-          return fetchTranscriptsDirect(
-            contactId,
-            assistant.userId,
-            assistant.agentId
-          ).then((result) => {
-            if ('detail' in result) {
-              clientLog('PREFETCH_TRANSCRIPTS', { assistant: assistant.agentId, error: (result as any).detail });
-              return;
-            }
-            const history = [...(result as ChatMessage[])].reverse();
-            clientLog('PREFETCH_TRANSCRIPTS', { assistant: assistant.agentId, count: history.length });
-            setChatHistories((prev) => {
-              if (prev[assistant.agentId] !== undefined) {
-                clientLog('PREFETCH_SKIP', { assistant: assistant.agentId, reason: 'already_exists' });
-                return prev;
+          return fetchTranscriptsDirect(contactId, assistant.userId, assistant.agentId).then(
+            (result) => {
+              if ('detail' in result) {
+                clientLog('PREFETCH_TRANSCRIPTS', {
+                  assistant: assistant.agentId,
+                  error: (result as any).detail,
+                });
+                return;
               }
-              return { ...prev, [assistant.agentId]: history };
-            });
-          });
+              const history = [...(result as ChatMessage[])].reverse();
+              clientLog('PREFETCH_TRANSCRIPTS', {
+                assistant: assistant.agentId,
+                count: history.length,
+              });
+              setChatHistories((prev) => {
+                if (prev[assistant.agentId] !== undefined) {
+                  clientLog('PREFETCH_SKIP', {
+                    assistant: assistant.agentId,
+                    reason: 'already_exists',
+                  });
+                  return prev;
+                }
+                return { ...prev, [assistant.agentId]: history };
+              });
+            }
+          );
         })
         .catch((err) => {
           clientLog('PREFETCH_ERROR', { assistant: assistant.agentId, error: String(err) });

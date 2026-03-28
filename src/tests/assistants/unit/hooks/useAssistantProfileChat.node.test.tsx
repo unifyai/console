@@ -877,6 +877,7 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
             content: m.content,
             messageId: m.id,
             medium: 'unify_message',
+            timestamp: m.ts ?? new Date().toISOString(),
             attachments: [],
           },
         })),

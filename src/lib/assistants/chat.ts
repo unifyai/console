@@ -159,7 +159,7 @@ export const getTranscripts = async (apiKey: string) => {
       const logsResponse = data as LogsResponseProps;
       const mappedMessages = (logsResponse.logs as LogProps[])
         .map((log): ChatMessage | null => {
-          const { entries, id, ts: timestamp } = log;
+          const { entries, id } = log;
           if (
             !entries ||
             typeof entries.content !== 'string' ||
@@ -170,10 +170,9 @@ export const getTranscripts = async (apiKey: string) => {
           }
           return {
             id: String(id),
-            // senderId=0 is assistant, anything else is a human user
             role: entries.senderId === 0 ? 'assistant' : 'user',
             content: entries.content,
-            timestamp: new Date(timestamp as string),
+            timestamp: new Date(entries.timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
             attachments: Array.isArray(entries.attachments)
               ? (entries.attachments as Record<string, unknown>[]).map(
