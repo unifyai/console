@@ -8,6 +8,7 @@ import { WorkspaceProvider } from './WorkspaceProvider';
 import { EnvironmentProvider } from './EnvironmentProvider';
 import { AuthErrorBoundary } from '@/components/Common/Auth/AuthErrorBoundary';
 import { getCurrentUser } from '@/lib/user/user';
+import CallSoundPreloader from './CallSoundPreloader';
 
 export default async function Providers({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -29,6 +30,7 @@ export default async function Providers({ children }: { children: React.ReactNod
             <EnvironmentProvider config={envConfig}>
               <WorkspaceProvider user={user}>
                 <QueryProvider>
+                  <CallSoundPreloader />
                   <AuthErrorBoundary>{children}</AuthErrorBoundary>
                 </QueryProvider>
               </WorkspaceProvider>
