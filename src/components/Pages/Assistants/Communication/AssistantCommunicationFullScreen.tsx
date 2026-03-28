@@ -413,10 +413,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
-  // Desktop VM readiness: detected via pubsub (BroadcastChannel from SSE)
-  // with a low-frequency fallback poll.
   const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
-    !isConnecting ? assistant?.agentId : undefined,
+    assistant?.agentId,
     assistantActions.desktop.getLiveviewUrl,
     callData?.handoffState?.isDesktopReady
   );

@@ -6,7 +6,13 @@ import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
 import { snakeToCamelObject } from '@/utils/casing';
-import { getSessionContactId, setSessionContactId, getOrFetchContactId, getOrFetchTranscripts, fetchTranscriptsDirect } from './useContactIdPrefetch';
+import {
+  getSessionContactId,
+  setSessionContactId,
+  getOrFetchContactId,
+  getOrFetchTranscripts,
+  fetchTranscriptsDirect,
+} from './useContactIdPrefetch';
 import { clientLog, setLogContext, getSessionId } from '@/lib/logging/client-log-buffer';
 
 /**
@@ -41,7 +47,6 @@ const OWNER_CONTACT_ID = 1;
 const CONTACT_ID_RETRY_BASE_DELAY = 500;
 const CONTACT_ID_RETRY_MAX_DELAY = 16000;
 const CONTACT_ID_MAX_RETRIES = 6;
-
 
 export function useAssistantProfileChat(
   assistant: Assistant | null,
@@ -108,7 +113,6 @@ export function useAssistantProfileChat(
   const SSE_MAX_RECONNECT_ATTEMPTS = 5;
   const SSE_RECONNECT_BASE_DELAY = 1000;
 
-
   // =========================================================================
   // Reset when assistant changes
   // =========================================================================
@@ -172,7 +176,12 @@ export function useAssistantProfileChat(
       if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
         const prev = transcriptCutoffsRef.current[id] || 0;
         transcriptCutoffsRef.current[id] = maxTime;
-        clientLog('CUTOFF_SET', { assistant: id, cutoff: new Date(maxTime).toISOString(), prev: prev ? new Date(prev).toISOString() : '0', fromMsgCount: msgs.length });
+        clientLog('CUTOFF_SET', {
+          assistant: id,
+          cutoff: new Date(maxTime).toISOString(),
+          prev: prev ? new Date(prev).toISOString() : '0',
+          fromMsgCount: msgs.length,
+        });
       }
     } else if (!transcriptCutoffsRef.current[id]) {
       transcriptCutoffsRef.current[id] = 0;
@@ -209,7 +218,12 @@ export function useAssistantProfileChat(
     if (isFirstView && !initDoneRef.current) {
       initDoneRef.current = true;
       const initialHistory = preHireChat || [];
-      clientLog('PHASE', { from: 'uninitialized', to: 'ready', reason: 'first_view', preHireMsgCount: initialHistory.length });
+      clientLog('PHASE', {
+        from: 'uninitialized',
+        to: 'ready',
+        reason: 'first_view',
+        preHireMsgCount: initialHistory.length,
+      });
       recordTranscriptTimestamp(assistantId, initialHistory);
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
@@ -223,20 +237,39 @@ export function useAssistantProfileChat(
         recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
       }
       if (cachedId !== undefined) {
-        clientLog('PHASE', { from: 'uninitialized', to: 'ready', reason: 'history_exists', contactSource: 'cache', historyLen: chatHistories[assistantId]?.length ?? 0 });
+        clientLog('PHASE', {
+          from: 'uninitialized',
+          to: 'ready',
+          reason: 'history_exists',
+          contactSource: 'cache',
+          historyLen: chatHistories[assistantId]?.length ?? 0,
+        });
         setContactId(cachedId);
         setPhase('ready');
       } else {
-        clientLog('PHASE', { from: 'uninitialized', to: 'pending_contact', reason: 'history_exists_no_contact' });
+        clientLog('PHASE', {
+          from: 'uninitialized',
+          to: 'pending_contact',
+          reason: 'history_exists_no_contact',
+        });
         setPhase('pending_contact');
       }
     } else {
       if (cachedId !== undefined) {
-        clientLog('PHASE', { from: 'uninitialized', to: 'loading_transcripts', reason: 'no_history', contactSource: 'cache' });
+        clientLog('PHASE', {
+          from: 'uninitialized',
+          to: 'loading_transcripts',
+          reason: 'no_history',
+          contactSource: 'cache',
+        });
         setContactId(cachedId);
         setPhase('loading_transcripts');
       } else {
-        clientLog('PHASE', { from: 'uninitialized', to: 'resolving_contact', reason: 'no_history_no_contact' });
+        clientLog('PHASE', {
+          from: 'uninitialized',
+          to: 'resolving_contact',
+          reason: 'no_history_no_contact',
+        });
         setPhase('resolving_contact');
       }
     }
@@ -386,7 +419,12 @@ export function useAssistantProfileChat(
         if (cancelled) return;
 
         if ('detail' in result) {
-          clientLog('PHASE', { from: 'loading_transcripts', to: 'error', reason: 'transcript_error', detail: (result as any).detail });
+          clientLog('PHASE', {
+            from: 'loading_transcripts',
+            to: 'error',
+            reason: 'transcript_error',
+            detail: (result as any).detail,
+          });
           setInitialLoadError(true);
           setPhase('error');
         } else {
@@ -397,12 +435,20 @@ export function useAssistantProfileChat(
           if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
             setHasMoreMessages(false);
           }
-          clientLog('PHASE', { from: 'loading_transcripts', to: 'ready', reason: 'transcripts_loaded' });
+          clientLog('PHASE', {
+            from: 'loading_transcripts',
+            to: 'ready',
+            reason: 'transcripts_loaded',
+          });
           setPhase('ready');
         }
       } catch {
         if (cancelled) return;
-        clientLog('PHASE', { from: 'loading_transcripts', to: 'error', reason: 'transcript_exception' });
+        clientLog('PHASE', {
+          from: 'loading_transcripts',
+          to: 'error',
+          reason: 'transcript_exception',
+        });
         setInitialLoadError(true);
         setPhase('error');
       }
@@ -449,7 +495,12 @@ export function useAssistantProfileChat(
     }
     if (cachedId === undefined) return;
 
-    clientLog('PHASE', { from: phase, to: 'ready', reason: 'prefetch_fast_path', historyLen: chatHistories[assistantId]?.length ?? 0 });
+    clientLog('PHASE', {
+      from: phase,
+      to: 'ready',
+      reason: 'prefetch_fast_path',
+      historyLen: chatHistories[assistantId]?.length ?? 0,
+    });
     if (!transcriptCutoffsRef.current[assistantId]) {
       recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
     }
@@ -535,7 +586,11 @@ export function useAssistantProfileChat(
         ...incomingMsg,
         timestamp: new Date(incomingMsg.timestamp),
       };
-      clientLog('BROADCAST_RECV', { msgId: incomingMsg.id, role: incomingMsg.role, content: String(incomingMsg.content).slice(0, 40) });
+      clientLog('BROADCAST_RECV', {
+        msgId: incomingMsg.id,
+        role: incomingMsg.role,
+        content: String(incomingMsg.content).slice(0, 40),
+      });
       setChatHistories((prev) => {
         const current = prev[assistantId] || [];
         if (current.some((m) => m.id === messageWithDate.id)) {
@@ -544,12 +599,14 @@ export function useAssistantProfileChat(
         }
         let finalMsg = messageWithDate;
         if (messageWithDate.role === 'user' && current.length > 0) {
-          const lastTs = Math.max(
-            ...current.map((m) => new Date(m.timestamp).getTime())
-          );
+          const lastTs = Math.max(...current.map((m) => new Date(m.timestamp).getTime()));
           const msgTs = new Date(messageWithDate.timestamp).getTime();
           if (msgTs <= lastTs) {
-            clientLog('BROADCAST_CLAMP', { msgId: incomingMsg.id, original: new Date(msgTs).toISOString(), clamped: new Date(lastTs + 1).toISOString() });
+            clientLog('BROADCAST_CLAMP', {
+              msgId: incomingMsg.id,
+              original: new Date(msgTs).toISOString(),
+              clamped: new Date(lastTs + 1).toISOString(),
+            });
             finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
           }
         }
@@ -589,8 +646,12 @@ export function useAssistantProfileChat(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ackId, contactId: userContactId }),
       })
-        .then((r) => { if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status }); })
-        .catch((e) => { clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e) }); });
+        .then((r) => {
+          if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status });
+        })
+        .catch((e) => {
+          clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e) });
+        });
     };
 
     eventSource.onopen = () => {
@@ -614,7 +675,11 @@ export function useAssistantProfileChat(
 
         const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
         if (messageContactId !== undefined && messageContactId !== userContactId) {
-          clientLog('FILTERED_CONTACT', { msgId, msgContact: messageContactId, myContact: userContactId });
+          clientLog('FILTERED_CONTACT', {
+            msgId,
+            msgContact: messageContactId,
+            myContact: userContactId,
+          });
           if (ackId) ack(ackId);
           return;
         }
@@ -623,7 +688,14 @@ export function useAssistantProfileChat(
           const msgTime = new Date(publishTimeStr).getTime();
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
           if (msgTime < cutoff) {
-            clientLog('FILTERED_CUTOFF', { msgId, publishTime: publishTimeStr, ageMs: Date.now() - msgTime, cutoff: new Date(cutoff).toISOString(), cutoffAgeMs: Date.now() - cutoff, thread });
+            clientLog('FILTERED_CUTOFF', {
+              msgId,
+              publishTime: publishTimeStr,
+              ageMs: Date.now() - msgTime,
+              cutoff: new Date(cutoff).toISOString(),
+              cutoffAgeMs: Date.now() - cutoff,
+              thread,
+            });
             if (ackId) ack(ackId);
             return;
           }
@@ -631,8 +703,14 @@ export function useAssistantProfileChat(
 
         if (thread === 'assistant_desktop_ready') {
           if (ackId) ack(ackId);
+          const eventData = messagePayload.event ?? {};
+          try {
+            sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
+          } catch {
+            /* quota / SSR */
+          }
           const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
-          desktopChannel.postMessage(messagePayload.event ?? {});
+          desktopChannel.postMessage(eventData);
           desktopChannel.close();
           return;
         }
@@ -651,7 +729,15 @@ export function useAssistantProfileChat(
           const msgAgeMs = publishTimeStr ? Date.now() - timestamp.getTime() : 0;
           const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
 
-          clientLog('MSG_RECV', { msgId: serverMsgId, publishTime: publishTimeStr ?? 'none', ageMs: msgAgeMs, resolvedTimestamp: timestamp.toISOString(), cutoff: cutoff ? new Date(cutoff).toISOString() : '0', thread, content: contentPreview });
+          clientLog('MSG_RECV', {
+            msgId: serverMsgId,
+            publishTime: publishTimeStr ?? 'none',
+            ageMs: msgAgeMs,
+            resolvedTimestamp: timestamp.toISOString(),
+            cutoff: cutoff ? new Date(cutoff).toISOString() : '0',
+            thread,
+            content: contentPreview,
+          });
 
           const rawAttachments = messagePayload.event?.attachments;
           const attachments: Attachment[] | undefined = Array.isArray(rawAttachments)
@@ -703,17 +789,22 @@ export function useAssistantProfileChat(
 
             const insertIndex = updatedList.findIndex((m) => m.id === serverMsgId);
             const isAtEnd = insertIndex === updatedList.length - 1;
-            clientLog('MSG_INSERTED', { msgId: serverMsgId, position: insertIndex, total: updatedList.length, isAtEnd, historyLen: currentHistory.length });
+            clientLog('MSG_INSERTED', {
+              msgId: serverMsgId,
+              position: insertIndex,
+              total: updatedList.length,
+              isAtEnd,
+              historyLen: currentHistory.length,
+            });
             if (!isAtEnd) {
-              const neighbors = updatedList.slice(
-                Math.max(0, insertIndex - 1),
-                insertIndex + 2
-              ).map((m) => ({
-                id: m.id,
-                role: m.role,
-                ts: new Date(m.timestamp).toISOString(),
-                content: m.content.slice(0, 40),
-              }));
+              const neighbors = updatedList
+                .slice(Math.max(0, insertIndex - 1), insertIndex + 2)
+                .map((m) => ({
+                  id: m.id,
+                  role: m.role,
+                  ts: new Date(m.timestamp).toISOString(),
+                  content: m.content.slice(0, 40),
+                }));
               clientLog('MSG_NOT_AT_END', { msgId: serverMsgId, position: insertIndex, neighbors });
             }
 
@@ -743,7 +834,13 @@ export function useAssistantProfileChat(
       const attempt = sseReconnectAttemptsRef.current;
       const willRetry = attempt < SSE_MAX_RECONNECT_ATTEMPTS;
       const delay = willRetry ? SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempt) : 0;
-      clientLog('SSE_ERROR', { assistant: assistantId, attempt, maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS, willRetry, retryDelayMs: delay });
+      clientLog('SSE_ERROR', {
+        assistant: assistantId,
+        attempt,
+        maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS,
+        willRetry,
+        retryDelayMs: delay,
+      });
 
       eventSource.close();
 
@@ -759,7 +856,10 @@ export function useAssistantProfileChat(
           setSseReconnectTrigger((prev) => prev + 1);
         }, delay);
       } else {
-        clientLog('SSE_GAVE_UP', { assistant: assistantId, maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS });
+        clientLog('SSE_GAVE_UP', {
+          assistant: assistantId,
+          maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS,
+        });
         setConnectionStatus('error');
         sseReconnectAttemptsRef.current = 0;
       }
@@ -773,6 +873,9 @@ export function useAssistantProfileChat(
         sseReconnectTimeoutRef.current = null;
       }
     };
+    // userEmail is intentionally omitted — it is read inside onopen but
+    // should not trigger SSE reconnection when the session loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
 
   // =========================================================================
@@ -823,9 +926,7 @@ export function useAssistantProfileChat(
 
             const matchIdx = reconciled.findIndex(
               (existing, idx) =>
-                !claimed.has(idx) &&
-                existing.role === m.role &&
-                existing.content === m.content
+                !claimed.has(idx) && existing.role === m.role && existing.content === m.content
             );
 
             if (matchIdx !== -1) {
@@ -841,7 +942,12 @@ export function useAssistantProfileChat(
           if (!changed) return prev;
           const added = reconciled.length - current.length;
           const replaced = claimed.size;
-          clientLog('POLL_RESULT', { fetched: fetched.length, replaced, added, totalAfter: reconciled.length });
+          clientLog('POLL_RESULT', {
+            fetched: fetched.length,
+            replaced,
+            added,
+            totalAfter: reconciled.length,
+          });
           reconciled.sort(
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
@@ -880,15 +986,18 @@ export function useAssistantProfileChat(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ackId, contactId }),
         })
-          .then((r) => { if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status, msgId: msg.id }); })
-          .catch((e) => { clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e), msgId: msg.id }); });
+          .then((r) => {
+            if (!r.ok)
+              clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status, msgId: msg.id });
+          })
+          .catch((e) => {
+            clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e), msgId: msg.id });
+          });
         setChatHistories((prev) => {
           const current = prev[assistantId] || [];
           return {
             ...prev,
-            [assistantId]: current.map((m) =>
-              m.id === msg.id ? { ...m, __ackId: undefined } : m
-            ),
+            [assistantId]: current.map((m) => (m.id === msg.id ? { ...m, __ackId: undefined } : m)),
           };
         });
       }
@@ -957,7 +1066,12 @@ export function useAssistantProfileChat(
                 setPendingAttachments?.((prev) =>
                   prev.map((a) =>
                     a.id === id
-                      ? { ...a, gsUrl: result.gsUrl, contentType: result.contentType, sizeBytes: result.sizeBytes }
+                      ? {
+                          ...a,
+                          gsUrl: result.gsUrl,
+                          contentType: result.contentType,
+                          sizeBytes: result.sizeBytes,
+                        }
                       : a
                   )
                 );
@@ -973,9 +1087,7 @@ export function useAssistantProfileChat(
 
           if (failedIds.size > 0) {
             const failedCount = failedIds.size;
-            toast.error(
-              `${failedCount} attachment${failedCount > 1 ? 's' : ''} failed to upload`
-            );
+            toast.error(`${failedCount} attachment${failedCount > 1 ? 's' : ''} failed to upload`);
           }
 
           // Clear succeeded chips, keep failed ones with error status and remove buttons
@@ -988,7 +1100,8 @@ export function useAssistantProfileChat(
           setPendingAttachments?.([]);
         }
 
-        const hasMessageContent = messageToSend || (uploadedAttachments && uploadedAttachments.length > 0);
+        const hasMessageContent =
+          messageToSend || (uploadedAttachments && uploadedAttachments.length > 0);
         if (!hasMessageContent) {
           setInputValue(messageToSend);
           stopReplying();
@@ -1020,12 +1133,17 @@ export function useAssistantProfileChat(
         // sequentially), so rapid successive sends each get a distinct,
         // monotonically increasing timestamp.
         let clampedMessage = newUserMessage;
-        clientLog('SEND_OPTIMISTIC', { msgId: messageId, content: messageToSend.slice(0, 60), attachments: uploadedAttachments?.length ?? 0 });
+        clientLog('SEND_OPTIMISTIC', {
+          msgId: messageId,
+          content: messageToSend.slice(0, 60),
+          attachments: uploadedAttachments?.length ?? 0,
+        });
         setChatHistories((prev) => {
           const current = prev[currentAssistantId] || [];
-          const lastTs = current.length > 0
-            ? Math.max(...current.map((m) => new Date(m.timestamp).getTime()))
-            : 0;
+          const lastTs =
+            current.length > 0
+              ? Math.max(...current.map((m) => new Date(m.timestamp).getTime()))
+              : 0;
           const msgTs = new Date(newUserMessage.timestamp).getTime();
           const clampedTs = new Date(Math.max(msgTs, lastTs + 1));
           clampedMessage = { ...newUserMessage, timestamp: clampedTs };
@@ -1059,7 +1177,8 @@ export function useAssistantProfileChat(
           }
           clientLog('SEND_OK', { msgId: messageId });
         } catch (sendError) {
-          const errorMsg = sendError instanceof Error ? sendError.message : 'Failed to send message.';
+          const errorMsg =
+            sendError instanceof Error ? sendError.message : 'Failed to send message.';
           clientLog('SEND_ROLLBACK', { msgId: messageId, error: errorMsg });
           setChatHistories((prev) => ({
             ...prev,
@@ -1079,9 +1198,7 @@ export function useAssistantProfileChat(
         toast.error(errorMsg);
 
         if (attachments && attachments.length > 0) {
-          setPendingAttachments?.(
-            attachments.map((a) => ({ ...a, uploadStatus: undefined }))
-          );
+          setPendingAttachments?.(attachments.map((a) => ({ ...a, uploadStatus: undefined })));
         }
       }
     };

@@ -123,7 +123,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
-              assistantActions.call.dispatchToCall(assistant.agentId, expectedRoomName, assistant.deployEnv),
+              assistantActions.call.dispatchToCall(
+                assistant.agentId,
+                expectedRoomName,
+                assistant.deployEnv
+              ),
             ]);
             if (isStaleAttempt()) return;
 
@@ -255,7 +259,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   ]);
 
   const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
-    isConnected ? activeCallAssistant?.agentId : undefined,
+    activeCallAssistant?.agentId,
     assistantActions.desktop.getLiveviewUrl
   );
 
@@ -516,7 +520,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       clearAssistantJoinTimeout();
     };
-  }, [room, onDisconnected, clearAssistantJoinTimeout, redispatchAssistant, assistantActions.call, stopRinging]);
+  }, [
+    room,
+    onDisconnected,
+    clearAssistantJoinTimeout,
+    redispatchAssistant,
+    assistantActions.call,
+    stopRinging,
+  ]);
 
   // Ensure proper cleanup on component unmount
   React.useEffect(() => {

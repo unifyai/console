@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { fetchAssistantStatus } from '@/lib/client/assistant';
 
 const DESKTOP_READY_FALLBACK_INTERVAL = 15000;
 
@@ -9,20 +8,36 @@ export interface DesktopReadyState {
   eventLiveviewUrl: string | null;
 }
 
+function readStoredDesktopReady(assistantId: string | undefined): { url: string | null } | null {
+  if (!assistantId) return null;
+  try {
+    const raw = sessionStorage.getItem(`desktop-ready-${assistantId}`);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const url = data?.liveview_url ?? data?.liveviewUrl;
+    return { url: typeof url === 'string' && url ? url : null };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Detects when an assistant's desktop VM is ready via two mechanisms:
+ * Detects when an assistant's desktop VM is ready via three mechanisms
+ * (checked in order of speed):
  *
- * 1. BroadcastChannel — `useAssistantProfileChat` receives the
- *    `assistant_desktop_ready` event over SSE and broadcasts it.
- *    This is instant and zero-cost. If the event payload contains
- *    `liveview_url`, it is captured so callers can skip the logs
- *    API roundtrip.
+ * 1. sessionStorage (synchronous) — `useAssistantProfileChat` persists
+ *    the `assistant_desktop_ready` payload when it arrives over SSE.
+ *    Read during state initialization so the value is available on the
+ *    very first render, with no effect-driven re-render required.
  *
- * 2. Low-frequency fallback poll via `getLiveviewUrl` — covers the
+ * 2. BroadcastChannel (real-time) — same SSE handler also broadcasts
+ *    the event for any tabs that are already listening.
+ *
+ * 3. Low-frequency fallback poll via `getLiveviewUrl` — covers the
  *    case where no SSE listener is active (e.g. standalone fullscreen
  *    tab with the chat panel closed). Runs every 15 s with a single
- *    non-retrying fetch, dramatically lighter than the old 3 s poll
- *    with 15 internal retries each.
+ *    non-retrying fetch. The liveview URL is only written after VM
+ *    readiness, so its presence is sufficient proof.
  */
 export function useDesktopReady(
   assistantId: string | undefined,
@@ -31,16 +46,21 @@ export function useDesktopReady(
     | undefined,
   initialValue = false
 ): DesktopReadyState {
-  const [isDesktopReady, setIsDesktopReady] = React.useState(initialValue);
-  const [eventLiveviewUrl, setEventLiveviewUrl] = React.useState<string | null>(null);
+  const [isDesktopReady, setIsDesktopReady] = React.useState(
+    () => initialValue || !!readStoredDesktopReady(assistantId)
+  );
+  const [eventLiveviewUrl, setEventLiveviewUrl] = React.useState<string | null>(
+    () => readStoredDesktopReady(assistantId)?.url ?? null
+  );
 
-  // Reset when assistant changes
+  // Reset when assistant changes — re-read sessionStorage synchronously.
   React.useEffect(() => {
-    setIsDesktopReady(initialValue);
-    setEventLiveviewUrl(null);
+    const stored = readStoredDesktopReady(assistantId);
+    setIsDesktopReady(initialValue || !!stored);
+    setEventLiveviewUrl(stored?.url ?? null);
   }, [assistantId, initialValue]);
 
-  // Primary: listen for BroadcastChannel events from useAssistantProfileChat
+  // Real-time: listen for BroadcastChannel events from useAssistantProfileChat
   React.useEffect(() => {
     if (!assistantId || isDesktopReady) return;
 
@@ -55,7 +75,7 @@ export function useDesktopReady(
     return () => channel.close();
   }, [assistantId, isDesktopReady]);
 
-  // Fallback: single-shot check on mount + low-frequency polling
+  // Fallback: single-shot check on mount + low-frequency polling.
   React.useEffect(() => {
     if (!assistantId || !getLiveviewUrl || isDesktopReady) return;
 
@@ -65,10 +85,7 @@ export function useDesktopReady(
       try {
         const result = await getLiveviewUrl(assistantId);
         if (!cancelled && result && 'liveviewUrl' in result && result.liveviewUrl) {
-          const status = await fetchAssistantStatus(assistantId);
-          if (!cancelled && status?.running) {
-            setIsDesktopReady(true);
-          }
+          setIsDesktopReady(true);
         }
       } catch {
         // not ready yet
