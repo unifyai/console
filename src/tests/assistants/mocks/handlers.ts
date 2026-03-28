@@ -50,14 +50,16 @@ export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
   const TOTAL_MESSAGES = 75;
   const allLogs = Array.from({ length: TOTAL_MESSAGES }, (_, i) => {
     const id = i + 1;
+    const ts = new Date(Date.now() - (TOTAL_MESSAGES - id) * 1000 * 60).toISOString();
     return {
       id: id,
-      timestamp: new Date(Date.now() - (TOTAL_MESSAGES - id) * 1000 * 60).toISOString(),
+      ts,
       entries: {
         senderId: id % 2 === 0 ? 0 : 1,
         content: `Message ${id}`,
         medium: 'unify_message',
         messageId: id,
+        timestamp: ts,
       },
     };
   }).reverse();

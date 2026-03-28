@@ -303,6 +303,7 @@ describe('useContactIdPrefetch', () => {
             content: m.content,
             messageId: m.id,
             medium: 'unify_message',
+            timestamp: '2026-03-14T00:00:00Z',
             attachments: [],
           },
         })),

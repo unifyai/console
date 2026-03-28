@@ -113,7 +113,7 @@ const fetchTranscriptsViaApi = async (
       id: String(log.id),
       role: log.entries.sender_id === 1 ? 'user' : 'assistant',
       content: log.entries.content,
-      timestamp: new Date(log.timestamp),
+      timestamp: new Date(log.entries.timestamp),
       messageId: log.entries.messageId,
     }));
   } catch (e) {
