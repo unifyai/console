@@ -166,6 +166,8 @@ export function HireForm({
   const rhfIsPresetPristine = watch('isPresetPristine');
   const rhfProfileVideoUrl = watch('profileVideoUrl');
   const videoSourceVoiceId = watch('videoSourceVoiceId');
+  const hasExistingEditVideo =
+    mode === 'edit' && !videoFile && !!(rhfProfileVideoUrl || videoPreviewUrl);
 
   // --- Start of Video Playability Logic ---
   const isVideoPlayable = React.useMemo(() => {
@@ -174,7 +176,7 @@ export function HireForm({
 
     // An existing video on an assistant being edited is always playable,
     // as it's not dependent on the currently selected form voice.
-    if (mode === 'edit' && !!rhfProfileVideoUrl && !videoFile) {
+    if (hasExistingEditVideo) {
       return true;
     }
 
@@ -197,11 +199,11 @@ export function HireForm({
   }, [
     videoPreviewUrl,
     videoFile,
+    hasExistingEditVideo,
     isPresetPristine,
     rhfVoiceId,
     rhfProfileVideoUrl,
     videoSourceVoiceId,
-    mode,
   ]);
 
   // --- End of Video Playability Logic ---
@@ -231,7 +233,7 @@ export function HireForm({
   ]);
 
   const isEditMode = mode === 'edit';
-  const shouldUseAnimateClickShortcut = !(isEditMode && !!rhfProfileVideoUrl && !videoFile);
+  const shouldUseAnimateClickShortcut = !hasExistingEditVideo;
   const handlePhotoViewerClick = () => {
     // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
     setPhotoCustomizationTab('animate');

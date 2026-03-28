@@ -410,12 +410,14 @@ export function useAssistantForm(
       );
       const profilePhotoPath = assistant.profilePhoto ?? null;
       const profileVideoPath = assistant.profileVideo ?? null;
-      const shouldRefreshPhotoPreview = isGcsPhoto(profilePhotoPath);
-      const shouldRefreshVideoPreview = isGcsPhoto(profileVideoPath);
+      const photoRefreshPath = profilePhotoPath ?? assistant.signedProfilePhotoUrl ?? null;
+      const videoRefreshPath = profileVideoPath ?? assistant.signedProfileVideoUrl ?? null;
+      const shouldRefreshPhotoPreview = isGcsPhoto(photoRefreshPath);
+      const shouldRefreshVideoPreview = isGcsPhoto(videoRefreshPath);
       const initialPhotoPreviewUrl =
-        assistant.signedProfilePhotoUrl || (shouldRefreshPhotoPreview ? null : profilePhotoPath);
+        assistant.signedProfilePhotoUrl || (shouldRefreshPhotoPreview ? null : photoRefreshPath);
       const initialVideoPreviewUrl =
-        assistant.signedProfileVideoUrl || (shouldRefreshVideoPreview ? null : profileVideoPath);
+        assistant.signedProfileVideoUrl || (shouldRefreshVideoPreview ? null : videoRefreshPath);
 
       reset({
         ...getValues(),
@@ -431,8 +433,8 @@ export function useAssistantForm(
         // Media
         photoPreviewUrl: initialPhotoPreviewUrl,
         videoPreviewUrl: initialVideoPreviewUrl,
-        profilePhotoUrl: profilePhotoPath,
-        profileVideoUrl: profileVideoPath,
+        profilePhotoUrl: profilePhotoPath ?? photoRefreshPath,
+        profileVideoUrl: profileVideoPath ?? videoRefreshPath,
         photoFile: null,
         videoFile: null,
 
@@ -453,8 +455,8 @@ export function useAssistantForm(
       setShowInsufficientFundsHint(false);
 
       const gcsMediaPaths: string[] = [
-        ...(shouldRefreshPhotoPreview && profilePhotoPath ? [profilePhotoPath] : []),
-        ...(shouldRefreshVideoPreview && profileVideoPath ? [profileVideoPath] : []),
+        ...(shouldRefreshPhotoPreview && photoRefreshPath ? [photoRefreshPath] : []),
+        ...(shouldRefreshVideoPreview && videoRefreshPath ? [videoRefreshPath] : []),
       ];
 
       if (gcsMediaPaths.length === 0) {
@@ -467,16 +469,16 @@ export function useAssistantForm(
           return;
         }
 
-        if (shouldRefreshPhotoPreview && profilePhotoPath) {
-          const refreshedPhotoPreviewUrl = signedUrlMap[profilePhotoPath];
+        if (shouldRefreshPhotoPreview && photoRefreshPath) {
+          const refreshedPhotoPreviewUrl = signedUrlMap[photoRefreshPath];
           if (refreshedPhotoPreviewUrl) {
             setValue('photoPreviewUrl', refreshedPhotoPreviewUrl);
           } else if (!initialPhotoPreviewUrl) {
             setValue('photoPreviewUrl', null);
           }
         }
-        if (shouldRefreshVideoPreview && profileVideoPath) {
-          const refreshedVideoPreviewUrl = signedUrlMap[profileVideoPath];
+        if (shouldRefreshVideoPreview && videoRefreshPath) {
+          const refreshedVideoPreviewUrl = signedUrlMap[videoRefreshPath];
           if (refreshedVideoPreviewUrl) {
             setValue('videoPreviewUrl', refreshedVideoPreviewUrl);
           } else if (!initialVideoPreviewUrl) {

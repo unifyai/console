@@ -1450,6 +1450,75 @@ describe('Assistant Hire Flow', () => {
     );
 
     it(
+      'should refresh and play edit video when only signedProfileVideoUrl is present',
+      {
+        meta: {
+          alias: 'Edit-Refresh-Video-SignedOnly',
+          behavior: 'Keeps existing edit video playable without switching to animate tab',
+          scenario: 'Editing assistant with only signedProfileVideoUrl metadata',
+        },
+      },
+      async () => {
+        const user = userEvent.setup();
+        const staleSignedVideoUrl =
+          'https://storage.googleapis.com/assistant-media-staging/1132/video/alien-edit-flow.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Date=20260328T005000Z&X-Goog-Expires=900&X-Goog-Signature=stale';
+        const refreshedSignedVideoUrl =
+          'https://storage.googleapis.com/assistant-media-staging/1132/video/alien-edit-flow.mp4?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Date=20260328T005500Z&X-Goog-Expires=900&X-Goog-Signature=fresh';
+
+        const originalFetch = window.fetch;
+        const fetchSpy = vi
+          .spyOn(window, 'fetch')
+          .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (url.includes('/api/assistant/media/batch-urls')) {
+              return new Response(
+                JSON.stringify({
+                  urls: {
+                    [staleSignedVideoUrl]: refreshedSignedVideoUrl,
+                  },
+                }),
+                {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' },
+                }
+              );
+            }
+            return originalFetch(input, init);
+          });
+
+        const assistantWithSignedOnlyVideo = {
+          ...mockAssistants[0],
+          profileVideo: null,
+          signedProfileVideoUrl: staleSignedVideoUrl,
+        };
+
+        render(<EditFlowTestWrapper assistant={assistantWithSignedOnlyVideo} />);
+
+        await waitFor(() => {
+          const refreshCall = fetchSpy.mock.calls.find((call) =>
+            String(call[0]).includes('/api/assistant/media/batch-urls')
+          );
+          expect(refreshCall).toBeDefined();
+          expect(String(refreshCall?.[1]?.body)).toContain(staleSignedVideoUrl);
+        });
+
+        const animateTab = screen.getByRole('tab', { name: /animate/i });
+        expect(animateTab).toHaveAttribute('data-state', 'inactive');
+
+        const mediaContainer = document.querySelector('.h-44.w-44');
+        expect(mediaContainer).not.toBeNull();
+        await user.click(mediaContainer as HTMLElement);
+
+        await waitFor(() => {
+          expect(animateTab).toHaveAttribute('data-state', 'inactive');
+          const videoEl = document.querySelector('video');
+          expect(videoEl).not.toBeNull();
+          expect(videoEl).toHaveAttribute('src', refreshedSignedVideoUrl);
+        });
+      }
+    );
+
+    it(
       'should load assistant data into form',
       {
         meta: {
